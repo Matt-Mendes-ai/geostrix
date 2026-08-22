@@ -13,6 +13,7 @@ import IsoconTool from "../components/IsoconTool.jsx";
 import CorrelationMatrix from "../components/CorrelationMatrix.jsx";
 import BestIntercepts from "../components/BestIntercepts.jsx";
 import CompositingModal from "../components/CompositingModal.jsx";
+import GradeStatistics from "../components/GradeStatistics.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -30,6 +31,7 @@ export default function GeochemModule() {
   const [corrOpen, setCorrOpen] = useState(false);
   const [bestIntOpen, setBestIntOpen] = useState(false);
   const [compositingOpen, setCompositingOpen] = useState(false);
+  const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -260,6 +262,7 @@ export default function GeochemModule() {
             <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
             <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={13} /> Isocon / mass-change calculator</button>
             <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={13} /> Correlation matrix</button>
+            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={13} /> Grade statistics</button>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Reporting</div>
             <button onClick={() => setBestIntOpen(true)} style={genBtn}><Ruler size={13} /> Best-intercept report</button>
@@ -367,6 +370,15 @@ export default function GeochemModule() {
           assayElements={assayElements}
           layers={layers}
           onClose={() => setCompositingOpen(false)}
+        />
+      )}
+
+      {gradeStatsOpen && (
+        <GradeStatistics
+          assays={assays}
+          assayElements={assayElements}
+          layers={layers}
+          onClose={() => setGradeStatsOpen(false)}
         />
       )}
     </div>
