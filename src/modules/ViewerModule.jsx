@@ -2934,7 +2934,21 @@ export default function ViewerModule({ mode = "view" }) {
       // — so the JS-side color data (verified correct via a live instanceColor.array dump) never
       // reached the screen. Confirmed live: forcing vertexColors:false while leaving instanceColor
       // set turned the fragment from rgb(0,0,0) into the correct rgb(91,62,91)-family color.
-      const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity });
+      // TASKS.csv #201 — bug fix: "voxel has a bug that it will only display the selected opacity
+      // from certain angles." Root cause: a transparent material with the default depthWrite:true
+      // still writes into the depth buffer, and three.js does NOT depth-sort individual instances
+      // within one InstancedMesh draw call — so whichever voxel happens to rasterize first (an order
+      // that shifts with camera angle) occludes the ones behind it in the depth test, making them
+      // vanish outright instead of blending, rather than a uniform semi-transparent appearance from
+      // every angle. depthWrite:false (only while actually transparent — an opaque model at
+      // opacity>=1 keeps depthWrite:true, unchanged, so it still occludes other opaque geometry
+      // correctly) removes that per-angle culling: every instance now blends over whatever was
+      // already drawn behind it instead of fighting the depth buffer. This doesn't add true
+      // back-to-front instance sorting (a real per-frame sort would be its own perf cost at tens of
+      // thousands of cells), so overlapping voxels can still blend in draw order rather than strict
+      // depth order — but that's a subtle blending-order nuance, not the reported bug (voxels
+      // disappearing/reappearing depending on view angle).
+      const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
       const { min, max } = model;
       cells.forEach((c, i) => {
