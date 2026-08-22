@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen } from "lucide-react";
+import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn } from "lucide-react";
 import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -162,6 +162,21 @@ export default function LayoutModule() {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
     requestViewportRender(themeId, targetElementId, trueScale);
+    setThemePickerFor(null);
+    goToModule("viewer");
+  };
+
+  // TASKS.csv #198 (part 3) — "Enter" an existing Viewport for live orbit/pan/zoom instead of an
+  // instant re-render. Only makes sense for an EXISTING element (never "new" — you can't enter a
+  // viewport that doesn't exist yet), so this only gets wired up from ViewportControls, not the
+  // "Add viewport" theme picker. Same shape as startViewportRender, just with interactive:true —
+  // ViewerModule's render effect (see its own long comment) does the rest: apply the theme, then
+  // wait for the user to exit instead of auto-capturing after 400ms.
+  const startInteractiveViewportEdit = (themeId, targetElementId, trueScale) => {
+    const theme = themes.find((t) => t.id === themeId);
+    if (!theme) return;
+    setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
+    requestViewportRender(themeId, targetElementId, trueScale, true);
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -591,6 +606,7 @@ export default function LayoutModule() {
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale)}
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale)}
+                onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale)}
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
@@ -850,7 +866,7 @@ function Ruler2D({ axis, length, mmStep }) {
 // Sidebar controls for a selected "viewport" element (TASKS.csv #46): rebind to a different theme,
 // refresh (re-render the same theme — picks up any data/view changes made since it was last
 // captured), rotate, customize the frame (QGIS-style border), and see/apply the approximate scale.
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onSyncScaleBar, onSyncNorth, syncNotice }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onSyncScaleBar, onSyncNorth, syncNotice }) {
   // TASKS.csv #69 — the "~" prefix and hedge text below only apply to a perspective capture (the
   // ordinary, pre-#69 default) — sel.trueScale means the LAST capture was rendered with an
   // orthographic camera (see startViewportRender/ViewerModule's capture effect), which makes
@@ -870,6 +886,13 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       </label>
       <button onClick={onRefresh} disabled={sel.refreshing} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <RefreshCw size={13} /> {sel.refreshing ? "Rendering…" : "Refresh from theme"}
+      </button>
+      {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: switches to the 3D View tab with
+          this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
+          re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
+          banner for the other half of this flow. */}
+      <button onClick={onEnter} disabled={sel.refreshing} title="Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here" style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+        <LogIn size={13} /> Enter &amp; adjust view…
       </button>
       {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
           retroactively on the image already captured — toggling it alone doesn't re-render. */}

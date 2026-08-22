@@ -369,10 +369,14 @@ export function StoreProvider({ children }) {
   // render-request objects: the pending one so the result-application effect below can stamp it back
   // onto the element, the render-request one so ViewerModule's capture effect knows which camera to
   // use.
-  const requestViewportRender = useCallback((themeId, targetElementId, trueScale) => {
+  // TASKS.csv #198 (part 3) — `interactive` rides along the same request/pending shape as
+  // trueScale above: true means ViewerModule should apply the theme and then let the user freely
+  // orbit/pan/zoom (no auto-capture timer, no auto-restore) until they explicitly exit, instead of
+  // the normal "apply, wait 400ms, capture, restore" one-shot round trip.
+  const requestViewportRender = useCallback((themeId, targetElementId, trueScale, interactive) => {
     const requestId = `vprend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale });
-    setViewportRenderRequest({ requestId, themeId, trueScale });
+    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);

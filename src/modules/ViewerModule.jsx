@@ -820,6 +820,12 @@ export default function ViewerModule({ mode = "view" }) {
   const [renamingThemeId, setRenamingThemeId] = useState(null);
   const [renameDraft, setRenameDraft] = useState("");
   const lastHandledRequestId = useRef(null); // TASKS.csv #202 — see the viewportRenderRequestSeq effect below
+  // TASKS.csv #198 (part 3) — set once an interactive Layout-Viewport edit session has applied its
+  // theme and is waiting for the user to actually orbit/pan/zoom (the existing pointer handlers below
+  // already do this unconditionally, no new interaction code needed) and then explicitly exit, rather
+  // than the non-interactive path's automatic 400ms-timer capture. Drives the small floating banner
+  // rendered near the bottom of this component's JSX.
+  const [interactiveViewportSession, setInteractiveViewportSession] = useState(null); // { req, liveViewBeforeRender } | null
 
   // "Zoom to selected area" (right-click menu -> drag a rectangle). rectZoomMode drives the cursor
   // style (plain React state, cheap) while rectZoomRef mirrors it for the pointer handlers set up
@@ -1471,6 +1477,76 @@ export default function ViewerModule({ mode = "view" }) {
   // (see `animate` in the mount effect) redrawing every frame regardless — so a short fixed delay
   // after applying is enough for the state to have committed and painted at least a few frames before
   // capture, without needing to thread a completion signal through every state setter.
+  // TASKS.csv #198 (part 3) — the actual "render + capture" work, extracted out of the setTimeout
+  // callback so it can be invoked either by the automatic 400ms timer (non-interactive: "Add
+  // viewport" / "Refresh from theme") or by the interactive session's manual "Update Viewport &
+  // Return to Layout" button, once the user has finished orbiting/panning/zooming. Identical logic
+  // either way — only WHEN it's called differs.
+  const doCaptureViewportRender = useCallback((req, liveViewBeforeRender) => {
+    const theme = themes.find((t) => t.id === req.themeId);
+    const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
+    if (!renderer || !scene || !camera) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: "Viewport not ready." }); return; }
+    renderer.setViewport(0, 0, mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.setScissorTest(false);
+
+    const cs = camState.current;
+    const fovRad = (camera.fov * Math.PI) / 180;
+    // TASKS.csv #69 — true-scale (orthographic) capture. A perspective camera's world-to-pixel
+    // scale is only exact AT the target distance (cs.radius) — nearer/farther geometry reads
+    // larger/smaller than that ratio, same as a real photo. An orthographic (parallel) projection
+    // has no such depth-dependent foreshortening: its frustum's world height is the SAME everywhere
+    // along the view direction, so reusing that same height for BOTH the frustum size and the
+    // reported scale makes worldHeightAtTarget exact across the whole image, not an estimate valid
+    // only at one particular distance. Built fresh per capture (not a persistent second camera) —
+    // this never touches the live interactive `camera`, which stays perspective for normal use.
+    let renderCamera = camera;
+    let orthoCamera = null;
+    if (req.trueScale) {
+      const aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+      const halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
+      const halfW = halfH * aspect;
+      orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, camera.near, camera.far);
+      orthoCamera.position.copy(camera.position);
+      orthoCamera.quaternion.copy(camera.quaternion);
+      orthoCamera.updateProjectionMatrix();
+      renderCamera = orthoCamera;
+    }
+    renderer.render(scene, renderCamera);
+    // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
+    // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
+    const canvas = renderer.domElement;
+    let dataUrl;
+    try { dataUrl = canvas.toDataURL("image/png"); } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
+    const worldHeightAtTarget = 2 * cs.radius * Math.tan(fovRad / 2); // same figure either way — see the orthographic branch's comment for why it's exact (not approximate) when req.trueScale is set
+    // TASKS.csv #67 — north-arrow sync. Worked out from first principles and checked numerically
+    // (not just by analogy) rather than trusting a guess: CompassRose.js rotates its 3D ring by
+    // -cs.theta about Y and views it through a straight-down navCamera with up=(0,0,-1), so N (ring
+    //-local (0,0,-1)) ends up at screen position (right, up) = (0,1) at theta=0, (1,0) at theta=90°,
+    // (0,-1) at theta=180°, (-1,0) at theta=270° — i.e. N sweeps CLOCKWISE on screen as theta
+    // increases (verified with the camera's actual basis vectors, not assumed). A plain CSS
+    // `rotate(deg)` is also clockwise-positive, so matching that screen motion with a printed north
+    // arrow (which defaults to pointing "up" = N at theta=0) needs `rotate(+thetaDeg)` — the SAME
+    // sign as cs.theta itself, the OPPOSITE of the ring's own -theta. The two need opposite signs
+    // because rendering the ring through a top-down camera flips handedness relative to a flat 2D
+    // CSS rotation on the printed page — reusing the ring's -theta directly here would point every
+    // synced arrow off by a mirror-flip, not just a wrong-but-consistent offset.
+    const cameraAzimuthDeg = ((cs.theta * 180) / Math.PI) % 360;
+    // Restore the user's own live view now that every value the capture needed (dataUrl,
+    // worldHeightAtTarget, cameraAzimuthDeg) has already been read out of `cs`/the canvas above —
+    // this is what actually fixes #202 (see this effect's top comment): without it, the theme
+    // applied for this capture was left in place, silently showing up as "my toggled-off layers
+    // are back on" whenever the user next looked at the 3D View tab.
+    restoreLiveView(liveViewBeforeRender);
+    resolveViewportRender({
+      requestId: req.requestId, src: dataUrl, naturalW: canvas.width, naturalH: canvas.height,
+      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale,
+    });
+    // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
+    // this result to layoutElements), not here — that effect also covers the "Theme not found"/
+    // "Viewport not ready" error returns above, which never used to hop back at all, leaving the
+    // user stranded on the Viewer tab with no visible error.
+  }, [themes, restoreLiveView, resolveViewportRender]);
+
   useEffect(() => {
     const req = viewportRenderRequest;
     if (!req) return;
@@ -1496,74 +1572,38 @@ export default function ViewerModule({ mode = "view" }) {
     // below is done rather than left showing the theme's config after the fact.
     const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
     applyTheme(theme);
-    const timer = setTimeout(() => {
-      const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
-      if (!renderer || !scene || !camera) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: "Viewport not ready." }); return; }
-      renderer.setViewport(0, 0, mountRef.current.clientWidth, mountRef.current.clientHeight);
-      renderer.setScissorTest(false);
-
-      const cs = camState.current;
-      const fovRad = (camera.fov * Math.PI) / 180;
-      // TASKS.csv #69 — true-scale (orthographic) capture. A perspective camera's world-to-pixel
-      // scale is only exact AT the target distance (cs.radius) — nearer/farther geometry reads
-      // larger/smaller than that ratio, same as a real photo. An orthographic (parallel) projection
-      // has no such depth-dependent foreshortening: its frustum's world height is the SAME everywhere
-      // along the view direction, so reusing that same height for BOTH the frustum size and the
-      // reported scale makes worldHeightAtTarget exact across the whole image, not an estimate valid
-      // only at one particular distance. Built fresh per capture (not a persistent second camera) —
-      // this never touches the live interactive `camera`, which stays perspective for normal use.
-      let renderCamera = camera;
-      let orthoCamera = null;
-      if (req.trueScale) {
-        const aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-        const halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
-        const halfW = halfH * aspect;
-        orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, camera.near, camera.far);
-        orthoCamera.position.copy(camera.position);
-        orthoCamera.quaternion.copy(camera.quaternion);
-        orthoCamera.updateProjectionMatrix();
-        renderCamera = orthoCamera;
-      }
-      renderer.render(scene, renderCamera);
-      // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
-      // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
-      const canvas = renderer.domElement;
-      let dataUrl;
-      try { dataUrl = canvas.toDataURL("image/png"); } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
-      const worldHeightAtTarget = 2 * cs.radius * Math.tan(fovRad / 2); // same figure either way — see the orthographic branch's comment for why it's exact (not approximate) when req.trueScale is set
-      // TASKS.csv #67 — north-arrow sync. Worked out from first principles and checked numerically
-      // (not just by analogy) rather than trusting a guess: CompassRose.js rotates its 3D ring by
-      // -cs.theta about Y and views it through a straight-down navCamera with up=(0,0,-1), so N (ring
-      //-local (0,0,-1)) ends up at screen position (right, up) = (0,1) at theta=0, (1,0) at theta=90°,
-      // (0,-1) at theta=180°, (-1,0) at theta=270° — i.e. N sweeps CLOCKWISE on screen as theta
-      // increases (verified with the camera's actual basis vectors, not assumed). A plain CSS
-      // `rotate(deg)` is also clockwise-positive, so matching that screen motion with a printed north
-      // arrow (which defaults to pointing "up" = N at theta=0) needs `rotate(+thetaDeg)` — the SAME
-      // sign as cs.theta itself, the OPPOSITE of the ring's own -theta. The two need opposite signs
-      // because rendering the ring through a top-down camera flips handedness relative to a flat 2D
-      // CSS rotation on the printed page — reusing the ring's -theta directly here would point every
-      // synced arrow off by a mirror-flip, not just a wrong-but-consistent offset.
-      const cameraAzimuthDeg = ((cs.theta * 180) / Math.PI) % 360;
-      // Restore the user's own live view now that every value the capture needed (dataUrl,
-      // worldHeightAtTarget, cameraAzimuthDeg) has already been read out of `cs`/the canvas above —
-      // this is what actually fixes #202 (see this effect's top comment): without it, the theme
-      // applied for this capture was left in place, silently showing up as "my toggled-off layers
-      // are back on" whenever the user next looked at the 3D View tab.
-      restoreLiveView(liveViewBeforeRender);
-      resolveViewportRender({
-        requestId: req.requestId, src: dataUrl, naturalW: canvas.width, naturalH: canvas.height,
-        worldHeightAtTarget, themeName: theme.name, cameraAzimuthDeg, trueScale: !!req.trueScale,
-      });
-      // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
-      // this result to layoutElements), not here — that effect also covers the "Theme not found"/
-      // "Viewport not ready" error returns above, which never used to hop back at all, leaving the
-      // user stranded on the Viewer tab with no visible error.
-    }, 400);
+    // TASKS.csv #198 (part 3) — interactive sessions skip the automatic timer entirely: the theme's
+    // camera is now live on screen, the existing orbit/pan/zoom pointer handlers already work
+    // unconditionally, and the user drives when capture actually happens via the banner below
+    // (doExitInteractiveViewport / doCancelInteractiveViewport).
+    if (req.interactive) {
+      setInteractiveViewportSession({ req, liveViewBeforeRender });
+      return;
+    }
+    const timer = setTimeout(() => doCaptureViewportRender(req, liveViewBeforeRender), 400);
     return () => clearTimeout(timer);
     // liveViewBundleFromStore deliberately NOT in this list — see liveViewBundleFromStoreRef's own
     // comment above for why depending on it directly reintroduces the bug it looks like it should
     // have nothing to do with.
-  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, restoreLiveView, resolveViewportRender, goToModule]);
+  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule]);
+
+  // TASKS.csv #198 (part 3) — the interactive session's two exit paths. Both restore/resolve exactly
+  // like the non-interactive path; "cancel" just resolves with an error instead of a captured image,
+  // which store.jsx's existing result-effect already treats as "leave the viewport element alone,
+  // just hop back to Layout" (see its `res.error` branch) — no new store-side handling needed.
+  const doExitInteractiveViewport = useCallback(() => {
+    if (!interactiveViewportSession) return;
+    const { req, liveViewBeforeRender } = interactiveViewportSession;
+    setInteractiveViewportSession(null);
+    doCaptureViewportRender(req, liveViewBeforeRender);
+  }, [interactiveViewportSession, doCaptureViewportRender]);
+  const doCancelInteractiveViewport = useCallback(() => {
+    if (!interactiveViewportSession) return;
+    const { req, liveViewBeforeRender } = interactiveViewportSession;
+    setInteractiveViewportSession(null);
+    restoreLiveView(liveViewBeforeRender);
+    resolveViewportRender({ requestId: req.requestId, error: "Cancelled — viewport left unchanged." });
+  }, [interactiveViewportSession, restoreLiveView, resolveViewportRender]);
 
   // ---------- TASKS.csv #29: implicit surface modelling (GemPy), first pass ----------
   // Scope of this first pass, deliberately kept narrow: model ONE contact surface at a time (the
@@ -4687,6 +4727,18 @@ export default function ViewerModule({ mode = "view" }) {
         {toast && (
           <div key={toast.key} style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", fontSize: 11.5, color: "#1a2028", background: "#ffffff", padding: "8px 14px", borderRadius: 7, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "none" }}>
             {toast.text}
+          </div>
+        )}
+        {/* TASKS.csv #198 (part 3) — QGIS-style "enter a Layout Viewport" banner. Everything below the
+            camera is already live and interactive (the existing orbit-drag/wheel handlers on this same
+            canvas), so this banner is the ONLY new UI the feature needs — just a way to tell the user
+            they're editing a specific Viewport and to explicitly commit or discard the new camera
+            angle before leaving. */}
+        {interactiveViewportSession && (
+          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#1a2028", background: "#ffffff", padding: "8px 12px", borderRadius: 8, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 20 }}>
+            <span>Editing Layout viewport — drag to orbit, scroll to zoom</span>
+            <button onClick={doExitInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: 11.5 }}>Update Viewport &amp; Return to Layout</button>
+            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: 11.5, background: "transparent", border: "1px solid #c7ccd3", color: "#55606e" }}>Cancel</button>
           </div>
         )}
         {rectZoomMode && !rectVisual && (
