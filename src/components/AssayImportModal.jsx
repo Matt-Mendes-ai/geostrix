@@ -1,13 +1,36 @@
-import React from "react";
+import React, { useState } from "react";
 import { X } from "lucide-react";
-import { isElementColumn, inferUnit } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit }) {
   const checkedCount = modal.elements.filter((e) => e.checked).length;
+  // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
+  // format's elements come from distinct analyte VALUES in one column, not headers — a different,
+  // already-complete picker via the method/analyte dropdowns above).
+  const [addSymbol, setAddSymbol] = useState("");
+  const [addHeader, setAddHeader] = useState("");
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit } : e) });
+  // TASKS.csv #210 — lets the user repoint an auto-detected (or manually added) element at a
+  // DIFFERENT raw column, e.g. when a file has both "Ag_XRF_Corrected_ppm_D" and "Ag_pXRF_ppm" and
+  // the auto-picked one isn't the one they want. commitAssayImport already reads `values[e.symbol]`
+  // from `r[e.header]`, so changing header here is the entire fix — no other wiring needed.
+  const setHeader = (sym, header) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, header } : e) });
+  const removeEl = (sym) => onChange({ ...modal, elements: modal.elements.filter((e) => e.symbol !== sym) });
+  const addElement = () => {
+    const sym = addSymbol.trim();
+    if (!sym || !addHeader) return;
+    const unit = inferUnit(addHeader, sym);
+    onChange({
+      ...modal,
+      elements: modal.elements.some((e) => e.symbol === sym)
+        ? modal.elements.map((e) => e.symbol === sym ? { ...e, header: addHeader, checked: true } : e)
+        : [...modal.elements, { symbol: sym, header: addHeader, unit, checked: true }],
+    });
+    setAddSymbol(""); setAddHeader("");
+  };
   const setAll = (checked) => onChange({ ...modal, elements: modal.elements.map((e) => ({ ...e, checked })) });
   const setMethod = (method) => {
     const analytes = Array.from(new Set(modal.allRows.filter((r) => !modal.mapping.method || r[modal.mapping.method] === method).map((r) => r[modal.mapping.analyte]).filter(Boolean)));
@@ -55,17 +78,66 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit }
               <span onClick={() => setAll(false)} style={{ fontSize: 10.5, color: "#55606e", cursor: "pointer" }}>None</span>
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 6, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid #d9dce1", borderRadius: 6 }}>
-            {modal.elements.map((e) => (
-              <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "#f4f5f7" : "transparent", borderRadius: 5 }}>
-                <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
-                <span style={{ fontSize: 12, color: e.checked ? "#1a2028" : "#94a1b0", flex: 1 }}>{e.symbol}</span>
-                <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: 10, padding: "1px 3px" }}>
-                  <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
-                </select>
-              </div>
-            ))}
-          </div>
+          {modal.format === "wide" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid #d9dce1", borderRadius: 6 }}>
+              {modal.elements.map((e) => (
+                <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "#f4f5f7" : "transparent", borderRadius: 5 }}>
+                  <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
+                  <span style={{ fontSize: 12, color: e.checked ? "#1a2028" : "#94a1b0", width: 28, flexShrink: 0 }}>{e.symbol}</span>
+                  {/* TASKS.csv #210 — reassign which raw column feeds this element, e.g. when a file has
+                      more than one candidate column (Corrected vs. raw vs. Error) and the auto-pick
+                      wasn't the one wanted. */}
+                  <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: 11 }} title="Which column this element's values come from">
+                    {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: 10, padding: "1px 3px", flexShrink: 0 }}>
+                    <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
+                  </select>
+                  <X size={12} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" />
+                </div>
+              ))}
+              {modal.elements.length === 0 && (
+                <div style={{ fontSize: 10.5, color: "#94a1b0", padding: "6px 4px" }}>No element columns recognized — add one manually below.</div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 6, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid #d9dce1", borderRadius: 6 }}>
+              {modal.elements.map((e) => (
+                <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "#f4f5f7" : "transparent", borderRadius: 5 }}>
+                  <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
+                  <span style={{ fontSize: 12, color: e.checked ? "#1a2028" : "#94a1b0", flex: 1 }}>{e.symbol}</span>
+                  <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: 10, padding: "1px 3px" }}>
+                    <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* TASKS.csv #210 — a column the auto-detector missed entirely (unusual naming, or simply
+              not one of ELEMENT_SYMBOLS's recognized symbols) can still be mapped by hand: pick the
+              raw column and the element it actually represents. Re-using an existing symbol here
+              repoints that row instead of creating a duplicate. */}
+          {modal.format === "wide" && (
+            <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+              <input
+                list="geostrix-element-symbols" value={addSymbol} onChange={(ev) => setAddSymbol(ev.target.value)}
+                placeholder="Symbol (e.g. Cu)" style={{ ...sel, width: 100, fontSize: 11 }}
+              />
+              <datalist id="geostrix-element-symbols">
+                {ELEMENT_SYMBOLS.map((s) => <option key={s} value={s} />)}
+              </datalist>
+              <select value={addHeader} onChange={(ev) => setAddHeader(ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: 11 }}>
+                <option value="">— pick the source column —</option>
+                {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+              <button
+                onClick={addElement}
+                disabled={!addSymbol.trim() || !addHeader}
+                style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: 11, opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
+              >Add</button>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>

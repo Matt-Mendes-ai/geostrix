@@ -96,7 +96,22 @@ export default function GeochemModule() {
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
       setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, methods, selectedMethod: methods[0] || null, elements });
     } else {
-      const elements = headers.filter(isElementColumn).map((h) => { const sym = isElementColumn(h); return { symbol: sym, header: h, unit: inferUnit(h, sym), checked: true }; });
+      // TASKS.csv #210 — a single lab export can carry more than one column for the same element
+      // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
+      // "Ag_Error_pXRF_ppm" all matching isElementColumn's front-token match) — one row per matching
+      // header would show duplicate "Ag" checkboxes and, if more than one got checked, silently let
+      // whichever happened to be LAST in header order win in commitAssayImport's values[e.symbol]
+      // assignment. Dedupe to one row per symbol, preferring the first non-"error" match (an
+      // uncertainty/error-margin column is never the intended assay value) — the header dropdown in
+      // AssayImportModal lets the user repoint any row at a different column, including one of the
+      // other candidates this dedupe didn't pick, or a column the auto-detector missed entirely.
+      const bySymbol = new Map();
+      headers.filter(isElementColumn).forEach((h) => {
+        const sym = isElementColumn(h);
+        const existing = bySymbol.get(sym);
+        if (!existing || (/error/i.test(existing) && !/error/i.test(h))) bySymbol.set(sym, h);
+      });
+      const elements = Array.from(bySymbol.entries()).map(([sym, h]) => ({ symbol: sym, header: h, unit: inferUnit(h, sym), checked: true }));
       setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements });
     }
   };

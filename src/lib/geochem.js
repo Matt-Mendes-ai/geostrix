@@ -8,15 +8,28 @@ export const ELEMENT_SYMBOLS = ["Ag","Al","As","Au","B","Ba","Be","Bi","Br","Ca"
   "Te","Th","Ti","Tl","Tm","U","V","W","Y","Yb","Zn","Zr"];
 const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","P","S","Ti","Si","Mn","Cr"]);
 
+// TASKS.csv #210 — real-world lab exports rarely use a bare element symbol as the header: a
+// method/instrument code commonly sits BETWEEN the element and its unit (e.g. pXRF exports like
+// "Ag_XRF_Corrected_ppm_D"), which the old approach (strip from the first unit-token match anywhere
+// in the string, then require an EXACT match against the remainder) couldn't handle — it stripped
+// "_ppm_D" off the end but left "Ag_XRF_Corrected" behind, no exact match. Matching on the FIRST
+// delimiter-separated token instead (the element symbol always leads a lab column name in every
+// real export seen so far — BESTEL, XRF, ICP, AA, and generic exports alike) is robust to whatever
+// comes after it, unit token present or not, method code or not.
 export function isElementColumn(header) {
   if (!header) return false;
-  const bare = String(header).replace(/[\s_](ppm|pct|pc|%|ppb).*$/i, "").replace(/\(.*\)/, "").trim();
-  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === bare.toLowerCase()) || false;
+  const cleaned = String(header).replace(/\(.*?\)/g, " "); // drop parenthetical units, e.g. "Au (ppm)"
+  const first = cleaned.split(/[\s_-]+/)[0].trim();
+  return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || false;
 }
 export function inferUnit(header, symbol) {
   const h = String(header).toLowerCase();
   if (h.includes("ppb")) return "ppb";
-  if (h.includes("ppm")) return "ppm";
+  // TASKS.csv #210 — "gpt" (grams per tonne) is the standard unit lab reports use for Au/Ag/Pt/Pd
+  // grades and is numerically identical to ppm for a solid (g/tonne = mg/kg = ppm), so it belongs in
+  // the same bucket as ppm here — this only affects which unit shows up in the display dropdown and
+  // valueIn()'s unit-conversion bucketing, not the raw stored value.
+  if (h.includes("ppm") || h.includes("gpt") || h.includes("g/t")) return "ppm";
   if (h.includes("pct") || h.includes("%")) return "%";
   if (symbol === "Au") return "ppm";
   return MAJOR_PCT.has(symbol) ? "%" : "ppm";
