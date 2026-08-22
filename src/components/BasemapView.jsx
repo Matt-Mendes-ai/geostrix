@@ -1,0 +1,276 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { X, Plus, Minus, Move, Square, Check, Crosshair, Layers } from "lucide-react";
+import LayerPicker from "./LayerPicker.jsx";
+import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
+
+const TILE = 256;
+
+function lonLatToWorldPx(lon, lat, zoom) {
+  const n = 2 ** zoom;
+  const wx = ((lon + 180) / 360) * n * TILE;
+  const sinLat = Math.sin((lat * Math.PI) / 180);
+  const wy = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * n * TILE;
+  return { wx, wy };
+}
+function worldPxToLonLat(wx, wy, zoom) {
+  const n = 2 ** zoom;
+  const lon = (wx / (n * TILE)) * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * wy) / (n * TILE))));
+  return { lon, lat: (latRad * 180) / Math.PI };
+}
+
+// Full-viewport OpenStreetMap slippy map — user request: "display the open street sat map on the
+// view and not on a small viewport" (the persistent corner LocatorMap.jsx is deliberately tiny, a
+// glance-only orientation aid — this is the "I want to actually look at/use the map" counterpart), and
+// "an option to draw a rectangle on the view when we click generate SRTM so we can get it expanded to
+// where we wish" (the SRTM auto-fetch's bbox was collar-derived only, with no way to widen/move it).
+//
+// Same from-scratch tile math LocatorMap.jsx and srtmFetch.js already use (no mapping-library
+// dependency, still just tile.openstreetmap.org — display-only, same licensing posture as the corner
+// locator, see that file's header comment) — generalized here to a real pannable/zoomable viewport
+// with an optional draw-a-rectangle interaction, instead of a fixed 3x3 mosaic.
+//
+// Two modes:
+//  - "locate": expanded read-only view of the corner locator — pan/zoom freely, pin shows the
+//    project's real-world location, no editing. Opened from ViewerModule's Expand button.
+//  - "draw": the SRTM fetch-area picker — opened from GeophysicsModule's "Fetch SRTM for this area"
+//    button, pre-seeded with the same collar-derived bbox the old one-click auto-fetch used to send
+//    straight to fetchSRTMTerrain, but now shown as an editable rectangle the user can accept as-is or
+//    redraw/expand before confirming.
+export default function BasemapView({
+  mode = "locate", // "locate" | "draw"
+  lon, lat, // marker (locate) / fallback center (draw, if no initial bbox)
+  initialBboxLonLat = null, // [lonMin, latMin, lonMax, latMax], draw mode only
+  onClose,
+  onConfirm, // (bboxLonLat) => void, draw mode only
+}) {
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ w: 900, h: 650 });
+  const [zoom, setZoom] = useState(11);
+  const [center, setCenter] = useState(null); // { wx, wy } world px at current zoom
+  const [bbox, setBbox] = useState(initialBboxLonLat);
+  const [subMode, setSubMode] = useState(mode === "draw" ? "draw" : "pan");
+  const dragRef = useRef(null);
+  const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
+  const [tracestrackKey, setTracestrackKey] = useState(getSavedTracestrackKey());
+  const [layerPickerOpen, setLayerPickerOpen] = useState(false);
+  const activeLayer = getBaseLayer(baseLayerId);
+  // Falls back to Standard whenever the active layer needs a key that isn't set (e.g. Tracestrack
+  // picked before a key was ever saved) — never shows broken/unauthorized tile requests.
+  const effectiveLayerId = activeLayer.needsKey && !tracestrackKey ? "standard" : baseLayerId;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      if (r.width && r.height) setSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Set the initial center/zoom exactly once — center of the seed bbox (draw mode) or the marker
+  // point (locate mode), with a zoom picked to roughly fit the seed bbox if there is one.
+  useEffect(() => {
+    if (center) return;
+    let clon = lon, clat = lat;
+    if (initialBboxLonLat) {
+      clon = (initialBboxLonLat[0] + initialBboxLonLat[2]) / 2;
+      clat = (initialBboxLonLat[1] + initialBboxLonLat[3]) / 2;
+    }
+    if (!Number.isFinite(clon) || !Number.isFinite(clat)) { clon = 0; clat = 20; }
+    let z = 11;
+    if (initialBboxLonLat) {
+      const [lonMin, latMin, lonMax, latMax] = initialBboxLonLat;
+      for (let zz = 17; zz >= 3; zz--) {
+        const a = lonLatToWorldPx(lonMin, latMax, zz), b = lonLatToWorldPx(lonMax, latMin, zz);
+        if (Math.abs(b.wx - a.wx) <= size.w * 0.65 && Math.abs(b.wy - a.wy) <= size.h * 0.65) { z = zz; break; }
+      }
+    }
+    setZoom(z);
+    setCenter(lonLatToWorldPx(clon, clat, z));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center]);
+
+  const tiles = useMemo(() => {
+    if (!center || !size.w || !size.h) return [];
+    const n = 2 ** zoom;
+    const x0 = Math.floor((center.wx - size.w / 2) / TILE) - 1;
+    const x1 = Math.floor((center.wx + size.w / 2) / TILE) + 1;
+    const y0 = Math.floor((center.wy - size.h / 2) / TILE) - 1;
+    const y1 = Math.floor((center.wy + size.h / 2) / TILE) + 1;
+    const list = [];
+    for (let ty = y0; ty <= y1; ty++) {
+      if (ty < 0 || ty >= n) continue;
+      for (let tx = x0; tx <= x1; tx++) {
+        const wrapped = ((tx % n) + n) % n;
+        list.push({ tx, y: ty, x: wrapped, key: `${tx}_${ty}` });
+      }
+    }
+    return list;
+  }, [center, size, zoom]);
+
+  const offsetX = center ? size.w / 2 - center.wx : 0;
+  const offsetY = center ? size.h / 2 - center.wy : 0;
+
+  const changeZoom = (delta) => {
+    setZoom((z0) => {
+      const z1 = Math.max(3, Math.min(18, z0 + delta));
+      if (z1 !== z0) {
+        setCenter((c) => (c ? { wx: c.wx * 2 ** (z1 - z0), wy: c.wy * 2 ** (z1 - z0) } : c));
+      }
+      return z1;
+    });
+  };
+
+  const recenter = () => {
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+    setCenter(lonLatToWorldPx(lon, lat, zoom));
+  };
+
+  const screenToLonLat = (sx, sy) => {
+    if (!center) return null;
+    return worldPxToLonLat(center.wx + (sx - size.w / 2), center.wy + (sy - size.h / 2), zoom);
+  };
+
+  const onMouseDown = (e) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    if (subMode === "draw") {
+      dragRef.current = { kind: "draw", start: screenToLonLat(sx, sy) };
+      setBbox(null);
+    } else {
+      dragRef.current = { kind: "pan", startSx: sx, startSy: sy, startCenter: center };
+    }
+  };
+  const onMouseMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    if (d.kind === "pan") {
+      setCenter({ wx: d.startCenter.wx - (sx - d.startSx), wy: d.startCenter.wy - (sy - d.startSy) });
+    } else if (d.kind === "draw" && d.start) {
+      const cur = screenToLonLat(sx, sy);
+      if (cur) {
+        setBbox([
+          Math.min(d.start.lon, cur.lon), Math.min(d.start.lat, cur.lat),
+          Math.max(d.start.lon, cur.lon), Math.max(d.start.lat, cur.lat),
+        ]);
+      }
+    }
+  };
+  const onMouseUp = () => { dragRef.current = null; };
+
+  const markerPx = mode === "locate" && center && Number.isFinite(lon) && Number.isFinite(lat)
+    ? (() => { const p = lonLatToWorldPx(lon, lat, zoom); return { x: p.wx + offsetX, y: p.wy + offsetY }; })()
+    : null;
+
+  const bboxPx = bbox && center
+    ? (() => {
+        const a = lonLatToWorldPx(bbox[0], bbox[3], zoom); // NW corner
+        const b = lonLatToWorldPx(bbox[2], bbox[1], zoom); // SE corner
+        return { left: a.wx + offsetX, top: a.wy + offsetY, width: b.wx - a.wx, height: b.wy - a.wy };
+      })()
+    : null;
+
+  return (
+    <div style={overlayStyle}>
+      <div style={topBarStyle}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#2a323c" }}>
+          {mode === "draw" ? "Draw the area to fetch SRTM elevation for" : "Locate"}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {mode === "locate" && Number.isFinite(lon) && Number.isFinite(lat) && (
+            <button onClick={recenter} title="Center on project location" style={iconBtnStyle}><Crosshair size={14} /></button>
+          )}
+          <button onClick={onClose} title="Close" style={iconBtnStyle}><X size={16} /></button>
+        </div>
+      </div>
+      <div
+        ref={containerRef}
+        style={{ position: "relative", flex: 1, overflow: "hidden", cursor: subMode === "draw" ? "crosshair" : "grab", background: "#dfe3e8" }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onWheel={(e) => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 1 : -1); }}
+      >
+        {tiles.map((t) => (
+          <img
+            key={t.key}
+            src={tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)}
+            alt=""
+            draggable={false}
+            style={{ position: "absolute", left: t.tx * TILE + offsetX, top: t.y * TILE + offsetY, width: TILE, height: TILE, userSelect: "none" }}
+            onError={(e) => { e.currentTarget.style.background = "#e4e6ea"; }}
+          />
+        ))}
+        {markerPx && (
+          <div style={{ position: "absolute", left: markerPx.x - 7, top: markerPx.y - 18, width: 14, height: 18, pointerEvents: "none" }}>
+            <svg width="14" height="18" viewBox="0 0 14 18">
+              <path d="M7 0C3.13 0 0 3.13 0 7c0 5.25 7 11 7 11s7-5.75 7-11c0-3.87-3.13-7-7-7z" fill="#e05a4a" stroke="#7a2018" strokeWidth="0.75" />
+              <circle cx="7" cy="7" r="2.6" fill="#ffffff" />
+            </svg>
+          </div>
+        )}
+        {bboxPx && (
+          <div style={{ position: "absolute", left: bboxPx.left, top: bboxPx.top, width: bboxPx.width, height: bboxPx.height, border: "2px solid #2f6fe0", background: "rgba(47,111,224,0.15)", pointerEvents: "none" }} />
+        )}
+        <div style={zoomCtrlStyle}>
+          <button onClick={() => changeZoom(1)} style={iconBtnStyle} title="Zoom in"><Plus size={14} /></button>
+          <button onClick={() => changeZoom(-1)} style={iconBtnStyle} title="Zoom out"><Minus size={14} /></button>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "#a9c6e0" } : {}) }}><Layers size={14} /></button>
+            {layerPickerOpen && (
+              <LayerPicker
+                layerId={baseLayerId}
+                onSelectLayer={(id) => { setBaseLayerId(id); saveLayerId(id); }}
+                tracestrackKey={tracestrackKey}
+                onSaveKey={(k) => { setTracestrackKey(k); saveTracestrackKey(k); }}
+                onClose={() => setLayerPickerOpen(false)}
+              />
+            )}
+          </div>
+        </div>
+        <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: 9, color: "#5a6472", background: "rgba(255,255,255,0.75)", padding: "1px 5px", borderRadius: 3 }}>
+          {getBaseLayer(effectiveLayerId).attribution}
+        </div>
+      </div>
+      {mode === "draw" && (
+        <div style={bottomBarStyle}>
+          <button onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title="Pan the map to find the area">
+            <Move size={13} /> Pan
+          </button>
+          <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title="Drag on the map to draw the fetch area">
+            <Square size={13} /> Draw area
+          </button>
+          <div style={{ flex: 1 }} />
+          {bbox && (
+            <div style={{ fontSize: 11, color: "#5a6472", marginRight: 10 }}>
+              ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°
+            </div>
+          )}
+          <button onClick={onClose} style={toolBtnStyle}>Cancel</button>
+          <button
+            onClick={() => bbox && onConfirm(bbox)}
+            disabled={!bbox}
+            style={{ ...toolBtnActiveStyle, opacity: bbox ? 1 : 0.5, cursor: bbox ? "pointer" : "not-allowed" }}
+          >
+            <Check size={13} /> Fetch SRTM for this area
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const overlayStyle = { position: "fixed", inset: 0, zIndex: 500, background: "#ffffff", display: "flex", flexDirection: "column" };
+const topBarStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid #dde1e6" };
+const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderTop: "1px solid #dde1e6" };
+const iconBtnStyle = { width: 28, height: 28, borderRadius: 6, border: "1px solid #c7ccd3", background: "#ffffff", color: "#3a4048", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
+const zoomCtrlStyle = { position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 4 };
+const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "#ffffff", color: "#3a4048", fontSize: 12, cursor: "pointer" };
+const toolBtnActiveStyle = { ...toolBtnStyle, background: "#2f6fe0", borderColor: "#2f6fe0", color: "#ffffff" };

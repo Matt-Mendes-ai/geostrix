@@ -1,0 +1,127 @@
+import React, { useRef, useState } from "react";
+import { Image, Eye, EyeOff, Trash2, Loader2 } from "lucide-react";
+import { useStore } from "../lib/store.jsx";
+import { buildRasterImport } from "../lib/raster.js";
+import InfoButton from "../components/InfoButton.jsx";
+import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
+import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+
+// TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
+// separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
+// mesh/boundary/terrain import alongside raster drape import in one long sidebar, which buried the
+// raster controls among a lot of unrelated stuff; rasters (imagery/value-grid drapes) get their own
+// home here. Terrain (SRTM/DEM) deliberately STAYS in Geophysics — it's elevation data feeding the 3D
+// scene's actual ground surface, conceptually closer to the voxel/boundary/geophysics-point workflows
+// already there than to a flat imagery drape, and splitting it out too wasn't part of what was asked.
+// A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
+// see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
+export default function RasterModule() {
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars } = useStore();
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInput = useRef(null);
+  const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
+
+  // Same reasoning as Geophysics's defaultElevation: a flat (non-terrain-draped) raster needs SOME
+  // starting elevation, and "roughly at surface/collar level" is a better default than 0 when holes
+  // are already loaded.
+  const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
+
+  const importRaster = async (file) => {
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+      addRaster(raster);
+      setError({ info: true, text: msg });
+    } catch (err) {
+      setError({ info: false, text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="ge-body"
+      style={{ width: "100%" }}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault(); setDragOver(false);
+        const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(tiff?|gxf)$/i.test(f.name));
+        files.forEach((f) => importRaster(f));
+      }}
+    >
+      <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+          Raster drape (GeoTIFF / Geosoft GXF)
+          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet. Drag files in anywhere on this page, or use the button below.`} />
+        </div>
+        <button onClick={() => fileInput.current.click()} style={pBtn} disabled={busy}>
+          {busy ? <Loader2 size={13} className="spin" /> : <Image size={13} />} {busy ? "Reading…" : "Import GeoTIFF / GXF…"}
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".tif,.tiff,.gxf"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}
+        />
+        {error && (
+          <div style={{ marginTop: 8, padding: "8px 10px", background: error.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${error.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: error.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+            {error.text}
+          </div>
+        )}
+
+        {rasters.length === 0 && (
+          <div style={{ marginTop: 14, fontSize: 11.5, color: "#94a1b0" }}>No rasters imported yet.</div>
+        )}
+        {rasters.map((r) => (
+          <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+                {r.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
+              <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
+                onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
+              <span style={{ color: "#7b8794" }}>Drape on terrain{!terrain ? " (import a DEM under Geophysics → Terrain first)" : ""}</span>
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" ? 0.4 : 1 }}>
+              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Elev.</span>
+              <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Opacity</span>
+              <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
+
+      <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+        <div style={{ color: "#94a1b0", fontSize: 13, textAlign: "center", pointerEvents: "none" }}>
+          Drag a GeoTIFF or .gxf in, or use the button on the left.<br />
+          Rasters render in the 3D View — switch tabs to see them.
+        </div>
+        {dragOver && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed #e2a63c", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <div style={{ fontSize: 18, color: "#e2a63c", background: "#ffffff", padding: "14px 22px", borderRadius: 8, border: "1px solid #e2a63c" }}>Drop GeoTIFF(s)/.gxf to import</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", marginBottom: 8, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12.5, cursor: "pointer", justifyContent: "flex-start" };
+const numInput = { flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 11 };

@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+numpy>=1.26
+scipy>=1.12
+pydantic>=2.6
+
+# TASKS.csv #29 (implicit lithology modelling): as of gempy 2026.0.3 this is a genuinely light
+# add — the engine's default backend is pure numpy (no pytensor/aesara compile step), verified by
+# actually installing + running an end-to-end model in the dev sandbox before wiring the endpoint.
+gempy>=2026.0.3

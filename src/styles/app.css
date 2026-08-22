@@ -1,0 +1,127 @@
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; width: 100%; }
+body {
+  font-family: 'Exo 2', system-ui, sans-serif;
+  background: #ffffff;
+  color: #1a2028;
+  overflow: hidden;
+}
+button { font-family: inherit; }
+input, select { font-family: inherit; }
+
+.ge-app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+/* toolbar */
+.ge-toolbar {
+  display: flex; align-items: center; gap: 4px;
+  height: 44px; flex-shrink: 0;
+  background: #ffffff; border-bottom: 1px solid #d9dce1;
+  padding: 0 10px;
+}
+.ge-tool-btn {
+  display: flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  color: #55606e; font-size: 12.5px; cursor: pointer;
+}
+.ge-tool-btn:hover { background: #f4f5f7; color: #1a2028; }
+.ge-tool-btn.active { background: #eaf1fa; border-color: #a9c6e0; color: #1a2028; }
+.ge-tool-sep { width: 1px; height: 22px; background: #d9dce1; margin: 0 6px; }
+
+/* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
+   module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data
+   browser). Icon-only, square buttons, grouped with thin separators, same visual language as the
+   module bar above it but visually distinct (a hair shorter, off-white background) so the two rows
+   read as "app-level" vs "module-level" without needing a label. */
+.ge-subtoolbar {
+  display: flex; align-items: center; gap: 2px;
+  height: 38px; flex-shrink: 0;
+  background: #fafbfc; border-bottom: 1px solid #d9dce1;
+  padding: 0 8px; position: relative;
+}
+.ge-subtool-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 28px;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  color: #55606e; cursor: pointer;
+}
+.ge-subtool-btn:hover { background: #eef1f5; color: #1a2028; }
+.ge-subtool-btn.active { background: #eaf1fa; border-color: #a9c6e0; color: #1a2028; }
+.ge-subtool-btn:disabled { opacity: 0.4; cursor: default; }
+.ge-subtool-btn:disabled:hover { background: transparent; color: #55606e; }
+.ge-subtool-sep { width: 1px; height: 20px; background: #d9dce1; margin: 0 5px; flex-shrink: 0; }
+
+/* TASKS.csv #34 — workspace tab bar (multiple open projects). Sits between the print-hidden toolbar
+   and the module content, so it's included in the same @media print { display: none } rule below
+   rather than needing its own entry. */
+.ge-tabbar {
+  display: flex; align-items: center; gap: 3px;
+  height: 30px; flex-shrink: 0; overflow-x: auto;
+  background: #ffffff; border-bottom: 1px solid #dde1e6;
+  padding: 0 6px;
+}
+.ge-tab {
+  display: flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 8px 0 9px; margin-top: 4px;
+  max-width: 180px;
+  background: #f7f8fa; border: 1px solid #f0f1f3; border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: #6b7684; font-size: 11px; cursor: pointer;
+  flex-shrink: 0;
+}
+.ge-tab:hover { color: #3d4652; }
+.ge-tab.active { background: #f4f5f7; border-color: #a9c6e0; color: #1a2028; }
+.ge-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: #e2a63c; flex-shrink: 0; }
+.ge-tab-close { flex-shrink: 0; color: #94a1b0; border-radius: 3px; }
+.ge-tab-close:hover { color: #e0a0a0; background: #fdeceb; }
+.ge-tab-add {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-top: 4px; flex-shrink: 0;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  color: #94a1b0; cursor: pointer;
+}
+.ge-tab-add:hover { background: #f4f5f7; color: #1a2028; }
+
+/* body split */
+.ge-body { flex: 1; display: flex; min-height: 0; }
+.ge-main { flex: 1; position: relative; min-width: 0; }
+
+/* status bar */
+.ge-status {
+  display: flex; align-items: center; gap: 16px;
+  height: 26px; flex-shrink: 0;
+  background: #ffffff; border-top: 1px solid #d9dce1;
+  padding: 0 12px; font-size: 11px; color: #55606e;
+}
+.ge-status .val { color: #1a2028; }
+.ge-status .spacer { flex: 1; }
+
+/* generic panel */
+.ge-panel { width: 300px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #d9dce1; overflow-y: auto; }
+.ge-section-label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a1b0; margin-bottom: 8px; }
+
+/* Export PDF (electron printToPDF, or window.print() in the browser dev fallback) captures the
+   whole window, not just the Layout page — without this, exported PDFs would include the toolbar,
+   the Layout side panel, and the status bar around the actual page. App.jsx always switches to the
+   Layout tab before exporting, so hiding everything else here is safe: nothing else is meant to be
+   the printed output. The Layout page itself (.ge-layout-page) is sized/positioned for screen via
+   inline styles, so it's reset here to print at its natural A4-landscape size, full bleed. */
+@media print {
+  .ge-toolbar, .ge-subtoolbar, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
+  html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .ge-layout-page { margin: 0 !important; box-shadow: none !important; }
+}
+
+/* Cross-section pop-out's own "Export PDF" button (TASKS.csv #14) reuses the same generic
+   export-pdf IPC handler as the Layout page's, so it needs the same "hide the chrome, print just
+   the content" treatment — scoped to the pop-out's own toolbar/chip-bar classes since it's a
+   separate window from the main app and doesn't share .ge-toolbar/.ge-panel/.ge-status. */
+@media print {
+  .ge-section-toolbar, .ge-section-chips { display: none !important; }
+  .ge-section-body { padding: 0 !important; height: auto !important; overflow: visible !important; }
+}
+
+/* AttributeTableModal.jsx — editable cell focus ring, so it's clear a cell is being typed into */
+.ge-attr-cell:hover { border-color: #d9dce1 !important; }
+.ge-attr-cell:focus { border-color: #e2a63c !important; outline: none; background: #fdf7ea; }

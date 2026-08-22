@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-electron/
+release/
+
+# Python sidecar
+python-sidecar/**/__pycache__/
+python-sidecar/**/*.pyc
+python-sidecar/.venv/
+python-sidecar/venv/
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env
+.env
+.env.local
+
+# Claude Code local-only settings (personal overrides, not shared with the team)
+.claude/settings.local.json
