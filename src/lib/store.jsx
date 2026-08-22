@@ -124,6 +124,16 @@ export function StoreProvider({ children }) {
   const [viewerUiState, setViewerUiState] = useState(null);
   const [viewerUiStateSeq, setViewerUiStateSeq] = useState(0);
 
+  // TASKS.csv #101 — which Viewport element (if any) the Layout page's grid overlay is bound to, plus
+  // the desired real-world spacing in metres. Lives here (not as local LayoutModule state, which is
+  // where gridMm/showGrid intentionally stay — see LayoutModule's own comment) because the Viewport
+  // Enter/Refresh round-trip unmounts LayoutModule entirely (Layout and Viewer are never both
+  // mounted), which would otherwise silently drop the binding on every refresh — exactly the
+  // "doesn't automatically track a refreshed viewport" gap #101 was filed to close. Session-only
+  // (not persisted with the project file), matching gridMm/showGrid.
+  const [gridBoundViewportId, setGridBoundViewportId] = useState("");
+  const [gridMeters, setGridMeters] = useState(100);
+
   // TASKS.csv #155 — "3D Modeling" promoted to its own top-level module (a peer of 3D View, not a
   // sub-tab inside it), which means ViewerModule now fully unmounts/remounts when switching between
   // the two (same as switching to Geochem and back already did) — camState (theta/phi/radius/target)
@@ -914,6 +924,7 @@ export function StoreProvider({ children }) {
     softIntercepts, setSoftIntercepts, toggleSoftIntercept,
     sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
+    gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
     lastCamState, setLastCamState,
     pendingLayoutImages, addLayoutImage, consumeLayoutImage,
     requestedModule, moduleRequestSeq, goToModule,

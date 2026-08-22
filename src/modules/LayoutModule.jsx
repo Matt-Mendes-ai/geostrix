@@ -55,6 +55,10 @@ export default function LayoutModule() {
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     layers,
+    // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
+    // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
+    // every time Enter/Refresh switches away to the 3D View tab and back.
+    gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
   } = useStore();
   const [selected, setSelected] = useState(null);
   // User request: "let's make some keyboard shortcuts. Like on layout we could have delete key to
@@ -108,6 +112,15 @@ export default function LayoutModule() {
   // spacing AND the snap increment when dragging (real print-composer tools tie these together too).
   const [showGrid, setShowGrid] = useState(false);
   const [gridMm, setGridMm] = useState(10);
+  // TASKS.csv #101 — the page's own grid was always paper-space (mm), with no way to lay a
+  // real-world-scaled grid (e.g. "100m grid") directly over a bound Viewport the way a printed topo
+  // sheet would. Binding to a viewport switches the grid's unit from mm to metres and derives its
+  // pixel spacing from that viewport's OWN captured scale (worldHeightAtTarget / its pixel height —
+  // the same FOV/target-distance math #46/#69 already compute) instead of a fixed mm value — since
+  // this is a plain derived read of that element's current state (not copied/cached anywhere), it
+  // automatically follows the viewport's scale whenever it's refreshed/rebound. gridBoundViewportId
+  // and gridMeters themselves come from the store (destructured above), NOT local useState — see
+  // that destructure's own comment for why local state doesn't survive the Enter/Refresh round trip.
 
   // ---- Viewport element (TASKS.csv #46): bound to a theme (#45), re-rendered on demand via the
   // request/result round-trip in store.jsx (LayoutModule and ViewerModule are never both mounted).
@@ -217,12 +230,25 @@ export default function LayoutModule() {
         }
       : { id: el.id, offX: e.clientX - rect.left - el.x, offY: e.clientY - rect.top - el.y, groupOrigin: null };
   };
+  // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
+  // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
+  // bound element was deleted, or that viewport hasn't been rendered yet (no worldHeightAtTarget/h
+  // to compute a scale from).
+  const boundViewportEl = gridBoundViewportId ? elements.find((el) => el.id === gridBoundViewportId && el.type === "viewport") : null;
+  const metersPerPx = boundViewportEl?.worldHeightAtTarget && boundViewportEl?.h ? boundViewportEl.worldHeightAtTarget / boundViewportEl.h : null;
+  const gridSnapPx = metersPerPx ? gridMeters / metersPerPx : gridMm * PX_PER_MM;
+  // A bound viewport that gets deleted (or was never a viewport to begin with) shouldn't leave a
+  // stale, silently-ignored id sitting in the picker — snap back to "None" so the UI stays truthful.
+  useEffect(() => {
+    if (gridBoundViewportId && !boundViewportEl) setGridBoundViewportId("");
+  }, [gridBoundViewportId, boundViewportEl]);
+
   // Bound at the window level (not just on the page div) so a fast drag that outruns the cursor past
   // the page edge — or into the sidebar — doesn't leave dragState "stuck": mousemove/mouseup only
   // fired while the cursor stayed over .ge-main before, so releasing the button anywhere else left
   // the element following the cursor indefinitely until the next click landed back inside .ge-main.
   useEffect(() => {
-    const snapPx = gridMm * PX_PER_MM;
+    const snapPx = gridSnapPx;
     const onMove = (e) => {
       if (!dragState.current || !pageRef.current) return;
       const rect = pageRef.current.getBoundingClientRect();
@@ -246,7 +272,7 @@ export default function LayoutModule() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [showGrid, gridMm]);
+  }, [showGrid, gridSnapPx]);
 
   const addElement = (type) => {
     const id = `${type}_${Date.now()}`;
@@ -717,14 +743,47 @@ export default function LayoutModule() {
 
         {/* TASKS.csv #67 — QGIS-style alignment grid + rulers. */}
         <div className="ge-section-label" style={{ marginTop: 20 }}>View</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
           <div onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "#e2a63c" : "#9aa5b3" }} title={showGrid ? "Hide grid" : "Show grid"}>
             <Grid3x3 size={14} />
           </div>
           <div style={{ flex: 1, fontSize: 12, color: showGrid ? "#1a2028" : "#6b7684" }}>Grid + snap</div>
-          <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
-          <span style={{ fontSize: 10.5, color: "#94a1b0" }}>mm</span>
+          {metersPerPx ? (
+            <>
+              <input type="number" min={1} value={gridMeters} onChange={(e) => setGridMeters(Math.max(1, Number(e.target.value) || 100))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+              <span style={{ fontSize: 10.5, color: "#94a1b0" }}>m</span>
+            </>
+          ) : (
+            <>
+              <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+              <span style={{ fontSize: 10.5, color: "#94a1b0" }}>mm</span>
+            </>
+          )}
         </div>
+        {/* TASKS.csv #101 — bind the grid's real-world spacing to a Viewport's own captured scale
+            instead of a fixed paper-space mm value, so a "100m grid" can sit directly over the map
+            the way a printed topo sheet's grid would, staying correct across refreshes/rebinds. */}
+        <label style={{ fontSize: 10.5, color: "#55606e", display: "block", marginBottom: 4 }}>
+          Bind grid to viewport
+          <select value={gridBoundViewportId} onChange={(e) => setGridBoundViewportId(e.target.value)} style={inp}>
+            <option value="">None — free {gridMm}mm grid</option>
+            {elements.filter((el) => el.type === "viewport").map((el) => (
+              <option key={el.id} value={el.id}>
+                {(themes.find((t) => t.id === el.themeId)?.name) || "Viewport"}{el.worldHeightAtTarget ? "" : " (not rendered yet)"}
+              </option>
+            ))}
+          </select>
+        </label>
+        {gridBoundViewportId && !metersPerPx && (
+          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, lineHeight: 1.4 }}>
+            This viewport hasn't been rendered yet — use "Refresh from theme" on it once to get a real-world scale to bind to.
+          </div>
+        )}
+        {metersPerPx && (
+          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, lineHeight: 1.4 }}>
+            Grid spacing is locked to {gridMeters}m in the real world using this viewport's current scale — recomputes automatically whenever it's refreshed or rebound.
+          </div>
+        )}
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>Output</div>
         <button onClick={() => savePDF("layout.pdf")} style={{ ...pBtn, background: "#1e3629", border: "1px solid #3d6b52", color: "#8fd9ab" }}><FileDown size={13} /> Export PDF</button>
@@ -794,7 +853,7 @@ export default function LayoutModule() {
               backgroundImage: showGrid
                 ? `linear-gradient(to right, rgba(74,155,224,0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(74,155,224,0.18) 1px, transparent 1px)`
                 : "none",
-              backgroundSize: showGrid ? `${gridMm * PX_PER_MM}px ${gridMm * PX_PER_MM}px` : "auto",
+              backgroundSize: showGrid ? `${gridSnapPx}px ${gridSnapPx}px` : "auto",
             }}
             // Bug fix, part of the "creating numerous lines" report: starting a freehand stroke on top
             // of an existing element (the default title/legend/north-arrow/scale-bar all sit on a
