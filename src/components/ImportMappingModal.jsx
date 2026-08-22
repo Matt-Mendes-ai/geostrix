@@ -1,9 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { X } from "lucide-react";
 import { TARGET_SCHEMAS } from "../lib/layers.js";
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   const schema = TARGET_SCHEMAS[modal.target];
+  // TASKS.csv #208 — generic "add a custom field" control, usable for any target/schema, not just
+  // litho's new built-in Description field: map an arbitrary source column into an arbitrarily-named
+  // field carried through on every imported row (see applyCustomFields in ViewerModule.jsx).
+  const customFields = modal.customFields || [];
+  const [addName, setAddName] = useState("");
+  const [addColumn, setAddColumn] = useState("");
+  const addCustomField = () => {
+    const name = addName.trim();
+    if (!name || !addColumn) return;
+    onChange({ ...modal, customFields: [...customFields, { column: addColumn, name }] });
+    setAddName(""); setAddColumn("");
+  };
+  const removeCustomField = (i) => onChange({ ...modal, customFields: customFields.filter((_, j) => j !== i) });
   // TASKS.csv #120 — only targets carrying ABSOLUTE world x/y (collars; every other target is
   // hole-relative and inherits its position from the already-reprojected collar) can meaningfully
   // have a different source CRS than the project.
@@ -45,6 +58,37 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </select>
             </div>
           ))}
+
+          {/* TASKS.csv #208 — "make it possible to add extra fields whenever importing csv or
+              vectors" — a generic escape hatch for source columns that don't correspond to any of
+              this schema's built-in fields (comments, sample IDs, lab batch numbers, whatever the
+              source actually carries). Carried straight through to the attribute table (which
+              already derives its columns from whatever keys a row has) and, for interval layers, the
+              hover tooltip shows one named "description" specifically — see ViewerModule.jsx. */}
+          <div style={{ marginTop: 4, marginBottom: 14 }}>
+            <div style={label}>Extra fields (optional)</div>
+            {customFields.map((cf, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div style={{ flex: 1, fontSize: 12, color: "#1a2028" }}>{cf.column} <span style={{ color: "#94a1b0" }}>→</span> {cf.name}</div>
+                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeCustomField(i)} />
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={addColumn} onChange={(e) => setAddColumn(e.target.value)} style={{ ...sel, flex: 1, minWidth: 0 }}>
+                <option value="">— pick a column —</option>
+                {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+              <input
+                type="text" value={addName} onChange={(e) => setAddName(e.target.value)}
+                placeholder="Field name" style={{ ...sel, width: 130 }}
+              />
+              <button
+                onClick={addCustomField}
+                disabled={!addColumn || !addName.trim()}
+                style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: 11.5, opacity: (addColumn && addName.trim()) ? 1 : 0.5 }}
+              >Add</button>
+            </div>
+          </div>
 
           {hasAbsoluteXY && (
             <div style={{ marginTop: 14 }}>
@@ -119,6 +163,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               if (!col) return;
               (colToFields[col] = colToFields[col] || []).push(f.label);
             });
+            customFields.forEach((cf) => { (colToFields[cf.column] = colToFields[cf.column] || []).push(cf.name); });
             return (
               <div style={{ overflowX: "auto", border: "1px solid #d9dce1", borderRadius: 6 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>

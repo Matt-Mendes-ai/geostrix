@@ -201,7 +201,7 @@ export const LAYER_META = {
 // ============================================================
 // generic CSV import: target schemas + column-mapping helpers
 // ============================================================
-function intervalFields(valueAliases, extraAliases, numeric) {
+function intervalFields(valueAliases, extraAliases, numeric, descriptionAliases) {
   const fields = [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "from", label: "From", required: true, aliases: ["from", "from_m", "depth_from"] },
@@ -209,6 +209,10 @@ function intervalFields(valueAliases, extraAliases, numeric) {
     { key: "value", label: numeric ? "Value (numeric)" : "Value", required: true, aliases: valueAliases },
   ];
   if (extraAliases) fields.push({ key: "extra", label: "Extra (optional, e.g. %)", required: false, aliases: extraAliases });
+  // TASKS.csv #208 — real source data (esp. lithology logs) very often carries a free-text
+  // description/comments column alongside the coded value ("Pale green. Consistent fine grain.");
+  // previously unmappable and silently dropped on import.
+  if (descriptionAliases) fields.push({ key: "description", label: "Description (optional)", required: false, aliases: descriptionAliases });
   return fields;
 }
 
@@ -233,7 +237,7 @@ export const TARGET_SCHEMAS = {
     { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az"] },
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
   ], dipConvention: true },
-  litho: { label: "Lithology", fields: intervalFields(["lithology", "litho", "unit", "litho_unit"]) },
+  litho: { label: "Lithology", fields: intervalFields(["lithology", "litho", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc"]) },
   alt: { label: "Alteration", fields: intervalFields(["assemblage", "alteration"]) },
   vein: { label: "Veins", fields: intervalFields(["assemblage", "type", "vein_type"]) },
   mnlgy: { label: "Mineralization", fields: intervalFields(["mineral"], ["percent", "pct"]) },

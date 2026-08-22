@@ -131,31 +131,47 @@ const SOFT_NUGGET = 0.5;
 // actual drillhole data any surface is asked to extend, regardless of how spread out the property is.
 const MODEL_EXTENT_PAD_M = 500;
 
-function normInterval(r, mapping) {
-  return {
+// TASKS.csv #208 — generic "extra fields" plumbing, designed once and reused by every row-builder
+// below (and by the collars/survey/custom branches of commitImportData directly) rather than a
+// one-off special case just for litho's new `description` field. customFields is an array of
+// {column, name} pairs the user maps in ImportMappingModal — each maps an arbitrary source column
+// into an arbitrarily-named field on the imported row, carried straight through to the attribute
+// table (AttributeTableModal already derives its columns from Object.keys() of whatever a row
+// actually has, so this needs zero changes there) and hover tooltips (added explicitly below, since
+// those use fixed string templates rather than iterating keys).
+function applyCustomFields(row, r, customFields) {
+  if (!customFields || !customFields.length) return row;
+  customFields.forEach(({ column, name }) => {
+    if (column && name) row[name] = r[column];
+  });
+  return row;
+}
+function normInterval(r, mapping, customFields) {
+  return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
     from: Number(r[mapping.from]),
     to: Number(r[mapping.to]),
     value: String(r[mapping.value] ?? "Unknown").trim(),
     extra: mapping.extra ? Number(r[mapping.extra]) : undefined,
-  };
+    description: mapping.description ? (String(r[mapping.description] ?? "").trim() || undefined) : undefined,
+  }, r, customFields);
 }
-function normNumericInterval(r, mapping) {
-  return {
+function normNumericInterval(r, mapping, customFields) {
+  return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
     from: Number(r[mapping.from]),
     to: Number(r[mapping.to]),
     value: Number(r[mapping.value]),
-  };
+  }, r, customFields);
 }
-function normStructure(r, mapping) {
-  return {
+function normStructure(r, mapping, customFields) {
+  return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
     depth: Number(r[mapping.depth]),
     value: String(r[mapping.value] ?? "").trim(),
     dip: mapping.dip ? Number(r[mapping.dip]) : undefined,
     azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
-  };
+  }, r, customFields);
 }
 function normCollar(r) {
   return {
@@ -2490,7 +2506,10 @@ export default function ViewerModule({ mode = "view" }) {
           const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
           const mesh = new THREE.Mesh(geo, mat);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
+          // TASKS.csv #208 — surface a mapped Description column (litho's new optional field, or any
+          // custom field named "description") in the hover tooltip alongside the other interval layers
+          // that share this same tube-building path — harmless no-op for rows that don't have one.
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}` };
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -3195,14 +3214,14 @@ export default function ViewerModule({ mode = "view" }) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields }) => {
     const schema = TARGET_SCHEMAS[target];
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
     if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
 
     if (target === "collars") {
-      let rows = allRows.map((r) => ({
+      let rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: Number(r[mapping.x]), y: Number(r[mapping.y]), z: Number(r[mapping.z]),
         azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
         dip: mapping.dip ? flipDip(Number(r[mapping.dip])) : undefined,
@@ -3210,7 +3229,7 @@ export default function ViewerModule({ mode = "view" }) {
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
-      })).filter((r) => r.hole_id && !isNaN(r.x));
+      }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.x));
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
       // its position by desurveying against a collar+survey trace), so reprojecting here is what
@@ -3259,21 +3278,21 @@ export default function ViewerModule({ mode = "view" }) {
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(rows.map((r) => [r.hole_id, true])) }));
       setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}.${reprojectNote}`]);
     } else if (target === "survey") {
-      const rows = allRows.map((r) => ({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: Number(r[mapping.depth]), azimuth: Number(r[mapping.azimuth]), dip: flipDip(Number(r[mapping.dip])) })).filter((r) => r.hole_id && !isNaN(r.depth));
+      const rows = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: Number(r[mapping.depth]), azimuth: Number(r[mapping.azimuth]), dip: flipDip(Number(r[mapping.dip])) }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
       setSurvey((prev) => [...prev, ...rows]);
       setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`]);
     } else if (target === "structure") {
-      const rows = allRows.map((r) => ({ ...normStructure(r, mapping), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      const rows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
       setLayers((p) => ({ ...p, structure: [...(p.structure || []), ...rows] }));
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
     } else if (target === "custom") {
       const isPoint = mapping.depth && !mapping.from;
-      const rows = allRows.map((r) => ({
+      const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),
         from: mapping.from ? Number(r[mapping.from]) : undefined, to: mapping.to ? Number(r[mapping.to]) : undefined,
         depth: mapping.depth ? Number(r[mapping.depth]) : undefined, value: r[mapping.value],
-      })).filter((r) => r.hole_id);
+      }, r, customFields)).filter((r) => r.hole_id);
       const id = `custom_${Date.now()}`;
       const group = new THREE.Group(); group.name = id;
       layerGroupsRef.current[id] = group;
@@ -3287,8 +3306,8 @@ export default function ViewerModule({ mode = "view" }) {
       // build up one layer (e.g. lithology) from several CSVs (different holes, different field
       // seasons) and later want to pull just one of those back out without clearing the whole layer.
       const numeric = LAYER_META[target].numeric;
-      const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
-        : allRows.map((r) => normInterval(r, mapping)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
+      const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
+        : allRows.map((r) => normInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
       setLayers((p) => ({ ...p, [target]: [...(p[target] || []), ...rows] }));
       setLayerVisible((p) => ({ ...p, [target]: true }));
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
