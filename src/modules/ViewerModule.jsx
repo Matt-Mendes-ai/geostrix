@@ -1387,6 +1387,29 @@ export default function ViewerModule({ mode = "view" }) {
     };
   }, [viewerUiState]);
 
+  // TASKS.csv #198 — root-cause fix for the Layout Viewport render round-trip silently never
+  // completing (no capture, no error, no hop back to Layout — permanently stuck showing the applied
+  // theme on the 3D View tab). The viewport-render effect below used to list liveViewBundleFromStore
+  // directly in its dependency array, but that callback's own identity depends on `viewerUiState`
+  // (see its definition above) — and viewerUiState is EXACTLY what the "push local state up to the
+  // store" effect (a few lines up) updates every time applyTheme() changes layerVisible/etc, which
+  // this same effect calls as its very first action. So: effect runs -> applyTheme() changes local
+  // state -> the push-effect fires -> setViewerUiState() -> liveViewBundleFromStore's identity
+  // changes -> THIS effect's dependency array changed -> React tears down the just-scheduled 400ms
+  // capture timer via the cleanup function before it ever fires, then re-runs the effect body, which
+  // now short-circuits on the lastHandledRequestId guard (correctly avoiding re-applying the theme a
+  // second time) but returns without scheduling a REPLACEMENT timer either — permanently stranding
+  // the request with no timer, no capture, no error, nothing. Confirmed via instrumented Playwright-
+  // style testing: patched toDataURL and setTimeout(…,400) to log calls, triggered a brand-new
+  // Layout Viewport bind, and confirmed BOTH fired zero times, with the module stuck on the 3D View
+  // tab indefinitely. Fix: read the live-view snapshot through a ref that's updated in its own
+  // separate, harmless effect, instead of depending on the reactive binding directly — the render
+  // effect below now depends on liveViewBundleFromStoreRef (a stable ref object, never a new
+  // identity) instead of liveViewBundleFromStore itself, so the theme-apply side effect's ripple
+  // through viewerUiState no longer retriggers (and kills) this effect.
+  const liveViewBundleFromStoreRef = useRef(liveViewBundleFromStore);
+  useEffect(() => { liveViewBundleFromStoreRef.current = liveViewBundleFromStore; }, [liveViewBundleFromStore]);
+
   const captureCurrentTheme = useCallback((name) => {
     addTheme({ name, ...currentViewBundle() });
     setNotices((p) => [...p, `Saved theme "${name}".`]);
@@ -1471,7 +1494,7 @@ export default function ViewerModule({ mode = "view" }) {
     // TASKS.csv #202 fix — snapshot whatever the user actually had live (layers/filters/camera)
     // BEFORE temporarily swapping in the requested theme, so it can be restored once the capture
     // below is done rather than left showing the theme's config after the fact.
-    const liveViewBeforeRender = liveViewBundleFromStore();
+    const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
     applyTheme(theme);
     const timer = setTimeout(() => {
       const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
@@ -1537,7 +1560,10 @@ export default function ViewerModule({ mode = "view" }) {
       // user stranded on the Viewer tab with no visible error.
     }, 400);
     return () => clearTimeout(timer);
-  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, restoreLiveView, resolveViewportRender, goToModule, liveViewBundleFromStore]);
+    // liveViewBundleFromStore deliberately NOT in this list — see liveViewBundleFromStoreRef's own
+    // comment above for why depending on it directly reintroduces the bug it looks like it should
+    // have nothing to do with.
+  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, restoreLiveView, resolveViewportRender, goToModule]);
 
   // ---------- TASKS.csv #29: implicit surface modelling (GemPy), first pass ----------
   // Scope of this first pass, deliberately kept narrow: model ONE contact surface at a time (the
