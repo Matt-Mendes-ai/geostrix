@@ -64,6 +64,30 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 everything else. Recognized codes: WGS84/NAD83/NAD27 geographic, WGS84 &amp; NAD83 UTM
                 zones, and NAD83(CSRS) UTM 7N–11N (BC).
               </div>
+
+              {/* TASKS.csv #205 — a merged/regional dataset can have DIFFERENT rows in different
+                  EPSGs (e.g. one collar list spanning two UTM zones), which the single Source CRS
+                  field above can't express. If a likely per-row CRS column exists in the source
+                  data, offer mapping it here — each row is then reprojected from its OWN EPSG,
+                  falling back to the Source CRS field above for rows with a missing/unrecognized
+                  value. */}
+              <div style={{ marginTop: 10 }}>
+                <div style={label}>Per-row Source CRS column (optional)</div>
+                <select
+                  value={modal.perRowEpsgCol || ""}
+                  onChange={(e) => onChange({ ...modal, perRowEpsgCol: e.target.value })}
+                  style={{ ...sel, width: "100%" }}
+                >
+                  <option value="">— none, use one Source CRS for the whole file —</option>
+                  {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.4 }}>
+                  If this dataset's own column already tags each row with its EPSG (e.g. a merged
+                  regional database export with rows in more than one UTM zone), map it here instead —
+                  each row is reprojected from its own value in that column. Rows with a blank or
+                  unrecognized value fall back to the Source CRS field above.
+                </div>
+              </div>
             </div>
           )}
 

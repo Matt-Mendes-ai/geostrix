@@ -30,7 +30,7 @@ import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
 import {
-  LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol,
+  LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue,
 } from "../lib/layers.js";
@@ -3091,7 +3091,8 @@ export default function ViewerModule({ mode = "view" }) {
       const schema = TARGET_SCHEMAS[target];
       const mapping = {};
       schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
-      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down" });
+      const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
+      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     });
   };
@@ -3104,7 +3105,8 @@ export default function ViewerModule({ mode = "view" }) {
     const schema = TARGET_SCHEMAS[target];
     const mapping = {};
     schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
-    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down" });
+    const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
+    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
     setDbModalOpen(false);
   };
 
@@ -3113,7 +3115,7 @@ export default function ViewerModule({ mode = "view" }) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol }) => {
     const schema = TARGET_SCHEMAS[target];
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
     if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
@@ -3125,24 +3127,53 @@ export default function ViewerModule({ mode = "view" }) {
         azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
         dip: mapping.dip ? flipDip(Number(r[mapping.dip])) : undefined,
         length: mapping.length ? Number(r[mapping.length]) : undefined,
+        // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
+        // the reprojection pass below — stripped before the collar is stored.
+        _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
       })).filter((r) => r.hole_id && !isNaN(r.x));
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
       // its position by desurveying against a collar+survey trace), so reprojecting here is what
       // actually lets a geologist combine a collar list pulled in a different UTM zone with the rest
       // of the project — same "reproject at import" approach parseDEMFiles already uses for rasters.
+      //
+      // TASKS.csv #205 — a per-row source-CRS column (e.g. a merged regional DB export spanning two
+      // UTM zones, like 3157/3156) can't be handled by one global "Source CRS" reprojection pass over
+      // the whole batch: each row needs to be reprojected FROM ITS OWN declared EPSG. Rows are grouped
+      // by their own per-row EPSG value and each group is reprojected separately; a row with a missing
+      // or unrecognized per-row value falls back to the single global `sourceEpsg` override exactly
+      // like the pre-#205 behavior (and if that's also unset/unrecognized, its x/y is left as-is).
       let reprojectNote = "";
-      if (sourceEpsg && project?.epsg && Number(sourceEpsg) !== Number(project.epsg)) {
-        let failed = 0;
-        rows = rows.map((r) => {
-          const p = reprojectXY(r.x, r.y, sourceEpsg, project.epsg);
-          if (!p) { failed++; return r; }
-          return { ...r, x: p.x, y: p.y };
+      if (project?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(project.epsg)))) {
+        const toEpsg = project.epsg;
+        const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
+        rows.forEach((r) => {
+          const key = r._rowEpsg || "";
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(r);
         });
-        reprojectNote = failed
-          ? ` Note: couldn't resolve a proj4 definition for EPSG:${sourceEpsg} or EPSG:${project.epsg} — no reprojection happened, double-check these coordinates line up with the rest of the project.`
-          : ` Reprojected from EPSG:${sourceEpsg} to the project's EPSG:${project.epsg} on import.`;
+        let reprojectedCount = 0, unreprojectedCount = 0;
+        const okEpsgs = [], badEpsgs = [];
+        for (const [rowEpsgKey, groupRows] of groups) {
+          const fromEpsg = rowEpsgKey || sourceEpsg;
+          if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
+          let groupFailed = 0;
+          groupRows.forEach((r) => {
+            const p = reprojectXY(r.x, r.y, fromEpsg, toEpsg);
+            if (!p) { groupFailed++; return; }
+            r.x = p.x; r.y = p.y;
+          });
+          if (groupFailed && !badEpsgs.includes(fromEpsg)) badEpsgs.push(fromEpsg);
+          unreprojectedCount += groupFailed;
+          const succeeded = groupRows.length - groupFailed;
+          if (succeeded) { reprojectedCount += succeeded; if (!okEpsgs.includes(fromEpsg)) okEpsgs.push(fromEpsg); }
+        }
+        const parts = [];
+        if (reprojectedCount) parts.push(`reprojected ${reprojectedCount} row(s) from EPSG:${okEpsgs.join("/")} to the project's EPSG:${toEpsg}`);
+        if (unreprojectedCount) parts.push(`left ${unreprojectedCount} row(s) unchanged${badEpsgs.length ? ` (unrecognized EPSG:${badEpsgs.join("/")})` : " (already the project CRS, or no source CRS given)"}`);
+        reprojectNote = parts.length ? ` On import: ${parts.join("; ")}.` : "";
       }
+      rows = rows.map(({ _rowEpsg, ...rest }) => rest);
       const map = new Map([...collars, ...rows].map((c) => [c.hole_id, c]));
       setCollars(Array.from(map.values()));
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(rows.map((r) => [r.hole_id, true])) }));

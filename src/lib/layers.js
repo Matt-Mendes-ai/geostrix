@@ -212,6 +212,11 @@ function intervalFields(valueAliases, extraAliases, numeric) {
   return fields;
 }
 
+// TASKS.csv #205 — name-guess aliases for an optional per-row source-CRS column (e.g. a merged
+// regional DB export where different collars were surveyed in different UTM zones), matched the
+// same way guessColumn already resolves hole_id/x/y/z against real-world header variants.
+export const EPSG_COL_ALIASES = ["epsg_srid", "source_epsg", "epsg", "srid", "crs_epsg", "crs"];
+
 export const TARGET_SCHEMAS = {
   collars: { label: "Collars", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "hole_name"] },
