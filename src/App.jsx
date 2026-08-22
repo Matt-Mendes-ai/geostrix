@@ -25,7 +25,7 @@ import LayoutModule from "./modules/LayoutModule.jsx";
 // my targets and plan holes" in the day-to-day workflow.
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
-  { id: "modeling", label: "3D Modeling", icon: Layers3 },
+  { id: "modeling", label: "3D Modeling (Coming Soon)", icon: Layers3, disabled: true },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
@@ -223,7 +223,14 @@ export default function App() {
         {MODULES.map((m) => {
           const Icon = m.icon;
           return (
-            <button key={m.id} className={`ge-tool-btn ${active === m.id ? "active" : ""}`} onClick={() => setActive(m.id)}>
+            <button
+              key={m.id}
+              className={`ge-tool-btn ${active === m.id ? "active" : ""}`}
+              onClick={() => !m.disabled && setActive(m.id)}
+              disabled={m.disabled}
+              title={m.disabled ? "Coming soon" : undefined}
+              style={m.disabled ? { opacity: 0.45, cursor: "default" } : undefined}
+            >
               <Icon size={15} /> {m.label}
             </button>
           );
