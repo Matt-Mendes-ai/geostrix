@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn } from "lucide-react";
+import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -552,6 +552,34 @@ export default function LayoutModule() {
             {"text" in sel && (
               <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
+            {/* TASKS.csv #102 — font controls for text elements (title/text). Not callout, which
+                already has its own distinct sticky-note styling (fill/border) and fixed text look —
+                adding font controls there wasn't asked for and risks changing an established look. */}
+            {(sel.type === "text" || sel.type === "title") && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <label style={{ fontSize: 11.5, color: "#55606e", flex: 1 }}>Size
+                    <input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  </label>
+                  <label style={{ fontSize: 11.5, color: "#55606e" }}>Color
+                    <input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid #d9dce1", borderRadius: 5, background: "none", cursor: "pointer" }} />
+                  </label>
+                </div>
+                <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                  <ToolIconBtn icon={<Bold size={13} />} title="Bold" onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
+                  <ToolIconBtn icon={<Italic size={13} />} title="Italic" onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
+                  <ToolIconBtn icon={<AlignLeft size={13} />} title="Align left" onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
+                  <ToolIconBtn icon={<AlignCenter size={13} />} title="Align center" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
+                  <ToolIconBtn icon={<AlignRight size={13} />} title="Align right" onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
+                </div>
+              </div>
+            )}
+            {/* TASKS.csv #102 — frame/border customization (already built for viewport, see
+                ViewportControls below) extended to text/title/legend elements, reusing the exact same
+                frameWidth/frameColor/frameStyle fields and control shape rather than a second UI. */}
+            {(sel.type === "text" || sel.type === "title" || sel.type === "legend") && (
+              <FrameControls sel={sel} updateSelected={updateSelected} />
+            )}
             {"meters" in sel && (
               <label style={{ fontSize: 11.5, color: "#55606e" }}>Scale length (m)
                 <input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
@@ -998,14 +1026,44 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   );
 }
 
+// TASKS.csv #102 — same width/style math the "viewport" branch below already uses (double style
+// triples the drawn width so it actually reads as a double rule at small sizes), shared here for
+// title/text/legend. `fallback` lets legend keep its pre-existing plain "1px solid #ccc" look when
+// no frame has been explicitly set, instead of suddenly losing its border.
+function frameBorder(el, fallback = "none") {
+  if (!el.frameWidth) return fallback;
+  const style = el.frameStyle === "double" ? "double" : el.frameStyle === "dashed" ? "dashed" : "solid";
+  const w = el.frameStyle === "double" ? Math.max(3, el.frameWidth * 3) : el.frameWidth;
+  return `${w}px ${style} ${el.frameColor || "#1a1a1a"}`;
+}
+
 function LayoutElement({ el, selected, multiSelected, onDown }) {
   // multiSelected (part of a Ctrl+click bulk selection, but not the single "active" element) gets a
   // dashed outline so a multi-selection reads visually distinct from the one element whose properties
   // are actually showing in the sidebar.
   const outline = selected ? "1.5px solid #4a9be0" : multiSelected ? "1.5px dashed #4a9be0" : "none";
   const wrap = { position: "absolute", left: el.x, top: el.y, cursor: "move", outline, outlineOffset: 3 };
-  if (el.type === "title") return <div style={{ ...wrap, width: el.w }} onMouseDown={onDown}><div style={{ fontSize: 26, fontWeight: 700, color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div></div>;
-  if (el.type === "text") return <div style={{ ...wrap, width: el.w }} onMouseDown={onDown}><div style={{ fontSize: 14, color: "#222" }}>{el.text}</div></div>;
+  // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
+  // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
+  // shorthand shared by title/text/legend; a frameWidth of 0 (the default for these types — see
+  // FrameControls' own comment) renders as "none", so nothing looks different for any element that
+  // predates this feature.
+  if (el.type === "title") {
+    const b = frameBorder(el);
+    return (
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
+        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      </div>
+    );
+  }
+  if (el.type === "text") {
+    const b = frameBorder(el);
+    return (
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
+        <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{el.text}</div>
+      </div>
+    );
+  }
   if (el.type === "logo") return <img src={el.src} alt="logo" style={{ ...wrap, width: el.w }} onMouseDown={onDown} draggable={false} />;
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
@@ -1065,7 +1123,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
     );
   }
   if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: "1px solid #ccc", padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
+    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
       <div style={{ fontSize: 12, fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>Legend</div>
       {el.items.map(([name, color], i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
@@ -1136,6 +1194,33 @@ function ColorRow({ label, value, onChange }) {
       <span style={{ flex: 1 }}>{label}</span>
       <input type="color" value={value} onChange={(e) => onChange(e.target.value)} style={{ width: 30, height: 26, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent", cursor: "pointer" }} />
     </label>
+  );
+}
+
+// TASKS.csv #102 — reusable frame/border controls (width, color, style), same fields ViewportControls
+// already uses inline for "viewport" elements, now shared with text/title/legend too instead of
+// building a second UI. frameWidth defaults to 0 here (no border) rather than viewport's own 1,
+// since a fresh text/title/legend element never had a border before this — a default width of 0
+// means nothing changes for existing elements until the user explicitly turns one on.
+function FrameControls({ sel, updateSelected }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <label style={{ fontSize: 11.5, color: "#55606e", flex: 1 }}>Frame width
+          <input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+        </label>
+        <label style={{ fontSize: 11.5, color: "#55606e" }}>Color
+          <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid #d9dce1", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        </label>
+      </div>
+      <label style={{ fontSize: 11.5, color: "#55606e" }}>Frame style
+        <select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="double">Double</option>
+        </select>
+      </label>
+    </div>
   );
 }
 
