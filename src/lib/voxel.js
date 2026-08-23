@@ -291,6 +291,16 @@ export function coarsenUBCModel(mesh, values, fx, fy, fz) {
 // grid). Column name matching reuses layers.js's getCol (case-insensitive, trims header whitespace)
 // so it accepts the same easting/northing/elevation-style synonyms the rest of the app already does.
 export function parseBlockModelCSV(rows) {
+  // TASKS.csv #209 — perf fix, profiled not guessed. Real repro: a 10,000,000-row block-model CSV
+  // took over 100 SECONDS to reject — the MAX_CELLS check below used to run only after mapping every
+  // row through Number()/getCol(), filtering it, and running inferAxis's Set-building pass over all of
+  // them, i.e. the full O(n) parse cost was paid in full before ever consulting the one number that
+  // decides whether any of that work was going to be used. rows.length is a safe upper bound for the
+  // eventual cells.length (bad rows only ever shrink that count, never grow it), so checking it FIRST
+  // rejects an oversized file near-instantly instead of after fully processing it for nothing.
+  if (rows.length > MAX_CELLS) {
+    throw new Error(`CSV has ${rows.length.toLocaleString()} row(s) — over GeoStrix's ${MAX_CELLS.toLocaleString()}-cell import limit (kept low enough to stay responsive in the 3D view).`);
+  }
   const parsed = rows.map((r) => ({
     x: Number(getCol(r, ["x", "xc", "centroid_x", "easting", "east"])),
     y: Number(getCol(r, ["y", "yc", "centroid_y", "northing", "north"])),
@@ -322,9 +332,8 @@ export function parseBlockModelCSV(rows) {
     dz: Number.isFinite(r.dz) && r.dz > 0 ? r.dz : inferredDz,
     value: r.value,
   }));
-  if (cells.length > MAX_CELLS) {
-    throw new Error(`CSV has ${cells.length.toLocaleString()} usable rows — over GeoStrix's ${MAX_CELLS.toLocaleString()}-cell import limit (kept low enough to stay responsive in the 3D view).`);
-  }
+  // No post-hoc MAX_CELLS check needed here anymore — cells.length can never exceed rows.length,
+  // already checked (and thrown on) above before any of this work ran.
   return { cells, badRows: bad, inferredSize: (inferredDx !== null || inferredDy !== null || inferredDz !== null) };
 }
 

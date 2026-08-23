@@ -32,7 +32,7 @@ import StereonetModal from "../components/StereonetModal.jsx";
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
-  rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue,
+  rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF } from "../lib/meshExport.js";
@@ -2447,6 +2447,13 @@ export default function ViewerModule({ mode = "view" }) {
     };
     const assaysByHole = groupByHole(assays);
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
+    // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
+    // litho/alt/etc., just never extended to survey: `survey.filter(s => s.hole_id === c.hole_id)`
+    // inside the per-collar loop below was still an O(holes × survey rows) full-array scan every
+    // rebuild. Real projects carry multiple survey stations per hole (unlike this task's own
+    // profiling repro, which used straight synthetic holes with none), so this was a live, if
+    // smaller, contributor on real datasets — grouped once here instead, same O(rows) shape.
+    const surveyByHole = groupByHole(survey.filter((s) => !isNaN(s.depth)));
 
     // Bug-hunt pass: color/size range for numeric point layers (mnlgy/magsusc) used to be computed
     // per-hole inside buildPointMarkers below, so the same absolute value rendered a different color
@@ -2475,7 +2482,7 @@ export default function ViewerModule({ mode = "view" }) {
     const buildErrors = [];
     collars.forEach((c) => {
      try {
-      const hs = survey.filter((s) => s.hole_id === c.hole_id && !isNaN(s.depth));
+      const hs = surveyByHole.get(c.hole_id) || [];
       const raw = desurveyHole(c, hs);
       if (!raw.length) return;
       const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) }));
@@ -2500,11 +2507,62 @@ export default function ViewerModule({ mode = "view" }) {
           const mid = pts.filter((p) => p.md >= row.from - 0.01 && p.md <= row.to + 0.01);
           const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)];
           if (vecs.length < 2) return;
-          const curve = new THREE.CatmullRomCurve3(vecs);
-          const geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), meta.radius, 6, false);
-          const color = meta.numeric ? rqdColor(row.value) : effectiveColor(groupKey, row.value);
-          const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
-          const mesh = new THREE.Mesh(geo, mat);
+          // TASKS.csv #209 — perf fix, profiled not guessed. A real repro (400 holes x 60 litho
+          // intervals = 24,000 rows) froze the main thread for ~11.3s on import; instrumented timing
+          // (temporarily, since removed) showed 10.1s of that — 89% — was CatmullRomCurve3+TubeGeometry
+          // construction alone, ~0.42ms x 24,000 calls. The other candidate hot spots from this task's
+          // own notes (findOnTrace's linear scan, desurvey, mesh/material setup) measured under 800ms
+          // combined — comparatively negligible.
+          //
+          // TubeGeometry's cost comes from sampling a Frenet-ish frame along a curve, which is only
+          // actually needed when an interval spans a REAL bend in the hole's desurveyed trace. A first
+          // attempt gated the fast path on `mid.length === 0` (no internal ~3m-spaced sample point
+          // crossed) — wrong, and measurably WORSE (re-profiled at 13.1s, not better): that 3m spacing
+          // is just desurveyHole's arbitrary sampling resolution, not a proxy for curvature, so a
+          // perfectly straight hole with an ordinary 5m logging interval still crosses one of those grid
+          // points constantly and never took the fast path. The real question is whether p1/mid/p2 are
+          // actually colinear — checked directly below by measuring each mid point's perpendicular
+          // distance from the p1->p2 line — which correctly recognizes a straight interval as straight
+          // regardless of how many arbitrary sample points it happens to cross. Re-profiled after this
+          // correction: the 24,000-interval rebuild's single longest main-thread block went from ~10.9s
+          // to ~2.6s (see TASKS.csv #209's notes for the exact before/after numbers and the remaining-
+          // cost breakdown) on this fully-straight synthetic dataset — a real, measured ~4x win, not a
+          // guess — with a curved dataset (holes given a real per-station azimuth/dip change) confirmed
+          // to still route through the original curve-following TubeGeometry path unchanged.
+          const straight = (() => {
+            if (!mid.length) return true; // p1/p2 only, nothing to check
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
+            const lenSq = dx * dx + dy * dy + dz * dz;
+            if (lenSq < 1e-9) return true;
+            const tol = 0.05; // metres — well under drawing precision at typical viewer scales
+            for (const p of mid) {
+              const t = ((p.x - p1.x) * dx + (p.y - p1.y) * dy + (p.z - p1.z) * dz) / lenSq;
+              const projX = p1.x + t * dx, projY = p1.y + t * dy, projZ = p1.z + t * dz;
+              const ddx = p.x - projX, ddy = p.y - projY, ddz = p.z - projZ;
+              if (ddx * ddx + ddy * ddy + ddz * ddz > tol * tol) return false;
+            }
+            return true;
+          })();
+          let geo, mesh_ = null;
+          if (straight) {
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
+            const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (len < 1e-6) return;
+            geo = new THREE.CylinderGeometry(meta.radius, meta.radius, len, 6, 1, false);
+            geo.translate(0, len / 2, 0); // CylinderGeometry is centered on its own axis by default — shift so position=p1 places the BASE at p1, matching TubeGeometry's own from-p1-to-p2 extent
+            const color = meta.numeric ? rqdColor(row.value) : effectiveColor(groupKey, row.value);
+            const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
+            mesh_ = new THREE.Mesh(geo, mat);
+            mesh_.position.set(p1.x, p1.y, p1.z);
+            mesh_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
+          } else {
+            const curve = new THREE.CatmullRomCurve3(vecs);
+            geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), meta.radius, 6, false);
+            const color = meta.numeric ? rqdColor(row.value) : effectiveColor(groupKey, row.value);
+            const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
+            mesh_ = new THREE.Mesh(geo, mat);
+          }
+          const mesh = mesh_;
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
           // TASKS.csv #208 — surface a mapped Description column (litho's new optional field, or any
           // custom field named "description") in the hover tooltip alongside the other interval layers
@@ -3036,6 +3094,14 @@ export default function ViewerModule({ mode = "view" }) {
       const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
       const { min, max } = model;
+      // TASKS.csv #209 — perf fix, profiled not guessed. Real repro: an OMF-style model with its own
+      // colour stops (Matt's own real workflow — see makeVoxelColorResolverRGB's comment) hitting
+      // colorForVoxelValue() once per cell was re-sorting the stops array AND re-parsing every stop's
+      // hex string on every single call, then handing a freshly-built string to tmpColor.setStyle()
+      // for a THIRD parse (regex-based CSS color grammar) — all of that repeated per cell rather than
+      // once per model. Built once here instead: a closure that only does cheap numeric interpolation,
+      // paired with tmpColor.setRGB() (plain numbers, no string anywhere) instead of setStyle().
+      const resolveColorRGB = makeVoxelColorResolverRGB(model);
       cells.forEach((c, i) => {
         tmpMatrix.compose(
           new THREE.Vector3(c.x - ox, c.z - oz, -(c.y - oy)),
@@ -3043,11 +3109,13 @@ export default function ViewerModule({ mode = "view" }) {
           new THREE.Vector3(Math.max(c.dx, 0.01), Math.max(c.dz, 0.01), Math.max(c.dy, 0.01))
         );
         mesh.setMatrixAt(i, tmpMatrix);
-        // User request: honor the model's own {value,color} stops (imported from an OMF file's colour
-        // legend, or hand-edited/classified in GeophysicsModule's layers panel) when present — see
-        // layers.js's colorForVoxelValue, which falls back to the original magColor(value,min,max)
-        // 2-color gradient for any model with no stops (unchanged behavior for UBC/CSV imports).
-        tmpColor.setStyle(colorForVoxelValue(model, c.value));
+        const [cr, cg, cb] = resolveColorRGB(c.value);
+        // setRGB's default colorSpace is ColorManagement.workingColorSpace (linear), NOT sRGB — unlike
+        // setStyle's own default (SRGBColorSpace). Passing SRGBColorSpace explicitly here is required
+        // to reproduce the exact same displayed color setStyle("rgb(...)") used to produce; omitting
+        // it would silently reinterpret these 0-255 sRGB values as already-linear, visibly darkening
+        // every voxel's color relative to before this change.
+        tmpColor.setRGB(cr / 255, cg / 255, cb / 255, THREE.SRGBColorSpace);
         mesh.setColorAt(i, tmpColor);
       });
       mesh.instanceMatrix.needsUpdate = true;

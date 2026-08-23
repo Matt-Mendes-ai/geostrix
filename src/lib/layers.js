@@ -67,10 +67,19 @@ export function rqdColor(pct) {
   const c = lo[1].map((v, i) => Math.round(v + (hi[1][i] - v) * t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
-export function magColor(v, min, max) {
+// TASKS.csv #209 — split out the numeric math so a hot per-instance loop (ViewerModule's voxel
+// InstancedMesh build) can get plain [r,g,b] numbers directly instead of round-tripping through a
+// freshly-allocated "rgb(...)" string just to have three.js's Color.setStyle() immediately re-parse
+// it via regex — a real, profiled cost at multi-hundred-thousand-cell scale (see that call site's own
+// comment for the measured before/after). magColor itself is unchanged for every other caller that
+// actually wants a CSS color string (legend swatches, etc).
+export function magColorRGB(v, min, max) {
   const t = max <= min ? 0 : Math.min(1, Math.max(0, (v - min) / (max - min)));
   const lo = [70, 110, 190], hi = [220, 70, 60];
-  const c = lo.map((x, i) => Math.round(x + (hi[i] - x) * t));
+  return lo.map((x, i) => Math.round(x + (hi[i] - x) * t));
+}
+export function magColor(v, min, max) {
+  const c = magColorRGB(v, min, max);
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 export { hashColor };
@@ -132,6 +141,47 @@ export function paletteColorsHex(paletteKey, n) {
     const idx = Math.min(anchors.length - 2, Math.floor(scaled));
     return lerpColorHex(anchors[idx], anchors[idx + 1], scaled - idx);
   });
+}
+
+// TASKS.csv #209 — perf fix, profiled not guessed. colorForVoxelValue below re-sorts model.stops AND
+// re-parses every stop's hex string on EVERY call — fine for a one-off UI lookup, but ViewerModule's
+// voxel InstancedMesh build calls this ONCE PER CELL, so a model with hundreds of thousands of cells
+// (a real OMF import with its own colour legend — exactly what a heavy real-world voxel model looks
+// like) was re-sorting the same handful of stops and re-parsing the same hex strings that many times
+// over, then handing the result to three.js's Color.setStyle() for yet another parse. This factory
+// does the sort + hex-parse ONCE per model and returns a closure that only does the cheap per-value
+// lookup/interpolation, in plain numbers — no strings anywhere in the hot path. Used by ViewerModule's
+// voxel-build effect; colorForVoxelValue itself is untouched and still used by every non-hot-loop
+// caller (legend swatches, the section/fence-diagram color lookup, etc) that wants a CSS string.
+export function makeVoxelColorResolverRGB(model) {
+  const stops = model?.stops;
+  if (!stops || !stops.length) {
+    const min = model?.min, max = model?.max;
+    return (value) => magColorRGB(value, min, max);
+  }
+  const sorted = [...stops].sort((a, b) => a.value - b.value).map((s) => ({ value: s.value, rgb: hexToRgb(s.color) }));
+  const discrete = model.colorMode === "discrete";
+  return (value) => {
+    if (discrete) {
+      let rgb = sorted[0].rgb;
+      for (const s of sorted) { if (value >= s.value) rgb = s.rgb; else break; }
+      return rgb;
+    }
+    if (value <= sorted[0].value) return sorted[0].rgb;
+    if (value >= sorted[sorted.length - 1].value) return sorted[sorted.length - 1].rgb;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i], b = sorted[i + 1];
+      if (value >= a.value && value <= b.value) {
+        const t = b.value === a.value ? 0 : (value - a.value) / (b.value - a.value);
+        return [
+          Math.round(a.rgb[0] + (b.rgb[0] - a.rgb[0]) * t),
+          Math.round(a.rgb[1] + (b.rgb[1] - a.rgb[1]) * t),
+          Math.round(a.rgb[2] + (b.rgb[2] - a.rgb[2]) * t),
+        ];
+      }
+    }
+    return sorted[sorted.length - 1].rgb;
+  };
 }
 
 // Resolves a voxel/block-model cell's display color, honoring the model's own stops+colorMode when
