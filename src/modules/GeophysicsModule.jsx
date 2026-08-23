@@ -61,6 +61,8 @@ export default function GeophysicsModule() {
   const [srtmProgress, setSrtmProgress] = useState(null); // { done, total } | null
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
+  const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
+  const [srtmAreaOptions, setSrtmAreaOptions] = useState(null); // [{id, label, bboxLonLat}] | null — TASKS.csv #200
   const [voxelError, setVoxelError] = useState(null);
   const [voxelBusy, setVoxelBusy] = useState(false);
   const [voxelProgress, setVoxelProgress] = useState(null);
@@ -225,6 +227,35 @@ export default function GeophysicsModule() {
     return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
   };
 
+  // TASKS.csv #200 — "the option to select a polygon or a raster to use as boundary": reprojects
+  // each already-imported boundary/raster's own extent (project EPSG) to lon/lat so the SRTM picker
+  // can offer it as a ready-made fetch area, same idea as the collar-derived seed bbox above but for
+  // layers instead of drillholes. Boundaries store polylines, not a bbox, so it's computed here from
+  // every vertex across every loop; rasters already carry their own bbox.
+  const buildSrtmAreaOptions = async () => {
+    if (!project?.epsg) return [];
+    const jobs = [];
+    for (const b of boundaries) {
+      const xs = [], ys = [];
+      for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
+      if (!xs.length) continue;
+      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys) });
+    }
+    for (const r of rasters) {
+      if (!r.bbox) continue;
+      const [xmin, ymin, xmax, ymax] = r.bbox;
+      jobs.push({ id: `raster_${r.id}`, label: `Raster: ${r.name}`, xmin, xmax, ymin, ymax });
+    }
+    const options = await Promise.all(jobs.map(async (j) => {
+      const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
+      const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+      if (lonLats.some((ll) => !ll)) return null;
+      const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
+      return { id: j.id, label: j.label, bboxLonLat: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] };
+    }));
+    return options.filter(Boolean);
+  };
+
   const openSrtmPicker = async () => {
     if (!project?.epsg) {
       setTerrainError({ info: false, text: "Project EPSG isn't set — can't reproject fetched elevation into project coordinates." });
@@ -237,6 +268,8 @@ export default function GeophysicsModule() {
       return;
     }
     setSrtmSeedBbox(seed);
+    setSrtmSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null);
+    setSrtmAreaOptions(await buildSrtmAreaOptions());
     setSrtmPickerOpen(true);
   };
 
@@ -738,7 +771,10 @@ export default function GeophysicsModule() {
         {srtmPickerOpen && (
           <BasemapView
             mode="draw"
+            lon={srtmSeedLonLat?.lon}
+            lat={srtmSeedLonLat?.lat}
             initialBboxLonLat={srtmSeedBbox}
+            areaOptions={srtmAreaOptions}
             onClose={() => setSrtmPickerOpen(false)}
             onConfirm={runSrtmFetch}
           />

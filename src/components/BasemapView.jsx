@@ -39,8 +39,10 @@ function worldPxToLonLat(wx, wy, zoom) {
 //    redraw/expand before confirming.
 export default function BasemapView({
   mode = "locate", // "locate" | "draw"
-  lon, lat, // marker (locate) / fallback center (draw, if no initial bbox)
+  lon, lat, // marker (locate) / fallback center + "Locate" recenter target (draw, if known)
   initialBboxLonLat = null, // [lonMin, latMin, lonMax, latMax], draw mode only
+  areaOptions = null, // TASKS.csv #200 — draw mode only: [{id, label, bboxLonLat}], existing
+  // boundary/raster layers offered as a ready-made fetch area instead of drawing one by hand.
   onClose,
   onConfirm, // (bboxLonLat) => void, draw mode only
 }) {
@@ -71,28 +73,41 @@ export default function BasemapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Centers/zooms the view to fit a given lon/lat bbox — shared by the initial seed-bbox placement
+  // below and by picking an existing boundary/raster layer as the fetch area (TASKS.csv #200): both
+  // need the same "zoom out until the box fits comfortably in the viewport" search.
+  const fitToBbox = (bboxLonLat) => {
+    const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+    const clon = (lonMin + lonMax) / 2, clat = (latMin + latMax) / 2;
+    let z = 11;
+    for (let zz = 17; zz >= 3; zz--) {
+      const a = lonLatToWorldPx(lonMin, latMax, zz), b = lonLatToWorldPx(lonMax, latMin, zz);
+      if (Math.abs(b.wx - a.wx) <= size.w * 0.65 && Math.abs(b.wy - a.wy) <= size.h * 0.65) { z = zz; break; }
+    }
+    setZoom(z);
+    setCenter(lonLatToWorldPx(clon, clat, z));
+  };
+
   // Set the initial center/zoom exactly once — center of the seed bbox (draw mode) or the marker
   // point (locate mode), with a zoom picked to roughly fit the seed bbox if there is one.
   useEffect(() => {
     if (center) return;
+    if (initialBboxLonLat) { fitToBbox(initialBboxLonLat); return; }
     let clon = lon, clat = lat;
-    if (initialBboxLonLat) {
-      clon = (initialBboxLonLat[0] + initialBboxLonLat[2]) / 2;
-      clat = (initialBboxLonLat[1] + initialBboxLonLat[3]) / 2;
-    }
     if (!Number.isFinite(clon) || !Number.isFinite(clat)) { clon = 0; clat = 20; }
-    let z = 11;
-    if (initialBboxLonLat) {
-      const [lonMin, latMin, lonMax, latMax] = initialBboxLonLat;
-      for (let zz = 17; zz >= 3; zz--) {
-        const a = lonLatToWorldPx(lonMin, latMax, zz), b = lonLatToWorldPx(lonMax, latMin, zz);
-        if (Math.abs(b.wx - a.wx) <= size.w * 0.65 && Math.abs(b.wy - a.wy) <= size.h * 0.65) { z = zz; break; }
-      }
-    }
-    setZoom(z);
-    setCenter(lonLatToWorldPx(clon, clat, z));
+    setZoom(11);
+    setCenter(lonLatToWorldPx(clon, clat, 11));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center]);
+
+  // TASKS.csv #200 — "the option to select a polygon or a raster to use as boundary": picking an
+  // existing boundary/raster layer's extent sets the same `bbox` the free-hand "Draw area" tool
+  // would, then pans/zooms to fit it, so the rest of the confirm flow (accept-as-is or nudge it
+  // first) works identically either way.
+  const pickAreaFromLayer = (bboxLonLat) => {
+    setBbox(bboxLonLat);
+    fitToBbox(bboxLonLat);
+  };
 
   const tiles = useMemo(() => {
     if (!center || !size.w || !size.h) return [];
@@ -183,7 +198,7 @@ export default function BasemapView({
           {mode === "draw" ? "Draw the area to fetch SRTM elevation for" : "Locate"}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {mode === "locate" && Number.isFinite(lon) && Number.isFinite(lat) && (
+          {Number.isFinite(lon) && Number.isFinite(lat) && (
             <button onClick={recenter} title="Center on project location" style={iconBtnStyle}><Crosshair size={14} /></button>
           )}
           <button onClick={onClose} title="Close" style={iconBtnStyle}><X size={16} /></button>
@@ -247,6 +262,21 @@ export default function BasemapView({
           <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title="Drag on the map to draw the fetch area">
             <Square size={13} /> Draw area
           </button>
+          {areaOptions && areaOptions.length > 0 && (
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const opt = areaOptions.find((o) => o.id === e.target.value);
+                if (opt) pickAreaFromLayer(opt.bboxLonLat);
+                e.target.value = "";
+              }}
+              style={{ ...toolBtnStyle, padding: "6px 8px" }}
+              title="Use an existing boundary or raster layer's extent as the fetch area"
+            >
+              <option value="" disabled>Use existing layer as area…</option>
+              {areaOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          )}
           <div style={{ flex: 1 }} />
           {bbox && (
             <div style={{ fontSize: 11, color: "#5a6472", marginRight: 10 }}>
