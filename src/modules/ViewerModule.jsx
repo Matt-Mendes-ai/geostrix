@@ -13,6 +13,7 @@ import { desurveyHole } from "../lib/desurvey.js";
 import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
+import { buildDXF } from "../lib/dxf.js";
 import AttributeTableModal from "../components/AttributeTableModal.jsx";
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
@@ -3632,6 +3633,25 @@ export default function ViewerModule({ mode = "view" }) {
       setNotices((p) => [...p, `GeoPackage export failed: ${err.message}`]);
     }
   };
+
+  // TASKS.csv #128 — DXF export, the CAD/GIS interop format surveyors and mine planners actually work
+  // in day to day, alongside Shapefile/GeoPackage above. Same buildVectorFeatures() data path, just a
+  // third output format — plan-view only (X/Y; Z dropped), per src/lib/dxf.js's own scope note.
+  const exportVectorDXF = (kind, key, label) => {
+    const { features, geomType } = buildVectorFeatures(kind, key);
+    if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
+    try {
+      const dxfText = buildDXF({ features, geomType });
+      saveFile({
+        suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
+        filters: [{ name: "DXF", extensions: ["dxf"] }],
+        content: dxfText,
+      });
+      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a DXF (.dxf, plan-view — elevation dropped).`]);
+    } catch (err) {
+      setNotices((p) => [...p, `DXF export failed: ${err.message}`]);
+    }
+  };
   // TASKS.csv #184 — a layer key "has data" once its rows array is non-empty (geophys_pts uses the
   // same `layers[key]` array as every other key, so this one check covers all ten ALL_LAYER_KEYS).
   // Used to hide empty layer rows from the sidebar (see the Layers section render below) so an
@@ -4945,6 +4965,7 @@ export default function ViewerModule({ mode = "view" }) {
             <div style={{ borderTop: "1px solid #d9dce1", margin: "4px 0" }} />
             <ContextItem label="Export Shapefile (.zip)…" onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label="Export GeoPackage (.gpkg)…" onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label="Export DXF (.dxf)…" onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label="Inspect / edit table…" onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}

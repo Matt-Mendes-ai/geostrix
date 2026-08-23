@@ -12,6 +12,7 @@ import { toLonLat, reprojectXY } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, parseBlockModelCSV, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
+import { parseDXF } from "../lib/dxf.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -304,10 +305,13 @@ export default function GeophysicsModule() {
   };
 
   // Geosoft .ply boundary import (survey of a real Oasis montaj sample dataset — see TASKS.csv note
-  // and src/lib/geosoft.js's parsePLYBoundary comment for the reverse-engineered format). Accepts
-  // multiple files at once — real properties often ship several boundary files together (survey area,
-  // claim block, blind-grid extent, etc.) and there's no reason to force one-at-a-time like terrain's
-  // single-surface limit; each file becomes its own boundary entry.
+  // and src/lib/geosoft.js's parsePLYBoundary comment for the reverse-engineered format), plus DXF
+  // (TASKS.csv #128 — "DXF is the lingua franca between GIS/CAD in exploration... claim maps, section
+  // templates from surveyors/CAD"), dispatched by extension — both parsers produce the identical
+  // {polylines} shape, so they share this one import path and both land as ordinary boundaries.
+  // Accepts multiple files at once, mixed formats — real properties often ship several boundary files
+  // together (survey area, claim block, blind-grid extent, etc.) and there's no reason to force
+  // one-at-a-time like terrain's single-surface limit; each file becomes its own boundary entry.
   const importBoundaries = async (fileList) => {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
@@ -317,7 +321,8 @@ export default function GeophysicsModule() {
     for (const file of files) {
       try {
         const text = await file.text();
-        const { polylines } = parsePLYBoundary(text);
+        const isDxf = /\.dxf$/i.test(file.name);
+        const { polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text);
         addBoundary({ name: file.name, polylines, elevation: defaultElevation });
         imported++;
       } catch (err) {
@@ -350,8 +355,9 @@ export default function GeophysicsModule() {
     for (const file of files) {
       try {
         const text = await file.text();
-        const { polylines } = parsePLYBoundary(text);
-        addBoundary({ name: file.name.replace(/\.ply$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        const isDxf = /\.dxf$/i.test(file.name);
+        const { polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text);
+        addBoundary({ name: file.name.replace(/\.(ply|dxf)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -618,7 +624,7 @@ export default function GeophysicsModule() {
         const csvs = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
         const gxfs = files.filter((f) => /\.gxf$/i.test(f.name));
-        const plys = files.filter((f) => /\.ply$/i.test(f.name));
+        const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
         const xyzs = files.filter((f) => /\.xyz$/i.test(f.name));
         // A dropped .tif is ambiguous between a raster drape (#24) and a DEM (#77) — both are plain
         // georeferenced GeoTIFFs, nothing in the file format itself says which. Heuristic: a filename
@@ -852,16 +858,16 @@ export default function GeophysicsModule() {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Boundaries (Geosoft .ply)
-          <InfoButton title="Boundaries (Geosoft .ply)" text={`Import a Geosoft .ply boundary/polygon export (property lines, claim blocks, survey/blind-grid extents) as a polyline in the 3D view. Select multiple files at once if you have several. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection for this format yet.`} />
+          Boundaries (Geosoft .ply / DXF)
+          <InfoButton title="Boundaries (Geosoft .ply / DXF)" text={`Import a Geosoft .ply boundary/polygon export or a DXF file (property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD package) as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection for either format yet.`} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={13} /> Import .ply boundary…
+          <Waypoints size={13} /> Import boundary (.ply / .dxf)…
         </button>
         <input
           ref={boundaryInput}
           type="file"
-          accept=".ply"
+          accept=".ply,.dxf"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
@@ -902,12 +908,12 @@ export default function GeophysicsModule() {
           <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary (same Geosoft .ply polygon format as Boundaries above), tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={13} /> Import claim boundary (.ply)…
+          <Flag size={13} /> Import claim boundary (.ply / .dxf)…
         </button>
         <input
           ref={claimInput}
           type="file"
-          accept=".ply"
+          accept=".ply,.dxf"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
@@ -1089,9 +1095,9 @@ export default function GeophysicsModule() {
             if (boundaries.length) parts.push(`${boundaries.length} boundary(ies)`);
             if (parts.length) {
               const joined = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
-              return `${joined} loaded. Drag another CSV, GeoTIFF, .ply, or .xyz here to add more, or head to the 3D View to see everything alongside your drillholes.`;
+              return `${joined} loaded. Drag another CSV, GeoTIFF, .ply/.dxf, or .xyz here to add more, or head to the 3D View to see everything alongside your drillholes.`;
             }
-            return "Drag a CSV, GeoTIFF, Geosoft .gxf grid, .ply boundary, or .xyz line data here, or use the buttons on the left. CSV: x/y/z (or easting/northing/elevation) plus a value (or reading/mag/response). GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM (a filename with \"dem\"/\"srtm\"/\"elev\"/\"terrain\"/\"topo\" in it is treated as elevation data — otherwise it's imported as a flat raster drape). .gxf grids always import as a raster drape. .ply imports as a boundary polyline; .xyz opens a column picker (Geosoft line/profile data, e.g. airborne survey exports). UBC mesh+model and block-model CSV import (below) render as coloured 3D blocks — Geosoft's own binary .grd/voxel formats stay unsupported, no public spec to implement against.";
+            return "Drag a CSV, GeoTIFF, Geosoft .gxf grid, .ply/.dxf boundary, or .xyz line data here, or use the buttons on the left. CSV: x/y/z (or easting/northing/elevation) plus a value (or reading/mag/response). GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM (a filename with \"dem\"/\"srtm\"/\"elev\"/\"terrain\"/\"topo\" in it is treated as elevation data — otherwise it's imported as a flat raster drape). .gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column picker (Geosoft line/profile data, e.g. airborne survey exports). UBC mesh+model and block-model CSV import (below) render as coloured 3D blocks — Geosoft's own binary .grd/voxel formats stay unsupported, no public spec to implement against.";
           })()}
         </div>
       </div>
