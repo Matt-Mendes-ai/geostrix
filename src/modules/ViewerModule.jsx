@@ -231,10 +231,11 @@ function looksLikeAssay(headers) {
   return count >= 4;
 }
 
-const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true };
+const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
-const ALL_LAYER_KEYS = ["litho", "alt", "vein", "mnlgy", "geotech", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
+// TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
+const ALL_LAYER_KEYS = ["litho", "alt", "vein", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
 const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#30394a" };
 // Multi-element assay display — a fixed, distinct-hue-per-slot palette (not a value-driven gradient
 // like magColor) so simultaneously-shown elements stay visually distinguishable from each other; each
@@ -2445,6 +2446,7 @@ export default function ViewerModule({ mode = "view" }) {
       litho: groupByHole(layers.litho), alt: groupByHole(layers.alt), vein: groupByHole(layers.vein),
       geotech: groupByHole(layers.geotech), litho_gc: groupByHole(layers.litho_gc), alt_gc: groupByHole(layers.alt_gc),
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
+      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg),
     };
     const assaysByHole = groupByHole(assays);
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
@@ -2468,6 +2470,11 @@ export default function ViewerModule({ mode = "view" }) {
     const globalPointRanges = {
       mnlgy: numericRangeFor("mnlgy", layers.mnlgy),
       magsusc: numericRangeFor("magsusc", layers.magsusc),
+      // TASKS.csv #137 — specific gravity has no fixed, universally-known domain the way RQD%/
+      // recovery% do (0-100), so it needs the actual project data's own min/max the same way
+      // mnlgy/magsusc's point markers already do, rather than rqdColor's hardcoded 0-100 ramp
+      // (which would render almost every real SG value, ~2-5, as a near-identical dark red).
+      sg: numericRangeFor("sg", layers.sg),
     };
     // Same per-hole-scale bug for the assay spheres below — now one range PER selected element (each
     // element gets its own size scale, since e.g. Au in g/t and Cu in % are on totally different
@@ -2499,6 +2506,17 @@ export default function ViewerModule({ mode = "view" }) {
       const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
       groups.litho.add(traceLine);
 
+      // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
+      // ramp fits both; specific gravity has no such fixed domain (real values run ~2-5), so it
+      // uses the project's own actual min/max instead (globalPointRanges.sg above), same as the
+      // numeric point-marker layers (mnlgy/magsusc) below already do via magColor.
+      const numericIntervalColor = (groupKey, value) => {
+        if (groupKey === "sg") {
+          const { min, max } = globalPointRanges.sg;
+          return magColor(value, min, max);
+        }
+        return rqdColor(value);
+      };
       const buildIntervalTube = (groupKey) => {
         const meta = LAYER_META[groupKey];
         (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisible(groupKey, r)).forEach((row) => {
@@ -2551,7 +2569,7 @@ export default function ViewerModule({ mode = "view" }) {
             if (len < 1e-6) return;
             geo = new THREE.CylinderGeometry(meta.radius, meta.radius, len, 6, 1, false);
             geo.translate(0, len / 2, 0); // CylinderGeometry is centered on its own axis by default — shift so position=p1 places the BASE at p1, matching TubeGeometry's own from-p1-to-p2 extent
-            const color = meta.numeric ? rqdColor(row.value) : effectiveColor(groupKey, row.value);
+            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : effectiveColor(groupKey, row.value);
             const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
             mesh_.position.set(p1.x, p1.y, p1.z);
@@ -2559,7 +2577,7 @@ export default function ViewerModule({ mode = "view" }) {
           } else {
             const curve = new THREE.CatmullRomCurve3(vecs);
             geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), meta.radius, 6, false);
-            const color = meta.numeric ? rqdColor(row.value) : effectiveColor(groupKey, row.value);
+            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : effectiveColor(groupKey, row.value);
             const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
           }
@@ -2577,6 +2595,8 @@ export default function ViewerModule({ mode = "view" }) {
       buildIntervalTube("alt");
       buildIntervalTube("vein");
       buildIntervalTube("geotech");
+      buildIntervalTube("recovery");
+      buildIntervalTube("sg");
       buildIntervalTube("litho_gc");
       buildIntervalTube("alt_gc");
 
@@ -3752,12 +3772,17 @@ export default function ViewerModule({ mode = "view" }) {
     // window, where all the color/legend/filter logic already lives — so the pop-out window just
     // draws shapes and never needs to know about layer types, filters, or overrides.
     const intervals = [];
-    ["litho", "alt", "vein", "geotech", "litho_gc", "alt_gc"].forEach((key) => {
+    // TASKS.csv #137 — SG has no fixed domain the way RQD%/recovery% do (see the main geometry
+    // effect's numericIntervalColor comment for the same reasoning) — its actual project min/max
+    // is computed once here too, same values that effect's globalPointRanges.sg would produce.
+    const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
+    const sgRange = minMax(sgVals);
+    ["litho", "alt", "vein", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
       if (!layerVisible[key]) return;
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
-        const color = meta.numeric ? rqdColor(row.value) : effectiveColor(key, row.value);
+        const color = meta.numeric ? (key === "sg" ? magColor(row.value, sgRange.min, sgRange.max) : rqdColor(row.value)) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}` });
       });

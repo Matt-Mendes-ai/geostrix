@@ -234,6 +234,11 @@ export const LAYER_META = {
   alt:      { label: "Alteration",     kind: "interval", radius: 3.4, opacity: 0.4,  colorFn: colorForAlteration, numeric: false },
   vein:     { label: "Veins",          kind: "interval", radius: 1.0, opacity: 0.9,  colorFn: colorForVein, numeric: false },
   geotech:  { label: "Geotech (RQD%)", kind: "interval", radius: 4.6, opacity: 0.35, colorFn: null, numeric: true },
+  // TASKS.csv #137 — Micromine-specialist audit finding: recovery% and SG are routinely logged as
+  // intervals feeding tonnage/density calculations for resource estimates, alongside RQD/lithology —
+  // same "interval" kind/rendering as geotech above, just a different numeric field.
+  recovery: { label: "Recovery %", kind: "interval", radius: 4.2, opacity: 0.35, colorFn: null, numeric: true },
+  sg:       { label: "Specific gravity", kind: "interval", radius: 3.8, opacity: 0.35, colorFn: null, numeric: true },
   mnlgy:    { label: "Mineralization", kind: "point",    colorFn: colorForMineral, numeric: false },
   magsusc:  { label: "Mag. susc.",     kind: "point",    colorFn: null, numeric: true },
   structure:{ label: "Structure planes", kind: "plane",  colorFn: colorForStructure, numeric: false },
@@ -292,6 +297,8 @@ export const TARGET_SCHEMAS = {
   vein: { label: "Veins", fields: intervalFields(["assemblage", "type", "vein_type"]) },
   mnlgy: { label: "Mineralization", fields: intervalFields(["mineral"], ["percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
+  recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "specific_gravity", "density", "value"], null, true) },
   magsusc: { label: "Mag. susceptibility (numeric)", fields: intervalFields(["mag_avg_si", "mag", "value"], null, true) },
   structure: { label: "Structure planes", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -346,6 +353,12 @@ export function guessTarget(headers) {
   // never actually match one, and it fell through to the generic from/to→"litho" guess instead.
   if (has("mineral")) return "mnlgy";
   if (has("rqd")) return "geotech";
+  if (has("recovery") || has("rec_pct")) return "recovery";
+  // "sg"/"density" are common enough words to false-positive against other schemas' own columns
+  // (e.g. a lithology "unit" description mentioning density in free text) — checked after every
+  // other from/to-interval schema's own more specific keywords above, same "least specific last"
+  // ordering as the vein/alteration "type"/"assemblage" disambiguation below.
+  if (has("specific_gravity") || hasCol("sg") || has("density")) return "sg";
   if (has("mag_avg") || has("mag_susc")) return "magsusc";
   if (has("litho") || has("unit")) return "litho";
   // Veins and alteration share the "assemblage" alias (both schemas list it), so a CSV that uses
