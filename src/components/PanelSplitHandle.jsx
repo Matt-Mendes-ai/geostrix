@@ -27,9 +27,15 @@ export default function PanelSplitHandle({ height, onResize, invert = false, tit
       document.body.style.cursor = "";
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("blur", onUp);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx's twin
+    // fix — see that file's comment for the full reasoning (a screenshot tool/Alt-Tab/notification
+    // stealing window focus mid-drag could otherwise leave document.body.style.userSelect/cursor
+    // stuck forever, since only the "pointerup" listener ever reset them).
+    window.addEventListener("blur", onUp);
   }, [height, onResize, invert]);
 
   const active = hover || dragging;

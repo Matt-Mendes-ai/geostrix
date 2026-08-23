@@ -271,7 +271,12 @@ export default function LayoutModule() {
     const onUp = () => { dragState.current = null; };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx (a
+    // screenshot tool/Alt-Tab/notification stealing window focus mid-drag could otherwise leave an
+    // element following the cursor indefinitely, same failure mode the comment above already fixed
+    // for "released outside .ge-main" — this covers "released outside the window/app entirely").
+    window.addEventListener("blur", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("blur", onUp); };
   }, [showGrid, gridSnapPx]);
 
   const addElement = (type) => {
@@ -328,7 +333,13 @@ export default function LayoutModule() {
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as the element-drag effect above:
+    // without this, losing window focus mid-stroke (screenshot tool, Alt-Tab) would leave
+    // freehandDrawing/freehandTool stuck true forever with nothing left to commit or cancel it.
+    // Treated the same as a real mouseup (commit whatever's been drawn so far) rather than discarding
+    // it, since that's the existing onUp behavior for an early release too.
+    window.addEventListener("blur", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("blur", onUp); };
   }, [freehandTool]);
 
   // Bug fix (user report — see PromptModal.jsx's header comment): window.prompt() doesn't reliably

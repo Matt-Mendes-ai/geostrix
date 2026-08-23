@@ -1224,6 +1224,14 @@ export default function ViewerModule({ mode = "view" }) {
     dom.addEventListener("wheel", onWheel, { passive: false });
     dom.addEventListener("contextmenu", onContextMenuEvt);
     dom.addEventListener("mousedown", onAuxClick);
+    // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx/
+    // LayoutModule.jsx's twin fixes: without this, an orbit/pan drag or an armed rectangle-zoom drag
+    // left in progress when the window loses focus (screenshot tool, Alt-Tab, a notification) would
+    // otherwise never see its "pointerup" and stay stuck — subsequent mouse moves anywhere would keep
+    // orbiting the camera even with no button held. onPointerUp already tolerates being called without
+    // a real PointerEvent (releasePointerCapture(undefined) is wrapped in try/catch), so it's reused
+    // directly rather than duplicating its cleanup logic.
+    window.addEventListener("blur", onPointerUp);
 
     // Perf — idle-throttled render loop (see lastActivityRef comment above). requestAnimationFrame
     // itself always keeps ticking (so the throttle check below runs every ~16ms and idle→active
@@ -1261,6 +1269,7 @@ export default function ViewerModule({ mode = "view" }) {
       dom.removeEventListener("wheel", onWheel);
       dom.removeEventListener("contextmenu", onContextMenuEvt);
       dom.removeEventListener("mousedown", onAuxClick);
+      window.removeEventListener("blur", onPointerUp);
       // Bug-hunt pass: this cleanup used to only remove the canvas + call renderer.dispose(), which
       // frees GL programs but NOT per-object geometry/material/texture buffers. Since only one module
       // is mounted at a time (see store.jsx), navigating away from the Viewer tab and back rebuilds the

@@ -29,9 +29,20 @@ export default function SidebarResizeHandle({ width, onResize }) {
       document.body.style.cursor = "";
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("blur", onUp);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    // TASKS.csv #207 — safety net for the reported "text field intermittently unclickable" bug: this
+    // drag only ever released via the window "pointerup" listener above, with nothing to fall back on
+    // if that event never arrives — e.g. the OS grabs input mid-drag (a screenshot tool, Alt-Tab, a
+    // notification stealing focus), which is exactly what the user's own report described fixing it
+    // ("funny right after I took a screenshot it came back to normal" — a screenshot forcing a window
+    // focus change is a plausible trigger for the OS to finally deliver/simulate the missed mouseup).
+    // Without this, document.body.style.userSelect/cursor stay stuck indefinitely since nothing else
+    // resets them. Listening for "blur" too means losing window focus during a drag force-releases it
+    // the same way an actual pointerup would.
+    window.addEventListener("blur", onUp);
   }, [width, onResize]);
 
   const active = hover || dragging;
