@@ -35,6 +35,26 @@ export function polygonArea(polygon) {
   return Math.abs(sum) / 2;
 }
 
+// TASKS.csv #126 — mineral claim/tenure area, in hectares. `polylines` is a boundary's own shape
+// ({x,y}[][], one array per part — see geosoft.js's parsePLYBoundary), NOT pre-closed the way
+// polygonArea's [x,y] input above assumes (real .ply files don't always repeat the first vertex, see
+// ViewerModule's boundary-render effect comment), so each loop is explicitly closed here first. Sums
+// every part's area rather than picking the largest — a real multi-part claim (a tenure with a
+// non-contiguous parcel, or a donut-shaped exclusion) is genuinely the sum of its pieces; this doesn't
+// attempt hole subtraction (no reliable "this ring is a hole in that one" signal in a flat .ply part
+// list), so a claim boundary with a deliberately-excluded inner hole will over-report slightly — an
+// acceptable simplification for a first pass, same spirit as this app's other geometry approximations
+// (e.g. reprojectGrid's corner-bbox-only reprojection).
+export function boundaryAreaHectares(polylines) {
+  let m2 = 0;
+  for (const pts of polylines || []) {
+    if (pts.length < 3) continue;
+    const closed = pts[0].x === pts[pts.length - 1].x && pts[0].y === pts[pts.length - 1].y ? pts : [...pts, pts[0]];
+    m2 += polygonArea(closed.map((p) => [p.x, p.y]));
+  }
+  return m2 / 10000;
+}
+
 // Padded bounding box: geoprocessing.js's own helper rather than reusing a raster/section bbox
 // helper, since those pad in pixel/SVG space — this pads in world units, sized relative to point
 // spread rather than a fixed constant, so it behaves reasonably from drillhole-collar spacing (tens

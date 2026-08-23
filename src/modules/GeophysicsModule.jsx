@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
+import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
@@ -85,6 +86,7 @@ export default function GeophysicsModule() {
   const ubcInput = useRef(null);
   const blockModelInput = useRef(null);
   const boundaryInput = useRef(null);
+  const claimInput = useRef(null);
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
 
@@ -323,6 +325,39 @@ export default function GeophysicsModule() {
       }
     }
     let msg = imported ? `Imported ${imported} boundary file(s) (${boundaries.length + imported} total).` : "";
+    if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
+    if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
+  };
+
+  // TASKS.csv #126 — mineral claim/tenure layer, distinct from a generic boundary. QGIS-specialist and
+  // Micromine-specialist audits both flagged the same gap: boundaries import fine, but there's nowhere
+  // to track claim-specific attributes (tenure number, status, expiry) or see a claim's area — BC
+  // Golden Triangle geologists track MTO claims constantly alongside drillhole data. Reuses `boundaries`
+  // itself (same store collection, same .ply parser, same 3D rendering ViewerModule already has) rather
+  // than a whole new store/render path — a claim IS a boundary, just tagged kind:"claim" with a few
+  // extra fields the Boundaries UI below doesn't show and doesn't need to. Status drives a default
+  // color (active/pending/expired) so a claim's standing is visible at a glance in the 3D view, same as
+  // the rest of this app's status-implies-color conventions (e.g. QAQC-style pass/fail coloring).
+  const claims = boundaries.filter((b) => b.kind === "claim");
+  const nonClaimBoundaries = boundaries.filter((b) => b.kind !== "claim");
+  const claimStatusColor = (status) => status === "expired" ? "#d9534f" : status === "pending" ? "#e2a63c" : "#3ca65e";
+  const importClaims = async (fileList) => {
+    const files = Array.from(fileList || []).filter(Boolean);
+    if (!files.length) return;
+    setBoundaryError(null);
+    let imported = 0;
+    const failed = [];
+    for (const file of files) {
+      try {
+        const text = await file.text();
+        const { polylines } = parsePLYBoundary(text);
+        addBoundary({ name: file.name.replace(/\.ply$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        imported++;
+      } catch (err) {
+        failed.push(`${file.name}: ${err.message}`);
+      }
+    }
+    let msg = imported ? `Imported ${imported} claim boundary file(s) (${claims.length + imported} total).` : "";
     if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
@@ -836,7 +871,7 @@ export default function GeophysicsModule() {
             {boundaryError.text}
           </div>
         )}
-        {boundaries.map((b) => (
+        {nonClaimBoundaries.map((b) => (
           <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
@@ -858,6 +893,76 @@ export default function GeophysicsModule() {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Color</span>
               <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
+            </div>
+          </div>
+        ))}
+
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+          Mineral claims / tenure
+          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary (same Geosoft .ply polygon format as Boundaries above), tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
+        </div>
+        <button onClick={() => claimInput.current.click()} style={pBtn}>
+          <Flag size={13} /> Import claim boundary (.ply)…
+        </button>
+        <input
+          ref={claimInput}
+          type="file"
+          accept=".ply"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
+        />
+        {claims.length === 0 && (
+          <div style={{ marginTop: 4, fontSize: 11, color: "#94a1b0" }}>No claims imported yet.</div>
+        )}
+        {claims.map((c) => (
+          <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <div onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "#9aa5b3", flexShrink: 0 }}>
+                {c.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+              </div>
+              <input
+                value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
+                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "#1a2028", fontSize: 11.5, padding: 0 }}
+              />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Tenure #</span>
+              <input value={c.tenureNumber || ""} placeholder="e.g. 1234567" onChange={(e) => updateBoundary(c.id, { tenureNumber: e.target.value })} style={{ ...numInput, flex: 1 }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Status</span>
+              <select
+                value={c.status || "active"}
+                onChange={(e) => updateBoundary(c.id, { status: e.target.value, color: claimStatusColor(e.target.value) })}
+                style={{ ...numInput, flex: 1 }}
+              >
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="expired">Expired</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Expiry</span>
+              <input type="date" value={c.expiryDate || ""} onChange={(e) => updateBoundary(c.id, { expiryDate: e.target.value })} style={{ ...numInput, flex: 1 }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11, color: "#6b7684" }}>
+              <span style={{ width: 60, flexShrink: 0 }}>Area</span>
+              <span>{boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha</span>
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
+              <input type="checkbox" checked={c.drapeMode === "terrain"} disabled={!terrain}
+                onChange={(e) => updateBoundary(c.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
+              <span style={{ color: "#7b8794" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
+            </label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: c.drapeMode === "terrain" ? 0.4 : 1 }}>
+              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Elev.</span>
+              <input type="number" value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(e) => updateBoundary(c.id, { elevation: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Color</span>
+              <input type="color" value={c.color || claimStatusColor(c.status)} onChange={(e) => updateBoundary(c.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
         ))}
