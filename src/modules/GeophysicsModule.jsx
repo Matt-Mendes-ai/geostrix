@@ -39,6 +39,8 @@ export default function GeophysicsModule() {
   const {
     layers, mergeLayer, replaceLayer, goToModule, collars, rasters, addRaster, project,
     terrain, addTerrain, updateTerrain, removeTerrain,
+    geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
+    geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
     boundaries, addBoundary, updateBoundary, removeBoundary,
@@ -675,6 +677,23 @@ export default function GeophysicsModule() {
             <div style={{ color: "#1a2028", marginBottom: 4 }}>{rows.length} point{rows.length === 1 ? "" : "s"} loaded</div>
             {min !== null && (
               <div style={{ color: "#55606e", fontSize: 11 }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
+            )}
+            {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
+                palette) voxel models already have, reused directly: geophysPtsModel below is shaped
+                exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
+                — built generically against that shape, not tied to actual voxel-model objects — works
+                unchanged. geophysPtsOnUpdate routes its onUpdate(id, patch) calls to the store fields
+                instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
+            {min !== null && (
+              <VoxelLegendEditor
+                model={{ id: "geophys_pts", min: geophysPtsMin ?? min, max: geophysPtsMax ?? max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
+                onUpdate={(_id, patch) => {
+                  if ("min" in patch) setGeophysPtsMin(patch.min);
+                  if ("max" in patch) setGeophysPtsMax(patch.max);
+                  if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);
+                  if ("stops" in patch) setGeophysPtsStops(patch.stops);
+                }}
+              />
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>

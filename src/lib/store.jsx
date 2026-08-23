@@ -243,6 +243,19 @@ export function StoreProvider({ children }) {
   const updateTerrain = useCallback((patch) => setTerrain((p) => (p ? { ...p, ...patch } : p)), []);
   const removeTerrain = useCallback(() => setTerrain(null), []);
 
+  // TASKS.csv #122 — graduated/classed symbology for the geophysics point cloud (layers.geophys_pts),
+  // which previously only had a fixed 2-color magColor gradient with no way to pick class breaks
+  // (equal interval/quantile) or an adjustable palette — unlike voxel models, which already got this
+  // (VoxelLegendEditor in GeophysicsModule.jsx, driven by model.stops/model.colorMode). geophys_pts is
+  // a single flat layer (not a list of models each with their own slot), so its classification config
+  // lives here as its own small set of fields instead of on a per-item object. min/max default to null
+  // (meaning "derive from the live data", same behavior as before this existed) until the user
+  // explicitly overrides them via the same Range inputs VoxelLegendEditor already provides.
+  const [geophysPtsStops, setGeophysPtsStops] = useState([]);
+  const [geophysPtsColorMode, setGeophysPtsColorMode] = useState("continuous");
+  const [geophysPtsMin, setGeophysPtsMin] = useState(null);
+  const [geophysPtsMax, setGeophysPtsMax] = useState(null);
+
   // ---- Voxel / block models (TASKS.csv #27/#28) — UBC-GIF mesh+model imports and block-model CSV
   // imports (src/lib/voxel.js) both land here as the same shape: a flat list of world-space cells
   // {x,y,z (center), dx,dy,dz, value}, plus display state. A list (not a single slot like `terrain`)
@@ -487,6 +500,7 @@ export function StoreProvider({ children }) {
     setThemes([]);
     setRasters([]);
     setTerrain(null);
+    setGeophysPtsStops([]); setGeophysPtsColorMode("continuous"); setGeophysPtsMin(null); setGeophysPtsMax(null);
     setVoxelModels([]);
     setLayerGroups([]);
     // TASKS.csv #69 — reset to a single fresh page rather than just clearing the active page's
@@ -523,7 +537,7 @@ export function StoreProvider({ children }) {
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => ({
     version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
-    viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
+    viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
     excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles,
   });
 
@@ -574,7 +588,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, activeTabId]);
+  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, activeTabId]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -621,6 +635,11 @@ export function StoreProvider({ children }) {
     }
     // Same fallback for pre-v6 files: no terrain/groups yet.
     setTerrain(data.terrain || null);
+    // Fallback for pre-#122 files: no geophysics-point classification saved yet.
+    setGeophysPtsStops(data.geophysPtsStops || []);
+    setGeophysPtsColorMode(data.geophysPtsColorMode || "continuous");
+    setGeophysPtsMin(data.geophysPtsMin ?? null);
+    setGeophysPtsMax(data.geophysPtsMax ?? null);
     // Fallback for pre-#27/#28 files: no voxel models yet.
     setVoxelModels(data.voxelModels || []);
     setLayerGroups(data.layerGroups || []);
@@ -656,7 +675,7 @@ export function StoreProvider({ children }) {
     setActiveTabId(tabId);
     autosaveClear();
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
@@ -667,7 +686,7 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
@@ -702,7 +721,7 @@ export function StoreProvider({ children }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
@@ -736,8 +755,8 @@ export function StoreProvider({ children }) {
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
   const hasWork = collars.length > 0 || assays.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0;
-  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, hasWork });
-  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, hasWork };
+  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, hasWork });
+  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, layoutTemplates, plannedHoles, hasWork };
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
@@ -934,6 +953,8 @@ export function StoreProvider({ children }) {
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,
+    geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
+    geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,

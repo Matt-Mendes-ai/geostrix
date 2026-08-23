@@ -546,6 +546,7 @@ export default function ViewerModule({ mode = "view" }) {
     boundaries, updateBoundary, removeBoundary,
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
+    geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     project,
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
@@ -2683,11 +2684,17 @@ export default function ViewerModule({ mode = "view" }) {
     if (geophysPts.length) {
       const vals = geophysPts.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
       const { min, max } = minMax(vals); // not Math.min/max(...) — a real airborne survey import can have far more points than the JS engine's argument-spread limit allows (see layers.js's minMax comment)
+      // TASKS.csv #122 — graduated/classed symbology: honor the user-defined class breaks/palette set
+      // via GeophysicsModule's VoxelLegendEditor (geophysPtsStops/geophysPtsColorMode/geophysPtsMin/
+      // geophysPtsMax), falling back to the original 2-color magColor gradient when no stops have been
+      // set yet — same "model" shape colorForVoxelValue already expects, just built from these flat
+      // store fields instead of a real voxel model object.
+      const geophysPtsModel = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? min, max: geophysPtsMax ?? max };
       geophysPts.forEach((row) => {
         try {
           const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
           const size = 1.4 + 2.8 * (max > min ? (row.value - min) / (max - min) : 0.3);
-          const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshLambertMaterial({ color: magColor(row.value, min, max) }));
+          const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) }));
           mesh.position.set(x, y, z);
           mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
           groups.geophys_pts.add(mesh);
@@ -2722,7 +2729,7 @@ export default function ViewerModule({ mode = "view" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, customVisible, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq]);
+  }, [collars, survey, layers, customLayers, customVisible, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
