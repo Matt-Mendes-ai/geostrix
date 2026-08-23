@@ -14,6 +14,7 @@ import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
 import { buildDXF } from "../lib/dxf.js";
+import { pointInBoundary } from "../lib/geoprocessing.js";
 import AttributeTableModal from "../components/AttributeTableModal.jsx";
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
@@ -3492,6 +3493,29 @@ export default function ViewerModule({ mode = "view" }) {
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
   const toggleHole = (id) => setVisibleHoles((p) => ({ ...p, [id]: p[id] === false ? true : false }));
+  // TASKS.csv #124 — QGIS-specialist audit finding: "No way to select all collars within a polygon."
+  // Scoped to spatial selection against an already-loaded boundary/claim (both live in the same
+  // `boundaries` store collection — see #126) — reuses the existing visibleHoles/toggleHole hole-
+  // visibility mechanism (the same one "Hide {holeId}" in the context menu already uses) rather than
+  // introducing a separate "selection" concept, so isolating/hiding by location composes naturally
+  // with every other hole-visibility control already in this sidebar. The attribute-expression half of
+  // this task ("Au > 1 AND lithology = V6") is intentionally NOT built here — that's a fundamentally
+  // different, much bigger feature (a real expression parser/evaluator across assay+layer data) this
+  // task's own notes tie to the separate, also-Planned DuckDB-WASM SQL panel (#50) instead of
+  // duplicating a one-off mini-parser here.
+  const [selectByLocationBoundaryId, setSelectByLocationBoundaryId] = useState("");
+  const selectByLocation = (mode) => {
+    const boundary = boundaries.find((b) => b.id === selectByLocationBoundaryId);
+    if (!boundary) return;
+    const inside = new Set(collars.filter((c) => pointInBoundary(c.x, c.y, boundary.polylines)).map((c) => c.hole_id));
+    if (mode === "isolate") {
+      setVisibleHoles(Object.fromEntries(collars.map((c) => [c.hole_id, inside.has(c.hole_id)])));
+      setNotices((p) => [...p, `Showing only the ${inside.size} of ${collars.length} collar(s) inside "${boundary.name}" — every other hole is now hidden.`]);
+    } else {
+      setVisibleHoles((prev) => { const next = { ...prev }; collars.forEach((c) => { if (inside.has(c.hole_id)) next[c.hole_id] = false; }); return next; });
+      setNotices((p) => [...p, `Hid ${inside.size} collar(s) inside "${boundary.name}".`]);
+    }
+  };
   const toggleLayer = (key) => setLayerVisible((p) => ({ ...p, [key]: !p[key] }));
   const toggleCustom = (id) => setCustomVisible((p) => ({ ...p, [id]: p[id] === false ? true : false }));
   const toggleCategory = (layerKey, value) => setCategoryFilter((p) => { const cur = new Set(p[layerKey] || []); if (cur.has(value)) cur.delete(value); else cur.add(value); return { ...p, [layerKey]: cur }; });
@@ -4060,6 +4084,25 @@ export default function ViewerModule({ mode = "view" }) {
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this
             return. */}
+
+        {/* TASKS.csv #124 — select by location: only shown once there's both something to select
+            (collars) and something to select against (a boundary or claim — both the same store
+            collection, see #126). */}
+        {collars.length > 0 && boundaries.length > 0 && (
+          <div style={{ marginTop: 10, marginBottom: 4 }}>
+            <div style={{ fontSize: 10.5, color: "#94a1b0", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+              <MapPin size={11} /> Select by location
+            </div>
+            <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 11.5, marginBottom: 5 }}>
+              <option value="">— pick a boundary/claim —</option>
+              {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? " (claim)" : ""}</option>)}
+            </select>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title="Show only collars inside this boundary, hide every other hole">Isolate inside</button>
+              <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title="Hide collars inside this boundary, leave every other hole as-is">Hide inside</button>
+            </div>
+          </div>
+        )}
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Layers</span>
