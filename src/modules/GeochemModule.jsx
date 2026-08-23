@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from "react";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck } from "lucide-react";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import {
@@ -15,6 +15,7 @@ import BestIntercepts from "../components/BestIntercepts.jsx";
 import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
 import QAQCPanel from "../components/QAQCPanel.jsx";
+import SQLWorkspaceModal from "../components/SQLWorkspaceModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -22,7 +23,7 @@ const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, mergeLayer, replaceLayer, layers } = store;
+  const { assays, setAssays, assayElements, setAssayElements, mergeLayer, replaceLayer, layers, collars, survey, boundaries } = store;
 
   const [diagramId, setDiagramId] = useState("boxplot");
   const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
@@ -34,6 +35,7 @@ export default function GeochemModule() {
   const [compositingOpen, setCompositingOpen] = useState(false);
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
   const [qaqcOpen, setQaqcOpen] = useState(false);
+  const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
@@ -266,6 +268,7 @@ export default function GeochemModule() {
             <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={13} /> Correlation matrix</button>
             <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={13} /> Grade statistics</button>
             <button onClick={() => setQaqcOpen(true)} style={genBtn}><ShieldCheck size={13} /> QAQC (standards/blanks/duplicates)</button>
+            <button onClick={() => setSqlOpen(true)} style={genBtn}><TerminalSquare size={13} /> SQL workspace</button>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Reporting</div>
             <button onClick={() => setBestIntOpen(true)} style={genBtn}><Ruler size={13} /> Best-intercept report</button>
@@ -390,6 +393,18 @@ export default function GeochemModule() {
           assays={assays}
           assayElements={assayElements}
           onClose={() => setQaqcOpen(false)}
+        />
+      )}
+
+      {sqlOpen && (
+        <SQLWorkspaceModal
+          collars={collars}
+          survey={survey}
+          layers={layers}
+          assays={assays}
+          assayElements={assayElements}
+          boundaries={boundaries}
+          onClose={() => setSqlOpen(false)}
         />
       )}
     </div>
