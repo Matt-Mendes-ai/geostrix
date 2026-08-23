@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { X, Database, Play, Loader2 } from "lucide-react";
+import { X, Database, Play, Loader2, Save, Trash2 } from "lucide-react";
 import { dbLiveQuery, dbLiveListTables } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
+import { useSavedQueries } from "../lib/useSavedQueries.js";
+import PromptModal from "./PromptModal.jsx";
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
@@ -12,6 +14,11 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null); // {rows, fields}
   const [tables, setTables] = useState(null);
+  // TASKS.csv #12 — saved query library, not just the last-typed SQL. Cross-project, cross-connection
+  // (a saved query is just text — it's up to the user to point it at a compatible schema), so this is
+  // independent of `config`/`dbConnections` above.
+  const { queries: savedQueries, saveQuery, removeQuery } = useSavedQueries();
+  const [savePromptOpen, setSavePromptOpen] = useState(false);
   // TASKS.csv #206 — "the database stays connected... so I don't have [to] enter the password
   // everytime." connectDb() (see store.jsx) reuses an already-live connection for this name instead of
   // opening a new one, so once connected here the SAME live connection also shows up (and stays open)
@@ -137,11 +144,47 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             </div>
           )}
 
-          <div style={{ ...label, marginTop: 16 }}>Query</div>
+          <div style={{ ...label, marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>Query</span>
+            {savedQueries.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => { const q = savedQueries.find((sq) => sq.name === e.target.value); if (q) setSql(q.sql); }}
+                style={{ ...sel, fontSize: 10.5, padding: "3px 6px" }}
+              >
+                <option value="">— saved queries —</option>
+                {savedQueries.map((q) => <option key={q.name} value={q.name}>{q.name}</option>)}
+              </select>
+            )}
+          </div>
           <textarea value={sql} onChange={(e) => setSql(e.target.value)} rows={4} style={{ ...inp, width: "100%", fontFamily: "'Exo 2', system-ui, sans-serif", resize: "vertical" }} />
-          <button onClick={run} disabled={running || !status?.ok} style={{ ...btn(true), width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            <Play size={13} /> {running ? "Running…" : "Run query"}
-          </button>
+          {savedQueries.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+              {savedQueries.map((q) => (
+                <div key={q.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10.5, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 5, padding: "2px 4px 2px 8px" }}>
+                  <span onClick={() => setSql(q.sql)} title={q.sql} style={{ cursor: "pointer", color: "#1a2028" }}>{q.name}</span>
+                  <Trash2 size={11} style={{ cursor: "pointer", color: "#94a1b0" }} onClick={() => removeQuery(q.name)} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <button onClick={run} disabled={running || !status?.ok} style={{ ...btn(true), flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Play size={13} /> {running ? "Running…" : "Run query"}
+            </button>
+            <button onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title="Save this query for reuse across projects/connections" style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px" }}>
+              <Save size={13} />
+            </button>
+          </div>
+          {savePromptOpen && (
+            <PromptModal
+              title="Save query as…"
+              defaultValue=""
+              confirmLabel="Save"
+              onCancel={() => setSavePromptOpen(false)}
+              onConfirm={(name) => { if (name && name.trim()) saveQuery(name.trim(), sql); setSavePromptOpen(false); }}
+            />
+          )}
 
           {result && (
             <div style={{ marginTop: 12 }}>
