@@ -10,6 +10,8 @@
 // between logged intervals, a duplicate hole_id — could be a genuine re-drill). Info is just a
 // heads-up with no implied problem (e.g. "N holes have no survey — using straight-hole fallback").
 
+import { pointInBoundary } from "./geoprocessing.js";
+
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
 
 function pushIssue(issues, severity, category, holeId, message) {
@@ -177,11 +179,85 @@ function validateProject(project) {
   return issues;
 }
 
+// ---- Boundaries/claims (TASKS.csv #125) ----
+// QGIS-specialist audit finding: "#82's QC is excellent for collars/survey/intervals, but there's
+// nothing for general vector layers ... no dangling-vertex, self-intersection, or overlap checks for
+// boundaries/claims, which QGIS's Topology Checker plugin covers routinely for claim/tenure work."
+// Distinct concern from every check above — this is 2D polygon topology, not drillhole geometry.
+
+// Two segments (p1->p2, p3->p4) intersect — standard orientation/cross-product test, excluding the
+// shared-endpoint case (adjacent edges in the same ring always "touch" at their common vertex, which
+// isn't a topology error).
+function segmentsIntersect(p1, p2, p3, p4) {
+  const d = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const d1 = d(p3, p4, p1), d2 = d(p3, p4, p2), d3 = d(p1, p2, p3), d4 = d(p1, p2, p4);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  return false;
+}
+
+// Checks one ring for zero-length (duplicate consecutive vertex) edges and self-intersection (any two
+// non-adjacent edges crossing — a real "bowtie" shape, which usually means a hand-digitized or
+// exported claim boundary has its vertices out of order rather than a genuinely self-crossing
+// property line). O(n²) edge-pair comparisons — fine at the tens-to-low-hundreds of vertices a real
+// claim/boundary .ply or .dxf actually has.
+function checkRingTopology(pts, label, boundaryName, issues) {
+  const n = pts.length;
+  if (n < 3) return;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) {
+      pushIssue(issues, "warning", label, boundaryName, `Two consecutive vertices are at (near) the same point (~${a.x.toFixed(1)}, ${a.y.toFixed(1)}) — a zero-length edge.`);
+    }
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      // Skip edges that share a vertex (adjacent, including the ring's own closing edge) — those
+      // always "touch", which isn't a self-intersection.
+      if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+      if (segmentsIntersect(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) {
+        pushIssue(issues, "error", label, boundaryName, `Self-intersecting boundary — edge ${i + 1} crosses edge ${j + 1}. This will render as a bowtie/twisted shape and its area calculation will be wrong.`);
+        return; // one reported crossing is enough to flag the ring as bad — avoids a wall of redundant messages for a badly-ordered vertex list
+      }
+    }
+  }
+}
+
+function validateBoundaryTopology(boundaries) {
+  const issues = [];
+  boundaries.forEach((b) => {
+    const label = b.kind === "claim" ? "Claims" : "Boundaries";
+    (b.polylines || []).forEach((pts, partIdx) => {
+      if (pts.length < 3) return;
+      const closed = pts[0].x === pts[pts.length - 1].x && pts[0].y === pts[pts.length - 1].y;
+      const ring = closed ? pts.slice(0, -1) : pts; // checkRingTopology already treats the ring as implicitly closed
+      checkRingTopology(ring, label, `${b.name}${b.polylines.length > 1 ? ` (part ${partIdx + 1})` : ""}`, issues);
+    });
+  });
+  // Pairwise overlap check between different boundaries — a heuristic (any vertex of one lies inside
+  // the other), not a full polygon-clip intersection: catches the common real cases (one boundary
+  // wholly or mostly inside another, e.g. an accidentally-reimported duplicate, or two claims that
+  // genuinely overlap) without needing a full computational-geometry library, same "practical
+  // approximation over exact geometry" tradeoff this app already makes elsewhere (e.g. reprojectGrid's
+  // corner-bbox reprojection). Won't catch two polygons that cross without either's vertices landing
+  // inside the other (a rare, thin-sliver overlap) — an accepted first-pass limitation.
+  for (let i = 0; i < boundaries.length; i++) {
+    for (let j = i + 1; j < boundaries.length; j++) {
+      const a = boundaries[i], b = boundaries[j];
+      const aInB = (a.polylines || []).some((pts) => pts.some((p) => pointInBoundary(p.x, p.y, b.polylines)));
+      const bInA = !aInB && (b.polylines || []).some((pts) => pts.some((p) => pointInBoundary(p.x, p.y, a.polylines)));
+      if (aInB || bInA) {
+        pushIssue(issues, "warning", "Boundaries", null, `"${a.name}" and "${b.name}" appear to overlap — check whether this is intentional (e.g. a renewed claim) or a duplicate import.`);
+      }
+    }
+  }
+  return issues;
+}
+
 // Runs every check and returns { issues: [...], summary: {error,warning,info}, byCategory: Map }.
 // `layers` is the store's full layers object ({litho:[],alt:[],...}); `holeLengths` (hole_id -> max
 // known depth) is derived once here from survey (max station depth) falling back to collar.length,
 // then reused across every interval/point layer check rather than recomputed per-layer.
-export function runDataQC({ project, collars, survey, layers }) {
+export function runDataQC({ project, collars, survey, layers, boundaries }) {
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const holeLengths = new Map();
   collars.forEach((c) => { if (Number.isFinite(c.length)) holeLengths.set(c.hole_id, c.length); });
@@ -201,11 +277,14 @@ export function runDataQC({ project, collars, survey, layers }) {
     ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),
     ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths),
     ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths),
+    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths),
+    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths),
     ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
     ...validatePointLayer(layers.mnlgy || [], "Mineralization", collarIds, holeLengths),
     ...validatePointLayer(layers.magsusc || [], "Mag. susceptibility", collarIds, holeLengths),
     ...validatePointLayer(layers.structure || [], "Structure", collarIds, holeLengths),
+    ...validateBoundaryTopology(boundaries || []),
   ];
 
   const summary = { error: 0, warning: 0, info: 0 };

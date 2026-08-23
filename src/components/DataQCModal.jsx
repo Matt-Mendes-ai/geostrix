@@ -14,8 +14,8 @@ const SEVERITY_META = {
 };
 
 export default function DataQCModal({ onCancel }) {
-  const { project, collars, survey, layers } = useStore();
-  const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers }));
+  const { project, collars, survey, layers, boundaries } = useStore();
+  const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries }));
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -90,7 +90,7 @@ export default function DataQCModal({ onCancel }) {
         </div>
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid #d9dce1", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => setResult(runDataQC({ project, collars, survey, layers }))} style={rerunBtn}>
+          <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries }))} style={rerunBtn}>
             <RefreshCw size={13} /> Re-run
           </button>
         </div>
