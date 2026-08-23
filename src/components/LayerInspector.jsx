@@ -1,10 +1,54 @@
-import React, { useState } from "react";
-import { X, Eye, EyeOff, Trash2 } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { X, Eye, EyeOff, Trash2, Download, Upload } from "lucide-react";
 import { distinctValues } from "../lib/layers.js";
+import { saveFile } from "../lib/desktop.js";
+
+// TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
+// no reusable style definition (color ramp + classification + symbol) that travels between projects
+// or gets shared with a colleague." Scoped to categorical layers' legend (color + label per value) —
+// the thing a geologist would actually want to standardize across properties (a company-standard
+// lithology palette) — since numeric layers here don't have a user-editable classification to export
+// in the first place (geotech/recovery/sg use fixed built-in colour ramps; only geophys_pts/voxel
+// models have real user classification, already served by their own per-project stops, not a
+// standalone reusable file). A plain JSON file, not tied to any one project or layer instance — the
+// `layerKind` field is informational only (shown to the user on import), matching by VALUE, so a style
+// saved from one project's Lithology legend applies to any other project's Lithology legend (or any
+// other categorical layer, if the codes happen to line up) without requiring an exact layer match.
+function exportLayerStyle(layerKey, meta, categories, legendOverride) {
+  const entries = {};
+  categories.forEach(([value]) => {
+    const ov = legendOverride[value] || {};
+    entries[value] = { color: ov.color || meta.colorFn(value), label: ov.label || (meta.nameFn ? meta.nameFn(value) : String(value)) };
+  });
+  const payload = { geostrixStyle: 1, layerKind: layerKey, layerLabel: meta.label, entries };
+  saveFile({ suggestedName: `${meta.label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_style.json`, filters: [{ name: "GeoStrix style", extensions: ["json"] }], content: JSON.stringify(payload, null, 2) });
+}
 
 export default function LayerInspector({ layerKey, rows, meta, categoryFilter, numericRange, legendOverride, onToggleCategory, onSetRange, onSetColor, onSetLabel, onClose, onShowAll, onHideAll, onIsolate, onRemoveSource }) {
   const [search, setSearch] = useState("");
+  const [styleNotice, setStyleNotice] = useState(null);
+  const styleFileInput = useRef(null);
   const categories = meta.numeric ? [] : distinctValues(rows);
+
+  const importLayerStyle = async (file) => {
+    setStyleNotice(null);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!payload || typeof payload.entries !== "object") throw new Error("Not a GeoStrix style file (missing 'entries').");
+      let applied = 0;
+      const knownValues = new Set(categories.map(([v]) => String(v)));
+      Object.entries(payload.entries).forEach(([value, entry]) => {
+        if (!knownValues.has(value)) return; // this project's layer doesn't have that value — nothing to style
+        if (entry.color) onSetColor(value, entry.color);
+        if (entry.label) onSetLabel(value, entry.label);
+        applied++;
+      });
+      setStyleNotice({ ok: true, text: `Applied style to ${applied} of ${Object.keys(payload.entries).length} value(s) from "${payload.layerLabel || payload.layerKind || file.name}"${applied < Object.keys(payload.entries).length ? " — the rest don't appear in this layer's current data." : "."}` });
+    } catch (err) {
+      setStyleNotice({ ok: false, text: `Couldn't load style file: ${err.message}` });
+    }
+  };
   const searched = search ? rows.filter((r) => JSON.stringify(r).toLowerCase().includes(search.toLowerCase())) : rows;
   // TASKS.csv #63 — which source file(s) fed this layer, so a layer built from several CSVs (e.g.
   // litho.csv for one property plus another for a second) can have just one of them pulled back out
@@ -42,10 +86,20 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                     category at a time, but "hide everything, then turn on just one" was tedious with
                     many categories (e.g. a dozen lithology codes). "Only" on each row does that in one
                     click; Show all/Hide all handle the common "reset" cases. */}
-                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                   <button onClick={onShowAll} style={miniBtn}>Show all</button>
                   <button onClick={onHideAll} style={miniBtn}>Hide all</button>
                 </div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title="Save this legend's colors/labels as a reusable file"><Download size={11} style={{ marginRight: 4, verticalAlign: -1 }} />Export style</button>
+                  <button onClick={() => styleFileInput.current.click()} style={miniBtn} title="Apply a previously-exported style file to this legend"><Upload size={11} style={{ marginRight: 4, verticalAlign: -1 }} />Import style</button>
+                  <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
+                </div>
+                {styleNotice && (
+                  <div style={{ marginBottom: 10, padding: "6px 8px", background: styleNotice.ok ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${styleNotice.ok ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 5, fontSize: 10.5, color: styleNotice.ok ? "#55606e" : "#e0a0a0", lineHeight: 1.4 }}>
+                    {styleNotice.text}
+                  </div>
+                )}
                 {categories.map(([value, count]) => {
                   const hidden = categoryFilter.has(value);
                   const ov = legendOverride[value] || {};
