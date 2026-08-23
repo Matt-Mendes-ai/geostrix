@@ -43,6 +43,9 @@ export default function BasemapView({
   initialBboxLonLat = null, // [lonMin, latMin, lonMax, latMax], draw mode only
   areaOptions = null, // TASKS.csv #200 — draw mode only: [{id, label, bboxLonLat}], existing
   // boundary/raster layers offered as a ready-made fetch area instead of drawing one by hand.
+  title = "Draw the area to fetch SRTM elevation for", // draw mode only — TASKS.csv #204 reuses this
+  // same picker for satellite imagery, where "fetch SRTM" wording would be wrong.
+  confirmLabel = "Fetch SRTM for this area", // draw mode only, same reason as `title` above.
   onClose,
   onConfirm, // (bboxLonLat) => void, draw mode only
 }) {
@@ -195,7 +198,7 @@ export default function BasemapView({
     <div style={overlayStyle}>
       <div style={topBarStyle}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#2a323c" }}>
-          {mode === "draw" ? "Draw the area to fetch SRTM elevation for" : "Locate"}
+          {mode === "draw" ? title : "Locate"}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {Number.isFinite(lon) && Number.isFinite(lat) && (
@@ -289,7 +292,7 @@ export default function BasemapView({
             disabled={!bbox}
             style={{ ...toolBtnActiveStyle, opacity: bbox ? 1 : 0.5, cursor: bbox ? "pointer" : "not-allowed" }}
           >
-            <Check size={13} /> Fetch SRTM for this area
+            <Check size={13} /> {confirmLabel}
           </button>
         </div>
       )}

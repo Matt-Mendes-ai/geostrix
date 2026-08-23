@@ -1,8 +1,11 @@
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2 } from "lucide-react";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport } from "../lib/raster.js";
+import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
+import { toLonLat } from "../lib/reproject.js";
 import InfoButton from "../components/InfoButton.jsx";
+import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -16,12 +19,105 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 // A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
 export default function RasterModule() {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars } = useStore();
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries } = useStore();
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
+
+  // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we
+  // should also have an option to match the SRTM boundary." satelliteFetch.js does the actual fetch;
+  // this is just the area-picker plumbing, reusing the exact same BasemapView "draw" picker (and its
+  // #200 "use an existing layer's extent as the area" dropdown) the Geophysics module's SRTM fetch
+  // already uses — "match the SRTM boundary" is simply offering the loaded `terrain` surface's own
+  // bbox as one of those options, right alongside boundaries/rasters.
+  const [satPickerOpen, setSatPickerOpen] = useState(false);
+  const [satSeedBbox, setSatSeedBbox] = useState(null);
+  const [satSeedLonLat, setSatSeedLonLat] = useState(null);
+  const [satAreaOptions, setSatAreaOptions] = useState(null);
+  const [satBusy, setSatBusy] = useState(false);
+  const [satProgress, setSatProgress] = useState(null);
+
+  const defaultSatBboxLonLat = async () => {
+    if (!collars.length || !project?.epsg) return null;
+    const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
+    const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+    const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
+    const corners = [
+      [xmin - marginX, ymin - marginY], [xmax + marginX, ymin - marginY],
+      [xmax + marginX, ymax + marginY], [xmin - marginX, ymax + marginY],
+    ];
+    const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+    if (lonLats.some((ll) => !ll)) return null;
+    const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
+    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  };
+
+  const buildSatAreaOptions = async () => {
+    if (!project?.epsg) return [];
+    const jobs = [];
+    if (terrain?.bbox) {
+      const [xmin, ymin, xmax, ymax] = terrain.bbox;
+      jobs.push({ id: "terrain", label: `Match terrain/SRTM: ${terrain.name}`, xmin, xmax, ymin, ymax });
+    }
+    for (const b of boundaries) {
+      const xs = [], ys = [];
+      for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
+      if (!xs.length) continue;
+      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys) });
+    }
+    for (const r of rasters) {
+      if (!r.bbox) continue;
+      const [xmin, ymin, xmax, ymax] = r.bbox;
+      jobs.push({ id: `raster_${r.id}`, label: `Raster: ${r.name}`, xmin, xmax, ymin, ymax });
+    }
+    const options = await Promise.all(jobs.map(async (j) => {
+      const corners = [[j.xmin, j.ymin], [j.xmax, j.ymin], [j.xmax, j.ymax], [j.xmin, j.ymax]];
+      const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
+      if (lonLats.some((ll) => !ll)) return null;
+      const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
+      return { id: j.id, label: j.label, bboxLonLat: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] };
+    }));
+    return options.filter(Boolean);
+  };
+
+  const openSatPicker = async () => {
+    if (!project?.epsg) {
+      setError({ info: false, text: "Project EPSG isn't set — can't reproject fetched imagery into project coordinates." });
+      return;
+    }
+    setError(null);
+    const seed = await defaultSatBboxLonLat();
+    setSatSeedBbox(seed);
+    setSatSeedLonLat(seed ? { lon: (seed[0] + seed[2]) / 2, lat: (seed[1] + seed[3]) / 2 } : null);
+    setSatAreaOptions(await buildSatAreaOptions());
+    setSatPickerOpen(true);
+  };
+
+  const runSatFetch = async (bboxLonLat) => {
+    const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+    setSatPickerOpen(false);
+    setSatBusy(true);
+    setSatProgress({ done: 0, total: 1 });
+    try {
+      const parsed = await fetchSatelliteImagery({
+        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg,
+        onProgress: (done, total) => setSatProgress({ done, total }),
+      });
+      addRaster({ name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation });
+      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}).`;
+      if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
+      if (parsed.reprojectNote) msg += ` ${parsed.reprojectNote}`;
+      if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to fetch and are left transparent.`;
+      setError({ info: true, text: msg });
+    } catch (err) {
+      setError({ info: false, text: err.message });
+    } finally {
+      setSatBusy(false);
+      setSatProgress(null);
+    }
+  };
 
   // Same reasoning as Geophysics's defaultElevation: a flat (non-terrain-draped) raster needs SOME
   // starting elevation, and "roughly at surface/collar level" is a better default than 0 when holes
@@ -71,6 +167,25 @@ export default function RasterModule() {
           style={{ display: "none" }}
           onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}
         />
+        <button onClick={openSatPicker} style={pBtn} disabled={satBusy}>
+          {satProgress ? <Loader2 size={13} className="spin" /> : <Satellite size={13} />} {satProgress ? `Fetching ${satProgress.done}/${satProgress.total}…` : "Import satellite imagery…"}
+        </button>
+        <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: -4, marginBottom: 8 }}>
+          Free Sentinel-2 cloudless imagery (no account needed) — pick an area on a map, or match an existing terrain/boundary/raster's extent.
+        </div>
+        {satPickerOpen && (
+          <BasemapView
+            mode="draw"
+            title="Draw the area to fetch satellite imagery for"
+            confirmLabel="Fetch imagery for this area"
+            lon={satSeedLonLat?.lon}
+            lat={satSeedLonLat?.lat}
+            initialBboxLonLat={satSeedBbox}
+            areaOptions={satAreaOptions}
+            onClose={() => setSatPickerOpen(false)}
+            onConfirm={runSatFetch}
+          />
+        )}
         {error && (
           <div style={{ marginTop: 8, padding: "8px 10px", background: error.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${error.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: error.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
             {error.text}
