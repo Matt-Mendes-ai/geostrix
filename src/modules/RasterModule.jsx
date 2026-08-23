@@ -1,11 +1,12 @@
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite } from "lucide-react";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport } from "../lib/raster.js";
 import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
 import { toLonLat } from "../lib/reproject.js";
 import InfoButton from "../components/InfoButton.jsx";
 import BasemapView from "../components/BasemapView.jsx";
+import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -38,6 +39,11 @@ export default function RasterModule() {
   const [satAreaOptions, setSatAreaOptions] = useState(null);
   const [satBusy, setSatBusy] = useState(false);
   const [satProgress, setSatProgress] = useState(null);
+  // TASKS.csv #129 — manual tie-point georeferencer for a scanned map/claim sketch with no embedded
+  // geo tags at all (a GeoTIFF/gxf still trusts its own tags, per buildRasterImport above — this is
+  // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
+  // just the open/import wiring, same addRaster() call site as every other raster source on this page.
+  const [georefOpen, setGeorefOpen] = useState(false);
 
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
@@ -184,6 +190,22 @@ export default function RasterModule() {
             areaOptions={satAreaOptions}
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
+          />
+        )}
+        <button onClick={() => setGeorefOpen(true)} style={pBtn}>
+          <MapPinned size={13} /> Georeference scan (manual tie points)…
+        </button>
+        <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: -4, marginBottom: 8 }}>
+          For a scanned map or claim sketch with no embedded coordinates at all — click matching points and type their real-world X/Y.
+        </div>
+        {georefOpen && (
+          <GeoreferencerModal
+            onClose={() => setGeorefOpen(false)}
+            onImport={(raster) => {
+              addRaster({ ...raster, elevation: defaultElevation });
+              setGeorefOpen(false);
+              setError({ info: true, text: `Georeferenced and imported "${raster.name}".` });
+            }}
           />
         )}
         {error && (
