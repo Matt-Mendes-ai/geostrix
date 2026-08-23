@@ -15,7 +15,7 @@
 // geographic (lon/lat) DEM source not lining up with a projected project EPSG isn't just "in the
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
-import { fromArrayBuffer } from "geotiff";
+import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { getProj4Def, reprojectGrid, bilinearSample } from "./reproject.js";
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
@@ -470,4 +470,55 @@ export async function buildRasterImport(file, { epsg, defaultElevation } = {}) {
   if (isGxf) msg += " Assumes the grid's own coordinates already match the project's EPSG — GXF headers don't carry a standard CRS tag to cross-check against.";
   if (parsed.note) msg += parsed.note;
   return { raster: { name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation }, msg };
+}
+
+// TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a
+// project's one terrain surface (store.jsx's `terrain`: {bbox, gridW, gridH, elevations}, built by
+// parseDEMFiles above — real per-vertex heights, not a flat colour drape) has been fetched/merged,
+// there was previously no way to get that processed elevation data back out for another tool (Surfer,
+// ArcGIS/QGIS) or for archiving what was actually used. Uses the `geotiff` package's own
+// writeArrayBuffer (already a project dependency for READING GeoTIFFs above) rather than hand-rolling
+// a binary writer — it accepts a flat TypedArray + a small metadata object and produces a real,
+// spec-compliant single-band file, auto-inferring BitsPerSample/SampleFormat from the array's own
+// type (Float32Array here -> 32-bit IEEE float, correctly, with no need to set those by hand).
+export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
+  const { bbox, gridW, gridH, elevations } = terrain;
+  const [xmin, ymin, , ymax] = bbox;
+  const pixelW = (bbox[2] - bbox[0]) / gridW;
+  const pixelH = (ymax - ymin) / gridH; // positive — elevations is row-major with row 0 = north/ymax edge, the same top-down convention GeoTIFF's own ModelTiepoint anchor expects
+  // A no-data sentinel is safer than a raw NaN here: NaN IS representable in an IEEE float32 band, but
+  // not every GIS tool's no-data handling treats a NaN pixel consistently — GDAL_NODATA is the widely-
+  // recognized tag (GDAL, QGIS, ArcGIS) for "this pixel has no data", so gaps in the merged terrain
+  // (tile edges, missing coverage) round-trip as an explicit, tool-recognized no-data value instead.
+  const NODATA = -9999;
+  const values = Float32Array.from(elevations, (v) => (Number.isFinite(v) ? v : NODATA));
+  const metadata = {
+    width: gridW, height: gridH,
+    ModelPixelScale: [pixelW, pixelH, 0],
+    ModelTiepoint: [0, 0, 0, xmin, ymax, 0], // pixel (0,0) (top-left) -> the bbox's north-west corner
+    GTModelTypeGeoKey: 1, // 1 = projected (every EPSG this app supports — reproject.js's own table — is a projected CRS, never bare geographic)
+    GTRasterTypeGeoKey: 1, // 1 = PixelIsArea, the conventional default
+    ProjectedCSTypeGeoKey: Number(projectEpsg),
+    GDAL_NODATA: String(NODATA),
+  };
+  return writeArrayBuffer(values, metadata);
+}
+
+// Base64-encodes an ArrayBuffer in fixed-size chunks rather than one
+// `String.fromCharCode(...bytes)` spread — the same "large-array spread blows the JS engine's
+// argument-count limit" gotcha already documented on voxel.js's coarsening fix, just for
+// String.fromCharCode.apply here instead of Math.min/max there. A merged terrain GeoTIFF (a real DEM
+// tile can easily be several MB) needs this to avoid "Maximum call stack size exceeded".
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+export function terrainToGeoTIFFBase64(terrain, projectEpsg) {
+  return arrayBufferToBase64(terrainToGeoTIFFArrayBuffer(terrain, projectEpsg));
 }

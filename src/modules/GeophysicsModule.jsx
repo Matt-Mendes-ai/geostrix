@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex } from "../lib/layers.js";
-import { parseDEMFiles, buildRasterImport } from "../lib/raster.js";
+import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
+import { saveFile } from "../lib/desktop.js";
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY } from "../lib/reproject.js";
@@ -177,6 +178,20 @@ export default function GeophysicsModule() {
       setTerrainError({ info: false, text: err.message });
     } finally {
       setTerrainBusy(false);
+    }
+  };
+
+  // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." The merged/
+  // processed terrain (whatever was actually used — imported DEM tiles, or a fetched SRTM area) had no
+  // way back out for another tool or for archiving. See raster.js's terrainToGeoTIFFBase64 for the
+  // actual writer (geotiff package's own writeArrayBuffer, not hand-rolled).
+  const exportTerrainGeoTIFF = () => {
+    if (!terrain) return;
+    try {
+      const base64 = terrainToGeoTIFFBase64(terrain, project?.epsg);
+      saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
+    } catch (err) {
+      setTerrainError({ info: false, text: `Couldn't export terrain: ${err.message}` });
     }
   };
 
@@ -740,6 +755,9 @@ export default function GeophysicsModule() {
               <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Opacity</span>
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
+            <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title="Export the merged/processed terrain's elevation grid as a single-band GeoTIFF">
+              <Download size={13} /> Export to GeoTIFF…
+            </button>
           </div>
         )}
 
