@@ -583,6 +583,19 @@ export default function ViewerModule({ mode = "view" }) {
   const compassRef = useRef(null);
   const axisGizmoRef = useRef(null); // TASKS.csv #189 — small camera-synced N/E/Z axis-triad widget, bottom-left of the 3D view
   const lastTracesRef = useRef([]);
+  // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new
+  // layer." Same class of bug as the earlier voxel-visibility camera-reset fix a few lines below (see
+  // voxelGeomSignature's own comment) — the geometry-rebuild effect calls fitView() unconditionally
+  // every time it runs, and that effect's dependency array includes `layers` directly, so importing
+  // ANY new layer (lithology, alteration, a raster, a boundary, a geophys classification change, etc.)
+  // reran the whole effect and wiped out the user's pan/zoom, not just a voxel-visibility toggle. This
+  // ref makes the auto-fit a true one-time "frame the data when it first appears" action instead of an
+  // every-rebuild side effect — reset to false whenever collars are cleared back to zero (a genuinely
+  // fresh dataset should still get an initial auto-frame), otherwise left alone so every subsequent
+  // layer/legend/filter change leaves the camera exactly where the user put it. "Zoom to fit all" (the
+  // existing toolbar/context-menu action) remains available for whenever a user actually wants to
+  // refit after adding something.
+  const hasAutoFitRef = useRef(false);
   // Perf (user report: "the app is getting a bit heavy on my laptop") — the render loop below used to
   // call renderer.render() unconditionally every requestAnimationFrame tick, forever, even when the
   // camera hasn't moved and nothing in the scene changed — a genuinely idle 3D view (which, realistically,
@@ -2363,6 +2376,7 @@ export default function ViewerModule({ mode = "view" }) {
     Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); c.geometry?.dispose?.(); c.material?.dispose?.(); } });
     if (!collars.length) {
       setDataLoaded(false);
+      hasAutoFitRef.current = false;
       // No drillhole collars yet, but there may still be a terrain surface or raster drape loaded on
       // its own (e.g. testing a DEM/GeoTIFF import before any collar data exists) — without this,
       // originRef stays at its useRef default of (0,0,0) and a real-world-coordinate terrain/raster
@@ -2756,7 +2770,10 @@ export default function ViewerModule({ mode = "view" }) {
 
     lastTracesRef.current = allTraces;
     if (buildErrors.length) setNotices((p) => [...p, `${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`]);
-    if (allTraces.length) { fitView(allTraces); setDataLoaded(true); }
+    if (allTraces.length) {
+      if (!hasAutoFitRef.current) { fitView(allTraces); hasAutoFitRef.current = true; }
+      setDataLoaded(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
