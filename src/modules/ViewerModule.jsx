@@ -1159,6 +1159,22 @@ export default function ViewerModule({ mode = "view" }) {
         setRectVisual({ x: Math.min(d.x1, d.x2), y: Math.min(d.y1, d.y2), w: Math.abs(d.x2 - d.x1), h: Math.abs(d.y2 - d.y1) });
         return;
       }
+      // TASKS.csv #212 — user report: "pan is not the same. Now instead of pan it rotates." dragRef
+      // is only ever SET on pointerdown (dragging + panning based on e.button there), and this handler
+      // never re-checks whether a button is actually still held — it just trusts that stale state. If
+      // the matching pointerup is ever missed (the exact "OS/browser swallows an expected mouse event"
+      // class of bug #207 already found and fixed elsewhere in this file, e.g. Chromium's own native
+      // middle-click autoscroll potentially intercepting a real middle-click before this app's own
+      // preventDefault fully suppresses it), dragRef.current.dragging can stay stuck true with
+      // whatever `panning` value the LAST real drag happened to set — so plain mouse movement
+      // afterward, with no button actually held, keeps being interpreted as a drag of the WRONG kind
+      // (e.g. a stale panning:false from an earlier rotate silently turning a later middle-click drag
+      // into more rotation). e.buttons is a live bitmask of what's currently held — checking it here
+      // makes a dropped release self-heal on the very next mousemove instead of staying stuck until
+      // some other click happens to reset it.
+      if (dragRef.current.dragging && e.buttons === 0) {
+        dragRef.current.dragging = false;
+      }
       if (dragRef.current.dragging) {
         const dx = e.clientX - dragRef.current.lastX, dy = e.clientY - dragRef.current.lastY;
         dragRef.current.lastX = e.clientX; dragRef.current.lastY = e.clientY;
@@ -1247,6 +1263,14 @@ export default function ViewerModule({ mode = "view" }) {
     // a real PointerEvent (releasePointerCapture(undefined) is wrapped in try/catch), so it's reused
     // directly rather than duplicating its cleanup logic.
     window.addEventListener("blur", onPointerUp);
+    // TASKS.csv #212 — user report: middle-mouse pan starting to rotate instead. "pointercancel" is
+    // the browser's own explicit signal for "I'm taking over this pointer sequence for something else"
+    // (its native middle-click autoscroll gesture being exactly that "something else" — onAuxClick's
+    // preventDefault above is meant to suppress it, but isn't airtight across every Chromium/Electron
+    // version) — a real pointerup may never follow once that happens. Combined with onPointerMove's own
+    // new e.buttons===0 self-heal check just above, this closes the same "stuck drag state" class of
+    // bug #207 fixed for window-blur, for this specific likely trigger instead.
+    dom.addEventListener("pointercancel", onPointerUp);
 
     // Perf — idle-throttled render loop (see lastActivityRef comment above). requestAnimationFrame
     // itself always keeps ticking (so the throttle check below runs every ~16ms and idle→active
@@ -1285,6 +1309,7 @@ export default function ViewerModule({ mode = "view" }) {
       dom.removeEventListener("contextmenu", onContextMenuEvt);
       dom.removeEventListener("mousedown", onAuxClick);
       window.removeEventListener("blur", onPointerUp);
+      dom.removeEventListener("pointercancel", onPointerUp);
       // Bug-hunt pass: this cleanup used to only remove the canvas + call renderer.dispose(), which
       // frees GL programs but NOT per-object geometry/material/texture buffers. Since only one module
       // is mounted at a time (see store.jsx), navigating away from the Viewer tab and back rebuilds the
