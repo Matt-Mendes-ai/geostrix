@@ -626,6 +626,7 @@ export default function ViewerModule({ mode = "view" }) {
   const [numericRange, setNumericRange] = useState({});
   const [legendOverride, setLegendOverride] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
+  const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
   const [customLayers, setCustomLayers] = useState([]);
   const [customVisible, setCustomVisible] = useState({});
   const [assayVisible, setAssayVisible] = useState(true);
@@ -3593,7 +3594,9 @@ export default function ViewerModule({ mode = "view" }) {
   };
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
-  const toggleHole = (id) => setVisibleHoles((p) => ({ ...p, [id]: p[id] === false ? true : false }));
+  // TASKS.csv #222 — useCallback so this keeps a stable identity across renders, required for
+  // HoleRow's React.memo (below) to actually skip re-rendering sibling rows on an unrelated toggle.
+  const toggleHole = useCallback((id) => setVisibleHoles((p) => ({ ...p, [id]: p[id] === false ? true : false })), []);
   // TASKS.csv #124 — QGIS-specialist audit finding: "No way to select all collars within a polygon."
   // Scoped to spatial selection against an already-loaded boundary/claim (both live in the same
   // `boundaries` store collection — see #126) — reuses the existing visibleHoles/toggleHole hole-
@@ -4952,20 +4955,14 @@ export default function ViewerModule({ mode = "view" }) {
         {collars.length > 0 && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Holes ({collars.length})</div>
-            {collars.map((c) => (
-              <div key={c.hole_id} onClick={() => toggleHole(c.hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: visibleHoles[c.hole_id] === false ? "#9aa5b3" : "#1a2028" }}>
-                {visibleHoles[c.hole_id] === false ? <EyeOff size={12} /> : <Eye size={12} />}
-                <span style={{ flex: 1 }}>{c.hole_id}</span>
-                <span
-                  onClick={(e) => { e.stopPropagation(); setStripLogHoleId(c.hole_id); }}
-                  title={`Strip log — ${c.hole_id}`}
-                  style={{ display: "flex", alignItems: "center", color: "#94a1b0", padding: 2, borderRadius: 4 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#94a1b0")}
-                >
-                  <FileBarChart2 size={12} />
-                </span>
-              </div>
+            {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
+                finding; finding one hole by ID in a 200+ hole project by eye alone was the real
+                usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
+            {collars.length > 8 && (
+              <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 8px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit", marginBottom: 4 }} />
+            )}
+            {collars.filter((c) => !holeFilter || c.hole_id.toLowerCase().includes(holeFilter.toLowerCase())).map((c) => (
+              <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} />
             ))}
           </>
         )}
@@ -5418,6 +5415,35 @@ function ContextItem({ label, onClick, disabled, title }) {
   }
   return <div onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "#1a2028" }}>{label}</div>;
 }
+// TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
+// 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's
+// eye icon forced React to reconcile all 200 sibling rows too, not just the one that actually changed.
+// React.memo here + toggleHole/onOpenStripLog both being useCallback-stable (see their own definitions)
+// means an unrelated row's props are referentially unchanged across that render, so React skips it
+// entirely. A full windowed-scroll virtualization (like DataQCModal/AttributeTableModal got) wasn't
+// used here because the Holes list isn't its own isolated scroll region — it's one section inline
+// within the whole sidebar's single mixed-content scroll container (Geometry/Layers/Slice-series/Holes/
+// notices all together), and windowing a sub-range of a larger shared scroll needs real layout
+// restructuring this pass didn't attempt; memoization fixes the actual measured symptom (the toggle
+// cost) without that risk.
+const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog }) {
+  return (
+    <div onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: visible === false ? "#9aa5b3" : "#1a2028" }}>
+      {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
+      <span style={{ flex: 1 }}>{hole_id}</span>
+      <span
+        onClick={(e) => { e.stopPropagation(); onOpenStripLog(hole_id); }}
+        title={`Strip log — ${hole_id}`}
+        style={{ display: "flex", alignItems: "center", color: "#94a1b0", padding: 2, borderRadius: 4 }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#94a1b0")}
+      >
+        <FileBarChart2 size={12} />
+      </span>
+    </div>
+  );
+});
+
 function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
     <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>

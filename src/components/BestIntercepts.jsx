@@ -3,7 +3,10 @@ import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { computeBestIntercepts, avgGradeInRange } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
+import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { saveFile } from "../lib/desktop.js";
+
+const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
 // TASKS.csv #132 — "Best-intercept / downhole intersection reporting (grade x length above a
 // cutoff)". Micromine-specialist audit finding: a daily-use tool for target generation and reporting
@@ -41,6 +44,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
       extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(reportAssays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
     }));
   }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols]);
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
   const exportCSV = () => {
     const rows = results.map((r) => ({
@@ -113,7 +117,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
           ) : results.length === 0 ? (
             <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No intervals meet these criteria — try a lower cutoff or shorter minimum length.</div>
           ) : (
-            <div style={{ overflow: "auto", maxHeight: 380 }}>
+            <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "#ffffff" }}>
@@ -128,8 +132,9 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #eef1f5" }}>
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length} style={{ padding: 0, border: "none" }} /></tr>}
+                  {results.slice(startIndex, endIndex).map((r, i) => (
+                    <tr key={startIndex + i} style={{ borderBottom: "1px solid #eef1f5", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
@@ -140,6 +145,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>

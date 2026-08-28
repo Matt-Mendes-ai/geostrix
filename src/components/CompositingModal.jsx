@@ -3,8 +3,11 @@ import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { compositeDownhole } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
+import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
+
+const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can genuinely reach the thousands (e.g. a 300m hole at 2m composites), unlike a toy dataset
 
 // TASKS.csv #118 — "Downhole compositing (fixed-length, domain-honoring)". Micromine/Leapfrog-specialist
 // audit finding: the standard bridge step between raw assay intervals and any resource-estimation
@@ -44,6 +47,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       domainRows,
     });
   }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
@@ -109,7 +113,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           ) : results.length === 0 ? (
             <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
           ) : (
-            <div style={{ overflow: "auto", maxHeight: 380 }}>
+            <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "#ffffff" }}>
@@ -123,8 +127,9 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #eef1f5" }}>
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={domainKey ? 6 : 5} style={{ padding: 0, border: "none" }} /></tr>}
+                  {results.slice(startIndex, endIndex).map((r, i) => (
+                    <tr key={startIndex + i} style={{ borderBottom: "1px solid #eef1f5", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
@@ -134,6 +139,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                       {domainKey && <td style={td}>{r.domain != null ? domainLabel(r.domain) : "—"}</td>}
                     </tr>
                   ))}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={domainKey ? 6 : 5} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>
