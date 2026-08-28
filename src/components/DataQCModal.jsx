@@ -2,6 +2,15 @@ import React, { useMemo, useState } from "react";
 import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { runDataQC } from "../lib/dataQC.js";
+import { useVirtualRows } from "../lib/useVirtualRows.js";
+
+// TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
+// nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
+// no cap/paging before this fix. Fixed-height row windowing (see useVirtualRows.js) — 52px comfortably
+// fits the category/holeId line plus a 2-line message; the message itself is clamped to 2 lines
+// (-webkit-line-clamp) so an unusually long one truncates with an ellipsis instead of overflowing its
+// fixed-height row and overlapping its neighbor.
+const ISSUE_ROW_H = 52;
 
 // TASKS.csv #82 — drillhole data QA/QC (layer 1 of the geological-modelling architecture the user
 // laid out — see #82's TASKS.csv note for the full plan). Runs on demand (not live on every
@@ -23,6 +32,7 @@ export default function DataQCModal({ onCancel }) {
   const shown = useMemo(() => result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter)), [result, filter, categoryFilter]);
 
   const toggleSeverity = (sev) => setFilter((p) => { const n = new Set(p); if (n.has(sev)) n.delete(sev); else n.add(sev); return n; });
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(shown.length, ISSUE_ROW_H);
 
   return (
     <div style={overlay} onClick={onCancel}>
@@ -35,7 +45,7 @@ export default function DataQCModal({ onCancel }) {
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onCancel} />
         </div>
 
-        <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
           <div style={{ fontSize: 11, color: "#55606e", marginBottom: 12, lineHeight: 1.5 }}>
             Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for
             the kinds of problems that quietly distort a modelled surface — before you get as far as
@@ -65,29 +75,31 @@ export default function DataQCModal({ onCancel }) {
               {categories.map((c) => <option key={c} value={c}>{c} ({result.byCategory.get(c).length})</option>)}
             </select>
           )}
-
-          {result.issues.length === 0 ? (
-            <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: 12.5 }}>No issues found — collars, survey, and every layer look internally consistent.</div>
-          ) : shown.length === 0 ? (
-            <div style={{ padding: "16px 10px", textAlign: "center", color: "#94a1b0", fontSize: 12 }}>No issues match the current filters.</div>
-          ) : (
-            <div>
-              {shown.map((issue, i) => {
-                const meta = SEVERITY_META[issue.severity];
-                const Icon = meta.icon;
-                return (
-                  <div key={i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid #e6e8eb" }}>
-                    <Icon size={13} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11.5, color: "#1a2028", lineHeight: 1.5 }}>{issue.message}</div>
-                      <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+
+        {result.issues.length === 0 ? (
+          <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: 12.5 }}>No issues found — collars, survey, and every layer look internally consistent.</div>
+        ) : shown.length === 0 ? (
+          <div style={{ padding: "16px 10px", textAlign: "center", color: "#94a1b0", fontSize: 12 }}>No issues match the current filters.</div>
+        ) : (
+          <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 16px" }}>
+            <div style={{ height: topPad }} />
+            {shown.slice(startIndex, endIndex).map((issue, i) => {
+              const meta = SEVERITY_META[issue.severity];
+              const Icon = meta.icon;
+              return (
+                <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid #e6e8eb", height: ISSUE_ROW_H, boxSizing: "border-box" }}>
+                  <Icon size={13} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11.5, color: "#1a2028", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
+                    <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}</div>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ height: bottomPad }} />
+          </div>
+        )}
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid #d9dce1", display: "flex", justifyContent: "flex-end" }}>
           <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries, assays }))} style={rerunBtn}>

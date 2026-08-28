@@ -1,5 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { X, Trash2, Save, Sigma } from "lucide-react";
+import { useVirtualRows } from "../lib/useVirtualRows.js";
+
+// TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
+// 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
+// windowing via useVirtualRows.js, same as DataQCModal.jsx, so the hard 500-row cap can go away
+// entirely — every matching row is still editable, just not all rendered as DOM at once. (2) the search
+// filter recomputed (JSON.stringify over every row) on every single keystroke; now debounced so typing
+// doesn't re-filter/re-render until the user pauses briefly.
+const ATTR_ROW_H = 30;
+const SEARCH_DEBOUNCE_MS = 150;
 
 // TASKS.csv #116 — QGIS-style field calculator. Expressions are restricted to a safe character set
 // (letters/digits/operators/parens/dots/commas/underscore/whitespace only) before ever reaching
@@ -46,10 +56,16 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
   const [working, setWorking] = useState(() => rows.map((r) => ({ ...r })));
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
   const [calcOpen, setCalcOpen] = useState(false);
   const [calcField, setCalcField] = useState("");
   const [calcExpr, setCalcExpr] = useState("");
   const [calcError, setCalcError] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const columns = useMemo(() => {
     const set = new Set();
@@ -58,10 +74,11 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
   }, [working]);
 
   const filtered = useMemo(() => {
-    if (!search) return working.map((r, i) => [r, i]);
-    const q = search.toLowerCase();
+    if (!searchDebounced) return working.map((r, i) => [r, i]);
+    const q = searchDebounced.toLowerCase();
     return working.map((r, i) => [r, i]).filter(([r]) => JSON.stringify(r).toLowerCase().includes(q));
-  }, [working, search]);
+  }, [working, searchDebounced]);
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(filtered.length, ATTR_ROW_H);
 
   const setCell = (rowIdx, col, value) => {
     setWorking((prev) => {
@@ -140,7 +157,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
             {calcError && <div style={{ fontSize: 11, color: "#a95555" }}>{calcError}</div>}
           </div>
         )}
-        <div style={{ flex: 1, overflow: "auto", padding: "0 14px 14px" }}>
+        <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflow: "auto", padding: "0 14px 14px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
             <thead>
               <tr style={{ position: "sticky", top: 0, background: "#ffffff" }}>
@@ -149,8 +166,9 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 500).map(([r, rowIdx]) => (
-                <tr key={rowIdx} style={{ borderBottom: "1px solid #eef1f5" }}>
+              {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={columns.length + 1} style={{ padding: 0, border: "none" }} /></tr>}
+              {filtered.slice(startIndex, endIndex).map(([r, rowIdx]) => (
+                <tr key={rowIdx} style={{ borderBottom: "1px solid #eef1f5", height: ATTR_ROW_H, boxSizing: "border-box" }}>
                   {columns.map((c) => (
                     <td key={c} style={td}>
                       <input
@@ -166,9 +184,9 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                   </td>
                 </tr>
               ))}
+              {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={columns.length + 1} style={{ padding: 0, border: "none" }} /></tr>}
             </tbody>
           </table>
-          {filtered.length > 500 && <div style={{ padding: "8px 0", color: "#94a1b0", fontSize: 11 }}>Showing first 500 of {filtered.length} matching rows — narrow your search to edit others.</div>}
         </div>
       </div>
     </div>
