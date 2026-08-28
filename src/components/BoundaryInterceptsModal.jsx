@@ -87,7 +87,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                 <thead>
                   <tr style={{ background: "#ffffff" }}>
                     <th style={th}></th>
-                    <th style={th} title="Soft constraint (#88)"></th>
+                    <th style={th} title="Soft constraint — feeds the model but only approximately honoured"></th>
                     <th style={th}>Layer</th>
                     <th style={th}>Hole</th>
                     <th style={th}>Unit</th>

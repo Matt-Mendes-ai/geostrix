@@ -31,7 +31,15 @@ export function desurveyHole(collar, survey) {
     let lo = withI[0], hi = withI[withI.length - 1];
     for (let i = 0; i < withI.length - 1; i++) if (md >= withI[i].md && md <= withI[i + 1].md) { lo = withI[i]; hi = withI[i + 1]; break; }
     const span = hi.md - lo.md, t = span <= 0 ? 0 : (md - lo.md) / span;
-    return { md, I: lo.I + (hi.I - lo.I) * t, Az: lo.Az + (hi.Az - lo.Az) * t };
+    // TASKS.csv #218 — azimuth is a compass bearing, not a plain number: interpolating the raw degree
+    // values (e.g. 355 -> 5) took the LONG way around through 180 instead of the short way through
+    // 0/360, producing large positional errors on any north-trending hole. Unwrap to the shortest
+    // signed delta in (-180, 180] before interpolating, then normalize the result back to [0, 360).
+    const rawDelta = hi.Az - lo.Az;
+    const shortDelta = ((rawDelta % 360) + 540) % 360 - 180;
+    let az = lo.Az + shortDelta * t;
+    az = ((az % 360) + 360) % 360;
+    return { md, I: lo.I + (hi.I - lo.I) * t, Az: az };
   };
   const fine = sorted.map(interpAt);
   let N = 0, E = 0, TVD = 0;

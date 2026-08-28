@@ -430,7 +430,11 @@ function searchEllipsoidDistSq(apiA, apiB, basis, ranges) {
 // points inside their own search ellipsoid — O(n²) but n is a per-unit control-point count (tens to a
 // few hundred), not the whole project, so this is cheap in practice.
 function filterBySearchSupport(apiPoints, ellipsoid) {
-  if (!ellipsoid?.enabled) return apiPoints;
+  // TASKS.csv #217 — must return a COPY here, not apiPoints itself: callers do
+  // `points.length = 0; points.push(...supportedPoints)`, and when supportedPoints
+  // was the same reference as points, that truncation emptied the array before the
+  // spread ever read it, silently zeroing out every point whenever the ellipsoid was off.
+  if (!ellipsoid?.enabled) return [...apiPoints];
   const basis = searchEllipsoidBasis(ellipsoid.azimuth, ellipsoid.dip);
   return apiPoints.filter((p, i) => {
     let count = 0;
@@ -2028,6 +2032,7 @@ export default function ViewerModule({ mode = "view" }) {
   // list — see interceptId's comment for why.
   const computeIntercepts = useCallback(() => {
     const traces = tracesRef.current;
+    const o = originRef.current;
     const out = [];
     [["litho", "Lithology"], ["alt", "Alteration"]].forEach(([layerKey, layerLabel]) => {
       (layers[layerKey] || []).forEach((r) => {
@@ -2037,7 +2042,10 @@ export default function ViewerModule({ mode = "view" }) {
         const p = findOnTrace(t.pts, r.from);
         if (!p) return;
         const api = sceneToApi(p);
-        out.push({ id: interceptId(layerKey, r), layerKey, layerLabel, hole_id: r.hole_id, unit: r.value, from: r.from, x: api.x, y: api.y, z: api.z });
+        // TASKS.csv #232 — api coords are origin-relative (see sceneToApi's own comment); add the
+        // scene origin back in so the table/CSV export shows real-world E/N/Z, matching what the
+        // mesh-export path (meshExport.js's sceneVertsToWorld) already does for the same conversion.
+        out.push({ id: interceptId(layerKey, r), layerKey, layerLabel, hole_id: r.hole_id, unit: r.value, from: r.from, x: api.x + o.x, y: api.y + o.y, z: api.z + o.z });
       });
     });
     return out;
@@ -5320,7 +5328,7 @@ function ViewToolbar({
         </HoverToolInfo>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Import a boundary polygon and some collars first. Given a claim or property boundary polygon layer, lists which drillholes cross it and exactly where — a quick way to tell which intervals fall inside vs. outside your ground without eyeballing the 3D view." : "Given a claim or property boundary polygon layer, lists which drillholes cross it and exactly where — a quick way to tell which intervals fall inside vs. outside your ground without eyeballing the 3D view."}>
+        <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
           <button className="ge-subtool-btn" onClick={onBoundaryIntercepts} disabled={boundaryDisabled}><Milestone size={15} /></button>
         </HoverToolInfo>
       </div>

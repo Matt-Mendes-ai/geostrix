@@ -25,7 +25,7 @@ import LayoutModule from "./modules/LayoutModule.jsx";
 // my targets and plan holes" in the day-to-day workflow.
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
-  { id: "modeling", label: "3D Modeling (Coming Soon)", icon: Layers3, disabled: true },
+  { id: "modeling", label: "3D Modeling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
