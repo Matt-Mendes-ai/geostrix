@@ -13,6 +13,8 @@ import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, parseBlockModelCSV, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF } from "../lib/dxf.js";
+import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
+import { parseGeoPackage } from "../lib/gpkg.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -312,6 +314,33 @@ export default function GeophysicsModule() {
   // Accepts multiple files at once, mixed formats — real properties often ship several boundary files
   // together (survey area, claim block, blind-grid extent, etc.) and there's no reason to force
   // one-at-a-time like terrain's single-surface limit; each file becomes its own boundary entry.
+  //
+  // TASKS.csv #237 (Micromine-specialist audit finding: "claim/tenure import only accepts .ply/.dxf,
+  // not the shapefile/KML format BC's Mineral Titles Online actually distributes claims in") — added
+  // shapefile (.zip/.shp) and GeoPackage (.gpkg), the two vector formats this app already has full,
+  // battle-tested parsers for elsewhere (collar/survey import, #190/#191). Every FEATURE in the file
+  // becomes its own polyline within the boundary's `polylines` array — the same "one boundary can hold
+  // several separate rings" shape .ply/DXF multi-poly files already produce — rather than one boundary
+  // per feature, matching how a real claim-block shapefile (several adjacent/separate blocks in one
+  // file) is normally meant to be treated as a single layer. KML was NOT added: it needs its own XML
+  // parser (a different format entirely, not a shapefile variant), out of scope for this pass — flagged
+  // as still open.
+  async function shapeFileToPolylines(file) {
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".zip") || name.endsWith(".shp")) {
+      const buf = await file.arrayBuffer();
+      const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf) });
+      return parsed.features.map((f) => f.geometry.map(([x, y]) => ({ x, y })));
+    }
+    if (name.endsWith(".gpkg")) {
+      const buf = await file.arrayBuffer();
+      const { layers } = await parseGeoPackage(buf);
+      const layer = layers.find((l) => l.features.length);
+      if (!layer) throw new Error("No usable features found in this GeoPackage.");
+      return layer.features.map((f) => f.geometry.map(([x, y]) => ({ x, y })));
+    }
+    return null; // not a vector format this helper handles — caller falls back to .ply/.dxf
+  }
   const importBoundaries = async (fileList) => {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
@@ -320,9 +349,15 @@ export default function GeophysicsModule() {
     const failed = [];
     for (const file of files) {
       try {
-        const text = await file.text();
-        const isDxf = /\.dxf$/i.test(file.name);
-        const { polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text);
+        const shapePolylines = await shapeFileToPolylines(file);
+        let polylines;
+        if (shapePolylines) {
+          polylines = shapePolylines;
+        } else {
+          const text = await file.text();
+          const isDxf = /\.dxf$/i.test(file.name);
+          ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
+        }
         addBoundary({ name: file.name, polylines, elevation: defaultElevation });
         imported++;
       } catch (err) {
@@ -354,10 +389,16 @@ export default function GeophysicsModule() {
     const failed = [];
     for (const file of files) {
       try {
-        const text = await file.text();
-        const isDxf = /\.dxf$/i.test(file.name);
-        const { polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text);
-        addBoundary({ name: file.name.replace(/\.(ply|dxf)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        const shapePolylines = await shapeFileToPolylines(file);
+        let polylines;
+        if (shapePolylines) {
+          polylines = shapePolylines;
+        } else {
+          const text = await file.text();
+          const isDxf = /\.dxf$/i.test(file.name);
+          ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
+        }
+        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -858,16 +899,16 @@ export default function GeophysicsModule() {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Boundaries (Geosoft .ply / DXF)
-          <InfoButton title="Boundaries (Geosoft .ply / DXF)" text={`Import a Geosoft .ply boundary/polygon export or a DXF file (property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD package) as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection for either format yet.`} />
+          Boundaries (.ply / DXF / shapefile / GeoPackage)
+          <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), or a GeoPackage (.gpkg) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={13} /> Import boundary (.ply / .dxf)…
+          <Waypoints size={13} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg)…
         </button>
         <input
           ref={boundaryInput}
           type="file"
-          accept=".ply,.dxf"
+          accept=".ply,.dxf,.zip,.shp,.gpkg"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
@@ -905,15 +946,15 @@ export default function GeophysicsModule() {
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Mineral claims / tenure
-          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary (same Geosoft .ply polygon format as Boundaries above), tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
+          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), or GeoPackage (.gpkg), same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={13} /> Import claim boundary (.ply / .dxf)…
+          <Flag size={13} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg)…
         </button>
         <input
           ref={claimInput}
           type="file"
-          accept=".ply,.dxf"
+          accept=".ply,.dxf,.zip,.shp,.gpkg"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
