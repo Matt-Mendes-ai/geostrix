@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler } from "lucide-react";
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare } from "lucide-react";
 import AssayStyleModal from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
@@ -28,6 +28,7 @@ import ImportMappingModal from "../components/ImportMappingModal.jsx";
 import DatabaseConnectModal from "../components/DatabaseConnectModal.jsx";
 import LayerInspector from "../components/LayerInspector.jsx";
 import DataQCModal from "../components/DataQCModal.jsx";
+import SQLWorkspaceModal from "../components/SQLWorkspaceModal.jsx";
 import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
@@ -668,6 +669,10 @@ export default function ViewerModule({ mode = "view" }) {
   const [importModal, setImportModal] = useState(null);
   const [dbModalOpen, setDbModalOpen] = useState(false);
   const [qcModalOpen, setQcModalOpen] = useState(false); // TASKS.csv #82 — data QA/QC modal
+  // TASKS.csv #239 — SQL workspace (#50) was only reachable from the Geochem module's toolbar despite
+  // querying collars/survey/layers/boundaries too, not just assays — discoverability gap flagged by the
+  // QGIS-specialist audit. Same modal, same store data, just also reachable from here.
+  const [sqlModalOpen, setSqlModalOpen] = useState(false);
   const [stripLogHoleId, setStripLogHoleId] = useState(null); // TASKS.csv #133 — downhole strip log modal, holds the hole_id or null
   const [interceptsModalOpen, setInterceptsModalOpen] = useState(false); // TASKS.csv #84 — boundary intercepts
   const [contextMenu, setContextMenu] = useState(null);
@@ -4166,6 +4171,7 @@ export default function ViewerModule({ mode = "view" }) {
           onDbConnect={() => setDbModalOpen(true)}
           onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length}
           onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length}
+          onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}
           onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded}
           sectionMode={sectionMode}
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
@@ -5178,6 +5184,17 @@ export default function ViewerModule({ mode = "view" }) {
       {importModal && <ImportMappingModal modal={importModal} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
+      {sqlModalOpen && (
+        <SQLWorkspaceModal
+          collars={collars}
+          survey={survey}
+          layers={layers}
+          assays={assays}
+          assayElements={assayElements}
+          boundaries={boundaries}
+          onClose={() => setSqlModalOpen(false)}
+        />
+      )}
       {stripLogHoleId && (
         <StripLog
           holeId={stripLogHoleId}
@@ -5251,7 +5268,7 @@ function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
-  onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled,
+  onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
   onSnapshot, snapshotDisabled, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
 }) {
@@ -5352,6 +5369,11 @@ function ViewToolbar({
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
           <button className="ge-subtool-btn" onClick={onBoundaryIntercepts} disabled={boundaryDisabled}><Milestone size={15} /></button>
+        </HoverToolInfo>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <HoverToolInfo title="SQL workspace" text={sqlDisabled ? "Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar." : "Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar."}>
+          <button className="ge-subtool-btn" onClick={onSqlWorkspace} disabled={sqlDisabled}><TerminalSquare size={15} /></button>
         </HoverToolInfo>
       </div>
 
