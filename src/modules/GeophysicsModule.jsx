@@ -15,6 +15,7 @@ import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF } from "../lib/dxf.js";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
+import { idwGridToRasterInput } from "../lib/idw.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -74,6 +75,9 @@ export default function GeophysicsModule() {
   const [omfError, setOmfError] = useState(null);
   const [omfBusy, setOmfBusy] = useState(false);
   const omfInput = useRef(null);
+  const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
+  const [idwCellSize, setIdwCellSize] = useState(25);
+  const [idwPower, setIdwPower] = useState(2);
   const [xyzError, setXyzError] = useState(null);
   const [xyzPending, setXyzPending] = useState(null); // { fileName, columns, rows, xCol, yCol, zCol, valueCol, labelCol } | null
   const [dragOver, setDragOver] = useState(false);
@@ -827,6 +831,40 @@ export default function GeophysicsModule() {
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
               <Triangle size={13} /> Spatial analysis (Voronoi / declustering)…
             </button>
+            {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), a
+                lightweight pure-JS alternative to the Python sidecar's own (fully built but unreachable
+                from any UI) /interpolate endpoint — see idw.js's own header comment for why. */}
+            <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "#eaf1fa" : undefined }}>
+              <Box size={13} /> Grid to raster (IDW)…
+            </button>
+            {idwOpen && (
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+                <div style={{ color: "#55606e", marginBottom: 8, lineHeight: 1.5 }}>Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ color: "#6b7684", width: 70, flexShrink: 0 }}>Cell size</span>
+                  <input type="number" min="0.1" step="any" value={idwCellSize} onChange={(e) => setIdwCellSize(Math.max(0.1, Number(e.target.value) || 25))} style={numInput} />
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ color: "#6b7684", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
+                  <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
+                </div>
+                <button
+                  onClick={() => {
+                    const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
+                    const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+                    const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
+                    if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
+                    const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, name: `geophys_pts_idw_${idwCellSize}m` });
+                    addRaster({ ...raster, elevation: defaultElevation });
+                    setError(null);
+                    setIdwOpen(false);
+                  }}
+                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
+                >
+                  Generate raster
+                </button>
+              </div>
+            )}
           </div>
         )}
 
