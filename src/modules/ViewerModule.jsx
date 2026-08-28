@@ -677,6 +677,20 @@ export default function ViewerModule({ mode = "view" }) {
   const [browserHeight, setBrowserHeight] = useBrowserPanelHeight(); // TASKS.csv #206 — Browser panel dock height
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  // TASKS.csv #188 follow-up — user report: "there is a bug on the select from cursor button. it
+  // should let me click on the view to retrieve the coordinates, instead it just grabs the coordinates
+  // of the exact moment I click on the button." That was the ORIGINAL, deliberately-scoped-down design
+  // (see PlannedHoleAddForm's own header comment) — "Use cursor" just read the live status-bar cursor
+  // value at click time, which is wherever the mouse last was over the 3D view BEFORE moving onto the
+  // sidebar button, not a real "click to place" pick. This is that real follow-up: an armed pick mode,
+  // same shape as sectionMode/measureMode above (a boolean + a one-shot click handler on .ge-main),
+  // reusing onMeasureClick's exact raycast pattern (raycastWorldPoint — terrain/voxel/drillhole-aware,
+  // not just a flat plane) so a picked point reflects whatever's actually under the cursor.
+  const [pickHoleMode, setPickHoleMode] = useState(false);
+  const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
+  useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
+  const [pickedHolePoint, setPickedHolePoint] = useState(null);
+
   const [sectionMode, setSectionMode] = useState(false);
   const sectionPts = useRef([]);
   const [sectionPreview, setSectionPreview] = useState(null);
@@ -1236,6 +1250,7 @@ export default function ViewerModule({ mode = "view" }) {
     const onContextMenuEvt = (e) => {
       e.preventDefault();
       if (rectZoomRef.current) { setRectZoomMode(false); rectDragRef.current = null; setRectVisual(null); return; } // right-click cancels an armed/in-progress rectangle-zoom
+      if (pickHoleModeRef.current) { setPickHoleMode(false); return; } // right-click cancels an armed planned-hole pick
       const rect = renderer.domElement.getBoundingClientRect();
       const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(new THREE.Vector2(mx, my), camera);
@@ -1632,13 +1647,22 @@ export default function ViewerModule({ mode = "view" }) {
     if (!viewportPendingRequest || viewportPendingRequest.requestId !== req.requestId) return;
     if (lastHandledRequestId.current === req.requestId) return; // avoid double-handling within one mount's re-renders
     lastHandledRequestId.current = req.requestId;
-    const theme = themes.find((t) => t.id === req.themeId);
-    if (!theme) { resolveViewportRender({ requestId: req.requestId, error: "Theme not found (it may have been deleted)." }); return; }
+    // TASKS.csv — user request: "add a feature on the layout view that will let the user add a
+    // viewport with the current view and not only when save a theme." A falsy themeId (null/
+    // undefined) means "just capture whatever's live right now" — no theme to look up or apply at
+    // all, skip straight to the same snapshot/capture/restore path every themed viewport already uses.
+    // A NON-falsy themeId that doesn't resolve to a real theme is still the original error case (the
+    // theme was deleted after this request was queued).
+    const theme = req.themeId ? themes.find((t) => t.id === req.themeId) : null;
+    if (req.themeId && !theme) { resolveViewportRender({ requestId: req.requestId, error: "Theme not found (it may have been deleted)." }); return; }
     // TASKS.csv #202 fix — snapshot whatever the user actually had live (layers/filters/camera)
     // BEFORE temporarily swapping in the requested theme, so it can be restored once the capture
-    // below is done rather than left showing the theme's config after the fact.
+    // below is done rather than left showing the theme's config after the fact. For a themeless
+    // "current view" request this snapshot IS what gets captured (applyTheme below is skipped
+    // entirely), and restoring it afterward is still correct — it's a no-op restore of the exact
+    // state that's already live.
     const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
-    applyTheme(theme);
+    if (theme) applyTheme(theme);
     // TASKS.csv #198 (part 3) — interactive sessions skip the automatic timer entirely: the theme's
     // camera is now live on screen, the existing orbit/pan/zoom pointer handlers already work
     // unconditionally, and the user drives when capture actually happens via the banner below
@@ -3803,6 +3827,17 @@ export default function ViewerModule({ mode = "view" }) {
     setMeasurePts((pts) => [...pts, world]);
   }, [measureMode, raycastWorldPoint]);
   const clearMeasure = () => setMeasurePts([]);
+  const onPickHoleClick = useCallback((e) => {
+    if (!pickHoleMode) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
+    const world = raycastWorldPoint(raycaster);
+    if (!world) return;
+    setPickedHolePoint(world);
+    setPickHoleMode(false);
+  }, [pickHoleMode, raycastWorldPoint]);
   // TASKS.csv #121 follow-up — user request: "let's kinda merge the two buttons, we really only need
   // one" (originally shipped as two separate toolbar buttons, Ruler for distance and Shapes for area).
   // One toolbar button now turns measuring on (defaulting to distance) or off; while it's on, a small
@@ -4858,7 +4893,7 @@ export default function ViewerModule({ mode = "view" }) {
             <FileBarChart2 size={13} style={{ cursor: "pointer", color: "#55606e" }} onClick={exportPlannedHolesCSV} title="Export all planned holes to CSV" />
           )}
         </div>
-        <PlannedHoleAddForm cursor={cursor} onAdd={addPlannedHole} />
+        <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} />
         {plannedHoles.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 11.5, color: "#94a1b0", marginTop: 8 }}>
             No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.
@@ -4916,7 +4951,7 @@ export default function ViewerModule({ mode = "view" }) {
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode ? "crosshair" : "default" }}>
+      <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {!collars.length && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", color: "#94a1b0", fontSize: 13 }}>
@@ -5575,21 +5610,25 @@ function VoxelRangeRow({ model, onUpdate }) {
   );
 }
 
-// TASKS.csv #188 — Targeting module: add-planned-hole form. "Use cursor" fills E/N/Elev from
-// wherever the 3D cursor last was (store.cursor — the same world-space value the status bar already
-// shows), a quick way to place a hole roughly where the user was just looking at a voxel high/low or
-// a geochem anomaly, without having to go look up coordinates separately. Values are still plain
-// editable number inputs, not a raycasted "click to place" tool — that's a real follow-up (would
-// need its own placement mode, same shape as the cross-section line tool) but out of scope for a
-// first pass; the cursor button covers the common "I'm looking right at my target, plant a hole
-// here" case with much less new interaction surface.
-function PlannedHoleAddForm({ cursor, onAdd }) {
+// TASKS.csv #188/follow-up — Targeting module: add-planned-hole form. Originally "Use cursor" just
+// read the live status-bar cursor value (store.cursor) at the moment of the click — which is wherever
+// the mouse last was over the 3D view BEFORE moving onto this sidebar button, not the point the user
+// actually meant to pick. Real user report: "there is a bug on the select from cursor button. it
+// should let me click on the view to retrieve the coordinates, instead it just grab the coordinates of
+// the exact moment I click on the button." Now a real two-step pick: clicking the button ARMS
+// pickHoleMode (in the parent — same shape as sectionMode/measureMode's own click-to-place tools) and
+// changes its own label/style to "Click on the view…"; the next click anywhere in the 3D view raycasts
+// a real world point (onPickHoleClick, terrain/voxel/drillhole-aware, not just a flat plane) and this
+// form picks it up via the `pickedPoint` prop.
+function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
-  const useCursor = () => {
-    if (cursor?.x == null) return;
-    setDraft((p) => ({ ...p, x: Math.round(cursor.x * 10) / 10, y: Math.round(cursor.y * 10) / 10, z: Math.round(cursor.z * 10) / 10 }));
-  };
+  const lastAppliedPick = useRef(null);
+  useEffect(() => {
+    if (!pickedPoint || pickedPoint === lastAppliedPick.current) return;
+    lastAppliedPick.current = pickedPoint;
+    setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round(pickedPoint.z * 10) / 10 }));
+  }, [pickedPoint]);
   const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0;
   const submit = () => {
     if (!canAdd) return;
@@ -5610,7 +5649,13 @@ function PlannedHoleAddForm({ cursor, onAdd }) {
         <NumField label="Length m" value={draft.length} onChange={(v) => set("length", v)} />
       </div>
       <div style={{ display: "flex", gap: 5 }}>
-        <button onClick={useCursor} disabled={cursor?.x == null} style={{ ...miniBtn, flex: 1, opacity: cursor?.x == null ? 0.4 : 1 }} title="Fill E/N/Elev from the current 3D cursor position">Use cursor</button>
+        <button
+          onClick={onStartPick}
+          style={{ ...miniBtn, flex: 1, background: pickMode ? "#2f6fe0" : miniBtn.background, border: pickMode ? "1px solid #2f6fe0" : miniBtn.border, color: pickMode ? "#ffffff" : miniBtn.color }}
+          title="Click, then click anywhere in the 3D view to place a hole there"
+        >
+          {pickMode ? "Click on the view…" : "Pick on view"}
+        </button>
         <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "#eaf1fa" : "#f4f5f7", borderColor: canAdd ? "#a9c6e0" : "#c7ccd3", opacity: canAdd ? 1 : 0.5 }}>+ Add hole</button>
       </div>
     </div>

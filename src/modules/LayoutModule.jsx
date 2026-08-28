@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera } from "lucide-react";
 import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -169,8 +169,12 @@ export default function LayoutModule() {
   // world-scale exact everywhere in the image rather than only approximately right at the camera's
   // target distance (see ViewportControls' scale readout below for the user-facing explanation).
   const startViewportRender = (themeId, targetElementId, trueScale) => {
-    const theme = themes.find((t) => t.id === themeId);
-    if (!theme) return;
+    // A falsy themeId means "just capture the current live view, no theme involved" — see the new
+    // "Add viewport from current view" button and ViewportControls' "— current view (no theme) —"
+    // option above. Only a genuinely non-falsy-but-unresolvable themeId (a stale/deleted theme id) is
+    // treated as an error here.
+    const theme = themeId ? themes.find((t) => t.id === themeId) : null;
+    if (themeId && !theme) return;
     if (targetElementId !== "new") {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
@@ -531,6 +535,17 @@ export default function LayoutModule() {
             onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")}
             disabled={!themes.length}
             active={themePickerFor === "new"}
+          />
+          {/* TASKS.csv — user request: "add a feature on the layout view that will let the user add a
+              viewport with the current view and not only when save a theme." Captures whatever's live
+              in the 3D View right now with no theme to save/pick first — startViewportRender(null, ...)
+              skips the theme-application branch entirely (see ViewerModule's viewportRenderRequestSeq
+              effect) and just snapshots the current state, same as it already does for "Refresh" on a
+              themeless viewport (see ViewportControls' Theme dropdown). */}
+          <ToolIconBtn
+            icon={<Camera size={15} />}
+            title="Add a viewport snapshot of the current 3D View (no theme needed)"
+            onClick={() => startViewportRender(null, "new")}
           />
         </div>
         {/* TASKS.csv #19 — shapes/annotation tools */}
@@ -978,7 +993,12 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   return (
     <div style={{ marginTop: 4 }}>
       <label style={{ fontSize: 11.5, color: "#55606e" }}>Theme
-        <select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value)} style={inp}>
+        <select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
+          {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
+              viewport can now exist with no bound theme at all (themeId: null) — "Refresh from theme"
+              below still works for it (re-captures whatever's live right now), it just has nothing to
+              rebind BACK to if the user picks this option again later. */}
+          <option value="">— current view (no theme) —</option>
           {themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>
