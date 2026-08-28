@@ -137,6 +137,34 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
   return composites;
 }
 
+// TASKS.csv #230 (Micromine/mineral-exploration/Leapfrog-specialist audit finding) — best-intercept
+// reporting only ever showed ONE element (whichever the intercept was composited against), with no way
+// to see what a second/third element graded over that SAME depth window (e.g. "what's the Ag and Cu
+// over this Au intercept?" — a routine question in a polymetallic system). Rather than re-running the
+// whole compositing/cutoff/dilution logic per extra element (which would produce a DIFFERENT set of
+// break points per element — not what's wanted here), this just length-weight-averages a chosen
+// element's raw assay values over an ALREADY-COMPOSITED interval's fixed from/to window, the same
+// weighting computeBestIntercepts itself uses. Below-detection substitution/unit conversion goes
+// through the same valueIn() every other grade figure in this file uses. Returns null (not 0) if no
+// assay row for this element overlaps the window at all, so the caller can render "—" rather than a
+// misleading zero.
+export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, elementUnits) {
+  const EPS = 1e-6;
+  let weighted = 0, coveredWidth = 0;
+  assays.forEach((a) => {
+    if (a.hole_id !== hole_id || a.from == null || a.to == null || a.to <= a.from) return;
+    const overlapFrom = Math.max(a.from, from), overlapTo = Math.min(a.to, to);
+    const overlap = overlapTo - overlapFrom;
+    if (overlap <= EPS) return;
+    const v = valueIn(a, symbol, unit, elementUnits);
+    if (v == null) return;
+    weighted += v * overlap;
+    coveredWidth += overlap;
+  });
+  if (coveredWidth <= EPS) return null;
+  return weighted / coveredWidth;
+}
+
 // ---------- fixed-length downhole compositing ----------
 // TASKS.csv #118 (Micromine/Leapfrog-specialist audit finding): the standard pre-estimation step —
 // raw sample intervals are almost never a convenient regular length for variography/block-model

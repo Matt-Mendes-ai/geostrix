@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
-import { computeBestIntercepts } from "../lib/geochem.js";
+import { computeBestIntercepts, avgGradeInRange } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 
 // TASKS.csv #132 — "Best-intercept / downhole intersection reporting (grade x length above a
@@ -18,18 +18,28 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
   const [maxInternalDilution, setMaxInternalDilution] = useState(2);
   const [minLength, setMinLength] = useState(0);
   const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
+  // TASKS.csv #230 — extra elements shown alongside the primary (compositing-anchor) element, e.g.
+  // "what's the Ag and Cu over this Au intercept?" — the compositing/cutoff/dilution logic still only
+  // ever runs against ONE element (`symbol`, below); these are just additional length-weighted
+  // averages over each already-composited interval's fixed from/to window (see avgGradeInRange).
+  const [extraSymbols, setExtraSymbols] = useState([]);
+  const toggleExtraSymbol = (s) => setExtraSymbols((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
 
   const results = useMemo(() => {
     if (!symbol) return [];
     const rows = computeBestIntercepts(assays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
-    return rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9);
-  }, [assays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen]);
+    return rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
+      ...r,
+      extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(assays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
+    }));
+  }, [assays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols]);
 
   const exportCSV = () => {
     const rows = results.map((r) => ({
       hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
       [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
       grade_x_length: (r.avgGrade * r.length).toFixed(2),
+      ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : r.extras[s].toFixed(3)])),
       assay_intervals: r.intervals,
     }));
     saveFile({ suggestedName: `best_intercepts_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
@@ -49,7 +59,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
+              <select value={symbol} onChange={(e) => { setSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
@@ -69,6 +79,18 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
             </label>
           </div>
 
+          {symbols.length > 1 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title="Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.">
+              <span style={{ fontSize: 10.5, color: "#55606e" }}>Also show:</span>
+              {symbols.filter((s) => s !== symbol).map((s) => (
+                <label key={s} style={{ fontSize: 11, color: extraSymbols.includes(s) ? "#1a2028" : "#94a1b0", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "#3d6b52" : "#d9dce1"}` }}>
+                  <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
+                  {s} ({elementUnits[s] || "ppm"})
+                </label>
+              ))}
+            </div>
+          )}
+
           {symbols.length === 0 ? (
             <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No assay elements loaded — import assays first.</div>
           ) : results.length === 0 ? (
@@ -84,6 +106,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
                     <th style={th}>Length (m)</th>
                     <th style={th}>Avg {symbol} ({unit})</th>
                     <th style={th}>Grade × length</th>
+                    {extraSymbols.map((s) => <th key={s} style={th}>Avg {s} ({elementUnits[s] || "ppm"})</th>)}
                     <th style={th}>Assay intervals</th>
                   </tr>
                 </thead>
@@ -96,6 +119,7 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
                       <td style={td}>{r.length.toFixed(2)}</td>
                       <td style={{ ...td, fontWeight: 600, color: "#1a2028" }}>{r.avgGrade.toFixed(3)}</td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
+                      {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
