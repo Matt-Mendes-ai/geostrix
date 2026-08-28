@@ -3514,9 +3514,17 @@ export default function ViewerModule({ mode = "view" }) {
   // commit/cancel and after each auto-import, until every dropped file has been handled.
   const importQueueRef = useRef([]);
   const importQueueTotalRef = useRef(0); // total files this drop started with, for the progress bar
+  // TASKS.csv #229 — re-entrancy guard against a double-import: if handleDrop somehow fires twice for
+  // one physical drop (nested drop zones, or the OS/Electron bridging a file drop through more than
+  // one path), the second call used to overwrite importQueueRef.current with a fresh copy of the SAME
+  // files mid-flight, while the first call's async parseVectorFile chain was still running — so when
+  // that first chain's callback called processImportQueue() again, it resumed draining the SECOND
+  // call's freshly-reset array from the top, re-importing files the first chain had already committed.
+  // importActiveRef blocks a second queue from starting while one is already draining.
+  const importActiveRef = useRef(false);
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();
-    if (!file) { setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
+    if (!file) { importActiveRef.current = false; setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
@@ -3559,6 +3567,10 @@ export default function ViewerModule({ mode = "view" }) {
     if (!files.length) { setNotices((p) => [...p, "Only .csv, .zip (shapefile), .shp, or .gpkg files can be dropped in directly."]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
     if (files.length === 1) { openImportModal(files[0]); return; }
+    // TASKS.csv #229 — ignore a second drop-queue start while one is still draining (see
+    // importActiveRef's own comment above processImportQueue) instead of stomping the in-flight queue.
+    if (importActiveRef.current) { setNotices((p) => [...p, "Already importing a previous drop — please wait for it to finish before dropping more files."]); return; }
+    importActiveRef.current = true;
     setNotices((p) => [...p, `Importing ${files.length} files — auto-detecting each one, will ask when unsure…`]);
     importQueueTotalRef.current = files.length;
     importQueueRef.current = files;
