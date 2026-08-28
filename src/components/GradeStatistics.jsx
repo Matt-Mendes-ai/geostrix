@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 
@@ -52,6 +53,12 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [domainKey, setDomainKey] = useState("");
   const [logScale, setLogScale] = useState(false);
+  // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of grade statistics, same
+  // as Best Intercepts/Compositing — a standard's own repeat-insertion grade shouldn't skew a domain's
+  // mean/stdev/CV.
+  const [includeQAQC, setIncludeQAQC] = useState(false);
+  const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
+  const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const domainOptions = DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0);
   const domainRows = domainKey ? layers[domainKey] : null;
@@ -62,13 +69,13 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
   // rows, e.g. a below-detection row already halved by parseAssayValue's "<" handling, are excluded
   // from the log view specifically rather than silently breaking the whole chart).
   const rows = useMemo(() => {
-    return assays.map((a) => {
+    return statsAssays.map((a) => {
       const v = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
       if (v == null) return null;
       const domain = domainRows ? domainForInterval(domainRows, a.hole_id, a.from, a.to) : "All";
       return { value: v, domain };
     }).filter(Boolean);
-  }, [assays, symbol, elementUnits, domainRows]);
+  }, [statsAssays, symbol, elementUnits, domainRows]);
 
   const groups = useMemo(() => {
     const byDomain = new Map();
@@ -119,12 +126,21 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Grade statistics</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Univariate distribution per domain — {assays.length} intervals loaded.</div>
+            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
+              Univariate distribution per domain — {assays.length} intervals loaded.
+              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            </div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          {qaqcExcludedCount > 0 && (
+            <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.">
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
+              Include QC samples (standards/blanks/duplicates) in this report
+            </label>
+          )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: 11, color: "#55606e" }}>Element
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>

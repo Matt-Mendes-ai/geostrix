@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { computeBestIntercepts, avgGradeInRange } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js";
 import { saveFile } from "../lib/desktop.js";
 
 // TASKS.csv #132 — "Best-intercept / downhole intersection reporting (grade x length above a
@@ -24,15 +25,22 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
   // averages over each already-composited interval's fixed from/to window (see avgGradeInRange).
   const [extraSymbols, setExtraSymbols] = useState([]);
   const toggleExtraSymbol = (s) => setExtraSymbols((p) => (p.includes(s) ? p.filter((x) => x !== s) : [...p, s]));
+  // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of this report, same as
+  // every other stat/report tool this pass touched — a synthetic standard has no business turning up
+  // as a "best intercept" next to real drillhole intervals. Left togglable in case a project's lab
+  // naming doesn't match the default patterns and a user wants to sanity-check what's being excluded.
+  const [includeQAQC, setIncludeQAQC] = useState(false);
+  const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
+  const reportAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const results = useMemo(() => {
     if (!symbol) return [];
-    const rows = computeBestIntercepts(assays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
+    const rows = computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
     return rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
       ...r,
-      extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(assays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
+      extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(reportAssays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
     }));
-  }, [assays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols]);
+  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols]);
 
   const exportCSV = () => {
     const rows = results.map((r) => ({
@@ -51,12 +59,21 @@ export default function BestIntercepts({ assays, assayElements, onClose }) {
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Best-intercept report</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays.length} intervals loaded.</div>
+            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
+              Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays.length} intervals loaded.
+              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            </div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          {qaqcExcludedCount > 0 && (
+            <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't turn up as a false 'best intercept' — check this to include them anyway.">
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
+              Include QC samples (standards/blanks/duplicates) in this report
+            </label>
+          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>Element
               <select value={symbol} onChange={(e) => { setSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>

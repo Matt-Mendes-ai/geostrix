@@ -48,6 +48,15 @@ export function controlLimits(values) {
   return { n, mean, sd, ucl2: mean + 2 * sd, lcl2: mean - 2 * sd, ucl3: mean + 3 * sd, lcl3: mean - 3 * sd };
 }
 
+// TASKS.csv #219 (Micromine/mineral-exploration-specialist audit finding) — QAQC samples (standards/
+// blanks/duplicates) were flowing straight into Best-Intercepts/Compositing/Grade-Statistics as if
+// they were real assay results, since none of those consulted classifyQAQCRow at all — a synthetic
+// standard could turn up as a "best intercept" alongside real drillhole intervals. Every report that
+// shouldn't be diluted/skewed by a QC insert can call this once instead of re-deriving the same filter.
+export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
+  return assays.filter((a) => classifyQAQCRow(a.hole_id, patterns) === "regular");
+}
+
 // Groups every "standard"-classified assay row by its own exact hole_id (real labs commonly reuse
 // the identical insert ID, e.g. "OREAS622", across many batches — that repetition IS the population
 // a control chart is built from). Groups with fewer than 2 occurrences are dropped — nothing to chart.

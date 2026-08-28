@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { compositeDownhole } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 
@@ -24,6 +25,11 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [capValue, setCapValue] = useState("");
   const [domainKey, setDomainKey] = useState(""); // "" = no domain honoring
+  // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of compositing, same as
+  // Best Intercepts — a QC insert has no business being composited into a resource-estimation input.
+  const [includeQAQC, setIncludeQAQC] = useState(false);
+  const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
+  const compAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
   const domainOptions = DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0);
   const domainRows = domainKey ? layers[domainKey] : null;
@@ -31,13 +37,13 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
 
   const results = useMemo(() => {
     if (!symbol || length <= 0) return [];
-    return compositeDownhole(assays, symbol, unit, elementUnits, {
+    return compositeDownhole(compAssays, symbol, unit, elementUnits, {
       length,
       minCoverage,
       capValue: capValue === "" ? null : Number(capValue),
       domainRows,
     });
-  }, [assays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
+  }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
@@ -57,12 +63,21 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Downhole compositing</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Fixed-length composites, breaking at domain boundaries — {assays.length} raw intervals loaded.</div>
+            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
+              Fixed-length composites, breaking at domain boundaries — {assays.length} raw intervals loaded.
+              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            </div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          {qaqcExcludedCount > 0 && (
+            <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
+              Include QC samples (standards/blanks/duplicates) in this report
+            </label>
+          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>Element
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
