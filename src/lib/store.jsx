@@ -799,7 +799,16 @@ export function StoreProvider({ children }) {
   // delete" — not "one mousemove tick" — which is what a user actually wants to step back through.
   const UNDO_MAX = 60;
   const UNDO_DEBOUNCE_MS = 500;
-  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, rasters, boundaries, omfObjects, terrain, layerGroups, excludedIntercepts, softIntercepts, plannedHoles });
+  // TASKS.csv #220 — rasters/terrain excluded here (and from applySnapshot/the tracking effect's
+  // dependency array below), same treatment voxelModels/themes/dbConnections/layoutTemplates already
+  // get and for the same reason: this snapshot is deep-JSON.stringify-compared on every tracked change
+  // (see the useLayoutEffect below), and a real GeoTIFF/DEM-derived raster or terrain grid is large
+  // enough (measured: ~49ms per compare with just a 4MB raster loaded) that re-serializing it on every
+  // unrelated edit (typing in a litho interval, say) added real, avoidable cost. Trade-off, same as the
+  // existing exclusions: importing/removing/editing a raster or terrain surface is no longer undoable
+  // and no longer flips the tab's unsaved-changes indicator — it IS still fully included in save/open
+  // and autosave (autosaveRef below), so nothing is lost on disk, only from the in-session undo stack.
+  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, plannedHoles });
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // are `useCallback(fn, [applySnapshot])`, and `applySnapshot` never changes identity, so `undo`/
@@ -852,14 +861,14 @@ export function StoreProvider({ children }) {
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, rasters, boundaries, omfObjects, terrain, layerGroups, excludedIntercepts, softIntercepts, plannedHoles]);
+  }, [collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, plannedHoles]);
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
     setCollars(snap.collars); setSurvey(snap.survey); setLayers(snap.layers);
     setAssays(snap.assays); setAssayElements(snap.assayElements); setCustomLayers(snap.customLayers);
-    setLayoutElements(snap.layoutElements); setSections(snap.sections); setRasters(snap.rasters); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
-    setTerrain(snap.terrain); setLayerGroups(snap.layerGroups);
+    setLayoutElements(snap.layoutElements); setSections(snap.sections); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
+    setLayerGroups(snap.layerGroups);
     setExcludedIntercepts(snap.excludedIntercepts); setSoftIntercepts(snap.softIntercepts);
     setPlannedHoles(snap.plannedHoles || []);
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
