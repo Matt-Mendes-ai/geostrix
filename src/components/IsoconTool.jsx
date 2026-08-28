@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 import Papa from "papaparse";
 
 // TASKS.csv #23 — Isocon / mass-balance calculator (Grant 1986; MacLean & Barrett 1993).
@@ -18,6 +19,7 @@ import Papa from "papaparse";
 const DEFAULT_IMMOBILE = ["Al", "Ti", "Zr"];
 
 export default function IsoconTool({ assays, assayElements, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
 

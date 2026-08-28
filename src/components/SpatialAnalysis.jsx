@@ -3,6 +3,7 @@ import { X, Download, Info } from "lucide-react";
 import Papa from "papaparse";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -25,6 +26,7 @@ function rampColor(t) {
 }
 
 export default function SpatialAnalysis({ points, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [hoverIdx, setHoverIdx] = useState(null);
 
   const valid = useMemo(

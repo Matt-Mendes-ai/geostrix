@@ -4,6 +4,7 @@ import { compositeDownhole } from "../lib/geochem.js";
 import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, MAX_BLOCKS } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -13,6 +14,7 @@ import { LAYER_META } from "../lib/layers.js";
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
 export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");

@@ -3,9 +3,11 @@ import { X, Database, Play, Loader2, Save, Trash2 } from "lucide-react";
 import { dbLiveQuery, dbLiveListTables } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 import PromptModal from "./PromptModal.jsx";
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
+  useEscapeKey(onCancel); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
   const [config, setConfig] = useState({ name: "", host: "localhost", port: 5432, database: "", user: "", password: "", ssl: false });
   const [status, setStatus] = useState(null); // {ok, error, info}

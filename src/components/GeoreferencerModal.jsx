@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Upload, Trash2, MapPin } from "lucide-react";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -14,6 +15,7 @@ import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
 const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points are still stored/fit at full source resolution
 
 export default function GeoreferencerModal({ onImport, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
   const [points, setPoints] = useState([]); // [{id, px, py, x, y}]
   const [busy, setBusy] = useState(false);

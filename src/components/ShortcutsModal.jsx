@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, Keyboard, Info } from "lucide-react";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -59,6 +60,7 @@ const SHORTCUT_GROUPS = [
 ];
 
 export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [tab, setTab] = useState(initialTab);
   return (
     <div style={overlay} onClick={onClose}>

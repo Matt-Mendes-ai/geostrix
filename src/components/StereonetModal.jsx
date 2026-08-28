@@ -3,6 +3,7 @@ import { X, Download } from "lucide-react";
 import { projectPole, greatCirclePoints } from "../lib/stereonet.js";
 import { colorForStructure } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -19,6 +20,7 @@ import { saveFile } from "../lib/desktop.js";
 // plot, and the audit finding's core complaint ("no way to interpret orientations before committing to
 // a trend") is already addressed by seeing the raw pole population and its scatter/clustering by eye.
 export default function StereonetModal({ picks, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [projection, setProjection] = useState("equalArea");
   const [showPoles, setShowPoles] = useState(true);
   const [showCircles, setShowCircles] = useState(false);

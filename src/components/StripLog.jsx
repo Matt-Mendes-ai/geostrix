@@ -3,6 +3,7 @@ import { X, Download } from "lucide-react";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #133 — "Downhole strip logs (single-hole 1D graphic log: litho/alt/vein/assay columns
 // side by side)". A classic drill-logging display: one hole, depth running down the page, several
@@ -16,6 +17,7 @@ const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
 export default function StripLog({ holeId, collars, layers, assays, assayElements, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const svgRef = useRef(null);
   const [pxPerMeter, setPxPerMeter] = useState(6);
   const symbols = assayElements.map((e) => e.symbol);

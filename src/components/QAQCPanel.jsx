@@ -3,6 +3,7 @@ import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #134 — lab QAQC dashboard (standards/blanks/duplicates), distinct from dataQC.js's
 // geometric QC. See qaqc.js's header comment for the identification approach (hole_id naming
@@ -10,6 +11,7 @@ import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePa
 const TABS = ["standards", "blanks", "duplicates"];
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [tab, setTab] = useState("standards");

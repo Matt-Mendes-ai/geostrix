@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { computeBestIntercepts, avgGradeInRange } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { saveFile } from "../lib/desktop.js";
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
@@ -14,6 +15,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // computeBestIntercepts (grouped by hole, internal-dilution bridging, length-weighted grade); this is
 // just the control panel + results table + CSV export around it.
 export default function BestIntercepts({ assays, assayElements, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");

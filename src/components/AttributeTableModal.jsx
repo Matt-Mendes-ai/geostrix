@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { X, Trash2, Save, Sigma } from "lucide-react";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
@@ -53,6 +54,7 @@ function evalFieldCalc(expr, row, columns) {
 // tool). Internal-only bookkeeping fields (starting with "_", e.g. "_src") are hidden from the grid —
 // editing them would be meaningless/dangerous, but they're preserved unmodified on save.
 export default function AttributeTableModal({ title, rows, onSave, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [working, setWorking] = useState(() => rows.map((r) => ({ ...r })));
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");

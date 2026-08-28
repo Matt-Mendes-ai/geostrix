@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { compositeDownhole } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 
@@ -20,6 +21,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can gen
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech"];
 
 export default function CompositingModal({ assays, assayElements, layers, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Plus, Minus, Move, Square, Check, Crosshair, Layers } from "lucide-react";
 import LayerPicker from "./LayerPicker.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 const TILE = 256;
 
@@ -49,6 +50,7 @@ export default function BasemapView({
   onClose,
   onConfirm, // (bboxLonLat) => void, draw mode only
 }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const containerRef = useRef(null);
   const [size, setSize] = useState({ w: 900, h: 650 });
   const [zoom, setZoom] = useState(11);

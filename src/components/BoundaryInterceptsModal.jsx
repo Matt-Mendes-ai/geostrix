@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle } from "lucide-react";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every
@@ -14,6 +15,7 @@ import { X, Milestone, CheckSquare, Square, Download, Circle } from "lucide-reac
 // APPROXIMATELY pulled toward it rather than forced exactly through it — useful for a pick you trust
 // less (ambiguous logging, a suspect assay) without excluding it outright.
 export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel }) {
+  useEscapeKey(onCancel); // TASKS.csv #238
   const [layerFilter, setLayerFilter] = useState("all");
   const [unitFilter, setUnitFilter] = useState("all");
   const [holeFilter, setHoleFilter] = useState("");

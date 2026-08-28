@@ -3,6 +3,7 @@ import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import { runDataQC } from "../lib/dataQC.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
 // nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
@@ -23,6 +24,7 @@ const SEVERITY_META = {
 };
 
 export default function DataQCModal({ onCancel }) {
+  useEscapeKey(onCancel); // TASKS.csv #238
   const { project, collars, survey, layers, boundaries, assays } = useStore();
   const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries, assays }));
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));

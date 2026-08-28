@@ -3,6 +3,7 @@ import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 
@@ -49,6 +50,7 @@ function niceBinCount(n) {
 }
 
 export default function GradeStatistics({ assays, assayElements, layers, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [domainKey, setDomainKey] = useState("");

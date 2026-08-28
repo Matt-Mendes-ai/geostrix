@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, Plus, Trash2, RotateCcw } from "lucide-react";
+import { useEscapeKey } from "../lib/useEscapeKey.js";
 
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
 // ignore values lower than (what the user specifies)". Per-element styling for the 3D View / cross-
@@ -11,6 +12,7 @@ import { X, Plus, Trash2, RotateCcw } from "lucide-react";
 // state and re-renders the 3D scene from it); this component is otherwise stateless about what's
 // already been applied, just a plain controlled editor over the `style` prop.
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {
+  useEscapeKey(onClose); // TASKS.csv #238
   const [local, setLocal] = useState(() => ({
     color: style?.color || defaultColor,
     sizeMult: style?.sizeMult ?? 1,
