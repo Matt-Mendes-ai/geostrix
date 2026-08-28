@@ -64,20 +64,39 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
+    let slowTimer = null;
+    // TASKS.csv #236 (software-design-specialist audit finding) — the sidecar is optional and most
+    // users (this app's own target audience is budget-constrained geologists, per the standing
+    // performance-priority note) will simply never install python-sidecar/'s deps — every failed
+    // fetch() to an unreachable host logs a network error to the console regardless of this code's own
+    // try/catch (that's Chromium's own behavior, not something JS can suppress), so polling forever at
+    // a fixed cadence meant permanent, unavoidable console noise for the common case. Once settled into
+    // "unavailable", back off exponentially (20s -> 40s -> ... capped at 5min) instead of a flat 20s
+    // forever, resetting back to 20s the moment a check succeeds — still picks the sidecar up
+    // reasonably quickly if a user starts it later, just checks far less often once it's clear nothing
+    // is there to find.
+    const SLOW_BASE_MS = 20000, SLOW_MAX_MS = 300000;
+    let slowDelay = SLOW_BASE_MS;
+    const scheduleSlow = () => {
+      if (cancelled) return;
+      slowTimer = setTimeout(async () => {
+        const res = await pythonHealth();
+        if (cancelled) return;
+        setPyStatus(res.ok ? "connected" : "unavailable");
+        slowDelay = res.ok ? SLOW_BASE_MS : Math.min(slowDelay * 2, SLOW_MAX_MS);
+        scheduleSlow();
+      }, slowDelay);
+    };
     const check = async () => {
       const res = await pythonHealth();
       if (cancelled) return;
-      if (res.ok) { setPyStatus("connected"); return; }
+      if (res.ok) { setPyStatus("connected"); scheduleSlow(); return; }
       attempts += 1;
       if (attempts < 8) setTimeout(check, 1500);
-      else setPyStatus("unavailable");
+      else { setPyStatus("unavailable"); scheduleSlow(); }
     };
     check();
-    const slowInterval = setInterval(async () => {
-      const res = await pythonHealth();
-      if (!cancelled) setPyStatus(res.ok ? "connected" : "unavailable");
-    }, 20000);
-    return () => { cancelled = true; clearInterval(slowInterval); };
+    return () => { cancelled = true; if (slowTimer) clearTimeout(slowTimer); };
   }, []);
 
   const doSave = useCallback(async () => {
