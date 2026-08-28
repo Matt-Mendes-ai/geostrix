@@ -172,6 +172,62 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
   return issues;
 }
 
+// ---- Assays (TASKS.csv #221 — this table was never checked at all: "Run data QC" scanned collars,
+// survey, and every litho/alt/vein/geotech/point layer, but a project could have 35 QC errors across
+// those AND zero assay-related issues reported, because nothing here ever looked at `assays`). Same
+// shape of checks as validateIntervalLayer (hole existence, from/to sanity, overlaps, duplicates) plus
+// per-element numeric sanity on `values`, since an assay row's payload (multiple element results) has
+// no equivalent in the single-`value` interval layers above.
+function validateAssays(assays, collarIds, holeLengths) {
+  const issues = [];
+  const byHole = new Map();
+  assays.forEach((a) => {
+    if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
+    byHole.get(a.hole_id).push(a);
+    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval references hole "${a.hole_id}", which has no matching collar.`);
+    if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) {
+      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval has a non-numeric from/to (${a.from}–${a.to}).`);
+    } else if (a.from > a.to) {
+      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval from (${a.from}) is greater than to (${a.to}) — swapped or mis-entered.`);
+    } else if (a.from === a.to) {
+      pushIssue(issues, "warning", "Assays", a.hole_id, `Zero-length assay interval at ${a.from}m.`);
+    }
+    const maxDepth = holeLengths.get(a.hole_id);
+    if (Number.isFinite(maxDepth) && Number.isFinite(a.to) && a.to > maxDepth + 0.5) {
+      pushIssue(issues, "warning", "Assays", a.hole_id, `Assay interval to=${a.to}m extends past this hole's own recorded length/survey extent (~${maxDepth.toFixed(0)}m).`);
+    }
+    const values = a.values || {};
+    const symbols = Object.keys(values);
+    if (!symbols.length) {
+      pushIssue(issues, "info", "Assays", a.hole_id, `Assay interval at ${Number.isFinite(a.from) ? a.from : "?"}–${Number.isFinite(a.to) ? a.to : "?"}m has no element results.`);
+    } else {
+      symbols.forEach((sym) => {
+        const v = values[sym];
+        if (v != null && !Number.isFinite(v)) pushIssue(issues, "warning", "Assays", a.hole_id, `${sym} value "${v}" at ${a.from}–${a.to}m is not numeric.`);
+        else if (Number.isFinite(v) && v < 0) pushIssue(issues, "warning", "Assays", a.hole_id, `${sym} value ${v} at ${a.from}–${a.to}m is negative — assay results shouldn't be below zero.`);
+      });
+    }
+  });
+  byHole.forEach((intervals, holeId) => {
+    const sorted = [...intervals].filter((a) => Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from);
+    let maxEnd = -Infinity, maxEndOwner = null;
+    for (let i = 0; i < sorted.length; i++) {
+      const cur = sorted[i];
+      if (i > 0 && cur.from < maxEnd - 0.01 && maxEndOwner) {
+        pushIssue(issues, "warning", "Assays", holeId, `Overlapping assay intervals: ${maxEndOwner.from}–${maxEndOwner.to}m and ${cur.from}–${cur.to}m.`);
+      }
+      if (cur.to > maxEnd) { maxEnd = cur.to; maxEndOwner = cur; }
+    }
+    const seen = new Set();
+    sorted.forEach((a) => {
+      const key = `${a.from}|${a.to}`;
+      if (seen.has(key)) pushIssue(issues, "warning", "Assays", holeId, `Duplicate assay interval ${a.from}–${a.to}m — likely imported twice.`);
+      seen.add(key);
+    });
+  });
+  return issues;
+}
+
 // ---- Project-level ----
 function validateProject(project) {
   const issues = [];
@@ -257,7 +313,7 @@ function validateBoundaryTopology(boundaries) {
 // `layers` is the store's full layers object ({litho:[],alt:[],...}); `holeLengths` (hole_id -> max
 // known depth) is derived once here from survey (max station depth) falling back to collar.length,
 // then reused across every interval/point layer check rather than recomputed per-layer.
-export function runDataQC({ project, collars, survey, layers, boundaries }) {
+export function runDataQC({ project, collars, survey, layers, boundaries, assays }) {
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const holeLengths = new Map();
   collars.forEach((c) => { if (Number.isFinite(c.length)) holeLengths.set(c.hole_id, c.length); });
@@ -281,6 +337,7 @@ export function runDataQC({ project, collars, survey, layers, boundaries }) {
     ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths),
     ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
+    ...validateAssays(assays || [], collarIds, holeLengths),
     ...validatePointLayer(layers.mnlgy || [], "Mineralization", collarIds, holeLengths),
     ...validatePointLayer(layers.magsusc || [], "Mag. susceptibility", collarIds, holeLengths),
     ...validatePointLayer(layers.structure || [], "Structure", collarIds, holeLengths),

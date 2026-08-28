@@ -14,8 +14,8 @@ const SEVERITY_META = {
 };
 
 export default function DataQCModal({ onCancel }) {
-  const { project, collars, survey, layers, boundaries } = useStore();
-  const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries }));
+  const { project, collars, survey, layers, boundaries, assays } = useStore();
+  const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries, assays }));
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -37,7 +37,7 @@ export default function DataQCModal({ onCancel }) {
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
           <div style={{ fontSize: 11, color: "#55606e", marginBottom: 12, lineHeight: 1.5 }}>
-            Checks collar coordinates, survey trajectories, and every logged interval/point layer for
+            Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for
             the kinds of problems that quietly distort a modelled surface — before you get as far as
             modelling. Doesn't fix anything automatically; re-import or hand-correct the source data
             and re-run.
@@ -90,7 +90,7 @@ export default function DataQCModal({ onCancel }) {
         </div>
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid #d9dce1", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries }))} style={rerunBtn}>
+          <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries, assays }))} style={rerunBtn}>
             <RefreshCw size={13} /> Re-run
           </button>
         </div>
