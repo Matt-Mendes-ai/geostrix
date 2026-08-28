@@ -7,7 +7,7 @@ import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import PromptModal from "../components/PromptModal.jsx";
-import { toLonLat, reprojectXY } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, guessEpsgFromPrjWkt } from "../lib/reproject.js";
 import { useStore } from "../lib/store.jsx";
 import { desurveyHole } from "../lib/desurvey.js";
 import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop.js";
@@ -208,7 +208,12 @@ function parseVectorFile(file, onDone) {
       let note = "";
       if (usable.length > 1) note += ` Only the first of ${usable.length} feature tables in this file ("${layer.name}") was imported — drop it again to bring in another one.`;
       if (layer.skippedCount) note += ` ${layer.skippedCount} feature(s) with an unsupported/empty geometry were skipped.`;
-      onDone(rows, null, { headers, note });
+      // TASKS.csv #223 — GeoPackage already read its own SRS registry properly (gpkg_spatial_ref_sys,
+      // a structured field, more reliable than shapefile's .prj WKT-name-sniffing above) but never
+      // surfaced it as a Source CRS suggestion — same fix, same "only ever suggests" caveat.
+      const detectedEpsg = layer.epsg ? Number(layer.epsg) : null;
+      if (detectedEpsg) note += ` Detected source CRS EPSG:${detectedEpsg} from this GeoPackage's own SRS registry — pre-filled below, double-check it's correct.`;
+      onDone(rows, null, { headers, note, detectedEpsg });
     }).catch((err) => onDone(null, err.message));
     return;
   }
@@ -222,7 +227,18 @@ function parseVectorFile(file, onDone) {
       if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — only the first was imported.`;
       if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
       if (parsed.hasAttributes === false) note += " No .dbf attribute table was found alongside the .shp — only coordinates came through.";
-      onDone(rows, null, { headers, note });
+      // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
+      // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
+      // reproject unasked) — guessEpsgFromPrjWkt returns null for anything it can't confidently
+      // recognize, so an unmatched .prj falls through to exactly today's behavior (ask the user).
+      let detectedEpsg = null;
+      if (parsed.prjWkt) {
+        detectedEpsg = guessEpsgFromPrjWkt(parsed.prjWkt);
+        note += detectedEpsg
+          ? ` Detected source CRS EPSG:${detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.`
+          : " This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.";
+      }
+      onDone(rows, null, { headers, note, detectedEpsg });
     }).catch((err) => onDone(null, err.message));
     return;
   }
@@ -3387,7 +3403,7 @@ export default function ViewerModule({ mode = "view" }) {
       const mapping = {};
       schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
+      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     });
   };

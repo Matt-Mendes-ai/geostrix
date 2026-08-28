@@ -484,19 +484,23 @@ export async function parseShapefileZip(zipBytes) {
   if (!shpNames.length) throw new Error("No .shp file found inside this .zip.");
   const baseNames = Array.from(new Set(shpNames.map((n) => n.replace(/\.shp$/i, ""))));
   const base = baseNames[0];
-  return parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`] }, baseNames.length - 1);
+  // TASKS.csv #223 — the .prj sidecar (if the zip bundles one) was previously ignored entirely. Text-
+  // decode it and hand it along so the caller can run it through reproject.js's guessEpsgFromPrjWkt.
+  const prjBytes = entries[`${base}.prj`];
+  const prjWkt = prjBytes ? new TextDecoder().decode(prjBytes) : null;
+  return parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`] }, baseNames.length - 1, prjWkt);
 }
 // Parses raw .shp (+ optional .dbf) bytes directly — used when the user drops loose .shp/.dbf/.shx
 // files together (grouped by basename) rather than a zip, matching how a lot of real-world shapefiles
 // actually arrive (unzipped, straight off a USB drive or an old FTP archive).
-export function parseShapefileParts({ shp, dbf }, otherBaseNames = 0) {
+export function parseShapefileParts({ shp, dbf }, otherBaseNames = 0, prjWkt = null) {
   if (!shp) throw new Error("No .shp data found.");
   const { geoms, skippedCount } = parseShp(shp);
   const attrRows = dbf ? parseDbf(dbf) : [];
   const features = geoms.map((g, i) => (g ? { geometry: g.pts, attributes: attrRows[i] || {} } : null)).filter(Boolean);
   if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
   const geomType = geoms.find((g) => g)?.type || "point";
-  return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf };
+  return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
 }
 
 // Flattens { features, geomType } into plain row objects — x/y/z taken from the FIRST vertex of each

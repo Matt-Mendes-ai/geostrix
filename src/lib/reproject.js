@@ -45,6 +45,14 @@ const NAD83_CSRS_UTM = {
   3154: 7, 3155: 8, 3156: 9, 3157: 10, 2955: 11,
 };
 
+// TASKS.csv #223 (QGIS-specialist audit finding: importing a real dataset declared as EPSG:3005 —
+// NAD83 / BC Albers, the BC provincial government's own standard mapping CRS for open data — placed a
+// collar ~700km off with only a soft warning, since it wasn't recognized at all). A single fixed code,
+// not a zone series, so it's just its own verified proj4 string (parameters match the EPSG registry's
+// own published definition for 3005 — a stable, ubiquitous one, the same string BC government open
+// data portals, QGIS, and every other BC-focused GIS tool already ship).
+const EPSG_3005_BC_ALBERS = "+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs";
+
 function utmProj4(zone, hemisphereSouth, datumParams) {
   return `+proj=utm +zone=${zone}${hemisphereSouth ? " +south" : ""} ${datumParams} +units=m +no_defs`;
 }
@@ -60,12 +68,17 @@ export function getProj4DefSync(epsg) {
   const code = Number(epsg);
   if (!Number.isFinite(code)) return null;
   if (GEOGRAPHIC[code]) return GEOGRAPHIC[code];
+  if (code === 3005) return EPSG_3005_BC_ALBERS;
   if (NAD83_CSRS_UTM[code]) {
     return utmProj4(NAD83_CSRS_UTM[code], false, "+ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,-1.25033e-07,-4.6785e-08,-5.6529e-08,0");
   }
   if (code >= 32601 && code <= 32660) return utmProj4(code - 32600, false, "+datum=WGS84"); // WGS84 UTM N
   if (code >= 32701 && code <= 32760) return utmProj4(code - 32700, true, "+datum=WGS84"); // WGS84 UTM S
   if (code >= 26901 && code <= 26923) return utmProj4(code - 26900, false, "+ellps=GRS80 +towgs84=0,0,0,0,0,0,0"); // NAD83 UTM N
+  // NAD27 UTM North zones — TASKS.csv #223. Unlike NAD83(CSRS)'s irregular series, this IS a
+  // standard, well-documented linear EPSG block (26701 = zone 1N ... 26722 = zone 22N), the same kind
+  // of verified-safe-to-formula case the WGS84/NAD83 UTM ranges above already rely on.
+  if (code >= 26701 && code <= 26722) return utmProj4(code - 26700, false, "+datum=NAD27"); // NAD27 UTM N
   return null;
 }
 
@@ -74,6 +87,59 @@ export function getProj4DefSync(epsg) {
 // that particular target EPSG, and the caller falls back to its existing "no reprojection" warning).
 export async function getProj4Def(epsg) {
   return getProj4DefSync(epsg);
+}
+
+// TASKS.csv #223 (QGIS-specialist audit finding: shapefile import ignores the .prj sidecar entirely,
+// so an incorrectly-assumed CRS silently propagates) — a best-effort .prj (WKT) sniffer, not a real WKT
+// parser. Scoped to exactly the same set of CRSes getProj4DefSync above already recognizes, matching
+// this whole module's deliberate "narrow, verified coverage over the full registry" approach: this
+// pattern-matches on the well-known human-readable names common GIS tools (ArcGIS, QGIS) actually write
+// into a .prj's PROJCS/GEOGCS/DATUM names (e.g. "NAD_1983_UTM_Zone_10N", "GCS_WGS_1984",
+// "British_Columbia_Albers") rather than fully parsing the WKT grammar. Returns null (not a guess) if
+// nothing recognizable matches — same "can't help, here's why" fallback as everything else here; a
+// wrong auto-detected EPSG would be worse than the status quo of asking the user to enter it manually.
+export function guessEpsgFromPrjWkt(wkt) {
+  if (!wkt || typeof wkt !== "string") return null;
+  const w = wkt.toUpperCase();
+  // BC Albers (EPSG:3005) — the ubiquitous BC provincial government open-data CRS this row's own
+  // report was filed about. Checked before the more generic UTM/geographic patterns below since a
+  // BC Albers .prj also mentions "NAD_1983"/"GRS_1980" incidentally.
+  // "\b" alone doesn't help inside a WKT name — ArcGIS/QGIS write these as underscore-joined tokens
+  // ("NAD_1983_BC_Environment_Albers"), and \w already treats "_" as a word character, so "_BC_" has
+  // no real word boundary around "BC" for \b to find. Split on any non-alphanumeric run instead and
+  // check for an exact "BC" token.
+  const hasBcToken = w.split(/[^A-Z0-9]+/).includes("BC");
+  if (w.includes("ALBERS") && (hasBcToken || w.includes("BRITISH_COLUMBIA") || w.includes("BRITISH COLUMBIA"))) return 3005;
+  // UTM zone, any of the datums this app already has a verified series for.
+  const utmMatch = w.match(/UTM[_ ]ZONE[_ ]?(\d{1,2})\s*([NS]?)/);
+  if (utmMatch) {
+    const zone = Number(utmMatch[1]);
+    const south = utmMatch[2] === "S";
+    if (zone >= 1 && zone <= 60) {
+      if (w.includes("CSRS")) {
+        // Only BC's own 7N–11N CSRS zones have a verified entry (see NAD83_CSRS_UTM above) — an
+        // out-of-range CSRS zone falls through to null rather than guessing at an unverified series.
+        const csrsCode = Object.entries(NAD83_CSRS_UTM).find(([, z]) => z === zone)?.[0];
+        if (csrsCode) return Number(csrsCode);
+      } else if (w.includes("NAD_1983") || w.includes("NAD83")) {
+        if (!south && zone >= 1 && zone <= 23) return 26900 + zone; // NAD83 UTM N only has a verified EPSG series that far
+      } else if (w.includes("NAD_1927") || w.includes("NAD27")) {
+        if (!south && zone >= 1 && zone <= 22) return 26700 + zone;
+      } else if (w.includes("WGS_1984") || w.includes("WGS84")) {
+        return south ? 32700 + zone : 32600 + zone;
+      }
+    }
+    return null; // recognized as SOME UTM zone but not a datum/zone combo this app has verified — don't guess
+  }
+  // Geographic-only (GEOGCS with no PROJCS) — the datum name alone decides.
+  if (!w.includes("PROJCS")) {
+    if (w.includes("WGS_1984") || w.includes("WGS84")) return 4326;
+    // GEOGCS datum names spell it out in full ("D_North_American_1983"/"GCS_North_American_1983"),
+    // unlike a PROJCS's UTM-zone name which abbreviates to "NAD_1983" — check both spellings.
+    if (w.includes("NAD_1983") || w.includes("NAD83") || w.includes("NORTH_AMERICAN_1983")) return 4269;
+    if (w.includes("NAD_1927") || w.includes("NAD27") || w.includes("NORTH_AMERICAN_1927")) return 4267;
+  }
+  return null;
 }
 
 // TASKS.csv #120 — QGIS-specialist audit: "no per-layer CRS awareness or 'reproject on the fly' the
