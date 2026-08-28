@@ -2754,7 +2754,10 @@ export default function ViewerModule({ mode = "view" }) {
       }
 
       customLayers.forEach((layer) => {
-        if (customVisible[layer.id] === false) return;
+        // TASKS.csv #227 — geometry is now built regardless of customVisible (visibility is toggled
+        // cheaply afterward via the layer's own group.visible, see the small effect near layerVisible's
+        // own visibility effect) so this rebuild no longer needs to re-run every time a custom layer's
+        // checkbox is toggled — see customVisible's removal from this effect's own dependency array.
         (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((row) => {
           if (row.to != null && !isNaN(row.to)) {
             const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
@@ -2834,7 +2837,7 @@ export default function ViewerModule({ mode = "view" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, customVisible, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -3344,7 +3347,14 @@ export default function ViewerModule({ mode = "view" }) {
     const groups = layerGroupsRef.current;
     Object.keys(LAYER_META).forEach((k) => { if (groups[k]) groups[k].visible = !!layerVisible[k]; });
     if (groups.assay) groups.assay.visible = assayVisible;
-  }, [layerVisible, assayVisible]);
+    // TASKS.csv #227 — custom CSV layers get the same cheap visibility toggle standard layer types
+    // already had here, instead of a check that used to live INSIDE the big geometry-rebuild effect
+    // (gating whether a hidden custom layer's per-hole geometry got built at all) — that coupling meant
+    // toggling one custom layer's visibility retriggered a full rebuild of EVERY layer's geometry, not
+    // just its own. Geometry for a hidden custom layer is still built (see that effect's own comment)
+    // so this can just flip .visible on its already-populated group instead.
+    customLayers.forEach((layer) => { if (groups[layer.id]) groups[layer.id].visible = customVisible[layer.id] !== false; });
+  }, [layerVisible, assayVisible, customLayers, customVisible]);
 
   useEffect(() => {
     const groups = layerGroupsRef.current;
