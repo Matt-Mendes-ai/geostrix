@@ -253,11 +253,19 @@ function logTicks(min, max) {
   for (let e = Math.floor(Math.log10(min)); e <= Math.ceil(Math.log10(max)); e++) ticks.push(Math.pow(10, e));
   return ticks.filter((t) => t >= min && t <= max);
 }
+// TASKS.csv #234 (independently found by two specialist-review agents, live-confirmed: real axis
+// ticks rendering as "0e+0" and "16.666666666666668") — two bugs. (1) `t < 0.001` treated an exact 0
+// tick as "very small, needs exponential notation" (0 < 0.001 is true), so 0.toExponential(0) rendered
+// literally as "0e+0" instead of "0" — now checked first, as its own case. (2) the fallback branch for
+// a non-integer tick just called the raw toString() and stripped trailing zeros, which does nothing
+// for a float with no exact trailing zeros (e.g. a /6-divided axis range like 100/6 = 16.666666666666668)
+// — now rounded to 4 significant figures via toPrecision before stripping.
 function fmtTick(t) {
-  if (t >= 1000) return t.toExponential(0);
-  if (t < 0.001) return t.toExponential(0);
+  if (t === 0) return "0";
+  const abs = Math.abs(t);
+  if (abs >= 1000 || abs < 0.001) return t.toExponential(0);
   if (Number.isInteger(t)) return String(t);
-  return t.toString().replace(/0+$/, "");
+  return t.toPrecision(4).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }
 function centroid(pts) { const x = pts.reduce((s, p) => s + p[0], 0) / pts.length, y = pts.reduce((s, p) => s + p[1], 0) / pts.length; return [x, y]; }
 function lerp(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
