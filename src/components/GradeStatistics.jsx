@@ -49,9 +49,18 @@ function niceBinCount(n) {
   return Math.max(6, Math.min(24, Math.round(Math.log2(n) + 1)));
 }
 
-export default function GradeStatistics({ assays, assayElements, layers, onClose }) {
+export default function GradeStatistics({ assays, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
+  // tied to hole_id/from/to, which surface samples don't have) but DOES have its own natural grouping
+  // dimension, sampling medium (soil/rock chip/stream sediment/...), so "source" picks which dataset
+  // this whole panel reports on rather than trying to merge two differently-shaped datasets into one
+  // set of domain options. valueIn() itself is already source-agnostic (just reads `sample.values`),
+  // so only the domain-grouping and QAQC-exclusion logic below actually branches on source.
+  const [source, setSource] = useState("assays"); // "assays" | "surface"
+  const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
+  const activeElements = source === "surface" ? surfaceElements : assayElements;
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [domainKey, setDomainKey] = useState("");
   const [logScale, setLogScale] = useState(false);
@@ -62,22 +71,30 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
-  const domainOptions = DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0);
+  const domainOptions = source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0) : [];
   const domainRows = domainKey ? layers[domainKey] : null;
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
-  // Per-interval {value, domain} pairs — every assay interval that has a real, positive numeric value
-  // for the selected element (log scale needs strictly positive values; a handful of at/below-zero
-  // rows, e.g. a below-detection row already halved by parseAssayValue's "<" handling, are excluded
-  // from the log view specifically rather than silently breaking the whole chart).
+  // Per-sample {value, domain} pairs — every row that has a real numeric value for the selected
+  // element (log scale needs strictly positive values; a handful of at/below-zero rows, e.g. a
+  // below-detection row already halved by parseAssayValue's "<" handling, are excluded from the log
+  // view specifically rather than silently breaking the whole chart). Surface samples group by their
+  // own sampling medium instead of a downhole domain layer — see `source`'s own comment above.
   const rows = useMemo(() => {
+    if (source === "surface") {
+      return surfaceSamples.map((s) => {
+        const v = valueIn(s, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits);
+        if (v == null) return null;
+        return { value: v, domain: s.medium || "(unclassified)" };
+      }).filter(Boolean);
+    }
     return statsAssays.map((a) => {
       const v = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
       if (v == null) return null;
       const domain = domainRows ? domainForInterval(domainRows, a.hole_id, a.from, a.to) : "All";
       return { value: v, domain };
     }).filter(Boolean);
-  }, [statsAssays, symbol, elementUnits, domainRows]);
+  }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainRows]);
 
   const groups = useMemo(() => {
     const byDomain = new Map();
@@ -129,15 +146,35 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Grade statistics</div>
             <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
-              Univariate distribution per domain — {assays.length} intervals loaded.
-              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+              Univariate distribution per domain — {source === "surface" ? `${surfaceSamples.length} surface samples loaded.` : `${assays.length} intervals loaded.`}
+              {source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          {qaqcExcludedCount > 0 && (
+          {surfaceSamples.length > 0 && (
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <label style={{ fontSize: 11, color: "#55606e" }}>Data source
+                <select
+                  value={source}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setSource(next);
+                    const els = next === "surface" ? surfaceElements : assayElements;
+                    setSymbol(els[0]?.symbol || "");
+                    setDomainKey("");
+                  }}
+                  style={{ ...sel, display: "block", marginTop: 4 }}
+                >
+                  <option value="assays">Drillhole assays</option>
+                  <option value="surface">Surface samples</option>
+                </select>
+              </label>
+            </div>
+          )}
+          {source === "assays" && qaqcExcludedCount > 0 && (
             <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
               Include QC samples (standards/blanks/duplicates) in this report
@@ -146,22 +183,26 @@ export default function GradeStatistics({ assays, assayElements, layers, onClose
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <label style={{ fontSize: 11, color: "#55606e" }}>Element
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
-            <label style={{ fontSize: 11, color: "#55606e" }}>Domain (optional)
-              <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                <option value="">— none, all intervals together —</option>
-                {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
-              </select>
-            </label>
+            {source === "assays" ? (
+              <label style={{ fontSize: 11, color: "#55606e" }}>Domain (optional)
+                <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+                  <option value="">— none, all intervals together —</option>
+                  {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
+                </select>
+              </label>
+            ) : (
+              <div style={{ fontSize: 10.5, color: "#94a1b0", marginBottom: 6 }}>Grouped by sampling medium</div>
+            )}
             <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log-scale histogram
             </label>
           </div>
 
           {!overallStats ? (
-            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No {symbol} values found in the loaded assay data.</div>
+            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No {symbol} values found in the loaded {source === "surface" ? "surface sample" : "assay"} data.</div>
           ) : (
             <>
               <div>

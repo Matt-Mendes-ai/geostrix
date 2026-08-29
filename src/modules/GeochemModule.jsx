@@ -345,7 +345,6 @@ export default function GeochemModule() {
             <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
             <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={13} /> Isocon / mass-change calculator</button>
             <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={13} /> Correlation matrix</button>
-            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={13} /> Grade statistics</button>
             <button onClick={() => setQaqcOpen(true)} style={genBtn}><ShieldCheck size={13} /> QAQC (standards/blanks/duplicates)</button>
             <button onClick={() => setSqlOpen(true)} style={genBtn}><TerminalSquare size={13} /> SQL workspace</button>
 
@@ -358,6 +357,18 @@ export default function GeochemModule() {
             <button onClick={exportProjectedCSV} style={panelBtn}><Download size={13} /> Plot data → CSV</button>
             <button onClick={exportPlotPNG} style={panelBtn}><Download size={13} /> Plot → PNG</button>
             <button onClick={exportPlotSVG} style={panelBtn}><Download size={13} /> Plot → SVG</button>
+          </>
+        )}
+
+        {/* TASKS.csv #228 — Grade statistics is the one tool here that's genuinely useful with EITHER
+            dataset (it just needs *some* element values to summarize), so it's reachable whenever
+            either assays or surface samples are loaded, not gated behind assayElements alone like the
+            downhole-specific tools above (isocon/best-intercepts/compositing all assume hole_id/from/to,
+            which surface samples don't have). */}
+        {(assayElements.length > 0 || surfaceElements.length > 0) && (
+          <>
+            {!assayElements.length && <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>}
+            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={13} /> Grade statistics</button>
           </>
         )}
 
@@ -472,6 +483,8 @@ export default function GeochemModule() {
           assays={assays}
           assayElements={assayElements}
           layers={layers}
+          surfaceSamples={surfaceSamples}
+          surfaceElements={surfaceElements}
           onClose={() => setGradeStatsOpen(false)}
         />
       )}
