@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
 import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare } from "lucide-react";
@@ -28,7 +28,12 @@ import ImportMappingModal from "../components/ImportMappingModal.jsx";
 import DatabaseConnectModal from "../components/DatabaseConnectModal.jsx";
 import LayerInspector from "../components/LayerInspector.jsx";
 import DataQCModal from "../components/DataQCModal.jsx";
-import SQLWorkspaceModal from "../components/SQLWorkspaceModal.jsx";
+// TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
+// strongest lazy-loading candidate) — SQLWorkspaceModal statically imports sqlWorkspace.js, which
+// statically imports sql.js, so a plain top-level import here pulled that wasm in on every app launch
+// regardless of whether SQL workspace is ever opened. React.lazy defers the whole chain until the
+// modal is actually rendered (see the Suspense wrapper at its render site below).
+const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
@@ -5198,15 +5203,17 @@ export default function ViewerModule({ mode = "view" }) {
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
       {sqlModalOpen && (
-        <SQLWorkspaceModal
-          collars={collars}
-          survey={survey}
-          layers={layers}
-          assays={assays}
-          assayElements={assayElements}
-          boundaries={boundaries}
-          onClose={() => setSqlModalOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <SQLWorkspaceModal
+            collars={collars}
+            survey={survey}
+            layers={layers}
+            assays={assays}
+            assayElements={assayElements}
+            boundaries={boundaries}
+            onClose={() => setSqlModalOpen(false)}
+          />
+        </Suspense>
       )}
       {stripLogHoleId && (
         <StripLog

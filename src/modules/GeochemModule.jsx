@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, Suspense } from "react";
 import Papa from "papaparse";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
@@ -15,7 +15,10 @@ import BestIntercepts from "../components/BestIntercepts.jsx";
 import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
 import QAQCPanel from "../components/QAQCPanel.jsx";
-import SQLWorkspaceModal from "../components/SQLWorkspaceModal.jsx";
+// TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
+// was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
+// was ever opened).
+const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -397,15 +400,17 @@ export default function GeochemModule() {
       )}
 
       {sqlOpen && (
-        <SQLWorkspaceModal
-          collars={collars}
-          survey={survey}
-          layers={layers}
-          assays={assays}
-          assayElements={assayElements}
-          boundaries={boundaries}
-          onClose={() => setSqlOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <SQLWorkspaceModal
+            collars={collars}
+            survey={survey}
+            layers={layers}
+            assays={assays}
+            assayElements={assayElements}
+            boundaries={boundaries}
+            onClose={() => setSqlOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

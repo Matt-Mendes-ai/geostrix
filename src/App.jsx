@@ -1,13 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore } from "./lib/store.jsx";
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
-import GeochemModule from "./modules/GeochemModule.jsx";
-import GeophysicsModule from "./modules/GeophysicsModule.jsx";
-import RasterModule from "./modules/RasterModule.jsx";
-import LayoutModule from "./modules/LayoutModule.jsx";
+// TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
+// returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
+// proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
+// shared across View/Modeling/Targeting, so it loads immediately regardless), but the four modules
+// that are NOT the landing tab now lazy-load, deferring their own heavy deps (geotiff.js via
+// RasterModule, d3-delaunay via GeophysicsModule's Voronoi tool) until a user actually opens that tab.
+const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
+const GeophysicsModule = React.lazy(() => import("./modules/GeophysicsModule.jsx"));
+const RasterModule = React.lazy(() => import("./modules/RasterModule.jsx"));
+const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
 // sits near the other data-import modules rather than at the end.
@@ -268,11 +274,13 @@ export default function App() {
       <div className="ge-body">
         {active === "viewer" && <ViewerModule mode="view" />}
         {active === "modeling" && <ViewerModule mode="modeling" />}
-        {active === "geochem" && <GeochemModule />}
-        {active === "geophysics" && <GeophysicsModule />}
         {active === "targeting" && <ViewerModule mode="targeting" />}
-        {active === "raster" && <RasterModule />}
-        {active === "layout" && <LayoutModule />}
+        <Suspense fallback={<div style={{ padding: 20, color: "#94a1b0", fontSize: 13 }}>Loading…</div>}>
+          {active === "geochem" && <GeochemModule />}
+          {active === "geophysics" && <GeophysicsModule />}
+          {active === "raster" && <RasterModule />}
+          {active === "layout" && <LayoutModule />}
+        </Suspense>
       </div>
 
       <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} />
