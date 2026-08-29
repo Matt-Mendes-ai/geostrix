@@ -16,6 +16,7 @@ import { parseDXF } from "../lib/dxf.js";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput } from "../lib/idw.js";
+import { hillshadeToRasterInput } from "../lib/hillshade.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -78,6 +79,9 @@ export default function GeophysicsModule() {
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
   const [idwCellSize, setIdwCellSize] = useState(25);
   const [idwPower, setIdwPower] = useState(2);
+  const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
+  const [hillshadeAzimuth, setHillshadeAzimuth] = useState(315);
+  const [hillshadeAltitude, setHillshadeAltitude] = useState(45);
   const [xyzError, setXyzError] = useState(null);
   const [xyzPending, setXyzPending] = useState(null); // { fileName, columns, rows, xCol, yCol, zCol, valueCol, labelCol } | null
   const [dragOver, setDragOver] = useState(false);
@@ -933,6 +937,34 @@ export default function GeophysicsModule() {
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title="Export the merged/processed terrain's elevation grid as a single-band GeoTIFF">
               <Download size={13} /> Export to GeoTIFF…
             </button>
+            {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
+                standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
+                use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
+            <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "#eaf1fa" : undefined }}>
+              <Mountain size={13} /> Generate hillshade…
+            </button>
+            {hillshadeOpen && (
+              <div style={{ marginTop: 6, padding: "8px 9px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).">Sun azimuth</span>
+                  <input type="number" min="0" max="360" value={hillshadeAzimuth} onChange={(e) => setHillshadeAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={numInput} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Height of the sun above the horizon, in degrees.">Sun altitude</span>
+                  <input type="number" min="1" max="90" value={hillshadeAltitude} onChange={(e) => setHillshadeAltitude(Math.max(1, Math.min(90, Number(e.target.value) || 45)))} style={numInput} />
+                </div>
+                <button
+                  onClick={() => {
+                    const raster = hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` });
+                    addRaster({ ...raster, elevation: defaultElevation, drapeMode: "terrain" });
+                    setHillshadeOpen(false);
+                  }}
+                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
+                >
+                  Generate
+                </button>
+              </div>
+            )}
           </div>
         )}
 
