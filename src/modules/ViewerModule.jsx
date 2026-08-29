@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare } from "lucide-react";
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker } from "lucide-react";
 import AssayStyleModal from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
@@ -41,6 +41,7 @@ import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
+  colorForMedium,
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF } from "../lib/meshExport.js";
@@ -255,7 +256,7 @@ function looksLikeAssay(headers) {
   return count >= 4;
 }
 
-const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true };
+const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
 // TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
@@ -567,6 +568,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements, setCursor, cursor,
+    surfaceSamples, surfaceElements,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
@@ -587,6 +589,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     softIntercepts, toggleSoftIntercept,
     sections, upsertSection, renameSection, deleteSection,
   } = store;
+
+  // TASKS.csv #228 — surface sample hover tooltip text. Values are stored in their native import unit
+  // (same convention assays/assayElements already use — see store.jsx's own comment on that), so this
+  // just looks up each element's unit from surfaceElements rather than doing any conversion.
+  const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
+  const surfaceSampleTip = (row) => {
+    const vals = Object.entries(row.values || {}).map(([sym, v]) => `${sym}: ${v}${surfaceElementUnits[sym] || "ppm"}`).join("\n");
+    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z`;
+  };
 
   const mountRef = useRef(null);
   const modelAbortControllerRef = useRef(null); // TASKS.csv #231 — cancel button for an in-flight GemPy run
@@ -1141,6 +1152,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const groups = {};
     Object.keys(LAYER_META).forEach((k) => { const g = new THREE.Group(); g.name = k; root.add(g); groups[k] = g; });
     const assayGroup = new THREE.Group(); assayGroup.name = "assay"; root.add(assayGroup); groups.assay = assayGroup;
+    // TASKS.csv #228 — surface geochemistry samples get their own group (not part of LAYER_META/
+    // `layers`, since surfaceSamples is its own top-level store list, same reasoning as assays/
+    // assayElements not living in `layers` either) — built/cleared by the same generic
+    // Object.values(groups) loops the geometry-rebuild effect already uses for every other group.
+    const surfaceGroup = new THREE.Group(); surfaceGroup.name = "surface_samples"; root.add(surfaceGroup); groups.surface_samples = surfaceGroup;
     layerGroupsRef.current = groups;
     const implicitGroup = new THREE.Group(); implicitGroup.name = "implicit"; root.add(implicitGroup);
     implicitGroupRef.current = implicitGroup;
@@ -2643,7 +2659,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const gxr = minMax(pts, (p) => p.x), gyr = minMax(pts, (p) => p.y);
         return [gxr.min, gyr.min, gxr.max, gyr.max];
       })();
-      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || null;
+      // TASKS.csv #228 — same "off-screen, not actually broken" anchor consideration as geophysPtsBbox
+      // right above, for a surface-geochem-only project (no drillholes, no geophysics points either).
+      const surfaceSamplesBbox = (() => {
+        if (!surfaceSamples.length) return null;
+        const sxr = minMax(surfaceSamples, (p) => p.x), syr = minMax(surfaceSamples, (p) => p.y);
+        return [sxr.min, syr.min, sxr.max, syr.max];
+      })();
+      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || surfaceSamplesBbox || null;
       if (anchorBbox) {
         const [bxmin, bymin, bxmax, bymax] = anchorBbox;
         const ox = (bxmin + bxmax) / 2, oy = (bymin + bymax) / 2;
@@ -2661,6 +2684,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           ezMin = zr.min; ezMax = zr.max;
         } else if (geophysPtsBbox && layers.geophys_pts?.length) {
           const zr = minMax(layers.geophys_pts, (p) => p.z);
+          ezMin = zr.min; ezMax = zr.max;
+        } else if (surfaceSamplesBbox && surfaceSamples.length) {
+          const zr = minMax(surfaceSamples, (p) => p.z);
           ezMin = zr.min; ezMax = zr.max;
         }
         originRef.current = { x: ox, y: oy, z: (ezMin + ezMax) / 2 };
@@ -2691,6 +2717,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
           });
           if (gBuildErrors.length) setNotices((p) => [...p, `${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`]);
+        }
+        // TASKS.csv #228 — surface geochemistry samples, same zero-collar-anchor reasoning as the
+        // geophys_pts block right above: a surface-geochem-only project (no drillholes at all — the
+        // exact "before ever drilling" workflow this feature targets) must still render here.
+        if (layerVisible.surface_samples && surfaceSamples.length) {
+          const sBuildErrors = [];
+          surfaceSamples.forEach((row) => {
+            try {
+              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
+              const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) }));
+              mesh.position.set(x, y, z);
+              mesh.userData = { tip: surfaceSampleTip(row) };
+              groups.surface_samples.add(mesh);
+            } catch (err) { sBuildErrors.push(`surface sample: ${err.message}`); }
+          });
+          if (sBuildErrors.length) setNotices((p) => [...p, `${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`]);
         }
       }
       return;
@@ -3006,6 +3048,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
     }
 
+    // TASKS.csv #228 — surface geochemistry samples (soil/rock-chip/stream-sediment/talus-fines), same
+    // "raw world x/y/z, no hole to desurvey against" rendering as the geophys_pts block just above —
+    // colored by sampling medium (colorForMedium) rather than by value, since a surface program often
+    // mixes media (a soil grid plus a few rock-chip grabs) that shouldn't be blended into one gradient.
+    if (layerVisible.surface_samples && surfaceSamples.length) {
+      surfaceSamples.forEach((row) => {
+        try {
+          const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
+          const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) }));
+          mesh.position.set(x, y, z);
+          mesh.userData = { tip: surfaceSampleTip(row) };
+          groups.surface_samples.add(mesh);
+        } catch (err) { buildErrors.push(`surface sample: ${err.message}`); }
+      });
+    }
+
     // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
     // already had drillholes loaded, and it just never appeared, no matter how they panned/zoomed).
     // Root cause: this auto-fit only ever looked at drillhole trace points (`allTraces` above) — a
@@ -3036,7 +3094,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -4587,6 +4645,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => removeVoxelModel(v.id)} />
               </div>
             ))}
+          </>
+        )}
+
+        {/* TASKS.csv #228 — surface geochemistry samples get one toggleable row (not a row per sample —
+            unlike boundaries/OMF objects/voxel models, these are one flat imported collection, same
+            "single row for the whole collection" treatment terrain gets). Color legend by medium is
+            shown inline since there's no per-sample edit UI to jump to yet — "Edit" just goes to
+            Geochem, where the import/element data actually lives. */}
+        {surfaceSamples.length > 0 && (
+          <>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 4 }}>
+              <div onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+                {layerVisible.surface_samples ? <Eye size={13} /> : <EyeOff size={13} />}
+              </div>
+              <Beaker size={13} style={{ color: "#55606e", flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
+              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Import more / edit in Geochem" onClick={() => goToModule("geochem")} />
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
+              {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
+                <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: colorForMedium(m), flexShrink: 0 }} />
+                  {m}
+                </div>
+              ))}
+            </div>
           </>
         )}
 
