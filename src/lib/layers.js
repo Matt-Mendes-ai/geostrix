@@ -58,6 +58,13 @@ export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };
 export function colorForStructure(t) { return STRUCT_COLORS[(t || "").toUpperCase()] || hashColor(t); }
 
+// TASKS.csv #228 — surface geochemistry sample media, colored distinctly by sampling medium (a soil
+// grid and a rock-chip traverse from the same property are visually different datasets, same as
+// lithology/alteration get their own color set here) so mixed surface-sample imports read clearly in
+// the 3D view and the legend, rather than falling back to one uniform color for everything.
+export const MEDIUM_COLORS = { soil: "#8a6a45", "rock chip": "#c0392b", "stream sediment": "#4a7ab5", "talus fines": "#8a8578", other: "#6a6a6a" };
+export function colorForMedium(m) { return MEDIUM_COLORS[(m || "").toLowerCase()] || hashColor(m); }
+
 export function rqdColor(pct) {
   if (pct == null || isNaN(pct)) return "#555";
   const stops = [[0, [192, 57, 43]], [25, [214, 137, 16]], [50, [212, 175, 55]], [75, [130, 175, 70]], [100, [70, 160, 90]]];

@@ -9,6 +9,7 @@ import {
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
+import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 import IsoconTool from "../components/IsoconTool.jsx";
 import CorrelationMatrix from "../components/CorrelationMatrix.jsx";
 import BestIntercepts from "../components/BestIntercepts.jsx";
@@ -26,12 +27,13 @@ const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, mergeLayer, replaceLayer, layers, collars, survey, boundaries } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, mergeLayer, replaceLayer, layers, collars, survey, boundaries } = store;
 
   const [diagramId, setDiagramId] = useState("boxplot");
   const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
   const [colorElement, setColorElement] = useState(null);
   const [assayModal, setAssayModal] = useState(null);
+  const [surfaceModal, setSurfaceModal] = useState(null);
   const [isoconOpen, setIsoconOpen] = useState(false);
   const [corrOpen, setCorrOpen] = useState(false);
   const [bestIntOpen, setBestIntOpen] = useState(false);
@@ -44,6 +46,7 @@ export default function GeochemModule() {
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileRef = useRef(null);
   const pxrfRef = useRef(null);
+  const surfaceFileRef = useRef(null);
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -156,6 +159,71 @@ export default function GeochemModule() {
     setAssayModal(null);
   };
 
+  // TASKS.csv #228 — surface geochemistry (soil/rock-chip/stream-sediment/talus-fines) import. Reuses
+  // the exact same isElementColumn/inferUnit dedupe-by-symbol logic the wide-format assay path above
+  // already uses (see that branch's own TASKS.csv #210 comment for why the dedupe matters) — surface
+  // sample lab exports have the same "more than one candidate column per element" problem.
+  const handleSurfaceFile = (file) => {
+    Papa.parse(file, {
+      header: true, dynamicTyping: true, skipEmptyLines: true,
+      complete: (res) => {
+        const data = res.data;
+        if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        const headers = Object.keys(data[0]);
+        const lower = headers.map((h) => h.toLowerCase().trim());
+        const guess = (aliases) => {
+          for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
+          for (const a of aliases) { const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
+          return "";
+        };
+        const mapping = {
+          x: guess(["x", "easting", "east"]), y: guess(["y", "northing", "north"]), z: guess(["z", "elevation", "elev"]),
+          sample_id: guess(["sample_id", "sampleid", "sample", "sample_no"]), medium: guess(["medium", "sample_type", "type"]),
+        };
+        // Bug found live-testing this feature: a bare "y" (northing) header false-positives against
+        // isElementColumn as the element symbol Y (yttrium) — same first-token match logic that
+        // correctly handles "Ag_XRF_..." also matches a coordinate column that just happens to BE an
+        // element symbol. x/y/z/sample_id/medium are excluded from element detection since whichever
+        // columns they resolved to are already spoken for by the mapping above, never a real analyte.
+        const mappedCols = new Set(Object.values(mapping).filter(Boolean));
+        const bySymbol = new Map();
+        headers.filter((h) => !mappedCols.has(h)).filter(isElementColumn).forEach((h) => {
+          const sym = isElementColumn(h);
+          const existing = bySymbol.get(sym);
+          if (!existing || (/error/i.test(existing) && !/error/i.test(h))) bySymbol.set(sym, h);
+        });
+        const elements = Array.from(bySymbol.entries()).map(([sym, h]) => ({ symbol: sym, header: h, unit: inferUnit(h, sym), checked: true }));
+        setSurfaceModal({
+          file, fileName: file.name, headers, allRows: data,
+          mapping,
+          defaultMedium: "soil", elements,
+        });
+      },
+    });
+  };
+
+  const commitSurfaceImport = (modal) => {
+    const { allRows, mapping, elements, defaultMedium } = modal;
+    const chosen = elements.filter((e) => e.checked);
+    if (!mapping.x || !mapping.y || !mapping.z) { setNotices((p) => [...p, "Map X, Y, and Z columns."]); return; }
+    const mediaSet = new Set(SURFACE_MEDIA);
+    const rows = allRows.map((r) => {
+      const values = {};
+      chosen.forEach((e) => { const v = parseAssayValue(r[e.header]); if (v != null) values[e.symbol] = v; });
+      const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
+      return {
+        sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
+        x: Number(r[mapping.x]), y: Number(r[mapping.y]), z: Number(r[mapping.z]),
+        medium: mediaSet.has(rawMedium) ? rawMedium : defaultMedium,
+        values,
+      };
+    }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
+    setSurfaceSamples((prev) => [...prev, ...rows]);
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => merged.set(e.symbol, e)); return Array.from(merged.values()); });
+    setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.`]);
+    setSurfaceModal(null);
+  };
+
   // TASKS.csv #78 — drag-and-drop as a consistent import method across all data types. Geochem was
   // the one importer left button-only (ViewerModule's CSV importer and GeophysicsModule's CSV/GeoTIFF/
   // GXF importer both already support it) — same file/name-heuristic pattern as GeophysicsModule's
@@ -258,6 +326,14 @@ export default function GeochemModule() {
           {assays.length ? `${assays.length} intervals · ${assayElements.length} elements` : "No assays loaded"}
         </div>
 
+        <div className="ge-section-label" style={{ marginTop: 18 }}>Surface samples</div>
+        <button onClick={() => surfaceFileRef.current.click()} style={panelBtn}><Upload size={13} /> Import surface samples</button>
+        <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
+        <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 2, lineHeight: 1.4 }}>Soil, rock-chip, stream-sediment, or talus-fines samples — no drillhole required.</div>
+        <div style={{ fontSize: 11, color: "#94a1b0", margin: "10px 0 4px" }}>
+          {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
+        </div>
+
         {assayElements.length > 0 && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>Generate from geochem</div>
@@ -346,6 +422,15 @@ export default function GeochemModule() {
           onChange={setAssayModal}
           onCancel={() => setAssayModal(null)}
           onCommit={() => commitAssayImport(assayModal)}
+        />
+      )}
+
+      {surfaceModal && (
+        <SurfaceImportModal
+          modal={surfaceModal}
+          onChange={setSurfaceModal}
+          onCancel={() => setSurfaceModal(null)}
+          onCommit={() => commitSurfaceImport(surfaceModal)}
         />
       )}
 
