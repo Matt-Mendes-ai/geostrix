@@ -305,7 +305,13 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
       // starts — a cold first run against a real multi-hole property can genuinely take well over
       // a minute before any compute even begins. 300s gives real (if slow) runs room to finish
       // instead of being cut off and misreported as a connectivity problem.
-      signal: AbortSignal.timeout(300000),
+      // TASKS.csv #231 — a real GemPy run can take 80s+ on a real property; opts.signal lets the
+      // caller offer a genuine cancel button (ViewerModule wires an AbortController's signal through
+      // and a "Cancel" action in the status bar) rather than making the user wait out the fixed 5-
+      // minute timeout below or force-quit the app. AbortSignal.any combines both — whichever fires
+      // first (user cancel or the safety-net timeout) aborts the fetch; Electron's Chromium is recent
+      // enough to have AbortSignal.any (shipped Chrome 116+).
+      signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(300000)]) : AbortSignal.timeout(300000),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
@@ -314,6 +320,12 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     const data = await res.json();
     return { ok: true, surfaces: data.surfaces };
   } catch (err) {
+    // A user-triggered cancel (opts.signal aborted with this specific reason) gets its own quiet,
+    // non-error message — distinct from a genuine timeout/connectivity problem, which the two branches
+    // below still handle exactly as before.
+    if (opts.signal?.aborted && opts.signal.reason === "user-cancelled") {
+      return { ok: false, cancelled: true, error: "Cancelled." };
+    }
     // Distinguish "the request timed out" (sidecar is there and presumably still working, just
     // slow) from "the sidecar genuinely isn't reachable" (not started, crashed, or gempy missing)
     // — these used to share one misleading message that always pointed at connectivity/install

@@ -351,6 +351,12 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus }) {
           </span>
           <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskProgress.label}</span>
           <span className="val">{pct}%</span>
+          {/* TASKS.csv #231 — a real GemPy run can take 80s+ with no way to back out short of force-
+              quitting the app; onCancel is only set by callers that actually support cancellation
+              (currently the implicit-modelling tools), so this button only appears where it works. */}
+          {taskProgress.onCancel && (
+            <X size={12} style={{ cursor: "pointer", color: "#e0a0a0" }} title="Cancel" onClick={taskProgress.onCancel} />
+          )}
         </span>
       )}
       <span className="spacer" />

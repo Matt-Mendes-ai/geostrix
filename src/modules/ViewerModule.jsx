@@ -585,6 +585,7 @@ export default function ViewerModule({ mode = "view" }) {
   } = store;
 
   const mountRef = useRef(null);
+  const modelAbortControllerRef = useRef(null); // TASKS.csv #231 — cancel button for an in-flight GemPy run
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const rendererRef = useRef(null);
@@ -886,6 +887,13 @@ export default function ViewerModule({ mode = "view" }) {
   // in meters along that basis (see searchEllipsoidBasis), minSamples is how many OTHER control points
   // must fall inside a point's own ellipsoid for that point to be trusted.
   const [searchEllipsoid, setSearchEllipsoid] = useState({ enabled: false, azimuth: 45, dip: 60, major: 300, semiMajor: 150, minor: 50, minSamples: 2 });
+  // TASKS.csv #231 (Leapfrog-specialist audit finding: real GemPy runs took 80-88s with no resolution
+  // control, resolution was never sent from the client at all) — the sidecar's own pythonImplicitModel
+  // wrapper already accepted an opts.resolution override, it just was never surfaced; hardcoded 36 here
+  // matches the value runSurfaceStack used to hardcode, so existing behavior/timing is unchanged until
+  // a user actually moves this slider. GemPy cost scales with grid cells, so lower = faster/coarser,
+  // higher = slower/finer — 64 matches the sidecar's own documented cap (python-sidecar/app/main.py).
+  const [modelResolution, setModelResolution] = useState(36);
   // TASKS.csv #86 — same shared-across-all-four-tools pattern as domain/searchEllipsoid above. Distinct
   // state from searchEllipsoid (not literally shared) since the two are conceptually independent knobs
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
@@ -1974,20 +1982,26 @@ export default function ViewerModule({ mode = "view" }) {
     // reached), jumps to 100% on an actual response, and clears shortly after — enough for the
     // status bar to show "something is happening and roughly how far along" for a run that can take
     // several seconds, without pretending to know GemPy's actual internal progress.
-    setTaskProgress?.({ label, pct: 8 });
+    // TASKS.csv #231 — a real cancel button for a run that can take 80s+: an AbortController whose
+    // signal threads through to the fetch in desktop.js, wired to a "Cancel" action on the status
+    // bar's taskProgress display (App.jsx's StatusBar) via onCancel below.
+    const abortController = new AbortController();
+    modelAbortControllerRef.current = abortController;
+    setTaskProgress?.({ label, pct: 8, onCancel: () => abortController.abort("user-cancelled") });
     const rampTimer = setInterval(() => {
       setTaskProgress?.((cur) => (cur && cur.label === label ? { ...cur, pct: Math.min(90, cur.pct + 6 + Math.random() * 8) } : cur));
     }, 500);
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
-      { resolution: [36, 36, 36] },
+      { resolution: [modelResolution, modelResolution, modelResolution], signal: abortController.signal },
     );
     clearInterval(rampTimer);
     setImplicitBusy(false);
+    modelAbortControllerRef.current = null;
     if (!res.ok) {
       setTaskProgress?.(null);
-      setNotices((p) => [...p, `${label} failed: ${res.error}`]);
+      if (!res.cancelled) setNotices((p) => [...p, `${label} failed: ${res.error}`]);
       return;
     }
     setTaskProgress?.({ label, pct: 100 });
@@ -2042,7 +2056,7 @@ export default function ViewerModule({ mode = "view" }) {
       newMeshes.forEach((m) => box.expandByObject(m));
       fitBox(box);
     }
-  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId]);
+  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId, modelResolution]);
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = useCallback((spec) => runSurfaceStack([spec]), [runSurfaceStack]);
@@ -2137,9 +2151,22 @@ export default function ViewerModule({ mode = "view" }) {
     }
     points.length = 0; points.push(...supportedPoints);
 
+    // TASKS.csv #231 (Leapfrog-specialist audit finding: "every structure pick with ANY dip/azimuth in
+    // the whole project gets fed as an orientation constraint to whatever surface is being modelled" --
+    // confirmed live, 317 orientations fed into one 88-point run, dominated by unrelated picks) --
+    // filterRowsBySearchEllipsoid already existed and was already used by the Structural tool below,
+    // but was never applied here or in the alteration tool's identical block, so with no domain built
+    // (the default "Whole property" case) every CON-type pick anywhere on the property fed every single
+    // surface's orientations regardless of distance. Same spatial-relevance filter the interface points
+    // just above already get, now applied to orientations too.
     let structRows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === "CON" && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     if (!structRows.length) structRows = (layers.structure || []).filter((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
+    const preSearchCount = structRows.length;
+    structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
+    if (searchEllipsoid.enabled && structRows.length < preSearchCount && !silent) {
+      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+    }
     let orientations = structureRowsToOrientations(structRows, traces);
     if (!orientations.length) {
       // No structure/contact data to draw an orientation from — estimate one from the shape of the
@@ -2278,9 +2305,17 @@ export default function ViewerModule({ mode = "view" }) {
     if (!supportedPoints.length) { setNotices((p) => [...p, `All "${altValue}" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]); return; }
     points.length = 0; points.push(...supportedPoints);
 
+    // TASKS.csv #231 — see gatherLithoSurfaceSpec's identical fix for the full explanation: the search-
+    // ellipsoid spatial-relevance filter already existed and was already used by the Structural tool,
+    // but not here, so every CON-type pick on the whole property fed every alteration surface too.
     let structRows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === "CON" && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     if (!structRows.length) structRows = (layers.structure || []).filter((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
+    const preSearchCount2 = structRows.length;
+    structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
+    if (searchEllipsoid.enabled && structRows.length < preSearchCount2) {
+      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount2 - structRows.length} of ${preSearchCount2} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+    }
     let orientations = structureRowsToOrientations(structRows, traces);
     if (!orientations.length) {
       // Same fallback as the litho tool (see its comment) — estimate an orientation from the
@@ -4560,6 +4595,21 @@ export default function ViewerModule({ mode = "view" }) {
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
           Clip result to domain boundary (#88)
         </label>
+
+        {/* TASKS.csv #231 — resolution control for every GemPy run (Implicit Model, Stratigraphic
+            Stack, Structural, Alteration all funnel through the same runSurfaceStack). Lower = faster/
+            coarser, higher = slower/finer; GemPy's own cost scales with grid cell count, so this is the
+            single biggest lever a user has over the 80s+ run times real properties hit. */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Resolution</div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6, lineHeight: 1.4 }}>
+          Grid cells per axis for every modelling run below. Lower is faster; higher is slower but
+          finer-detailed. A real property-scale run at 36 (the default) commonly takes 60-90+ seconds —
+          try 24 or lower for a quick first look.
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
+          <span style={{ fontSize: 11, color: "#1a2028", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
+        </div>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Search ellipsoid</span>
