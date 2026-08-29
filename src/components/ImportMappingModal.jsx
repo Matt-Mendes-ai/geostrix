@@ -12,13 +12,21 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   const customFields = modal.customFields || [];
   const [addName, setAddName] = useState("");
   const [addColumn, setAddColumn] = useState("");
+  // TASKS.csv #213 — user request: "other software will let the user assign a data type to the added
+  // column eg. text, number, category, etc." Type controls how applyCustomFields (ViewerModule.jsx)
+  // coerces the raw CSV value: "number" parses it so the field is filterable/sortable like a real
+  // numeric layer field rather than a display-only string, "category" trims it to a clean string
+  // (for a coded value that should match consistently), "text" keeps it exactly as Papa Parse read it
+  // (the original, pre-#213 behavior — the default for any field added without picking a type).
+  const [addType, setAddType] = useState("text");
   const addCustomField = () => {
     const name = addName.trim();
     if (!name || !addColumn) return;
-    onChange({ ...modal, customFields: [...customFields, { column: addColumn, name }] });
-    setAddName(""); setAddColumn("");
+    onChange({ ...modal, customFields: [...customFields, { column: addColumn, name, type: addType }] });
+    setAddName(""); setAddColumn(""); setAddType("text");
   };
   const removeCustomField = (i) => onChange({ ...modal, customFields: customFields.filter((_, j) => j !== i) });
+  const setCustomFieldType = (i, type) => onChange({ ...modal, customFields: customFields.map((cf, j) => (j === i ? { ...cf, type } : cf)) });
   // TASKS.csv #120 — only targets carrying ABSOLUTE world x/y (collars; every other target is
   // hole-relative and inherits its position from the already-reprojected collar) can meaningfully
   // have a different source CRS than the project.
@@ -72,6 +80,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             {customFields.map((cf, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <div style={{ flex: 1, fontSize: 12, color: "#1a2028" }}>{cf.column} <span style={{ color: "#94a1b0" }}>→</span> {cf.name}</div>
+                <select value={cf.type || "text"} onChange={(e) => setCustomFieldType(i, e.target.value)} style={{ ...sel, fontSize: 10.5, padding: "2px 4px", flexShrink: 0 }} title="How this field's value is stored">
+                  <option value="text">text</option>
+                  <option value="number">number</option>
+                  <option value="category">category</option>
+                </select>
                 <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeCustomField(i)} />
               </div>
             ))}
@@ -84,6 +97,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 type="text" value={addName} onChange={(e) => setAddName(e.target.value)}
                 placeholder="Field name" style={{ ...sel, width: 130 }}
               />
+              <select value={addType} onChange={(e) => setAddType(e.target.value)} style={{ ...sel, width: 82, fontSize: 11 }} title="Data type">
+                <option value="text">text</option>
+                <option value="number">number</option>
+                <option value="category">category</option>
+              </select>
               <button
                 onClick={addCustomField}
                 disabled={!addColumn || !addName.trim()}

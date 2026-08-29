@@ -148,10 +148,21 @@ const MODEL_EXTENT_PAD_M = 500;
 // table (AttributeTableModal already derives its columns from Object.keys() of whatever a row
 // actually has, so this needs zero changes there) and hover tooltips (added explicitly below, since
 // those use fixed string templates rather than iterating keys).
+// TASKS.csv #213 — user request: "other software will let the user assign a data type to the added
+// column eg. text, number, category, etc." `type` (added alongside column/name in ImportMappingModal)
+// controls how the raw CSV value is coerced: "number" parses it so the field behaves like any other
+// numeric layer value (filterable/sortable), "category" trims it to a clean string for a coded value
+// expected to match consistently, "text" (the default, and the ONLY behavior before this fix) keeps
+// it exactly as Papa Parse read it, unchanged, for full backward compatibility with any code path that
+// still passes {column, name} pairs with no type at all.
 function applyCustomFields(row, r, customFields) {
   if (!customFields || !customFields.length) return row;
-  customFields.forEach(({ column, name }) => {
-    if (column && name) row[name] = r[column];
+  customFields.forEach(({ column, name, type }) => {
+    if (!column || !name) return;
+    const raw = r[column];
+    row[name] = type === "number" ? (raw === "" || raw == null ? null : Number(raw))
+      : type === "category" ? String(raw ?? "").trim()
+      : raw;
   });
   return row;
 }
