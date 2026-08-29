@@ -559,7 +559,11 @@ function sampleTerrainElevation(terrain, x, y) {
 // renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modeling" (domains/
 // surfaces/implicit-modelling tools — the former "Modeling" tab). App.jsx renders one or the other
 // depending on which top-level tab is active, never both at once.
-export default function ViewerModule({ mode = "view" }) {
+// TASKS.csv #225 — `visible` defaults to `true` deliberately: every existing call site (App.jsx, before
+// this row's own fix lands there) doesn't pass it at all, so every behavior below is a pure no-op until
+// App.jsx actually starts rendering ViewerModule as a single persistent instance and passing `false`
+// while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
+export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements, setCursor, cursor,
@@ -586,6 +590,12 @@ export default function ViewerModule({ mode = "view" }) {
 
   const mountRef = useRef(null);
   const modelAbortControllerRef = useRef(null); // TASKS.csv #231 — cancel button for an in-flight GemPy run
+  // TASKS.csv #225 — visibleRef mirrors the `visible` prop for long-lived closures (the mount effect's
+  // event handlers, the animate loop) that can't see prop changes directly; resizeFnRef exposes the
+  // mount effect's own `resize` function to the reveal effect below, which runs outside that closure.
+  const visibleRef = useRef(visible);
+  useEffect(() => { visibleRef.current = visible; }, [visible]);
+  const resizeFnRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const rendererRef = useRef(null);
@@ -597,6 +607,13 @@ export default function ViewerModule({ mode = "view" }) {
   const camState = useRef(lastCamState
     ? { theta: lastCamState.theta, phi: lastCamState.phi, radius: lastCamState.radius, target: new THREE.Vector3(lastCamState.target.x, lastCamState.target.y, lastCamState.target.z) }
     : { theta: Math.PI / 4, phi: Math.PI / 3, radius: 600, target: new THREE.Vector3(0, 0, 0) });
+  // TASKS.csv #225 — now effectively vestigial for its ORIGINAL purpose: this only ever fires on a real
+  // component unmount, and since a single ViewerModule instance now stays mounted persistently across
+  // View/Modeling/Targeting (see App.jsx), that no longer happens on every mode switch the way it used
+  // to — camState.current itself keeps living across those switches regardless, so nothing is lost.
+  // Left in place harmlessly (it still correctly persists the final camera position at real app
+  // teardown/project-tab-close), not removed, since store.jsx's `lastCamState` is also still read by
+  // the viewerUiStateSeq hydrate effect above on a genuine New/Open project.
   useEffect(() => {
     return () => {
       const cs = camState.current;
@@ -926,6 +943,22 @@ export default function ViewerModule({ mode = "view" }) {
   const zoomToScreenRectRef = useRef(() => {});
   useEffect(() => { rectZoomRef.current = rectZoomMode; }, [rectZoomMode]);
 
+  // TASKS.csv #225 — armed-click tool modes (section/measure/rect-zoom/pick-hole) and transient UI
+  // popovers used to implicitly disarm on every mode switch, since that switch used to unmount this
+  // whole component. Now that a single persistent instance survives View<->Modeling<->Targeting
+  // switches, that disarm has to be explicit instead of an accident of unmounting — otherwise, e.g.,
+  // arming the measure tool in 3D View and then switching to Modeling would leave it armed there too.
+  // Deliberately NOT resetting modal-open booleans (dbModalOpen, qcModalOpen, etc.) here — leaving a
+  // modal open across a mode switch reads as reasonable, arguably better, UX, not a bug to fix.
+  useEffect(() => {
+    setSectionMode(false);
+    setMeasureMode(null); setMeasurePts([]);
+    setRectZoomMode(false); setRectVisual(null); rectDragRef.current = null;
+    setPickHoleMode(false);
+    setContextMenu(null); setLayerContextMenu(null); setTooltip(null); setOpenPopover(null);
+    dragRef.current = { dragging: false, panning: false, lastX: 0, lastY: 0 };
+  }, [mode]);
+
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
 
@@ -962,6 +995,21 @@ export default function ViewerModule({ mode = "view" }) {
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
+    // TASKS.csv #225 — both of these used to reset implicitly on every tab-switch-triggered
+    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modeling/
+    // Targeting, that implicit reset never happens again unless done explicitly here, on the one
+    // signal (viewerUiStateSeq) that reliably means "a real New/Open project just happened", not just
+    // a tab switch. hasAutoFitRef: without this, a newly-opened project would keep the PREVIOUS
+    // project's camera framing forever instead of auto-fitting to its own data (see hasAutoFitRef's
+    // own comment at the geometry-rebuild effect for why it exists at all). camState: store.jsx
+    // deliberately sets lastCamState to null on newProject/loadProjectPayload specifically so a
+    // different project doesn't inherit a meaningless leftover camera position — respected here the
+    // same way the (now effectively mount-only-forever) initial camState.current setup already did.
+    hasAutoFitRef.current = false;
+    if (!lastCamState) {
+      camState.current = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 600, target: new THREE.Vector3(0, 0, 0) };
+      cameraRef.current?.__update?.();
+    }
     const s = viewerUiState;
     if (!s) {
       // New project (or an older save with no saved UI state) — reset to defaults rather than
@@ -987,7 +1035,7 @@ export default function ViewerModule({ mode = "view" }) {
     setAssayStyle(s.assayStyle || {});
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
     setBgColor(s.bgColor || "#ffffff");
-  }, [viewerUiStateSeq, viewerUiState]);
+  }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
   // saveProject next runs. Sets aren't JSON-safe, so categoryFilter is serialized to arrays here.
@@ -1164,7 +1212,18 @@ export default function ViewerModule({ mode = "view" }) {
     const axisGizmo = createAxisGizmo({ camStateRef: camState });
     axisGizmoRef.current = axisGizmo;
 
-    const resize = () => { const w = mount.clientWidth, h = mount.clientHeight; camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); lastActivityRef.current = Date.now(); };
+    // TASKS.csv #225 — the 0-size guard matters once ViewerModule can stay mounted-but-hidden
+    // (display:none) behind another tab: a hidden element's clientWidth/Height are both 0, and
+    // without this guard camera.aspect becomes 0/0 (NaN), corrupting the projection matrix. Exposed
+    // via resizeFnRef so the reveal effect below (which runs outside this mount effect's closure) can
+    // force a real resize the moment the viewer becomes visible again, since a ResizeObserver doesn't
+    // fire just because `display` changed if the element's box size didn't change while hidden.
+    const resize = () => {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      if (!w || !h) return;
+      camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); lastActivityRef.current = Date.now();
+    };
+    resizeFnRef.current = resize;
     resize(); const ro = new ResizeObserver(resize); ro.observe(mount);
 
     // Real bug fix (TASKS.csv #63): hover/right-click hit-testing used to flatten EVERY layer group's
@@ -1193,6 +1252,7 @@ export default function ViewerModule({ mode = "view" }) {
       renderer.domElement.setPointerCapture(e.pointerId);
     };
     const onPointerUp = (e) => {
+      if (!visibleRef.current) return; // TASKS.csv #225 — same reasoning as onPointerMove's own guard
       if (rectDragRef.current) {
         const d = rectDragRef.current;
         rectDragRef.current = null; setRectVisual(null); setRectZoomMode(false);
@@ -1205,6 +1265,14 @@ export default function ViewerModule({ mode = "view" }) {
     };
     const onPointerMove = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
+      // TASKS.csv #225 — this handler is registered on `window` (see below), not the canvas, and never
+      // checked whether the viewer is even the visible tab. Once ViewerModule can stay mounted-but-
+      // hidden, moving the mouse anywhere in the app (Geochem, Layout, ...) would otherwise still
+      // raycast this hidden scene's every visible layer object and push a setCursor() store update on
+      // every single mousemove — a real, new perf regression, not just a correctness one. A hidden
+      // element's own getBoundingClientRect() is all zeros, so !rect.width already catches it, but the
+      // explicit visibleRef check makes the intent obvious rather than relying on that as a side effect.
+      if (!visibleRef.current || !rect.width) return;
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       if (rectDragRef.current) {
         rectDragRef.current.x2 = mx; rectDragRef.current.y2 = my;
@@ -1340,6 +1408,12 @@ export default function ViewerModule({ mode = "view" }) {
     const IDLE_FRAME_INTERVAL_MS = 120; // ~8fps while idle vs. ~60fps (uncapped) while active
     let raf;
     const animate = () => {
+      // TASKS.csv #225 — while hidden (another tab showing), skip the render entirely rather than
+      // falling back to the idle-throttled ~8fps: there's no viewer on screen at all, so even that is
+      // pure waste. Keep the rAF loop itself ticking (re-arm unconditionally) rather than cancelling
+      // it, so there's no separate "restart the loop on reveal" code path to ever miss — see the
+      // reveal effect below for why a resize is still needed when this bail lifts.
+      if (!visibleRef.current) { raf = requestAnimationFrame(animate); return; }
       const now = Date.now();
       const idle = now - lastActivityRef.current > IDLE_AFTER_MS;
       if (!idle || now - lastFrameAtRef.current >= IDLE_FRAME_INTERVAL_MS) {
@@ -1378,6 +1452,21 @@ export default function ViewerModule({ mode = "view" }) {
       mount.removeChild(renderer.domElement); renderer.dispose();
     };
   }, [setCursor]);
+
+  // TASKS.csv #225 — on becoming visible again, the ResizeObserver above won't necessarily have fired
+  // (the mount's box size while `display:none` and its size just after `display:flex` can be
+  // identical if the window itself didn't resize meanwhile — a CSS display change alone doesn't
+  // guarantee a ResizeObserver callback), so force one resize + a full-rate frame explicitly. The
+  // rAF wait lets the `display` change actually flush to layout first, so clientWidth/Height read
+  // real numbers instead of the pre-change ones.
+  useEffect(() => {
+    if (!visible) return;
+    const raf = requestAnimationFrame(() => {
+      resizeFnRef.current?.();
+      lastActivityRef.current = Date.now();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [visible]);
 
   const fitBox = useCallback((box, padFactor = 1.3, minRadius = 80) => {
     if (box.isEmpty()) return false;
@@ -1671,6 +1760,15 @@ export default function ViewerModule({ mode = "view" }) {
   useEffect(() => {
     const req = viewportRenderRequest;
     if (!req) return;
+    // TASKS.csv #225 — must come BEFORE lastHandledRequestId is ever set for this request (below): if
+    // this effect fires while the viewer is the hidden tab (a Layout viewport request can arrive
+    // before goToModule("viewer") has actually made ViewerModule the visible one), the capture below
+    // would run against a 0-size hidden canvas (NaN aspect, garbage/blank PNG) — the exact #198-era bug
+    // class this whole round-trip already had to fix once. Returning here WITHOUT marking the request
+    // handled means once `visible` flips true (it's in this effect's own dependency array below) this
+    // same effect re-runs and proceeds normally — marking it handled first would permanently swallow
+    // the request instead.
+    if (!visible) return;
     // TASKS.csv #202 — root-cause fix #2. The old guard compared viewportRenderRequestSeq against a
     // local `lastRenderReqSeq` ref that starts fresh at -1/0 on every mount, while the seq itself is
     // store-level and never resets — so ANY fresh ViewerModule mount (a plain manual switch back to
@@ -1715,7 +1813,7 @@ export default function ViewerModule({ mode = "view" }) {
     // liveViewBundleFromStore deliberately NOT in this list — see liveViewBundleFromStoreRef's own
     // comment above for why depending on it directly reintroduces the bug it looks like it should
     // have nothing to do with.
-  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule]);
+  }, [viewportRenderRequest, viewportPendingRequest, themes, applyTheme, doCaptureViewportRender, resolveViewportRender, goToModule, visible]);
 
   // TASKS.csv #198 (part 3) — the interactive session's two exit paths. Both restore/resolve exactly
   // like the non-interactive path; "cancel" just resolves with an error instead of a captured image,
@@ -4217,7 +4315,7 @@ export default function ViewerModule({ mode = "view" }) {
   }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
+    <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
       {mode === "view" && (
         <ViewToolbar
           openPopover={openPopover} setOpenPopover={setOpenPopover}

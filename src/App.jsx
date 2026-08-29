@@ -38,6 +38,14 @@ const MODULES = [
   { id: "raster", label: "Raster", icon: Image },
   { id: "layout", label: "Layout", icon: Layout },
 ];
+// TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
+// entire three.js scene every time, measured 407-622ms blocking per switch, even between View/
+// Modeling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
+// a tab id to the ViewerModule `mode` it corresponds to, so a single persistent instance can be kept
+// mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
+// expressions each occupying their own position in the render tree (which is what forced the
+// unmount/remount in the first place).
+const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeting" };
 
 export default function App() {
   const store = useStore();
@@ -48,6 +56,12 @@ export default function App() {
     undo, redo, canUndo, canRedo,
   } = store;
   const [active, setActive] = useState("viewer");
+  // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
+  // so hopping to Geochem and back doesn't force a sidebar re-render for a `mode` swap that isn't
+  // actually happening. Updated during render (not an effect) whenever the active tab IS a viewer
+  // mode, so it's always current by the time it's read for a non-viewer tab.
+  const lastViewerModeRef = useRef("view");
+  if (VIEWER_MODES[active]) lastViewerModeRef.current = VIEWER_MODES[active];
   const [epsgEditing, setEpsgEditing] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable"
@@ -272,9 +286,13 @@ export default function App() {
       </div>
 
       <div className="ge-body">
-        {active === "viewer" && <ViewerModule mode="view" />}
-        {active === "modeling" && <ViewerModule mode="modeling" />}
-        {active === "targeting" && <ViewerModule mode="targeting" />}
+        {/* TASKS.csv #225 — ONE persistent ViewerModule instance instead of three separate conditional
+            JSX expressions (each of which used to occupy its own position in the tree, forcing React
+            to unmount/remount on every switch even between three modes of the same component). Hidden
+            via ViewerModule's own `visible` prop (display:none internally), not unmounted — see that
+            file's own comments for the render-loop/pointer-handler/viewport-request guards this
+            required. No `key` here — a key would defeat the whole point by forcing a fresh instance. */}
+        <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
         <Suspense fallback={<div style={{ padding: 20, color: "#94a1b0", fontSize: 13 }}>Loading…</div>}>
           {active === "geochem" && <GeochemModule />}
           {active === "geophysics" && <GeophysicsModule />}
