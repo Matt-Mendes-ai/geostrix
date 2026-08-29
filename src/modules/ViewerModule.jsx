@@ -2629,7 +2629,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const xr = minMax(xs), yr = minMax(ys);
         return [xr.min, yr.min, xr.max, yr.max];
       })();
-      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || null;
+      // TASKS.csv #228 (mineral-exploration-specialist audit finding, real live bug — confirmed by code
+      // read, not just reported) — this whole `!collars.length` branch returns before the geophys_pts
+      // build below ever runs and before its extent was considered as a camera anchor, so a project
+      // with NO drillholes yet (a geophysics-survey-only or, once #228 lands, surface-geochem-only
+      // project — exactly the "before ever drilling" workflow this app's target audience actually
+      // starts most programs with) imported cleanly, reported the right point count, and rendered
+      // nothing at all. Same class of "off-screen, not actually broken" bug this fallback already
+      // exists to fix for terrain/rasters/boundaries/OMF — geophys_pts just wasn't included.
+      const geophysPtsBbox = (() => {
+        const pts = layers.geophys_pts || [];
+        if (!pts.length) return null;
+        const gxr = minMax(pts, (p) => p.x), gyr = minMax(pts, (p) => p.y);
+        return [gxr.min, gyr.min, gxr.max, gyr.max];
+      })();
+      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || null;
       if (anchorBbox) {
         const [bxmin, bymin, bxmax, bymax] = anchorBbox;
         const ox = (bxmin + bxmax) / 2, oy = (bymin + bymax) / 2;
@@ -2645,6 +2659,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // real z-extent instead when there's no terrain to measure it from.
           const zr = minMax(omfZs);
           ezMin = zr.min; ezMax = zr.max;
+        } else if (geophysPtsBbox && layers.geophys_pts?.length) {
+          const zr = minMax(layers.geophys_pts, (p) => p.z);
+          ezMin = zr.min; ezMax = zr.max;
         }
         originRef.current = { x: ox, y: oy, z: (ezMin + ezMax) / 2 };
         const { x: rox, y: roy, z: roz } = originRef.current;
@@ -2653,6 +2670,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           new THREE.Vector3(bxmax - rox, ezMax - roz, -(bymin - roy)),
         );
         fitBox(box, 1.3);
+        // TASKS.csv #228 — build the geophys_pts group here too (same rendering as the main per-collar
+        // path below, just using this branch's own rox/roy/roz and a local buildErrors since the main
+        // one isn't declared until after this early return). Without this, the anchor-bbox fit above
+        // would correctly frame the camera on the right spot, but nothing would actually be drawn there.
+        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => isRowVisible("geophys_pts", r));
+        if (geophysPtsRows.length) {
+          const gBuildErrors = [];
+          const vals = geophysPtsRows.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
+          const { min: gmin, max: gmax } = minMax(vals);
+          const geophysPtsModel = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? gmin, max: geophysPtsMax ?? gmax };
+          geophysPtsRows.forEach((row) => {
+            try {
+              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
+              const size = 1.4 + 2.8 * (gmax > gmin ? (row.value - gmin) / (gmax - gmin) : 0.3);
+              const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) }));
+              mesh.position.set(x, y, z);
+              mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+              groups.geophys_pts.add(mesh);
+            } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
+          });
+          if (gBuildErrors.length) setNotices((p) => [...p, `${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`]);
+        }
       }
       return;
     }
