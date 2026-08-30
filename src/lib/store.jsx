@@ -4,6 +4,35 @@ import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveClear, dbConne
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
 
+// TASKS.csv #226/#214 (software-design-specialist audit finding, performance follow-up) — cursor was
+// previously plain useState INSIDE StoreProvider, exposed through the same single giant context value
+// as everything else. setCursor(worldPt) fires on every pointermove while hovering the 3D view (see
+// ViewerModule.jsx's onPointerMove, which drives the live status-bar readout) — since a single Context
+// re-renders EVERY consumer of useStore() on any value change regardless of which field actually
+// changed, that meant ViewerModule.jsx (the app's single largest, most render-expensive component —
+// 78 state hooks per the audit, a huge sidebar JSX tree) was re-rendering on every mouse-move tick
+// during ordinary camera interaction — confirmed live (see this row's own commit) that ViewerModule
+// destructured `cursor` from the store but never actually READ its value anywhere in its own render
+// output, only ever calling the setter — meaning every one of those re-renders was pure waste.
+// Splitting cursor into its own pair of tiny contexts fixes this at the root: CursorSetterContext's
+// value is the raw useState setter, which React guarantees keeps a stable identity for the lifetime of
+// the component that owns it — so a consumer that only ever calls useSetCursor() (ViewerModule) is
+// NEVER forced to re-render by a cursor change, no matter how often it fires. CursorValueContext holds
+// the actual live value and DOES change identity on every update — consumed only by the one place that
+// genuinely needs to re-render on it, the status bar's own small, cheap `<span>` readout in App.jsx.
+const CursorValueContext = createContext({ x: null, y: null, z: null });
+const CursorSetterContext = createContext(() => {});
+export function CursorProvider({ children }) {
+  const [cursor, setCursor] = useState({ x: null, y: null, z: null }); // world coords under pointer, for status bar
+  return (
+    <CursorSetterContext.Provider value={setCursor}>
+      <CursorValueContext.Provider value={cursor}>{children}</CursorValueContext.Provider>
+    </CursorSetterContext.Provider>
+  );
+}
+export const useCursorValue = () => useContext(CursorValueContext);
+export const useSetCursor = () => useContext(CursorSetterContext);
+
 const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
@@ -54,7 +83,6 @@ export function StoreProvider({ children }) {
   const [surfaceSamples, setSurfaceSamples] = useState([]);
   const [surfaceElements, setSurfaceElements] = useState([]);
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
-  const [cursor, setCursor] = useState({ x: null, y: null, z: null }); // world coords under pointer, for status bar
   const [dbConnections, setDbConnections] = useState([]); // saved (non-secret) connection profiles
   // TASKS.csv #206 — "the database stays connected and accessible on a database side panel... so I
   // don't have [to] enter the password everytime." keyed by connection NAME (matches dbConnections'
@@ -963,7 +991,6 @@ export function StoreProvider({ children }) {
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
     customLayers, setCustomLayers,
-    cursor, setCursor,
     dbConnections, setDbConnections,
     liveDbConnections, connectDb, disconnectDb,
     excludedIntercepts, setExcludedIntercepts, toggleExcludedIntercept,

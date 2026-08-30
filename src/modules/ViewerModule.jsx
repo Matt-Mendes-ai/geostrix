@@ -8,7 +8,7 @@ import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, reprojectXY, guessEpsgFromPrjWkt } from "../lib/reproject.js";
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetCursor } from "../lib/store.jsx";
 import { desurveyHole } from "../lib/desurvey.js";
 import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -577,8 +577,14 @@ function sampleTerrainElevation(terrain, x, y) {
 // while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
 export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
+  // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
+  // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
+  // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only
+  // to the stable setter — never to CursorValueContext — means this, the single largest and most
+  // render-expensive component in the app, is no longer forced to re-render on every mouse-move tick.
+  const setCursor = useSetCursor();
   const {
-    collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements, setCursor, cursor,
+    collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
     surfaceSamples, surfaceElements,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,

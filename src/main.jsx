@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import SectionWindow from "./components/SectionWindow.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
-import { StoreProvider } from "./lib/store.jsx";
+import { StoreProvider, CursorProvider } from "./lib/store.jsx";
 // TASKS.csv #185 — "Let's use Exo 2 for all fonts." Bundled via @fontsource/exo-2 (not a Google
 // Fonts <link>) so the app-wide font still loads with no network access — this is an Electron
 // desktop app used in the field, and a CDN <link> would silently fall back to system fonts offline.
@@ -29,7 +29,9 @@ if (route === "/section") {
   root.render(
     <ErrorBoundary>
       <StoreProvider>
-        <App />
+        <CursorProvider>
+          <App />
+        </CursorProvider>
       </StoreProvider>
     </ErrorBoundary>
   );
