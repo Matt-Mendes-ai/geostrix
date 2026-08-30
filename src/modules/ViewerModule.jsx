@@ -1275,7 +1275,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       const compassResult = e.button === 0 ? compass.handlePointerDown(mount, mx, my, e.button) : false;
       if (compassResult === true) return; // click consumed (snapped to a face)
-      dragRef.current = { dragging: true, panning: e.button === 1, lastX: e.clientX, lastY: e.clientY };
+      // TASKS.csv #212 — user report, persisting after the stale-dragRef/pointercancel hardening
+      // already applied here: "drag still not working, it's doing the same as left click on mouse,
+      // it is rotating the view" — i.e. a real middle-mouse drag is STILL coming through as a rotate.
+      // That can only mean e.button genuinely isn't reporting 1 for Matt's middle click at the moment
+      // of pointerdown (mouse driver software remapping the middle button, or Windows/Chromium's own
+      // middle-click autoscroll gesture intercepting the button-down before it reaches this handler
+      // as a normal click — both outside this app's control, and neither fixable by hardening the
+      // move-handler's stale-state logic, which is all the earlier pass could actually address without
+      // hardware to test against). Rather than keep guessing at the exact OS/driver cause, Shift+Left-
+      // drag is added here as a reliable, driver-independent pan gesture that doesn't depend on the
+      // middle button being reported correctly at all — same fallback QGIS/Blender-style tools offer
+      // alongside (not instead of) a literal middle-drag. Plain middle-click (e.button === 1) still
+      // works exactly as before for anyone whose hardware reports it correctly.
+      dragRef.current = { dragging: true, panning: e.button === 1 || (e.button === 0 && e.shiftKey), lastX: e.clientX, lastY: e.clientY };
       renderer.domElement.setPointerCapture(e.pointerId);
     };
     const onPointerUp = (e) => {

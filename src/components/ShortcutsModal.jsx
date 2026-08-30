@@ -51,6 +51,19 @@ const SHORTCUT_GROUPS = [
     ],
   },
   {
+    // TASKS.csv #212 — user report: middle-mouse drag panning the 3D view sometimes comes through as
+    // a rotate instead, on some mouse hardware/driver setups. Shift+Left-drag was added as a reliable
+    // pan gesture that doesn't depend on the middle button being reported correctly at all — listed
+    // here so it's discoverable without needing to hit that bug first.
+    title: "3D View mouse controls",
+    items: [
+      ["Left-drag", "Rotate/orbit"],
+      ["Middle-drag or Shift+Left-drag", "Pan"],
+      ["Scroll", "Zoom in / out"],
+      ["Right-click", "Context menu"],
+    ],
+  },
+  {
     title: "Layout page",
     items: [
       ["Delete / Backspace", "Delete the selected element(s)"],
