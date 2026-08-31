@@ -243,9 +243,21 @@ ipcMain.handle("autosave-clear", async () => {
   } catch (err) { return { ok: false, error: err.message }; }
 });
 
-// ---------- database connector (Postgres — the typical backend behind a DBeaver connection) ----------
+// ---------- database connector (Postgres/MySQL — DBeaver-managed company databases) ----------
 // Each call opens a short-lived client rather than a pool; this is an exploration tool making
 // occasional pulls, not a high-throughput backend, so simplicity/robustness wins over pooling.
+//
+// TASKS.csv #177 — user request: "we will have to build a way to connect to a dbeaver database. some
+// companies use it and they have views ready and all." DBeaver itself is a universal GUI client, not
+// an engine — it connects to whatever a company actually runs. This was Postgres-only; MySQL/MariaDB
+// added first (Matt confirmed it as the priority engine over SQL Server/Oracle/SQLite — Oracle in
+// particular needs Instant Client binaries bundled, a real packaging complication for an Electron app,
+// so deliberately not attempted speculatively). makeDbClient() below normalizes both drivers' very
+// different native shapes (pg's `client.query()` resolves `{rows, fields:[{name}]}`; mysql2's
+// `conn.query()` resolves a `[rows, fieldsMeta]` tuple) into one common `{query, end, raw}` shape, so
+// every handler below reads config.engine ("postgres" | "mysql", default "postgres" for old saved
+// connection profiles with no engine field at all) exactly once, at client-creation time, instead of
+// branching on engine inside every single handler.
 
 // User-reported bug: "connect ECONNREFUSED ::1:54380" against a real Postgres (reachable fine from
 // DBeaver/psql on the same machine). The dns.setDefaultResultOrder("ipv4first") fix above this section
@@ -265,59 +277,57 @@ function friendlyDbError(err, config) {
   if (/ENOTFOUND/.test(raw)) {
     return `${raw} — "${config.host}" doesn't resolve to anything. Check for a typo, or that this machine's DNS/hosts file actually knows that hostname (a VPN-only internal hostname often only resolves while connected to that VPN).`;
   }
-  if (/password authentication failed|28P01/.test(raw)) {
+  if (/password authentication failed|28P01|ER_ACCESS_DENIED_ERROR|Access denied for user/.test(raw)) {
     return `${raw} — connected to the server fine, but the username/password was rejected. Double check both against the same credentials DBeaver uses for this connection.`;
+  }
+  if (/ER_BAD_DB_ERROR|Unknown database/.test(raw)) {
+    return `${raw} — connected to the server, but database "${config.database}" doesn't exist there (or this user can't see it). Check the database name against what DBeaver uses for this connection.`;
   }
   return raw;
 }
 
 ipcMain.handle("db-test", async (_e, config) => {
-  const { Client } = require("pg");
-  const client = new Client(pgConfig(config));
+  let db;
   try {
-    await client.connect();
-    const res = await client.query("SELECT current_database() as db, current_user as usr, version() as ver");
+    db = await makeDbClient(config);
+    const res = await db.query(testConnectionQuery(config));
     return { ok: true, info: res.rows[0] };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, config) };
   } finally {
-    try { await client.end(); } catch (_) {}
+    if (db) try { await db.end(); } catch (_) {}
   }
 });
 
 ipcMain.handle("db-query", async (_e, { config, sql }) => {
-  const { Client } = require("pg");
-  const client = new Client(pgConfig(config));
+  let db;
   try {
-    await client.connect();
-    const res = await client.query(sql);
-    return { ok: true, rows: res.rows, fields: res.fields.map((f) => f.name), rowCount: res.rowCount };
+    db = await makeDbClient(config);
+    const res = await db.query(sql);
+    return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, config) };
   } finally {
-    try { await client.end(); } catch (_) {}
+    if (db) try { await db.end(); } catch (_) {}
   }
 });
 
 ipcMain.handle("db-list-tables", async (_e, config) => {
-  const { Client } = require("pg");
-  const client = new Client(pgConfig(config));
+  let db;
   try {
-    await client.connect();
-    const res = await client.query(
-      // TASKS.csv #177 — surface VIEWS alongside base tables, not just tables. A DBeaver-managed
-      // company database is exactly the case where the useful thing to import from is often a
-      // pre-built view (pre-joined/pre-cleaned), not a raw base table — information_schema.tables
-      // already includes both table_type='BASE TABLE' and table_type='VIEW' rows by default, this
-      // was just never filtered TO views specifically, so nothing needed to change here except this
-      // clarifying comment once the omission was noticed while fixing the connection bug above.
-      "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name"
-    );
+    db = await makeDbClient(config);
+    // TASKS.csv #177 — surface VIEWS alongside base tables, not just tables. A DBeaver-managed
+    // company database is exactly the case where the useful thing to import from is often a
+    // pre-built view (pre-joined/pre-cleaned), not a raw base table — information_schema.tables
+    // already includes both table_type='BASE TABLE' and table_type='VIEW' rows by default (true for
+    // both Postgres and MySQL — this table is part of the SQL standard's own information_schema,
+    // not a Postgres-specific extension), this was just never filtered TO views specifically.
+    const res = await db.query(listTablesQuery(config));
     return { ok: true, tables: res.rows };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, config) };
   } finally {
-    try { await client.end(); } catch (_) {}
+    if (db) try { await db.end(); } catch (_) {}
   }
 });
 
@@ -353,6 +363,56 @@ function pgConfig(config) {
     connectionTimeoutMillis: 8000,
   };
 }
+function mysqlConfig(config) {
+  return {
+    host: config.host, port: Number(config.port) || 3306, database: config.database,
+    user: config.user, password: config.password,
+    ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
+    connectTimeout: 8000,
+  };
+}
+function testConnectionQuery(config) {
+  return config.engine === "mysql"
+    ? "SELECT DATABASE() as db, CURRENT_USER() as usr, VERSION() as ver"
+    : "SELECT current_database() as db, current_user as usr, version() as ver";
+}
+function listTablesQuery(config) {
+  return config.engine === "mysql"
+    ? "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('information_schema','mysql','performance_schema','sys') ORDER BY table_schema, table_name"
+    : "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name";
+}
+// Normalizes pg's Client and mysql2's Connection — very different native shapes (pg's query()
+// resolves {rows, fields:[{name,...}]}; mysql2's query() resolves a [rows, fieldsMeta] tuple, and a
+// non-SELECT statement returns a ResultSetHeader object instead of a rows array entirely) — into one
+// common {query, end, raw} shape every handler above/below reads uniformly. `raw` is exposed
+// separately (not swallowed) because db-connect needs the actual driver connection object to attach
+// its own 'error' listener (a dropped connection fires that event on the raw client/connection, not
+// on this wrapper).
+async function makeDbClient(config) {
+  if (config.engine === "mysql") {
+    const mysql = require("mysql2/promise");
+    const conn = await mysql.createConnection(mysqlConfig(config));
+    return {
+      raw: conn,
+      query: async (sql) => {
+        const [rows, fields] = await conn.query(sql);
+        return { rows, fields: (fields || []).map((f) => f.name), rowCount: Array.isArray(rows) ? rows.length : (rows?.affectedRows ?? 0) };
+      },
+      end: () => conn.end(),
+    };
+  }
+  const { Client } = require("pg");
+  const client = new Client(pgConfig(config));
+  await client.connect();
+  return {
+    raw: client,
+    query: async (sql) => {
+      const res = await client.query(sql);
+      return { rows: res.rows, fields: res.fields.map((f) => f.name), rowCount: res.rowCount };
+    },
+    end: () => client.end(),
+  };
+}
 
 // TASKS.csv #206 — persistent DB connections (QGIS-style Browser panel). db-test/db-query/db-list-
 // tables above are the original one-shot path (open a fresh pg.Client, run one thing, always close it
@@ -368,23 +428,22 @@ const liveDbConnections = new Map(); // id -> { client, safeConfig, connectedAt 
 let liveDbConnCounter = 0;
 
 ipcMain.handle("db-connect", async (_e, config) => {
-  const { Client } = require("pg");
-  const client = new Client(pgConfig(config));
+  let db;
   try {
-    await client.connect();
-    const res = await client.query("SELECT current_database() as db, current_user as usr, version() as ver");
+    db = await makeDbClient(config);
+    const res = await db.query(testConnectionQuery(config));
     const id = `dbconn_${++liveDbConnCounter}_${Date.now()}`;
     const { password, ...safeConfig } = config;
-    liveDbConnections.set(id, { client, safeConfig, connectedAt: Date.now() });
-    client.on("error", (err) => {
+    liveDbConnections.set(id, { client: db, safeConfig, connectedAt: Date.now() });
+    db.raw.on("error", (err) => {
       // Connection dropped underneath us (network blip, server restart, idle timeout). Drop our
       // record of it so the Browser panel can show it as disconnected rather than silently failing
       // every subsequent query against a dead client.
-      if (liveDbConnections.get(id)?.client === client) liveDbConnections.delete(id);
+      if (liveDbConnections.get(id)?.client === db) liveDbConnections.delete(id);
     });
     return { ok: true, id, info: res.rows[0], config: safeConfig };
   } catch (err) {
-    try { await client.end(); } catch (_) {}
+    if (db) try { await db.end(); } catch (_) {}
     return { ok: false, error: friendlyDbError(err, config) };
   }
 });
@@ -409,7 +468,7 @@ ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
   try {
     const res = await entry.client.query(sql);
-    return { ok: true, rows: res.rows, fields: res.fields.map((f) => f.name), rowCount: res.rowCount };
+    return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, entry.safeConfig) };
   }
@@ -419,9 +478,7 @@ ipcMain.handle("db-live-list-tables", async (_e, { id }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
   try {
-    const res = await entry.client.query(
-      "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name"
-    );
+    const res = await entry.client.query(listTablesQuery(entry.safeConfig));
     return { ok: true, tables: res.rows };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, entry.safeConfig) };

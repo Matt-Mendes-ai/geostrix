@@ -9,7 +9,12 @@ import PromptModal from "./PromptModal.jsx";
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
-  const [config, setConfig] = useState({ name: "", host: "localhost", port: 5432, database: "", user: "", password: "", ssl: false });
+  // TASKS.csv #177 — engine picker, MySQL/MariaDB added alongside the original Postgres-only path
+  // (Matt confirmed MySQL as the priority engine over SQL Server/Oracle/SQLite). "postgres" stays the
+  // default for a brand-new form and is what an old saved connection profile with no engine field at
+  // all falls back to, so nothing about an existing saved Postgres connection changes.
+  const DEFAULT_PORT = { postgres: 5432, mysql: 3306 };
+  const [config, setConfig] = useState({ name: "", engine: "postgres", host: "localhost", port: 5432, database: "", user: "", password: "", ssl: false });
   const [status, setStatus] = useState(null); // {ok, error, info}
   const [testing, setTesting] = useState(false);
   const [sql, setSql] = useState("SELECT * FROM lithology LIMIT 500;");
@@ -31,8 +36,9 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 
   const loadSaved = (name) => {
     const saved = dbConnections.find((c) => c.name === name);
-    if (saved) setConfig((p) => ({ ...p, ...saved, password: "" }));
+    if (saved) setConfig((p) => ({ ...p, engine: "postgres", ...saved, password: "" }));
   };
+  const setEngine = (engine) => setConfig((p) => ({ ...p, engine, port: p.port === DEFAULT_PORT[p.engine] ? DEFAULT_PORT[engine] : p.port }));
 
   const test = async () => {
     setTesting(true); setStatus(null);
@@ -80,7 +86,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
           <div style={{ fontSize: 11, color: "#55606e", marginBottom: 12, lineHeight: 1.5 }}>
-            Connects directly to the Postgres database — the same one DBeaver points at — rather than going through DBeaver itself. Password is used for this session only; never saved to disk or to the project file. Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
+            Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. Password is used for this session only; never saved to disk or to the project file. Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
           </div>
 
           {dbConnections.length > 0 && (
@@ -93,6 +99,12 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
           <div style={grid2}>
             <Field label="Connection name">
               <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder="REDACTED DB" style={inp} />
+            </Field>
+            <Field label="Engine">
+              <select value={config.engine} onChange={(e) => setEngine(e.target.value)} style={sel}>
+                <option value="postgres">PostgreSQL</option>
+                <option value="mysql">MySQL / MariaDB</option>
+              </select>
             </Field>
             <Field label="Host">
               <input value={config.host} onChange={(e) => set("host", e.target.value)} style={inp} />
