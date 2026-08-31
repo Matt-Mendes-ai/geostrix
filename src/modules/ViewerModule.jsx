@@ -1200,10 +1200,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // Far plane bumped alongside the zoom max below — a camera can't see past its far plane, so
     // raising how far out the wheel can zoom is pointless without raising this too.
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000000); cameraRef.current = camera;
-    // preserveDrawingBuffer is needed so canvas.toDataURL() (used by the "Snapshot to Layout"
-    // button below) can read back whatever was last rendered — without it, WebGL is free to clear
-    // the buffer right after presenting a frame and toDataURL() would come back blank/black.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    // TASKS.csv #236 (software-design-specialist audit finding) — preserveDrawingBuffer:true forces
+    // the browser to retain the WebGL drawing buffer after every single presented frame, a real,
+    // permanent per-frame cost (extra memory bandwidth, and it can block certain GPU-side present-path
+    // optimizations) paid forever just to support two toDataURL() snapshot call sites (snapshotToLayout
+    // and the Layout-Viewport render-request capture) — a real concern for this app's own target
+    // hardware (budget-constrained geologists' laptops, not gaming rigs). Both of those call sites
+    // already call renderer.render(scene, camera) synchronously, in the same JS task, immediately
+    // before reading canvas.toDataURL() — the browser doesn't actually clear/present the drawing
+    // buffer until control returns to its own event loop after the current synchronous task finishes,
+    // so that existing "render then immediately read, same task" pattern already produces a correct,
+    // non-blank capture without needing the buffer preserved between frames at all. Verified live
+    // (see this row's own commit) that both snapshot paths still work correctly with this removed.
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
 
