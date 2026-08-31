@@ -193,6 +193,36 @@ function normStructure(r, mapping, customFields) {
     azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
   }, r, customFields);
 }
+// TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
+// camera-facing labels (a Sprite auto-billboards, unlike a Mesh) without pulling in a font/SDF-text
+// library just for hole names. Rendered at a fixed pixel-ish canvas resolution then scaled in world
+// units via sprite.scale — legible at a normal drillhole-scale zoom without turning into a giant
+// screen-filling label right on top of a collar (three.js Sprites don't have a native "distance-
+// independent" screen-space size mode without a custom shader, which felt like real overkill here).
+function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const fontSize = 32;
+  ctx.font = `600 ${fontSize}px 'Exo 2', system-ui, sans-serif`;
+  const padX = 10, padY = 6;
+  const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
+  const h = fontSize + padY * 2;
+  canvas.width = w; canvas.height = h;
+  ctx.font = `600 ${fontSize}px 'Exo 2', system-ui, sans-serif`;
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, padX, h / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  const scale = 0.09; // world-units-per-canvas-pixel — tuned to read clearly at a typical drillhole-project zoom
+  sprite.scale.set(w * scale, h * scale, 1);
+  sprite.renderOrder = 999; // draw after (on top of) opaque geometry — depthTest:false already ignores occlusion, this just keeps draw order consistent across sprites
+  return sprite;
+}
 function normCollar(r) {
   return {
     hole_id: String(getCol(r, ["hole_id", "holeid", "hole", "bhid"]) ?? "").trim(),
@@ -797,6 +827,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // washes out a light-colored model/raster, or just personal preference. Persisted the same way as
   // every other viewer UI setting (layerVisible, gridConfig, etc. — see the hydrate/push effects below).
   const [bgColor, setBgColor] = useState("#ffffff");
+  // TASKS.csv #131 — QGIS-specialist audit finding: "no configurable label expression in the 3D/plan
+  // view." Scoped narrowly here to collar (hole) labels specifically, since that's the concrete case
+  // every downhole tool actually labels by default and GeoStrix currently has NO text labeling
+  // anywhere in the 3D scene at all (confirmed by grep before starting — not just "fixed" labeling as
+  // the audit's phrasing implied, genuinely absent). A full QGIS-style label-expression engine across
+  // every layer type would be a much larger feature; this covers the single most-wanted case (reading
+  // which hole is which without opening the sidebar or hovering every collar one at a time) with a
+  // small fixed set of label contents rather than an arbitrary expression language.
+  const [holeLabelMode, setHoleLabelMode] = useState("none"); // "none" | "hole_id" | "hole_id_z" | "hole_id_depth"
 
   // Manual "Refresh view" trigger — the user asked for this after seeing collars render a few meters
   // off from a DEM following a delete + re-import. The geometry-rebuild effects below are all correct
@@ -1048,6 +1087,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setAssayVisible(true); setAssayDisplayElements([]); setAssayStyle({});
       setGridConfig({ ...DEFAULT_GRID });
       setBgColor("#ffffff");
+      setHoleLabelMode("none");
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1063,6 +1103,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setAssayStyle(s.assayStyle || {});
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
     setBgColor(s.bgColor || "#ffffff");
+    setHoleLabelMode(s.holeLabelMode || "none");
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1080,8 +1121,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       assayStyle,
       gridConfig,
       bgColor,
+      holeLabelMode,
     });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, setViewerUiState]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, setViewerUiState]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -1174,6 +1216,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // assayElements not living in `layers` either) — built/cleared by the same generic
     // Object.values(groups) loops the geometry-rebuild effect already uses for every other group.
     const surfaceGroup = new THREE.Group(); surfaceGroup.name = "surface_samples"; root.add(surfaceGroup); groups.surface_samples = surfaceGroup;
+    // TASKS.csv #131 — hole (collar) labels, own group for the same reason surface_samples/geophys_pts
+    // get one: driven by its own toggle (holeLabelMode), built/cleared by the generic Object.values(groups)
+    // loops the rebuild effect already uses, no special-casing needed there.
+    const holeLabelGroup = new THREE.Group(); holeLabelGroup.name = "hole_labels"; root.add(holeLabelGroup); groups.hole_labels = holeLabelGroup;
     layerGroupsRef.current = groups;
     const implicitGroup = new THREE.Group(); implicitGroup.name = "implicit"; root.add(implicitGroup);
     implicitGroupRef.current = implicitGroup;
@@ -2636,7 +2682,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   useEffect(() => {
     const groups = layerGroupsRef.current;
     if (!groups.litho) return;
-    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); c.geometry?.dispose?.(); c.material?.dispose?.(); } });
+    // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
+    // disposal: every OTHER mesh type built into these groups uses a plain color-only material (no
+    // .map), so this was a harmless no-op for all of them, but hole-label Sprites use a CanvasTexture
+    // (SpriteMaterial.map) that this loop would otherwise leak — a growing, uncollectable GPU texture
+    // per rebuild — since disposing the material alone does not dispose a texture it merely references.
+    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); } });
     if (!collars.length) {
       setDataLoaded(false);
       hasAutoFitRef.current = false;
@@ -2858,6 +2909,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
       groups.litho.add(traceLine);
+
+      // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode (defaults to "none" so this
+      // is a pure addition, no behavior change for anyone who hasn't turned it on).
+      if (holeLabelMode !== "none") {
+        const totalDepth = pts.length ? pts[pts.length - 1].md : 0;
+        const text = holeLabelMode === "hole_id_z" ? `${c.hole_id} (${c.z.toFixed(0)}m)`
+          : holeLabelMode === "hole_id_depth" ? `${c.hole_id} (${totalDepth.toFixed(0)}m)`
+          : c.hole_id;
+        const sprite = makeTextSprite(text);
+        sprite.position.set(pts[0].x, pts[0].y + 6, pts[0].z); // offset above the collar marker so it doesn't overlap it
+        sprite.userData = { tip: `${c.hole_id}\nLabel` };
+        groups.hole_labels.add(sprite);
+      }
 
       // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
       // ramp fits both; specific gravity has no such fixed domain (real values run ~2-5), so it
@@ -3124,7 +3188,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples]);
+  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -4478,6 +4542,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           {survey.length > 0 && <div onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={13} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
+
+        {/* TASKS.csv #131 — hole (collar) labels, QGIS-specialist audit finding: GeoStrix had no text
+            labeling anywhere in the 3D scene at all. Scoped to a small fixed set of label contents
+            rather than a full expression language — see holeLabelMode's own declaration comment. Only
+            shown once there's something to label, same "don't clutter the sidebar with nothing to
+            show" convention every other conditional sidebar section here already follows. */}
+        {collars.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "#55606e", flexShrink: 0 }}>Hole labels</span>
+            <select
+              value={holeLabelMode}
+              onChange={(e) => setHoleLabelMode(e.target.value)}
+              style={{ flex: 1, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 }}
+            >
+              <option value="none">Off</option>
+              <option value="hole_id">Hole ID</option>
+              <option value="hole_id_z">Hole ID + elevation</option>
+              <option value="hole_id_depth">Hole ID + total depth</option>
+            </select>
+          </div>
+        )}
+
         {/* TASKS.csv #155 — Connect database / Run data QC / Boundary intercepts moved to the toolbar
             above (they're tools/dialogs, not data) — see the ge-subtoolbar block near the top of this
             return. */}
