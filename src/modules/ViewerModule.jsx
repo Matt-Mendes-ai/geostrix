@@ -5350,7 +5350,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <FileBarChart2 size={13} style={{ cursor: "pointer", color: "#55606e" }} onClick={exportPlannedHolesCSV} title="Export all planned holes to CSV" />
           )}
         </div>
-        <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} />
+        <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 11.5, color: "#94a1b0", marginTop: 8 }}>
             No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.
@@ -6118,8 +6118,29 @@ function VoxelRangeRow({ model, onUpdate }) {
 // changes its own label/style to "Click on the view…"; the next click anywhere in the 3D view raycasts
 // a real world point (onPickHoleClick, terrain/voxel/drillhole-aware, not just a flat plane) and this
 // form picks it up via the `pickedPoint` prop.
-function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint }) {
+// TASKS.csv #239 — mineral-exploration/QGIS-specialist audit finding: "no utility to pick a target
+// point and solve azimuth/dip from a chosen collar." Straight-line solve only (matches how a planned
+// hole is already designed here — a single azimuth/dip/length, not a multi-segment survey plan): given
+// a start point (an existing real collar, or the x/y/z fields above) and a typed target point, computes
+// the azimuth/dip a straight hole from the start would need to pass through the target, and the
+// straight-line distance (pre-filled into Length so "+ Add hole" produces a hole that actually reaches
+// it, not the previous default length falling short or overshooting).
+function solveAzDipToTarget(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+  const horiz = Math.hypot(dx, dy);
+  let azimuth = (Math.atan2(dx, dy) * 180) / Math.PI;
+  if (azimuth < 0) azimuth += 360;
+  // atan2(dz, horiz) already matches this app's "negative = down" dip convention directly: dz is
+  // negative when the target sits below the start point, which is the normal downhole-target case,
+  // and that naturally produces a negative angle with no sign-flip needed.
+  const dip = (Math.atan2(dz, horiz) * 180) / Math.PI;
+  const distance = Math.hypot(dx, dy, dz);
+  return { azimuth, dip, distance };
+}
+function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
+  const [fromCollarId, setFromCollarId] = useState("");
+  const [target, setTarget] = useState({ x: "", y: "", z: "" });
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
   const lastAppliedPick = useRef(null);
   useEffect(() => {
@@ -6127,15 +6148,42 @@ function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint }) {
     lastAppliedPick.current = pickedPoint;
     setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round(pickedPoint.z * 10) / 10 }));
   }, [pickedPoint]);
+  const applyFromCollar = (holeId) => {
+    setFromCollarId(holeId);
+    const c = collars.find((h) => h.hole_id === holeId);
+    if (c) setDraft((p) => ({ ...p, name: p.name || `${holeId}-target`, x: c.x, y: c.y, z: c.z }));
+  };
+  const targetReady = ["x", "y", "z"].every((k) => target[k] !== "" && !isNaN(Number(target[k])));
+  const fromReady = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z));
+  const solveTarget = () => {
+    if (!targetReady || !fromReady) return;
+    const { azimuth, dip, distance } = solveAzDipToTarget(
+      { x: Number(draft.x), y: Number(draft.y), z: Number(draft.z) },
+      { x: Number(target.x), y: Number(target.y), z: Number(target.z) },
+    );
+    setDraft((p) => ({ ...p, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round(distance * 10) / 10 }));
+  };
   const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0;
   const submit = () => {
     if (!canAdd) return;
     onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: Number(draft.azimuth), dip: Number(draft.dip), length: Number(draft.length) });
     setDraft({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
+    setFromCollarId(""); setTarget({ x: "", y: "", z: "" });
   };
   return (
     <div style={{ padding: "8px 9px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6 }}>
       <input placeholder="Hole name (optional)" value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11.5, color: "#1a2028", marginBottom: 5 }} />
+      {collars.length > 0 && (
+        <select
+          value={fromCollarId}
+          onChange={(e) => applyFromCollar(e.target.value)}
+          style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "#1a2028", marginBottom: 5 }}
+          title="Fill E/N/Elev below from an existing real collar, to design a new hole starting there"
+        >
+          <option value="">Collar (E/N/Elev): custom, typed below</option>
+          {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
+        </select>
+      )}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label="E" value={draft.x} onChange={(v) => set("x", v)} />
         <NumField label="N" value={draft.y} onChange={(v) => set("y", v)} />
@@ -6155,6 +6203,15 @@ function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint }) {
           {pickMode ? "Click on the view…" : "Pick on view"}
         </button>
         <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "#eaf1fa" : "#f4f5f7", borderColor: canAdd ? "#a9c6e0" : "#c7ccd3", opacity: canAdd ? 1 : 0.5 }}>+ Add hole</button>
+      </div>
+      <div style={{ borderTop: "1px solid #d9dce1", marginTop: 7, paddingTop: 7 }}>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 4 }}>Solve azimuth/dip/length to hit a target from the E/N/Elev above</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
+          <NumField label="Target E" value={target.x} onChange={(v) => setTarget((p) => ({ ...p, x: v }))} />
+          <NumField label="Target N" value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />
+          <NumField label="Target Elev" value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
+        </div>
+        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "#eaf1fa" : "#f4f5f7", borderColor: targetReady && fromReady ? "#a9c6e0" : "#c7ccd3", opacity: targetReady && fromReady ? 1 : 0.5 }}>Solve az/dip/length to target</button>
       </div>
     </div>
   );
