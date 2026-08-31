@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target } from "lucide-react";
+import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue } from "./lib/store.jsx";
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth } from "./lib/desktop.js";
@@ -14,6 +14,10 @@ const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
 const GeophysicsModule = React.lazy(() => import("./modules/GeophysicsModule.jsx"));
 const RasterModule = React.lazy(() => import("./modules/RasterModule.jsx"));
 const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
+// TASKS.csv #138 — project report is opened rarely (not every session), so lazy-load it the same way
+// as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
+// everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
+const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
 // sits near the other data-import modules rather than at the end.
@@ -67,6 +71,7 @@ export default function App() {
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable"
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "about"
+  const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
 
   // TASKS.csv #33 — crash recovery. Check once, right after mount, whether an autosave snapshot
   // exists from a session that never reached a real Save (crash, force-quit, power loss). Only a
@@ -283,6 +288,7 @@ export default function App() {
         <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title="Exports the Layout page (switches to it first if needed)">Export PDF</button>
+        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)"><FileBarChart2 size={14} /> Report</button>
       </div>
 
       <div className="ge-body">
@@ -303,6 +309,11 @@ export default function App() {
 
       <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} />
       {shortcutsTab && <ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} />}
+      {reportOpen && (
+        <Suspense fallback={null}>
+          <ProjectReportModal store={store} onClose={() => setReportOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
