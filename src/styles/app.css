@@ -1,9 +1,45 @@
+/* TASKS.csv #238 — design-system foundation: CSS custom properties matching src/lib/theme.js's
+   `colors` object value-for-value (same names, camelCase there / kebab-case here) — the two are
+   meant to stay in sync. This file's own class rules below are converted to reference these
+   variables instead of the raw hex they used before, as the first concrete usage of the palette;
+   the much larger share of the app's styling (inline `style={{}}` objects across src/modules and
+   src/components) is NOT touched by this pass — see theme.js's own header comment for why a plain
+   JS constants object, not CSS variables, is the more useful form for that majority-share styling,
+   and TASKS.csv #238's own notes for what's deliberately left for a follow-up pass. */
+:root {
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f4f5f7;
+  --color-bg-subtlest: #fafbfc;
+  --color-border: #d9dce1;
+  --color-border-light: #c7ccd3;
+  --color-divider: #dde1e6;
+  --color-text: #1a2028;
+  --color-text-secondary: #55606e;
+  --color-text-muted: #94a1b0;
+  --color-text-faint: #6b7684;
+  --color-accent: #e2a63c;
+  --color-accent-dark: #8a6a1f;
+  --color-selected-bg: #eaf1fa;
+  --color-selected-border: #a9c6e0;
+  --color-info: #4a9be0;
+  --color-success-bg: #1e3629;
+  --color-success-text: #8fd9ab;
+  --color-success-border: #3d6b52;
+  --color-danger-bg: #2a1f1f;
+  --color-danger-text: #e0a0a0;
+  --color-danger-border: #4a2f2f;
+  --color-danger-icon: #8a5555;
+  --color-danger-solid: #c0392b;
+  --color-hover-bg: #eef1f5;
+  --color-tooltip-bg: #dde1e6;
+}
+
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; width: 100%; }
 body {
   font-family: 'Exo 2', system-ui, sans-serif;
-  background: #ffffff;
-  color: #1a2028;
+  background: var(--color-bg);
+  color: var(--color-text);
   overflow: hidden;
 }
 button { font-family: inherit; }
@@ -15,18 +51,18 @@ input, select { font-family: inherit; }
 .ge-toolbar {
   display: flex; align-items: center; gap: 4px;
   height: 44px; flex-shrink: 0;
-  background: #ffffff; border-bottom: 1px solid #d9dce1;
+  background: var(--color-bg); border-bottom: 1px solid var(--color-border);
   padding: 0 10px;
 }
 .ge-tool-btn {
   display: flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 12px;
   background: transparent; border: 1px solid transparent; border-radius: 6px;
-  color: #55606e; font-size: 12.5px; cursor: pointer;
+  color: var(--color-text-secondary); font-size: 12.5px; cursor: pointer;
 }
-.ge-tool-btn:hover { background: #f4f5f7; color: #1a2028; }
-.ge-tool-btn.active { background: #eaf1fa; border-color: #a9c6e0; color: #1a2028; }
-.ge-tool-sep { width: 1px; height: 22px; background: #d9dce1; margin: 0 6px; }
+.ge-tool-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
+.ge-tool-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); color: var(--color-text); }
+.ge-tool-sep { width: 1px; height: 22px; background: var(--color-border); margin: 0 6px; }
 
 /* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
    module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data
@@ -36,20 +72,20 @@ input, select { font-family: inherit; }
 .ge-subtoolbar {
   display: flex; align-items: center; gap: 2px;
   height: 38px; flex-shrink: 0;
-  background: #fafbfc; border-bottom: 1px solid #d9dce1;
+  background: var(--color-bg-subtlest); border-bottom: 1px solid var(--color-border);
   padding: 0 8px; position: relative;
 }
 .ge-subtool-btn {
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 28px;
   background: transparent; border: 1px solid transparent; border-radius: 5px;
-  color: #55606e; cursor: pointer;
+  color: var(--color-text-secondary); cursor: pointer;
 }
-.ge-subtool-btn:hover { background: #eef1f5; color: #1a2028; }
-.ge-subtool-btn.active { background: #eaf1fa; border-color: #a9c6e0; color: #1a2028; }
+.ge-subtool-btn:hover { background: var(--color-hover-bg); color: var(--color-text); }
+.ge-subtool-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); color: var(--color-text); }
 .ge-subtool-btn:disabled { opacity: 0.4; cursor: default; }
-.ge-subtool-btn:disabled:hover { background: transparent; color: #55606e; }
-.ge-subtool-sep { width: 1px; height: 20px; background: #d9dce1; margin: 0 5px; flex-shrink: 0; }
+.ge-subtool-btn:disabled:hover { background: transparent; color: var(--color-text-secondary); }
+.ge-subtool-sep { width: 1px; height: 20px; background: var(--color-border); margin: 0 5px; flex-shrink: 0; }
 
 /* TASKS.csv #34 — workspace tab bar (multiple open projects). Sits between the print-hidden toolbar
    and the module content, so it's included in the same @media print { display: none } rule below
@@ -57,7 +93,7 @@ input, select { font-family: inherit; }
 .ge-tabbar {
   display: flex; align-items: center; gap: 3px;
   height: 30px; flex-shrink: 0; overflow-x: auto;
-  background: #ffffff; border-bottom: 1px solid #dde1e6;
+  background: var(--color-bg); border-bottom: 1px solid var(--color-divider);
   padding: 0 6px;
 }
 .ge-tab {
@@ -66,22 +102,22 @@ input, select { font-family: inherit; }
   max-width: 180px;
   background: #f7f8fa; border: 1px solid #f0f1f3; border-bottom: none;
   border-radius: 6px 6px 0 0;
-  color: #6b7684; font-size: 11px; cursor: pointer;
+  color: var(--color-text-faint); font-size: 11px; cursor: pointer;
   flex-shrink: 0;
 }
 .ge-tab:hover { color: #3d4652; }
-.ge-tab.active { background: #f4f5f7; border-color: #a9c6e0; color: #1a2028; }
+.ge-tab.active { background: var(--color-bg-subtle); border-color: var(--color-selected-border); color: var(--color-text); }
 .ge-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: #e2a63c; flex-shrink: 0; }
-.ge-tab-close { flex-shrink: 0; color: #94a1b0; border-radius: 3px; }
-.ge-tab-close:hover { color: #e0a0a0; background: #fdeceb; }
+.ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+.ge-tab-close { flex-shrink: 0; color: var(--color-text-muted); border-radius: 3px; }
+.ge-tab-close:hover { color: var(--color-danger-text); background: #fdeceb; }
 .ge-tab-add {
   display: flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; margin-top: 4px; flex-shrink: 0;
   background: transparent; border: 1px solid transparent; border-radius: 5px;
-  color: #94a1b0; cursor: pointer;
+  color: var(--color-text-muted); cursor: pointer;
 }
-.ge-tab-add:hover { background: #f4f5f7; color: #1a2028; }
+.ge-tab-add:hover { background: var(--color-bg-subtle); color: var(--color-text); }
 
 /* body split */
 .ge-body { flex: 1; display: flex; min-height: 0; }
@@ -91,15 +127,15 @@ input, select { font-family: inherit; }
 .ge-status {
   display: flex; align-items: center; gap: 16px;
   height: 26px; flex-shrink: 0;
-  background: #ffffff; border-top: 1px solid #d9dce1;
-  padding: 0 12px; font-size: 11px; color: #55606e;
+  background: var(--color-bg); border-top: 1px solid var(--color-border);
+  padding: 0 12px; font-size: 11px; color: var(--color-text-secondary);
 }
-.ge-status .val { color: #1a2028; }
+.ge-status .val { color: var(--color-text); }
 .ge-status .spacer { flex: 1; }
 
 /* generic panel */
-.ge-panel { width: 300px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #d9dce1; overflow-y: auto; }
-.ge-section-label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #94a1b0; margin-bottom: 8px; }
+.ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-right: 1px solid var(--color-border); overflow-y: auto; }
+.ge-section-label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
 
 /* Export PDF (electron printToPDF, or window.print() in the browser dev fallback) captures the
    whole window, not just the Layout page — without this, exported PDFs would include the toolbar,
@@ -109,7 +145,7 @@ input, select { font-family: inherit; }
    inline styles, so it's reset here to print at its natural A4-landscape size, full bleed. */
 @media print {
   .ge-toolbar, .ge-subtoolbar, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
-  html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; overflow: visible !important; background: #fff !important; }
+  html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; overflow: visible !important; background: var(--color-bg) !important; }
   .ge-layout-page { margin: 0 !important; box-shadow: none !important; }
 }
 
@@ -123,5 +159,5 @@ input, select { font-family: inherit; }
 }
 
 /* AttributeTableModal.jsx — editable cell focus ring, so it's clear a cell is being typed into */
-.ge-attr-cell:hover { border-color: #d9dce1 !important; }
-.ge-attr-cell:focus { border-color: #e2a63c !important; outline: none; background: #fdf7ea; }
+.ge-attr-cell:hover { border-color: var(--color-border) !important; }
+.ge-attr-cell:focus { border-color: var(--color-accent) !important; outline: none; background: #fdf7ea; }

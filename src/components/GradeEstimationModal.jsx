@@ -5,6 +5,7 @@ import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, 
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -207,7 +208,6 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(760px, 95vw)", maxHeight: "90vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const fieldLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };

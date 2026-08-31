@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { buildWorkspaceDatabase, runQuery } from "../lib/sqlWorkspace.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
@@ -139,7 +140,6 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(1000px, 96vw)", height: "min(720px, 92vh)", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };

@@ -6,6 +6,7 @@ import { excludeQAQC } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #136 — univariate grade statistics per domain: a prerequisite step before any estimation
 // work or capping decision (per the Micromine-specialist audit this was logged from), adjacent to but
@@ -309,7 +310,6 @@ function BoxPlots({ groups, domainLabel }) {
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };

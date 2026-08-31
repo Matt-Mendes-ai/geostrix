@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every
@@ -133,7 +134,6 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(720px, 92vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };

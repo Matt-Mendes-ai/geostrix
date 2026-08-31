@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -143,7 +144,6 @@ function StatRow({ label, value, highlight }) {
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(880px, 94vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid #d9dce1" };
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };

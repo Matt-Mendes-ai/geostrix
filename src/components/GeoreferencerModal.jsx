@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { X, Upload, Trash2, MapPin } from "lucide-react";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -175,7 +176,6 @@ export default function GeoreferencerModal({ onImport, onClose }) {
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(1100px, 96vw)", maxHeight: "92vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0" };

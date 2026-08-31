@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Keyboard, Info } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -126,7 +127,6 @@ function TabBtn({ active, onClick, icon, label }) {
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(420px, 92vw)", maxHeight: "80vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid #d9dce1" };
 const kbd = { display: "inline-block", minWidth: 108, padding: "2px 7px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, color: "#e2a63c", fontSize: 10.5, fontFamily: "'Exo 2', system-ui, sans-serif", textAlign: "center" };

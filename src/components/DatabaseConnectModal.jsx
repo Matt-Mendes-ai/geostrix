@@ -5,6 +5,7 @@ import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import PromptModal from "./PromptModal.jsx";
+import { overlay } from "../lib/modalStyles.js";
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -230,7 +231,6 @@ function Field({ label: l, children }) {
   return <div><div style={{ fontSize: 10.5, color: "#55606e", marginBottom: 3 }}>{l}</div>{children}</div>;
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(600px, 92vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };

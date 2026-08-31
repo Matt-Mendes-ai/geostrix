@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Plus, Trash2, RotateCcw } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { overlay } from "../lib/modalStyles.js";
 
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
 // ignore values lower than (what the user specifies)". Per-element styling for the 3D View / cross-
@@ -137,7 +138,6 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   );
 }
 
-const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.75)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(460px, 94vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
 const row = { display: "flex", alignItems: "center", gap: 8 };
