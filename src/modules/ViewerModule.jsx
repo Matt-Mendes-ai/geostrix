@@ -1512,6 +1512,57 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // reach the screen instead of ~16ms, which is imperceptible for anything that isn't itself an
     // animation. Deliberately NOT gating tooltip/hover raycasting or camera math on this — those stay
     // exactly as responsive as before; only the GPU draw call is throttled.
+    // TASKS.csv #201 follow-up — user report (real screenshot): "opacity of voxels is not working
+    // the way it should, it doesn't make the voxels opaque, the blocks will be displayed depending
+    // on the angle of view." This is the exact residual limitation #201's own fix comment already
+    // named and deliberately deferred: depthWrite:false (that fix) stops instances from wrongly
+    // OCCLUDING each other, but three.js still draws an InstancedMesh's instances in fixed array
+    // order, not back-to-front by camera distance — so with alpha blending, which voxel visually
+    // "wins" where two overlap depends on which happened to draw last, and since screen-space overlap
+    // changes as the camera orbits, so does the blend result. #201 dismissed this as "a subtle
+    // blending-order nuance" — a real user, on a real large model, reports it's not subtle in
+    // practice. Fixed here with actual back-to-front instance re-sorting, gated and throttled so it
+    // costs nothing for the common case: only meshes an opaque model NEVER gets this treatment at
+    // all (mesh.userData.transparentCells is only populated for opacity<1 models — see the voxel-
+    // build effect), and even a transparent model is only re-sorted at most every
+    // VOXEL_SORT_INTERVAL_MS AND only when the camera has actually moved since the last sort (a
+    // static view re-sorts once, not on every idle-throttled tick).
+    const voxelSortTmpMatrix = new THREE.Matrix4();
+    const voxelSortTmpColor = new THREE.Color();
+    const IDENTITY_QUAT = new THREE.Quaternion();
+    const VOXEL_SORT_INTERVAL_MS = 150;
+    let lastVoxelSortAt = 0;
+    const lastVoxelSortCamPos = new THREE.Vector3(NaN, NaN, NaN);
+    const resortTransparentVoxels = (now) => {
+      if (now - lastVoxelSortAt < VOXEL_SORT_INTERVAL_MS) return;
+      if (camera.position.distanceToSquared(lastVoxelSortCamPos) < 0.01) return; // camera hasn't moved meaningfully since the last sort
+      let didWork = false;
+      Object.values(voxelMeshesRef.current).forEach((mesh) => {
+        const cells = mesh.userData.transparentCells;
+        if (!cells || !mesh.material.transparent) return;
+        didWork = true;
+        const camPos = camera.position;
+        const order = mesh.userData.sortOrder || (mesh.userData.sortOrder = cells.map((_, i) => i));
+        const distSq = mesh.userData.sortDistSq || (mesh.userData.sortDistSq = new Float32Array(cells.length));
+        for (let i = 0; i < cells.length; i++) {
+          const c = cells[i];
+          const dx = c.x - camPos.x, dy = c.y - camPos.y, dz = c.z - camPos.z;
+          distSq[i] = dx * dx + dy * dy + dz * dz;
+        }
+        order.sort((a, b) => distSq[b] - distSq[a]); // farthest first (painter's algorithm — correct draw order for alpha blending)
+        for (let j = 0; j < order.length; j++) {
+          const c = cells[order[j]];
+          voxelSortTmpMatrix.compose(new THREE.Vector3(c.x, c.y, c.z), IDENTITY_QUAT, new THREE.Vector3(c.dx, c.dy, c.dz));
+          mesh.setMatrixAt(j, voxelSortTmpMatrix);
+          voxelSortTmpColor.setRGB(c.r / 255, c.g / 255, c.b / 255, THREE.SRGBColorSpace);
+          mesh.setColorAt(j, voxelSortTmpColor);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      });
+      if (didWork) { lastVoxelSortAt = now; lastVoxelSortCamPos.copy(camera.position); }
+    };
+
     const IDLE_AFTER_MS = 400;
     const IDLE_FRAME_INTERVAL_MS = 120; // ~8fps while idle vs. ~60fps (uncapped) while active
     let raf;
@@ -1525,6 +1576,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const now = Date.now();
       const idle = now - lastActivityRef.current > IDLE_AFTER_MS;
       if (!idle || now - lastFrameAtRef.current >= IDLE_FRAME_INTERVAL_MS) {
+        resortTransparentVoxels(now);
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
         renderer.render(scene, camera);
@@ -3568,11 +3620,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // every angle. depthWrite:false (only while actually transparent — an opaque model at
       // opacity>=1 keeps depthWrite:true, unchanged, so it still occludes other opaque geometry
       // correctly) removes that per-angle culling: every instance now blends over whatever was
-      // already drawn behind it instead of fighting the depth buffer. This doesn't add true
-      // back-to-front instance sorting (a real per-frame sort would be its own perf cost at tens of
-      // thousands of cells), so overlapping voxels can still blend in draw order rather than strict
-      // depth order — but that's a subtle blending-order nuance, not the reported bug (voxels
-      // disappearing/reappearing depending on view angle).
+      // already drawn behind it instead of fighting the depth buffer. FOLLOW-UP (TASKS.csv #201
+      // again) — depthWrite:false alone still doesn't give correct back-to-front BLEND order (three.js
+      // draws instances in fixed array order, not camera-distance order), which a real user on a real
+      // large model reported as still visibly wrong ("blocks displayed depending on the angle of
+      // view"). True per-frame instance sorting is now done in the mount effect's animate() loop
+      // (see resortTransparentVoxels/mesh.userData.transparentCells there) — throttled and gated so
+      // it only ever runs for a model actually at opacity<1, never for the opaque default.
       const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
       const { min, max } = model;
@@ -3584,12 +3638,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // once per model. Built once here instead: a closure that only does cheap numeric interpolation,
       // paired with tmpColor.setRGB() (plain numbers, no string anywhere) instead of setStyle().
       const resolveColorRGB = makeVoxelColorResolverRGB(model);
+      // Only a transparent (opacity<1) model needs its cells' local-space positions/sizes/colors kept
+      // around for the render loop's per-frame re-sort — an opaque model never gets re-sorted at all
+      // (see resortTransparentVoxels's own gate on mesh.material.transparent), so building this array
+      // for one would be pure wasted memory for the common, default (opaque) case.
+      const transparentCells = opacity < 1 ? [] : null;
       cells.forEach((c, i) => {
-        tmpMatrix.compose(
-          new THREE.Vector3(c.x - ox, c.z - oz, -(c.y - oy)),
-          new THREE.Quaternion(),
-          new THREE.Vector3(Math.max(c.dx, 0.01), Math.max(c.dz, 0.01), Math.max(c.dy, 0.01))
-        );
+        const lx = c.x - ox, ly = c.z - oz, lz = -(c.y - oy);
+        const sx = Math.max(c.dx, 0.01), sy = Math.max(c.dz, 0.01), sz = Math.max(c.dy, 0.01);
+        tmpMatrix.compose(new THREE.Vector3(lx, ly, lz), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz));
         mesh.setMatrixAt(i, tmpMatrix);
         const [cr, cg, cb] = resolveColorRGB(c.value);
         // setRGB's default colorSpace is ColorManagement.workingColorSpace (linear), NOT sRGB — unlike
@@ -3599,10 +3656,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // every voxel's color relative to before this change.
         tmpColor.setRGB(cr / 255, cg / 255, cb / 255, THREE.SRGBColorSpace);
         mesh.setColorAt(i, tmpColor);
+        if (transparentCells) transparentCells.push({ x: lx, y: ly, z: lz, dx: sx, dy: sy, dz: sz, r: cr, g: cg, b: cb });
       });
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.visible = model.visible !== false;
+      mesh.userData.transparentCells = transparentCells;
       group.add(mesh);
       voxelMeshesRef.current[model.id] = mesh;
     });
