@@ -6,13 +6,18 @@ still reflect that and are not worth churning just for the rename.
 
 ## Branding
 
-`build/icon.png` is the 1024px master app icon (a Strix owl over a geological cross-section); the
-`.ico`/`.icns` next to it are generated from it and wired into `package.json`'s electron-builder
-config for the Windows/Mac installers, plus set as the `BrowserWindow` icon in `electron/main.js` so
-a plain `npm run dev` run shows it too. `assets/GeoStrix_Logo.png` is the same image at full
-resolution for any other branding use (splash screens, marketing, etc.). The UI's single most-visible
-accent color (visibility toggles, active states, the drag-drop highlight, the progress bar) matches
-the icon's gold — the rest of the dark-navy palette was already close enough to leave alone.
+`build/icon.png` is the 1024px master app icon — a flat, minimal Strix owl-head mark (dark navy,
+amber eyes, transparent background), replacing an earlier, more photorealistic owl-over-cross-
+section design. The `.ico`/`.icns` next to it are generated from it (`png2icons`, multi-resolution)
+and wired into `package.json`'s electron-builder config for the Windows/Mac installers, plus set as
+the `BrowserWindow` icon in `electron/main.js` so a plain `npm run dev` run shows it too.
+`assets/GeoStrix_Logo.png` is the same image at full resolution for any other branding use (splash
+screens, marketing, etc.); `assets/geostrix-mark-64.png` is a small pre-shrunk copy for anywhere a
+tiny mark is more useful than resizing the full master on the fly; `public/favicon.png` (256px) is
+the browser-tab icon for the plain-browser/dev-preview path. The UI's single most-visible accent
+color (visibility toggles, active states, the drag-drop highlight, the progress bar) is the same
+gold/amber family as the icon's eyes — the rest of the dark-navy palette was already close enough to
+leave alone.
 
 ## Running in development
 
