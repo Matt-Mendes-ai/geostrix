@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera } from "lucide-react";
+import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "lucide-react";
+import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -51,16 +52,18 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, renameLayoutPage, deleteLayoutPage,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage,
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
-    layers,
+    // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
+    layers, collars, sections,
     // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
     // every time Enter/Refresh switches away to the 3D View tab and back.
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
   } = useStore();
   const [selected, setSelected] = useState(null);
+  const [atlasModalOpen, setAtlasModalOpen] = useState(false); // TASKS.csv #130
   // User request: "let's make some keyboard shortcuts. Like on layout we could have delete key to
   // delete the selected item, and ctrl + click to select multiple items." `selected` stays the single
   // "active" element (the one the properties sidebar edits — multi-selection doesn't get its own bulk-
@@ -891,7 +894,24 @@ export default function LayoutModule() {
           >
             <Plus size={13} />
           </button>
+          <button
+            onClick={() => setAtlasModalOpen(true)}
+            title="Generate atlas — batch-create one page per drillhole/section from the current page as a template"
+            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid #d9dce1", borderRadius: 5, color: "#6b7684", fontSize: 10.5, cursor: "pointer" }}
+          >
+            <LayoutGrid size={11} /> Atlas…
+          </button>
         </div>
+        {atlasModalOpen && (
+          <GenerateAtlasModal
+            onClose={() => setAtlasModalOpen(false)}
+            templateElements={elements}
+            collars={collars}
+            layers={layers}
+            sections={sections}
+            addLayoutPages={addLayoutPages}
+          />
+        )}
         <div style={{ overflow: "auto", padding: 30, flex: 1 }}>
         <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", margin: "0 auto" }}>
           <div />

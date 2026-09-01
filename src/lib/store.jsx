@@ -1019,6 +1019,21 @@ export function StoreProvider({ children }) {
     return id;
   }, [clearUndoHistory]);
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
+  // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
+  // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
+  // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
+  // clears undo history on every single call, which for N pages would mean N wasted undo-history
+  // clears and end with an arbitrary LAST generated page active rather than a deliberate choice.
+  // Switches to the FIRST newly-created page once, clears undo history once, same as any other
+  // page-navigating action.
+  const addLayoutPages = useCallback((pages) => {
+    if (!pages || !pages.length) return [];
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements }));
+    setLayoutPages((p) => [...p, ...withIds]);
+    setActiveLayoutPageId(withIds[0].id);
+    clearUndoHistory();
+    return withIds.map((p) => p.id);
+  }, [clearUndoHistory]);
   // Closing the last page is treated as resetting to one fresh blank page rather than leaving zero —
   // same reasoning as closeWorkspaceTab's "last tab closed" branch above.
   const deleteLayoutPage = useCallback((id) => {
@@ -1067,7 +1082,7 @@ export function StoreProvider({ children }) {
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, renameLayoutPage, deleteLayoutPage,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage,
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
