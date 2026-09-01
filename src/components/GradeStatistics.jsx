@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -52,6 +53,7 @@ function niceBinCount(n) {
 
 export default function GradeStatistics({ assays, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
   // tied to hole_id/from/to, which surface samples don't have) but DOES have its own natural grouping

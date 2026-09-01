@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { X, Upload, Trash2, MapPin } from "lucide-react";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
@@ -17,6 +18,7 @@ const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points ar
 
 export default function GeoreferencerModal({ onImport, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
   const [points, setPoints] = useState([]); // [{id, px, py, x, y}]
   const [busy, setBusy] = useState(false);

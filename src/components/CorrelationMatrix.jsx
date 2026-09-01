@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
@@ -36,6 +37,7 @@ function cellColor(r) {
 
 export default function CorrelationMatrix({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall

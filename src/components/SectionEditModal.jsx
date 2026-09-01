@@ -10,6 +10,7 @@
 import React, { useState } from "react";
 import { X, Layers3 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
 
@@ -17,6 +18,7 @@ const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "recovery", "sg",
 
 export default function SectionEditModal({ sectionCount, initialCorridor, voxelModels, onSave, onClose }) {
   useEscapeKey(onClose);
+  useFocusTrap(); // TASKS.csv #238
   const [layerKeys, setLayerKeys] = useState(new Set(SECTION_LAYER_KEYS));
   const [voxelModelIds, setVoxelModelIds] = useState(new Set((voxelModels || []).map((m) => m.id)));
   const [showTerrain, setShowTerrain] = useState(true);

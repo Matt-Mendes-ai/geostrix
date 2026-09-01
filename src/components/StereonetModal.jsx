@@ -4,6 +4,7 @@ import { projectPole, greatCirclePoints, fisherStats } from "../lib/stereonet.js
 import { colorForStructure } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -21,6 +22,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 // a trend") is already addressed by seeing the raw pole population and its scatter/clustering by eye.
 export default function StereonetModal({ picks, onClose, onUseAsTrend }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [projection, setProjection] = useState("equalArea");
   const [showPoles, setShowPoles] = useState(true);
   const [showCircles, setShowCircles] = useState(false);

@@ -5,6 +5,7 @@ import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
 import { fetchAndCacheTile } from "../lib/tileCache.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { useSetTaskProgress } from "../lib/store.jsx";
 import { Download } from "lucide-react";
 
@@ -55,6 +56,7 @@ export default function BasemapView({
   onConfirm, // (bboxLonLat) => void, draw mode only
 }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const containerRef = useRef(null);
   const [size, setSize] = useState({ w: 900, h: 650 });
   const [zoom, setZoom] = useState(11);

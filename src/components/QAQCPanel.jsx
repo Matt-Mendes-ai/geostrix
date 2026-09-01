@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #134 — lab QAQC dashboard (standards/blanks/duplicates), distinct from dataQC.js's
@@ -13,6 +14,7 @@ const TABS = ["standards", "blanks", "duplicates"];
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [tab, setTab] = useState("standards");

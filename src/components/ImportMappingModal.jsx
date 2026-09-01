@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { TARGET_SCHEMAS } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   useEscapeKey(onCancel); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const schema = TARGET_SCHEMAS[modal.target];
   // TASKS.csv #208 — generic "add a custom field" control, usable for any target/schema, not just
   // litho's new built-in Description field: map an arbitrary source column into an arbitrarily-named

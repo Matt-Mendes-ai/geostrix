@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
@@ -28,6 +29,7 @@ function rampColor(t) {
 
 export default function SpatialAnalysis({ points, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [hoverIdx, setHoverIdx] = useState(null);
 
   const valid = useMemo(

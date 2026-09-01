@@ -4,6 +4,7 @@ import { useStore } from "../lib/store.jsx";
 import { runDataQC } from "../lib/dataQC.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
@@ -26,6 +27,7 @@ const SEVERITY_META = {
 
 export default function DataQCModal({ onCancel }) {
   useEscapeKey(onCancel); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const { project, collars, survey, layers, boundaries, assays } = useStore();
   const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries, assays }));
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));

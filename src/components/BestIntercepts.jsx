@@ -7,6 +7,7 @@ import { desurveyHole } from "../lib/desurvey.js";
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
@@ -20,6 +21,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // just the control panel + results table + CSV export around it.
 export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");

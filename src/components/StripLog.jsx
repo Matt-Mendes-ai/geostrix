@@ -4,6 +4,7 @@ import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein } from "../lib
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #133 — "Downhole strip logs (single-hole 1D graphic log: litho/alt/vein/assay columns
@@ -19,6 +20,7 @@ const PAD_TOP = 40;
 
 export default function StripLog({ holeId, collars, layers, assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
   const [pxPerMeter, setPxPerMeter] = useState(6);
   const symbols = assayElements.map((e) => e.symbol);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Globe, Loader2, Download } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, inp, btn } from "../lib/modalStyles.js";
 import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary } from "../lib/webLayers.js";
 import BasemapView from "./BasemapView.jsx";
@@ -17,6 +18,7 @@ import BasemapView from "./BasemapView.jsx";
 // src/lib/webLayers.js, which does the actual GetCapabilities/GetMap/GetFeature work.
 export default function AddWebLayerModal({ onClose, addRaster, addBoundary, projectEpsg, defaultBboxLonLat, collarsLoaded }) {
   useEscapeKey(onClose);
+  useFocusTrap(); // TASKS.csv #238
   const [service, setService] = useState("wms"); // "wms" | "wfs"
   const [url, setUrl] = useState("");
   const [loadingCaps, setLoadingCaps] = useState(false);

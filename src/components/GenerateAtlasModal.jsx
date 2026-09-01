@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, LayoutGrid, Loader2 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
 import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js";
 
@@ -10,6 +11,7 @@ import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js
 // scope boundary (no per-item 3D viewport re-render — text + an optional per-hole strip-log image).
 export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, sections, addLayoutPages }) {
   useEscapeKey(onClose);
+  useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
   const [selectedIds, setSelectedIds] = useState(() => new Set(collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);

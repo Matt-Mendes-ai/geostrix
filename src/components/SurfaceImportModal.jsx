@@ -8,12 +8,14 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
 
 export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit }) {
   useEscapeKey(onCancel);
+  useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
   const [addSymbol, setAddSymbol] = useState("");
   const [addHeader, setAddHeader] = useState("");

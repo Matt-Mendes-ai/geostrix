@@ -12,6 +12,7 @@ import { X, Download, FileBarChart2 } from "lucide-react";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -28,6 +29,7 @@ function elementStats(rows, elements) {
 
 export default function ProjectReportModal({ store, onClose }) {
   useEscapeKey(onClose);
+  useFocusTrap(); // TASKS.csv #238
   const { project, collars, survey, layers, assays, assayElements, surfaceSamples, surfaceElements } = store;
 
   const report = useMemo(() => {

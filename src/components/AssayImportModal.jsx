@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit }) {
   useEscapeKey(onCancel); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,

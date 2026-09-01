@@ -5,6 +5,7 @@ import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, 
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -16,6 +17,7 @@ import { overlay } from "../lib/modalStyles.js";
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
 export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");

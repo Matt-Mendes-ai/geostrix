@@ -3,6 +3,7 @@ import { X, Eye, EyeOff, Trash2, Download, Upload } from "lucide-react";
 import { distinctValues } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -27,6 +28,7 @@ function exportLayerStyle(layerKey, meta, categories, legendOverride) {
 
 export default function LayerInspector({ layerKey, rows, meta, categoryFilter, numericRange, legendOverride, onToggleCategory, onSetRange, onSetColor, onSetLabel, onClose, onShowAll, onHideAll, onIsolate, onRemoveSource }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [search, setSearch] = useState("");
   const [styleNotice, setStyleNotice] = useState(null);
   const styleFileInput = useRef(null);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Plus, Trash2, RotateCcw } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
@@ -14,6 +15,7 @@ import { overlay } from "../lib/modalStyles.js";
 // already been applied, just a plain controlled editor over the `style` prop.
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [local, setLocal] = useState(() => ({
     color: style?.color || defaultColor,
     sizeMult: style?.sizeMult ?? 1,

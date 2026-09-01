@@ -4,11 +4,13 @@ import { dbLiveQuery, dbLiveListTables } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import PromptModal from "./PromptModal.jsx";
 import { overlay } from "../lib/modalStyles.js";
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
   // TASKS.csv #177 — engine picker, MySQL/MariaDB added alongside the original Postgres-only path
   // (Matt confirmed MySQL as the priority engine over SQL Server/Oracle/SQLite). "postgres" stays the

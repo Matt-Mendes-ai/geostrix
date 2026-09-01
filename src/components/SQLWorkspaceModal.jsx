@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { buildWorkspaceDatabase, runQuery } from "../lib/sqlWorkspace.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
@@ -21,6 +22,7 @@ function defaultQueryFor(tables) {
 
 export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const [state, setState] = useState({ status: "loading" }); // loading | ready | error
   const [sql, setSql] = useState("");
   const [result, setResult] = useState(null); // { columns, rows } | null

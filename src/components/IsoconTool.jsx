@@ -3,6 +3,7 @@ import { X, Download } from "lucide-react";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 import Papa from "papaparse";
 import { overlay } from "../lib/modalStyles.js";
 
@@ -21,6 +22,7 @@ const DEFAULT_IMMOBILE = ["Al", "Ti", "Zr"];
 
 export default function IsoconTool({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
+  useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
 
