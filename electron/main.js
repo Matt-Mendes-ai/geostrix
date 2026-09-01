@@ -269,7 +269,8 @@ ipcMain.handle("autosave-clear", async () => {
 function friendlyDbError(err, config) {
   const raw = err.message || String(err);
   if (/ECONNREFUSED/.test(raw)) {
-    return `${raw} — nothing is accepting connections at ${config.host}:${config.port}. Double check the host/port match what DBeaver uses for this same connection, and that Postgres is actually running and reachable from this machine (a local firewall or VPN can block this even when DBeaver on the same network works).`;
+    const engineLabel = config.engine === "mysql" ? "MySQL/MariaDB" : "Postgres";
+    return `${raw} — nothing is accepting connections at ${config.host}:${config.port}. Double check the host/port match what DBeaver uses for this same connection, and that ${engineLabel} is actually running and reachable from this machine (a local firewall or VPN can block this even when DBeaver on the same network works).`;
   }
   if (/ETIMEDOUT/.test(raw)) {
     return `${raw} — the connection attempt to ${config.host}:${config.port} timed out. Usually means a firewall/VPN is silently dropping the connection rather than refusing it outright, or the host isn't reachable from this network at all.`;
