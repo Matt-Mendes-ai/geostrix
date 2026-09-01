@@ -50,7 +50,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>QAQC — lab quality control</div>

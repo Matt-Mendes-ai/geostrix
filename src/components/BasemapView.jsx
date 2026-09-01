@@ -197,7 +197,7 @@ export default function BasemapView({
     : null;
 
   return (
-    <div style={overlayStyle}>
+    <div style={overlayStyle} role="dialog" aria-modal="true">
       <div style={topBarStyle}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "#2a323c" }}>
           {mode === "draw" ? title : "Locate"}

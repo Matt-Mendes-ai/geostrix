@@ -42,7 +42,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
 
   return (
     <div style={overlay} onClick={onCancel}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Import {modal.fileName}</div>

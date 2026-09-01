@@ -46,7 +46,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
 
   return (
     <div style={overlay} onClick={onCancel}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Milestone size={16} color="#55606e" />

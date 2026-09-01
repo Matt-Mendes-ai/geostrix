@@ -50,7 +50,7 @@ export default function StereonetModal({ picks, onClose }) {
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>Stereonet — structure picks ({filtered.length}/{picks.length})</div>
           <X size={16} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />

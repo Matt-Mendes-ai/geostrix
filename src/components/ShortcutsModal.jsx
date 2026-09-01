@@ -78,7 +78,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
   const [tab, setTab] = useState(initialTab);
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", gap: 4 }}>
             <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={13} />} label="Shortcuts" />

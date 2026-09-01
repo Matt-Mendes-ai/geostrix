@@ -20,7 +20,7 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
   }, []);
   return (
     <div style={overlay} onClick={onCancel}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: 13, color: "#1a2028", marginBottom: 10, fontWeight: 600 }}>{title}</div>
         <input
           ref={inputRef}

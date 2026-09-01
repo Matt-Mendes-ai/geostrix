@@ -100,7 +100,7 @@ export default function ProjectReportModal({ store, onClose }) {
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FileBarChart2 size={17} style={{ color: "#8a6a1f" }} />

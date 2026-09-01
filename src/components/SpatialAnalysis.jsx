@@ -67,7 +67,7 @@ export default function SpatialAnalysis({ points, onClose }) {
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ color: "#1a2028", fontSize: 13, fontWeight: 600 }}>Spatial analysis — Voronoi / declustering</div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />

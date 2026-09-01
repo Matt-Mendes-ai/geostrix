@@ -63,7 +63,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
 
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{meta.label} <span style={{ color: "#94a1b0", fontSize: 12, fontWeight: 400 }}>({rows.length} rows)</span></div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
