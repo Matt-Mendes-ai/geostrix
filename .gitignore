@@ -11,6 +11,11 @@ python-sidecar/**/__pycache__/
 python-sidecar/**/*.pyc
 python-sidecar/.venv/
 python-sidecar/venv/
+# TASKS.csv #49 — PyInstaller build output (a ~50MB frozen executable, plus its build/ cache and the
+# auto-generated .spec file) — built fresh by `npm run build:sidecar` before packaging, not checked in.
+python-sidecar/dist/
+python-sidecar/build/
+python-sidecar/*.spec
 
 # Editor / OS cruft
 .DS_Store

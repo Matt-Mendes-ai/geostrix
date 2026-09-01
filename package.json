@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
     "build:web": "vite build",
+    "build:sidecar": "node python-sidecar/build_sidecar.js",
     "build": "vite build && electron-builder",
     "build:dir": "vite build && electron-builder --dir",
+    "build:full": "npm run build:sidecar && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -44,6 +46,13 @@
     "files": [
       "dist/**/*",
       "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "python-sidecar/dist",
+        "to": "python-sidecar",
+        "filter": ["geostrix-sidecar*"]
+      }
     ],
     "win": {
       "target": "nsis",

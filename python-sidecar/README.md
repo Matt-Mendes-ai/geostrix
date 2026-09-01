@@ -37,10 +37,31 @@ been done yet (see `TASKS.csv`).
 
 ## Packaging status
 
-Not yet bundled into the Electron installer (`npm run build`). A packaged build currently runs
-without this sidecar; anything that depends on it degrades gracefully — see `src/lib/desktop.js`
-`pythonHealth`/`pythonInterpolate`, where a failed fetch to the sidecar's port is treated as "not
-available," not a crash.
+Bundled into the Electron installer (TASKS.csv #49): `npm run build:sidecar` (`build_sidecar.js`)
+freezes this into a standalone executable via [PyInstaller](https://pyinstaller.org) — no separate
+Python/pip needed by an end user — which `electron-builder` then copies into the packaged app's
+resources dir (`extraResources` in `package.json`'s `build` config). `electron/main.js`'s
+`startPythonSidecar()` spawns that frozen executable when `app.isPackaged` is true, and still uses
+the from-source `python -m uvicorn` path for `npm run dev`.
+
+Not run automatically by plain `npm run build` — that would force everyone building the app to also
+have `python-sidecar/venv` set up with `pyinstaller` installed, which most contributors touching only
+the frontend won't have. Run `npm run build:sidecar` once before `npm run build`/`npm run build:dir`
+if you want the packaged app to include it (or use the combined `npm run build:full`); if the frozen
+executable isn't present, packaging proceeds without it exactly like before this pass — anything that
+depends on the sidecar still degrades gracefully (see `src/lib/desktop.js`
+`pythonHealth`/`pythonInterpolate`).
+
+Setup for building the frozen executable (one-time, in addition to `pip install -r requirements.txt`
+above):
+
+```bash
+pip install pyinstaller
+```
+
+Only built/verified on Windows so far — macOS/Linux need their own PyInstaller run on that platform
+(PyInstaller freezes for the OS it runs on, it doesn't cross-compile) before `electron-builder`'s
+`mac`/`linux` targets would have a bundled sidecar to pick up.
 
 ## Endpoints
 

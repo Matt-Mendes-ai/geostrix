@@ -36,18 +36,35 @@ const PY_SIDECAR_PORT = 8765;
 // installed, or the dependencies in python-sidecar/requirements.txt aren't installed, this fails
 // silently (logged, not thrown) and every feature that depends on it just reports "not available"
 // via a failed health check, the same way the Postgres connector degrades when not in Electron.
-// NOTE: not yet bundled into packaged installers (TASKS.csv) — this only works in dev/from-source
-// runs where a real `python3`/`python` with the sidecar's deps installed is on PATH.
+// TASKS.csv #49 — bundled into packaged installers as of this pass: `npm run build:sidecar`
+// (python-sidecar/build_sidecar.js) freezes the sidecar into a standalone executable via PyInstaller
+// ahead of `electron-builder`, which copies it into the packaged app's resources dir (extraResources,
+// see package.json's `build` config) — no separate Python/pip install needed by an end user. A DEV run
+// (`npm run dev`, app.isPackaged false) still uses the from-source `python -m uvicorn` path unchanged,
+// since that's the whole point of running from source — pip-installing a fresh copy of GemPy et al.
+// just to iterate on this file would be backwards. If the frozen executable is somehow missing from a
+// packaged build (extraResources is best-effort — see build_sidecar.js's own comment on why it isn't
+// forced into every `npm run build`), this falls through to the same from-source spawn attempt, which
+// will fail the same "Python not found" way it always has for someone without Python installed — no
+// worse than before this pass, not a new failure mode.
 function startPythonSidecar() {
-  const pythonBin = process.env.GEOSTRIX_PYTHON || (process.platform === "win32" ? "python" : "python3");
+  const frozenName = process.platform === "win32" ? "geostrix-sidecar.exe" : "geostrix-sidecar";
+  const frozenPath = path.join(process.resourcesPath || "", "python-sidecar", frozenName);
+  const useFrozen = app.isPackaged && fs.existsSync(frozenPath);
+
   const cwd = path.join(__dirname, "../python-sidecar");
+  const [cmd, args] = useFrozen
+    ? [frozenPath, []]
+    : [process.env.GEOSTRIX_PYTHON || (process.platform === "win32" ? "python" : "python3"),
+       ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(PY_SIDECAR_PORT)]];
+
   try {
-    pySidecar = spawn(pythonBin, ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(PY_SIDECAR_PORT)], {
-      cwd,
+    pySidecar = spawn(cmd, args, {
+      cwd: useFrozen ? path.dirname(frozenPath) : cwd,
       stdio: isDev ? "inherit" : "ignore",
     });
     pySidecar.on("error", (err) => {
-      console.error(`[python-sidecar] failed to start (${pythonBin} not found, or deps missing — see python-sidecar/README.md):`, err.message);
+      console.error(`[python-sidecar] failed to start (${useFrozen ? frozenPath : `${cmd} not found, or deps missing — see python-sidecar/README.md`}):`, err.message);
       pySidecar = null;
     });
     pySidecar.on("exit", (code) => {
