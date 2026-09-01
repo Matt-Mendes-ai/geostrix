@@ -17,6 +17,7 @@
   "dependencies": {
     "@fontsource/exo-2": "^5.3.0",
     "d3-delaunay": "^6.0.4",
+    "electron-updater": "^6.8.9",
     "geotiff": "^3.0.5",
     "lucide-react": "^0.383.0",
     "mysql2": "^3.24.2",
@@ -51,9 +52,16 @@
       {
         "from": "python-sidecar/dist",
         "to": "python-sidecar",
-        "filter": ["geostrix-sidecar*"]
+        "filter": [
+          "geostrix-sidecar*"
+        ]
       }
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "Matt-Mendes-ai",
+      "repo": "geostrix"
+    },
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

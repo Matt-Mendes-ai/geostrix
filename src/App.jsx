@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
-import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
@@ -72,6 +72,11 @@ export default function App() {
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "about"
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
+  // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
+  // status bar (below) — "checking"/"not-available" stay silent, since a routine background check
+  // finding nothing is not something worth a persistent UI element for.
+  const [updater, setUpdater] = useState({ event: "idle" });
+  useEffect(() => onUpdaterEvent(setUpdater), []);
 
   // TASKS.csv #33 — crash recovery. Check once, right after mount, whether an autosave snapshot
   // exists from a session that never reached a real Save (crash, force-quit, power loss). Only a
@@ -307,7 +312,7 @@ export default function App() {
         </Suspense>
       </div>
 
-      <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} />
+      <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} />
       {shortcutsTab && <ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} />}
       {reportOpen && (
         <Suspense fallback={null}>
@@ -356,7 +361,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ epsgEditing, setEpsgEditing, pyStatus }) {
+function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
   const { project, setEpsg, setProjectName, collars } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
@@ -394,6 +399,33 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus }) {
             <X size={12} style={{ cursor: "pointer", color: "#e0a0a0" }} title="Cancel" onClick={taskProgress.onCancel} />
           )}
         </span>
+      )}
+      {/* TASKS.csv #37 — only rendered for states worth a user action or worth knowing about;
+          "checking"/"not-available"/"idle" stay silent, matching taskProgress's own pattern above of
+          not cluttering the status bar with routine background activity. */}
+      {updater.event === "available" && (
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+          Update available (v{updater.version})
+          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid #4a6b4a", color: "#8fd9ab", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Download</button>
+        </span>
+      )}
+      {updater.event === "downloading" && (
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+          Downloading update…
+          <span style={{ width: 60, height: 5, borderRadius: 3, background: "#f4f5f7", overflow: "hidden", display: "inline-block" }}>
+            <span style={{ display: "block", height: "100%", width: `${updater.percent || 0}%`, background: "#e2a63c", transition: "width 0.3s" }} />
+          </span>
+          <span className="val">{updater.percent || 0}%</span>
+        </span>
+      )}
+      {updater.event === "downloaded" && (
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+          Update v{updater.version} ready
+          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid #4a6b4a", color: "#8fd9ab", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Restart &amp; install</button>
+        </span>
+      )}
+      {updater.event === "error" && (
+        <span title={updater.message} style={{ color: "#e0a0a0" }}>Update check failed</span>
       )}
       <span className="spacer" />
       {epsgEditing ? (

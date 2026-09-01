@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
+const { autoUpdater } = require("electron-updater");
 
 // User-reported bug: connecting the database tool (Tools > Connect to database) to a local Postgres
 // with host "localhost" failed with "connect ECONNREFUSED ::1:<port>" even though the same database
@@ -82,6 +83,54 @@ function stopPythonSidecar() {
   }
   pySidecar = null;
 }
+
+// TASKS.csv #37 — auto-update via electron-updater against the project's own public GitHub Releases
+// (see package.json's `build.publish` — provider "github", now that the repo is public: a private
+// repo's release assets can't be fetched anonymously, which would mean this silently working for
+// nobody but the developer). Checks are opt-in-to-download, not silent: autoDownload/
+// autoInstallOnAppQuit stay false so a user on a slow/metered field connection isn't surprised by an
+// unannounced multi-hundred-MB download, matching this app's general "ask before acting" posture
+// elsewhere (e.g. the terrain-replace confirm). Every lifecycle event is relayed to the renderer via
+// the same "menu"-style webContents.send channel the rest of this file already uses for main->renderer
+// pushes, so App.jsx's status bar (not this file) owns the actual UI — this file is just the
+// electron-updater plumbing + a couple of ipcMain handlers for the renderer's own "download now"/
+// "restart and install" buttons.
+// NOTE (#36 is a separate, still-open row): installers aren't code-signed yet, so an update download
+// will still show Windows SmartScreen/Mac Gatekeeper warnings same as a fresh manual install would —
+// this doesn't make that worse, just doesn't fix it either.
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  const send = (event, payload) => mainWindow?.webContents.send("updater-event", { event, ...payload });
+  autoUpdater.on("checking-for-update", () => send("checking"));
+  autoUpdater.on("update-available", (info) => send("available", { version: info.version }));
+  autoUpdater.on("update-not-available", () => send("not-available"));
+  autoUpdater.on("error", (err) => send("error", { message: err.message }));
+  autoUpdater.on("download-progress", (p) => send("downloading", { percent: Math.round(p.percent) }));
+  autoUpdater.on("update-downloaded", (info) => send("downloaded", { version: info.version }));
+}
+
+ipcMain.handle("updater-check", async () => {
+  if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+});
+ipcMain.handle("updater-download", async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+});
+ipcMain.handle("updater-install", () => {
+  autoUpdater.quitAndInstall();
+  return { ok: true };
+});
 
 function resolveUrl(hashRoute) {
   if (isDev) return `http://localhost:5173/#${hashRoute}`;
@@ -647,6 +696,7 @@ function buildMenu() {
       label: "Help",
       submenu: [
         { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
+        { label: "Check for Updates…", click: () => autoUpdater.checkForUpdates().catch((err) => mainWindow?.webContents.send("updater-event", { event: "error", message: err.message })) },
         // Bug fix while touching this menu: "About GeoStrix" sent a "menu"/"about" action that nothing
         // on the renderer side ever handled — clicking it silently did nothing. Now shares the same
         // modal as the new Keyboard Shortcuts entry (see ShortcutsModal in App.jsx), just opened to a
@@ -658,7 +708,15 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-app.whenReady().then(() => { createMainWindow(); startPythonSidecar(); });
+app.whenReady().then(() => {
+  createMainWindow();
+  startPythonSidecar();
+  setupAutoUpdater();
+  // A short delay so the startup update check doesn't compete with the app's own initial render/
+  // autosave-recovery-prompt work for network priority on a slow connection — same reasoning as any
+  // other "let the app feel responsive first" deferred background task.
+  if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000);
+});
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });
 app.on("before-quit", stopPythonSidecar);

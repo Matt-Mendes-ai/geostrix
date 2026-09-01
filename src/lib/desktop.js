@@ -233,6 +233,28 @@ export async function fetchWebLayerUrl(url) {
   return { contentType: res.headers.get("content-type") || "", arrayBuffer: await res.arrayBuffer() };
 }
 
+// ---------- Auto-update (see electron/main.js setupAutoUpdater, TASKS.csv #37) ----------
+// Desktop-only, like most of this file — a browser/dev session has no installer to update, so every
+// call here is a no-op there (checkForUpdates resolves { ok: false } with an explanatory message
+// rather than throwing, matching this file's general "can't help, here's why" shape; the others are
+// harmless no-ops since there's nothing to download/install without an active update in progress).
+export async function checkForUpdates() {
+  if (d && d.updaterCheck) return d.updaterCheck();
+  return { ok: false, message: "Update checks require the desktop app." };
+}
+export async function downloadUpdate() {
+  if (d && d.updaterDownload) return d.updaterDownload();
+  return { ok: false, message: "Update checks require the desktop app." };
+}
+export async function installUpdate() {
+  if (d && d.updaterInstall) return d.updaterInstall();
+  return { ok: false, message: "Update checks require the desktop app." };
+}
+export function onUpdaterEvent(cb) {
+  if (d && d.onUpdaterEvent) return d.onUpdaterEvent(cb);
+  return () => {};
+}
+
 // ---------- Python sidecar (see electron/main.js startPythonSidecar, python-sidecar/) ----------
 // Unlike everything else in this file, these are plain `fetch()` calls, not `window.desktop` IPC —
 // the sidecar is a local HTTP server, so there's nothing Electron-specific about talking to it, and
