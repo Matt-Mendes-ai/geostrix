@@ -1,0 +1,46 @@
+name: Release
+
+# TASKS.csv #37/#49 — builds and publishes a real GitHub Release (installer + auto-update metadata)
+# whenever a version tag is pushed. Runs on windows-latest rather than this project's usual
+# ubuntu-latest smoke-test runner (build.yml) for two reasons specific to a real release: (1) the NSIS
+# Windows installer target needs electron-builder's winCodeSign cache, which needs the
+# SeCreateSymbolicLinkPrivilege Windows only grants to an elevated/Developer-Mode session — a real
+# limitation hit and documented when trying to build+publish from a local Windows dev machine without
+# that privilege (see TASKS.csv #37's own notes); a hosted windows-latest runner has it. (2) the Python
+# sidecar (#49) is frozen via PyInstaller, which freezes for whatever OS it runs ON — only a Windows
+# runner produces the Windows .exe this project's `win.extraResources` config expects.
+#
+# GITHUB_TOKEN is the default per-workflow token GitHub provides automatically (not a manually-managed
+# secret) — `permissions: contents: write` below is what lets electron-builder's --publish step use it
+# to create the release and upload assets, scoped to just this repo for just this workflow run.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: npm ci
+      - name: Install sidecar build deps
+        working-directory: python-sidecar
+        run: |
+          python -m venv venv
+          venv\Scripts\python.exe -m pip install --upgrade pip
+          venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
+      - name: Freeze the Python sidecar
+        run: npm run build:sidecar
+      - name: Build and publish
+        run: npx electron-builder --publish always --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
