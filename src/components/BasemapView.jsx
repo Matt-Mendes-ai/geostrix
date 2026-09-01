@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Plus, Minus, Move, Square, Check, Crosshair, Layers } from "lucide-react";
 import LayerPicker from "./LayerPicker.jsx";
+import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
+import { fetchAndCacheTile } from "../lib/tileCache.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useSetTaskProgress } from "../lib/store.jsx";
+import { Download } from "lucide-react";
 
 const TILE = 256;
 
@@ -61,6 +65,8 @@ export default function BasemapView({
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
   const [tracestrackKey, setTracestrackKey] = useState(getSavedTracestrackKey());
   const [layerPickerOpen, setLayerPickerOpen] = useState(false);
+  const [offlineDownloading, setOfflineDownloading] = useState(false);
+  const setTaskProgress = useSetTaskProgress();
   const activeLayer = getBaseLayer(baseLayerId);
   // Falls back to Standard whenever the active layer needs a key that isn't set (e.g. Tracestrack
   // picked before a key was ever saved) — never shows broken/unauthorized tile requests.
@@ -145,6 +151,52 @@ export default function BasemapView({
     });
   };
 
+  // TASKS.csv #237 sub-item (5) — explicit "prep before I lose signal" pre-cache: walks the current
+  // viewport at this zoom plus 2 closer levels (roughly a 21x tile count vs. one level, still a
+  // modest, finite download for one screenful of area — not the whole property, which is what
+  // CachedTile's passive background caching already covers as the user pans around normally) and
+  // fetches+caches every tile via tileCache.js. Limited concurrency (6 in flight) so this doesn't try
+  // to fire hundreds of requests at once.
+  const EXTRA_ZOOM_LEVELS = 2;
+  const downloadAreaOffline = async () => {
+    if (!center || offlineDownloading) return;
+    setOfflineDownloading(true);
+    const centerLonLat = worldPxToLonLat(center.wx, center.wy, zoom);
+    const targets = [];
+    for (let zz = zoom; zz <= Math.min(18, zoom + EXTRA_ZOOM_LEVELS); zz++) {
+      const c = lonLatToWorldPx(centerLonLat.lon, centerLonLat.lat, zz);
+      const n = 2 ** zz;
+      const x0 = Math.floor((c.wx - size.w / 2) / TILE) - 1;
+      const x1 = Math.floor((c.wx + size.w / 2) / TILE) + 1;
+      const y0 = Math.floor((c.wy - size.h / 2) / TILE) - 1;
+      const y1 = Math.floor((c.wy + size.h / 2) / TILE) + 1;
+      for (let ty = y0; ty <= y1; ty++) {
+        if (ty < 0 || ty >= n) continue;
+        for (let tx = x0; tx <= x1; tx++) targets.push({ z: zz, x: ((tx % n) + n) % n, y: ty });
+      }
+    }
+    const total = targets.length;
+    let done = 0;
+    const label = `Downloading ${total} map tiles for offline use…`;
+    setTaskProgress({ label, pct: 0 });
+    const CONCURRENCY = 6;
+    let idx = 0;
+    const worker = async () => {
+      while (idx < targets.length) {
+        const t = targets[idx++];
+        const tileUrl = tileUrlFor(effectiveLayerId, t.z, t.x, t.y, tracestrackKey);
+        if (tileUrl) await fetchAndCacheTile(effectiveLayerId, t.z, t.x, t.y, tileUrl);
+        done++;
+        setTaskProgress((cur) => (cur && cur.label === label ? { ...cur, pct: Math.round((done / total) * 100) } : cur));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
+    const doneLabel = `Cached ${total} map tiles for offline use.`;
+    setTaskProgress({ label: doneLabel, pct: 100 });
+    setTimeout(() => setTaskProgress((cur) => (cur && cur.label === doneLabel ? null : cur)), 2500);
+    setOfflineDownloading(false);
+  };
+
   const recenter = () => {
     if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
     setCenter(lonLatToWorldPx(lon, lat, zoom));
@@ -219,9 +271,13 @@ export default function BasemapView({
         onWheel={(e) => { e.preventDefault(); changeZoom(e.deltaY < 0 ? 1 : -1); }}
       >
         {tiles.map((t) => (
-          <img
+          <CachedTile
             key={t.key}
-            src={tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)}
+            layerId={effectiveLayerId}
+            z={zoom}
+            x={t.x}
+            y={t.y}
+            url={tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)}
             alt=""
             draggable={false}
             style={{ position: "absolute", left: t.tx * TILE + offsetX, top: t.y * TILE + offsetY, width: TILE, height: TILE, userSelect: "none" }}
@@ -242,6 +298,14 @@ export default function BasemapView({
         <div style={zoomCtrlStyle}>
           <button onClick={() => changeZoom(1)} style={iconBtnStyle} title="Zoom in"><Plus size={14} /></button>
           <button onClick={() => changeZoom(-1)} style={iconBtnStyle} title="Zoom out"><Minus size={14} /></button>
+          {mode === "locate" && (
+            <button
+              onClick={downloadAreaOffline}
+              disabled={offlineDownloading}
+              title="Download this area's map tiles for offline use (this zoom level + 2 closer levels)"
+              style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
+            ><Download size={14} /></button>
+          )}
           <div style={{ position: "relative" }}>
             <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "#a9c6e0" } : {}) }}><Layers size={14} /></button>
             {layerPickerOpen && (

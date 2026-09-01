@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Maximize2, Layers } from "lucide-react";
 import LayerPicker from "./LayerPicker.jsx";
+import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
 
 // Persistent locator mini-map, docked in a corner of the 3D viewport — TASKS.csv, user request: "have
@@ -68,9 +69,13 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
       <div style={{ position: "relative", width: DISPLAY, height: DISPLAY, overflow: "hidden", borderRadius: 6 }}>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${GRID}, ${DISPLAY / GRID}px)`, gridTemplateRows: `repeat(${GRID}, ${DISPLAY / GRID}px)`, width: DISPLAY, height: DISPLAY }}>
           {layout.tiles.map((t) => (
-            <img
+            <CachedTile
               key={t.key}
-              src={tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)}
+              layerId={effectiveLayerId}
+              z={zoom}
+              x={t.x}
+              y={t.y}
+              url={tileUrlFor(effectiveLayerId, zoom, t.x, t.y, tracestrackKey)}
               alt=""
               width={DISPLAY / GRID}
               height={DISPLAY / GRID}

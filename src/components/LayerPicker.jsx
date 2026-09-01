@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Check } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Check, Trash2 } from "lucide-react";
 import { BASE_LAYERS } from "../lib/baseLayers.js";
+import { getCacheStats, clearTileCache, formatCacheBytes } from "../lib/tileCache.js";
 
 // Small base-layer switcher — the "layers" stack icon openstreetmap.org itself shows to switch
 // between Standard/Cycle/Transport/Tracestrack Topo — reused by both LocatorMap.jsx (small corner
@@ -8,6 +9,11 @@ import { BASE_LAYERS } from "../lib/baseLayers.js";
 // persisted choice, see baseLayers.js).
 export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, onSaveKey, onClose, openUpward = false }) {
   const [keyDraft, setKeyDraft] = useState(tracestrackKey || "");
+  // TASKS.csv #237 sub-item (5) — offline tile cache stats/clear, shown here since this is the one
+  // panel every basemap-showing view (LocatorMap, BasemapView) already opens to touch layer settings.
+  const [cacheStats, setCacheStats] = useState(null);
+  useEffect(() => { getCacheStats().then(setCacheStats); }, []);
+  const clearCache = () => { clearTileCache().then(() => getCacheStats().then(setCacheStats)); };
   return (
     <div style={{ ...panelStyle, ...(openUpward ? { top: "auto", bottom: "100%", marginTop: 0, marginBottom: 6 } : {}) }} onClick={(e) => e.stopPropagation()}>
       <div style={{ fontSize: 10.5, color: "#94a1b0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Base layer</div>
@@ -36,6 +42,14 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
           {!tracestrackKey && <div style={{ fontSize: 9.5, color: "#a95a3a", marginTop: 4 }}>No key saved yet — showing Standard until one is set.</div>}
         </div>
       )}
+      <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e6e8eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+        <span style={{ fontSize: 10, color: "#94a1b0" }} title="Map tiles saved for offline use — see the download button on the full map view">
+          Offline cache: {cacheStats ? `${cacheStats.count} tile${cacheStats.count === 1 ? "" : "s"} (${formatCacheBytes(cacheStats.bytes)})` : "…"}
+        </span>
+        {cacheStats && cacheStats.count > 0 && (
+          <button onClick={clearCache} title="Clear the offline tile cache" style={{ ...iconOnlyBtnStyle }}><Trash2 size={11} /></button>
+        )}
+      </div>
     </div>
   );
 }
@@ -53,4 +67,8 @@ const rowActiveStyle = { background: "#eef3fb", color: "#1a2028", fontWeight: 60
 const saveBtnStyle = {
   padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid #2f6fe0",
   background: "#2f6fe0", color: "#ffffff", cursor: "pointer",
+};
+const iconOnlyBtnStyle = {
+  width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center",
+  borderRadius: 4, border: "1px solid #d9dce1", background: "#ffffff", color: "#8a5555", cursor: "pointer", flexShrink: 0,
 };
