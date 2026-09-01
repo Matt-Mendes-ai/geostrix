@@ -5821,7 +5821,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           onClose={() => setGradeEstOpen(false)}
         />
       )}
-      {stereonetOpen && <StereonetModal picks={layers.structure || []} onClose={() => setStereonetOpen(false)} />}
+      {/* TASKS.csv #236 — onUseAsTrend closes the loop this feature was created for: the Stereonet
+          exists to sanity-check an orientation BEFORE it's fed to the anisotropy/structural tools, so
+          the computed mean plane can now be pushed straight into the anisotropy trend fields instead
+          of the user reading two numbers off the screen and retyping them. Also switches to the
+          Modeling sidebar so the fields it just wrote are actually visible — writing state into a
+          panel the user can't see would look like nothing happened. */}
+      {stereonetOpen && (
+        <StereonetModal
+          picks={layers.structure || []}
+          onClose={() => setStereonetOpen(false)}
+          onUseAsTrend={({ azimuth, dip }) => {
+            setAnisotropy((p) => ({ ...p, enabled: true, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10 }));
+            setStereonetOpen(false);
+            goToModule("modeling");
+            setNotices((p) => [...p, `Anisotropy trend set from the stereonet mean orientation (dip ${dip.toFixed(1)}° / dipdir ${azimuth.toFixed(1)}°).`]);
+          }}
+        />
+      )}
       {interceptsModalOpen && (
         <BoundaryInterceptsModal
           intercepts={computeIntercepts()}

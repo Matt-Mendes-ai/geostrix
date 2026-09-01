@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
-import { projectPole, greatCirclePoints } from "../lib/stereonet.js";
+import { projectPole, greatCirclePoints, fisherStats } from "../lib/stereonet.js";
 import { colorForStructure } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -19,12 +19,13 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 // task's own TASKS.csv note) but a materially bigger piece of math than a first-pass pole/great-circle
 // plot, and the audit finding's core complaint ("no way to interpret orientations before committing to
 // a trend") is already addressed by seeing the raw pole population and its scatter/clustering by eye.
-export default function StereonetModal({ picks, onClose }) {
+export default function StereonetModal({ picks, onClose, onUseAsTrend }) {
   useEscapeKey(onClose); // TASKS.csv #238
   const [projection, setProjection] = useState("equalArea");
   const [showPoles, setShowPoles] = useState(true);
   const [showCircles, setShowCircles] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [showMean, setShowMean] = useState(true); // TASKS.csv #236
 
   const types = useMemo(() => {
     const set = new Set();
@@ -36,6 +37,11 @@ export default function StereonetModal({ picks, onClose }) {
     if (typeFilter === "all") return picks;
     return picks.filter((p) => (String(p.value || "").trim() || "(unlabeled)") === typeFilter);
   }, [picks, typeFilter]);
+
+  // TASKS.csv #236 — mean vector / Fisher statistics over whatever subset is currently filtered in,
+  // so switching Structure type recomputes for just that population (which is the useful thing: the
+  // mean of "all faults + all bedding together" is meaningless, the mean of one set is not).
+  const stats = useMemo(() => fisherStats(filtered), [filtered]);
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
   const toSvg = (p) => ({ x: CX + p.x * R, y: CY - p.y * R }); // net y+ = north = up on screen, so flip for SVG's y-down
@@ -90,6 +96,26 @@ export default function StereonetModal({ picks, onClose }) {
                   <title>{`${p.value || "(unlabeled)"} — dip ${p.dip}° / dipdir ${p.azimuth}°${p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : ""}`}</title>
                 </circle>;
               })}
+
+              {/* TASKS.csv #236 — mean orientation overlay. Drawn LAST so it sits on top of the pole
+                  population it summarizes. The mean plane's own great circle is drawn alongside the
+                  mean pole because a geologist reads the plane, not the pole, when deciding whether a
+                  trend is right — showing only the pole would make them do that conversion by eye. */}
+              {showMean && stats && (() => {
+                const mp = toSvg(projectPole(stats.meanDipDir, stats.meanDip, projection));
+                const gc = greatCirclePoints(stats.meanDipDir, stats.meanDip, projection, 64).map(toSvg);
+                const gcd = gc.map((pt, j) => `${j === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`).join(" ");
+                return (
+                  <g>
+                    <path d={gcd} fill="none" stroke="#c0392b" strokeWidth={2} strokeDasharray="5 3" opacity={0.95}>
+                      <title>{`Mean plane — dip ${stats.meanDip.toFixed(1)}° / dipdir ${stats.meanDipDir.toFixed(1)}°`}</title>
+                    </path>
+                    <circle cx={mp.x} cy={mp.y} r={5.5} fill="#c0392b" stroke="#ffffff" strokeWidth={1.5}>
+                      <title>{`Mean pole — trend ${stats.meanTrend.toFixed(1)}° / plunge ${stats.meanPlunge.toFixed(1)}°`}</title>
+                    </circle>
+                  </g>
+                );
+              })()}
             </svg>
           </div>
 
@@ -114,6 +140,45 @@ export default function StereonetModal({ picks, onClose }) {
             <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
               <input type="checkbox" checked={showCircles} onChange={(e) => setShowCircles(e.target.checked)} /> Great circles
             </label>
+            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} /> Mean orientation
+            </label>
+
+            {/* TASKS.csv #236 — mean vector / Fisher statistics readout. This was the Stereonet's own
+                original justification (#141/#178): letting a geologist check numerically, not just by
+                eye, whether a trend is representative before feeding it to the anisotropy/structural
+                tools. See stereonet.js's fisherStats for why this uses the orientation-tensor
+                (eigenvector) method rather than naive vector averaging. */}
+            {stats ? (
+              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
+                <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>Mean orientation (n={stats.n})</div>
+                <div>Plane: <b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#94a1b0" }}>(dip/dipdir)</span></div>
+                <div>Pole: {stats.meanPlunge.toFixed(1)}° → {stats.meanTrend.toFixed(1)}° <span style={{ color: "#94a1b0" }}>(plunge/trend)</span></div>
+                <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
+                  <div title="Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.">k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
+                  <div title="95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.">α95 = {stats.alpha95.toFixed(1)}°</div>
+                  <div title="Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.">S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
+                </div>
+                <div style={{ marginTop: 4, color: "#55606e" }}>
+                  {stats.s1 > 0.65 ? "Tight cluster — a single dominant orientation."
+                    : stats.s1 - stats.s2 < 0.12 && stats.s3 < 0.2 ? "Girdle — picks spread along a great circle (possible fold); a single mean plane may not be meaningful."
+                    : stats.s1 < 0.45 ? "Weak / no preferred orientation — treat this mean with caution."
+                    : "Moderate clustering."}
+                </div>
+                {onUseAsTrend && (
+                  <button
+                    onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
+                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0" }}
+                    title="Copy this mean plane into the Modeling tab's anisotropy trend fields"
+                  >Use as anisotropy trend</button>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.4 }}>
+                Mean orientation needs at least 2 picks with a valid dip and dip direction.
+              </div>
+            )}
+
             <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.4, marginTop: 4 }}>
               Lower-hemisphere. Each point is a plane's pole (perpendicular to the plane) — clustering shows a
               consistent trend; scatter flags noisy/unreliable picks before feeding them into the anisotropy
