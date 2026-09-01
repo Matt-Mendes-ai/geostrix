@@ -6,9 +6,11 @@ still reflect that and are not worth churning just for the rename.
 
 ## Branding
 
-`build/icon.png` is the 1024px master app icon — a flat, minimal Strix owl-head mark (dark navy,
-amber eyes, transparent background), replacing an earlier, more photorealistic owl-over-cross-
-section design. The `.ico`/`.icns` next to it are generated from it (`png2icons`, multi-resolution)
+`build/icon.png` is the 1024px master app icon — a flat, minimal Strix owl-head mark (PostgreSQL-
+blue #336791, amber eyes, transparent background — the body color was deliberately lightened from
+an earlier dark-navy version to match Postgres's own elephant-mascot blue), replacing an even
+earlier, more photorealistic owl-over-cross-section design. The `.ico`/`.icns` next to it are
+generated from it (`png2icons`, multi-resolution)
 and wired into `package.json`'s electron-builder config for the Windows/Mac installers, plus set as
 the `BrowserWindow` icon in `electron/main.js` so a plain `npm run dev` run shows it too.
 `assets/GeoStrix_Logo.png` is the same image at full resolution for any other branding use (splash
