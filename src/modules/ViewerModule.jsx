@@ -635,6 +635,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     excludedIntercepts, toggleExcludedIntercept,
     softIntercepts, toggleSoftIntercept,
     sections, upsertSection, renameSection, deleteSection,
+    sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
   } = store;
 
   // TASKS.csv #228 — surface sample hover tooltip text. Values are stored in their native import unit
@@ -924,6 +925,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // buttons don't need this — they trigger the SAME existing modal-open booleans (dbModalOpen etc.)
   // that used to be triggered from sidebar buttons, just moved.
   const [openPopover, setOpenPopover] = useState(null); // null | "grid" | "themes"
+  // TASKS.csv #240 — which section groups (fence-series runs) are expanded to show their individual
+  // sections in the sidebar. Defaults to collapsed for every group (a fence run can be thousands of
+  // sections — see this row's own notes — so opting IN to rendering that many DOM rows, rather than
+  // it happening automatically on generation, matters for real sidebar responsiveness). Pure UI
+  // convenience state, deliberately not persisted — same category as openPopover right above.
+  const [expandedSectionGroups, setExpandedSectionGroups] = useState({});
   const [implicitBusy, setImplicitBusy] = useState(false);
   // Bug-hunt pass: bumped once by the three.js init effect right after sceneRef.current is set, purely
   // so effects that guard on `sceneRef.current` (like the custom-layers rebuild effect below, which is
@@ -4501,6 +4508,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const usedT = n * width;
     const tStart = tMin - (usedT - spanT) / 2; // center the tiling on the actual data span rather than always starting flush at tMin
 
+    // TASKS.csv #240 — user report: a single run against a large voxel model produced 3144
+    // individual sections with no group to manage them as a unit. Every section this run creates is
+    // tagged with ONE shared groupId so the sidebar can collapse them into a single row and
+    // deleteSectionGroup can clear the whole run in one action.
+    const groupId = addSectionGroup(`Fence series (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`);
     let created = 0;
     for (let i = 0; i < n; i++) {
       const tCenter = tStart + width * (i + 0.5);
@@ -4508,11 +4520,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const b = { x: sMax * dirX + tCenter * perpX, y: sMax * dirY + tCenter * perpY };
       const id = `sect_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`;
       const name = `Fence ${i + 1}/${n} (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`;
-      upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth: sliceSeriesAzimuth, corridor: width / 2, contacts: [] });
+      upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth: sliceSeriesAzimuth, corridor: width / 2, contacts: [], groupId });
       created++;
     }
-    setNotices((p) => [...p, `Generated ${created} section${created === 1 ? "" : "s"} spaced ${width}m apart at azimuth ${sliceSeriesAzimuth.toFixed(0)}° — see the Cross-sections list to open them.`]);
-  }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection]);
+    setNotices((p) => [...p, `Generated ${created} section${created === 1 ? "" : "s"} spaced ${width}m apart at azimuth ${sliceSeriesAzimuth.toFixed(0)}° — grouped together in the Cross-sections list.`]);
+  }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
 
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
@@ -4902,26 +4914,61 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title="Generate the slice series"><Scissors size={13} /> Generate</button>
         </div>
 
-        {sections.length > 0 && (
-          <>
-            {/* Every drawn section is auto-saved here the moment it's launched (see launchSection), so
-                interpreted contacts drawn in the pop-out (TASKS.csv) always have somewhere to persist
-                to. Reopening rebuilds the section from current layer/filter/color state and re-sends
-                whatever contacts were already drawn on it. */}
-            <div className="ge-section-label">Cross-sections ({sections.length})</div>
-            {sections.map((s) => (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                  <Scissors size={12} style={{ flexShrink: 0, color: "#55606e" }} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                  {s.contacts?.length > 0 && <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
-                </div>
-                <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); })} />
-                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }} />
+        {sections.length > 0 && (() => {
+          // TASKS.csv #240 — user report: a single fence-series run against a large voxel model
+          // produced 3144 individual sections with no easy way to manage or clear them as a unit.
+          // Grouped sections (groupId set — every fence-series run tags its own output, see
+          // generateSliceSeries above) render as one collapsed row per run instead of one row per
+          // section; ungrouped sections (hand-drawn via "Draw cross-section") keep rendering
+          // individually exactly as before.
+          const grouped = new Map();
+          const ungrouped = [];
+          sections.forEach((s) => {
+            if (s.groupId) { if (!grouped.has(s.groupId)) grouped.set(s.groupId, []); grouped.get(s.groupId).push(s); }
+            else ungrouped.push(s);
+          });
+          const sectionRow = (s) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+              <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                <Scissors size={12} style={{ flexShrink: 0, color: "#55606e" }} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                {s.contacts?.length > 0 && <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
               </div>
-            ))}
-          </>
-        )}
+              <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); })} />
+              <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }} />
+            </div>
+          );
+          return (
+            <>
+              <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Cross-sections ({sections.length})</span>
+                <span
+                  onClick={() => { if (window.confirm(`Delete all ${sections.length} section(s) and any contacts drawn on them? This can't be undone from here.`)) deleteAllSections(); }}
+                  style={{ cursor: "pointer", color: "#8a5555", fontSize: 10, textTransform: "none", letterSpacing: 0 }}
+                  title="Delete every section and section group"
+                >Delete all</span>
+              </div>
+              {sectionGroups.filter((g) => grouped.has(g.id)).map((g) => {
+                const members = grouped.get(g.id);
+                const expanded = !!expandedSectionGroups[g.id];
+                return (
+                  <div key={g.id} style={{ marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#eef1f5", border: "1px solid #d9dce1", borderRadius: 6 }}>
+                      <div onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                        {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "#55606e" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "#55606e" }} />}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
+                        <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({members.length})</span>
+                      </div>
+                      <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }} title="Delete this whole group" />
+                    </div>
+                    {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
+                  </div>
+                );
+              })}
+              {ungrouped.map(sectionRow)}
+            </>
+          );
+        })()}
         </>)}
 
         {sidebarTab === "modeling" && (<>
