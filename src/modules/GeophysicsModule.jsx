@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe } from "lucide-react";
+import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
 import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
@@ -70,6 +71,8 @@ export default function GeophysicsModule() {
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
   const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
   const [srtmAreaOptions, setSrtmAreaOptions] = useState(null); // [{id, label, bboxLonLat}] | null — TASKS.csv #200
+  const [webLayerModalOpen, setWebLayerModalOpen] = useState(false);
+  const [webLayerDefaultBbox, setWebLayerDefaultBbox] = useState(null); // [lonMin,latMin,lonMax,latMax] | null — TASKS.csv #127
   const [voxelError, setVoxelError] = useState(null);
   const [voxelBusy, setVoxelBusy] = useState(false);
   const [voxelProgress, setVoxelProgress] = useState(null);
@@ -910,6 +913,16 @@ export default function GeophysicsModule() {
             onConfirm={runSrtmFetch}
           />
         )}
+        {webLayerModalOpen && (
+          <AddWebLayerModal
+            onClose={() => setWebLayerModalOpen(false)}
+            addRaster={addRaster}
+            addBoundary={addBoundary}
+            projectEpsg={project?.epsg}
+            defaultBboxLonLat={webLayerDefaultBbox}
+            collarsLoaded={collars.length > 0}
+          />
+        )}
         <input
           ref={terrainInput}
           type="file"
@@ -1058,6 +1071,14 @@ export default function GeophysicsModule() {
             </div>
           </div>
         ))}
+
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+          Web layers (WMS / WFS)
+          <InfoButton title="Web layers" text="Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer." />
+        </div>
+        <button onClick={async () => { setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true); }} style={pBtn}>
+          <Globe size={13} /> Add web layer (WMS / WFS)…
+        </button>
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Mineral claims / tenure

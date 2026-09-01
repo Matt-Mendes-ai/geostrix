@@ -356,6 +356,33 @@ ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y }) => {
   }
 });
 
+// TASKS.csv #127 — generic WMS/WMTS/WFS layer consumption. A user-supplied government/company OGC
+// service URL (GetCapabilities/GetMap/GetFeature), unlike fetch-srtm-tile above which always hits one
+// fixed, known-CORS-friendly bucket. Most government WMS/WFS servers do NOT set permissive CORS
+// headers for arbitrary origins, so a direct renderer-side fetch() would fail even though the exact
+// same URL loads fine as an <img src> (image display isn't CORS-gated the way reading response bytes
+// is) — same reasoning as the SRTM proxy, generalized to any URL instead of one hardcoded source.
+// Returns base64 always (works for both binary GetMap images and text XML/GeoJSON responses — the
+// renderer decides how to decode based on what it asked for) plus contentType so the renderer can
+// build a correct data: URL for an image without having to guess the format.
+ipcMain.handle("fetch-web-layer", async (_e, { url }) => {
+  try {
+    const res = await fetch(url);
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok) {
+      // Servers often return a 200 with an XML ServiceExceptionReport instead of a real HTTP error —
+      // that's handled renderer-side by inspecting the body — but a genuine non-2xx still deserves
+      // its own message rather than being decoded as if it were valid content.
+      const bodyText = contentType.includes("xml") || contentType.includes("text") ? await res.text() : "";
+      return { ok: false, status: res.status, message: `Request failed (HTTP ${res.status})${bodyText ? `: ${bodyText.slice(0, 300)}` : "."}` };
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { ok: true, status: res.status, contentType, base64: buf.toString("base64") };
+  } catch (err) {
+    return { ok: false, status: 0, message: `Network error: ${err.message}` };
+  }
+});
+
 function pgConfig(config) {
   return {
     host: config.host, port: Number(config.port) || 5432, database: config.database,

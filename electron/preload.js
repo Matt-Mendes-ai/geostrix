@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("desktop", {
   saveFile: (payload) => ipcRenderer.invoke("save-file", payload),
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),
   fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
+  fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
   dbTest: (config) => ipcRenderer.invoke("db-test", config),
   dbQuery: (config, sql) => ipcRenderer.invoke("db-query", { config, sql }),
   dbListTables: (config) => ipcRenderer.invoke("db-list-tables", config),

@@ -211,6 +211,28 @@ export async function fetchSRTMTile(z, x, y) {
   return res.arrayBuffer();
 }
 
+// ---------- Generic web-layer fetch (see electron/main.js's fetch-web-layer handler) ----------
+// TASKS.csv #127 — WMS/WMTS/WFS. Same Electron-proxy / browser-fallback split as fetchSRTMTile above,
+// generalized to an arbitrary user-supplied URL instead of one fixed source: in Electron this goes
+// through the main process (sidesteps CORS, which most government WMS/WFS servers don't set
+// permissively for arbitrary origins); in a plain-browser dev session it falls back to a direct
+// fetch(), which works only as far as that particular server's own CORS policy allows — same honest
+// limitation the SRTM fallback already has. Returns { contentType, arrayBuffer } uniformly so callers
+// can decide whether to decode as text (XML capabilities, GeoJSON) or wrap as an image data URL.
+export async function fetchWebLayerUrl(url) {
+  if (d && d.fetchWebLayerUrl) {
+    const res = await d.fetchWebLayerUrl(url);
+    if (!res.ok) throw new Error(res.message || `Request failed for ${url}`);
+    const bin = atob(res.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return { contentType: res.contentType || "", arrayBuffer: bytes.buffer };
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Request failed (HTTP ${res.status}) for ${url}`);
+  return { contentType: res.headers.get("content-type") || "", arrayBuffer: await res.arrayBuffer() };
+}
+
 // ---------- Python sidecar (see electron/main.js startPythonSidecar, python-sidecar/) ----------
 // Unlike everything else in this file, these are plain `fetch()` calls, not `window.desktop` IPC —
 // the sidecar is a local HTTP server, so there's nothing Electron-specific about talking to it, and
