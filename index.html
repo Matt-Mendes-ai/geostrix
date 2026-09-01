@@ -5,9 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <title>GeoStrix</title>
+    <style>
+      /* User report: a blank/black window with no feedback while the bundle loads on modest
+         hardware (see TASKS.csv — the target audience is budget-constrained geologists, not
+         high-end machines) reads as "is this broken?", especially since a genuine load failure
+         (missing dist/, the actual bug this same report also caught) looks identical to a slow
+         one with nothing on screen either way. This splash is plain inline HTML/CSS in the
+         document itself — deliberately NOT a React component, so it paints before any JS bundle
+         has to load/parse/execute at all, the exact window this is covering for. Matches
+         BrowserWindow's own backgroundColor (electron/main.js) so there's no flash-to-black
+         between the native window appearing and this splash's first paint.
+         Progress is tied to real load milestones, not a fake timed animation — see the inline
+         script below and main.jsx's __hideSplash call for what actually advances each stage. */
+      #splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 18px; background: #0c0f14;
+        font-family: 'Exo 2', system-ui, sans-serif;
+        transition: opacity 0.25s ease;
+      }
+      #splash.hidden { opacity: 0; pointer-events: none; }
+      #splash img { width: 96px; height: 96px; }
+      #splash .name { color: #e6e9ee; font-size: 15px; letter-spacing: 0.04em; }
+      #splash .bar { width: 220px; height: 4px; border-radius: 2px; background: #232a34; overflow: hidden; }
+      #splash .bar-fill { height: 100%; width: 8%; background: #e2a63c; transition: width 0.4s ease; }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <img src="./favicon.png" alt="" />
+      <div class="name">GeoStrix</div>
+      <div class="bar"><div class="bar-fill" id="splash-fill"></div></div>
+    </div>
     <div id="root"></div>
+    <script>
+      // Real milestones, not a timed fake-out: HTML parsed (this script runs) -> DOMContentLoaded
+      // (all deferred/module scripts fetched+parsed) -> window.load (every resource, incl. fonts,
+      // actually loaded) -> main.jsx's own __hideSplash() once React has committed its first paint.
+      function setSplash(pct) {
+        var el = document.getElementById("splash-fill");
+        if (el) el.style.width = pct + "%";
+      }
+      document.addEventListener("DOMContentLoaded", function () { setSplash(35); });
+      window.addEventListener("load", function () { setSplash(75); });
+      window.__hideSplash = function () {
+        setSplash(100);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var el = document.getElementById("splash");
+            if (!el) return;
+            el.classList.add("hidden");
+            setTimeout(function () { el.remove(); }, 300);
+          });
+        });
+      };
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

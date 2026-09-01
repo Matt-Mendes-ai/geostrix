@@ -38,3 +38,7 @@ if (route === "/section") {
     </ErrorBoundary>
   );
 }
+// index.html's own splash screen (see its header comment) — hidden once React has actually
+// committed a first render, not on a timer. __hideSplash itself waits two animation frames before
+// fading out, so this fires as soon as possible after render() without racing the first real paint.
+window.__hideSplash?.();

@@ -40,6 +40,15 @@ jobs:
           venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
       - name: Freeze the Python sidecar
         run: npm run build:sidecar
+      - name: Build the web bundle
+        # BUG (v0.1.1/v0.1.2 both shipped without this): electron-builder's `files` config packages
+        # dist/**/* into app.asar, but nothing had ever actually built dist/ in THIS workflow — the
+        # plain `npm run build` script does `vite build && electron-builder` together, but this job
+        # calls electron-builder directly (needs --win added, which build's own script doesn't take),
+        # so dist/ stayed exactly whatever was gitignored-and-absent, electron-builder packaged zero
+        # matching files, and the shipped app's index.html was simply missing — a genuinely blank
+        # window forever, not a slow load. Caught via a real install (not just a build success check).
+        run: npm run build:web
       - name: Build and publish
         run: npx electron-builder --publish always --win
         env:
