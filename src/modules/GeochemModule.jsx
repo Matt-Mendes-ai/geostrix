@@ -467,6 +467,7 @@ export default function GeochemModule() {
           assayElements={assayElements}
           collars={collars}
           survey={survey}
+          layers={layers}
           onClose={() => setBestIntOpen(false)}
         />
       )}

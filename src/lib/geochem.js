@@ -148,6 +148,72 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
 // through the same valueIn() every other grade figure in this file uses. Returns null (not 0) if no
 // assay row for this element overlaps the window at all, so the caller can render "—" rather than a
 // misleading zero.
+// TASKS.csv #230 — per-intercept domain/lithology breakdown, the last sub-item of the three-audit
+// finding on intercept reporting. Answers "what is this intercept actually hosted in?" — which is a
+// different and often more important question than its grade: an 8 m intercept sitting entirely
+// inside one rhyolite unit means something quite different from the same 8 m straddling a contact
+// between two units, and a report that can't distinguish those hides real geology.
+//
+// Returns every domain row overlapping the interval with the METRES of overlap and the fraction of
+// the interval it accounts for, sorted longest-first, so the caller can show either the dominant
+// host (parts[0]) or the full breakdown. Overlap is length-weighted exactly the way avgGradeInRange
+// below and computeBestIntercepts above already weight things, so all three agree about what "how
+// much of this interval" means.
+//
+// `domainRows` is any interval layer in this app's standard shape ([{hole_id, from, to, value}]) —
+// lithology is the obvious one, but alteration/vein/any custom interval layer works identically,
+// which is why this takes rows rather than hard-coding `litho`.
+export function domainsForInterval(domainRows, hole_id, from, to) {
+  const EPS = 1e-6;
+  const width = to - from;
+  if (!(width > EPS)) return { parts: [], dominant: null, covered: 0, overlapping: false };
+  const byValue = new Map();
+  const spans = [];
+  let summed = 0;
+  (domainRows || []).forEach((d) => {
+    if (d.hole_id !== hole_id || d.from == null || d.to == null || d.to <= d.from) return;
+    const ovFrom = Math.max(d.from, from), ovTo = Math.min(d.to, to);
+    const ov = ovTo - ovFrom;
+    if (ov <= EPS) return;
+    const key = String(d.value ?? "").trim() || "(unlabelled)";
+    byValue.set(key, (byValue.get(key) || 0) + ov);
+    spans.push([ovFrom, ovTo]);
+    summed += ov;
+  });
+  // Real coverage is the UNION of the overlapping spans, not their sum. Discovered while verifying
+  // this against the real harry_property lithology log, which genuinely contains overlapping
+  // intervals (45.50-62.00 FINT and 49.00-62.00 DACT overlap by 13 m). Summing gave "covered" > 1 and
+  // per-unit fractions that added to 150%, which reads as a broken report. Overlapping logs are a
+  // real data-quality problem — from bad merges, re-logging, or a sloppy export — so this measures
+  // coverage correctly AND flags the overlap rather than silently normalising it away, since the
+  // geologist needs to know their log has a genuine conflict here.
+  spans.sort((a, b) => a[0] - b[0]);
+  let union = 0, curStart = null, curEnd = null;
+  spans.forEach(([s, e]) => {
+    if (curStart === null) { curStart = s; curEnd = e; return; }
+    if (s <= curEnd + EPS) { curEnd = Math.max(curEnd, e); }
+    else { union += curEnd - curStart; curStart = s; curEnd = e; }
+  });
+  if (curStart !== null) union += curEnd - curStart;
+
+  const parts = Array.from(byValue.entries())
+    .map(([value, metres]) => ({ value, metres, fraction: metres / width }))
+    .sort((a, b) => b.metres - a.metres);
+  return {
+    parts,
+    dominant: parts.length ? parts[0] : null,
+    // Fraction of the interval covered by ANY domain row. Reported separately from the parts
+    // themselves: a dominant unit at 100% of the COVERED length is misleading if the log only covers
+    // half the intercept, and the caller needs to be able to say so rather than implying full
+    // knowledge from partial logging.
+    covered: Math.min(1, union / width),
+    // True when the source rows overlap each other within this interval, i.e. the same metre is
+    // logged as more than one unit — in which case the per-unit fractions legitimately sum above 100%
+    // and the caller should say so rather than presenting them as a clean split.
+    overlapping: summed > union + EPS,
+  };
+}
+
 export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, elementUnits) {
   const EPS = 1e-6;
   let weighted = 0, coveredWidth = 0;

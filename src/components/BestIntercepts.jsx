@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
-import { computeBestIntercepts, avgGradeInRange } from "../lib/geochem.js";
+import { computeBestIntercepts, avgGradeInRange, domainsForInterval } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
@@ -9,6 +9,7 @@ import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
+import { LAYER_META } from "../lib/layers.js";
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -17,7 +18,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // that GeoStrix had no equivalent of — the composite math itself lives in lib/geochem.js's
 // computeBestIntercepts (grouped by hole, internal-dilution bridging, length-weighted grade); this is
 // just the control panel + results table + CSV export around it.
-export default function BestIntercepts({ assays, assayElements, collars, survey, onClose }) {
+export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
@@ -58,6 +59,15 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     });
     return out;
   }, [twEnabled, collars, survey]);
+  // TASKS.csv #230 — host domain/lithology per intercept. Any interval layer works (the helper takes
+  // rows, not a hard-coded `litho`), so the picker offers whichever interval layers actually have
+  // data — lithology is the usual choice but alteration or a custom layer is equally valid.
+  const domainLayerOptions = useMemo(
+    () => ["litho", "alt", "vein", "mnlgy", "litho_gc", "alt_gc"].filter((k) => (layers?.[k] || []).length > 0),
+    [layers]
+  );
+  const [domainLayer, setDomainLayer] = useState("");
+  const domainRows = domainLayer ? (layers?.[domainLayer] || []) : null;
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const reportAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
@@ -71,8 +81,18 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       // trueWidth.js: showing the UNCORRECTED number under a "True width" heading would be worse
       // than showing nothing.
       tw: tracesByHole ? trueWidthForIntercept(tracesByHole.get(r.hole_id), r.from, r.to, twDipDir, twDip) : null,
+      dom: domainRows ? domainsForInterval(domainRows, r.hole_id, r.from, r.to) : null,
     }));
-  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip]);
+  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows]);
+
+  // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
+  // that collapsed a contact-straddling intercept to just its dominant unit would hide exactly the
+  // geology this column exists to surface.
+  const domainLabel = (d) => {
+    if (!d || !d.parts.length) return "—";
+    if (d.parts.length === 1) return d.parts[0].value;
+    return d.parts.slice(0, 3).map((p) => `${p.value} ${Math.round(p.fraction * 100)}%`).join(" · ");
+  };
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
   const exportCSV = () => {
@@ -82,6 +102,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
         true_width_m: r.tw ? r.tw.trueWidth.toFixed(2) : "",
         true_width_factor: r.tw ? r.tw.factor.toFixed(3) : "",
         structure_dipdir: twDipDir, structure_dip: twDip,
+      } : {}),
+      ...(domainLayer ? {
+        host_domain: r.dom?.dominant?.value ?? "",
+        host_domain_pct: r.dom?.dominant ? Math.round(r.dom.dominant.fraction * 100) : "",
+        host_domain_all: r.dom ? r.dom.parts.map((p) => `${p.value}:${Math.round(p.fraction * 100)}%`).join(" | ") : "",
+        host_domain_logged_pct: r.dom ? Math.round(r.dom.covered * 100) : "",
+        host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
       } : {}),
       [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
       grade_x_length: (r.avgGrade * r.length).toFixed(2),
@@ -172,6 +199,18 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
             {twEnabled && <span style={{ fontSize: 10, color: "#55606e" }}>Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.</span>}
           </div>
 
+          {/* TASKS.csv #230 — host domain/lithology per intercept. */}
+          {domainLayerOptions.length > 0 && (
+            <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}
+              title="Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.">
+              Host domain
+              <select value={domainLayer} onChange={(e) => setDomainLayer(e.target.value)} style={{ ...inp, width: "auto" }}>
+                <option value="">(none)</option>
+                {domainLayerOptions.map((k) => <option key={k} value={k}>{LAYER_META[k]?.label || k}</option>)}
+              </select>
+            </label>
+          )}
+
           {symbols.length === 0 ? (
             <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No assay elements loaded — import assays first.</div>
           ) : results.length === 0 ? (
@@ -187,6 +226,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                     <th style={th}>Length (m)</th>
                     {twEnabled && <th style={th} title="Downhole length corrected to a true thickness perpendicular to the stated structure.">True width (m)</th>}
                     {twEnabled && <th style={th} title="|cos θ| between the hole and the structure's pole. 1.0 = hole perpendicular to the structure (ideal); near 0 = a grazing intersection whose downhole width is badly inflated.">Factor</th>}
+                    {domainLayer && <th style={th} title="Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.">Host</th>}
                     <th style={th}>Avg {symbol} ({unit})</th>
                     <th style={th}>Grade × length</th>
                     {extraSymbols.map((s) => <th key={s} style={th}>Avg {s} ({elementUnits[s] || "ppm"})</th>)}
@@ -194,7 +234,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                   </tr>
                 </thead>
                 <tbody>
-                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                   {results.slice(startIndex, endIndex).map((r, i) => (
                     <tr key={startIndex + i} style={{ borderBottom: "1px solid #eef1f5", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
@@ -203,13 +243,29 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                       <td style={td}>{r.length.toFixed(2)}</td>
                       {twEnabled && <td style={td}>{r.tw ? r.tw.trueWidth.toFixed(2) : "—"}</td>}
                       {twEnabled && <td style={{ ...td, color: r.tw && r.tw.factor < 0.5 ? "#b06a1f" : undefined }} title={r.tw && r.tw.factor < 0.5 ? "Oblique intersection — the downhole width overstates true thickness by more than 2x." : undefined}>{r.tw ? r.tw.factor.toFixed(3) : "—"}</td>}
+                      {domainLayer && (() => {
+                        const d = r.dom;
+                        const partial = d && d.parts.length > 0 && d.covered < 0.99;
+                        // Overlap is a genuine data-quality problem (the same metre logged as two
+                        // different units), and it's why the percentages can sum above 100% — say so
+                        // rather than letting the row look simply wrong.
+                        const notes = [
+                          partial ? `Only ${Math.round(d.covered * 100)}% of this intercept has a logged unit — the remainder is unlogged.` : null,
+                          d?.overlapping ? "This hole's log has OVERLAPPING intervals here (the same metre logged as more than one unit), so these percentages sum above 100%. Worth fixing in the source log." : null,
+                        ].filter(Boolean);
+                        return (
+                          <td style={{ ...td, color: d?.overlapping ? "#b06a1f" : undefined }} title={notes.length ? notes.join(" ") : undefined}>
+                            {domainLabel(d)}{partial ? " *" : ""}{d?.overlapping ? " ⚠" : ""}
+                          </td>
+                        );
+                      })()}
                       <td style={{ ...td, fontWeight: 600, color: "#1a2028" }}>{r.avgGrade.toFixed(3)}</td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
-                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>
