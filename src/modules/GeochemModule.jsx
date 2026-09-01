@@ -465,6 +465,8 @@ export default function GeochemModule() {
         <BestIntercepts
           assays={assays}
           assayElements={assayElements}
+          collars={collars}
+          survey={survey}
           onClose={() => setBestIntOpen(false)}
         />
       )}

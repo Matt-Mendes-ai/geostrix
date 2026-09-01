@@ -20,7 +20,10 @@
 const toRad = (d) => (d * Math.PI) / 180;
 const toDeg = (r) => (r * 180) / Math.PI;
 
-function trendPlungeToVec(trendDeg, plungeDeg) {
+// Exported (TASKS.csv #230) so the true-width calculation can build a structure's pole vector in this
+// SAME east/north/up frame — desurveyHole's world output uses the identical convention (x = easting,
+// y = northing, z = elevation/up), so a dot product between the two is directly meaningful.
+export function trendPlungeToVec(trendDeg, plungeDeg) {
   const t = toRad(trendDeg), p = toRad(plungeDeg);
   return { x: Math.sin(t) * Math.cos(p), y: Math.cos(t) * Math.cos(p), z: -Math.sin(p) };
 }
