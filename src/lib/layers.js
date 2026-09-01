@@ -45,6 +45,24 @@ export const UNIT_NAMES = {
 };
 export function colorForLithology(u) { const k = (u || "").toLowerCase(); return LITHO_COLORS[k] || hashColor(u); }
 
+// TASKS.csv #241 — Matt's own synthetic-dataset request came bundled with a second, standing ask: a
+// way to tell overburden and cross-cutting units (faults, dykes, breccias) apart from ordinary
+// stratigraphic ones, since today every lithology code is treated identically by the Modeling tools
+// (an implicit-surface run has no idea "OBN" isn't basement, or that "FLT" cuts across everything else
+// rather than sitting in stratigraphic order with it). This is the per-unit classification that
+// downstream code (ViewerModule's Stack/Implicit tools, gatherLithoSurfaceSpec's surface `type`) reads
+// from — new codes not listed here default to "stratigraphic" rather than guessing wrong.
+export const UNIT_ROLES = {
+  obn: "overburden",
+  flt: "fault",
+  i6: "dyke",
+  silbx: "breccia",
+};
+export function roleForLithology(u) { return UNIT_ROLES[(u || "").toLowerCase()] || "stratigraphic"; }
+// Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
+// own scope comment in ViewerModule.jsx) — faults, dykes, and breccia bodies all qualify.
+export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia"; }
+
 export const ALT_COLORS = { CARB: "#b8c4c8", KSP: "#8a3a3a", MAG: "#4a4a4a", OX: "#b5622c", PRO: "#4a6b4a", QSP: "#d4b06a", SIL: "#e8e2d0", UNK: "#6a6a6a",
   SER: "#d4b06a", CHL: "#4a6b4a", EPI: "#7a9e6a", FRESH: "#5a6472" };
 export function colorForAlteration(a) { return ALT_COLORS[(a || "").toUpperCase()] || hashColor(a); }

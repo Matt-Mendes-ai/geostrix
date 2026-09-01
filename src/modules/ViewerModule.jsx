@@ -42,6 +42,7 @@ import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
+  roleForLithology, isCrossCuttingRole,
   colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
@@ -379,7 +380,14 @@ function disposeThreeGroup(group) {
 // have something to read.
 const SURFACE_TYPES = [
   { key: "stratigraphic_contact", label: "Stratigraphic contact" },
+  // TASKS.csv #241 — overburden is stratigraphically real (it does sit on top, in order) but
+  // shouldn't be read as "basement rock" by anything downstream that cares about that distinction
+  // (target-generation, true-width calcs against bedrock, etc), so it gets its own type rather than
+  // being lumped under stratigraphic_contact like every other litho top.
+  { key: "overburden_base", label: "Overburden (base of)" },
   { key: "fault", label: "Fault" },
+  { key: "dyke", label: "Dyke (cross-cutting)" },
+  { key: "breccia_body", label: "Breccia body (cross-cutting)" },
   { key: "mineralization_envelope", label: "Mineralization envelope" },
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unconformity", label: "Unconformity (erosional)" },
@@ -406,6 +414,8 @@ function guessSurfaceType(label, meshName) {
   if (s.includes("ALTERATION:")) return "alteration_envelope";
   if (s.includes("STRUCTURE:")) {
     if (/FLT|FAULT|SHR|SHEAR/.test(s)) return "fault";
+    if (/DYKE|DIKE/.test(s)) return "dyke";
+    if (/\bBX\b|BRECCIA/.test(s)) return "breccia_body";
     return "other";
   }
   return "other";
@@ -2481,7 +2491,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       orientations = [est];
       if (!silent) setNotices((p) => [...p, `No structure picks found — estimated a single dip/azimuth (~${est.dip.toFixed(0)}°/~${est.azimuth.toFixed(0)}°) from the shape of the "${unitName}" contact points. Import a structure CSV for a more accurate result.`]);
     }
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color: colorForLithology(unitName), type: "stratigraphic_contact" };
+    // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
+    // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",
+    // so a surface generated from e.g. "FLT" or a dyke code is correctly tagged fault/dyke rather than
+    // silently mislabeled as an ordinary stratigraphic top.
+    const role = roleForLithology(unitName);
+    const type = role === "overburden" ? "overburden_base" : role === "fault" ? "fault" : role === "dyke" ? "dyke" : role === "breccia" ? "breccia_body" : "stratigraphic_contact";
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color: colorForLithology(unitName), type };
   };
 
   const runImplicitModel = useCallback(async (unitName) => {
@@ -5256,7 +5272,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
             <option value="">Choose a unit…</option>
-            {litho_units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {litho_units.map((u) => {
+              const role = roleForLithology(u);
+              return <option key={u} value={u}>{u}{role !== "stratigraphic" ? ` (${role}${isCrossCuttingRole(role) ? ", cross-cutting" : ""})` : ""}</option>;
+            })}
           </select>
           <button
             onClick={() => runImplicitModel(implicitTarget)}
@@ -5275,21 +5294,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
             <option value="">Add a unit…</option>
-            {litho_units.filter((u) => !stackUnits.includes(u)).map((u) => <option key={u} value={u}>{u}</option>)}
+            {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
+                warned about in the paragraph above: they break the tool's own non-crossing guarantee,
+                so they're unselectable rather than trusting the user to read the warning first. */}
+            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u))).map((u) => {
+              const role = roleForLithology(u);
+              return <option key={u} value={u}>{u}{role === "overburden" ? " (overburden)" : ""}</option>;
+            })}
           </select>
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>No units added yet.</div>
         )}
-        {stackUnits.map((u, i) => (
+        {stackUnits.map((u, i) => {
+          const role = roleForLithology(u);
+          return (
           <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
             <span style={{ fontSize: 10, color: "#94a1b0", width: 14, flexShrink: 0 }}>{i + 1}</span>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u}</div>
+            {role === "overburden" && <span title="Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact" style={{ fontSize: 9, color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
             <ChevronUp size={13} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} onClick={() => moveStackUnit(u, -1)} />
             <ChevronDown size={13} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} onClick={() => moveStackUnit(u, 1)} />
             <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeStackUnit(u)} />
           </div>
-        ))}
+          );
+        })}
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}
