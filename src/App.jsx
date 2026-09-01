@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
-import { useStore, useCursorValue } from "./lib/store.jsx";
+import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
@@ -357,12 +357,14 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 }
 
 function StatusBar({ epsgEditing, setEpsgEditing, pyStatus }) {
-  const { project, setEpsg, setProjectName, collars, taskProgress } = useStore();
-  // TASKS.csv #226/#214 — cursor lives in its own tiny context now (see store.jsx's own comment on
-  // CursorProvider), not the big shared store, specifically so this component re-renders on every
-  // mousemove-driven cursor update (as it always needed to, to show a live readout) WITHOUT dragging
-  // every other useStore() consumer — most importantly ViewerModule.jsx — along for that same ride.
+  const { project, setEpsg, setProjectName, collars } = useStore();
+  // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
+  // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
+  // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
+  // (as it always needed to, to show a live readout) WITHOUT dragging every other useStore() consumer
+  // — most importantly ViewerModule.jsx — along for that same ride.
   const cursor = useCursorValue();
+  const taskProgress = useTaskProgressValue();
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" ? "#55606e" : "#94a1b0";
   const pyLabel = pyStatus === "connected" ? "Python: connected" : pyStatus === "checking" ? "Python: checking…" : "Python: not available (optional — see python-sidecar/README.md)";

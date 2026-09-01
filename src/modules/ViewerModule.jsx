@@ -8,7 +8,7 @@ import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, reprojectXY, guessEpsgFromPrjWkt } from "../lib/reproject.js";
-import { useStore, useSetCursor } from "../lib/store.jsx";
+import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole } from "../lib/desurvey.js";
 import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -624,6 +624,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // to the stable setter — never to CursorValueContext — means this, the single largest and most
   // render-expensive component in the app, is no longer forced to re-render on every mouse-move tick.
   const setCursor = useSetCursor();
+  // Same split, same reasoning, for taskProgress (TASKS.csv #226 follow-up) — this component calls
+  // setTaskProgress repeatedly during a modeling run/multi-file import but never reads its value.
+  const setTaskProgress = useSetTaskProgress();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
     surfaceSamples, surfaceElements,
@@ -634,7 +637,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     addLayoutImage, goToModule,
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
     viewportRenderRequest, viewportRenderRequestSeq, viewportPendingRequest, resolveViewportRender,
-    setTaskProgress,
     rasters, updateRaster, removeRaster,
     boundaries, updateBoundary, removeBoundary,
     omfObjects, updateOmfObject, removeOmfObject,

@@ -33,6 +33,26 @@ export function CursorProvider({ children }) {
 export const useCursorValue = () => useContext(CursorValueContext);
 export const useSetCursor = () => useContext(CursorSetterContext);
 
+// TASKS.csv #226/#214 follow-up — taskProgress was the other candidate flagged (but not yet fixed)
+// when the cursor split above closed the measured case: setTaskProgress fires repeatedly during any
+// long-running foreground action (a modeling run's progress-bar tick, once per file in a multi-file
+// import queue — see ViewerModule.jsx's callers), and like cursor it lived in the single giant store
+// context, so every one of those ticks re-rendered every useStore() consumer including ViewerModule
+// itself — which, same as cursor, only ever calls the setter and never reads taskProgress's value in
+// its own render output (only App.jsx's status bar does). Identical split, same reasoning.
+const TaskProgressValueContext = createContext(null);
+const TaskProgressSetterContext = createContext(() => {});
+export function TaskProgressProvider({ children }) {
+  const [taskProgress, setTaskProgress] = useState(null);
+  return (
+    <TaskProgressSetterContext.Provider value={setTaskProgress}>
+      <TaskProgressValueContext.Provider value={taskProgress}>{children}</TaskProgressValueContext.Provider>
+    </TaskProgressSetterContext.Provider>
+  );
+}
+export const useTaskProgressValue = () => useContext(TaskProgressValueContext);
+export const useSetTaskProgress = () => useContext(TaskProgressSetterContext);
+
 const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
@@ -552,14 +572,9 @@ export function StoreProvider({ children }) {
     setModuleRequestSeq((s) => s + 1);
   }, []);
 
-  // ---- Global task progress: a status-bar-visible "what's happening right now" indicator for
-  // longer-running background actions (implicit modeling runs, multi-file CSV import queues, ...),
-  // added after a user report that a modeling run gave no visible feedback. Any module can call
-  // setTaskProgress({label, pct}) — pct 0-100, or null for an indeterminate/unknown-length step —
-  // and null to clear it when done. Deliberately just one global slot, not a queue/stack: this app
-  // only ever runs one such foreground action at a time from the user's perspective, so the extra
-  // complexity of tracking several isn't worth it for a first pass.
-  const [taskProgress, setTaskProgress] = useState(null);
+  // Global task progress (status-bar "what's happening right now" indicator) moved to its own
+  // TaskProgressProvider/useTaskProgressValue/useSetTaskProgress pair above (TASKS.csv #226 follow-up)
+  // — see that context's own comment for why it's split out of this giant one.
 
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg })), []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
@@ -1040,7 +1055,6 @@ export function StoreProvider({ children }) {
     lastCamState, setLastCamState,
     pendingLayoutImages, addLayoutImage, consumeLayoutImage,
     requestedModule, moduleRequestSeq, goToModule,
-    taskProgress, setTaskProgress,
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
