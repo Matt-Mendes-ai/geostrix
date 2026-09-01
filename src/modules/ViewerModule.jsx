@@ -42,7 +42,7 @@ import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
-  colorForMedium,
+  colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF } from "../lib/meshExport.js";
@@ -724,6 +724,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [categoryFilter, setCategoryFilter] = useState({});
   const [numericRange, setNumericRange] = useState({});
   const [legendOverride, setLegendOverride] = useState({});
+  // TASKS.csv #237 sub-item (3) — user-configurable graduated/classed symbology for the NUMERIC
+  // interval/point layers (geotech, recovery, sg, magsusc). Until now only geophys_pts got this
+  // (#122); these four were locked to a hardcoded ramp — rqdColor's fixed 0-100 scale for geotech/
+  // recovery, and a continuous 2-colour magColor over the project min/max for sg/magsusc — with no
+  // way to set your own class breaks or colours. Shape: { [layerKey]: { stops: [{value,color}],
+  // colorMode: "continuous"|"discrete" } }. A layer with NO entry here (the default for every
+  // existing project) keeps the exact previous hardcoded behaviour, so this is purely additive.
+  //
+  // Deliberately kept in ViewerModule state + persisted through viewerUiState (like legendOverride/
+  // numericRange right above) rather than as new top-level store fields: geophys_pts' own version
+  // used four separate store fields, which was fine for one layer but would mean sixteen new fields
+  // and sixteen new persistence touch-points for these four — this is per-layer display state, the
+  // same category legendOverride already occupies, not project data.
+  const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
   const [customLayers, setCustomLayers] = useState([]);
@@ -1046,6 +1060,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
 
+  // TASKS.csv #237 sub-item (3) — single resolver for every numeric-layer colour lookup, so the 3D
+  // view, the cross-section payload and the legend can't drift apart. When the user has defined
+  // stops for this layer they win; otherwise this falls through to the ORIGINAL hardcoded behaviour
+  // (rqdColor's fixed 0-100 ramp for geotech/recovery, magColor over the supplied project range for
+  // sg/magsusc), so a project that never touches the new editor renders byte-identically to before.
+  // Reuses colorForVoxelValue (layers.js) rather than a second interpolator — it already implements
+  // exactly the continuous-lerp-between-stops / discrete-step-down semantics wanted here, and is
+  // what geophys_pts and the voxel models already use, so "a colour means the same thing" holds
+  // across every classified thing in the app.
+  const numericLayerColor = useCallback((layerKey, value, range) => {
+    const sym = numericSymbology[layerKey];
+    if (sym?.stops?.length) {
+      return colorForVoxelValue({ stops: sym.stops, colorMode: sym.colorMode, min: range?.min, max: range?.max }, value);
+    }
+    if (layerKey === "geotech" || layerKey === "recovery") return rqdColor(value);
+    return magColor(value, range?.min ?? 0, range?.max ?? 0);
+  }, [numericSymbology]);
+
   const effectiveColor = useCallback((layerKey, value) => {
     const ov = legendOverride[layerKey]?.[value];
     if (ov?.color) return ov.color;
@@ -1099,7 +1131,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // New project (or an older save with no saved UI state) — reset to defaults rather than
       // leaving stale filters/visibility from whatever was open before.
       setLayerVisible({ ...DEFAULT_LAYER_VISIBLE });
-      setCategoryFilter({}); setNumericRange({}); setLegendOverride({});
+      setCategoryFilter({}); setNumericRange({}); setLegendOverride({}); setNumericSymbology({});
       setVisibleHoles({}); setCustomVisible({});
       setAssayVisible(true); setAssayDisplayElements([]); setAssayStyle({});
       setGridConfig({ ...DEFAULT_GRID });
@@ -1111,6 +1143,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setCategoryFilter(Object.fromEntries(Object.entries(s.categoryFilter || {}).map(([k, v]) => [k, new Set(v)])));
     setNumericRange(s.numericRange || {});
     setLegendOverride(s.legendOverride || {});
+    setNumericSymbology(s.numericSymbology || {});
     setVisibleHoles(s.visibleHoles || {});
     setCustomVisible(s.customVisible || {});
     setAssayVisible(s.assayVisible !== false);
@@ -1131,6 +1164,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       numericRange,
       legendOverride,
+      numericSymbology,
       visibleHoles,
       customVisible,
       assayVisible,
@@ -1140,7 +1174,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       bgColor,
       holeLabelMode,
     });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, setViewerUiState]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, setViewerUiState]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -1733,12 +1767,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const currentViewBundle = useCallback(() => {
     const cs = camState.current;
     return {
-      layerVisible, numericRange, legendOverride, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle,
+      layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig]);
 
   // TASKS.csv #202 — root-cause fix. currentViewBundle() above reads local component state
   // (layerVisible, etc), which is fine for a NORMAL user action (Save theme) but turned out to be
@@ -1763,6 +1797,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       categoryFilter: s?.categoryFilter || {},
       numericRange: s?.numericRange || {},
       legendOverride: s?.legendOverride || {},
+      numericSymbology: s?.numericSymbology || {},
       visibleHoles: s?.visibleHoles || {},
       customVisible: s?.customVisible || {},
       assayVisible: s?.assayVisible !== false,
@@ -1806,6 +1841,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setCategoryFilter(Object.fromEntries(Object.entries(theme.categoryFilter || {}).map(([k, v]) => [k, new Set(v)])));
     setNumericRange(theme.numericRange || {});
     setLegendOverride(theme.legendOverride || {});
+    setNumericSymbology(theme.numericSymbology || {});
     setVisibleHoles(theme.visibleHoles || {});
     setCustomVisible(theme.customVisible || {});
     setAssayVisible(theme.assayVisible !== false);
@@ -1838,6 +1874,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       categoryFilter: bundle.categoryFilter, // already array-serialized by currentViewBundle()
       numericRange: bundle.numericRange,
       legendOverride: bundle.legendOverride,
+      numericSymbology: bundle.numericSymbology,
       visibleHoles: bundle.visibleHoles,
       customVisible: bundle.customVisible,
       assayVisible: bundle.assayVisible,
@@ -3005,13 +3042,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // ramp fits both; specific gravity has no such fixed domain (real values run ~2-5), so it
       // uses the project's own actual min/max instead (globalPointRanges.sg above), same as the
       // numeric point-marker layers (mnlgy/magsusc) below already do via magColor.
-      const numericIntervalColor = (groupKey, value) => {
-        if (groupKey === "sg") {
-          const { min, max } = globalPointRanges.sg;
-          return magColor(value, min, max);
-        }
-        return rqdColor(value);
-      };
+      // TASKS.csv #237 — now routed through numericLayerColor so a user-defined class scheme (if any)
+      // wins; with no scheme defined this returns exactly what it always did.
+      const numericIntervalColor = (groupKey, value) =>
+        numericLayerColor(groupKey, value, groupKey === "sg" ? globalPointRanges.sg : { min: 0, max: 100 });
       const buildIntervalTube = (groupKey) => {
         const meta = LAYER_META[groupKey];
         (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisible(groupKey, r)).forEach((row) => {
@@ -3105,7 +3139,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const p = findOnTrace(pts, mid);
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
-          const color = meta.numeric ? magColor(row.value, min, max) : effectiveColor(groupKey, row.value);
+          const color = meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : effectiveColor(groupKey, row.value);
           const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
@@ -3266,7 +3300,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -4233,8 +4267,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         expanded={!!expandedLayers[key]} onToggleExpand={() => setExpandedLayers((p) => ({ ...p, [key]: !p[key] }))}
         input={isGeophys ? null : <input ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
       >
-        <LayerQuickPanel rows={layers[key] || []} meta={meta} categoryFilter={categoryFilter[key] || new Set()}
-          onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)} />
+        <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()}
+          onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
+          numericSym={numericSymbology[key]}
+          onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
       </LayerRow>
     );
   };
@@ -4393,7 +4429,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
-        const color = meta.numeric ? (key === "sg" ? magColor(row.value, sgRange.min, sgRange.max) : rqdColor(row.value)) : effectiveColor(key, row.value);
+        const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}` });
       });
@@ -4408,7 +4444,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const { min, max } = minMax(numeric); // not Math.min/max(...) — see layers.js's minMax comment
       vals.forEach((row) => {
         const mid = (row.from + row.to) / 2;
-        const color = meta.numeric ? magColor(row.value, min, max) : effectiveColor(key, row.value);
+        const color = meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
         points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
       });
@@ -4529,7 +4565,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
     const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices } = buildSectionPayload(a, b, s.corridor, s.scope || {});
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices });
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, litho_units, terrain, voxelModels]);
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels]);
 
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
   // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel
@@ -6091,7 +6127,84 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
 // categoryFilter/legendOverride/_src data #63 already introduced for the full LayerInspector modal.
 // Deliberately terser than that modal (chips instead of rows with color pickers/labels/counts) since
 // the point of this view is a quick glance + quick toggle, not the full editing surface.
-function LayerQuickPanel({ rows, meta, categoryFilter, onToggleCategory, onIsolate, onRemoveSource }) {
+// TASKS.csv #237 sub-item (3) — graduated/classed symbology editor for the numeric layers. Rendered
+// inside the layer's existing expandable panel (which, for a numeric layer, previously showed only
+// the sources list — `categories` is hard-coded empty for meta.numeric, so there was literally
+// nothing symbology-related there before). Deliberately mirrors the geophys_pts/voxel legend editor's
+// own vocabulary — class count, equal-interval vs quantile, named palettes, continuous vs discrete —
+// so the two classification UIs in the app behave the same way rather than inventing a second idiom.
+function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
+  const [classCount, setClassCount] = useState(5);
+  const [method, setMethod] = useState("equal");
+  const [palette, setPalette] = useState("default");
+  const values = React.useMemo(
+    () => (rows || []).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v)),
+    [rows]
+  );
+  const { min, max } = minMax(values);
+  const apply = () => {
+    const breaks = classifyBreaks(values, classCount, method);
+    if (!breaks.length) return;
+    const colors = paletteColorsHex(palette, breaks.length);
+    onChange({ stops: breaks.map((v, i) => ({ value: v, color: colors[i] })), colorMode: "discrete" });
+  };
+  const stops = sym?.stops || [];
+  return (
+    <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #e3e6ea" }}>
+      <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 5 }}>
+        Symbology — {values.length.toLocaleString()} value{values.length === 1 ? "" : "s"}
+        {values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})`}
+      </div>
+      <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>
+        <input type="number" min="2" max="12" value={classCount} onChange={(e) => setClassCount(Math.max(2, Math.min(12, Number(e.target.value) || 5)))}
+          title="Number of classes" style={{ width: 40, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }} />
+        <select value={method} onChange={(e) => setMethod(e.target.value)} title="How the class breaks are computed"
+          style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }}>
+          <option value="equal">Equal interval</option>
+          <option value="quantile">Quantile</option>
+        </select>
+        <select value={palette} onChange={(e) => setPalette(e.target.value)} title="Colour ramp"
+          style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028", maxWidth: 110 }}>
+          {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k}>{p.label.split(" — ")[0]}</option>)}
+        </select>
+        <button onClick={apply} disabled={!values.length}
+          style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #a9c6e0", background: values.length ? "#eaf1fa" : "#f4f5f7", color: "#2f6fe0", fontSize: 10.5, cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
+        >Classify</button>
+        {stops.length > 0 && (
+          <span onClick={() => onChange(null)} title="Remove the custom classes and go back to the default ramp"
+            style={{ fontSize: 10, color: "#8a5555", cursor: "pointer" }}>Reset</span>
+        )}
+      </div>
+      {stops.length > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e", cursor: "pointer" }}>
+              <input type="checkbox" checked={sym.colorMode !== "discrete"}
+                onChange={(e) => onChange({ ...sym, colorMode: e.target.checked ? "continuous" : "discrete" })} />
+              Blend between classes
+            </label>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 150, overflowY: "auto" }}>
+            {stops.map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5 }}>
+                <input type="color" value={s.color}
+                  onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, color: e.target.value } : x); onChange({ ...sym, stops: next }); }}
+                  style={{ width: 22, height: 16, padding: 0, border: "1px solid #c7ccd3", borderRadius: 3, background: "none", cursor: "pointer", flexShrink: 0 }} />
+                <input type="number" value={s.value}
+                  onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, value: Number(e.target.value) } : x); onChange({ ...sym, stops: next }); }}
+                  title="Lower bound of this class"
+                  style={{ flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 4px", fontSize: 10.5, color: "#1a2028" }} />
+                <span style={{ color: "#94a1b0", flexShrink: 0 }}>&ge;</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange }) {
   const categories = meta.numeric ? [] : distinctValues(rows);
   const sources = (() => {
     const counts = new Map();
@@ -6100,6 +6213,9 @@ function LayerQuickPanel({ rows, meta, categoryFilter, onToggleCategory, onIsola
   })();
   return (
     <div style={{ paddingTop: 8 }}>
+      {meta.numeric && onNumericSymChange && (
+        <NumericSymbologyEditor layerKey={layerKey} rows={rows} sym={numericSym} onChange={onNumericSymChange} />
+      )}
       {!meta.numeric && categories.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: sources.length > 1 ? 8 : 0 }}>
           {categories.map(([value, count]) => {
