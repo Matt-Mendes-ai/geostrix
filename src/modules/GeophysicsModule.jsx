@@ -17,6 +17,7 @@ import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput } from "../lib/idw.js";
 import { hillshadeToRasterInput } from "../lib/hillshade.js";
+import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -80,6 +81,12 @@ export default function GeophysicsModule() {
   const [idwCellSize, setIdwCellSize] = useState(25);
   const [idwPower, setIdwPower] = useState(2);
   const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
+  // TASKS.csv #237 sub-item (2) — terrain contours. 50 m default interval: a sensible starting point
+  // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
+  // click on a large DEM returns quickly rather than appearing to hang.
+  const [contourOpen, setContourOpen] = useState(false);
+  const [contourInterval, setContourInterval] = useState(50);
+  const [contourColor, setContourColor] = useState("#8a6a45");
   const [hillshadeAzimuth, setHillshadeAzimuth] = useState(315);
   const [hillshadeAltitude, setHillshadeAltitude] = useState(45);
   const [xyzError, setXyzError] = useState(null);
@@ -958,6 +965,44 @@ export default function GeophysicsModule() {
                     const raster = hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` });
                     addRaster({ ...raster, elevation: defaultElevation, drapeMode: "terrain" });
                     setHillshadeOpen(false);
+                  }}
+                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
+                >
+                  Generate
+                </button>
+              </div>
+            )}
+
+            {/* TASKS.csv #237 sub-item (2) — the other half of the original "no raster derivatives
+                (contours, hillshade)" finding. Marching squares over the same terrain grid; output
+                lands as ordinary BOUNDARY polylines (not a raster) since contours are genuinely
+                vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
+                for free. One boundary per contour level so individual levels can be styled/hidden. */}
+            <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "#eaf1fa" : undefined }}>
+              <Waypoints size={13} /> Generate contours…
+            </button>
+            {contourOpen && (
+              <div style={{ marginTop: 6, padding: "8px 9px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Vertical spacing between contour lines, in the DEM's own elevation units (metres).">Interval (m)</span>
+                  <input type="number" min="1" value={contourInterval} onChange={(e) => setContourInterval(Math.max(1, Number(e.target.value) || 50))} style={numInput} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).">Colour</span>
+                  <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid #c7ccd3", borderRadius: 3, background: "none", cursor: "pointer" }} />
+                </div>
+                <button
+                  onClick={() => {
+                    const { levels, truncated, min, max } = contourTerrain(terrain, { interval: contourInterval });
+                    if (!levels.length) {
+                      setError(`No contours generated — the terrain spans ${Number.isFinite(min) ? min.toFixed(1) : "?"}–${Number.isFinite(max) ? max.toFixed(1) : "?"} m, so an interval of ${contourInterval} m doesn't cross it anywhere. Try a smaller interval.`);
+                      return;
+                    }
+                    levels.forEach(({ level, polylines }) => {
+                      addBoundary({ name: `${terrain.name} ${level} m`, polylines, color: contourColor, elevation: level, drapeMode: "flat" });
+                    });
+                    setError(`Generated ${levels.length} contour level${levels.length === 1 ? "" : "s"} (${contourInterval} m interval) as boundaries.${truncated ? " Stopped at the 200-level cap — use a larger interval for full coverage." : ""}`);
+                    setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
                 >
