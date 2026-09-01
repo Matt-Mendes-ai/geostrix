@@ -26,6 +26,7 @@ import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
 import DbBrowserPanel from "../components/DbBrowserPanel.jsx";
 import ImportMappingModal from "../components/ImportMappingModal.jsx";
 import DatabaseConnectModal from "../components/DatabaseConnectModal.jsx";
+import SectionEditModal from "../components/SectionEditModal.jsx";
 import LayerInspector from "../components/LayerInspector.jsx";
 import DataQCModal from "../components/DataQCModal.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
@@ -635,7 +636,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     excludedIntercepts, toggleExcludedIntercept,
     softIntercepts, toggleSoftIntercept,
     sections, upsertSection, renameSection, deleteSection,
-    sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
+    sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections, updateSections, renameSectionsBulk,
   } = store;
 
   // TASKS.csv #228 — surface sample hover tooltip text. Values are stored in their native import unit
@@ -931,6 +932,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // it happening automatically on generation, matters for real sidebar responsiveness). Pure UI
   // convenience state, deliberately not persisted — same category as openPopover right above.
   const [expandedSectionGroups, setExpandedSectionGroups] = useState({});
+  // TASKS.csv #240 follow-up — user request: "edit a single section but also bulk edit a bunch of
+  // sections and also bulk rename them." selectedSectionIds drives both bulk actions below; single-
+  // section edit reuses the exact same modal/flow with a one-element selection rather than a
+  // separate code path, so there's only one "edit a section's content scope" implementation to keep
+  // correct. sectionEditOpen is a plain boolean (the ids to edit are read from selectedSectionIds at
+  // the moment the modal opens) rather than snapshotting the id list, so it always reflects whatever
+  // is currently selected.
+  const [selectedSectionIds, setSelectedSectionIds] = useState(new Set());
+  const [sectionEditOpen, setSectionEditOpen] = useState(false);
   const [implicitBusy, setImplicitBusy] = useState(false);
   // Bug-hunt pass: bumped once by the three.js init effect right after sceneRef.current is set, purely
   // so effects that guard on `sceneRef.current` (like the custom-layers rebuild effect below, which is
@@ -4318,7 +4328,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // buildable from a fresh 2-click pick. Pure function of (a, b, corridor) — everything else it reads
   // (layers, layerVisible, isRowVisible, etc.) is current component state, so a reopened section always
   // reflects whatever's visible/colored right now, same as a freshly-drawn one would.
-  const buildSectionPayload = (a, b, corridor) => {
+  // TASKS.csv #240 — user report: "there's no way to choose which layers/voxels/rasters a section
+  // actually shows -- an unrelated large SRTM terrain area was ending up in a section that should
+  // have shown one voxel model and the drillholes." `scope` (a section's own `.scope` field, default
+  // {} — every key below defaults to "whatever's currently visible in the 3D view", i.e. the exact
+  // pre-existing behavior) lets a section opt OUT of specific content instead of always drawing
+  // everything currently visible regardless of relevance. null/undefined on any individual scope key
+  // means "don't override — use the live visibility state", so an old section with no scope field at
+  // all (every section saved before this feature existed) renders identically to before.
+  const buildSectionPayload = (a, b, corridor, scope = {}) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
     const holeIds = new Set(holesInBand.map((t) => t.hole_id));
@@ -4344,7 +4362,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const along = (x, y) => (x - a.x) * secUx + (y - a.y) * secUy;
     const voxelSlices = [];
     (voxelModels || []).forEach((model) => {
-      if (model.visible === false || !model.cells?.length) return;
+      if (!model.cells?.length) return;
+      // scope.voxelModelIds (an explicit array, possibly empty) OVERRIDES live 3D-view visibility for
+      // this section specifically; scope.voxelModelIds == null falls back to the pre-existing
+      // model.visible check, unchanged.
+      if (scope.voxelModelIds != null) { if (!scope.voxelModelIds.includes(model.id)) return; }
+      else if (model.visible === false) return;
       const rects = [];
       model.cells.forEach((c) => {
         if (distToSegment(c.x, c.y, a.x, a.y, b.x, b.y) > corridor) return;
@@ -4366,7 +4389,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
     const sgRange = minMax(sgVals);
     ["litho", "alt", "vein", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
-      if (!layerVisible[key]) return;
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
@@ -4378,7 +4401,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
     const points = [];
     ["mnlgy", "magsusc"].forEach((key) => {
-      if (!layerVisible[key]) return;
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
       const meta = LAYER_META[key];
       const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r));
       const numeric = vals.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -4390,7 +4413,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
       });
     });
-    if (assayVisible && assayDisplayElements.length) {
+    const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
+    if (showAssays && assayDisplayElements.length) {
       assayDisplayElements.forEach((sym, idx) => {
         const style = assayStyle[sym];
         const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
@@ -4403,7 +4427,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
 
     const planes = [];
-    if (layerVisible.structure) {
+    if (scope.layerKeys != null ? scope.layerKeys.includes("structure") : layerVisible.structure) {
       (layers.structure || []).filter((s) => holeIds.has(s.hole_id) && isRowVisible("structure", s)).forEach((s) => {
         const color = effectiveColor("structure", s.value);
         const label = effectiveLabel("structure", s.value);
@@ -4416,8 +4440,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
     }
 
+    const showCustomLayers = scope.showCustomLayers != null ? scope.showCustomLayers : true;
     customLayers.forEach((layer) => {
-      if (customVisible[layer.id] === false) return;
+      if (!showCustomLayers) return;
+      if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const color = hashColor(row.value);
         if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}` });
@@ -4434,7 +4460,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // SectionWindow.jsx can tell "no terrain" apart from "terrain but this line is entirely off its
     // coverage" (the latter still returns an array, just possibly a short/partial one).
     let elevationProfile = null;
-    if (terrain) {
+    const showTerrain = scope.showTerrain != null ? scope.showTerrain : true;
+    if (terrain && showTerrain) {
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
       const STEPS = 100;
       const pts = [];
@@ -4500,7 +4527,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   const reopenSection = useCallback((s) => {
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices } = buildSectionPayload(a, b, s.corridor);
+    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices } = buildSectionPayload(a, b, s.corridor, s.scope || {});
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices });
   }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, litho_units, terrain, voxelModels]);
 
@@ -4986,13 +5013,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             if (s.groupId) { if (!grouped.has(s.groupId)) grouped.set(s.groupId, []); grouped.get(s.groupId).push(s); }
             else ungrouped.push(s);
           });
+          const toggleSelected = (id) => setSelectedSectionIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
           const sectionRow = (s) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+              <input type="checkbox" checked={selectedSectionIds.has(s.id)} onChange={() => toggleSelected(s.id)} style={{ flexShrink: 0 }} title="Select for bulk edit/rename" />
               <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                 <Scissors size={12} style={{ flexShrink: 0, color: "#55606e" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                 {s.contacts?.length > 0 && <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
               </div>
+              <Layers3 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit what this section shows" onClick={() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }} />
               <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); })} />
               <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }} />
             </div>
@@ -5007,12 +5037,36 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   title="Delete every section and section group"
                 >Delete all</span>
               </div>
+              {/* TASKS.csv #240 follow-up — user request: "edit a single section but also bulk edit a
+                  bunch of sections and also bulk rename them." Bar only appears once at least one
+                  section is checked (individually or via a group's own select-all checkbox below). */}
+              {selectedSectionIds.size > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#eaf1fa", border: "1px solid #a9c6e0", borderRadius: 6, marginBottom: 6, fontSize: 11 }}>
+                  <span style={{ flex: 1, color: "#1a2028" }}>{selectedSectionIds.size} selected</span>
+                  <span onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "#2f6fe0" }}>Edit</span>
+                  <span
+                    onClick={() => askPrompt("Base name for the selected sections? (numbered automatically)", "", (base) => { if (base && base.trim()) renameSectionsBulk(Array.from(selectedSectionIds), base.trim()); })}
+                    style={{ cursor: "pointer", color: "#2f6fe0" }}
+                  >Rename</span>
+                  <span onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "#55606e" }}>Clear</span>
+                </div>
+              )}
               {sectionGroups.filter((g) => grouped.has(g.id)).map((g) => {
                 const members = grouped.get(g.id);
                 const expanded = !!expandedSectionGroups[g.id];
+                const allSelected = members.every((s) => selectedSectionIds.has(s.id));
                 return (
                   <div key={g.id} style={{ marginBottom: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#eef1f5", border: "1px solid #d9dce1", borderRadius: 6 }}>
+                      <input
+                        type="checkbox" checked={allSelected}
+                        onChange={() => setSelectedSectionIds((p) => {
+                          const n = new Set(p);
+                          members.forEach((s) => allSelected ? n.delete(s.id) : n.add(s.id));
+                          return n;
+                        })}
+                        title="Select every section in this group for bulk edit/rename" style={{ flexShrink: 0 }}
+                      />
                       <div onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "#55606e" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "#55606e" }} />}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
@@ -5704,6 +5758,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       {importModal && <ImportMappingModal modal={importModal} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
+      {sectionEditOpen && (() => {
+        const ids = Array.from(selectedSectionIds);
+        const first = sections.find((s) => s.id === ids[0]);
+        return (
+          <SectionEditModal
+            sectionCount={ids.length}
+            initialCorridor={first?.corridor}
+            voxelModels={voxelModels}
+            onClose={() => setSectionEditOpen(false)}
+            onSave={(scope, corridorValue) => {
+              updateSections(ids, corridorValue !== undefined ? { scope, corridor: corridorValue } : { scope });
+              setSectionEditOpen(false);
+              setNotices((p) => [...p, `Updated content scope for ${ids.length} section${ids.length === 1 ? "" : "s"} — reopen ${ids.length === 1 ? "it" : "them"} to see the change.`]);
+            }}
+          />
+        );
+      })()}
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
       {sqlModalOpen && (
         <Suspense fallback={null}>

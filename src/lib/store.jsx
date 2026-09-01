@@ -163,6 +163,23 @@ export function StoreProvider({ children }) {
   }, []);
   const renameSection = useCallback((id, name) => setSections((p) => p.map((s) => s.id === id ? { ...s, name } : s)), []);
   const deleteSection = useCallback((id) => setSections((p) => p.filter((s) => s.id !== id)), []);
+  // TASKS.csv #240 follow-up — user request: "edit a single section but also bulk edit a bunch of
+  // sections and also bulk rename them." A single setSections pass over an id Set (not N individual
+  // upsertSection calls looped from the caller) matters once a "bunch" can realistically mean an
+  // entire fence-series group — see #240's own note on that scale (3144 sections from one run).
+  const updateSections = useCallback((ids, patch) => {
+    const idSet = new Set(ids);
+    setSections((p) => p.map((s) => idSet.has(s.id) ? { ...s, ...patch } : s));
+  }, []);
+  // Numbered bulk rename (baseName -> "baseName 1", "baseName 2", ...) rather than assigning every
+  // selected section the SAME literal name, which would make them indistinguishable in the list —
+  // same numbering convention generateSliceSeries' own "Fence i/n (...)" names already use. `ids`
+  // order (as passed by the caller, i.e. the order sections currently render in) decides the
+  // numbering order.
+  const renameSectionsBulk = useCallback((ids, baseName) => {
+    const order = new Map(ids.map((id, i) => [id, i]));
+    setSections((p) => p.map((s) => order.has(s.id) ? { ...s, name: `${baseName} ${order.get(s.id) + 1}` } : s));
+  }, []);
   const addSectionGroup = useCallback((name) => {
     const id = `sectgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setSectionGroups((p) => [...p, { id, name }]);
@@ -1016,7 +1033,7 @@ export function StoreProvider({ children }) {
     liveDbConnections, connectDb, disconnectDb,
     excludedIntercepts, setExcludedIntercepts, toggleExcludedIntercept,
     softIntercepts, setSoftIntercepts, toggleSoftIntercept,
-    sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts,
+    sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts, updateSections, renameSectionsBulk,
     sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
