@@ -98,24 +98,34 @@ function stopPythonSidecar() {
 // NOTE (#36 is a separate, still-open row): installers aren't code-signed yet, so an update download
 // will still show Windows SmartScreen/Mac Gatekeeper warnings same as a fresh manual install would —
 // this doesn't make that worse, just doesn't fix it either.
+// User report: clicking Help > Check for Updates... appeared to do nothing when already on the
+// latest version (a real, confusing gap — even a "no update" result should tell the person who
+// explicitly asked that the click actually did something, rather than the silent-unless-actionable
+// behavior that's correct for the automatic startup check). manualCheckInFlight distinguishes the
+// two triggers of the SAME autoUpdater instance/events so the renderer can show a transient
+// "you're up to date" confirmation only for a check the user actually asked for, not the routine
+// background one on launch.
+let manualCheckInFlight = false;
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   const send = (event, payload) => mainWindow?.webContents.send("updater-event", { event, ...payload });
-  autoUpdater.on("checking-for-update", () => send("checking"));
-  autoUpdater.on("update-available", (info) => send("available", { version: info.version }));
-  autoUpdater.on("update-not-available", () => send("not-available"));
-  autoUpdater.on("error", (err) => send("error", { message: err.message }));
+  autoUpdater.on("checking-for-update", () => send("checking", { manual: manualCheckInFlight }));
+  autoUpdater.on("update-available", (info) => { send("available", { version: info.version, manual: manualCheckInFlight }); manualCheckInFlight = false; });
+  autoUpdater.on("update-not-available", () => { send("not-available", { manual: manualCheckInFlight, currentVersion: app.getVersion() }); manualCheckInFlight = false; });
+  autoUpdater.on("error", (err) => { send("error", { message: err.message, manual: manualCheckInFlight }); manualCheckInFlight = false; });
   autoUpdater.on("download-progress", (p) => send("downloading", { percent: Math.round(p.percent) }));
   autoUpdater.on("update-downloaded", (info) => send("downloaded", { version: info.version }));
 }
 
 ipcMain.handle("updater-check", async () => {
   if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };
+  manualCheckInFlight = true;
   try {
     await autoUpdater.checkForUpdates();
     return { ok: true };
   } catch (err) {
+    manualCheckInFlight = false;
     return { ok: false, message: err.message };
   }
 });
@@ -696,7 +706,7 @@ function buildMenu() {
       label: "Help",
       submenu: [
         { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
-        { label: "Check for Updates…", click: () => autoUpdater.checkForUpdates().catch((err) => mainWindow?.webContents.send("updater-event", { event: "error", message: err.message })) },
+        { label: "Check for Updates…", click: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); } },
         // Bug fix while touching this menu: "About GeoStrix" sent a "menu"/"about" action that nothing
         // on the renderer side ever handled — clicking it silently did nothing. Now shares the same
         // modal as the new Keyboard Shortcuts entry (see ShortcutsModal in App.jsx), just opened to a

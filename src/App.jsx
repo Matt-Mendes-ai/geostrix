@@ -77,6 +77,16 @@ export default function App() {
   // finding nothing is not something worth a persistent UI element for.
   const [updater, setUpdater] = useState({ event: "idle" });
   useEffect(() => onUpdaterEvent(setUpdater), []);
+  // User report: clicking Help > Check for Updates... looked like it did nothing when already on
+  // the latest version — "not-available" is otherwise a silent, no-UI event (correct for the
+  // routine automatic startup check, see the status-bar rendering below), so a check the user
+  // explicitly asked for needs its own transient confirmation instead of staying silent forever.
+  // Self-clears after a few seconds rather than sitting in the status bar permanently.
+  useEffect(() => {
+    if (updater.event !== "not-available" || !updater.manual) return;
+    const t = setTimeout(() => setUpdater((cur) => (cur.event === "not-available" ? { event: "idle" } : cur)), 4000);
+    return () => clearTimeout(t);
+  }, [updater]);
 
   // TASKS.csv #33 — crash recovery. Check once, right after mount, whether an autosave snapshot
   // exists from a session that never reached a real Save (crash, force-quit, power loss). Only a
@@ -403,6 +413,12 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
       {/* TASKS.csv #37 — only rendered for states worth a user action or worth knowing about;
           "checking"/"not-available"/"idle" stay silent, matching taskProgress's own pattern above of
           not cluttering the status bar with routine background activity. */}
+      {updater.event === "checking" && updater.manual && (
+        <span style={{ color: "#94a1b0" }}>Checking for updates…</span>
+      )}
+      {updater.event === "not-available" && updater.manual && (
+        <span style={{ color: "#8fd9ab" }}>You're up to date (v{updater.currentVersion})</span>
+      )}
       {updater.event === "available" && (
         <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
           Update available (v{updater.version})
