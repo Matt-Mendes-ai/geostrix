@@ -33,3 +33,9 @@ npm-debug.log*
 
 # Claude Code local-only settings (personal overrides, not shared with the team)
 .claude/settings.local.json
+
+# TASKS.csv is the project's internal backlog/changelog — verbatim user reports, real client/property
+# names (e.g. a real database name once used in a bug report), and internal working notes not meant
+# for a public repo. Untracked (not deleted) here on request — it still exists locally and code
+# comments still reference "TASKS.csv #N" as their rationale trail, it's just no longer pushed.
+TASKS.csv

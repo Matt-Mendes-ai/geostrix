@@ -101,7 +101,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 
           <div style={grid2}>
             <Field label="Connection name">
-              <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder="REDACTED DB" style={inp} />
+              <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder="My Database" style={inp} />
             </Field>
             <Field label="Engine">
               <select value={config.engine} onChange={(e) => setEngine(e.target.value)} style={sel}>
