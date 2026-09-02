@@ -5141,7 +5141,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {sidebarTab === "modeling" && (<>
         <div className="ge-section-label">Domain</div>
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
-          Restricts every tool below to one side of one or more faults (TASKS.csv #89) — build domains
+          Restricts every tool below to one side of one or more faults — build domains
           in "Domains" further down first, then pick one here. Applies to all four tools; "Whole
           property" is the original, undomained behavior.
         </div>
@@ -5154,7 +5154,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             extrapolates across the whole extent regardless. */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: modelDomainId ? "#55606e" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
-          Clip result to domain boundary (#88)
+          Clip result to domain boundary
         </label>
 
         {/* TASKS.csv #231 — resolution control for every GemPy run (Implicit Model, Stratigraphic
@@ -5180,10 +5180,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </div>
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
           GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's
-          own search the way classic kriging software would (TASKS.csv #85) — what it does instead: drops
+          own search the way classic kriging software would — what it does instead: drops
           any control point with fewer than the minimum neighbor count within an ellipsoid oriented along
           the structural trend below, so isolated points don't quietly feed a run alongside well-supported
-          ones. Same trend the anisotropy layer (#86) will reuse once it exists.
+          ones. Same trend the anisotropy layer below reuses.
         </div>
         {searchEllipsoid.enabled && (
           <div style={{ opacity: searchEllipsoid.enabled ? 1 : 0.5, marginBottom: 8 }}>
@@ -5222,7 +5222,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           Warps every coordinate into a normalized space where this ellipsoid becomes a sphere before
           the surface is fit, then warps the result back — the standard way to get directional
           continuity (a vein behaving very differently along strike than across it) out of an
-          interpolator that's otherwise isotropic (TASKS.csv #86). Same azimuth/dip idea as the search
+          interpolator that's otherwise isotropic. Same azimuth/dip idea as the search
           ellipsoid above — usually the same real structural trend.
         </div>
         {anisotropy.enabled && (
@@ -5254,7 +5254,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Grade estimation</div>
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
-          Populate a block model FROM composited assays (TASKS #117) — nearest-neighbour or inverse-
+          Populate a block model FROM composited assays — nearest-neighbour or inverse-
           distance weighting, not a surface — a separate workflow from the implicit surface tools below.
         </div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>

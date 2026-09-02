@@ -3,6 +3,7 @@ import { X, Keyboard, Info } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { version as APP_VERSION } from "../../package.json";
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -112,6 +113,11 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
         ) : (
           <div style={{ padding: 20, fontSize: 12.5, color: "#7b8794", lineHeight: 1.7 }}>
             <div style={{ fontSize: 17, color: "#8a6a1f", fontWeight: 600, marginBottom: 4 }}>GeoStrix</div>
+            {/* TASKS.csv #246 — found by a pre-release review: no version was shown anywhere at rest,
+                only briefly in a self-clearing status-bar message after a manual update check. Read
+                straight from package.json (a plain Vite JSON import, works identically in the desktop
+                build and the browser-fallback dev path — no IPC needed for a value this static). */}
+            <div style={{ marginBottom: 2, color: "#94a1b0" }}>Version {APP_VERSION}</div>
             <div style={{ marginBottom: 10, color: "#94a1b0" }}>3D drillhole & geochemistry explorer</div>
             <div>MIT-licensed, built for smaller mineral exploration teams — drillhole visualization, geochemistry, geophysics, layout, and implicit geological modelling in one desktop app.</div>
           </div>

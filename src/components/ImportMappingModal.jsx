@@ -216,10 +216,32 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           })()}
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }}>Import {modal.rowCount} rows</button>
-        </div>
+        {/* TASKS.csv #248 — found by a pre-release review: this button stayed clickable with a required
+            field left unmapped, only failing after the click via a toast — not a data-safety issue
+            (onCommit already validates and refuses cleanly), just avoidable friction. The per-row "*"/
+            red-border cues above already exist; this just stops the click from being possible at all. */}
+        {(() => {
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key]);
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+              {missingRequired.length > 0 && (
+                <div style={{ fontSize: 11, color: "#8a5555" }}>
+                  Map the required field{missingRequired.length === 1 ? "" : "s"} above: {missingRequired.map((f) => f.label).join(", ")}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>
+                <button
+                  onClick={onCommit}
+                  disabled={missingRequired.length > 0}
+                  style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 ? 0.5 : 1, cursor: missingRequired.length > 0 ? "not-allowed" : "pointer" }}
+                >
+                  Import {modal.rowCount} rows
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
