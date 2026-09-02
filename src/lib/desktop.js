@@ -116,6 +116,17 @@ export async function autosaveRead() {
     return { ok: true, content, fallback: true };
   } catch (err) { return { ok: false, error: err.message }; }
 }
+// User-reported bug: closing the app with unsaved changes didn't work at all — no dialog, no
+// feedback, only killable via Task Manager. Root cause was App.jsx's beforeunload handler: the
+// standard e.preventDefault() pattern shows a real "leave site?" dialog in an actual browser, but
+// Electron shows nothing for it by default and just silently blocks the window from closing forever.
+// Fixed by pushing dirty state to the main process instead, which owns a real dialog.showMessageBoxSync
+// confirm on the window's close event (see electron/main.js) — no-op in the browser fallback, where
+// the plain beforeunload prompt (still wired up in App.jsx for that path) works correctly on its own.
+export function setDirtyState(dirty) {
+  if (d) d.setDirtyState(dirty);
+}
+
 export async function autosaveClear() {
   if (d) return d.autosaveClear();
   try { localStorage.removeItem(AUTOSAVE_KEY); return { ok: true, fallback: true }; }

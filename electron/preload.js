@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("desktop", {
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),
   autosaveRead: () => ipcRenderer.invoke("autosave-read"),
   autosaveClear: () => ipcRenderer.invoke("autosave-clear"),
+  setDirtyState: (dirty) => ipcRenderer.send("set-dirty-state", dirty),
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },
 });

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
-import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
@@ -239,12 +239,24 @@ export default function App() {
   // has unsaved changes. Autosave (#33) is the real safety net against a hard crash, but a deliberate
   // quit with an unsaved tab open is worth a native "are you sure" rather than silently trusting
   // autosave's 60s interval to have caught the very latest edit.
+  // User-reported bug: in the packaged Electron app this used to just silently block the window from
+  // ever closing — no dialog, no feedback, only fixable via Task Manager. beforeunload's
+  // preventDefault() pattern relies on the BROWSER to show a "leave site?" prompt; Electron shows
+  // nothing for it by default (see electron/main.js's rendererDirty comment for the full explanation).
+  // In Electron, push dirty state to the main process instead, which owns a real confirm dialog on the
+  // window's close event. The plain browser fallback (Vite-only dev preview, no window.desktop) keeps
+  // the original beforeunload handler below, since a real browser DOES show a working native prompt.
+  const anyDirty = activeTabDirty || workspaceTabs.some((t) => t.id !== activeTabId && t.dirty);
   useEffect(() => {
-    const anyDirty = activeTabDirty || workspaceTabs.some((t) => t.id !== activeTabId && t.dirty);
+    if (!isDesktop) return;
+    setDirtyState(anyDirty);
+  }, [anyDirty]);
+  useEffect(() => {
+    if (isDesktop) return;
     const onBeforeUnload = (e) => { if (anyDirty) { e.preventDefault(); e.returnValue = ""; } };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [activeTabDirty, workspaceTabs, activeTabId]);
+  }, [anyDirty]);
 
   const doRestore = useCallback(() => {
     restoreAutosave(recovery.data);

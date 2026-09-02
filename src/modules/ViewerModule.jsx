@@ -1108,6 +1108,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (hidden && hidden.has(String(row.value))) return false;
     return true;
   }, [categoryFilter, numericRange]);
+  // TASKS.csv #227 (continuation) — used ONLY inside the big geometry-rebuild effect's build loops,
+  // instead of isRowVisible, for the same reason customVisible was pulled out of that effect's
+  // dependency array: a category-hidden row's mesh is still built (numericRange-based exclusion is
+  // unchanged/unaffected — out of scope for this pass), just left for the small post-hoc visibility
+  // pass below (applyCategoryVisibility) to hide via `.visible = false` instead of never existing —
+  // so toggling a category chip becomes a cheap per-mesh flip instead of a full rebuild.
+  const isRowVisibleForBuild = useCallback((groupKey, row) => {
+    const meta = LAYER_META[groupKey];
+    if (meta.numeric) return isRowVisible(groupKey, row);
+    return true;
+  }, [isRowVisible]);
+  // TASKS.csv #227 (continuation) — the post-hoc half of the pair above: walks each category-
+  // filterable layer's already-built children and hides the ones whose tagged catValue is in that
+  // layer's categoryFilter set, using the exact same `hidden.has(String(value))` semantics
+  // isRowVisible already used at build time — just applied after the fact instead of before, so it
+  // never needs to touch geometry. Called directly (not a hook) from two places: inline at the end of
+  // the big rebuild effect (reapplies current filters to freshly-built children after a real rebuild),
+  // and from the small effect right after it below (the common case — only categoryFilter changed).
+  const applyCategoryVisibility = useCallback(() => {
+    const groups = layerGroupsRef.current;
+    ["litho", "alt", "vein", "litho_gc", "alt_gc", "mnlgy", "structure"].forEach((key) => {
+      const g = groups[key];
+      if (!g) return;
+      const hidden = categoryFilter[key];
+      g.children.forEach((child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); });
+    });
+  }, [categoryFilter]);
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
@@ -3066,7 +3093,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         numericLayerColor(groupKey, value, groupKey === "sg" ? globalPointRanges.sg : { min: 0, max: 100 });
       const buildIntervalTube = (groupKey) => {
         const meta = LAYER_META[groupKey];
-        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisible(groupKey, r)).forEach((row) => {
+        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r)).forEach((row) => {
          try {
           if (isNaN(row.from) || isNaN(row.to)) return;
           const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
@@ -3133,7 +3160,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // TASKS.csv #208 — surface a mapped Description column (litho's new optional field, or any
           // custom field named "description") in the hover tooltip alongside the other interval layers
           // that share this same tube-building path — harmless no-op for rows that don't have one.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}` };
+          // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
+          // (below) decide this mesh's .visible without needing the original row data.
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value };
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -3149,7 +3178,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       const buildPointMarkers = (groupKey) => {
         const meta = LAYER_META[groupKey];
-        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisible(groupKey, r));
+        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r));
         const { min, max } = globalPointRanges[groupKey] || { min: 0, max: 0 };
         vals.forEach((row) => {
          try {
@@ -3161,7 +3190,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m` };
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
         });
@@ -3169,7 +3198,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       buildPointMarkers("mnlgy");
       buildPointMarkers("magsusc");
 
-      (rowsByHole.structure?.get(c.hole_id) || []).filter((s) => isRowVisible("structure", s)).forEach((s) => {
+      (rowsByHole.structure?.get(c.hole_id) || []).filter((s) => isRowVisibleForBuild("structure", s)).forEach((s) => {
         const p = findOnTrace(pts, s.depth);
         if (!p) return;
         const dip = s.dip != null && !isNaN(s.dip) ? s.dip : 45;
@@ -3183,7 +3212,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         disc.rotation.y = -toRad(az);
         disc.position.set(p.x, p.y, p.z);
         const lbl = effectiveLabel("structure", s.value);
-        disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${isNaN(dip) ? "?" : dip.toFixed(0)}° / az ${isNaN(az) ? "?" : az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m` };
+        disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${isNaN(dip) ? "?" : dip.toFixed(0)}° / az ${isNaN(az) ? "?" : az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
         groups.structure.add(disc);
       });
 
@@ -3315,10 +3344,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (!hasAutoFitRef.current) { fitView(allTraces); hasAutoFitRef.current = true; }
       setDataLoaded(true);
     }
+    // TASKS.csv #227 (continuation) — categoryFilter was pulled out of this effect's own dependency
+    // array (see isRowVisibleForBuild above: category-hidden rows are still built now, not skipped),
+    // so a real rebuild triggered by something else entirely (e.g. a new CSV import) creates fresh,
+    // three.js-default-visible children that must have the CURRENTLY active category filters
+    // reapplied here, or a category a user had already hidden would incorrectly reappear until they
+    // touched the filter again. The companion effect below (keyed on [categoryFilter] alone) handles
+    // the common case — toggling a chip with no rebuild involved.
+    applyCategoryVisibility();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-  }, [collars, survey, layers, customLayers, categoryFilter, numericRange, legendOverride, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+    // applyCategoryVisibility is deliberately NOT listed either, for the same reason categoryFilter
+    // itself was removed from this array (see isRowVisibleForBuild's comment) — it's called directly
+    // above using whatever categoryFilter this render closed over, not as a re-trigger condition.
+  }, [collars, survey, layers, customLayers, numericRange, legendOverride, isRowVisible, isRowVisibleForBuild, effectiveColor, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -3843,6 +3883,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // so this can just flip .visible on its already-populated group instead.
     customLayers.forEach((layer) => { if (groups[layer.id]) groups[layer.id].visible = customVisible[layer.id] !== false; });
   }, [layerVisible, assayVisible, customLayers, customVisible]);
+
+  // TASKS.csv #227 (continuation) — the common-case trigger for applyCategoryVisibility (see its own
+  // definition above): toggling a category chip only changes categoryFilter, so this alone is enough
+  // to re-hide/re-show the right meshes with no geometry rebuild. The big rebuild effect's own inline
+  // call handles the other case (a real rebuild reapplying whatever filters are currently active).
+  useEffect(() => { applyCategoryVisibility(); }, [applyCategoryVisibility]);
 
   useEffect(() => {
     const groups = layerGroupsRef.current;
@@ -6195,8 +6241,10 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
           title="Number of classes" style={{ width: 40, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }} />
         <select value={method} onChange={(e) => setMethod(e.target.value)} title="How the class breaks are computed"
           style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }}>
-          <option value="equal">Equal interval</option>
-          <option value="quantile">Quantile</option>
+          <option value="equal">Linear (equal interval)</option>
+          <option value="log">Log-linear</option>
+          <option value="quantile">Histogram equalization (quantile)</option>
+          <option value="normal">Normal distribution</option>
         </select>
         <select value={palette} onChange={(e) => setPalette(e.target.value)} title="Colour ramp"
           style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028", maxWidth: 110 }}>

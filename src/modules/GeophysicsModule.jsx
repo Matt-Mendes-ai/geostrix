@@ -1452,8 +1452,10 @@ function VoxelLegendEditor({ model, onUpdate }) {
         <div style={{ color: "#6b7684", marginBottom: 4 }}>Classify</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...numInput, flex: 1 }}>
-            <option value="equal">Equal interval</option>
-            <option value="quantile">Quantile</option>
+            <option value="equal">Linear (equal interval)</option>
+            <option value="log">Log-linear</option>
+            <option value="quantile">Histogram equalization (quantile)</option>
+            <option value="normal">Normal distribution</option>
           </select>
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>Apply</button>

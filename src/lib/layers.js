@@ -204,6 +204,11 @@ export function rampColorsHex(n) {
 export const PALETTES = {
   default:     { label: "Blue → Red (default)",            colors: ["#4669be", "#dc463c"] },
   geosoft:     { label: "Spectrum — magnetics / gravity (classic Oasis montaj default; not colorblind-safe)", colors: ["#1c1c8c", "#0050c8", "#00b4dc", "#28c878", "#c8e600", "#ffaa00", "#ff3200", "#c80028"] },
+  // User request: "we need a colour palette that includes magenta" — Oasis montaj's default
+  // chargeability/IP spectrum wraps the full hue wheel and ends in magenta/pink at the high end,
+  // which none of the ramps above do (geosoft above tops out at dark red). Additive: the existing
+  // geosoft ramp's anchors plus one magenta anchor appended, so nothing already using "geosoft" changes.
+  spectrum:    { label: "Full spectrum — chargeability / IP (Geosoft-style, wraps into magenta; not colorblind-safe)", colors: ["#1c1c8c", "#0050c8", "#00b4dc", "#28c878", "#c8e600", "#ffaa00", "#ff3200", "#c80028", "#c8007a"] },
   rainbow:     { label: "Rainbow — magnetics / gravity / EM (not colorblind-safe)",  colors: ["#3b3bbe", "#1e90d2", "#28b4a0", "#5ac832", "#e6dc1e", "#f08c1e", "#e63c28"] },
   resistivity: { label: "Resistivity / IP (low→high resistivity; not colorblind-safe)", colors: ["#c83c28", "#f08c1e", "#e6dc1e", "#5ac832", "#28b4a0", "#1e90d2", "#3b3bbe"] },
   viridis:     { label: "Viridis — general purpose / any survey", colors: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"] },
@@ -291,8 +296,33 @@ export function colorForVoxelValue(model, value) {
   return sorted[sorted.length - 1].color;
 }
 
+// Standard-normal inverse CDF (probit), Acklam's rational approximation — good to ~1.15e-9.
+// Used by classifyBreaks' "normal" method; no library dependency needed for this one function.
+function probit(p) {
+  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+  const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+  const pLow = 0.02425, pHigh = 1 - pLow;
+  if (p < pLow) {
+    const q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }
+  if (p <= pHigh) {
+    const q = p - 0.5, r = q * q;
+    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q / (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+  }
+  const q = Math.sqrt(-2 * Math.log(1 - p));
+  return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) / ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+}
+
 // "Classify" — generate N breakpoints (each the LOWER bound of its class) from a value array, the
 // same equal-interval/quantile options standard GIS packages offer for choropleth/raster symbology.
+// User request: "I wanna have these options like geosoft [has], to better classify the voxel" —
+// Oasis montaj's Colour Tool offers Linear/Log-Linear/Normal distribution/Histogram equalization as
+// classification methods; "equal" below is Linear, "quantile" is already equal-count-per-bin (i.e.
+// Histogram equalization), and "log"/"normal" are new to match the remaining two. Geosoft's "Custom"
+// needs no method of its own — both callers already let a user hand-edit stops after classifying.
 export function classifyBreaks(values, n, method = "equal") {
   const nums = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
   if (!nums.length) return [];
@@ -306,6 +336,25 @@ export function classifyBreaks(values, n, method = "equal") {
   const breaks = [];
   if (method === "quantile") {
     for (let i = 0; i < count; i++) breaks.push(nums[Math.floor((i / count) * (nums.length - 1))]);
+  } else if (method === "log" && min > 0) {
+    // Geometric spacing — only meaningful for strictly positive data (chargeability/resistivity/IP
+    // always are; log of zero or a negative value is undefined, so anything else falls through to
+    // the plain equal-interval branch below instead of producing NaN breaks).
+    const logMin = Math.log(min), logMax = Math.log(max);
+    for (let i = 0; i < count; i++) breaks.push(Math.exp(logMin + (i / count) * (logMax - logMin)));
+  } else if (method === "normal") {
+    // Fit the data's own mean/stddev, space breaks evenly in cumulative-probability space, map back
+    // to raw values via mean + z*std — concentrates more class boundaries near the mean, where real
+    // survey data usually clusters, instead of spreading them uniformly like "equal" does.
+    const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+    const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / nums.length;
+    const std = Math.sqrt(variance) || 1;
+    for (let i = 0; i < count; i++) {
+      const p = (i / count) * 0.9998 + 0.0001; // keep strictly inside (0,1) — probit(0)/(1) is +/-Infinity
+      const z = probit(p);
+      breaks.push(Math.min(max, Math.max(min, mean + z * std)));
+    }
+    breaks.sort((a, b) => a - b); // clamping can bunch extreme classes together; callers assume ascending order
   } else {
     for (let i = 0; i < count; i++) breaks.push(min + (i / count) * (max - min));
   }

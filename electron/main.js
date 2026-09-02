@@ -1,4 +1,13 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu } = require("electron");
+// User-reported bug: "there's a bug on the app that won't let me close it. I can only close it ending
+// the task" — App.jsx's beforeunload handler correctly calls e.preventDefault() when a tab has unsaved
+// changes (the standard web pattern, meant to trigger a native "leave site?" confirm), but Electron
+// does NOT show any dialog for that by default — unlike a real browser, a renderer calling
+// preventDefault() on beforeunload just silently cancels the window close with zero UI, zero feedback,
+// forever, unless the main process explicitly overrides that via webContents' "will-prevent-unload"
+// event. Fixed at the source (see mainWindow.on("close", ...) below) with a real, always-visible native
+// confirm dialog instead, driven by a dirty-state flag the renderer now pushes over IPC.
+let rendererDirty = false;
 const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
@@ -174,12 +183,37 @@ function createMainWindow() {
   mainWindow.loadURL(resolveUrl("/"));
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   buildMenu();
+  // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
+  // (triggered by the X button, File > Exit, Cmd/Ctrl+Q, or app.quit() from anywhere) and shows a real
+  // dialog when there are unsaved changes, instead of relying on beforeunload's silent-no-op-in-Electron
+  // behavior. showMessageBoxSync blocks the main process until answered, so this can't race with
+  // anything else trying to quit at the same time. Clicking "Quit Without Saving" clears the flag and
+  // re-issues close() — the listener sees rendererDirty is now false and lets the close proceed normally.
+  mainWindow.on("close", (e) => {
+    if (!rendererDirty) return;
+    e.preventDefault();
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: "warning",
+      buttons: ["Quit Without Saving", "Cancel"],
+      defaultId: 1,
+      cancelId: 1,
+      title: "Unsaved changes",
+      message: "This project has unsaved changes.",
+      detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
+    });
+    if (choice === 0) {
+      rendererDirty = false;
+      mainWindow.close();
+    }
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
     for (const w of childWindows.values()) if (!w.isDestroyed()) w.close();
     childWindows.clear();
   });
 }
+
+ipcMain.on("set-dirty-state", (_e, dirty) => { rendererDirty = !!dirty; });
 
 // ---------- cross-section pop-out window ----------
 ipcMain.handle("open-section-window", (_e, payload) => {
