@@ -163,6 +163,12 @@ function createMainWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // TASKS.csv #249 (security-specialist review) — Electron 28 already defaults sandbox to true
+      // given nodeIntegration:false, so this was already the effective behavior, but pinning it
+      // explicitly is a zero-risk hardening step (preload.js only uses contextBridge/ipcRenderer.
+      // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
+      // copy-pasted webPreferences block elsewhere omitting it.
+      sandbox: true,
     },
   });
   mainWindow.loadURL(resolveUrl("/"));
@@ -209,6 +215,12 @@ ipcMain.handle("open-section-window", (_e, payload) => {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // TASKS.csv #249 (security-specialist review) — Electron 28 already defaults sandbox to true
+      // given nodeIntegration:false, so this was already the effective behavior, but pinning it
+      // explicitly is a zero-risk hardening step (preload.js only uses contextBridge/ipcRenderer.
+      // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
+      // copy-pasted webPreferences block elsewhere omitting it.
+      sandbox: true,
     },
   });
   win.loadURL(resolveUrl("/section"));
@@ -441,8 +453,36 @@ ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y }) => {
 // Returns base64 always (works for both binary GetMap images and text XML/GeoJSON responses — the
 // renderer decides how to decode based on what it asked for) plus contentType so the renderer can
 // build a correct data: URL for an image without having to guess the format.
+// TASKS.csv #249 (security-specialist review) — fetch-web-layer previously fetched whatever URL
+// string the renderer handed it with no scheme/host validation, an SSRF-adjacent gap in the main
+// process (not sandboxed). Traced whether a malicious IMPORTED PROJECT FILE could smuggle a URL into
+// this fetch automatically — confirmed it can't (AddWebLayerModal.jsx always requires the user to
+// manually paste a URL, nothing in a saved project auto-triggers this), so real-world severity is low
+// (requires the user to be talked into pasting a malicious URL themselves), but it's a one-line guard
+// worth having regardless. Blocks non-http(s) schemes and the obvious loopback/link-local/private-IP
+// ranges — not a DNS-rebinding-proof allowlist, just closing the direct cases a user-pasted URL could
+// plausibly hit (e.g. a cloud metadata endpoint or another local service).
+function isBlockedWebLayerHost(hostname) {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h === "::1") return true;
+  // IPv4 loopback/link-local/private ranges
+  if (/^127\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true;
+  if (/^10\./.test(h)) return true;
+  if (/^192\.168\./.test(h)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  return false;
+}
 ipcMain.handle("fetch-web-layer", async (_e, { url }) => {
   try {
+    let parsed;
+    try { parsed = new URL(url); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, status: 0, message: `Unsupported URL scheme "${parsed.protocol}" — only http/https are allowed.` };
+    }
+    if (isBlockedWebLayerHost(parsed.hostname)) {
+      return { ok: false, status: 0, message: "This URL points at a local/private address, which isn't allowed here." };
+    }
     const res = await fetch(url);
     const contentType = res.headers.get("content-type") || "";
     if (!res.ok) {

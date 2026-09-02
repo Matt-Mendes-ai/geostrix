@@ -20,18 +20,55 @@ export function minMax(arr, mapFn) {
   return min === Infinity ? { min: 0, max: 0 } : { min, max };
 }
 
+// TASKS.csv #249 (colorblind-safety review) — restricted to a 220°-wide hue arc (160°→380°, wrapping
+// through 0°) that excludes the ~20°-160° red-green confusion band, biasing collisions away from the
+// worst case for deuteranopia/protanopia instead of the previous full 0-360° range. This is a
+// second-line mitigation only — an unbounded set of possible input codes still can't guarantee real
+// separation from a hash alone, hash or not; see categoricalSafeColor below for the actual first-line
+// fix (a curated palette assigned by first-seen order, used before this function is ever reached).
 function hashColor(key, sat = 55, light = 52) {
   let hash = 0;
   const k = (key === undefined || key === null || key === "" ? "unknown" : String(key)).toLowerCase();
   for (let i = 0; i < k.length; i++) hash = k.charCodeAt(i) + ((hash << 5) - hash);
-  return `hsl(${Math.abs(hash) % 360}, ${sat}%, ${light}%)`;
+  const hue = (160 + (Math.abs(hash) % 220)) % 360;
+  return `hsl(${hue}, ${sat}%, ${light}%)`;
 }
 
+// TASKS.csv #249 (colorblind-safety review) — first line of defense for any code not in this file's
+// hand-picked tables (LITHO_COLORS/ALT_COLORS/etc): a curated, widely-cited colorblind-safe qualitative
+// set (Okabe-Ito's 7 + Paul Tol's "muted" 9, overlap-checked by eye) assigned by FIRST-SEEN ORDER per
+// distinct code within one namespace (litho/alt/vein/mineral/structure/medium kept separate so e.g. a
+// litho code and an alteration code sharing a string don't fight over the same slot) — guaranteeing
+// real perceptual separation for the first 16 distinct codes a project actually uses, which is every
+// real single-project dataset seen in this app so far. Falls back to hashColor (hash-to-restricted-hue)
+// only past that, since a literal unbounded set of possible site-specific codes has no way to reserve
+// slots for in advance.
+const CATEGORICAL_SAFE_COLORS = [
+  "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
+  "#332288", "#117733", "#44AA99", "#88CCEE", "#DDCC77", "#CC6677", "#AA4499", "#882255", "#999933",
+];
+const categoricalColorCache = new Map(); // namespace -> Map(code -> color), persists for the app session
+function categoricalSafeColor(namespace, key) {
+  let cache = categoricalColorCache.get(namespace);
+  if (!cache) { cache = new Map(); categoricalColorCache.set(namespace, cache); }
+  const k = key === undefined || key === null || key === "" ? "unknown" : String(key).toLowerCase();
+  if (cache.has(k)) return cache.get(k);
+  const color = cache.size < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[cache.size] : hashColor(k);
+  cache.set(k, color);
+  return color;
+}
+
+// TASKS.csv #249 (colorblind-safety review) — this palette skewed heavily brown/olive/dark-green,
+// exactly the hue family that collapses under deuteranopia/protanopia. Three pairs nudged apart:
+// m1 pushed toward a more distinctly warm brown (was olive-green, too close to v5); s6 pushed toward
+// blue (was pale sage-green, too close to m4's pale tan — blue sits outside the red-green confusion
+// axis so this is a more reliable separation than another green/brown shade would be); kom pushed
+// toward teal (was a mid-green nearly matching flt's red at similar lightness).
 export const LITHO_COLORS = {
   obn: "#8a7860", v1: "#c98a5a", silbx: "#d4522e", s5: "#6b7a8a", s4: "#8a8578",
-  s7: "#332f2a", v5: "#6b8060", v6: "#33502f", i6: "#3d5a4c", m1: "#7a7550",
-  m4: "#d8d0b8", s6: "#a8b8a0", flt: "#c0392b",
-  kom: "#2f6b3d", "thol-fe": "#7a3d3d", "thol-mafic": "#3d5a4c", "ca-basalt": "#33502f",
+  s7: "#332f2a", v5: "#6b8060", v6: "#33502f", i6: "#3d5a4c", m1: "#8a6a4a",
+  m4: "#d8d0b8", s6: "#9bb8c2", flt: "#c0392b",
+  kom: "#1f7a5a", "thol-fe": "#7a3d3d", "thol-mafic": "#3d5a4c", "ca-basalt": "#33502f",
   "ca-and": "#6b8060", "ca-dac": "#c98a5a", "ca-rhy": "#d8b06a",
   bas: "#33502f", "and-bas": "#4a6b4a", and: "#6b8060", "rhy-dac": "#c98a5a",
   "alk-bas": "#7a3d5a", trachy: "#a5708a", "sub-alk": "#3d5a6b", fono: "#8a6fae",
@@ -43,7 +80,7 @@ export const UNIT_NAMES = {
   M1: "M1 — Basalt-phyllite", M4: "M4 — Quartzite / silica phyllite", S6: "S6 — Calc-silicate rock",
   FLT: "FLT — Fault zone",
 };
-export function colorForLithology(u) { const k = (u || "").toLowerCase(); return LITHO_COLORS[k] || hashColor(u); }
+export function colorForLithology(u) { const k = (u || "").toLowerCase(); return LITHO_COLORS[k] || categoricalSafeColor("litho", u); }
 
 // TASKS.csv #241 — Matt's own synthetic-dataset request came bundled with a second, standing ask: a
 // way to tell overburden and cross-cutting units (faults, dykes, breccias) apart from ordinary
@@ -63,29 +100,44 @@ export function roleForLithology(u) { return UNIT_ROLES[(u || "").toLowerCase()]
 // own scope comment in ViewerModule.jsx) — faults, dykes, and breccia bodies all qualify.
 export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia"; }
 
-export const ALT_COLORS = { CARB: "#b8c4c8", KSP: "#8a3a3a", MAG: "#4a4a4a", OX: "#b5622c", PRO: "#4a6b4a", QSP: "#d4b06a", SIL: "#e8e2d0", UNK: "#6a6a6a",
-  SER: "#d4b06a", CHL: "#4a6b4a", EPI: "#7a9e6a", FRESH: "#5a6472" };
-export function colorForAlteration(a) { return ALT_COLORS[(a || "").toUpperCase()] || hashColor(a); }
+// TASKS.csv #249 (colorblind-safety review) — CHL/PRO and SER/QSP were exact-duplicate hex values
+// (not even a colorblind-specific issue — indistinguishable to anyone), and OX/KSP were a
+// red-brown/dark-red pair that collapses under deuteranopia/protanopia. Nudged CHL toward a more
+// saturated green and SER toward a warmer gold so both read distinctly at normal AND reduced
+// red-green discrimination; OX kept but KSP shifted toward a cooler plum so the two no longer share
+// the same reddish-brown hue family.
+export const ALT_COLORS = { CARB: "#b8c4c8", KSP: "#7a4a72", MAG: "#4a4a4a", OX: "#b5622c", PRO: "#4a6b4a", QSP: "#d4b06a", SIL: "#e8e2d0", UNK: "#6a6a6a",
+  SER: "#c79a4a", CHL: "#5a8f52", EPI: "#7a9e6a", FRESH: "#5a6472" };
+export function colorForAlteration(a) { return ALT_COLORS[(a || "").toUpperCase()] || categoricalSafeColor("alt", a); }
 
-export const VEIN_COLORS = { CARB: "#a8c4a0", PY: "#c9c93d", "QTZ-PY": "#d4c060", QZ: "#e8e2d0", "QZ-CB": "#cfe0c8", "QZ-CHL": "#7fae7a", "QZ-SUL": "#b08a5a" };
-export function colorForVein(v) { return VEIN_COLORS[(v || "").toUpperCase()] || hashColor(v); }
+// TASKS.csv #249 (colorblind-safety review) — QZ-CB was a pale green nearly identical to CARB
+// (and close to QZ-CHL too); shifted to pale blue, outside the red-green confusion axis, so the two
+// carbonate-bearing vein codes stay distinguishable under deuteranopia/protanopia.
+export const VEIN_COLORS = { CARB: "#a8c4a0", PY: "#c9c93d", "QTZ-PY": "#d4c060", QZ: "#e8e2d0", "QZ-CB": "#7fb0c2", "QZ-CHL": "#7fae7a", "QZ-SUL": "#b08a5a" };
+export function colorForVein(v) { return VEIN_COLORS[(v || "").toUpperCase()] || categoricalSafeColor("vein", v); }
 
 export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
-export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || hashColor(m); }
+export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };
-export function colorForStructure(t) { return STRUCT_COLORS[(t || "").toUpperCase()] || hashColor(t); }
+export function colorForStructure(t) { return STRUCT_COLORS[(t || "").toUpperCase()] || categoricalSafeColor("structure", t); }
 
 // TASKS.csv #228 — surface geochemistry sample media, colored distinctly by sampling medium (a soil
 // grid and a rock-chip traverse from the same property are visually different datasets, same as
 // lithology/alteration get their own color set here) so mixed surface-sample imports read clearly in
 // the 3D view and the legend, rather than falling back to one uniform color for everything.
 export const MEDIUM_COLORS = { soil: "#8a6a45", "rock chip": "#c0392b", "stream sediment": "#4a7ab5", "talus fines": "#8a8578", other: "#6a6a6a" };
-export function colorForMedium(m) { return MEDIUM_COLORS[(m || "").toLowerCase()] || hashColor(m); }
+export function colorForMedium(m) { return MEDIUM_COLORS[(m || "").toLowerCase()] || categoricalSafeColor("medium", m); }
 
+// TASKS.csv #249 (colorblind-safety review) — this was a literal red→orange→gold→green traffic-light
+// ramp for RQD% (rock quality, a real geotechnical decision input), the single highest-priority
+// finding in that review: red-green "bad→good" is exactly the transition deuteranopia/protanopia
+// can't read. Replaced with a 5-stop viridis sample (dark purple=poor rock → bright yellow=good rock)
+// — perceptually uniform and colorblind-safe by construction, same palette already offered elsewhere
+// in the app (PALETTES.viridis) rather than inventing a second "safe" ramp with different stops.
 export function rqdColor(pct) {
   if (pct == null || isNaN(pct)) return "#555";
-  const stops = [[0, [192, 57, 43]], [25, [214, 137, 16]], [50, [212, 175, 55]], [75, [130, 175, 70]], [100, [70, 160, 90]]];
+  const stops = [[0, [68, 1, 84]], [25, [59, 82, 139]], [50, [33, 144, 140]], [75, [93, 200, 99]], [100, [253, 231, 37]]];
   let lo = stops[0], hi = stops[stops.length - 1];
   for (let i = 0; i < stops.length - 1; i++) if (pct >= stops[i][0] && pct <= stops[i + 1][0]) { lo = stops[i]; hi = stops[i + 1]; break; }
   const span = hi[0] - lo[0], t = span <= 0 ? 0 : (pct - lo[0]) / span;
@@ -131,11 +183,12 @@ function lerpColorHex(hexA, hexB, t) {
   return rgbToHex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
 }
 
-// Evenly-spaced hex colors along the same blue->red ramp magColor uses, for generating N classified
-// bin colors (e.g. for the "Classify" equal-interval/quantile actions below). Kept as the default/
-// fallback ramp for any caller that doesn't ask for a named palette (see PALETTES below).
+// TASKS.csv #249 (colorblind-safety review) — falls back to the colorblind-safe viridis ramp rather
+// than the plain "default" blue-red one for any caller that doesn't ask for a specific named palette,
+// so an unopinionated caller gets the safe choice without needing to know to ask for it. "default"
+// itself is untouched and still selectable by name for anyone who explicitly wants it.
 export function rampColorsHex(n) {
-  return paletteColorsHex("default", n);
+  return paletteColorsHex("viridis", n);
 }
 
 // User request: "Can we have some gradient colour pallets options for the voxels legends? Get some
@@ -143,11 +196,16 @@ export function rampColorsHex(n) {
 // Each entry is an ordered list of hex anchor colors sampled evenly across a model's value range —
 // same multi-stop-lerp approach VoxelLegendEditor's Classify control already used for the 2-color
 // default, just generalized to N anchor colors per palette instead of always exactly 2.
+// TASKS.csv #249 (colorblind-safety review) — geosoft/rainbow/resistivity are all rainbow/jet-style
+// ramps that sweep straight through the green-yellow-red band, the worst-case transition for
+// deuteranopia/protanopia; kept (not removed) since they intentionally mirror conventions from
+// Oasis montaj/EM/resistivity software a geophysicist may already expect, but labeled so the tradeoff
+// is visible in the picker instead of silent.
 export const PALETTES = {
   default:     { label: "Blue → Red (default)",            colors: ["#4669be", "#dc463c"] },
-  geosoft:     { label: "Spectrum — magnetics / gravity (classic Oasis montaj default)", colors: ["#1c1c8c", "#0050c8", "#00b4dc", "#28c878", "#c8e600", "#ffaa00", "#ff3200", "#c80028"] },
-  rainbow:     { label: "Rainbow — magnetics / gravity / EM",  colors: ["#3b3bbe", "#1e90d2", "#28b4a0", "#5ac832", "#e6dc1e", "#f08c1e", "#e63c28"] },
-  resistivity: { label: "Resistivity / IP (low→high resistivity)", colors: ["#c83c28", "#f08c1e", "#e6dc1e", "#5ac832", "#28b4a0", "#1e90d2", "#3b3bbe"] },
+  geosoft:     { label: "Spectrum — magnetics / gravity (classic Oasis montaj default; not colorblind-safe)", colors: ["#1c1c8c", "#0050c8", "#00b4dc", "#28c878", "#c8e600", "#ffaa00", "#ff3200", "#c80028"] },
+  rainbow:     { label: "Rainbow — magnetics / gravity / EM (not colorblind-safe)",  colors: ["#3b3bbe", "#1e90d2", "#28b4a0", "#5ac832", "#e6dc1e", "#f08c1e", "#e63c28"] },
+  resistivity: { label: "Resistivity / IP (low→high resistivity; not colorblind-safe)", colors: ["#c83c28", "#f08c1e", "#e6dc1e", "#5ac832", "#28b4a0", "#1e90d2", "#3b3bbe"] },
   viridis:     { label: "Viridis — general purpose / any survey", colors: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"] },
   diverging:   { label: "Diverging Blue–White–Red — residual / anomaly grids", colors: ["#3b4cc0", "#a1c4fd", "#f7f7f7", "#f4a582", "#b40426"] },
   grayscale:   { label: "Grayscale — radiometrics / amplitude data", colors: ["#1a1a1a", "#8c8c8c", "#f2f2f2"] },

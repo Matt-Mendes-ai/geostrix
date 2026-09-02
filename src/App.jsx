@@ -391,9 +391,13 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
+      {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance (the
+          dot's hue), with the actual word only in a hover title; now a short suffix is always visible
+          so the state doesn't depend on distinguishing the dot's color, matching the pattern the
+          updater status block below already uses. */}
       <span title={pyLabel} style={{ display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
-        Py
+        Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : "off"}
       </span>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>

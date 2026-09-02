@@ -6167,7 +6167,11 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
 function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
   const [classCount, setClassCount] = useState(5);
   const [method, setMethod] = useState("equal");
-  const [palette, setPalette] = useState("default");
+  // TASKS.csv #249 (colorblind-safety review) — defaults to the perceptually-uniform, colorblind-safe
+  // viridis palette rather than the plain blue-red "default" ramp, so a new classification starts safe
+  // without the user needing to know to pick it. "default" stays selectable (and unchanged) for anyone
+  // who explicitly wants it.
+  const [palette, setPalette] = useState("viridis");
   const values = React.useMemo(
     () => (rows || []).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v)),
     [rows]

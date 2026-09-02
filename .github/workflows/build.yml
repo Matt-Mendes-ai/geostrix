@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [master]
 
+# TASKS.csv #249 (security-specialist review) — this smoke-test build never needed write access to
+# anything; a public repo's default GITHUB_TOKEN permissions for a pull_request run from a fork are
+# already read-only (GitHub's own safe default), so this was already correct in practice, but pinning
+# it explicitly makes that self-documenting in this repo's own config instead of depending on an
+# org-level setting nobody looking at this file can see.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest

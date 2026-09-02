@@ -73,13 +73,21 @@ class ValuedPoint3D(Point3D):
     value: float
 
 
+# TASKS.csv #249 (security-specialist review) — /implicit-model already bounds its own inputs
+# (MAX_RESOLUTION_CELLS, surfaces max_length=12 below) but this endpoint had no upper bound on either
+# list's length. RBFInterpolator's factorization is roughly O(n^3) in sample-point count, so a very
+# large points/query list would do genuinely large synchronous work, blocking this single-process
+# server for other requests. Low severity — local-only, single-user, self-inflicted worst case (a
+# UI-triggered freeze against your own sidecar, not a security boundary crossed) — but a cheap guard.
+MAX_INTERPOLATE_POINTS = 50_000
+
 class InterpolateRequest(BaseModel):
     points: List[ValuedPoint3D] = Field(
-        ..., min_length=1,
+        ..., min_length=1, max_length=MAX_INTERPOLATE_POINTS,
         description="Known sample points with values — e.g. lithology-contact indicators (0/1), "
                      "grade, or magnetic susceptibility.",
     )
-    query: List[Point3D] = Field(..., min_length=1, description="Points to estimate a value at.")
+    query: List[Point3D] = Field(..., min_length=1, max_length=MAX_INTERPOLATE_POINTS, description="Points to estimate a value at.")
     method: Literal["rbf", "idw"] = "rbf"
     rbf_function: Literal[
         "linear", "thin_plate_spline", "cubic", "quintic",

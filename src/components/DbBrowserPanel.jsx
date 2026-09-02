@@ -178,6 +178,10 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
         {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
         <Database size={12} color={live ? "#3d9a63" : "#94a1b0"} />
         <span style={{ flex: 1 }}>{profile.name}</span>
+        {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance
+            (the dot's color), with the word only in a hover title; "live" is now always visible text
+            when connected, so this row's state doesn't depend on distinguishing the dot's color. */}
+        {live && <span style={{ fontSize: 9, color: "#3d9a63" }}>live</span>}
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "#c7ccd3" }} title={live ? "Connected" : "Not connected"} />
       </div>
       {open && (
