@@ -166,8 +166,12 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     loadTables(res.id);
   }, [connectDb, profile, password, loadTables]);
 
+  // User report: "there is a limit of 500 rows when I'm importing a layer" — this LIMIT 500 was a
+  // leftover from the table-picker's original preview-only purpose; importing a layer as a genuine
+  // data source should pull the whole table, not silently truncate a real dataset (a full drillhole
+  // program's litho/assay table is routinely tens of thousands of rows).
   const pickTable = useCallback(async (t) => {
-    const res = await dbLiveQuery(live.id, `SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`);
+    const res = await dbLiveQuery(live.id, `SELECT * FROM ${t.table_schema}.${t.table_name};`);
     if (res.ok) onImportRows({ headers: res.fields, rows: res.rows, sourceName: `db:${profile.database}.${t.table_name}` });
     else setError(res.error);
   }, [live, onImportRows, profile.database]);
@@ -206,7 +210,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
           {tablesLoading && <div style={{ color: "#94a1b0" }}><Loader2 size={11} className="spin" /> Loading tables…</div>}
           {tables && tables.map((t, i) => (
             <div key={i} onClick={() => pickTable(t)} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "2px 0", color: "#3a4453" }}
-              title={`Import ${t.table_schema}.${t.table_name} (first 500 rows)`}>
+              title={`Import ${t.table_schema}.${t.table_name}`}>
               {t.table_type === "VIEW" && <span style={{ fontSize: 9, color: "#e2a63c", border: "1px solid #e2a63c", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.table_schema}.{t.table_name}</span>
             </div>

@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker } from "lucide-react";
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass } from "lucide-react";
 import AssayStyleModal from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
@@ -38,6 +38,7 @@ const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceMod
 import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
+import CoreOrientationCalculator from "../components/CoreOrientationCalculator.jsx";
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
@@ -639,6 +640,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     viewportRenderRequest, viewportRenderRequestSeq, viewportPendingRequest, resolveViewportRender,
     rasters, updateRaster, removeRaster,
     boundaries, updateBoundary, removeBoundary,
+    fieldStructuralRefs, addFieldRef, removeFieldRef,
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
@@ -939,6 +941,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [includeSectionContacts, setIncludeSectionContacts] = useState(false);
   const [structuralTarget, setStructuralTarget] = useState("");
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
+  const [coreOrientOpen, setCoreOrientOpen] = useState(false);
   const [alterationTarget, setAlterationTarget] = useState("");
   const [stackUnits, setStackUnits] = useState([]); // ordered youngest -> oldest, for the stratigraphic stack tool
   const [stackAdd, setStackAdd] = useState("");
@@ -5379,6 +5382,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own
           position and dip/azimuth — no separate contact layer needed.
         </div>
+        {/* User request: "we need to find a way to calculate the beta angle for non-oriented drilling
+            based on field structural measurements" — the alpha-beta method (coreOrientation.js), placed
+            right above the Stereonet QC button since it's the natural upstream step: solve a pick's true
+            orientation here, then feed it (or the whole layer) into that QC/trend-checking tool. */}
+        <button
+          onClick={() => setCoreOrientOpen(true)}
+          style={{ ...pBtn, marginBottom: 8 }}
+          title="Recover a non-oriented core pick's true dip/dip-direction by calibrating against a known field/outcrop structural reading"
+        ><Compass size={13} /> Core orientation calculator</button>
         {/* TASKS.csv #141 — check the structure picks' own orientation trend/scatter BEFORE feeding them
             into the anisotropy or structural-surface tools above/below. */}
         <button
@@ -5950,6 +5962,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             goToModule("modeling");
             setNotices((p) => [...p, `Anisotropy trend set from the stereonet mean orientation (dip ${dip.toFixed(1)}° / dipdir ${azimuth.toFixed(1)}°).`]);
           }}
+        />
+      )}
+      {coreOrientOpen && (
+        <CoreOrientationCalculator
+          collars={collars}
+          survey={survey}
+          fieldStructuralRefs={fieldStructuralRefs}
+          addFieldRef={addFieldRef}
+          removeFieldRef={removeFieldRef}
+          onSaveStructurePick={(row) => {
+            setLayers((p) => ({ ...p, structure: [...(p.structure || []), row] }));
+            setNotices((p) => [...p, `Saved "${row.value}" to the Structure layer (${row.hole_id} @ ${row.depth}m, dip ${row.dip}° / dipdir ${row.azimuth}°).`]);
+          }}
+          onClose={() => setCoreOrientOpen(false)}
         />
       )}
       {interceptsModalOpen && (

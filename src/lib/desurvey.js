@@ -13,8 +13,10 @@ function mcStep(md1, I1, Az1, md2, I2, Az2) {
   return { dN, dE, dTVD };
 }
 
-// survey: [{depth, azimuth, dip}] dip = deg below horizontal. Returns world {md,x,y,z} polyline.
-export function desurveyHole(collar, survey) {
+// Builds the {md, I (inclination from vertical), Az} station list desurveyHole/surveyAzimuthDipAt both
+// interpolate against — the "collar-only, no survey rows" straight-hole fallback lives here once so
+// both callers see the exact same effective survey.
+function stationsWithInclination(collar, survey) {
   let stations = survey && survey.length ? [...survey].sort((a, b) => a.depth - b.depth) : [];
   if (!stations.length) {
     if (collar.azimuth == null || collar.dip == null || isNaN(collar.azimuth) || isNaN(collar.dip)) return [];
@@ -22,26 +24,45 @@ export function desurveyHole(collar, survey) {
     stations = [{ depth: 0, azimuth: collar.azimuth, dip: collar.dip }, { depth: md, azimuth: collar.azimuth, dip: collar.dip }];
   }
   if (stations[0].depth > 0) stations.unshift({ depth: 0, azimuth: stations[0].azimuth, dip: stations[0].dip });
-  const withI = stations.map((s) => ({ md: s.depth, I: 90 - s.dip, Az: s.azimuth }));
+  return stations.map((s) => ({ md: s.depth, I: 90 - s.dip, Az: s.azimuth }));
+}
+
+// Interpolates {md, I, Az} at an arbitrary MD along a stationsWithInclination() list.
+function interpAtStation(withI, md) {
+  let lo = withI[0], hi = withI[withI.length - 1];
+  for (let i = 0; i < withI.length - 1; i++) if (md >= withI[i].md && md <= withI[i + 1].md) { lo = withI[i]; hi = withI[i + 1]; break; }
+  const span = hi.md - lo.md, t = span <= 0 ? 0 : (md - lo.md) / span;
+  // TASKS.csv #218 — azimuth is a compass bearing, not a plain number: interpolating the raw degree
+  // values (e.g. 355 -> 5) took the LONG way around through 180 instead of the short way through
+  // 0/360, producing large positional errors on any north-trending hole. Unwrap to the shortest
+  // signed delta in (-180, 180] before interpolating, then normalize the result back to [0, 360).
+  const rawDelta = hi.Az - lo.Az;
+  const shortDelta = ((rawDelta % 360) + 540) % 360 - 180;
+  let az = lo.Az + shortDelta * t;
+  az = ((az % 360) + 360) % 360;
+  return { md, I: lo.I + (hi.I - lo.I) * t, Az: az };
+}
+
+// Hole azimuth/dip (deg below horizontal, same convention as a survey row's own `dip`) interpolated at
+// an arbitrary depth — used by the core-orientation calculator to auto-fill a hole's true attitude at
+// the depth of a structural pick, instead of requiring it typed in by hand. Returns null for a hole
+// with no usable survey/collar dip data (mirrors desurveyHole's own empty-array case).
+export function surveyAzimuthDipAt(collar, survey, depth) {
+  const withI = stationsWithInclination(collar, survey);
+  if (!withI.length) return null;
+  const { I, Az } = interpAtStation(withI, depth);
+  return { azimuth: Az, dip: 90 - I };
+}
+
+// survey: [{depth, azimuth, dip}] dip = deg below horizontal. Returns world {md,x,y,z} polyline.
+export function desurveyHole(collar, survey) {
+  const withI = stationsWithInclination(collar, survey);
+  if (!withI.length) return [];
   const maxMD = withI[withI.length - 1].md;
   const depths = new Set([0, maxMD]);
   for (let d = 0; d <= maxMD; d += 3) depths.add(Math.round(d * 100) / 100);
   const sorted = Array.from(depths).sort((a, b) => a - b);
-  const interpAt = (md) => {
-    let lo = withI[0], hi = withI[withI.length - 1];
-    for (let i = 0; i < withI.length - 1; i++) if (md >= withI[i].md && md <= withI[i + 1].md) { lo = withI[i]; hi = withI[i + 1]; break; }
-    const span = hi.md - lo.md, t = span <= 0 ? 0 : (md - lo.md) / span;
-    // TASKS.csv #218 — azimuth is a compass bearing, not a plain number: interpolating the raw degree
-    // values (e.g. 355 -> 5) took the LONG way around through 180 instead of the short way through
-    // 0/360, producing large positional errors on any north-trending hole. Unwrap to the shortest
-    // signed delta in (-180, 180] before interpolating, then normalize the result back to [0, 360).
-    const rawDelta = hi.Az - lo.Az;
-    const shortDelta = ((rawDelta % 360) + 540) % 360 - 180;
-    let az = lo.Az + shortDelta * t;
-    az = ((az % 360) + 360) % 360;
-    return { md, I: lo.I + (hi.I - lo.I) * t, Az: az };
-  };
-  const fine = sorted.map(interpAt);
+  const fine = sorted.map((md) => interpAtStation(withI, md));
   let N = 0, E = 0, TVD = 0;
   const pts = [{ md: 0, N: 0, E: 0, TVD: 0 }];
   for (let i = 1; i < fine.length; i++) {
