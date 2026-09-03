@@ -311,8 +311,8 @@ export default function App() {
         <button className="ge-tool-btn" onClick={doOpen} title="Open project"><FolderOpen size={14} /> Open</button>
         <button className="ge-tool-btn" onClick={doSave} title="Save project"><Save size={14} /> {savedFlash ? "Saved ✓" : "Save"}</button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title="Exports the Layout page (switches to it first if needed)">Export PDF</button>
         <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)"><FileBarChart2 size={14} /> Report</button>
@@ -372,11 +372,15 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
               className="ge-tab-close"
               onClick={(e) => { e.stopPropagation(); onClose(t.id); }}
               title="Close project"
+              role="button"
+              tabIndex={0}
+              aria-label={`Close ${label || "Untitled project"}`}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClose(t.id); } }}
             />
           </div>
         );
       })}
-      <button className="ge-tab-add" onClick={onNew} title="New project (opens another tab)">
+      <button className="ge-tab-add" onClick={onNew} title="New project (opens another tab)" aria-label="New project (opens another tab)">
         <Plus size={13} />
       </button>
     </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "../lib/useFocusTrap.js";
 
 // Bug fix (user report: "Group feature is not working, can't create group layers"). Root cause:
 // every "name this thing" flow in the app (new layer group, rename group, rename section, new domain,
@@ -12,6 +13,7 @@ import React, { useEffect, useRef, useState } from "react";
 // modal replacement, used the same way across every call site (see ViewerModule's askPrompt/promptState
 // and LayoutModule's own copy of the same pattern).
 export default function PromptModal({ title, defaultValue = "", confirmLabel = "OK", onConfirm, onCancel }) {
+  useFocusTrap(); // TASKS.csv #238 — the one modal-shaped component that hadn't gotten this yet
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef(null);
   useEffect(() => {

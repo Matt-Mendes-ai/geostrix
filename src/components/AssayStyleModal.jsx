@@ -13,6 +13,22 @@ import { overlay } from "../lib/modalStyles.js";
 // `onChange` is called with the full next style object on every edit (ViewerModule owns the actual
 // state and re-renders the 3D scene from it); this component is otherwise stateless about what's
 // already been applied, just a plain controlled editor over the `style` prop.
+// TASKS.csv #247 — the same "nice 3-class split of the element's real data range" this modal's own
+// "Add break" button already seeded with (below), pulled out so ViewerModule can also use it to give a
+// newly-toggled-on element a grade-based ramp by default instead of a flat color — a 0.01 g/t and a
+// 50 g/t intercept looking identical until a user finds this modal's gear icon was a real first-look
+// gap for a tool whose whole point is spotting where the high-grade intercepts sit in 3D.
+export function seedBreaks({ min, max }) {
+  const span = max - min;
+  return span > 0
+    ? [
+        { max: +(min + span / 3).toFixed(3), color: "#5a6472", label: "Low" },
+        { max: +(min + (2 * span) / 3).toFixed(3), color: "#e2a63c", label: "Medium" },
+        { max: +max.toFixed(3), color: "#e05a4a", label: "High" },
+      ]
+    : [{ max: max || 1, color: "#e05a4a", label: "All" }];
+}
+
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -39,16 +55,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       // Seed with a sensible 3-class split of the element's real data range so the user has something
       // concrete to edit rather than a blank row — same "nice round numbers" spirit as the scale-bar
       // helper elsewhere in the app, just simpler (no cartographic convention needed here).
-      const { min, max } = range;
-      const span = max - min;
-      const seeded = span > 0
-        ? [
-            { max: +(min + span / 3).toFixed(3), color: "#5a6472", label: "Low" },
-            { max: +(min + (2 * span) / 3).toFixed(3), color: "#e2a63c", label: "Medium" },
-            { max: +max.toFixed(3), color: "#e05a4a", label: "High" },
-          ]
-        : [{ max: max || 1, color: "#e05a4a", label: "All" }];
-      commit({ ...local, breaks: seeded });
+      commit({ ...local, breaks: seedBreaks(range) });
       return;
     }
     const last = local.breaks[local.breaks.length - 1];

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import * as THREE from "three";
 import Papa from "papaparse";
 import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass } from "lucide-react";
-import AssayStyleModal from "../components/AssayStyleModal.jsx";
+import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
@@ -142,6 +142,10 @@ const SOFT_NUGGET = 0.5;
 // on that distinction, still Planned). Capping padding to a fixed ceiling bounds how far past the
 // actual drillhole data any surface is asked to extend, regardless of how spread out the property is.
 const MODEL_EXTENT_PAD_M = 500;
+// TASKS.csv #227 (continuation) — the layer keys whose geometry is one plain THREE.Mesh per row
+// (buildIntervalTube/buildPointMarkers/the structure loop), and therefore support the cheap post-hoc
+// visibility/color passes below instead of a full rebuild for a categoryFilter/legendOverride change.
+const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
 // TASKS.csv #208 — generic "extra fields" plumbing, designed once and reused by every row-builder
 // below (and by the collars/survey/custom branches of commitImportData directly) rather than a
@@ -762,7 +766,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // array (not a Set) so ASSAY_ELEMENT_COLORS assignment below is stable/predictable by pick order
   // rather than shuffling around as elements are toggled on/off.
   const [assayDisplayElements, setAssayDisplayElements] = useState([]);
-  const toggleAssayElement = (symbol) => setAssayDisplayElements((p) => p.includes(symbol) ? p.filter((s) => s !== symbol) : [...p, symbol]);
+  // TASKS.csv #247 — a newly-toggled-on element used to default to a single flat color regardless of
+  // grade (a 0.01 g/t and a 50 g/t intercept looked identical) until a user found the small gear icon
+  // and manually set grade breaks. Now the FIRST time an element is turned on (no assayStyle entry yet,
+  // or one with no breaks — e.g. from an older saved project), it's auto-seeded with the same 3-class
+  // split AssayStyleModal's own "Add break" button seeds with (seedBreaks), so grade patterns are
+  // visible immediately — still fully overridable/removable via that same modal.
+  const toggleAssayElement = (symbol) => {
+    const turningOn = !assayDisplayElements.includes(symbol);
+    setAssayDisplayElements((p) => p.includes(symbol) ? p.filter((s) => s !== symbol) : [...p, symbol]);
+    if (turningOn) {
+      setAssayStyle((s) => {
+        if (s[symbol]?.breaks?.length) return s; // user already has their own breaks -- don't clobber
+        const range = globalAssayRanges[symbol] || { min: 0, max: 0 };
+        return { ...s, [symbol]: { ...(s[symbol] || {}), breaks: seedBreaks(range) } };
+      });
+    }
+  };
   // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
   // ignore values lower than (what the user specifies)". Per-symbol styling, keyed by element symbol:
   // { color: "#rrggbb" | null (null = use the default pick-order color), sizeMult: number (default 1,
@@ -1098,6 +1118,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (ov?.color) return ov.color;
     return LAYER_META[layerKey].colorFn(value);
   }, [legendOverride]);
+  // TASKS.csv #227 (continuation) — used ONLY inside the big geometry-rebuild effect's build loops,
+  // instead of effectiveColor, for the same reason isRowVisibleForBuild exists: a mesh's baked-at-build
+  // color should be the layer's plain default, NOT legendOverride-aware, so a legendOverride edit never
+  // needs to rebuild geometry — the post-hoc applyLegendOverrideColors pass below (which DOES call the
+  // real effectiveColor) repaints matching meshes' material.color directly instead.
+  const baseColorForBuild = useCallback((layerKey, value) => LAYER_META[layerKey].colorFn(value), []);
   const effectiveLabel = useCallback((layerKey, value) => {
     const ov = legendOverride[layerKey]?.[value];
     if (ov?.label) return ov.label;
@@ -1131,13 +1157,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // and from the small effect right after it below (the common case — only categoryFilter changed).
   const applyCategoryVisibility = useCallback(() => {
     const groups = layerGroupsRef.current;
-    ["litho", "alt", "vein", "litho_gc", "alt_gc", "mnlgy", "structure"].forEach((key) => {
+    CATEGORY_LAYER_KEYS.forEach((key) => {
       const g = groups[key];
       if (!g) return;
       const hidden = categoryFilter[key];
       g.children.forEach((child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); });
     });
   }, [categoryFilter]);
+  // TASKS.csv #227 (continuation) — the post-hoc half of baseColorForBuild above: walks each category
+  // layer's already-built children and repaints material.color from the REAL effectiveColor (which does
+  // check legendOverride), using the same catValue tag categoryFilter's own pass already relies on. A
+  // legendOverride edit (recolor one lithology code, say) becomes a per-mesh material.color.set() instead
+  // of a full geometry rebuild. Labels (tooltips) are NOT repainted here — they stay baked at build time
+  // and simply lag until the next real rebuild, a deliberately accepted, documented gap (tooltip text is
+  // not a perf-sensitive path the way color is; see this row's own notes for why).
+  const applyLegendOverrideColors = useCallback(() => {
+    const groups = layerGroupsRef.current;
+    CATEGORY_LAYER_KEYS.forEach((key) => {
+      const g = groups[key];
+      if (!g) return;
+      g.children.forEach((child) => {
+        if (child.userData?.catValue === undefined || !child.material?.color) return;
+        child.material.color.set(effectiveColor(key, child.userData.catValue));
+      });
+    });
+  }, [effectiveColor]);
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
@@ -3146,7 +3190,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             if (len < 1e-6) return;
             geo = new THREE.CylinderGeometry(meta.radius, meta.radius, len, 6, 1, false);
             geo.translate(0, len / 2, 0); // CylinderGeometry is centered on its own axis by default — shift so position=p1 places the BASE at p1, matching TubeGeometry's own from-p1-to-p2 extent
-            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : effectiveColor(groupKey, row.value);
+            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value);
             const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
             mesh_.position.set(p1.x, p1.y, p1.z);
@@ -3154,7 +3198,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           } else {
             const curve = new THREE.CatmullRomCurve3(vecs);
             geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), meta.radius, 6, false);
-            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : effectiveColor(groupKey, row.value);
+            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value);
             const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
           }
@@ -3189,7 +3233,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const p = findOnTrace(pts, mid);
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
-          const color = meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : effectiveColor(groupKey, row.value);
+          const color = meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value);
           const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
@@ -3207,7 +3251,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const dip = s.dip != null && !isNaN(s.dip) ? s.dip : 45;
         const az = s.azimuth != null && !isNaN(s.azimuth) ? s.azimuth : 0;
         const geo = new THREE.CircleGeometry(6, 24);
-        const color = effectiveColor("structure", s.value);
+        const color = baseColorForBuild("structure", s.value);
         const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
         const disc = new THREE.Mesh(geo, mat);
         disc.rotation.order = "YXZ";
@@ -3355,13 +3399,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // touched the filter again. The companion effect below (keyed on [categoryFilter] alone) handles
     // the common case — toggling a chip with no rebuild involved.
     applyCategoryVisibility();
+    // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
+    // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
+    // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself
+    // next changes.
+    applyLegendOverrideColors();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
-    // applyCategoryVisibility is deliberately NOT listed either, for the same reason categoryFilter
-    // itself was removed from this array (see isRowVisibleForBuild's comment) — it's called directly
-    // above using whatever categoryFilter this render closed over, not as a re-trigger condition.
-  }, [collars, survey, layers, customLayers, numericRange, legendOverride, isRowVisible, isRowVisibleForBuild, effectiveColor, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+    // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
+    // same reason categoryFilter/legendOverride were removed from this array — both are called
+    // directly above using whatever this render closed over, not as re-trigger conditions.
+  }, [collars, survey, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -3892,6 +3941,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // to re-hide/re-show the right meshes with no geometry rebuild. The big rebuild effect's own inline
   // call handles the other case (a real rebuild reapplying whatever filters are currently active).
   useEffect(() => { applyCategoryVisibility(); }, [applyCategoryVisibility]);
+  // Same idea for legendOverride — applyLegendOverrideColors' own identity changes only when
+  // effectiveColor's does, i.e. only when legendOverride itself changes, so this fires exactly when
+  // (and only when) a legend color/label override is added/edited/removed.
+  useEffect(() => { applyLegendOverrideColors(); }, [applyLegendOverrideColors]);
 
   useEffect(() => {
     const groups = layerGroupsRef.current;
