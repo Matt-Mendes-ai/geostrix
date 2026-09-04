@@ -81,6 +81,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Publish the release
+        # electron-builder can leave the release as a DRAFT (and a draft left behind by an earlier
+        # failed run is reused by the create-step above, inheriting its draft state). A draft is
+        # invisible to users, is not what /releases/latest resolves to, and so the auto-updater keeps
+        # serving the PREVIOUS version's latest.yml — the release looks published in the Actions log
+        # while users see nothing. Hit exactly this on v0.1.9. Force it published and flagged latest.
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Verify the release is actually complete
         # The failure above was invisible because electron-builder exits 0 even when an asset upload is
         # dropped. Assert the three assets the auto-updater needs are really present, and that
@@ -88,9 +98,16 @@ jobs:
         # electron-updater downloads the installer and then rejects it on checksum, which is worse than
         # no release at all. Fails the job so a broken release can never go unnoticed again.
         run: |
-          $assets = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets | ConvertFrom-Json
-          $names = $assets.assets | ForEach-Object { $_.name }
+          $rel = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets,isDraft | ConvertFrom-Json
+          $assets = $rel
+          $names = $rel.assets | ForEach-Object { $_.name }
           Write-Host "Assets: $($names -join ', ')"
+          # A draft release is invisible to users and /releases/latest keeps resolving to the previous
+          # version, so the auto-updater never offers this one. Assert it is genuinely published.
+          if ($rel.isDraft) {
+            Write-Error "Release is still a draft - users and the auto-updater would not see it."
+            exit 1
+          }
           foreach ($required in @('GeoStrix-Setup-*.exe', 'GeoStrix-Setup-*.exe.blockmap', 'latest.yml')) {
             if (-not ($names | Where-Object { $_ -like $required })) {
               Write-Error "Release is missing a required asset matching '$required'"
