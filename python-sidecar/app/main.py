@@ -180,6 +180,16 @@ class ImplicitModelRequest(BaseModel):
     surfaces: List[SurfaceInput] = Field(..., min_length=1, max_length=12)
     resolution: List[int] = Field(default=[40, 40, 40], min_length=3, max_length=3)
     relation: Literal["erode", "onlap"] = "erode"
+    # TASKS.csv #274 — GemPy's potential-field RANGE, the actual curvature/"tightness" lever of the
+    # co-kriging interpolation (gempy's own InterpolationOptions.kernel_options.range, expressed in its
+    # INTERNAL rescaled space, default 1.7 — verified directly against the installed gempy 2026.0.3:
+    # create_geomodel() leaves it at a constant 1.7 regardless of extent, and overriding it demonstrably
+    # changes the returned mesh). This was never set OR reported, so a user re-running the same job and
+    # seeing a differently-shaped surface had no parameter to point at. Sent as a MULTIPLIER of GemPy's
+    # own default rather than an absolute number, because the absolute value lives in a normalized space
+    # no geologist can reason about: 1.0 = exactly what GemPy would have done on its own (so the default
+    # here is a strict no-op), <1 = tighter/more locally-controlled surfaces, >1 = smoother/stiffer.
+    range_multiplier: float | None = Field(default=None, ge=0.1, le=10.0)
 
 
 class MeshOut(BaseModel):
@@ -190,6 +200,12 @@ class MeshOut(BaseModel):
 
 class ImplicitModelResponse(BaseModel):
     surfaces: List[MeshOut]
+    # TASKS.csv #274 — always reported, whether or not the caller asked for an override, so the client
+    # can put the effective interpolation parameters in its run notice and in the exported surface's
+    # provenance. Optional (default None) so an older client that ignores them is unaffected.
+    range_used: float | None = None
+    range_default: float | None = None
+    c_o: float | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -256,12 +272,37 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         color = _SURFACE_PALETTE[i % len(_SURFACE_PALETTE)]
         elements.append(StructuralElement(name=surf.name, surface_points=sp, orientations=ot, id=i + 1, color=color))
 
-    relation = StackRelationType.ERODE if req.relation == "erode" else StackRelationType.ONLAP
-    group = StructuralGroup(name="stack", elements=elements, structural_relation=relation)
-    frame = StructuralFrame(structural_groups=[group], color_gen=gp.data.ColorsGenerator())
+    # TASKS.csv #271 — HOW the relation is applied, which is not obvious and was originally wrong here.
+    # Verified directly against the installed gempy 2026.0.3 (see that row's notes for the experiment):
+    # setting structural_relation on ONE group containing every surface has NO effect on the meshes this
+    # endpoint returns — ERODE and ONLAP came back byte-identical, because all elements of a single group
+    # share one scalar field and are simply its ordered iso-surfaces. The relation only bites BETWEEN
+    # groups. So the two cases are expressed structurally, not just by a flag:
+    #   onlap  = one group holding every surface. Shared scalar field => parallel, non-crossing,
+    #            conformable surfaces. This is the geometry this endpoint has always produced, and it is
+    #            the right model for a conformable volcanic/sedimentary pile (GeoStrix's own VMS target).
+    #   erode  = one group PER surface, ordered youngest-first, each ERODE. Each younger surface then
+    #            genuinely truncates the ones below it (same experiment: the lower surface came back with
+    #            267 vertices instead of 370, cut by the one above) — a real erosional unconformity.
+    if req.relation == "erode":
+        groups = [
+            StructuralGroup(name=f"group_{i}_{el.name}", elements=[el], structural_relation=StackRelationType.ERODE)
+            for i, el in enumerate(elements)
+        ]
+    else:
+        groups = [StructuralGroup(name="stack", elements=elements, structural_relation=StackRelationType.ONLAP)]
+    frame = StructuralFrame(structural_groups=groups, color_gen=gp.data.ColorsGenerator())
 
     try:
         model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
+        # TASKS.csv #274 — capture GemPy's own default range BEFORE any override, so the response can
+        # report both what GemPy would have used and what was actually used.
+        kernel = model.interpolation_options.kernel_options
+        range_default = float(kernel.range)
+        if req.range_multiplier is not None:
+            kernel.range = range_default * req.range_multiplier
+        range_used = float(kernel.range)
+        c_o = float(kernel.c_o)
         sol = gp.compute_model(model)
     except Exception as err:  # GemPy raises a variety of exception types depending on what's ill-posed
         raise HTTPException(status_code=400, detail=f"GemPy could not solve this model: {err}")
@@ -286,7 +327,7 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         if el is None:
             continue  # GemPy produced no mesh for this surface (e.g. ill-posed / outside the resolved extent)
         out.append(MeshOut(name=surf.name, vertices=np.asarray(el.vertices).tolist(), faces=np.asarray(el.edges).tolist()))
-    return ImplicitModelResponse(surfaces=out)
+    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o)
 
 
 def _rbf(pts: np.ndarray, vals: np.ndarray, query: np.ndarray, function: str, smoothing: float) -> np.ndarray:

@@ -118,6 +118,16 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths) {
     } else if (r.from === r.to) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, `Zero-length interval at ${r.from}m.`);
     }
+    // TASKS.csv #285 (Micromine-specialist review) — survey rows have had a `depth < 0` ERROR check
+    // since day one (see validateSurvey above), but interval and assay from/to depths never got the
+    // same check, so a sign-flip (a technician typing -5 for 5, a spreadsheet formula carrying a stray
+    // minus, a unit conversion gone wrong) passed "Run Data QC" completely clean and then desurveyed
+    // to a physically impossible position above the collar. Deliberately a SEPARATE check rather than
+    // another `else if` on the chain above: from=-5, to=-2 is perfectly self-consistent (from < to,
+    // non-zero length), so it slips through every branch there and needs its own test.
+    if (Number.isFinite(r.from) && Number.isFinite(r.to) && (r.from < 0 || r.to < 0)) {
+      pushIssue(issues, "error", layerLabel, r.hole_id, `Interval has a negative depth (${r.from}–${r.to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.`);
+    }
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, `Interval to=${r.to}m extends past this hole's own recorded length/survey extent (~${maxDepth.toFixed(0)}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.`);
@@ -181,6 +191,18 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
 function validateAssays(assays, collarIds, holeLengths) {
   const issues = [];
   const byHole = new Map();
+  // TASKS.csv #261 — over-range (">x") assays are lab placeholders awaiting a re-assay, not results.
+  // parseAssayValue now preserves them AT the detection ceiling (it used to fabricate 1.5x the
+  // ceiling), and the importer records the qualifier, so this is where the user finally gets told.
+  const overRange = new Map(); // symbol -> count
+  assays.forEach((a) => {
+    const q = a.qualifiers;
+    if (!q) return;
+    Object.keys(q).forEach((sym) => { if (q[sym] === ">") overRange.set(sym, (overRange.get(sym) || 0) + 1); });
+  });
+  overRange.forEach((count, sym) => {
+    pushIssue(issues, "warning", "Assays", null, `${count} ${sym} assay value${count === 1 ? " is" : "s are"} over-range (reported by the lab as ">x"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.`);
+  });
   assays.forEach((a) => {
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
@@ -191,6 +213,11 @@ function validateAssays(assays, collarIds, holeLengths) {
       pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval from (${a.from}) is greater than to (${a.to}) — swapped or mis-entered.`);
     } else if (a.from === a.to) {
       pushIssue(issues, "warning", "Assays", a.hole_id, `Zero-length assay interval at ${a.from}m.`);
+    }
+    // TASKS.csv #285 — same negative-depth check as validateIntervalLayer above (and as survey depths
+    // have always had); see that comment for why it can't be folded into the else-if chain.
+    if (Number.isFinite(a.from) && Number.isFinite(a.to) && (a.from < 0 || a.to < 0)) {
+      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval has a negative depth (${a.from}–${a.to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.`);
     }
     const maxDepth = holeLengths.get(a.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(a.to) && a.to > maxDepth + 0.5) {

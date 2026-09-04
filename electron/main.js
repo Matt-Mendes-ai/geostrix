@@ -708,6 +708,23 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   }
 });
 
+// TASKS.csv #293 — where the bundled sample_data/ folder actually lives at runtime. In a packaged
+// build it's shipped via electron-builder's extraResources (see package.json's build.extraResources),
+// which lands it at <resources>/sample_data; in a dev run (`npm run dev`) there's no resources dir, so
+// it's read straight out of the repo. The renderer only ever gets a PATH back from here and then reads
+// individual files through the existing fs-read-file handler above — deliberately no separate
+// "read the whole sample project" handler, so the sample load walks the exact same
+// fsReadFile -> base64ToFile -> parseVectorFile path as the Browser panel's own file-click import.
+ipcMain.handle("sample-data-path", async () => {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath || "", "sample_data")]
+    : [path.join(__dirname, "..", "sample_data")];
+  for (const dir of candidates) {
+    try { if (fs.existsSync(dir)) return { ok: true, path: dir }; } catch (_) {}
+  }
+  return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
+});
+
 // Drive roots (Windows: C:\, D:\, ... ; macOS/Linux: just / — the Browser panel's tree root(s)).
 ipcMain.handle("fs-list-drives", async () => {
   if (process.platform !== "win32") return { ok: true, drives: ["/"] };

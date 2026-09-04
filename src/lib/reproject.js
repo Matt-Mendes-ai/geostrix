@@ -82,6 +82,21 @@ export function getProj4DefSync(epsg) {
   return null;
 }
 
+// TASKS.csv #268 — is this project's CRS a PROJECTED, METRE-based one? Volume (m³) and tonnage are
+// only meaningful if the scene's x/y/z are metres; a project left in geographic degrees (EPSG:4326 and
+// friends) or never assigned a CRS at all still produced a confidently-labelled "m³" figure with no
+// complaint. Returns true (projected, +units=m), false (definitely geographic/lat-long), or null
+// (no EPSG set, or a code this app's narrow-but-verified table doesn't recognize) — the caller must
+// treat null as "can't confirm", not as "fine", since an unrecognized code could be anything,
+// including a US survey-feet state-plane system.
+export function isMetricProjectedEpsg(epsg) {
+  if (epsg == null || epsg === "") return null;
+  const def = getProj4DefSync(epsg);
+  if (!def) return null;
+  if (/\+proj=longlat/.test(def)) return false;
+  return /\+units=m(\s|$)/.test(def);
+}
+
 // Returns a proj4 definition string for an EPSG code, or null if it's not one of the codes this app
 // recognizes (an unrecognized code isn't a bug — it just means automatic reprojection can't help for
 // that particular target EPSG, and the caller falls back to its existing "no reprojection" warning).
@@ -216,4 +231,44 @@ export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band }, fr
     }
   }
   return { bbox: [txmin, tymin, txmax, tymax], gridW: outW, gridH: outH, elevations };
+}
+
+// TASKS.csv #287 (QGIS-specialist review, headline finding) — the RGBA-image sibling of reprojectGrid
+// above, for the flat raster drape path (raster.js's buildRasterImport). reprojectGrid only handles a
+// single numeric band, which is exactly right for the DEM/terrain path it was written for, but a
+// drape has already been colour-mapped into RGBA pixels by the time it reaches the importer. Running
+// reprojectGrid once per channel would work, but would repeat the expensive inverse projection FOUR
+// times per output pixel, so the identical corner-bbox + inverse-project-and-sample math is done once
+// here with all four channels sampled together.
+//
+// Nearest-neighbour rather than bilinear, deliberately: a drape is frequently a categorical/classified
+// image (an alteration map, a claim-boundary raster, a false-colour geology scan) where interpolating
+// between two class colours invents a third colour that means nothing — and for a continuous grid the
+// difference at typical drape resolutions is invisible. Nearest also keeps hard nodata edges hard
+// instead of smearing a half-transparent fringe around every hole in the data.
+//
+// Pixels whose inverse-projected position falls outside the source image (the corner bbox is an
+// axis-aligned cover of a footprint that is generally NOT rectangular after projection) are written as
+// fully transparent, so the reprojected drape shows the true skewed footprint rather than stretched
+// edge pixels.
+export function reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, outW, outH) {
+  const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]].map(([x, y]) => proj4(fromDef, toDef, [x, y]));
+  const txs = corners.map((c) => c[0]), tys = corners.map((c) => c[1]);
+  const txmin = Math.min(...txs), txmax = Math.max(...txs);
+  const tymin = Math.min(...tys), tymax = Math.max(...tys);
+
+  const out = new Uint8ClampedArray(outW * outH * 4);
+  for (let row = 0; row < outH; row++) {
+    const ty = tymax - (row / Math.max(1, outH - 1)) * (tymax - tymin); // row 0 = north, same top-down convention as raster.js
+    for (let col = 0; col < outW; col++) {
+      const tx = txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
+      const [sx, sy] = proj4(toDef, fromDef, [tx, ty]);
+      if (sx < xmin || sx > xmax || sy < ymin || sy > ymax) continue; // leaves alpha 0
+      const px = Math.min(width - 1, Math.max(0, Math.round(((sx - xmin) / (xmax - xmin)) * (width - 1))));
+      const py = Math.min(height - 1, Math.max(0, Math.round(((ymax - sy) / (ymax - ymin)) * (height - 1))));
+      const si = (py * width + px) * 4, di = (row * outW + col) * 4;
+      out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; out[di + 3] = data[si + 3];
+    }
+  }
+  return { bbox: [txmin, tymin, txmax, tymax], width: outW, height: outH, data: out };
 }

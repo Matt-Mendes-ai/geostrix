@@ -18,21 +18,57 @@ const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "magsusc", "struct
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
-function computeStats(values) {
+//
+// TASKS.csv #267 — optionally LENGTH-WEIGHTED. This panel used to report a plain arithmetic mean over
+// raw assay rows of wildly varying interval length, and capping decisions and "average grade of the
+// deposit" statements get made off it. An unweighted mean over 0.3 m and 3 m intervals is biased toward
+// whatever gets sampled at short intervals — which in practice is the mineralised zone, so the bias
+// runs upward exactly where it matters. Weights here are the interval lengths; the variance uses the
+// standard unbiased estimator for RELIABILITY weights (denominator V1 - V2/V1, which reduces to the
+// familiar n-1 when every weight is 1, so the unweighted path is unchanged), and the quantiles are
+// cumulative-weight quantiles (the value at which half the sampled METRES sit below, not half the rows).
+function computeStats(values, weights = null) {
   const n = values.length;
   if (!n) return null;
-  const sorted = values.slice().sort((a, b) => a - b);
-  const mean = values.reduce((s, v) => s + v, 0) / n;
-  const variance = n > 1 ? values.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1) : 0;
+  const w = weights && weights.length === n ? weights.map((x) => (Number.isFinite(x) && x > 0 ? x : 0)) : values.map(() => 1);
+  const V1 = w.reduce((s, x) => s + x, 0);
+  if (!(V1 > 0)) return null;
+  const V2 = w.reduce((s, x) => s + x * x, 0);
+  const mean = values.reduce((s, v, i) => s + w[i] * v, 0) / V1;
+  // Unbiased variance for RELIABILITY weights. Reduces to the familiar n-1 denominator whenever every
+  // weight is equal (V1 = n, V2 = n, so V1 - V2/V1 = n - 1), so the unweighted view is unchanged.
+  const denom = V1 - V2 / V1;
+  const variance = denom > 0 ? values.reduce((s, v, i) => s + w[i] * (v - mean) ** 2, 0) / denom : 0;
   const stdev = Math.sqrt(variance);
   const cv = mean !== 0 ? (stdev / mean) * 100 : null;
+
+  // Weighted quantiles. Weights are normalised to average 1 (scale-invariant: metres vs centimetres
+  // give the same answer, and a total sampled length under 1 m is still well defined), then each value
+  // occupies a span of that many "slots" on the cumulative axis and the classic idx = p * (n - 1)
+  // linear-interpolation rule is applied over those slots. Two properties verified in Node: equal
+  // weights reproduce the old formula exactly, and an integer-weighted sample gives exactly the same
+  // quantiles as the expanded sample it stands for (a 9 m interval at 1 g/t behaves like nine 1 m
+  // intervals at 1 g/t) — which is the whole point of length-weighting.
+  const pairs = values.map((v, i) => ({ v, w: (w[i] * n) / V1 })).sort((a, b) => a.v - b.v);
+  const sorted = pairs.map((x) => x.v);
+  const valueAtSlot = (k) => {
+    const t = k + 0.5;
+    let cum = 0;
+    for (let i = 0; i < pairs.length; i++) {
+      if (t < cum + pairs[i].w) return pairs[i].v;
+      cum += pairs[i].w;
+    }
+    return pairs[pairs.length - 1].v;
+  };
   const quantile = (p) => {
-    const idx = p * (sorted.length - 1);
+    if (n === 1) return pairs[0].v;
+    const idx = p * (n - 1);
     const lo = Math.floor(idx), hi = Math.ceil(idx);
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+    const a = valueAtSlot(lo), b = valueAtSlot(hi);
+    return a + (b - a) * (idx - lo);
   };
   const median = quantile(0.5);
-  return { n, mean, median, stdev, variance, cv, min: sorted[0], max: sorted[sorted.length - 1], q1: quantile(0.25), q3: quantile(0.75), sorted };
+  return { n, mean, median, stdev, variance, cv, min: sorted[0], max: sorted[sorted.length - 1], q1: quantile(0.25), q3: quantile(0.75), sorted, totalLength: weights ? V1 : null };
 }
 
 // Domain lookup, same overlap-by-midpoint approach compositeAssays (geochem.js) already uses for
@@ -67,6 +103,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
   const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
   const [domainKey, setDomainKey] = useState("");
   const [logScale, setLogScale] = useState(false);
+  const [lengthWeighted, setLengthWeighted] = useState(true); // TASKS.csv #267
   // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of grade statistics, same
   // as Best Intercepts/Compositing — a standard's own repeat-insertion grade shouldn't skew a domain's
   // mean/stdev/CV.
@@ -88,31 +125,36 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       return surfaceSamples.map((s) => {
         const v = valueIn(s, symbol, surfaceElementUnits[symbol] || "ppm", surfaceElementUnits);
         if (v == null) return null;
-        return { value: v, domain: s.medium || "(unclassified)" };
+        return { value: v, weight: 1, domain: s.medium || "(unclassified)" }; // surface samples have no interval length
       }).filter(Boolean);
     }
     return statsAssays.map((a) => {
       const v = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
       if (v == null) return null;
       const domain = domainRows ? domainForInterval(domainRows, a.hole_id, a.from, a.to) : "All";
-      return { value: v, domain };
+      const len = Number(a.to) - Number(a.from); // TASKS.csv #267
+      return { value: v, weight: Number.isFinite(len) && len > 0 ? len : 0, domain };
     }).filter(Boolean);
   }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainRows]);
 
+  // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
+  // length), and only when every row in the group actually has a usable length.
+  const weightingActive = source === "assays" && lengthWeighted && rows.length > 0 && rows.every((r) => r.weight > 0);
   const groups = useMemo(() => {
     const byDomain = new Map();
     rows.forEach((r) => {
       const key = r.domain == null ? "(unclassified)" : r.domain;
       if (!byDomain.has(key)) byDomain.set(key, []);
-      byDomain.get(key).push(r.value);
+      byDomain.get(key).push(r);
     });
     return Array.from(byDomain.entries())
-      .map(([key, values]) => ({ key, stats: computeStats(values) }))
+      .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }))
+      .filter((g) => g.stats)
       .sort((a, b) => b.stats.n - a.stats.n);
-  }, [rows]);
+  }, [rows, weightingActive]);
 
   const allValues = rows.map((r) => r.value);
-  const overallStats = useMemo(() => computeStats(allValues), [allValues]);
+  const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
 
   const histogram = useMemo(() => {
     if (!overallStats) return null;
@@ -139,6 +181,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       stdev: g.stats.stdev.toFixed(4), cv_pct: g.stats.cv == null ? "" : g.stats.cv.toFixed(1),
       min: g.stats.min.toFixed(4), max: g.stats.max.toFixed(4), q1: g.stats.q1.toFixed(4), q3: g.stats.q3.toFixed(4),
     }));
+    rowsOut.forEach((r) => { r.basis = weightingActive ? "length-weighted (assay interval length)" : "unweighted arithmetic"; });
     saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rowsOut) });
   };
 
@@ -202,6 +245,21 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
             <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log-scale histogram
             </label>
+            {/* TASKS.csv #267 */}
+            {source === "assays" && (
+              <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title="Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralised zone.">
+                <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} /> Length-weight
+              </label>
+            )}
+          </div>
+          {/* TASKS.csv #267 — the panel now always states which mean it is showing. Capping decisions
+              and "average grade" statements get made off this table. */}
+          <div style={{ fontSize: 10.5, color: weightingActive ? "#55606e" : "#7a4a1f", lineHeight: 1.45 }}>
+            {source === "surface"
+              ? "Statistics on surface samples — point samples with no interval length, so no weighting applies."
+              : weightingActive
+                ? `Length-weighted statistics on raw assay intervals (${overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—"} of sampled core). Compositing to a regular length first is still the more standard basis for a capping decision.`
+                : `Statistics on raw assay intervals — NOT length-weighted${lengthWeighted ? " (some intervals have no usable from/to length, so weighting was skipped)" : ""}. A 0.3 m interval counts exactly as much as a 3 m one. Composite first, or tick "Length-weight", for a weighted distribution.`}
           </div>
 
           {!overallStats ? (

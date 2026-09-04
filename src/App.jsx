@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
+import { iconAction } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
@@ -334,7 +335,7 @@ export default function App() {
         </Suspense>
       </div>
 
-      <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} />
+      <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
       {shortcutsTab && <ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} />}
       {reportOpen && (
         <Suspense fallback={null}>
@@ -387,7 +388,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
+function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
   const { project, setEpsg, setProjectName, collars } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
@@ -411,6 +412,20 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
           dot's hue), with the actual word only in a hover title; now a short suffix is always visible
           so the state doesn't depend on distinguishing the dot's color, matching the pattern the
           updater status block below already uses. */}
+      {/* TASKS.csv #295 — the app's only in-window Help entry point. The keyboard-shortcuts/about
+          modal (#33) is well-built but until now lived exclusively in Electron's native top menu
+          bar, which this audience (first-time, non-technical geologists, often on older hardware)
+          is the least likely to go looking in — a full accessibility-tree scan of the rendered UI
+          found zero buttons or links mentioning help/shortcuts/guide/about anywhere. This opens the
+          exact same modal the Help menu opens, from a spot that's visible on every screen. */}
+      <button
+        onClick={() => onHelp?.()}
+        title="Help — keyboard shortcuts & about GeoStrix"
+        aria-label="Help — keyboard shortcuts and about GeoStrix"
+        style={{ background: "none", border: "1px solid #c7ccd3", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: 11, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
+      >
+        ?
+      </button>
       <span title={pyLabel} style={{ display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
         Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : "off"}
@@ -426,7 +441,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater }) {
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
           {taskProgress.onCancel && (
-            <X size={12} style={{ cursor: "pointer", color: "#e0a0a0" }} title="Cancel" onClick={taskProgress.onCancel} />
+            <X size={12} style={{ cursor: "pointer", color: "#e0a0a0" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
           )}
         </span>
       )}

@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Upload, Trash2, MapPin } from "lucide-react";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
+import { reprojectXY, getProj4DefSync } from "../lib/reproject.js"; // TASKS.csv #290
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -16,7 +17,29 @@ import { overlay } from "../lib/modalStyles.js";
 // other importers produce ({name, bbox, dataUrl}).
 const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points are still stored/fit at full source resolution
 
-export default function GeoreferencerModal({ onImport, onClose }) {
+// TASKS.csv #290 (QGIS-specialist review) — the control-point table had no CRS field: typed X/Y were
+// assumed to already be in the project's EPSG. But the real use case for this tool is a SCANNED
+// HISTORIC MAP (a BC assessment-report figure), and those very often print only latitude/longitude or
+// an older datum's grid. Collar import has had a Source CRS field since #120/#205; this is the same
+// idea for tie points, reprojecting each one into the project EPSG before the affine fit rather than
+// after, so RMSE and the residual column stay in project units and mean what they say.
+// Low severity by design — a wildly wrong CRS shows up immediately as a terrible RMSE rather than
+// silently — but "immediately visible" isn't the same as "correctable", and it wasn't correctable.
+// Every NAD27 code reproject.js recognizes (geographic + the UTM North series from TASKS.csv #223).
+const NAD27_CODES = new Set([4267, ...Array.from({ length: 22 }, (_, i) => 26701 + i)]);
+const CP_CRS_OPTIONS = [
+  { value: "", label: "Same as project (already project coordinates)" },
+  { value: "4326", label: "EPSG:4326 — WGS84 lat/lon (degrees)" },
+  { value: "4269", label: "EPSG:4269 — NAD83 lat/lon (degrees)" },
+  // NAD27 is offered because it IS what a lot of pre-1990s BC assessment-report maps print, but see
+  // the NAD27_WARNING below — proj4js can't do the real NAD27 datum shift without NADCON grids, so
+  // this is honest-but-approximate rather than silently wrong. TASKS.csv #299.
+  { value: "4267", label: "EPSG:4267 — NAD27 lat/lon (degrees) — approximate, see note" },
+  { value: "3005", label: "EPSG:3005 — BC Albers" },
+  { value: "other", label: "Other EPSG code…" },
+];
+
+export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [img, setImg] = useState(null); // { bitmap, width, height, dataUrl } | null
@@ -54,8 +77,28 @@ export default function GeoreferencerModal({ onImport, onClose }) {
   const updatePoint = (id, patch) => setPoints((p) => p.map((pt) => (pt.id === id ? { ...pt, ...patch } : pt)));
   const removePoint = (id) => setPoints((p) => p.filter((pt) => pt.id !== id));
 
-  const usablePoints = points.filter((p) => p.x !== "" && p.y !== "" && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
-    .map((p) => ({ ...p, x: Number(p.x), y: Number(p.y) }));
+  // TASKS.csv #290 — "" means "already in the project's CRS" (the previous, only behavior).
+  const [cpEpsgChoice, setCpEpsgChoice] = useState("");
+  const [cpEpsgOther, setCpEpsgOther] = useState("");
+  const cpEpsg = cpEpsgChoice === "other" ? cpEpsgOther.trim() : cpEpsgChoice;
+  const needsReproject = !!cpEpsg && !!projectEpsg && Number(cpEpsg) !== Number(projectEpsg);
+  const isGeographicCp = needsReproject && /\+proj=longlat/.test(getProj4DefSync(cpEpsg) || "");
+  // Set when a CRS was asked for but can't be used — surfaced in the UI instead of silently falling
+  // back to "assume project coordinates", which is exactly the failure this row is about.
+  const crsError = needsReproject && !getProj4DefSync(cpEpsg)
+    ? `EPSG:${cpEpsg} isn't one GeoStrix can reproject — control points are being used as-is (i.e. assumed to already be in EPSG:${projectEpsg}).`
+    : needsReproject && !getProj4DefSync(projectEpsg)
+      ? `This project's own EPSG:${projectEpsg} isn't one GeoStrix can reproject to — control points are being used as-is.`
+      : null;
+
+  const usablePoints = useMemo(() => {
+    const parsed = points.filter((p) => p.x !== "" && p.y !== "" && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
+      .map((p) => ({ ...p, x: Number(p.x), y: Number(p.y) }));
+    if (!needsReproject || crsError) return parsed;
+    // Reprojected BEFORE the fit (not after), so the affine transform, its RMSE and the per-point
+    // residual column below are all expressed in the project's own world units.
+    return parsed.map((p) => { const t = reprojectXY(p.x, p.y, cpEpsg, projectEpsg); return t ? { ...p, x: t.x, y: t.y } : p; });
+  }, [points, needsReproject, crsError, cpEpsg, projectEpsg]);
 
   const fit = useMemo(() => {
     if (usablePoints.length < 3) return null;
@@ -130,12 +173,41 @@ export default function GeoreferencerModal({ onImport, onClose }) {
           </div>
 
           <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
+                workflow that types project coordinates behaves exactly as it did before. */}
+            <label style={{ fontSize: 11, color: "#55606e", display: "block" }}>
+              Control points are in
+              <select value={cpEpsgChoice} onChange={(e) => setCpEpsgChoice(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}
+                title="The CRS of the coordinates printed on the scanned map. They're reprojected into the project's CRS before the transform is fitted.">
+                {CP_CRS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            {cpEpsgChoice === "other" && (
+              <input type="number" value={cpEpsgOther} onChange={(e) => setCpEpsgOther(e.target.value)} placeholder="EPSG code, e.g. 32609" style={{ ...numInput, width: "100%" }} />
+            )}
+            {/* TASKS.csv #299 (found while verifying #290) — proj4js has no NADCON/NTv2 grids, so a
+                NAD27 source is transformed on its ellipsoid alone with no real datum shift; in BC
+                that leaves a systematic offset of roughly 100 m. Said out loud rather than letting a
+                plausible-looking result stand. */}
+            {NAD27_CODES.has(Number(cpEpsg)) && (
+              <div style={{ fontSize: 11, color: "#8a6a1f", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>
+                NAD27 note: GeoStrix has no NADCON/NTv2 datum-shift grids, so a NAD27 source is converted without the true NAD27→NAD83 shift — expect a systematic offset (roughly 100 m in BC) on top of the fit's own RMSE. Fine for rough context; don't measure off it.
+              </div>
+            )}
+            {needsReproject && !crsError && (
+              <div style={{ fontSize: 11, color: "#55606e" }}>
+                Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.
+              </div>
+            )}
+            {crsError && (
+              <div style={{ fontSize: 11, color: "#8a6a1f", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>{crsError}</div>
+            )}
             <div style={label}>Control points ({points.length}, need 3+ with valid coordinates)</div>
             {points.length === 0 ? (
               <div style={{ fontSize: 12, color: "#55606e" }}>Click on the image to add a point, then enter its known real-world X/Y here.</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>Pixel</th><th style={th}>World X</th><th style={th}>World Y</th><th style={th}>Error (m)</th><th style={th}></th></tr></thead>
+                <thead><tr><th style={th}>#</th><th style={th}>Pixel</th><th style={th}>{isGeographicCp ? "Longitude" : "World X"}</th><th style={th}>{isGeographicCp ? "Latitude" : "World Y"}</th><th style={th}>Error (m)</th><th style={th}></th></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
                     const r = fitResiduals?.find((rr) => rr.id === p.id);

@@ -55,6 +55,10 @@
         "filter": [
           "geostrix-sidecar*"
         ]
+      },
+      {
+        "from": "sample_data",
+        "to": "sample_data"
       }
     ],
     "publish": {

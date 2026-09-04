@@ -355,10 +355,87 @@ export function classifyBreaks(values, n, method = "equal") {
       breaks.push(Math.min(max, Math.max(min, mean + z * std)));
     }
     breaks.sort((a, b) => a - b); // clamping can bunch extreme classes together; callers assume ascending order
+  } else if (method === "jenks") {
+    // TASKS.csv #291 (QGIS-specialist review) — true Fisher-Jenks natural breaks. The four methods
+    // above were modelled on Oasis montaj's classification menu (see this function's own header
+    // comment), which is why QGIS's single most-used choropleth method was missing: natural breaks
+    // finds the class boundaries that MINIMIZE within-class variance, which is what you want for the
+    // irregularly clustered data assay and geophysics values actually are (a background population
+    // plus a long anomalous tail). Equal-interval puts nearly every sample in class 1 there, and
+    // quantile splits the background into meaningless slices while lumping the whole anomaly together.
+    breaks.push(...jenksBreaks(nums, count));
   } else {
     for (let i = 0; i < count; i++) breaks.push(min + (i / count) * (max - min));
   }
   return breaks;
+}
+
+// Fisher-Jenks is O(classes × n²) in both time and memory, which is fine for a few hundred samples and
+// completely unusable at the scale this app actually classifies (a voxel/block model is routinely
+// hundreds of thousands of cells; TASKS.csv's standing "performance is priority #1"). So the data is
+// evenly SUBSAMPLED in sorted order first, with the budget solved from the class count rather than
+// fixed: sample = sqrt(JENKS_BUDGET / classes), i.e. ~2000 samples for 5 classes down to ~560 for 64,
+// keeping every run in the same tens-of-milliseconds range no matter how it's configured. Subsampling
+// a SORTED array preserves the distribution's shape (it's a quantile sample), which is all the
+// variance minimization actually reads — and the true min/max are always kept as the first/last
+// samples so no class boundary can fall outside the real data range.
+const JENKS_BUDGET = 2e7;
+function jenksBreaks(sorted, nClasses) {
+  const min = sorted[0], max = sorted[sorted.length - 1];
+  if (max <= min) return new Array(nClasses).fill(min);
+  const budget = Math.max(2, Math.floor(Math.sqrt(JENKS_BUDGET / nClasses)));
+  let data = sorted;
+  if (sorted.length > budget) {
+    data = new Array(budget);
+    for (let i = 0; i < budget; i++) data[i] = sorted[Math.round((i / (budget - 1)) * (sorted.length - 1))];
+  }
+  const n = data.length;
+  if (n <= nClasses) return data.slice(0, nClasses).concat(new Array(Math.max(0, nClasses - n)).fill(max)).slice(0, nClasses);
+
+  // Standard Fisher-Jenks dynamic program: limits[l][j] = index (1-based) where class j starts, for
+  // the optimal j-class partition of the first l values; vars[l][j] = that partition's total
+  // within-class variance. Flat typed arrays rather than nested JS arrays — same math, far less GC
+  // pressure at the sizes above.
+  const w = nClasses + 1;
+  const limits = new Int32Array((n + 1) * w);
+  const vars = new Float64Array((n + 1) * w);
+  for (let i = 1; i <= nClasses; i++) {
+    limits[1 * w + i] = 1;
+    for (let j = 2; j <= n; j++) vars[j * w + i] = Infinity;
+  }
+  let variance = 0;
+  for (let l = 2; l <= n; l++) {
+    let sum = 0, sumSq = 0, count = 0;
+    variance = 0;
+    for (let m = 1; m <= l; m++) {
+      const lower = l - m + 1;
+      const val = data[lower - 1];
+      count++;
+      sum += val; sumSq += val * val;
+      variance = sumSq - (sum * sum) / count;
+      const prev = lower - 1;
+      if (prev !== 0) {
+        for (let j = 2; j <= nClasses; j++) {
+          const cand = variance + vars[prev * w + (j - 1)];
+          if (vars[l * w + j] >= cand) { limits[l * w + j] = lower; vars[l * w + j] = cand; }
+        }
+      }
+    }
+    limits[l * w + 1] = 1;
+    vars[l * w + 1] = variance;
+  }
+
+  // Walk the table back to the class boundaries. `out` is the LOWER bound of each class (out[0] is
+  // always the data minimum), matching what every other branch of classifyBreaks returns.
+  const out = new Array(nClasses);
+  out[0] = data[0];
+  let k = n;
+  for (let j = nClasses; j > 1; j--) {
+    const idx = limits[k * w + j];
+    out[j - 1] = data[Math.max(0, idx - 1)];
+    k = Math.max(1, idx - 1);
+  }
+  return out;
 }
 
 export const LAYER_META = {
@@ -510,4 +587,58 @@ export function distinctValues(rows) {
   const counts = new Map();
   rows.forEach((r) => { const k = String(r.value); counts.set(k, (counts.get(k) || 0) + 1); });
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+}
+
+// TASKS.csv #283 (Micromine-specialist review) — collar import used to be a bare
+// `new Map([...collars, ...rows].map(c => [c.hole_id, c]))`: last-write-wins keyed on hole_id, with
+// no diff and no confirmation, both for duplicates WITHIN one file and for a hole_id that already
+// existed in the project. The dangerous real-world case isn't the deliberate re-import of an updated
+// surveyor list — it's grabbing an OLD collar file from the wrong folder, after which every matching
+// hole silently takes on stale x/y/z/azimuth/dip and the previous values are simply gone. dataQC.js
+// flags repeated hole_ids, but only as a generic warning that doesn't run on import and never says
+// whether the COORDINATES actually changed.
+//
+// This is the pure diff the importer now runs first, so it can say exactly what would change (and ask)
+// before anything is committed. Kept here in layers.js beside the other import helpers
+// (guessColumn/guessTarget/TARGET_SCHEMAS) and free of any React/state so it can be unit-verified in
+// plain Node.
+const COLLAR_COMPARE_FIELDS = ["x", "y", "z", "azimuth", "dip", "length"];
+
+// "Same value" for a collar field. Both missing counts as same (an import that simply doesn't carry
+// an optional azimuth column must not read as "azimuth changed"), and numbers compare with a small
+// tolerance so a re-export that round-trips 520000.5 through more decimal places isn't reported as an
+// edit. NaN (an unparseable cell) is treated as missing for the same reason.
+function sameCollarValue(a, b) {
+  const ma = a == null || (typeof a === "number" && Number.isNaN(a));
+  const mb = b == null || (typeof b === "number" && Number.isNaN(b));
+  if (ma && mb) return true;
+  if (ma || mb) return false;
+  if (typeof a === "number" && typeof b === "number") return Math.abs(a - b) < 1e-6;
+  return String(a) === String(b);
+}
+
+// existing/incoming: arrays of collar objects ({hole_id, x, y, z, azimuth?, dip?, length?}).
+// Returns { newHoles, unchanged, changed:[{hole_id, fields, before, after, shift}], duplicatesInFile }
+// where `shift` is the horizontal+vertical distance the collar would move (world units), which is the
+// number that actually matters to a geologist looking at this prompt.
+export function diffCollarImport(existing, incoming) {
+  const byId = new Map((existing || []).map((c) => [c.hole_id, c]));
+  const seen = new Set();
+  const newHoles = [], unchanged = [], changed = [], duplicatesInFile = [];
+  for (const r of incoming || []) {
+    if (seen.has(r.hole_id)) duplicatesInFile.push(r.hole_id);
+    seen.add(r.hole_id);
+    const prev = byId.get(r.hole_id);
+    if (!prev) { newHoles.push(r.hole_id); continue; }
+    const fields = COLLAR_COMPARE_FIELDS.filter((k) => !sameCollarValue(prev[k], r[k]));
+    if (!fields.length) { unchanged.push(r.hole_id); continue; }
+    const d = (k) => (Number.isFinite(prev[k]) && Number.isFinite(r[k]) ? r[k] - prev[k] : 0);
+    changed.push({
+      hole_id: r.hole_id, fields,
+      before: Object.fromEntries(fields.map((k) => [k, prev[k]])),
+      after: Object.fromEntries(fields.map((k) => [k, r[k]])),
+      shift: Math.hypot(d("x"), d("y"), d("z")),
+    });
+  }
+  return { newHoles, unchanged, changed, duplicatesInFile };
 }

@@ -5,7 +5,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, GEOCHEM_LABELS, classColor,
-  isElementColumn, inferUnit, parseAssayValue, valueIn, reeProfile,
+  isElementColumn, inferUnit, parseAssayValue, assayQualifier, valueIn, reeProfile,
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
@@ -22,6 +22,7 @@ import QAQCPanel from "../components/QAQCPanel.jsx";
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 
@@ -80,8 +81,12 @@ export default function GeochemModule() {
     Papa.parse(file, {
       header: true, dynamicTyping: true, skipEmptyLines: true,
       complete: (res) => {
-        const data = res.data;
+        // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
+        // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
+        // import path (src/lib/numberLocale.js) — and the note is surfaced, not swallowed.
+        const { rows: data, note } = normalizeCommaDecimals(res.data);
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = Object.keys(data[0]);
         openAssayModal(file, headers, data, isPxrf);
       },
@@ -136,8 +141,21 @@ export default function GeochemModule() {
     if (format === "wide") {
       rows = allRows.map((r) => {
         const values = {};
-        chosen.forEach((e) => { const v = parseAssayValue(r[e.header]); if (v != null) values[e.symbol] = v; });
-        return { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: Number(r[mapping.from]), to: Number(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
+        // TASKS.csv #261 — keep the censoring qualifier ('<' below detection / '>' over-range) alongside
+        // the substituted number so the substitution stops being invisible downstream (dataQC warns on
+        // over-range rows; nothing else has to care).
+        const quals = {};
+        chosen.forEach((e) => {
+          const v = parseAssayValue(r[e.header]);
+          if (v != null) {
+            values[e.symbol] = v;
+            const q = assayQualifier(r[e.header]);
+            if (q) quals[e.symbol] = q;
+          }
+        });
+        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: Number(r[mapping.from]), to: Number(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
+        if (Object.keys(quals).length) out.qualifiers = quals;
+        return out;
       }).filter((r) => r.hole_id && !isNaN(r.from));
     } else {
       const byInterval = new Map();
@@ -148,7 +166,12 @@ export default function GeochemModule() {
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, { hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" });
         const v = parseAssayValue(r[mapping.value]);
-        if (v != null) byInterval.get(key).values[sym] = v;
+        if (v != null) {
+          const target = byInterval.get(key);
+          target.values[sym] = v;
+          const q = assayQualifier(r[mapping.value]); // TASKS.csv #261
+          if (q) { if (!target.qualifiers) target.qualifiers = {}; target.qualifiers[sym] = q; }
+        }
       });
       rows = Array.from(byInterval.values()).filter((r) => r.hole_id && !isNaN(r.from));
     }
@@ -167,8 +190,9 @@ export default function GeochemModule() {
     Papa.parse(file, {
       header: true, dynamicTyping: true, skipEmptyLines: true,
       complete: (res) => {
-        const data = res.data;
+        const { rows: data, note } = normalizeCommaDecimals(res.data); // TASKS.csv #284
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = Object.keys(data[0]);
         const lower = headers.map((h) => h.toLowerCase().trim());
         const guess = (aliases) => {
@@ -372,11 +396,20 @@ export default function GeochemModule() {
           </>
         )}
 
-        {notices.length > 0 && (
-          <div style={{ marginTop: 16, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10.5, color: "#7b8794", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
-            {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
-          </div>
-        )}
+        {/* TASKS.csv #298 — this module has no floating toast of its own (unlike the 3D View), so this
+            list is the ONLY surface a setNotices() message appears on while the user is in Geochem —
+            which made every one of those messages completely silent to a screen reader. It's the live
+            region here, rather than merely labelled as it is in ViewerModule (where the toast already
+            announces and a second live region would double up). aria-live is on a wrapper that always
+            renders, so the region exists before the first message lands — a live region inserted at
+            the same moment as its text is routinely missed. */}
+        <div aria-live="polite" aria-relevant="additions text" aria-label="Import and analysis messages">
+          {notices.length > 0 && (
+            <div style={{ marginTop: 16, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10.5, color: "#7b8794", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
+              {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
+            </div>
+          )}
+        </div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />

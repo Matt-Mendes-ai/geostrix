@@ -68,7 +68,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     if ([azN, dipN, kddN, kdN, raN, rbN, uaN, ubN].some((v) => isNaN(v))) return null;
     const d = holeDirection(azN, dipN);
     const r = referenceLine(d, useTop);
-    if (!r) return { error: "This hole is within ~5° of vertical — a bottom-of-hole/top-of-hole reference line isn't physically defined (the same real-world limit an actual core-orientation tool would hit)." };
+    if (!r) return { error: "This hole is within ~2.6° of vertical — a bottom-of-hole/top-of-hole reference line isn't physically defined (the same real-world limit an actual core-orientation tool would hit)." };
     const res = solveUnoriented({ holeDir: d, refLine: r, knownDipDirDeg: kddN, knownDipDeg: kdN, refAlphaDeg: raN, refBetaDeg: rbN, unkAlphaDeg: uaN, unkBetaDeg: ubN });
     if (!res.ok) return { error: res.reason };
     return res;

@@ -4,6 +4,30 @@ Desktop 3D drillhole & geochemistry explorer (Electron + React + three.js). Form
 under the working name "GeoExplorer" — some file/type names (`.geox.json`, internal module names)
 still reflect that and are not worth churning just for the rename.
 
+## What GeoStrix is not
+
+GeoStrix is an exploration visualisation and targeting tool. It is **not** resource-estimation
+software, and nothing it produces is a Mineral Resource under NI 43-101, JORC or any comparable code.
+
+Specifically, the grade-estimation and grade-shell tools:
+
+- interpolate with **nearest-neighbour or inverse-distance weighting only** — there is no kriging, no
+  fitted variogram, and no anisotropy or trend: the search is a plain isotropic sphere;
+- apply **no classification** (Measured/Indicated/Inferred is a Qualified Person's professional
+  judgement, not something derivable from a search radius — GeoStrix deliberately does not offer it);
+- apply **no dilution, no mining or metallurgical recovery, and no moisture**: tonnages are in-situ,
+  dry and undiluted, at a bulk density *you* assume rather than one measured by domain;
+- optionally close a grade shell **artificially at the search-radius boundary** — when you do that,
+  part of the resulting solid's boundary is your search radius, not a grade boundary, and its volume
+  scales roughly with the cube of that radius;
+- honour a geological domain only if you explicitly ask them to, and cap high grades only if you
+  enter a cap.
+
+Every one of those is a parameter choice, not a property of your data. Treat the outputs as a way to
+see where mineralisation might extend and where to drill next. Public disclosure of any tonnage or
+grade figure requires an estimate prepared by a Qualified Person. (See TASKS.csv #257–#270 for the
+NI 43-101 QP specialist review these caveats came out of.)
+
 ## Branding
 
 `build/icon.png` is the 1024px master app icon — a flat, minimal Strix owl-head mark (PostgreSQL-

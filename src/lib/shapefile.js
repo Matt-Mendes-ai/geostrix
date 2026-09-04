@@ -478,17 +478,27 @@ function parseDbf(dbfBytes) {
 // containing more than one basename's worth of .shp (rare, but zips CAN bundle multiple layers) only
 // reads the FIRST .shp/.dbf pair found — surfaced via `otherBaseNames` so the caller can tell the user
 // if anything got left out rather than silently reading just one of several.
-export async function parseShapefileZip(zipBytes) {
+// TASKS.csv #288 (QGIS-specialist review) — `otherBaseNames` was only ever a COUNT, so a multi-layer
+// zip (a BC Mineral Titles Online claims package, most provincial open-data bundles) could say "3
+// other shapefiles were skipped" but gave the user no way to import a SPECIFIC one — re-dropping the
+// file just re-read the same first layer forever. The zip central-directory reader already has the
+// real names, so they're returned as `layerNames` and `layerName` (which one this call actually read),
+// and `wantLayer` lets the caller ask for one of them by name. `otherBaseNames` is kept exactly as it
+// was so nothing that already reads it changes behavior.
+export async function parseShapefileZip(zipBytes, wantLayer = null) {
   const entries = await readZipEntries(zipBytes);
   const shpNames = Object.keys(entries).filter((n) => /\.shp$/i.test(n));
   if (!shpNames.length) throw new Error("No .shp file found inside this .zip.");
   const baseNames = Array.from(new Set(shpNames.map((n) => n.replace(/\.shp$/i, ""))));
-  const base = baseNames[0];
+  // An unknown/stale requested name falls back to the first layer rather than throwing — the caller's
+  // picker is built from `layerNames`, so this only happens if the two ever get out of sync.
+  const base = (wantLayer && baseNames.includes(wantLayer)) ? wantLayer : baseNames[0];
   // TASKS.csv #223 — the .prj sidecar (if the zip bundles one) was previously ignored entirely. Text-
   // decode it and hand it along so the caller can run it through reproject.js's guessEpsgFromPrjWkt.
   const prjBytes = entries[`${base}.prj`];
   const prjWkt = prjBytes ? new TextDecoder().decode(prjBytes) : null;
-  return parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`] }, baseNames.length - 1, prjWkt);
+  const parsed = parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`] }, baseNames.length - 1, prjWkt);
+  return { ...parsed, layerNames: baseNames, layerName: base };
 }
 // Parses raw .shp (+ optional .dbf) bytes directly — used when the user drops loose .shp/.dbf/.shx
 // files together (grouped by basename) rather than a zip, matching how a lot of real-world shapefiles

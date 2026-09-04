@@ -30,10 +30,22 @@ export function holeDirection(az, dip) {
   return [Math.sin(a) * Math.cos(d), Math.cos(a) * Math.cos(d), -Math.sin(d)];
 }
 
-// Plane pole (unit normal) from dip-direction (deg from North, clockwise) and dip (0-90).
+// Plane pole (unit UPWARD normal) from dip-direction (deg from North, clockwise) and dip (0-90).
+// BUG FIX (structural-geology specialist review, 2026-09-03): the horizontal terms here were
+// negated, which put the pole's horizontal component in the DD+180 direction (opposite the dip
+// direction) instead of DD itself. Verified independently two ways before fixing: (1) a from-scratch
+// cross-product construction of a real 3-point plane from the dip-direction/dip definition (walking
+// in the dip direction descends the plane; the strike direction is level), normalized to the upward
+// (Z>=0) normal; (2) a rigid-body-rotation derivation (tilt a flat plane's pole by rotating it about
+// the strike axis by the dip angle) — both independently agree the upward pole leans TOWARD the dip
+// direction, not away from it. The original (buggy) forward/inverse round-trip verification in
+// TASKS.csv #256 didn't catch this because dipDDFromPole below had the SAME negation, so the pair
+// was internally self-consistent (forward-then-inverse cancels a shared sign error) even though each
+// function alone disagreed with the true physical convention — confirmed this really did propagate to
+// wrong real output in solveUnoriented(), not just a relabeling, before applying this fix.
 export function poleFromDipDD(dipDirDeg, dipDeg) {
   const a = dipDirDeg * D2R, d = dipDeg * D2R;
-  return [-Math.sin(a) * Math.sin(d), -Math.cos(a) * Math.sin(d), Math.cos(d)];
+  return [Math.sin(a) * Math.sin(d), Math.cos(a) * Math.sin(d), Math.cos(d)];
 }
 
 // Dip/dip-direction (deg) from a pole (unit vector, either sign — a plane's pole has no fixed sign).
@@ -42,7 +54,7 @@ export function dipDDFromPole(poleIn) {
   if (n[2] < 0) n = scale(n, -1); // canonical: pole's Up component >= 0
   const dipDeg = Math.acos(Math.min(1, Math.max(-1, n[2]))) * R2D;
   if (dipDeg < 1e-6) return { dipDeg: 0, dipDirDeg: 0 }; // flat — dip-direction is genuinely undefined
-  let dd = Math.atan2(-n[0], -n[1]) * R2D;
+  let dd = Math.atan2(n[0], n[1]) * R2D;
   if (dd < 0) dd += 360;
   return { dipDeg, dipDirDeg: dd };
 }
@@ -50,7 +62,8 @@ export function dipDDFromPole(poleIn) {
 // The reference line scribed on non-oriented core, perpendicular to the hole axis, pointing toward the
 // core's "low side" (bottom-of-hole, the default — the line that naturally stays in contact with the
 // core tray) or "high side" (top-of-hole) if useTop is true. Undefined (returns null) for a hole within
-// ~5deg of vertical: with no meaningful horizontal component, gravity can't define this line any more
+// ~2.56deg of vertical (the actual threshold below, 1 - |v.d| < 1e-3): with no meaningful horizontal
+// component, gravity can't define this line any more
 // than a real core-orientation tool could on such a hole — a genuine physical limitation to surface in
 // the UI, not an edge case to paper over with an arbitrary direction.
 export function referenceLine(holeDir, useTop = false) {

@@ -7,14 +7,16 @@ import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import PromptModal from "../components/PromptModal.jsx";
-import { toLonLat, reprojectXY, guessEpsgFromPrjWkt } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
-import { desurveyHole } from "../lib/desurvey.js";
-import { openSectionWindow, pythonImplicitModel, saveFile } from "../lib/desktop.js";
+import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
+import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
-import { buildDXF } from "../lib/dxf.js";
+import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
+import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
+import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import AttributeTableModal from "../components/AttributeTableModal.jsx";
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
@@ -25,6 +27,7 @@ import PanelSplitHandle from "../components/PanelSplitHandle.jsx";
 import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
 import DbBrowserPanel from "../components/DbBrowserPanel.jsx";
 import ImportMappingModal from "../components/ImportMappingModal.jsx";
+import LayerPickerModal from "../components/LayerPickerModal.jsx"; // TASKS.csv #288
 import DatabaseConnectModal from "../components/DatabaseConnectModal.jsx";
 import SectionEditModal from "../components/SectionEditModal.jsx";
 import LayerInspector from "../components/LayerInspector.jsx";
@@ -38,9 +41,11 @@ const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceMod
 import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
+import DownholeStructurePlot from "../components/DownholeStructurePlot.jsx"; // TASKS.csv #277
 import CoreOrientationCalculator from "../components/CoreOrientationCalculator.jsx";
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
+  diffCollarImport, // TASKS.csv #283
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
   roleForLithology, isCrossCuttingRole,
@@ -48,6 +53,12 @@ import {
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF } from "../lib/meshExport.js";
+// TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
+import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS } from "../lib/estimation.js";
+import { marchingCubes } from "../lib/marchingCubes.js";
+import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
+import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -240,8 +251,18 @@ function normCollar(r) {
 function normSurvey(r) {
   return { hole_id: String(getCol(r, ["hole_id", "holeid", "hole", "bhid"]) ?? "").trim(), depth: Number(getCol(r, ["depth", "at", "md", "station"])), azimuth: Number(getCol(r, ["azimuth", "azi", "az"])), dip: Number(getCol(r, ["dip", "inclination", "incl"])) };
 }
+// onDone(rows, errorMessage, localeNote) — TASKS.csv #284: Papa's dynamicTyping leaves a
+// European-locale value like "1,5" as the literal STRING "1,5", and Number("1,5") is NaN, so every
+// numeric filter downstream silently dropped the whole row and the only symptom was a short row count
+// in the toast. normalizeCommaDecimals converts the columns it can PROVE are comma-decimal and hands
+// back a note explaining what it did (or, for the genuinely ambiguous "1,234" case, what it
+// deliberately did NOT do) — see src/lib/numberLocale.js for the heuristic and why it's shaped that way.
 function parseCSV(file, onDone) {
-  Papa.parse(file, { header: true, dynamicTyping: true, skipEmptyLines: true, complete: (res) => onDone(res.data, null), error: (err) => onDone(null, err.message) });
+  Papa.parse(file, {
+    header: true, dynamicTyping: true, skipEmptyLines: true,
+    complete: (res) => { const { rows, note } = normalizeCommaDecimals(res.data); onDone(rows, null, note); },
+    error: (err) => onDone(null, err.message),
+  });
 }
 // TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,
 // GeoPackage import). Both new import formats get converted to the exact same flat-row-array shape
@@ -251,16 +272,24 @@ function parseCSV(file, onDone) {
 // dispatch point — extension decides which parser runs, everything downstream is unchanged.
 // onDone(rows, errorMessage, meta) — meta.note is an optional extra string (multi-layer/skipped-
 // feature caveats) the caller should fold into its own notice rather than silently dropping.
-function parseVectorFile(file, onDone) {
+// TASKS.csv #288 — `chosenLayer` (a layer/table NAME) selects which layer of a multi-layer .zip or
+// multi-table .gpkg to read. When a file has more than one and the caller hasn't chosen yet, this
+// reports the available layers back through meta.layerOptions and imports NOTHING, so the caller can
+// put a picker up instead of silently taking the first one (which is what it used to do).
+function parseVectorFile(file, onDone, chosenLayer = null) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".gpkg")) {
     file.arrayBuffer().then((buf) => parseGeoPackage(buf)).then(({ layers }) => {
       const usable = layers.filter((l) => l.features.length);
       if (!usable.length) { onDone(null, "No usable point/line features found in this GeoPackage."); return; }
-      const layer = usable[0];
+      if (usable.length > 1 && !chosenLayer) {
+        onDone(null, null, { layerOptions: usable.map((l) => ({ name: l.name, count: l.features.length, geomType: l.geomType })) });
+        return;
+      }
+      const layer = (chosenLayer && usable.find((l) => l.name === chosenLayer)) || usable[0];
       const { rows, headers } = gpkgFeaturesToRows(layer);
       let note = "";
-      if (usable.length > 1) note += ` Only the first of ${usable.length} feature tables in this file ("${layer.name}") was imported — drop it again to bring in another one.`;
+      if (usable.length > 1) note += ` Imported the "${layer.name}" table of ${usable.length} in this GeoPackage — open the file again to bring in another one.`;
       if (layer.skippedCount) note += ` ${layer.skippedCount} feature(s) with an unsupported/empty geometry were skipped.`;
       // TASKS.csv #223 — GeoPackage already read its own SRS registry properly (gpkg_spatial_ref_sys,
       // a structured field, more reliable than shapefile's .prj WKT-name-sniffing above) but never
@@ -273,12 +302,18 @@ function parseVectorFile(file, onDone) {
   }
   if (name.endsWith(".zip") || name.endsWith(".shp")) {
     const reader = name.endsWith(".zip")
-      ? file.arrayBuffer().then((buf) => parseShapefileZip(buf))
+      ? file.arrayBuffer().then((buf) => parseShapefileZip(buf, chosenLayer))
       : file.arrayBuffer().then((buf) => parseShapefileParts({ shp: new Uint8Array(buf) }));
     reader.then((parsed) => {
+      // TASKS.csv #288 — same "ask, don't silently take the first one" gate as the GeoPackage branch
+      // above. parseShapefileZip now returns the real basenames, not just a count of the skipped ones.
+      if (parsed.layerNames?.length > 1 && !chosenLayer) {
+        onDone(null, null, { layerOptions: parsed.layerNames.map((n) => ({ name: n })) });
+        return;
+      }
       const { rows, headers } = shapefileFeaturesToRows(parsed);
       let note = "";
-      if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — only the first was imported.`;
+      if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — "${parsed.layerName}" was imported; open the file again to pick another.`;
       if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
       if (parsed.hasAttributes === false) note += " No .dbf attribute table was found alongside the .shp — only coordinates came through.";
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
@@ -296,7 +331,9 @@ function parseVectorFile(file, onDone) {
     }).catch((err) => onDone(null, err.message));
     return;
   }
-  parseCSV(file, (data, err) => onDone(data, err, { headers: data && data.length ? Object.keys(data[0]) : [], note: "" }));
+  // TASKS.csv #284 — the comma-decimal note rides the existing meta.note channel, so it surfaces in
+  // the same toast/notice every other import caveat already uses (no new plumbing).
+  parseCSV(file, (data, err, localeNote) => onDone(data, err, { headers: data && data.length ? Object.keys(data[0]) : [], note: localeNote || "" }));
 }
 function looksLikeAssay(headers) {
   const ELEMENTS = new Set(["Ag","Al","As","Au","Ba","Be","Bi","Ca","Cd","Co","Cr","Cu","Fe","Ga","K","La","Mg","Mn","Mo","Na","Ni","P","Pb","S","Sb","Sc","Sr","Th","Ti","Tl","U","V","W","Zn","Zr","Nb","Y","Yb"]);
@@ -587,6 +624,103 @@ function anisoWarpDirection(dip, azimuth, basis, scales) {
   return { dip: newDip, azimuth: newAzimuth };
 }
 
+// TASKS.csv #272 — helpers for the alteration-halo tool's own (non-GemPy) construction.
+//
+// Why the halo needs its own construction at all: every other categorical tool in this module models a
+// DIRECTED contact — a surface with a coherent "younger" side and an "older" side, fitted through the
+// interval TOPS only. That's the right model for a stratigraphic top or a fault plane. An alteration
+// halo is not that shape: it's a closed, roughly-equant envelope wrapped around a mineralising conduit,
+// with no single "up" side anywhere on it, and its base is just as much part of the body as its top.
+// Feeding halo tops through the directed-contact machinery produced *a* surface, but never a halo.
+// The construction below instead treats "is this rock altered?" as a 0/1 indicator field sampled along
+// every hole, interpolates it onto a grid, and takes the 0.5 iso-surface — the standard implicit way to
+// get a closed envelope, and the same pipeline the numeric grade-shell tool already uses.
+
+// Median nearest-neighbour horizontal distance between collars — the natural length scale of a
+// drillhole property, used to auto-pick a halo search radius/cell size that suits the actual hole
+// spacing instead of a hardcoded metre value that's wrong on all but one property size.
+function medianCollarSpacing(collarList) {
+  if (!collarList || collarList.length < 2) return null;
+  const nn = [];
+  for (let i = 0; i < collarList.length; i++) {
+    let best = Infinity;
+    for (let j = 0; j < collarList.length; j++) {
+      if (i === j) continue;
+      const dx = collarList[i].x - collarList[j].x, dy = collarList[i].y - collarList[j].y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > 0 && d < best) best = d;
+    }
+    if (Number.isFinite(best)) nn.push(best);
+  }
+  if (!nn.length) return null;
+  nn.sort((a, b) => a - b);
+  return nn[Math.floor(nn.length / 2)];
+}
+
+// Auto search radius / cell size for the halo, from the hole spacing. Radius ~1.2x the median spacing
+// so neighbouring holes actually inform each other's cells (below ~1x, holes interpolate in isolation
+// and the halo breaks into one blob per hole); cell size ~1/8 of the radius, which resolves the
+// envelope without exploding the grid. Both are clamped to sane absolute bounds for the degenerate
+// cases (a single hole, or two collars a metre apart).
+function autoHaloParams(collarList) {
+  const spacing = medianCollarSpacing(collarList);
+  const radius = Math.min(1000, Math.max(15, (spacing || 60) * 1.2));
+  const cell = Math.min(50, Math.max(1, radius / 8));
+  return { radius, cell, spacing };
+}
+
+// Split a downhole interval into sub-intervals of at most `maxLen` so a thick logged interval
+// contributes several sample points down its length rather than one midpoint. Without this a 60 m
+// alteration run and a 1 m one carry identical weight and identical spatial footprint, which visibly
+// pinches the halo in the holes that actually have the most alteration.
+function splitIntervalForSampling(from, to, maxLen) {
+  const len = to - from;
+  if (!(len > 0)) return [];
+  const n = Math.max(1, Math.ceil(len / Math.max(0.25, maxLen)));
+  const step = len / n;
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ from: from + i * step, to: from + (i + 1) * step });
+  return out;
+}
+
+// TASKS.csv #275 — spatial-coherence check for lithology groups (#176). Grouping is purely label-based:
+// any interval whose code is in the group's set feeds the group's surface. That's exactly what makes it
+// useful ("a basalt logged as andesite in one hole"), and exactly what makes a mistaken merge invisible
+// — two genuinely separate bodies grouped together get stitched into ONE surface spanning the gap
+// between them, which looks like a real (if odd) result rather than an error. Single-linkage clustering
+// over the group's own interface points answers "do these points actually form one body?": union-find,
+// joining any two points closer than `threshold` apart. O(n^2) over a per-unit control-point count
+// (tens to a few hundred), the same complexity filterBySearchSupport already accepts.
+// Returns clusters sorted largest-first, each with its size, its own centroid, and the source codes that
+// contributed to it — the codes are the actionable part, since "cluster A is all DACT, cluster B is all
+// SED" is the signal that the merge was wrong, whereas both clusters containing both codes just means
+// the unit itself outcrops in two places.
+function spatialClusters(points, threshold) {
+  const n = points.length;
+  const parent = new Array(n).fill(0).map((_, i) => i);
+  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
+  const t2 = threshold * threshold;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (find(i) === find(j)) continue;
+      const dx = points[i].x - points[j].x, dy = points[i].y - points[j].y, dz = points[i].z - points[j].z;
+      if (dx * dx + dy * dy + dz * dz <= t2) union(i, j);
+    }
+  }
+  const byRoot = new Map();
+  points.forEach((p, i) => {
+    const r = find(i);
+    if (!byRoot.has(r)) byRoot.set(r, { size: 0, sx: 0, sy: 0, sz: 0, codes: new Set() });
+    const c = byRoot.get(r);
+    c.size++; c.sx += p.x; c.sy += p.y; c.sz += p.z;
+    if (p.srcCode) c.codes.add(p.srcCode);
+  });
+  return [...byRoot.values()]
+    .map((c) => ({ size: c.size, centroid: { x: c.sx / c.size, y: c.sy / c.size, z: c.sz / c.size }, codes: [...c.codes] }))
+    .sort((a, b) => b.size - a.size);
+}
+
 // TASKS.csv #77/#81 — bilinear-sample a terrain heightfield ({bbox,gridW,gridH,elevations}) at a
 // real-world (x,y) point. Used both to build the terrain mesh itself (trivially — every mesh vertex
 // IS a grid sample) and to drape a raster onto it (#81 — a raster's own footprint/resolution rarely
@@ -642,9 +776,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     addLayoutImage, goToModule,
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
     viewportRenderRequest, viewportRenderRequestSeq, viewportPendingRequest, resolveViewportRender,
-    rasters, updateRaster, removeRaster,
-    boundaries, updateBoundary, removeBoundary,
+    rasters, addRaster, updateRaster, removeRaster,
+    boundaries, addBoundary, updateBoundary, removeBoundary,
     fieldStructuralRefs, addFieldRef, removeFieldRef,
+    lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
@@ -961,10 +1096,25 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [includeSectionContacts, setIncludeSectionContacts] = useState(false);
   const [structuralTarget, setStructuralTarget] = useState("");
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
+  const [tadpoleOpen, setTadpoleOpen] = useState(false); // TASKS.csv #277 — downhole structural plot
   const [coreOrientOpen, setCoreOrientOpen] = useState(false);
   const [alterationTarget, setAlterationTarget] = useState("");
+  // TASKS.csv #272 — the alteration halo is now built as a closed indicator envelope (see
+  // runAlterationModel), which needs a grid cell size and a search radius the way the grade-shell tool
+  // does. 0 means "auto" — derived at run time from the actual drillhole spacing (see autoHaloParams),
+  // so a user who never touches these still gets scale-appropriate values on any property.
+  const [alterationCellSize, setAlterationCellSize] = useState(0);
+  const [alterationSearchRadius, setAlterationSearchRadius] = useState(0);
+  const [alterationBusy, setAlterationBusy] = useState(false);
   const [stackUnits, setStackUnits] = useState([]); // ordered youngest -> oldest, for the stratigraphic stack tool
+  // TASKS.csv #271 — GemPy StackRelationType. Defaults to ONLAP (conformable) for two reasons: it's the
+  // right model for the volcanic-hosted stratigraphy this app targets, and it is also exactly the
+  // geometry every stack run produced before #271 (a single shared-scalar-field group — see the
+  // sidecar's own comment), so this default changes nothing about existing results while making the
+  // erosional case genuinely available for the first time.
+  const [stackRelation, setStackRelation] = useState("onlap");
   const [stackAdd, setStackAdd] = useState("");
+  const [expandedLithoGroupId, setExpandedLithoGroupId] = useState(null); // TASKS.csv #176 — which group's code checklist is open
   // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modeling" pill
   // switcher). Now that View and Modeling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
@@ -991,6 +1141,29 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [selectedSectionIds, setSelectedSectionIds] = useState(new Set());
   const [sectionEditOpen, setSectionEditOpen] = useState(false);
   const [implicitBusy, setImplicitBusy] = useState(false);
+  // TASKS.csv #142 — numeric implicit model (grade shell) inputs. Session-only UI state, same as the
+  // other modelling tools' pickers. Cutoff is in the element's own display unit (assayElements' unit),
+  // compositing mirrors GradeEstimationModal's useComposites/compositeLength pattern exactly.
+  const [numericSymbol, setNumericSymbol] = useState("");
+  const [numericCutoff, setNumericCutoff] = useState(1);
+  const [numericCellSize, setNumericCellSize] = useState(10);
+  const [numericSearchRadius, setNumericSearchRadius] = useState(50);
+  const [numericMethod, setNumericMethod] = useState("idw2");
+  const [numericUseComposites, setNumericUseComposites] = useState(true);
+  const [numericCompositeLength, setNumericCompositeLength] = useState(2);
+  // TASKS.csv #262 — minCoverage was hardcoded at 0.5 here, so a half-missing-core composite silently
+  // counted as a full sample in the grade shell with no way to tighten it. Same control/default as
+  // CompositingModal and GradeEstimationModal (0.5 = unchanged behaviour until the user moves it).
+  const [numericMinCoverage, setNumericMinCoverage] = useState(0.5);
+  // TASKS.csv #257 - defaults to FALSE. Closing the shell at the search-radius boundary manufactures a
+  // watertight solid whose volume is set by the radius rather than by a grade boundary, so the honest
+  // open shell is the default and the artificial closure is a deliberate opt-in.
+  const [numericCloseShell, setNumericCloseShell] = useState(false);
+  const [numericCapValue, setNumericCapValue] = useState(NaN); // TASKS.csv #259 - high-grade cap
+  const [numericMinHoles, setNumericMinHoles] = useState(2);   // TASKS.csv #258 - min distinct holes
+  const [numericIncludeQAQC, setNumericIncludeQAQC] = useState(false); // TASKS.csv #266
+  const [numericPadding, setNumericPadding] = useState(25);
+  const [numericBusy, setNumericBusy] = useState(false);
   // Bug-hunt pass: bumped once by the three.js init effect right after sceneRef.current is set, purely
   // so effects that guard on `sceneRef.current` (like the custom-layers rebuild effect below, which is
   // declared before the init effect and so runs with a null sceneRef on first mount) get a reliable
@@ -1044,6 +1217,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // a user actually moves this slider. GemPy cost scales with grid cells, so lower = faster/coarser,
   // higher = slower/finer — 64 matches the sidecar's own documented cap (python-sidecar/app/main.py).
   const [modelResolution, setModelResolution] = useState(36);
+  // TASKS.csv #274 — GemPy's potential-field range, as a multiplier of GemPy's own default (see the
+  // sidecar's range_multiplier field). 0 = Auto, i.e. don't send the parameter at all and let GemPy do
+  // exactly what it always did; the effective value comes back in the response either way and is
+  // reported in the run notice + stamped into every generated surface's provenance.
+  const [rangeMultiplier, setRangeMultiplier] = useState(0);
   // TASKS.csv #86 — same shared-across-all-four-tools pattern as domain/searchEllipsoid above. Distinct
   // state from searchEllipsoid (not literally shared) since the two are conceptually independent knobs
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
@@ -2140,6 +2318,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // do yet: multi-surface stratigraphic stacks, faults, or picking which points feed the model by
   // hand — see TASKS.csv for the follow-up items this opens up.
   const litho_units = distinctValues(layers.litho || []).map(([v]) => v);
+  // TASKS.csv #176 — lithology groups (store.lithoGroups) sit alongside raw codes in the Implicit
+  // model / Stratigraphic stack pickers, value-namespaced as `group:<id>` so the existing raw-code
+  // value space (a raw code string is used verbatim as the <option> value) is untouched. The
+  // `group:` key rides through implicitTarget / stackUnits unchanged and is only resolved to the
+  // real group object at the point gatherLithoSurfaceSpec is actually called (or a badge is drawn).
+  const isLithoGroupKey = (v) => typeof v === "string" && v.startsWith("group:");
+  const lithoGroupKey = (g) => `group:${g.id}`;
+  // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
+  const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : v);
+  // A group's role comes from its member codes: shared role if every member agrees, else null
+  // ("mixed" — no badge, no guessing). Cross-cutting if ANY member is, which is what keeps a group
+  // off the Stack picker under the same safety rail a raw fault/dyke/breccia code already gets.
+  const lithoGroupRole = (g) => { const roles = new Set((g.codes || []).map(roleForLithology)); return roles.size === 1 ? [...roles][0] : null; };
+  const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
   const struct_types = distinctValues(layers.structure || []).map(([v]) => v);
 
@@ -2180,8 +2372,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // before rows are converted into interface points/orientations in the litho/structural/alteration
   // tools below, so a domain genuinely restricts what a modelling run sees rather than just labeling
   // the output afterward.
-  const filterRowsByDomain = (rows, traces, getDepth) => {
-    const domain = domains.find((d) => d.id === modelDomainId);
+  // TASKS.csv #281 — `domainIdOverride` lets a caller ask for a SPECIFIC domain rather than whatever
+  // the Modeling tab's domain selector currently holds. Added for the Stereonet's own domain filter,
+  // which is a QC choice made inside that modal and must not silently retarget (or be retargeted by)
+  // the modelling tools' selection. Every existing caller omits it and behaves exactly as before.
+  const filterRowsByDomain = (rows, traces, getDepth, domainIdOverride) => {
+    const wantId = domainIdOverride === undefined ? modelDomainId : domainIdOverride;
+    const domain = domains.find((d) => d.id === wantId);
     if (!domain) return rows;
     return rows.filter((r) => {
       const t = traces.find((tr) => tr.hole_id === r.hole_id);
@@ -2191,6 +2388,62 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       return pointInDomain(p, domain, implicitMeshesRef.current);
     });
   };
+
+  // TASKS.csv #277 / #280 — structure picks enriched with the HOLE'S OWN attitude (azimuth/dip) at each
+  // pick's depth. Two features need this and neither can compute it for itself: the tadpole plot's alpha
+  // axis (the angle between the structure and the core axis) and the stereonet's Terzaghi sampling-bias
+  // weighting (1/sin(alpha)). Both are pure functions of (pick orientation, hole orientation at that
+  // depth), and the hole's attitude at an arbitrary depth is only knowable here, where collars + survey
+  // live — surveyAzimuthDipAt (desurvey.js) is the same interpolation the core-orientation calculator
+  // already uses to auto-fill a hole's attitude, so the number means the same thing in both places.
+  // Picks whose hole has no usable survey keep holeAz/holeDip null rather than being dropped: both
+  // consumers degrade honestly (the plot falls back to true dip and says so; the Terzaghi weighting
+  // leaves those picks at weight 1 and reports how many).
+  const structurePicksWithHoleAttitude = useMemo(() => {
+    const rows = layers.structure || [];
+    if (!rows.length) return rows;
+    const collarById = new Map(collars.map((c) => [c.hole_id, c]));
+    const surveyByHole = new Map();
+    survey.forEach((s) => {
+      if (!surveyByHole.has(s.hole_id)) surveyByHole.set(s.hole_id, []);
+      surveyByHole.get(s.hole_id).push(s);
+    });
+    // Memoize per (hole, depth) — several picks routinely share a depth, and a project can carry
+    // hundreds of picks; recomputing stationsWithInclination per pick would be needless work on the
+    // modest hardware this app targets.
+    const cache = new Map();
+    return rows.map((p) => {
+      if (p.hole_id == null || p.depth == null || isNaN(p.depth)) return p;
+      const key = `${p.hole_id}|${p.depth}`;
+      if (!cache.has(key)) {
+        const c = collarById.get(p.hole_id);
+        cache.set(key, c ? surveyAzimuthDipAt(c, surveyByHole.get(p.hole_id) || [], Number(p.depth)) : null);
+      }
+      const att = cache.get(key);
+      return att ? { ...p, holeAz: att.azimuth, holeDip: att.dip } : p;
+    });
+  }, [layers.structure, collars, survey]);
+
+  // TASKS.csv #281 — the Stereonet's spatial-domain filter, handed to the modal as a callback so the
+  // modal never needs to know what a domain IS (fault-side constraints evaluated against implicit
+  // meshes) — it just asks "which of these picks are in domain X". Deliberately the SAME
+  // filterRowsByDomain the GemPy orientation feed uses (#89/#231), so a domain means one thing app-wide
+  // and a pick can't be inside "Fault block A" for modelling but outside it for QC.
+  const domainStereonetFilter = useCallback(
+    (rows, domainId) => filterRowsByDomain(rows, tracesRef.current, (s) => s.depth, domainId || ""),
+    [domains, implicitSurfaces]
+  );
+
+  // TASKS.csv #277 — hole list (with logged length) for the tadpole plot's hole selector.
+  const holesForTadpole = useMemo(() => {
+    const maxByHole = new Map();
+    survey.forEach((s) => {
+      if (s.depth == null || isNaN(s.depth)) return;
+      const cur = maxByHole.get(s.hole_id) || 0;
+      if (Number(s.depth) > cur) maxByHole.set(s.hole_id, Number(s.depth));
+    });
+    return collars.map((c) => ({ hole_id: c.hole_id, maxDepth: maxByHole.get(c.hole_id) || null }));
+  }, [collars, survey]);
 
   // TASKS.csv #85 — same idea as filterBySearchSupport above, but for rows (like the structural tool's
   // own picks) whose position AND some other per-row payload (dip/azimuth) both need to stay in sync,
@@ -2284,7 +2537,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // shared scalar field — that's what makes a stratigraphic stack come out non-crossing by
   // construction, rather than as N independently-fit planes that happen to intersect each other.
   // Order in `specs` matters: GemPy treats it as youngest-first (see runStackModel below).
-  const runSurfaceStack = useCallback(async (rawSpecs) => {
+  // TASKS.csv #271 — `relation` is GemPy's StackRelationType for the whole structural group: ERODE
+  // (each younger unit truncates the ones below it — an unconformity) or ONLAP (units drape/onlap
+  // rather than cutting, i.e. a conformable pile). The sidecar has implemented both since day one
+  // (python-sidecar/app/main.py L182/L259) but nothing here ever set it, so every stack was modelled
+  // as erosional — the wrong default for a conformable volcanic pile, which is exactly the setting
+  // GeoStrix targets (VMS/epithermal). Single-surface tools pass nothing and keep "erode", which is a
+  // no-op for a one-element group.
+  const runSurfaceStack = useCallback(async (rawSpecs, stackOpts = {}) => {
+    const relation = stackOpts.relation === "onlap" ? "onlap" : "erode";
     const traces = tracesRef.current;
     // TASKS.csv #187 — bug fix: a real user hit "Stratigraphic stack (DACT, VCL, SED) failed:
     // [object Object],[object Object],[object Object]" (fixed the unreadable-error half of this in
@@ -2385,7 +2646,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
-      { resolution: [modelResolution, modelResolution, modelResolution], signal: abortController.signal },
+      // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
+      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal },
     );
     clearInterval(rampTimer);
     setImplicitBusy(false);
@@ -2434,11 +2696,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // guesses at each spec's construction site above); `relationships` starts empty — declared
       // afterward in the Modeling tab's surface list, since a relationship needs another surface to
       // already exist to point at.
-      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [] }]);
+      // TASKS.csv #276 — until now only the numeric grade-shell tool attached a `params` block, so every
+      // GemPy-generated surface exported to OBJ/DXF/glTF carried the #269 provenance HEADER with no
+      // actual parameters in it. These are exactly the settings that change the shape of the surface
+      // being exported, including #274's effective potential-field range as GemPy itself reported it.
+      const params = {
+        tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
+        surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
+        relation, resolution: [modelResolution, modelResolution, modelResolution],
+        gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null,
+        gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
+        anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+        searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
+        domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
+        clippedToDomain: !!clipDomain,
+        extent: extent.map((v) => Math.round(v)),
+        generatedAt: new Date().toISOString(),
+      };
+      setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
     if (missing.length) setNotices((p) => [...p, `GemPy returned no mesh for: ${missing.join(", ")} (try adding more points or a wider spread of orientations for those).`]);
     if (newMeshes.length) {
-      setNotices((p) => [...p, `Added ${newMeshes.length} surface${newMeshes.length > 1 ? "s" : ""}: ${specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", ")}.`]);
+      // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
+      // it, two runs of the same job that came back looking different had no visible reason why.
+      const rangeNote = res.rangeUsed != null
+        ? ` Interpolation: ${specs.length > 1 ? (relation === "erode" ? "erosional (each unit truncates those below)" : "conformable (units onlap)") : "single surface"}, potential-field range ${res.rangeUsed.toFixed(3)}${res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? ` (GemPy's own default ${res.rangeDefault.toFixed(3)} x ${rangeMultiplier})` : " (GemPy's own default)"}.`
+        : "";
+      setNotices((p) => [...p, `Added ${newMeshes.length} surface${newMeshes.length > 1 ? "s" : ""}: ${specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", ")}.${rangeNote}`]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
       // successful run can be visually indistinguishable from a silent failure: the mesh is added to
       // the scene but the camera doesn't move, so unless it happens to land inside the current view
@@ -2447,7 +2731,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       newMeshes.forEach((m) => box.expandByObject(m));
       fitBox(box);
     }
-  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId, modelResolution]);
+  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = useCallback((spec) => runSurfaceStack([spec]), [runSurfaceStack]);
@@ -2483,11 +2767,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return out;
   }, [layers.litho, layers.alt]);
 
-  const gatherLithoSurfaceSpec = (unitName, traces, { silent = false } = {}) => {
+  // TASKS.csv #176 — `target` is either a raw litho code string (original behavior, unchanged for
+  // that case) or a lithology-group object {id, name, color, codes} from store.lithoGroups. Matt:
+  // "sometimes a basalt can be logged as andesite in one hole, or a siltstone can be logged as
+  // greywacke" — matching by exact string (`r.value === unitName`, the old code) meant two logging
+  // conventions for one real unit produced two separate, incomplete surfaces. A group matches any
+  // interval (and any drawn section contact) whose code is IN its code set, so every convention's
+  // intervals feed ONE surface, named/colored by the group itself.
+  const gatherLithoSurfaceSpec = (target, traces, { silent = false } = {}) => {
+    const isGroup = typeof target === "object" && target !== null;
+    const unitName = isGroup ? target.name : target;
+    const codes = new Set(isGroup ? (target.codes || []) : [target]);
     const domain = domains.find((d) => d.id === modelDomainId);
     const points = [];
     traces.forEach((t) => {
-      (layers.litho || []).filter((r) => r.hole_id === t.hole_id && r.value === unitName && !isNaN(r.from)).forEach((r) => {
+      (layers.litho || []).filter((r) => r.hole_id === t.hole_id && codes.has(r.value) && !isNaN(r.from)).forEach((r) => {
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
         if (excludedIntercepts.includes(interceptId("litho", r))) return;
@@ -2495,6 +2789,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (p && (!domain || pointInDomain(p, domain, implicitMeshesRef.current))) {
           const api = sceneToApi(p);
           if (softIntercepts.includes(interceptId("litho", r))) api.nugget = SOFT_NUGGET;
+          // TASKS.csv #275 — which logged code this point came from, so the group coherence check below
+          // can say WHICH codes make up each spatial cluster. Rides along on the point object the same
+          // way #88's nugget does; the sidecar's pydantic models ignore fields they don't declare.
+          api.srcCode = r.value;
           points.push(api);
         }
       });
@@ -2512,9 +2810,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const o = originRef.current;
       (sections || []).forEach((s) => {
         (s.contacts || []).forEach((c) => {
-          if (c.unit !== unitName || !c.isUpperContact) return;
+          if (!codes.has(c.unit) || !c.isUpperContact) return; // #176 — any member code's contact feeds the group
           (c.points || []).forEach((cp) => {
-            const api = { x: cp.x - o.x, y: cp.y - o.y, z: cp.z - o.z };
+            const api = { x: cp.x - o.x, y: cp.y - o.y, z: cp.z - o.z, srcCode: c.unit }; // srcCode: TASKS.csv #275
             const scenePt = { x: api.x, y: api.z, z: -api.y }; // inverse of sceneToApi, for the domain check
             if (domain && !pointInDomain(scenePt, domain, implicitMeshesRef.current)) return;
             points.push(api);
@@ -2541,6 +2839,55 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       return null;
     }
     points.length = 0; points.push(...supportedPoints);
+
+    // TASKS.csv #275 — spatial-coherence check on a GROUP's merged codes (raw single codes are exempt:
+    // one code modelled on its own producing two clusters is a genuine geological statement — the unit
+    // crops out in two places — not a possible data-entry mistake). Link distance is 2.5x the median
+    // collar spacing, i.e. "points in neighbouring holes count as connected": below the real hole
+    // spacing everything is disconnected, far above it nothing ever is. Warn, never block — a merge
+    // spanning two clusters can be perfectly correct, and only the geologist can say. What the notice
+    // has to do is make sure the choice was actually SEEN.
+    // The rule is deliberately NOT "the group's points form more than one cluster". That was the first
+    // version and it was useless: measured against the real 37-hole Harry dataset, a SINGLE code's own
+    // top picks (DACT, 88 points) already form 5 clusters at any sane link distance, because drilling
+    // happens in fans and sections, not in a continuous blanket. Every group would have warned.
+    // What actually distinguishes a mistaken merge is SEGREGATION: two of the group's codes that never
+    // once turn up in the same cluster. On the same real data, every genuine code pair tested
+    // (DACT+VCL, DACT+SED, CAS+MINT, FINT+VCL, DACT+VCL+FINT, CAS+BSL) has zero segregated pairs at both
+    // 2.5x and 4x hole spacing, while a synthetic merge of DACT with a body 3 km away is caught with the
+    // separation reported. Zero false positives on the real dataset was the bar this had to clear to be
+    // worth showing at all.
+    if (isGroup && points.length > 2) {
+      const codeCounts = {};
+      points.forEach((p) => { if (p.srcCode) codeCounts[p.srcCode] = (codeCounts[p.srcCode] || 0) + 1; });
+      // A code contributing one or two intervals is noise (a single mis-logged run), not a second body.
+      const liveCodes = Object.keys(codeCounts).filter((c) => codeCounts[c] >= 3);
+      if (liveCodes.length > 1) {
+        const linkDist = Math.max(25, (medianCollarSpacing(collars) || 60) * 2.5);
+        const clusters = spatialClusters(points, linkDist);
+        const weightedCentroid = (cs) => {
+          const n = cs.reduce((s, c) => s + c.size, 0) || 1;
+          return { x: cs.reduce((s, c) => s + c.centroid.x * c.size, 0) / n, y: cs.reduce((s, c) => s + c.centroid.y * c.size, 0) / n, z: cs.reduce((s, c) => s + c.centroid.z * c.size, 0) / n };
+        };
+        const segregated = [];
+        for (let i = 0; i < liveCodes.length; i++) {
+          for (let j = i + 1; j < liveCodes.length; j++) {
+            const a = liveCodes[i], b = liveCodes[j];
+            if (clusters.some((c) => c.codes.includes(a) && c.codes.includes(b))) continue; // they do occur together somewhere
+            const ca = weightedCentroid(clusters.filter((c) => c.codes.includes(a)));
+            const cb = weightedCentroid(clusters.filter((c) => c.codes.includes(b)));
+            segregated.push({ a, b, sep: Math.round(Math.sqrt((ca.x - cb.x) ** 2 + (ca.y - cb.y) ** 2 + (ca.z - cb.z) ** 2)) });
+          }
+        }
+        // Deliberately NOT gated on `silent`: that flag exists to keep the stack tool from repeating
+        // routine per-unit information, but this is a correctness warning about the surface the user is
+        // about to get, and a stack run is exactly where a bad group would otherwise slip past unseen.
+        if (segregated.length) {
+          const pairs = segregated.slice(0, 3).map((s) => `${s.a} vs ${s.b} (~${s.sep} m apart)`).join(", ");
+          setNotices((p) => [...p, `Group "${unitName}" may merge unrelated bodies: ${segregated.length === 1 ? "these codes never" : "some of its codes never"} appear near each other anywhere in the data — ${pairs}${segregated.length > 3 ? ", and others" : ""}. One surface will still be fitted across the gap. Check the group's code list; if they really are one unit in two places, ignore this.`]);
+        }
+      }
+    }
 
     // TASKS.csv #231 (Leapfrog-specialist audit finding: "every structure pick with ANY dip/azimuth in
     // the whole project gets fed as an orientation constraint to whatever surface is being modelled" --
@@ -2571,19 +2918,30 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",
     // so a surface generated from e.g. "FLT" or a dyke code is correctly tagged fault/dyke rather than
     // silently mislabeled as an ordinary stratigraphic top.
-    const role = roleForLithology(unitName);
+    // TASKS.csv #176 — for a group, the role is the members' shared role when they all agree; if they
+    // disagree it falls back to "stratigraphic" (the same default an unlisted raw code already gets)
+    // rather than guessing from one member.
+    let role;
+    if (isGroup) { const roles = new Set([...codes].map(roleForLithology)); role = roles.size === 1 ? [...roles][0] : "stratigraphic"; }
+    else role = roleForLithology(unitName);
     const type = role === "overburden" ? "overburden_base" : role === "fault" ? "fault" : role === "dyke" ? "dyke" : role === "breccia" ? "breccia_body" : "stratigraphic_contact";
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color: colorForLithology(unitName), type };
+    // A group's own assignable color drives its surface/legend; falls back to the first member's
+    // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
+    const color = isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type };
   };
 
   const runImplicitModel = useCallback(async (unitName) => {
     if (!unitName) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the implicit model."]); return; }
-    const spec = gatherLithoSurfaceSpec(unitName, traces);
+    // TASKS.csv #176 — a `group:<id>` pick resolves to its group object here; the raw-code path is untouched.
+    const target = resolveLithoTarget(unitName);
+    if (!target) { setNotices((p) => [...p, "That lithology group no longer exists — pick another unit."]); return; }
+    const spec = gatherLithoSurfaceSpec(target, traces);
     if (!spec) return;
     await runSurfaceModel(spec);
-  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts]);
+  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups]);
 
   // Stratigraphic stack tool (TASKS.csv #52 follow-up): models several lithology units' top contacts
   // in ONE sidecar request instead of one at a time. This isn't just a convenience batch — sending
@@ -2604,14 +2962,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const specs = [];
     const skipped = [];
     unitNames.forEach((u) => {
-      const spec = gatherLithoSurfaceSpec(u, traces, { silent: true });
-      if (spec) specs.push(spec); else skipped.push(u);
+      // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
+      // only here, at the point the spec is actually gathered.
+      const target = resolveLithoTarget(u);
+      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true }) : null;
+      if (spec) specs.push(spec); else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
     });
     if (skipped.length) setNotices((p) => [...p, `Skipping from the stack (no lithology intervals found): ${skipped.join(", ")}.`]);
     if (specs.length < 2) { setNotices((p) => [...p, "Need at least 2 units with data to model a stack — add more units or check your lithology import."]); return; }
 
-    await runSurfaceStack(specs);
-  }, [layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts]);
+    await runSurfaceStack(specs, { relation: stackRelation }); // TASKS.csv #271
+  }, [layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
 
   const addStackUnit = useCallback((u) => {
     if (!u || stackUnits.includes(u)) return;
@@ -2671,59 +3032,345 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     await runSurfaceModel({ label: `Structure: ${structType}`, meshName: structType, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) });
   }, [layers.structure, runSurfaceModel, domains, modelDomainId, searchEllipsoid]);
 
-  // Alteration modeling tool: same mechanic as the litho-based tool (interval tops as interface
-  // points, structure-layer picks for orientation), just sourced from the alteration layer instead of
-  // lithology — for outlining an alteration halo (e.g. QSP, SIL) as a surface rather than reading it
-  // interval-by-interval off each hole.
-  const runAlterationModel = useCallback(async (altValue) => {
+  // Alteration modeling tool. TASKS.csv #272 — REWRITTEN (Leapfrog-specialist review).
+  //
+  // What this used to do, and why it was wrong: it gathered the alteration intervals' TOP contacts and
+  // pushed them through runSurfaceModel — i.e. the same directed, single-polarity, one-sided-contact
+  // GemPy machinery the stratigraphic/structural tools use. That machinery models a surface with a
+  // coherent "younger above, older below" polarity, fitted through top picks only. An alteration halo
+  // has no such polarity: it's a closed 3D envelope around a mineralising conduit whose base is as much
+  // part of the body as its top, and it can wrap around, pinch and swell in any direction. The old code
+  // did return *a* surface (so nothing looked broken), but it was a draped contact through the tops of
+  // the altered intervals, not a halo — a geologist comparing it to the same data in Leapfrog would not
+  // recognise the result.
+  //
+  // What it does now: treats "is this rock altered with this assemblage?" as a 0/1 INDICATOR sampled
+  // along every hole that has any alteration logging (1 inside a target-assemblage interval, 0 inside
+  // any other logged alteration interval), interpolates that indicator onto a regular grid with the same
+  // estimateDenseGrid used by the numeric grade-shell tool, and extracts the 0.5 iso-surface with
+  // marching cubes. That produces a genuinely closed envelope with no assumed up-direction — the
+  // standard implicit construction for this kind of body, and the fix direction #272 asked for. No
+  // GemPy/sidecar involvement any more, so it also runs offline and in a few hundred ms.
+  //
+  // Deliberate consequences worth knowing: (a) the structure layer no longer feeds this tool, because a
+  // dip/azimuth constraint is meaningless for a closed envelope; (b) the search ellipsoid's
+  // minimum-neighbour filter no longer applies (it exists to drop under-supported CONTACT picks), but
+  // the anisotropy trend IS honoured, by warping into the same normalized space runSurfaceStack uses;
+  // (c) the model domain still restricts which sample points are used.
+  const runAlterationModel = useCallback((altValue) => {
     if (!altValue) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the alteration model."]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
-    const points = [];
-    traces.forEach((t) => {
-      (layers.alt || []).filter((r) => r.hole_id === t.hole_id && r.value === altValue && !isNaN(r.from)).forEach((r) => {
-        if (excludedIntercepts.includes(interceptId("alt", r))) return;
-        const p = findOnTrace(t.pts, r.from);
-        if (p && (!domain || pointInDomain(p, domain, implicitMeshesRef.current))) {
-          const api = sceneToApi(p);
-          if (softIntercepts.includes(interceptId("alt", r))) api.nugget = SOFT_NUGGET;
-          points.push(api);
+    const o = originRef.current;
+    const label = `Alteration halo: ${altValue}`;
+    setAlterationBusy(true);
+    setTaskProgress?.({ label, pct: 20 });
+    // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
+    // synchronous grid pass — a timer, not rAF, because rAF never fires in a hidden window.
+    setTimeout(() => {
+      try {
+        const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
+        const targetRows = altRows.filter((r) => r.value === altValue && !excludedIntercepts.includes(interceptId("alt", r)));
+        if (!targetRows.length) throw new Error(`No alteration intervals found for "${altValue}" — nothing to model.`);
+
+        // Auto parameters come from the spacing of the holes that actually carry alteration logging,
+        // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
+        const loggedHoles = new Set(altRows.map((r) => r.hole_id));
+        const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)));
+        const radius = alterationSearchRadius > 0 ? alterationSearchRadius : auto.radius;
+        const cs = alterationCellSize > 0 ? alterationCellSize : auto.cell;
+
+        // Indicator intervals: 1 inside the target assemblage, 0 inside any other logged alteration.
+        // The zeros are what CLOSE the envelope — without a "definitely not altered" sample between two
+        // altered holes, an indicator interpolation has nothing pulling it back below 0.5.
+        const subLen = Math.max(0.5, cs / 2);
+        const intervals = [];
+        altRows.forEach((r) => {
+          const isTarget = r.value === altValue;
+          if (isTarget && excludedIntercepts.includes(interceptId("alt", r))) return; // #84 — reviewed-out intercepts never model
+          splitIntervalForSampling(Number(r.from), Number(r.to), subLen).forEach((seg) => {
+            intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
+          });
+        });
+        const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole);
+        if (!worldPts.length) throw new Error("No alteration sample points could be placed in 3D — check that the logged holes have collars.");
+
+        // World -> api (east, north, up, origin-relative) — the space every spatial control in this
+        // module (domain test, anisotropy warp) already speaks.
+        let pts = worldPts.map((p) => ({ ...p, x: p.x - o.x, y: p.y - o.y, z: p.z - o.z }));
+        if (domain) {
+          const before = pts.length;
+          pts = pts.filter((p) => pointInDomain(apiToScene([p.x, p.y, p.z]), domain, implicitMeshesRef.current));
+          if (pts.length < before) setNotices((q) => [...q, `Domain "${domain.name}": excluded ${before - pts.length} of ${before} alteration sample point(s) outside the domain.`]);
         }
-      });
-    });
-    if (!points.length) { setNotices((p) => [...p, domain ? `No alteration intervals for "${altValue}" fall inside domain "${domain.name}" — nothing to model.` : `No alteration intervals found for "${altValue}" — nothing to model.`]); return; }
-    const preEllipsoid = points.length;
-    const supportedPoints = filterBySearchSupport(points, searchEllipsoid);
-    if (searchEllipsoid.enabled && supportedPoints.length < preEllipsoid) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preEllipsoid - supportedPoints.length} of ${preEllipsoid} "${altValue}" point(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
-    }
-    if (!supportedPoints.length) { setNotices((p) => [...p, `All "${altValue}" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]); return; }
-    points.length = 0; points.push(...supportedPoints);
+        const insideCount = pts.filter((p) => p.value >= 0.5).length;
+        if (!insideCount) throw new Error(domain
+          ? `No "${altValue}" intervals fall inside domain "${domain.name}" — nothing to model.`
+          : `No "${altValue}" sample points could be placed — nothing to model.`);
 
-    // TASKS.csv #231 — see gatherLithoSurfaceSpec's identical fix for the full explanation: the search-
-    // ellipsoid spatial-relevance filter already existed and was already used by the Structural tool,
-    // but not here, so every CON-type pick on the whole property fed every alteration surface too.
-    let structRows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === "CON" && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    if (!structRows.length) structRows = (layers.structure || []).filter((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
-    const preSearchCount2 = structRows.length;
-    structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
-    if (searchEllipsoid.enabled && structRows.length < preSearchCount2) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount2 - structRows.length} of ${preSearchCount2} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
-    }
-    let orientations = structureRowsToOrientations(structRows, traces);
-    if (!orientations.length) {
-      // Same fallback as the litho tool (see its comment) — estimate an orientation from the
-      // alteration points themselves rather than requiring a structure CSV.
-      const est = estimateOrientationFromPoints(points);
-      orientations = [est];
-      setNotices((p) => [...p, `No structure picks found — estimated a single dip/azimuth (~${est.dip.toFixed(0)}°/~${est.azimuth.toFixed(0)}°) from the shape of the "${altValue}" points. Import a structure CSV for a more accurate result.`]);
-    }
+        // TASKS.csv #86 — same normalized-space trick runSurfaceStack uses: warp every point into the
+        // space where the declared anisotropy ellipsoid is a sphere, grid/isosurface there with an
+        // isotropic search, then un-warp the resulting mesh vertices. An isotropic interpolator in
+        // warped space IS an anisotropic one in real space.
+        const basis = anisotropy.enabled ? searchEllipsoidBasis(anisotropy.azimuth, anisotropy.dip) : null;
+        const scl = anisotropy.enabled ? anisoScales(anisotropy) : null;
+        const center = anisotropy.enabled
+          ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length, z: pts.reduce((s, p) => s + p.z, 0) / pts.length }
+          : null;
+        const gridPts = anisotropy.enabled ? pts.map((p) => anisoWarpPoint(p, center, basis, scl)) : pts;
 
-    await runSurfaceModel({ label: `Alteration: ${altValue}`, meshName: altValue, points, orientations, color: colorForAlteration(altValue), type: "alteration_envelope" });
-  }, [layers.alt, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts]);
+        // Grid extent: the ALTERED points' own box (the zeros only need to be inside the search radius
+        // of it, not inside it), padded by the search radius so the envelope has room to close outside
+        // the outermost altered sample instead of being cut flat at it.
+        const inside = gridPts.filter((p) => p.value >= 0.5);
+        const xr = minMax(inside.map((p) => p.x)), yr = minMax(inside.map((p) => p.y)), zr = minMax(inside.map((p) => p.z));
+        const pad = radius;
+        const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
+        // Keep the grid under estimation.js's MAX_BLOCKS by coarsening rather than throwing: the auto
+        // cell size is derived from hole spacing, which says nothing about how BIG the padded box is.
+        let cell = cs;
+        const cellsAt = (c) => Math.max(1, Math.round((bounds.xmax - bounds.xmin) / c)) * Math.max(1, Math.round((bounds.ymax - bounds.ymin) / c)) * Math.max(1, Math.round((bounds.zmax - bounds.zmin) / c));
+        let coarsened = false;
+        while (cellsAt(cell) > MAX_BLOCKS * 0.75) { cell *= 1.5; coarsened = true; }
+
+        const grid = estimateDenseGrid(gridPts, {
+          bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
+          searchRadius: radius, minSamples: 1, maxSamples: 16, minHoles: 1,
+        });
+        if (!grid.estimated) throw new Error("No grid cell had an alteration sample within the search radius — increase the search radius.");
+        // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
+        // close against the edge of the informed region instead of leaving an open shell.
+        const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, 0.5, {
+          origin: grid.origin, spacing: grid.cellSize, noData: "outside",
+        });
+        if (!mc.faces.length) throw new Error(`The interpolated "${altValue}" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).`);
+
+        // api (un-warp if needed) -> scene, the same apiToScene every other surface in this module uses.
+        const unwarp = anisotropy.enabled ? invScales(scl) : null;
+        const pos = new Float32Array(mc.vertices.length * 3);
+        mc.vertices.forEach(([ax, ay, az], i) => {
+          const a = anisotropy.enabled ? anisoWarpPoint({ x: ax, y: ay, z: az }, center, basis, unwarp) : { x: ax, y: ay, z: az };
+          const s = apiToScene([a.x, a.y, a.z]);
+          pos[i * 3] = s.x; pos[i * 3 + 1] = s.y; pos[i * 3 + 2] = s.z;
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setIndex(mc.faces.flat());
+        geo.computeVertexNormals();
+        const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: colorForAlteration(altValue), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+        const vol = computeMeshVolume(geo);
+        // Same honesty rule as the grade shell (#257): if part of the boundary is the search-radius
+        // wall rather than a real 0/1 alteration boundary, the enclosed volume is a parameter choice.
+        const closure = mc.closingVertices > 0 ? "artificial" : "natural";
+        // TASKS.csv #276 — provenance for this surface, so the panel and every export can stamp it.
+        const params = {
+          tool: "alteration halo (indicator envelope)", target: altValue, isoLevel: 0.5,
+          method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
+          cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
+          paddingM: pad, closure, holeSpacingM: auto.spacing,
+          anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+          domain: domain ? domain.name : null,
+          samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
+          generatedAt: new Date().toISOString(),
+        };
+        mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\nindicator envelope, ${cell.toFixed(1)} m cells, ${Math.round(radius)} m search${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed` : "\n(open envelope)"}` };
+        implicitGroupRef.current?.add(mesh);
+        const id = `impl_${Date.now()}_alt_${altValue}`;
+        implicitMeshesRef.current[id] = mesh;
+        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "alteration_envelope", relationships: [], closure, params }]);
+        setNotices((p) => [...p, `Added "${label}": ${insideCount} altered of ${pts.length} indicator sample point(s)${dropped ? `, ${dropped} unplaceable` : ""} → ${grid.nx}×${grid.ny}×${grid.nz} grid (${cell.toFixed(1)} m cells${coarsened ? ", coarsened to stay under the grid limit" : ""}, ${Math.round(radius)} m search${anisotropy.enabled ? ", anisotropy applied" : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : ", open"}. Closed indicator envelope, not a draped contact — see TASKS.csv #272.`]);
+        if (closure === "artificial") setNotices((p) => [...p, `"${label}" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the ${Math.round(radius)} m search radius, not the data.`]);
+        fitBox(new THREE.Box3().setFromObject(mesh));
+      } catch (e) {
+        setNotices((p) => [...p, `Alteration halo failed: ${e.message || e}`]);
+      }
+      setTaskProgress?.(null);
+      setAlterationBusy(false);
+    }, 40);
+  }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, anisotropy, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
+
+  // TASKS.csv #142 — numeric (continuous-variable) implicit model: a grade-shell wireframe built
+  // DIRECTLY from assay values, no GemPy/sidecar involved. Every other tool above keys off categorical
+  // litho/alt/structure codes; this is the "Au > 1 g/t envelope" Leapfrog users expect. Pipeline, all
+  // client-side and synchronous: (1) composite (optional, same compositeDownhole call as
+  // GradeEstimationModal) -> (2) samplePointsFromIntervals desurveys every interval midpoint into world
+  // space -> (3) estimateDenseGrid IDW/NN-interpolates a regular lattice (NaN where no sample is in
+  // range) -> (4) marchingCubes extracts the cutoff iso-surface -> (5) world->scene via originRef.current
+  // (scene x = east offset, y = elevation offset, z = -(north offset) — same map every other geometry in
+  // this file uses) -> (6) registered into implicitMeshesRef/implicitSurfaces exactly like a GemPy
+  // surface, so volume/tonnage (#140), OBJ/DXF/glTF export (#143), relationships and domain clipping all
+  // work on it with no separate code path. Deferred via a short setTimeout so the busy state paints
+  // before the (potentially few-hundred-ms) main-thread loop — same idea as GradeEstimationModal's
+  // requestAnimationFrame deferral, but a timer rather than rAF because rAF never fires while the
+  // window/tab is hidden (caught during #142's own live verification: the run sat on "Running…"
+  // forever in a background preview tab), which would silently strand a run started right before
+  // the user alt-tabs away.
+  const runNumericModel = useCallback(() => {
+    const symbol = numericSymbol || assayElements[0]?.symbol;
+    if (!symbol) { setNotices((p) => [...p, "No assay elements loaded — import assays before running the numeric model."]); return; }
+    if (!collars.length) { setNotices((p) => [...p, "Load collars/survey data before running the numeric model."]); return; }
+    if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, "Enter a numeric cutoff grade."]); return; }
+    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+    const unit = elementUnits[symbol] || "ppm";
+    const label = `${symbol} > ${numericCutoff} ${unit} shell`;
+    setNumericBusy(true);
+    setTaskProgress?.({ label, pct: 20 });
+    setTimeout(() => {
+      try {
+        // TASKS.csv #266 — QC inserts (standards/blanks/duplicates) are excluded by default here, the
+        // same as Best Intercepts / Compositing / Grade Statistics already do. They used to reach the
+        // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has
+        // no collar, which is luck rather than design — a field duplicate logged under its PARENT
+        // hole's id was genuinely double-counted.
+        const srcAssays = numericIncludeQAQC ? assays : excludeQAQC(assays);
+        let intervals;
+        if (numericUseComposites) {
+          // TASKS.csv #259 — high-grade capping. compositeDownhole has always accepted capValue and
+          // applied it per RAW sample before length-weighted averaging (the correct order), but only
+          // CompositingModal ever passed it: the grade shell composited uncapped, so one bonanza Au
+          // assay drove IDW² across its whole search neighbourhood.
+          intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
+            length: numericCompositeLength, minCoverage: numericMinCoverage, // TASKS.csv #262 — was hardcoded 0.5
+            capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
+          });
+        } else {
+          const cap = Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null;
+          intervals = srcAssays
+            .filter((a) => a.hole_id != null && a.from != null && a.to != null)
+            .map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, avgGrade: a.values?.[symbol] != null ? a.values[symbol] : null }))
+            .filter((iv) => iv.avgGrade != null)
+            .map((iv) => (cap != null && iv.avgGrade > cap ? { ...iv, avgGrade: cap } : iv));
+        }
+        const { points: rawPoints, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole);
+        if (!rawPoints.length) throw new Error("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.");
+        // TASKS.csv #273 — this tool used to ignore the model domain and the anisotropy trend entirely,
+        // so a user who had set up either for the categorical tools silently got neither here. The
+        // domain now restricts which samples inform the shell (same rule the categorical tools apply to
+        // their control points), and the anisotropy trend is honoured by the same warp-grid-unwarp trick
+        // runSurfaceStack/the alteration halo use. The search ellipsoid's minimum-neighbour filter is
+        // still deliberately NOT applied: it exists to drop under-supported CONTACT picks, and dropping
+        // isolated assay samples would quietly delete grade from a shell rather than improve it.
+        const gradeDomain = domains.find((d) => d.id === modelDomainId);
+        let points = rawPoints;
+        if (gradeDomain) {
+          const o0 = originRef.current;
+          points = rawPoints.filter((p) => pointInDomain({ x: p.x - o0.x, y: p.z - o0.z, z: -(p.y - o0.y) }, gradeDomain, implicitMeshesRef.current));
+          if (!points.length) throw new Error(`No assay sample points fall inside domain "${gradeDomain.name}" — nothing to model.`);
+          if (points.length < rawPoints.length) setNotices((q) => [...q, `Domain "${gradeDomain.name}": excluded ${rawPoints.length - points.length} of ${rawPoints.length} assay sample point(s) outside the domain.`]);
+        }
+        const above = points.filter((p) => p.value >= numericCutoff).length;
+        if (!above) throw new Error(`None of the ${points.length} sample points reach the ${numericCutoff} ${unit} cutoff — nothing to enclose. Lower the cutoff.`);
+
+        // TASKS.csv #273/#86 — anisotropy: warp every sample into the space where the declared ellipsoid
+        // is a sphere, grid and iso-surface there with the isotropic search this tool already does, then
+        // un-warp the mesh vertices. World coordinates are (east, north, up), the same axis order
+        // searchEllipsoidBasis/anisoWarpPoint are defined in, and the warp is centred on the samples'
+        // own centroid, so it can be applied to world coordinates directly with no api round-trip.
+        const gsBasis = anisotropy.enabled ? searchEllipsoidBasis(anisotropy.azimuth, anisotropy.dip) : null;
+        const gsScl = anisotropy.enabled ? anisoScales(anisotropy) : null;
+        const gsCenter = anisotropy.enabled
+          ? { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length, z: points.reduce((s, p) => s + p.z, 0) / points.length }
+          : null;
+        const gridPoints = anisotropy.enabled ? points.map((p) => anisoWarpPoint(p, gsCenter, gsBasis, gsScl)) : points;
+
+        // Grid extent: the sample points' own bounding box plus padding (not the collar box — assays
+        // define where a grade shell can exist, and padding lets the shell close beyond the last hole).
+        const xr = minMax(gridPoints.map((p) => p.x)), yr = minMax(gridPoints.map((p) => p.y)), zr = minMax(gridPoints.map((p) => p.z));
+        const pad = Math.max(0, numericPadding);
+        const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
+        const cs = Math.max(0.5, numericCellSize);
+        // TASKS.csv #292 — the search radius is never allowed to be unbounded any more. An unlimited
+        // search made every sample a candidate for every cell: measured at 62,500 cells x 5,000 points
+        // that is 81 s of blocked main thread (250 s at the MAX_BLOCKS cap), versus 0.2 s with a real
+        // radius and the new spatial index. "Unlimited" is capped to the grid's own diagonal, which is
+        // a mathematical no-op (no cell can be further than the diagonal from any in-grid sample) for
+        // small projects and a genuine bound for large ones.
+        const gridDiagonal = Math.sqrt(
+          (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
+        );
+        const effectiveRadius = numericSearchRadius > 0 ? numericSearchRadius : gridDiagonal;
+        const grid = estimateDenseGrid(gridPoints, {
+          bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
+          searchRadius: effectiveRadius, minSamples: 1, maxSamples: 16,
+          minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
+        });
+        if (!grid.estimated) throw new Error(numericMinHoles > 1
+          ? `No grid cell had samples from at least ${numericMinHoles} distinct holes within the search radius — widen the search, or lower "Min holes".`
+          : "No grid cell had a sample within the search radius — widen it.");
+        const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
+          origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
+        });
+        if (!mc.faces.length) throw new Error(`The interpolated ${symbol} grid never crosses ${numericCutoff} ${unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).`);
+
+        const o = originRef.current;
+        const pos = new Float32Array(mc.vertices.length * 3);
+        const gsUnwarp = anisotropy.enabled ? invScales(gsScl) : null; // TASKS.csv #273 — undo the warp above
+        mc.vertices.forEach((v, i) => {
+          const [wx, wy, wz] = anisotropy.enabled
+            ? (() => { const u = anisoWarpPoint({ x: v[0], y: v[1], z: v[2] }, gsCenter, gsBasis, gsUnwarp); return [u.x, u.y, u.z]; })()
+            : v;
+          pos[i * 3] = wx - o.x; pos[i * 3 + 1] = wz - o.z; pos[i * 3 + 2] = -(wy - o.y);
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setIndex(mc.faces.flat());
+        geo.computeVertexNormals();
+        const mat = new THREE.MeshLambertMaterial({ color: 0xe2a63c, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+        const mesh = new THREE.Mesh(geo, mat);
+        const vol = computeMeshVolume(geo);
+        // TASKS.csv #257 - record HOW this shell closed. "artificial" means part of its boundary is the
+        // search-radius wall (marching cubes placed vertices on no-data edges), not a grade boundary:
+        // the enclosed volume is then a function of the search radius, not only of the data (volume
+        // scales roughly as R^3 - 25 m radius gave 67,750 m3 on one sample point, 100 m gave 4,188,833).
+        // The UI must not report that as a measured volume, and the old !watertight-only caution never
+        // fired for it because an artificially closed shell IS watertight.
+        const closure = numericCloseShell && mc.closingVertices > 0 ? "artificial" : "natural";
+        // TASKS.csv #270 (LOW-2) - mean interpolated grade of the cells the shell encloses. Without it
+        // the only grade a user has to pair with the tonnage is the CUTOFF, which is exactly how
+        // "X tonnes at Y g/t" gets quoted wrong. Cells are equal volume, so a plain mean over the
+        // at/above-cutoff cells IS the volume-weighted mean.
+        let gradeSum = 0, gradeCells = 0;
+        for (let i = 0; i < grid.values.length; i++) {
+          const gv = grid.values[i];
+          if (Number.isFinite(gv) && gv >= numericCutoff) { gradeSum += gv; gradeCells++; }
+        }
+        const meanGradeInShell = gradeCells > 0 ? gradeSum / gradeCells : null;
+        // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
+        // surface so the panel can show it and every export can stamp it. A tonnage with no record of
+        // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.
+        const params = {
+          tool: "numeric grade shell", element: symbol, unit, cutoff: numericCutoff,
+          method: numericMethod, searchRadiusM: effectiveRadius,
+          searchRadiusWasUnlimited: !(numericSearchRadius > 0),
+          cellSizeM: cs, paddingM: pad, closure,
+          composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
+          minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
+          capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
+          minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC,
+          // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
+          anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+          domain: gradeDomain ? gradeDomain.name : null,
+          samplePoints: points.length, cellsEstimated: grid.estimated,
+          singleHoleCells: grid.singleHoleCells, meanGradeInShell,
+          generatedAt: new Date().toISOString(),
+        };
+        mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\n${numericMethod.toUpperCase()} on ${points.length} points, ${cs} m cells${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed${closure === "artificial" ? " (artificially closed — see panel)" : ""}` : "\n(open shell)"}` };
+        implicitGroupRef.current?.add(mesh);
+        const id = `impl_${Date.now()}_numeric_${symbol}`;
+        implicitMeshesRef.current[id] = mesh;
+        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params }]);
+        setNotices((p) => [...p, `Added "${label}": ${points.length} sample point${points.length === 1 ? "" : "s"} (${intervals.length} ${numericUseComposites ? `${numericCompositeLength} m composite` : "raw interval"}${intervals.length === 1 ? "" : "s"}, ${dropped} dropped, ${above} at/above cutoff${clamped ? `, ${clamped} negative grade${clamped === 1 ? "" : "s"} clamped to zero` : ""}) → ${grid.nx}×${grid.ny}×${grid.nz} grid (${grid.estimated.toLocaleString()} cells estimated, ${grid.skipped.toLocaleString()} outside the search radius${grid.singleHoleCells ? `, ${grid.singleHoleCells.toLocaleString()} informed by only ONE hole` : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : `, open (${vol.openEdgeCount} open edges — shell reaches the edge of the estimated region)`}. Exploration target volume only — not a Mineral Resource.`]);
+        if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
+        fitBox(new THREE.Box3().setFromObject(mesh));
+      } catch (e) {
+        setNotices((p) => [...p, `Numeric model failed: ${e.message || e}`]);
+      }
+      setTaskProgress?.(null);
+      setNumericBusy(false);
+    }, 40);
+  }, [numericSymbol, assayElements, assays, collars, survey, numericCutoff, numericCellSize, numericSearchRadius, numericMethod, numericUseComposites, numericCompositeLength, numericMinCoverage, numericCloseShell, numericPadding, numericCapValue, numericMinHoles, numericIncludeQAQC, fitBox, setTaskProgress, anisotropy, domains, modelDomainId]); // anisotropy/domains/modelDomainId: TASKS.csv #273
 
   const toggleImplicitSurface = useCallback((id) => {
     setImplicitSurfaces((p) => p.map((s) => {
@@ -2827,22 +3474,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const surf = implicitSurfaces.find((s) => s.id === id);
     if (!mesh?.geometry || !surf) return;
     const baseName = (surf.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
+    // TASKS.csv #269 — every exported mesh carries its own parameter provenance + the "not a Mineral
+    // Resource estimate" stamp, so it can't come back later stripped of the assumptions behind it.
+    const prov = surf.params || null;
+    const extra = { epsg: project?.epsg, densityTPerM3: surf.density ?? null, volumeM3: computeMeshVolume(mesh.geometry).volumeM3 };
     try {
       if (format === "obj") {
-        const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current);
+        const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra);
         await saveFile({ suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content, encoding: "text" });
       } else if (format === "dxf") {
-        const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current);
+        const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current, prov, extra);
         await saveFile({ suggestedName: `${baseName}.dxf`, filters: [{ name: "AutoCAD DXF", extensions: ["dxf"] }], content, encoding: "text" });
       } else if (format === "glb") {
-        const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current);
+        const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current, prov, extra);
         await saveFile({ suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: uint8ToBase64(new Uint8Array(buf)), encoding: "base64" });
       }
       setNotices((p) => [...p, `Exported "${surf.name}" as ${format.toUpperCase()} (real-world coordinates).`]);
     } catch (err) {
       setNotices((p) => [...p, `Export failed for "${surf.name}": ${err.message}`]);
     }
-  }, [implicitSurfaces]);
+  }, [implicitSurfaces, project?.epsg]);
 
   // TASKS.csv #188 — "Our planned drill holes need the option to get exported to csv." One row per
   // planned hole, real-world collar (x/y/z — same east/north/elevation convention every other export
@@ -3958,8 +4609,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [visibleHoles]);
 
   // ---------- generic import pipeline ----------
-  const openImportModal = (file, forceTarget) => {
+  const openImportModal = (file, forceTarget, chosenLayer = null) => {
     parseVectorFile(file, (data, err, meta) => {
+      // TASKS.csv #288 — a multi-layer .zip/.gpkg reports its layers instead of importing the first
+      // one; put the picker up and come back through this same function with the chosen layer name.
+      if (meta?.layerOptions) { setLayerPicker({ file, forceTarget, options: meta.layerOptions }); return; }
       if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); return; }
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && looksLikeAssay(headers)) {
@@ -3973,7 +4627,42 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
       setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-    });
+    }, chosenLayer);
+  };
+  // TASKS.csv #288 — {file, forceTarget, options} while the layer picker is open, null otherwise.
+  const [layerPicker, setLayerPicker] = useState(null);
+
+  // TASKS.csv #289 (QGIS-specialist review) — the Browser panel's file filter used to be
+  // `[".csv", ".zip", ".shp", ".gpkg"]`, so .tif/.gxf rasters and .dxf CAD files — both fully
+  // supported elsewhere in this app (RasterModule/GeophysicsModule/dxf.js) — never appeared as
+  // importable in the tree at all. A geologist used to QGIS's Browser, where the Browser IS the one
+  // place you pull in ANY supported file, reaches for it here for an airborne grid or a surveyor's
+  // DXF and simply doesn't find it, with no explanation. The dispatch below is purely that filter-list
+  // gap being closed: each extension is routed to the handler that already exists for it, so a file
+  // picked from the Browser behaves exactly like the same file imported from its own module's button.
+  const importBrowserFile = async (file) => {
+    const name = (file?.name || "").toLowerCase();
+    // Drape elevation default, same rule RasterModule/GeophysicsModule use: roughly collar level if
+    // holes are loaded, else 0. The per-raster elevation control on the Raster tab moves it after.
+    const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
+    if (/\.(tiff?|gxf)$/.test(name)) {
+      try {
+        const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+        addRaster(raster);
+        setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Raster tab.`]);
+      } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }
+      return;
+    }
+    if (/\.dxf$/.test(name)) {
+      try {
+        const { polylines } = parseDXF(await file.text());
+        if (!polylines?.length) { setNotices((p) => [...p, `${file.name}: no polylines/LWPOLYLINEs found — nothing to import.`]); return; }
+        addBoundary({ name: file.name.replace(/\.dxf$/i, ""), polylines, elevation: defaultElevation });
+        setNotices((p) => [...p, `Imported "${file.name}" as a boundary (${polylines.length} polyline(s)) — edit or remove it under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.`]);
+      } catch (err) { setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]); }
+      return;
+    }
+    openImportModal(file);
   };
 
   // same pipeline as CSV import, just fed from a database query result instead of a parsed file
@@ -4053,10 +4742,41 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         reprojectNote = parts.length ? ` On import: ${parts.join("; ")}.` : "";
       }
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
-      const map = new Map([...collars, ...rows].map((c) => [c.hole_id, c]));
+
+      // TASKS.csv #283 — this used to be a bare last-write-wins merge
+      // (`new Map([...collars, ...rows].map(c => [c.hole_id, c]))`): re-dropping a collar file
+      // silently replaced every matching hole's coordinates with no diff and no chance to say no,
+      // which is quietly destructive when the file was grabbed from the wrong folder. Now the diff is
+      // computed FIRST (diffCollarImport, layers.js — pure and unit-verified) and the user is only
+      // interrupted when it would actually change something: a re-import of the identical file, or one
+      // that only adds new holes, still commits straight through with no extra click.
+      const diff = diffCollarImport(collars, rows);
+      let overwriteExisting = true;
+      if (diff.changed.length) {
+        const preview = diff.changed.slice(0, 6).map((c) => {
+          const moved = c.shift > 1e-6 ? ` — moves ${c.shift < 10 ? c.shift.toFixed(2) : c.shift.toFixed(0)} world units` : "";
+          return `  • ${c.hole_id}: ${c.fields.join(", ")} differ${moved}`;
+        }).join("\n");
+        overwriteExisting = window.confirm(
+          `${fileName} contains ${diff.changed.length} hole(s) that already exist in this project with DIFFERENT values:\n\n${preview}` +
+          `${diff.changed.length > 6 ? `\n  …and ${diff.changed.length - 6} more` : ""}\n\n` +
+          `OK — overwrite those ${diff.changed.length} collar(s) with this file's values (the old ones are lost).\n` +
+          `Cancel — keep the existing collars and import only the ${diff.newHoles.length} new hole(s).`
+        );
+      }
+      const existingIds = new Set(collars.map((c) => c.hole_id));
+      const applied = overwriteExisting ? rows : rows.filter((r) => !existingIds.has(r.hole_id));
+      const map = new Map([...collars, ...applied].map((c) => [c.hole_id, c]));
       setCollars(Array.from(map.values()));
-      setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(rows.map((r) => [r.hole_id, true])) }));
-      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}.${reprojectNote}`]);
+      setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
+      // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
+      // different coordinates and were updated") rather than a bare "Loaded N collars".
+      const parts = [];
+      if (diff.newHoles.length) parts.push(`${diff.newHoles.length} new`);
+      if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
+      if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
+      if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
+      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}`]);
     } else if (target === "survey") {
       const rows = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: Number(r[mapping.depth]), azimuth: Number(r[mapping.azimuth]), dip: flipDip(Number(r[mapping.dip])) }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
       setSurvey((prev) => [...prev, ...rows]);
@@ -4129,6 +4849,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
     parseVectorFile(file, (data, err, meta) => {
+      // TASKS.csv #288 — a multi-layer .zip/.gpkg in a multi-file drop opens the picker and pauses the
+      // queue here; the picker's own onPick/onCancel resumes it (openImportModal -> mapping modal ->
+      // commitImport/cancel -> processImportQueue), so the queue can't advance past an unanswered
+      // question or double-import the same file.
+      if (meta?.layerOptions) { setLayerPicker({ file, options: meta.layerOptions }); return; }
       if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); processImportQueue(); return; }
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
@@ -4175,6 +4900,37 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     importQueueTotalRef.current = files.length;
     importQueueRef.current = files;
     processImportQueue();
+  };
+
+  // TASKS.csv #293 — "Load sample project" from the empty 3D View. The single highest-leverage
+  // onboarding fix from the UX review: sample_data/ is now actually shipped in the installer (see
+  // package.json's build.extraResources and main.js's sample-data-path handler), and this is the
+  // in-app path to it, so a first-time user with no data of their own has something to look at
+  // within one click instead of an empty grid.
+  //
+  // Deliberately reuses the multi-file drag-and-drop queue verbatim (importQueueRef +
+  // processImportQueue) rather than a bespoke loader — the files are turned into real File objects
+  // by loadSampleFiles(), so every confidence check, column guess and notice behaves exactly as if
+  // the user had dragged these same CSVs onto the viewport. assay_wide.csv is intentionally NOT in
+  // this list: assays belong to the Geochem module's own import path (looksLikeAssay would just
+  // reject it here with a notice), and the user is pointed there by the closing notice instead.
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const SAMPLE_FILES = ["collars.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"];
+  const loadSampleProject = async () => {
+    if (sampleLoading || importActiveRef.current) return;
+    setSampleLoading(true);
+    try {
+      const files = await loadSampleFiles("harry_property", SAMPLE_FILES);
+      setNotices((p) => [...p, `Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Assays for these holes can be imported from the Geochem tab (sample_data/harry_property/assay_wide.csv).`]);
+      importActiveRef.current = true;
+      importQueueTotalRef.current = files.length;
+      importQueueRef.current = files;
+      processImportQueue();
+    } catch (err) {
+      setNotices((p) => [...p, `Couldn't load the sample project: ${err.message}`]);
+    } finally {
+      setSampleLoading(false);
+    }
   };
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
@@ -4881,8 +5637,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }} title="Toggle all layers in this group">
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Delete group (layers stay, just ungrouped)"
-                onClick={() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }, `Delete group "${g.name}" (its layers stay, just ungrouped)`)} />
             </div>
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
@@ -4943,7 +5698,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     settings the way rasters' drape-mode/elevation do), but the jump still goes to
                     Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
                     lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit / remove in Geophysics" onClick={() => goToModule("geophysics")} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit or remove this geophysics layer in the Geophysics tab")} />
               </div>
             )}
             {rasters.map((r) => (
@@ -4962,8 +5717,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit drape mode / elevation in Raster" onClick={() => goToModule("raster")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => removeRaster(r.id)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("raster"), "Edit drape mode / elevation for this raster in the Raster tab")} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
               </div>
             ))}
             <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10 }}>Imported via the Raster module</div>
@@ -4990,8 +5745,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <Shapes size={13} style={{ color: b.color || "#55606e", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>boundary</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit in Geophysics" onClick={() => goToModule("geophysics")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => removeBoundary(b.id)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit boundary "${b.name}" in the Geophysics tab`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), `Remove boundary "${b.name}"`)} />
               </div>
             ))}
             {omfObjects.map((o) => (
@@ -5004,8 +5759,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   : <Triangle size={13} style={{ color: o.color || "#55606e", flexShrink: 0 }} />}
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
                 <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>OMF {o.kind}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit in Geophysics" onClick={() => goToModule("geophysics")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => removeOmfObject(o.id)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit OMF object "${o.name}" in the Geophysics tab`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), `Remove OMF object "${o.name}"`)} />
               </div>
             ))}
             {voxelModels.map((v) => (
@@ -5020,8 +5775,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
                   style={{ width: 46, flexShrink: 0 }} title="Opacity"
                 />
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit legend / classify / palette in Geophysics" onClick={() => goToModule("geophysics")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => removeVoxelModel(v.id)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeVoxelModel(v.id), `Remove block/voxel model "${v.name}"`)} />
               </div>
             ))}
           </>
@@ -5041,7 +5796,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
               <Beaker size={13} style={{ color: "#55606e", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
-              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Import more / edit in Geochem" onClick={() => goToModule("geochem")} />
+              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
@@ -5104,9 +5859,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     {on && (
                       <Settings2
                         size={11}
-                        onClick={(ev) => { ev.stopPropagation(); setAssayStyleModalSymbol(e.symbol); }}
-                        title={`Style ${e.symbol}${styled ? " (customized)" : ""}`}
                         style={{ color: styled ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}
+                        {...iconAction((ev) => { ev.stopPropagation(); setAssayStyleModalSymbol(e.symbol); }, `Style ${e.symbol}${styled ? " (customized)" : ""}`)}
                       />
                     )}
                   </div>
@@ -5123,8 +5877,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <div onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: 12, color: customVisible[l.id] === false ? "#9aa5b3" : "#1a2028", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={13} /> : <Eye size={13} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({l.rows.length})</span>
             </div>
-            <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => zoomToCustom(l.id)} />
-            <Trash2 size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeCustomLayer(l.id)} />
+            <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), `Zoom to custom layer "${l.name}"`)} />
+            <Trash2 size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
           </div>
         ))}
         <div onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 12, color: "#55606e", textAlign: "center" }}>+ Add CSV layer</div>
@@ -5178,9 +5932,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                 {s.contacts?.length > 0 && <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
               </div>
-              <Layers3 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Edit what this section shows" onClick={() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }} />
-              <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); })} />
-              <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }} />
+              <Layers3 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
+              <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
+              <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }, `Delete section "${s.name}"`)} />
             </div>
           );
           return (
@@ -5228,7 +5982,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
                         <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({members.length})</span>
                       </div>
-                      <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }} title="Delete this whole group" />
+                      <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }, `Delete section group "${g.name}" and all ${members.length} section(s) in it`)} />
                     </div>
                     {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
                   </div>
@@ -5273,6 +6027,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
           <span style={{ fontSize: 11, color: "#1a2028", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
         </div>
+
+        {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
+            tight or smooth a fitted surface is. It was never set and never reported, so the same job
+            re-run could look different with nothing in the UI to point at. Auto = don't send it (GemPy's
+            own default, byte-identical to every run before this control existed); the effective value is
+            reported in the run notice and stamped into the surface's export provenance either way. */}
+        <div className="ge-section-label" style={{ marginTop: 12 }}>Surface stiffness (advanced)</div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6, lineHeight: 1.4 }}>
+          Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows
+          your control points more tightly (more curvature, more risk of over-fitting sparse data);
+          higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too
+          wobbly or too flat for the data.
+        </div>
+        <select value={rangeMultiplier} onChange={(e) => setRangeMultiplier(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }}>
+          <option value={0}>Auto — GemPy's own default</option>
+          <option value={0.5}>0.5x — tighter, follows the points more closely</option>
+          <option value={0.75}>0.75x — slightly tighter</option>
+          <option value={1.5}>1.5x — slightly smoother</option>
+          <option value={2}>2x — smoother, stiffer surfaces</option>
+        </select>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Search ellipsoid</span>
@@ -5363,6 +6137,64 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <FileBarChart2 size={13} /> Estimate grade into block model…
         </button>
 
+        {/* TASKS.csv #176 — lithology groups: lump codes logged differently for the same real unit
+            (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the
+            Layers "+ Group" header above and CoreOrientationCalculator's field-reference library —
+            a short, infrequently-edited list, not a modal workflow. */}
+        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>Lithology groups</span>
+          <span onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
+            style={{ cursor: "pointer", color: "#55606e", fontSize: 10, textTransform: "none", letterSpacing: 0 }} title="New lithology group">+ New group</span>
+        </div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one
+          modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their
+          own colors in 3D.
+        </div>
+        {lithoGroups.length === 0 && (
+          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>No groups yet.</div>
+        )}
+        {lithoGroups.map((g) => {
+          const open = expandedLithoGroupId === g.id;
+          const codesInGroup = g.codes || [];
+          const crossCuts = lithoGroupCrossCuts(g);
+          const role = lithoGroupRole(g);
+          return (
+            <div key={g.id} style={{ border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6, background: "#f4f5f7" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
+                <div onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
+                  {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </div>
+                <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend color for this group"
+                  style={{ width: 20, height: 18, padding: 0, border: "1px solid #d9dce1", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                  onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title="Click to rename">
+                  {g.name} <span style={{ color: "#94a1b0" }}>({codesInGroup.length})</span>
+                </div>
+                {crossCuts && <span title="Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code" style={{ fontSize: 9, color: "#8a5555", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>X-cut</span>}
+                {!crossCuts && role === "overburden" && <span title="Every member is overburden — modelled as an overburden_base surface" style={{ fontSize: 9, color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
+                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete lithology group "${g.name}"? Its codes stay in the log — they just stop being modelled together.`)) removeLithoGroup(g.id); }, `Delete lithology group "${g.name}" (its codes stay in the log, just ungrouped)`)} />
+              </div>
+              {open && (
+                <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {litho_units.length === 0 && <div style={{ fontSize: 10, color: "#94a1b0" }}>No lithology codes loaded yet — import a litho CSV first.</div>}
+                  {litho_units.map((u) => {
+                    const on = codesInGroup.includes(u);
+                    return (
+                      <span key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
+                        title={on ? `Remove ${u} from this group` : `Add ${u} to this group`}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none",
+                          background: on ? "#1e3629" : "#ffffff", color: on ? "#8fd9ab" : "#55606e", border: `1px solid ${on ? "#3d6b52" : "#d9dce1"}` }}>
+                        <span style={{ width: 7, height: 7, borderRadius: 2, background: colorForLithology(u), flexShrink: 0 }} />{u}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
         <div className="ge-section-label" style={{ marginTop: 16 }}>Implicit model (beta)</div>
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
           Models the top contact of one unit from litho intervals, via GemPy in the Python sidecar.
@@ -5380,6 +6212,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               const role = roleForLithology(u);
               return <option key={u} value={u}>{u}{role !== "stratigraphic" ? ` (${role}${isCrossCuttingRole(role) ? ", cross-cutting" : ""})` : ""}</option>;
             })}
+            {/* TASKS.csv #176 — groups under their own optgroup; a mixed-role group gets no role
+                suffix (no guessing), a cross-cutting group is still offered HERE (this tool has no
+                non-crossing constraint), just labelled. */}
+            {lithoGroups.length > 0 && (
+              <optgroup label="Groups">
+                {lithoGroups.map((g) => {
+                  const role = lithoGroupRole(g);
+                  const xcut = lithoGroupCrossCuts(g);
+                  const empty = !(g.codes || []).length;
+                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || "no codes yet"}]{xcut ? " (cross-cutting)" : role && role !== "stratigraphic" ? ` (${role})` : ""}</option>;
+                })}
+              </optgroup>
+            )}
           </select>
           <button
             onClick={() => runImplicitModel(implicitTarget)}
@@ -5405,24 +6250,52 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               const role = roleForLithology(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? " (overburden)" : ""}</option>;
             })}
+            {/* TASKS.csv #176 — groups with ANY cross-cutting member are excluded here, same rail as
+                a raw cross-cutting code just above. */}
+            {lithoGroups.some((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)) && (
+              <optgroup label="Groups">
+                {lithoGroups.filter((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)).map((g) => {
+                  const empty = !(g.codes || []).length;
+                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || "no codes yet"}]{lithoGroupRole(g) === "overburden" ? " (overburden)" : ""}</option>;
+                })}
+              </optgroup>
+            )}
           </select>
         </div>
         {stackUnits.length === 0 && (
           <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>No units added yet.</div>
         )}
         {stackUnits.map((u, i) => {
-          const role = roleForLithology(u);
+          // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every
+          // member shares the role (mixed => plain, no guessing); a since-deleted group is flagged.
+          const grp = isLithoGroupKey(u) ? resolveLithoTarget(u) : null;
+          const role = isLithoGroupKey(u) ? (grp ? lithoGroupRole(grp) : null) : roleForLithology(u);
+          const display = isLithoGroupKey(u) ? (grp ? grp.name : "(deleted group)") : u;
           return (
           <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
             <span style={{ fontSize: 10, color: "#94a1b0", width: 14, flexShrink: 0 }}>{i + 1}</span>
-            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u}</div>
+            {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={`Group: ${(grp.codes || []).join(" + ")}`} />}
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: grp || !isLithoGroupKey(u) ? "#1a2028" : "#8a5555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? `Group: ${(grp.codes || []).join(" + ")}` : undefined}>{display}</div>
             {role === "overburden" && <span title="Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact" style={{ fontSize: 9, color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
-            <ChevronUp size={13} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} onClick={() => moveStackUnit(u, -1)} />
-            <ChevronDown size={13} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} onClick={() => moveStackUnit(u, 1)} />
-            <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeStackUnit(u)} />
+            <ChevronUp size={13} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), `Move "${u}" up in the stratigraphic stack`)} />
+            <ChevronDown size={13} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), `Move "${u}" down in the stratigraphic stack`)} />
+            <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), `Remove "${u}" from the stratigraphic stack`)} />
           </div>
           );
         })}
+        {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
+        <label style={{ display: "block", fontSize: 10, color: "#55606e", marginTop: 6 }} title="Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).">
+          Unit relationship
+          <select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
+            <option value="erode">Erode — younger units truncate older (unconformity)</option>
+            <option value="onlap">Onlap — units drape/terminate against those below (conformable pile)</option>
+          </select>
+        </label>
+        <div style={{ fontSize: 9.5, color: "#94a1b0", margin: "4px 0 6px", lineHeight: 1.45 }}>
+          {stackRelation === "erode"
+            ? "Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape."
+            : "Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Usually the right choice for a layered volcanic/sedimentary sequence — including the VMS-hosting stratigraphy this app is built around — and the default."}
+        </div>
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}
@@ -5452,6 +6325,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
           title="Pole-plot / great-circle stereonet of the Structure layer's dip/azimuth picks"
         ><Milestone size={13} /> Stereonet (QC picks)</button>
+        {/* TASKS.csv #277 — the downhole (tadpole) view, sitting next to the Stereonet because the two
+            are the pair a geologist works structural data with: this one answers "where in the hole,
+            and does it change at a contact", the stereonet answers "what is the orientation
+            population". Neither replaces the other, and this one is normally opened first. */}
+        <button
+          onClick={() => setTadpoleOpen(true)}
+          disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth))}
+          style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
+          title="Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole"
+        ><Milestone size={13} /> Downhole structure (tadpole)</button>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
             <option value="">Choose a structure type…</option>
@@ -5466,10 +6349,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </div>
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Alteration modeling (beta)</div>
+        {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
+            GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
+            closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
-          Models an alteration halo from interval tops for one assemblage — same mechanic as the
-          lithology tool (structure dip/azimuth if available, otherwise estimated), sourced from the
-          Alteration layer.
+          Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a
+          0/1 "altered?" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the
+          lithology/structural tools this makes no assumption about which way is "up" — a halo wraps its
+          conduit rather than draping like a contact. Runs in-app, no Python sidecar needed.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
@@ -5478,12 +6365,168 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget)}
-            disabled={!alterationTarget || implicitBusy}
-            title="Requires the Python sidecar (see status bar) with gempy installed"
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: alterationTarget && !implicitBusy ? 1 : 0.5, cursor: alterationTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? <span style={{ fontSize: 11 }}>…</span> : <Layers3 size={14} />}</button>
+            disabled={!alterationTarget || alterationBusy}
+            title="Build a closed alteration-halo envelope from the logged intervals (runs in-app)"
+            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
+          >{alterationBusy ? <span style={{ fontSize: 11 }}>…</span> : <Layers3 size={14} />}</button>
         </div>
-        {implicitBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Running — this calls the Python sidecar. Usually a few seconds, but the first run after the sidecar starts can take well over a minute (GemPy's own import is heavy) — it's still working even if the progress bar sits for a while.</div>}
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <label style={{ ...miniField }} title="Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).">Cell size (m)
+            <input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          </label>
+          <label style={{ ...miniField }} title="Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).">Search (m)
+            <input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          </label>
+        </div>
+        <div style={{ fontSize: 9.5, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          0 = auto (derived from your own hole spacing). The model domain and the anisotropy trend are
+          honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
+          under-supported contact picks, which a closed envelope has none of.
+        </div>
+        {alterationBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
+
+        {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
+            sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
+            Generated surfaces list below like any GemPy surface. */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Numeric implicit model (grade shell)</div>
+        {/* TASKS.csv #269 — standing, unmissable framing. The QP review's explicit recommendation was
+            NOT to add a Measured/Indicated/Inferred classifier (that is a QP's professional judgement,
+            and deriving a regulatory label from a search radius would launder a parameter choice into
+            a regulatory term). The real live risk is the opposite one: the app emitted confident
+            tonnages with zero classification context. This is the fix — framing, not features. */}
+        <div style={{ fontSize: 10.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
+          <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
+          visualise and target mineralisation. It has no anisotropy, no variogram, no classification and
+          no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
+          it must not be reported publicly as one.
+        </div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          Builds a wireframe envelope of everything at or above a cutoff grade directly from
+          assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff.
+          Runs in-app, no Python sidecar needed.
+          {/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+              shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
+              are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
+              filter deliberately still isn't, and the panel says so instead of leaving the difference
+              for the user to discover. */}
+          {" "}It honours the model domain and the anisotropy trend set above. It does <strong>not</strong>{" "}
+          apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported
+          contact picks, and dropping isolated assays would delete grade rather than improve the shell.
+        </div>
+        {(() => {
+          const symbols = assayElements.map((e) => e.symbol);
+          const sym = numericSymbol || symbols[0] || "";
+          const unit = assayElements.find((e) => e.symbol === sym)?.unit || "ppm";
+          const canRun = symbols.length > 0 && collars.length > 0 && !numericBusy && Number.isFinite(numericCutoff);
+          return (
+            <>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <label style={{ ...miniField }} title="Assay element to model">Element
+                  <select value={sym} onChange={(e) => setNumericSymbol(e.target.value)} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
+                    {symbols.length === 0 && <option value="">— no assays —</option>}
+                    {symbols.map((s) => <option key={s} value={s}>{s} ({assayElements.find((e) => e.symbol === s)?.unit || "ppm"})</option>)}
+                  </select>
+                </label>
+                {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.
+                    Numerically identical for a solid, but a cutoff typo of one order of magnitude is a
+                    real risk, so show the unit the user actually thinks in and keep ppm in the tooltip. */}
+                <label style={{ ...miniField }} title={`Iso-value: the shell encloses every interpolated cell at or above this grade.${PRECIOUS_METALS.has(sym) && unit === "ppm" ? " Displayed as g/t; stored as ppm \u2014 numerically identical for a solid (1 g/t = 1 ppm)." : ""}`}>Cutoff ({PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit})
+                  <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <label style={{ ...miniField }} title="Interpolation grid cell size (cubic). Smaller = smoother shell but more cells; capped by the same block limit as grade estimation.">Cell (m)
+                  <input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+                {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
+                    unbounded search made every sample a candidate for every cell (measured: 81 s of
+                    blocked main thread at 62,500 cells x 5,000 points, 250 s at the block cap). 0 now
+                    means "cap at the grid diagonal", which is a no-op mathematically and a real bound
+                    computationally. */}
+                <label style={{ ...miniField }} title="No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.">Search (m)
+                  <input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+                <label style={{ ...miniField }} title="Extends the grid past the outermost sample so the shell can close beyond the last hole">Pad (m)
+                  <input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-end" }}>
+                <label style={{ ...miniField }}>Method
+                  <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }}>
+                    <option value="idw2">Inverse distance (power 2)</option>
+                    <option value="idw3">Inverse distance (power 3)</option>
+                    <option value="nn">Nearest neighbour</option>
+                  </select>
+                </label>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation, TASKS #118)">
+                <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />
+                Composite first
+                {numericUseComposites && (
+                  <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title="Composite length (m)" />
+                )}
+                {numericUseComposites && <span style={{ fontSize: 10, color: "#94a1b0" }}>m</span>}
+              </label>
+              {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
+              {numericUseComposites && (
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4 }} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.">
+                  Min coverage
+                  <input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />
+                  <span style={{ fontSize: 10, color: "#94a1b0" }}>%</span>
+                </label>
+              )}
+              <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                {/* TASKS.csv #259 — high-grade capping was implemented in compositeDownhole and wired
+                    only into CompositingModal; the grade shell composited uncapped, so a single bonanza
+                    assay drove IDW² across its whole search neighbourhood. */}
+                <label style={{ ...miniField }} title="Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au in an epithermal system, estimating without a cap overstates grade.">High-grade cap ({PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit})
+                  <input type="number" min="0" step="any" placeholder="none" value={Number.isFinite(numericCapValue) ? numericCapValue : ""} onChange={(e) => setNumericCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+                {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies
+                    ~25 of them inside a 50 m radius, so it can never express "at least two holes must
+                    see this cell". This can. */}
+                <label style={{ ...miniField }} title="A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralisation' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.">Min holes
+                  <input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
+                </label>
+              </div>
+              {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
+                  Statistics but reached the grade shell unfiltered. */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.">
+                <input type="checkbox" checked={numericIncludeQAQC} onChange={(e) => setNumericIncludeQAQC(e.target.checked)} />
+                Include QC samples (standards/blanks/duplicates)
+              </label>
+              {/* TASKS.csv #257 — relabelled and now defaulting OFF. With this on, every grid node with
+                  no sample in range reads as below cutoff and the shell closes halfway to it: that wall
+                  is the SEARCH RADIUS, not a grade boundary, and computeMeshVolume happily calls the
+                  result watertight. Volume then scales as R³ while looking converged and stable. */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.">
+                <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />
+                Close shell artificially at the search-radius boundary (volume becomes an assumption)
+              </label>
+              {numericCloseShell && (
+                <div style={{ fontSize: 9.5, color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>
+                  Part of this shell's boundary will not be a grade boundary — it is where the search
+                  radius ran out of samples. Its volume will depend on your search radius, not only on
+                  the data.
+                </div>
+              )}
+              {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
+              {!(numericSearchRadius > 0) && (
+                <div style={{ fontSize: 9.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
+                  With no search radius, every grid cell is estimated from the whole dataset — the run can
+                  take a minute or more and the window will be unresponsive while it does. Set a real
+                  search radius unless you specifically want an unbounded first pass.
+                </div>
+              )}
+              <button
+                onClick={runNumericModel}
+                disabled={!canRun}
+                title={symbols.length ? (collars.length ? "Interpolate grades onto a grid and extract the cutoff iso-surface" : "Load collars first") : "Import assays first"}
+                style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
+              ><Shapes size={13} /> {numericBusy ? "Running…" : `Generate ${sym || "grade"} shell`}</button>
+            </>
+          );
+        })()}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Generated surfaces</div>
         {implicitSurfaces.length === 0 && (
@@ -5503,8 +6546,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <div onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Type & relationships">
                   {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
-                <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Zoom to this surface" onClick={() => zoomToImplicitSurface(s.id)} />
-                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeImplicitSurface(s.id)} />
+                <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
+                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeImplicitSurface(s.id), `Remove surface "${s.name}"`)} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
@@ -5524,7 +6567,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {relLabel} <span style={{ color: "#55606e" }}>{target ? target.name : "(removed surface)"}</span>
                         </div>
-                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeSurfaceRelationship(s.id, i)} />
+                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), `Remove this relationship from surface "${s.name}"`)} />
                       </div>
                     );
                   })}
@@ -5553,33 +6596,101 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Volume &amp; tonnage</div>
                   {expandedSurfaceVolume ? (
                     <>
+                      {/* TASKS.csv #268 — computeMeshVolume documents that it assumes scene units are
+                          metres; the panel printed m³/t unconditionally. A project left in geographic
+                          degrees, or in feet, produced a confidently-labelled number in the wrong unit
+                          with no complaint. dataQC already warns about a missing EPSG; that warning
+                          never reached here. */}
+                      {isMetricProjectedEpsg(project?.epsg) !== true ? (
+                        <div style={{ fontSize: 10, color: "#a95555", lineHeight: 1.45, marginBottom: 6 }}>
+                          {project?.epsg
+                            ? `This project's CRS (EPSG:${project.epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.`
+                            : "No CRS is set for this project."}
+                          {" "}Volume and tonnage assume the coordinates are in metres, so nothing here can
+                          be reported in m³ or tonnes until a projected, metre-based CRS is set (Project
+                          settings). The mesh itself is unaffected.
+                        </div>
+                      ) : (
+                      <>
                       <div style={{ fontSize: 11, color: "#1a2028", marginBottom: 4 }}>
                         Volume: <strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
                       </div>
-                      {!expandedSurfaceVolume.watertight && (
-                        <div style={{ fontSize: 10, color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>
-                          This surface isn't a closed solid ({expandedSurfaceVolume.openEdgeCount} open edge{expandedSurfaceVolume.openEdgeCount === 1 ? "" : "s"} — likely clipped against a domain, or a single draped/fault sheet). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.
+                      {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
+                          !watertight-only caution never fired for the single most misleading case in
+                          the whole tool. Closure mode is recorded on the surface at generation time. */}
+                      {s.closure === "artificial" && (
+                        <div style={{ fontSize: 10, color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
+                          <strong>This shell was closed artificially.</strong> Part of its boundary is not a
+                          grade boundary — it is where the search radius ran out of samples. The volume
+                          therefore depends on your search radius, not only on the data: doubling the search
+                          radius roughly multiplies the volume by eight. Treat it as a visualisation of where
+                          grades might extend, not a measured volume.
                         </div>
                       )}
+                      {/* TASKS.csv #263 — the watertight test is a manifold test, not a connectivity
+                          test: two disjoint balloons 200 m apart are each closed and report as one
+                          volume. Union-find over the indexed mesh says how many bodies there really are. */}
+                      {expandedSurfaceVolume.componentCount > 1 && (
+                        <div style={{ fontSize: 10, color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
+                          This shell is <strong>{expandedSurfaceVolume.componentCount} separate bodies</strong> totalling {expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³, not one continuous body.
+                        </div>
+                      )}
+                      {!expandedSurfaceVolume.watertight && (
+                        <div style={{ fontSize: 10, color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>
+                          This surface isn't a closed solid ({expandedSurfaceVolume.openEdgeCount} open edge{expandedSurfaceVolume.openEdgeCount === 1 ? "" : "s"}). That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.
+                        </div>
+                      )}
+                      {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
+                          CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
+                      {s.params?.meanGradeInShell != null && (
+                        <div style={{ fontSize: 10.5, color: "#1a2028", marginBottom: 4 }}>
+                          Mean interpolated grade inside the shell: <strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
+                          <span style={{ color: "#94a1b0" }}> — not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {s.params.cutoff} cutoff).</span>
+                        </div>
+                      )}
+                      {/* TASKS.csv #264 — no more silent 2.7 prefill: a bold tonnage the user never
+                          authorised a density for is exactly the number that gets quoted. */}
                       <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ flexShrink: 0 }}>Density (t/m³ or g/cm³)</span>
                         <input
-                          type="number" min={0} step={0.01}
-                          value={s.density ?? 2.7}
+                          type="number" min={0} step={0.01} placeholder="required"
+                          value={s.density ?? ""}
                           onChange={(e) => setSurfaceDensity(s.id, e.target.value === "" ? "" : Number(e.target.value))}
                           style={{ ...smallSel, width: 70 }}
                         />
                       </label>
                       {(() => {
-                        const tonnage = computeTonnage(expandedSurfaceVolume.volumeM3, Number(s.density ?? 2.7));
+                        const tonnage = computeTonnage(expandedSurfaceVolume.volumeM3, Number(s.density));
                         return tonnage != null ? (
-                          <div style={{ fontSize: 11, color: "#1a2028" }}>
-                            Tonnage: <strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
-                          </div>
+                          <>
+                            <div style={{ fontSize: 11, color: "#1a2028" }}>
+                              Tonnage: <strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
+                            </div>
+                            {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
+                            <div style={{ fontSize: 9.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
+                              <strong>Exploration target volume only — not a Mineral Resource.</strong> Public
+                              disclosure of a tonnage requires an estimate prepared by a Qualified Person.
+                              {/* TASKS.csv #264 */}
+                              {" "}In-situ, dry, undiluted tonnes at the density you entered. No mining dilution,
+                              mining recovery, metallurgical recovery or moisture is applied. Bulk density here is
+                              a single assumed value, not a measured one — a real estimate uses measured SG by domain.
+                            </div>
+                          </>
                         ) : (
-                          <div style={{ fontSize: 10, color: "#94a1b0" }}>Enter a density above 0 to compute tonnage.</div>
+                          <div style={{ fontSize: 10, color: "#94a1b0" }}>Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.</div>
                         );
                       })()}
+                      </>
+                      )}
+                      {/* TASKS.csv #270 (LOW-3) — the parameter block that produced this surface, so a
+                          number can be reproduced and audited rather than re-derived from memory. */}
+                      {s.params && (
+                        <div style={{ fontSize: 9.5, color: "#55606e", marginTop: 8, lineHeight: 1.5 }}>
+                          <div style={{ color: "#94a1b0", marginBottom: 2 }}>Parameters used</div>
+                          {s.params.element} cutoff {s.params.cutoff} {s.params.unit} · {String(s.params.method).toUpperCase()} · search {Math.round(s.params.searchRadiusM)} m{s.params.searchRadiusWasUnlimited ? " (unlimited, capped at the grid diagonal)" : ""} · {s.params.cellSizeM} m cells · pad {s.params.paddingM} m · {s.params.composited ? `${s.params.compositeLengthM} m composites` : "raw intervals"} · cap {s.params.capValue == null ? "none" : s.params.capValue} · min {s.params.minHoles} hole{s.params.minHoles === 1 ? "" : "s"} · QC {s.params.includeQAQC ? "included" : "excluded"} · closure {s.params.closure} · {s.params.samplePoints} sample points · {s.params.cellsEstimated.toLocaleString()} cells estimated{s.params.singleHoleCells ? ` (${s.params.singleHoleCells.toLocaleString()} from a single hole)` : ""}
+                          <div style={{ color: "#94a1b0", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Not saved with the project yet (see TASKS #52) — export the mesh to keep this record.</div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div style={{ fontSize: 10, color: "#94a1b0" }}>No mesh geometry found for this surface.</div>
@@ -5623,7 +6734,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }}>
                   {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
-                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => deleteDomain(d.id)} />
+                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), `Delete domain "${d.name}"`)} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
@@ -5637,7 +6748,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           {fault ? fault.name : "(deleted fault)"} <span style={{ color: "#55606e" }}>— side {c.side === 1 ? "A" : "B"}</span>
                         </div>
                         <button onClick={() => flipDomainConstraint(d.id, i)} title="Flip side" style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: 10 }}>Flip</button>
-                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => removeDomainConstraint(d.id, i)} />
+                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), `Remove this fault constraint from domain "${d.name}"`)} />
                       </div>
                     );
                   })}
@@ -5685,7 +6796,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Planned drillholes ({plannedHoles.length})</span>
           {plannedHoles.length > 0 && (
-            <FileBarChart2 size={13} style={{ cursor: "pointer", color: "#55606e" }} onClick={exportPlannedHolesCSV} title="Export all planned holes to CSV" />
+            <FileBarChart2 size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(exportPlannedHolesCSV, "Export all planned holes to CSV")} />
           )}
         </div>
         <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
@@ -5723,8 +6834,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </>
         )}
 
+        {/* TASKS.csv #298 — deliberately NOT a live region: the floating toast above already announces
+            each new notice, and a second live region over the same message would make a screen reader
+            read every message twice. This is the persistent record of the same messages, so it just
+            gets a name so it can be found by landmark/region navigation. */}
         {notices.length > 0 && (
-          <div style={{ marginTop: 14, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10, color: "#7b8794", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
+          <div role="region" aria-label="Recent messages" style={{ marginTop: 14, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10, color: "#7b8794", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
             {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
           </div>
         )}
@@ -5733,7 +6848,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {sidebarTab === "home" && (<>
         <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title="Drag to resize the Browser panel" />
         <div style={{ height: browserHeight, flexShrink: 0 }}>
-          <DbBrowserPanel onImportFile={openImportModal} onImportRows={openImportFromRows} />
+          <DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} />
         </div>
       </>)}
       </div>
@@ -5742,9 +6857,39 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line
+            ("Import collars, or drag a CSV in") on the very first tab every user lands on, while
+            Geochem and Geophysics both had full multi-paragraph empty states explaining every
+            accepted format in the reader's own vocabulary. Ported that same pattern here: what the
+            tab is for, exactly what a collar file needs, what else can be dropped, and — per
+            TASKS.csv #293 — a one-click way to see the app working with real data before you've
+            got any of your own. The wrapper stays pointerEvents:none so it never eats an orbit
+            drag on the canvas behind it; only the card itself re-enables pointer events. */}
         {!collars.length && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", color: "#94a1b0", fontSize: 13 }}>
-            Import collars, or drag a CSV in
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", padding: 20 }}>
+            <div style={{ pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", border: "1px solid #d9dce1", borderRadius: 8, padding: "18px 20px", color: "#55606e", fontSize: 12, lineHeight: 1.55, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+              <div style={{ fontSize: 14, color: "#1a2028", fontWeight: 600, marginBottom: 8 }}>Nothing loaded yet</div>
+              <div style={{ marginBottom: 8 }}>
+                This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a <b>collar</b> file.
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                Use <b>Import ▸ Collars</b> in the panel on the left, or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; grids, GeoTIFFs and survey lines in <b>Geophysics</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
+              </div>
+              <button
+                onClick={loadSampleProject}
+                disabled={sampleLoading}
+                title="Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers"
+                style={{ background: "#2f6f9f", border: "1px solid #2a6291", color: "#fff", borderRadius: 6, padding: "8px 12px", fontSize: 12, fontFamily: "inherit", cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}
+              >
+                {sampleLoading ? "Loading sample project…" : "Load sample project (Harry property, 37 real holes)"}
+              </button>
+              <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: 7 }}>
+                No data of your own yet? This loads a real 37-hole dataset from BC's public ARIS drillhole database (report #37584) so you can see what a full project looks like. Some interval layers in it are synthesized — the bundled README says exactly which.
+              </div>
+            </div>
           </div>
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
@@ -5781,11 +6926,27 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {sectionMode && sectionPreview && (
           <div style={{ position: "absolute", top: 12, left: 12, fontSize: 11, color: "#8fd9ab", background: "#ffffff", padding: "6px 10px", borderRadius: 6, border: "1px solid #3d6b52" }}>Start point set — click the end point</div>
         )}
-        {toast && (
-          <div key={toast.key} style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", fontSize: 11.5, color: "#1a2028", background: "#ffffff", padding: "8px 14px", borderRadius: 7, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "none" }}>
-            {toast.text}
-          </div>
-        )}
+        {/* TASKS.csv #298 — the toast is now a real ARIA live region, so setNotices() messages reach a
+            screen-reader user instead of only sighted ones. Two details matter here:
+            1. The live region WRAPPER is rendered unconditionally, with only its contents appearing
+               and disappearing. A live region that gets inserted into the DOM at the same moment as
+               its text is routinely missed by screen readers — the region has to already be there
+               and observed for the text change to be announced.
+            2. Errors/failures go out as "assertive" (interrupt), everything else "polite" (wait for
+               a pause). A self-dismissing 5-second toast with no announcement at all was the worst
+               possible combination for this audience — the messages themselves are specific and
+               actionable, they were just silent. */}
+        <div
+          aria-live={toast && /couldn'?t|can'?t|cannot|failed|error|unable|invalid|unsupported|only \./i.test(toast.text) ? "assertive" : "polite"}
+          aria-atomic="true"
+          style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", pointerEvents: "none" }}
+        >
+          {toast && (
+            <div key={toast.key} style={{ fontSize: 11.5, color: "#1a2028", background: "#ffffff", padding: "8px 14px", borderRadius: 7, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
+              {toast.text}
+            </div>
+          )}
+        </div>
         {/* TASKS.csv #198 (part 3) — QGIS-style "enter a Layout Viewport" banner. Everything below the
             camera is already live and interactive (the existing orbit-drag/wheel handlers on this same
             canvas), so this banner is the ONLY new UI the feature needs — just a way to tell the user
@@ -5934,6 +7095,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         />
       )}
 
+      {/* TASKS.csv #288 — multi-layer .zip/.gpkg layer picker. Cancelling resumes the multi-file drop
+          queue exactly like cancelling the mapping modal does, so a mixed drop doesn't stall. */}
+      {layerPicker && (
+        <LayerPickerModal
+          fileName={layerPicker.file.name}
+          options={layerPicker.options}
+          onPick={(name) => { const { file, forceTarget } = layerPicker; setLayerPicker(null); openImportModal(file, forceTarget, name); }}
+          onCancel={() => { setLayerPicker(null); processImportQueue(); }}
+        />
+      )}
       {importModal && <ImportMappingModal modal={importModal} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {sectionEditOpen && (() => {
@@ -6007,7 +7178,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           panel the user can't see would look like nothing happened. */}
       {stereonetOpen && (
         <StereonetModal
-          picks={layers.structure || []}
+          picks={structurePicksWithHoleAttitude}
+          domains={domains}
+          domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
           onUseAsTrend={({ azimuth, dip }) => {
             setAnisotropy((p) => ({ ...p, enabled: true, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10 }));
@@ -6015,6 +7188,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             goToModule("modeling");
             setNotices((p) => [...p, `Anisotropy trend set from the stereonet mean orientation (dip ${dip.toFixed(1)}° / dipdir ${azimuth.toFixed(1)}°).`]);
           }}
+        />
+      )}
+      {/* TASKS.csv #277 — downhole structural (tadpole) plot. Fed the SAME hole-attitude-enriched picks
+          the stereonet's Terzaghi correction uses, so alpha means one thing across both tools. */}
+      {tadpoleOpen && (
+        <DownholeStructurePlot
+          picks={structurePicksWithHoleAttitude}
+          holes={holesForTadpole}
+          litho={layers.litho || []}
+          onClose={() => setTadpoleOpen(false)}
         />
       )}
       {coreOrientOpen && (
@@ -6086,7 +7269,7 @@ function ViewToolbar({
         </HoverToolInfo>
         {openPopover === "grid" && (
           <div style={popoverStyle}>
-            <div style={popoverHeader}>Grid<X size={13} style={{ cursor: "pointer", color: "#55606e" }} onClick={() => setOpenPopover(null)} /></div>
+            <div style={popoverHeader}>Grid<X size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
               <div onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "#e2a63c" : "#9aa5b3" }}>
                 {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -6113,7 +7296,7 @@ function ViewToolbar({
         </HoverToolInfo>
         {openPopover === "themes" && (
           <div style={{ ...popoverStyle, width: 260 }}>
-            <div style={popoverHeader}>Themes<X size={13} style={{ cursor: "pointer", color: "#55606e" }} onClick={() => setOpenPopover(null)} /></div>
+            <div style={popoverHeader}>Themes<X size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
             <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
               <input
                 type="text" placeholder="Theme name…" value={themeNameDraft}
@@ -6149,8 +7332,8 @@ function ViewToolbar({
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                     </div>
                   )}
-                  <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }} />
-                  <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} onClick={() => deleteTheme(t.id)} />
+                  <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
+                  <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => deleteTheme(t.id), `Delete theme "${t.name}"`)} />
                 </div>
               ))}
             </div>
@@ -6263,12 +7446,12 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
         <div onClick={onToggle} style={{ cursor: "pointer", color: visible ? "#e2a63c" : "#9aa5b3" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
         <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: visible ? "#1a2028" : "#6b7684", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
-        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={onZoom} title="Zoom to this layer" />}
-        {count > 0 && <ListFilter size={13} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={onInspect} title="Filter / legend / sources (full view)" />}
+        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
+        {count > 0 && <ListFilter size={13} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
         {/* TASKS.csv #63 — "unload" this layer's data entirely. Separate from the per-source removal
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
-        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={onClear} title="Remove all data from this layer" />}
+        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
         <div onClick={onUpload} style={{ cursor: "pointer", fontSize: 10.5, color: count ? "#e2a63c" : "#94a1b0", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
         {input}
       </div>
@@ -6324,6 +7507,8 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
           <option value="log">Log-linear</option>
           <option value="quantile">Histogram equalization (quantile)</option>
           <option value="normal">Normal distribution</option>
+          {/* TASKS.csv #291 — QGIS parity, see GeophysicsModule's copy of this picker. */}
+          <option value="jenks">Natural breaks (Jenks)</option>
         </select>
         <select value={palette} onChange={(e) => setPalette(e.target.value)} title="Colour ramp"
           style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028", maxWidth: 110 }}>
@@ -6408,7 +7593,7 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
             <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, marginBottom: 3 }}>
               <div style={{ flex: 1, minWidth: 0, color: "#6b7684", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
               <span style={{ color: "#94a1b0", flexShrink: 0 }}>{count}</span>
-              <Trash2 size={10} style={{ cursor: "pointer", color: "#6b7684", flexShrink: 0 }} onClick={() => onRemoveSource(src)} />
+              <Trash2 size={10} style={{ cursor: "pointer", color: "#6b7684", flexShrink: 0 }} {...iconAction(() => onRemoveSource(src), `Remove the ${count} row(s) imported from "${src}"`)} />
             </div>
           ))}
         </div>
@@ -6813,8 +7998,8 @@ function PlannedHoleRow({ hole, onUpdate, onRemove }) {
           {hole.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
         </div>
         <div onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
-        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "#55606e" }} onClick={() => setExpanded(false)} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "#55606e" }} onClick={() => setExpanded(true)} />}
-        <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }} />
+        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setExpanded(false), "Collapse this planned hole")} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setExpanded(true), "Expand this planned hole")} />}
+        <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }, `Remove planned hole "${hole.name || hole.id}"`)} />
       </div>
       <div style={{ marginTop: 3, fontSize: 10.5, color: "#94a1b0" }}>
         Az {Math.round(hole.azimuth)}° / Dip {Math.round(hole.dip)}° / {Math.round(hole.length)} m{toe ? ` — toe E ${toe.x.toFixed(0)} N ${toe.y.toFixed(0)} Elev ${toe.z.toFixed(0)}` : ""}

@@ -16,7 +16,7 @@
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
-import { getProj4Def, reprojectGrid, bilinearSample } from "./reproject.js";
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample } from "./reproject.js";
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
 // save. Raised from 1024 -> 2048 (TASKS.csv, user report of "imported in a really bad quality") —
@@ -133,6 +133,10 @@ export async function parseGeoTIFF(file) {
     dataUrl: canvas.toDataURL("image/png"),
     bandCount,
     epsgTag,
+    // TASKS.csv #287 — the colour-mapped RGBA pixels are handed back alongside the PNG data URL so
+    // buildRasterImport can reproject them directly (reprojectImageRGBA) without decoding the PNG it
+    // just encoded. Only the importer reads this; nothing persists it to the project file.
+    pixels: { width: outW, height: outH, data: imgData.data },
   };
 }
 
@@ -450,6 +454,7 @@ export async function parseGXF(file) {
     bandCount: 1,
     epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
     note: senseNote || null,
+    pixels: { width: outW, height: outH, data: imgData.data }, // TASKS.csv #287 — see parseGeoTIFF's note
   };
 }
 
@@ -459,17 +464,71 @@ export async function parseGXF(file) {
 // payload + a human-readable import message) so both modules' drop handlers and import buttons call
 // the SAME logic instead of two copies quietly drifting apart — each module still owns its own
 // busy/error UI state and calls the store's addRaster() itself.
-export async function buildRasterImport(file, { epsg, defaultElevation } = {}) {
+// TASKS.csv #287 (QGIS-specialist review, headline finding) — raster import used to have NO
+// reprojection and NO source-CRS override at all: on an EPSG mismatch it appended a warning sentence
+// and then imported the raster at its own raw tag coordinates anyway, treated as if it were already
+// in project-EPSG space. A .gxf grid (Geosoft Oasis montaj's plain-text export, the normal delivery
+// format for airborne mag/IP) carries no CRS tag at all, so there wasn't even a mismatch to warn
+// about. Two real failure modes this caused, both measured against real proj4
+// transforms: an airborne grid delivered in a neighbouring UTM zone (32610/UTM10N is extremely common
+// for BC data against this app's 3156/UTM9N default) landed 368 km away; and a same-zone,
+// different-datum source (raw WGS84 GPS orthophoto vs the NAD83(CSRS) project default) landed 2.2 m
+// off — close enough to pass visual QC and quietly corrupt anything digitized or measured off it.
+//
+// Now: `sourceEpsg` is an explicit user override (the "Source CRS (EPSG, optional)" field the vector
+// importers have had since #120/#205 — the raster side never got one), falling back to the file's own
+// GeoTIFF CRS tag. When that resolves to something different from the project EPSG and both codes are
+// ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
+// merely warned about. Every other case still imports as before, but now says explicitly which
+// assumption it fell back on rather than only mentioning it on a tag mismatch.
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg } = {}) {
   const isGxf = /\.gxf$/i.test(file.name);
   const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file);
-  const [xmin, ymin, xmax, ymax] = parsed.bbox;
-  let msg = `Imported "${parsed.name}" (${parsed.width}×${parsed.height}px, ${(xmax - xmin).toFixed(0)}×${(ymax - ymin).toFixed(0)} world units).`;
-  if (parsed.epsgTag && epsg && Number(parsed.epsgTag) !== Number(epsg)) {
-    msg += ` Note: this file's own CRS tag (EPSG:${parsed.epsgTag}) doesn't match the project's EPSG:${epsg} — no reprojection happens on import, so double-check it lines up with your drillholes.`;
+  let bbox = parsed.bbox;
+  let dataUrl = parsed.dataUrl;
+
+  // An explicit override always wins over the file's own tag — that's the whole point of the field
+  // (a wrong/absent embedded tag is exactly why the user is typing one in).
+  const overrideEpsg = sourceEpsg === "" || sourceEpsg == null ? null : Number(sourceEpsg);
+  const tagEpsg = parsed.epsgTag ? Number(parsed.epsgTag) : null;
+  const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
+  const projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
+  const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : "this file's own CRS tag";
+
+  let crsNote = "";
+  if (srcEpsg && projEpsg && srcEpsg !== projEpsg) {
+    const fromDef = getProj4DefSync(srcEpsg), toDef = getProj4DefSync(projEpsg);
+    if (fromDef && toDef && parsed.pixels) {
+      const [xmin, ymin, xmax, ymax] = parsed.bbox;
+      const { width, height, data } = parsed.pixels;
+      const rp = reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, width, height);
+      const canvas = document.createElement("canvas");
+      canvas.width = rp.width; canvas.height = rp.height;
+      const ctx = canvas.getContext("2d");
+      ctx.putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
+      bbox = rp.bbox;
+      dataUrl = canvas.toDataURL("image/png");
+      crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin).toFixed(0)} world units as a result.`;
+    } else {
+      crsNote = ` Warning: ${srcLabel} says EPSG:${srcEpsg}, which doesn't match the project's EPSG:${projEpsg}, but ${!parsed.pixels ? "this raster's pixels couldn't be re-sampled" : `EPSG:${!fromDef ? srcEpsg : projEpsg} isn't one GeoStrix can reproject`} — it was imported at its own raw coordinates, so it will NOT line up with your drillholes.`;
+    }
+  } else if (srcEpsg && projEpsg) {
+    crsNote = ` ${srcLabel[0].toUpperCase()}${srcLabel.slice(1)} matches the project's EPSG:${projEpsg} — no reprojection needed.`;
+  } else if (srcEpsg && !projEpsg) {
+    // A source CRS is known but there's nothing to check it against. Previously this produced no note
+    // at all, which is the same silence #287 is about — say which assumption is being made.
+    crsNote = ` ${srcLabel[0].toUpperCase()}${srcLabel.slice(1)} says EPSG:${srcEpsg}, but this project has no EPSG set, so nothing could be cross-checked or reprojected — the raster is assumed to already be in the project's EPSG. Set the project CRS and import it again if it doesn't line up.`;
+  } else if (!srcEpsg) {
+    crsNote = isGxf
+      ? " No CRS was given and GXF headers carry no CRS tag, so the grid's own coordinates are assumed to already be in the project's EPSG — if they're not, set \"Source CRS\" and import it again."
+      : " This file has no readable CRS tag and no Source CRS was set, so its own coordinates are assumed to already be in the project's EPSG — if they're not, set \"Source CRS\" and import it again.";
   }
-  if (isGxf) msg += " Assumes the grid's own coordinates already match the project's EPSG — GXF headers don't carry a standard CRS tag to cross-check against.";
+
+  const [bx0, by0, bx1, by1] = bbox;
+  let msg = `Imported "${parsed.name}" (${parsed.width}×${parsed.height}px, ${(bx1 - bx0).toFixed(0)}×${(by1 - by0).toFixed(0)} world units).`;
+  msg += crsNote;
   if (parsed.note) msg += parsed.note;
-  return { raster: { name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation }, msg };
+  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation }, msg };
 }
 
 // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a

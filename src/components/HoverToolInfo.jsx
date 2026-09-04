@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 
 // TASKS.csv #192 follow-up — user feedback on seeing the toolbar with a separate "i" badge beside
 // every tool icon: "we don't want that. We want to hover the mouse on the tool icon and get that info
@@ -13,17 +13,46 @@ import React, { useState } from "react";
 // onClick untouched, so the hover/click behaviors don't compete for the same element the way a native
 // `title` tooltip would if left in place alongside this (callers should drop `title` on any button
 // wrapped here, to avoid a redundant native tooltip stacking under this popover).
+// TASKS.csv #297 — the accessibility half of the same tooltip. The copy above is genuinely good, but
+// until now it existed ONLY as a mouse-hover <div>: the 3D View's most prominent, always-visible icon
+// row (grid / themes / measure / section-draw / snapshot / QC …) showed up in the accessibility tree
+// as a row of completely anonymous buttons, and the explanation never appeared on keyboard focus.
+// Fixed here rather than at each call site so the accessible name can't drift from the tooltip copy —
+// they're now literally the same two props:
+//   * `title` becomes the button's aria-label (short: "Grid", "Measure"),
+//   * `text` is always in the DOM in a visually-hidden node wired up as aria-describedby, so the full
+//     explanation reaches a screen reader whether or not the popover is currently shown,
+//   * and the popover itself now also opens on keyboard focus, not just mouse hover, so a sighted
+//     keyboard user tabbing along the row gets the same explanation a mouse user gets.
+// An aria-label already set by the caller wins — this only fills in a missing one.
+const srOnly = {
+  position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
+  overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0,
+};
+
 export default function HoverToolInfo({ title, text, width = 240, align = "left", suppress, children }) {
   const [hover, setHover] = useState(false);
-  const visible = hover && !suppress;
+  const [focused, setFocused] = useState(false);
+  const descId = useId();
+  const visible = (hover || focused) && !suppress;
+
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children, {
+        "aria-label": children.props["aria-label"] || title || undefined,
+        "aria-describedby": text ? descId : undefined,
+      })
+    : children;
 
   return (
     <span
       style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     >
-      {children}
+      {child}
+      {text && <span id={descId} style={srOnly}>{text}</span>}
       {visible && (
         <div
           style={{

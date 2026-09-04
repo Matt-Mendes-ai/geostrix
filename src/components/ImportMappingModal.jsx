@@ -5,6 +5,13 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 
+// TASKS.csv #299 — proj4js applies no real NAD27->NAD83 datum shift, so any of these codes silently
+// lands data ~100m off in BC. 4267 = NAD27 geographic, 26701-26722 = NAD27 UTM zones 1N-22N.
+function isNad27Epsg(v) {
+  const n = Number(v);
+  return n === 4267 || (n >= 26701 && n <= 26722);
+}
+
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -131,6 +138,15 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 everything else. Recognized codes: WGS84/NAD83/NAD27 geographic, WGS84 &amp; NAD83 UTM
                 zones, and NAD83(CSRS) UTM 7N–11N (BC).
               </div>
+              {isNad27Epsg(modal.sourceEpsg) && (
+                <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: 6, lineHeight: 1.4 }}>
+                  ⚠ NAD27 (TASKS.csv #299): this reprojection applies no NAD27→NAD83 datum shift — the
+                  underlying library doesn't support the NADCON/NTv2 grid that shift requires. Points
+                  will land roughly 100&nbsp;m off from where they should be in BC. If this data is from
+                  a pre-1990s BC assessment report or old claim map (the usual source of NAD27 coordinates
+                  here), expect that offset until a real datum-shift implementation ships.
+                </div>
+              )}
 
               {/* TASKS.csv #205 — a merged/regional dataset can have DIFFERENT rows in different
                   EPSGs (e.g. one collar list spanning two UTM zones), which the single Source CRS

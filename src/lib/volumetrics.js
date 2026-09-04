@@ -54,7 +54,37 @@ export function computeMeshVolume(geometry) {
     openEdgeCount,
     watertight: openEdgeCount === 0 && triCount > 0,
     triangleCount: triCount,
+    // TASKS.csv #263 — manifold-ness (every edge shared by exactly two triangles) is NOT connectivity:
+    // two disjoint balloons 200 m apart are each perfectly closed, so the mesh reports watertight with
+    // a single summed volume and nothing on screen says it's two separate bodies. Verified: two holes
+    // 200 m apart with a 50 m search radius produced exactly that, 1,051,167 m3 reported as one shape.
+    componentCount: countConnectedComponents(geometry, triCount, idxAt),
   };
+}
+
+// Union-find over triangle vertices — how many separate connected bodies the mesh is made of.
+// Trivial on an indexed mesh (marching cubes already welds shared grid-edge vertices, so two triangles
+// that touch genuinely share a vertex index); an unindexed mesh has no shared indices to union at all,
+// so this returns null rather than a confidently wrong 1-per-triangle answer.
+function countConnectedComponents(geometry, triCount, idxAt) {
+  if (!geometry?.index || triCount <= 0) return null;
+  const parent = new Map();
+  const find = (a) => {
+    let r = a;
+    while (parent.get(r) !== r) r = parent.get(r);
+    while (parent.get(a) !== r) { const nxt = parent.get(a); parent.set(a, r); a = nxt; }
+    return r;
+  };
+  const add = (a) => { if (!parent.has(a)) parent.set(a, a); };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+  for (let t = 0; t < triCount; t++) {
+    const i0 = idxAt(t * 3), i1 = idxAt(t * 3 + 1), i2 = idxAt(t * 3 + 2);
+    add(i0); add(i1); add(i2);
+    union(i0, i1); union(i1, i2);
+  }
+  const roots = new Set();
+  parent.forEach((_, v) => roots.add(find(v)));
+  return roots.size;
 }
 
 // Straight volume x density — density is the one input a user has to supply (bulk/specific gravity

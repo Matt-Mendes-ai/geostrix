@@ -201,6 +201,40 @@ export function base64ToFile(base64, name) {
   return new File([bytes], name);
 }
 
+// ---------- bundled sample data (TASKS.csv #293) ----------
+// Returns real browser File objects for a list of files inside the shipped sample_data/ folder, so
+// the "Load sample project" action in the 3D View's empty state can hand them straight to the same
+// parseVectorFile()/import-queue path a drag-and-drop of those same CSVs would take — no separate
+// import code path to keep in sync.
+//
+// Desktop: ask the main process where sample_data actually landed (repo in dev, <resources>/sample_data
+// in a packaged install — see main.js's sample-data-path handler), then read each file through the
+// existing fs-read-file bridge. Browser preview: Vite serves the repo root statically in dev, so the
+// same files are reachable at /sample_data/... — which keeps this feature testable in a plain
+// `vite` session exactly like the rest of the app's browser-fallback branches.
+export async function loadSampleFiles(subdir, names) {
+  const rel = (n) => `${subdir ? subdir + "/" : ""}${n}`;
+  if (d && d.sampleDataPath) {
+    const res = await d.sampleDataPath();
+    if (!res.ok) throw new Error(res.error || "Sample data folder not found.");
+    const sep = res.path.includes("\\") ? "\\" : "/";
+    const files = [];
+    for (const n of names) {
+      const r = await d.fsReadFile(`${res.path}${sep}${rel(n).split("/").join(sep)}`);
+      if (!r.ok) throw new Error(`${n}: ${r.error || "couldn't be read"}`);
+      files.push(base64ToFile(r.base64, n));
+    }
+    return files;
+  }
+  const files = [];
+  for (const n of names) {
+    const r = await fetch(`/sample_data/${rel(n)}`);
+    if (!r.ok) throw new Error(`${n}: sample data isn't available in this preview (HTTP ${r.status}).`);
+    files.push(new File([await r.blob()], n));
+  }
+  return files;
+}
+
 // ---------- SRTM tile fetch (see electron/main.js's fetch-srtm-tile handler) ----------
 // In Electron, proxied through the main process (sidesteps any CORS question, keeps the renderer's
 // network surface narrow — see main.js's comment). In a plain-browser dev session there's no main
@@ -350,6 +384,9 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
         extent, surfaces,
         resolution: opts.resolution || [40, 40, 40],
         relation: opts.relation || "erode",
+        // TASKS.csv #274 — omitted entirely (not sent as 1) when the user leaves it on Auto, so the
+        // request the sidecar sees is identical to a pre-#274 one in that case.
+        ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
       }),
       // Real bug found here: this used to be 60s, and a fetch that hits an AbortSignal timeout
       // throws the exact same generic error as a genuinely-unreachable sidecar, so a slow-but-
@@ -373,7 +410,10 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
       return { ok: false, error: formatSidecarErrorDetail(body?.detail, res.status) };
     }
     const data = await res.json();
-    return { ok: true, surfaces: data.surfaces };
+    // TASKS.csv #274 — rangeUsed/rangeDefault/cO are what the run notice and the exported surface's
+    // provenance report, so "why did this look different than last time" has an answer. Older sidecars
+    // don't send them; undefined then, and every consumer treats that as "unknown".
+    return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o };
   } catch (err) {
     // A user-triggered cancel (opts.signal aborted with this specific reason) gets its own quiet,
     // non-error message — distinct from a genuine timeout/connectivity problem, which the two branches

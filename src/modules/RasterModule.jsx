@@ -130,12 +130,20 @@ export default function RasterModule() {
   // are already loaded.
   const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
 
+  // TASKS.csv #287 — "Source CRS (EPSG, optional)", the field the vector/collar importers have had
+  // since #120/#205 and the raster side never got. Blank = fall back to the file's own CRS tag (a
+  // GeoTIFF GeoKey), which is still the common case; typed in = an explicit override, which is the
+  // ONLY way to correct a .gxf (no CRS tag exists in that format) or a GeoTIFF whose embedded tag is
+  // wrong/absent. Session state, not project state — it describes the file being imported, not the
+  // project (same reasoning as the import modal's own Source CRS field).
+  const [sourceEpsg, setSourceEpsg] = useState("");
+
   const importRaster = async (file) => {
     if (!file) return;
     setError(null);
     setBusy(true);
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg });
       addRaster(raster);
       setError({ info: true, text: msg });
     } catch (err) {
@@ -160,8 +168,25 @@ export default function RasterModule() {
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Raster drape (GeoTIFF / Geosoft GXF)
-          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet. Drag files in anywhere on this page, or use the button below.`} />
+          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
         </div>
+        {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
+            drag-dropped files too) because it has to be set before the file is read, not after. */}
+        <label style={{ display: "block", fontSize: 10.5, color: "#7b8794", marginBottom: 8 }}>
+          Source CRS (EPSG, optional)
+          <input
+            type="number" value={sourceEpsg} placeholder={`blank = use the file's own tag, else assume EPSG:${project?.epsg ?? "?"}`}
+            onChange={(e) => setSourceEpsg(e.target.value)}
+            title="The CRS the file's own coordinates are in. Leave blank to trust a GeoTIFF's embedded CRS tag. Set it for a .gxf (that format has no CRS tag at all) or when a file's tag is wrong — the raster is then reprojected into the project's EPSG on import."
+            style={{ width: "100%", boxSizing: "border-box", marginTop: 3, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 7px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" }}
+          />
+        </label>
+        {(Number(sourceEpsg) === 4267 || (Number(sourceEpsg) >= 26701 && Number(sourceEpsg) <= 26722)) && (
+          <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
+            ⚠ NAD27 (TASKS.csv #299): no NAD27→NAD83 datum shift is applied — this raster will land
+            roughly 100&nbsp;m off from where it should be in BC until a real datum-shift implementation ships.
+          </div>
+        )}
         <button onClick={() => fileInput.current.click()} style={pBtn} disabled={busy}>
           {busy ? <Loader2 size={13} className="spin" /> : <Image size={13} />} {busy ? "Reading…" : "Import GeoTIFF / GXF…"}
         </button>
@@ -198,8 +223,10 @@ export default function RasterModule() {
         <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: -4, marginBottom: 8 }}>
           For a scanned map or claim sketch with no embedded coordinates at all — click matching points and type their real-world X/Y.
         </div>
+        {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (
           <GeoreferencerModal
+            projectEpsg={project?.epsg}
             onClose={() => setGeorefOpen(false)}
             onImport={(raster) => {
               addRaster({ ...raster, elevation: defaultElevation });

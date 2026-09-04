@@ -34,14 +34,39 @@ export function inferUnit(header, symbol) {
   if (symbol === "Au") return "ppm";
   return MAJOR_PCT.has(symbol) ? "%" : "ppm";
 }
+// TASKS.csv #270 (LOW-1) - elements whose grade is universally quoted in g/t rather than ppm. The two
+// units are numerically identical for a solid (g/tonne = mg/kg = ppm), so this only ever changes the
+// LABEL next to a cutoff/cap field - but a cutoff typed one order of magnitude out is a real risk, and
+// showing the unit the user actually thinks in is the cheapest way to reduce it.
+export const PRECIOUS_METALS = new Set(["Au", "Ag", "Pt", "Pd"]);
+
+// TASKS.csv #261 — qualifier handling for censored assay values.
+//   "<x"  below detection limit  -> x/2  (half-detection substitution: standard practice)
+//   ">x"  OVER-RANGE             -> x    (the detection CEILING, NOT a fabricated multiple of it)
+// The ">" branch used to return v * 1.5, inventing 50% of grade in exactly the highest-leverage
+// samples in the dataset — a lab reporting ">100 ppm Au" means "this needs a gravimetric re-assay",
+// not "150 ppm". x1.5 is not a convention anywhere; reading over-range AT the ceiling is the
+// conservative and defensible choice, and the qualifier is now recorded so dataQC.js can tell the user
+// these are placeholders rather than letting the substitution stay invisible.
 export function parseAssayValue(raw) {
   if (raw === null || raw === undefined || raw === "") return null;
   if (typeof raw === "number") return raw;
   const s = String(raw).trim();
   if (s.startsWith("<")) { const v = parseFloat(s.slice(1)); return isNaN(v) ? null : v / 2; }
-  if (s.startsWith(">")) { const v = parseFloat(s.slice(1)); return isNaN(v) ? null : v * 1.5; }
+  if (s.startsWith(">")) { const v = parseFloat(s.slice(1)); return isNaN(v) ? null : v; }
   const v = parseFloat(s);
   return isNaN(v) ? null : v;
+}
+
+// The qualifier ('<' below detection / '>' over-range / null plain number) that parseAssayValue
+// applied, for callers that need to flag a value rather than just use it (dataQC's over-range warning).
+export function assayQualifier(raw) {
+  if (raw === null || raw === undefined || raw === "") return null;
+  if (typeof raw === "number") return null;
+  const s = String(raw).trim();
+  if (s.startsWith("<") && !isNaN(parseFloat(s.slice(1)))) return "<";
+  if (s.startsWith(">") && !isNaN(parseFloat(s.slice(1)))) return ">";
+  return null;
 }
 
 // element wt% -> oxide wt%
@@ -249,6 +274,28 @@ export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, element
 // data is still reported, but flagged via `coverage` (fraction 0..1) so a low-coverage composite (e.g.
 // a metre of missing/lost core) can be filtered out downstream rather than silently treated as a full
 // real sample.
+// TASKS.csv #286 — the same "exact duplicate" test compositeDownhole applies internally, exposed so
+// the compositing UI can TELL the user their input had duplicates rather than silently fixing it
+// behind their back (the finding's "or at minimum warn in the compositing UI"; this does both).
+// Counts rows dropped as exact duplicates, and separately the (hole_id, from, to) intervals that
+// appear more than once with DIFFERENT results — those are conflicts compositing deliberately does
+// NOT resolve, and they're the ones worth going back to the source data for.
+export function countDuplicateAssayIntervals(assays) {
+  const exact = new Set(), byInterval = new Map();
+  let exactDuplicates = 0;
+  const conflicting = new Set();
+  (assays || []).forEach((a) => {
+    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
+    const iv = `${a.hole_id}|${a.from}|${a.to}`;
+    const key = `${iv}|${JSON.stringify(a.values ?? null)}`;
+    if (exact.has(key)) { exactDuplicates++; return; }
+    exact.add(key);
+    if (byInterval.has(iv)) conflicting.add(iv);
+    byInterval.set(iv, key);
+  });
+  return { exactDuplicates, conflictingIntervals: conflicting.size };
+}
+
 export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {}) {
   const length = opts.length ?? 2;
   const minCoverage = opts.minCoverage ?? 0.5;
@@ -258,8 +305,26 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   if (length <= 0) return [];
 
   const byHole = new Map();
+  // TASKS.csv #286 (Micromine-specialist review) — exact-duplicate raw intervals are dropped BEFORE
+  // any length-weighting. dataQC.js's validateAssays already flags "Duplicate assay interval X–Ym —
+  // likely imported twice" as a real, acknowledged occurrence, but compositing itself had no defense
+  // if the user composited before cleaning it up: the `overlapping.forEach` loop below sums EVERY
+  // overlapping row, so a doubled row contributed its grade and its length twice. That doesn't just
+  // double a number — it silently re-weights the composite toward whichever interval happened to be
+  // duplicated (worked case verified for TASKS.csv #286: a duplicated high-grade metre pulls a 2 m
+  // composite from 5.5 to 7.0 g/t), which then flows straight into an estimation input.
+  //
+  // "Exact duplicate" deliberately includes the values payload, not just (hole_id, from, to): two rows
+  // over the same interval with DIFFERENT results are a genuine data conflict (a re-assay, a mislabeled
+  // sample), not a double-import, and silently discarding one of them would be its own quiet data loss.
+  // Those are left alone and stay dataQC's business to report.
+  const dupSeen = new Set();
+  let duplicatesSkipped = 0;
   assays.forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
+    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
+    if (dupSeen.has(key)) { duplicatesSkipped++; return; }
+    dupSeen.add(key);
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
   });
@@ -288,13 +353,29 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
     const holeEnd = sorted.reduce((m, r) => Math.max(m, r.to), sorted[0].to);
     const domRows = domainByHole.get(hole_id) || null;
 
-    // build the list of break points: fixed-length steps from holeStart, plus every domain boundary
-    // that falls inside the hole's sampled range (both the start and end of each domain row — a
-    // boundary is wherever the domain value changes, so registering both edges naturally captures that
-    // even where two domain rows aren't perfectly adjacent).
-    const breaks = new Set([holeStart, holeEnd]);
-    for (let d = holeStart; d < holeEnd; d += length) breaks.add(Math.round(d * 1e6) / 1e6);
-    if (domRows) domRows.forEach((r) => { breaks.add(r.from); breaks.add(r.to); });
+    // build the list of break points: every domain boundary inside the hole's sampled range (both the
+    // start and end of each domain row — a boundary is wherever the domain value changes, so
+    // registering both edges naturally captures that even where two domain rows aren't perfectly
+    // adjacent), then fixed-length steps RE-ANCHORED at each of those boundaries.
+    //
+    // TASKS.csv #262 — the fixed-length grid used to run continuously from holeStart and simply get
+    // chopped by each domain edge, which strands a short residual on BOTH sides of every contact
+    // (length=2 with a contact at 3 m gave 2.0, 1.0, 1.0, 2.0 …). Re-anchoring means each domain
+    // interval is composited from its own top, so the only short composite in a domain is the last one
+    // at its base — the standard downhole-compositing convention, and it roughly halves the number of
+    // short-support composites sitting exactly on the contacts that matter most.
+    const round6 = (d) => Math.round(d * 1e6) / 1e6;
+    const anchors = new Set([holeStart, holeEnd]);
+    if (domRows) domRows.forEach((r) => {
+      if (r.from > holeStart + EPS && r.from < holeEnd - EPS) anchors.add(round6(r.from));
+      if (r.to > holeStart + EPS && r.to < holeEnd - EPS) anchors.add(round6(r.to));
+    });
+    const sortedAnchors = Array.from(anchors).sort((a, b) => a - b);
+    const breaks = new Set(sortedAnchors);
+    for (let a = 0; a < sortedAnchors.length - 1; a++) {
+      const segStart = sortedAnchors[a], segEnd = sortedAnchors[a + 1];
+      for (let d = segStart + length; d < segEnd - EPS; d += length) breaks.add(round6(d));
+    }
     const sortedBreaks = Array.from(breaks).filter((d) => d >= holeStart - EPS && d <= holeEnd + EPS).sort((a, b) => a - b);
 
     for (let i = 0; i < sortedBreaks.length - 1; i++) {

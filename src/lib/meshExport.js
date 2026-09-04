@@ -48,10 +48,64 @@ export function sceneVertsToWorld(geometry, origin) {
   return { vertices, indices };
 }
 
+// TASKS.csv #269 — provenance stamp. A mesh that leaves this app with no record of the cutoff,
+// method, search radius, cell size, closure mode, density and sample count behind it is a mesh that
+// gets re-imported six months later as gospel. `provenance` is the surface's own params block (see
+// runNumericModel); this renders it as plain comment lines the format allows, always leading with the
+// "not a Mineral Resource estimate" line so it survives being read by a human or grepped by a script.
+export function provenanceLines(name, provenance, extra = {}) {
+  const out = [
+    `GeoStrix exploration model — not a Mineral Resource estimate.`,
+    `Surface: ${name}`,
+    `Exported: ${new Date().toISOString()}`,
+  ];
+  if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
+  if (extra.densityTPerM3 != null) out.push(`Bulk density used for tonnage: ${extra.densityTPerM3} t/m3 (assumed, not measured)`);
+  if (extra.volumeM3 != null) out.push(`Enclosed volume: ${extra.volumeM3.toFixed(1)} m3 (in-situ, dry, undiluted, no recovery applied)`);
+  // TASKS.csv #276 — this block was written for the numeric grade shell's params and assumed its fields
+  // (element/cutoff/method/...). Every GemPy-generated surface and the #272 alteration halo now carry a
+  // params block too, with a different shape, so the lines are emitted per available field instead of
+  // per assumed field — an implicit surface exported with no cutoff no longer stamps "cutoff: undefined".
+  if (provenance && provenance.tool && provenance.element == null) {
+    const q = provenance;
+    out.push(`Tool: ${q.tool}`);
+    if (q.surface) out.push(`Surface: ${q.surface} | interface points: ${q.sourcePoints} | orientations: ${q.orientations}`);
+    if (q.target) out.push(`Alteration assemblage: ${q.target} | indicator iso-level: ${q.isoLevel}`);
+    if (q.relation) out.push(`Unit relationship: ${q.relation === "erode" ? "erode (each unit truncates those below — unconformity)" : "onlap (conformable pile, one shared interpolated field)"}`);
+    if (q.resolution) out.push(`Model grid resolution: ${q.resolution.join(" x ")} cells`);
+    if (q.gempyRange != null) out.push(`GemPy potential-field range: ${q.gempyRange}${q.gempyRangeDefault != null ? ` (GemPy default ${q.gempyRangeDefault}${q.gempyRangeMultiplier ? `, multiplier ${q.gempyRangeMultiplier}` : ", used as-is"})` : ""}${q.gempyCO != null ? ` | c_o: ${q.gempyCO}` : ""}`);
+    if (q.method) out.push(`Interpolation: ${q.method} | search radius: ${Math.round(q.searchRadiusM)} m${q.searchRadiusAuto ? " (auto, from hole spacing)" : ""} | cell size: ${q.cellSizeM.toFixed ? q.cellSizeM.toFixed(2) : q.cellSizeM} m${q.cellSizeAuto ? " (auto)" : ""}${q.cellSizeCoarsened ? " — coarsened to stay under the grid limit" : ""}`);
+    if (q.holeSpacingM != null) out.push(`Median hole spacing behind those auto values: ${Math.round(q.holeSpacingM)} m`);
+    if (q.anisotropy) out.push(`Anisotropy trend: ${q.anisotropy.azimuth}/${q.anisotropy.dip} deg, ranges ${q.anisotropy.major}/${q.anisotropy.semiMajor}/${q.anisotropy.minor} m`);
+    if (q.searchEllipsoid) out.push(`Search ellipsoid: ${q.searchEllipsoid.azimuth}/${q.searchEllipsoid.dip} deg, ranges ${q.searchEllipsoid.major}/${q.searchEllipsoid.semiMajor}/${q.searchEllipsoid.minor} m, min neighbours ${q.searchEllipsoid.minSamples}`);
+    if (q.domain) out.push(`Model domain: ${q.domain}${q.clippedToDomain ? " (output mesh clipped to it)" : " (input points restricted to it)"}`);
+    if (q.extent) out.push(`Modelled extent (project coords, origin-relative): ${q.extent.join(", ")}`);
+    if (q.samplePoints != null) out.push(`Sample points: ${q.samplePoints}${q.alteredSamplePoints != null ? ` (${q.alteredSamplePoints} inside the assemblage)` : ""}${q.cellsEstimated != null ? ` | cells estimated: ${q.cellsEstimated}` : ""}`);
+    if (q.closure) out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a logged boundary)" : ""}`);
+    if (q.generatedAt) out.push(`Generated: ${q.generatedAt}`);
+  } else if (provenance) {
+    const q = provenance;
+    out.push(`Tool: ${q.tool}`);
+    out.push(`Element: ${q.element} (${q.unit}) | cutoff: ${q.cutoff}`);
+    out.push(`Method: ${q.method} | search radius: ${Math.round(q.searchRadiusM)} m${q.searchRadiusWasUnlimited ? " (entered as unlimited, capped at grid diagonal)" : ""} | cell size: ${q.cellSizeM} m | padding: ${q.paddingM} m`);
+    // TASKS.csv #262 — min coverage is a real estimation parameter (it decides whether a half-missing-core
+    // composite counts as a full sample), so it belongs in the audit trail alongside the composite length.
+    out.push(`Compositing: ${q.composited ? `${q.compositeLengthM} m${q.minCoverage != null ? `, min coverage ${Math.round(q.minCoverage * 100)}%` : ""}` : "none (raw intervals)"} | high-grade cap: ${q.capValue == null ? "none" : q.capValue} | min distinct holes: ${q.minHoles} | QC samples: ${q.includeQAQC ? "included" : "excluded"}`);
+    out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a grade boundary — volume depends on the search radius)" : ""}`);
+    out.push(`Sample points: ${q.samplePoints} | cells estimated: ${q.cellsEstimated}${q.singleHoleCells ? ` (${q.singleHoleCells} informed by a single hole)` : ""}`);
+    if (q.meanGradeInShell != null) out.push(`Mean interpolated grade inside the shell: ${q.meanGradeInShell.toFixed(3)} ${q.unit} (not a resource grade)`);
+    out.push(`Generated: ${q.generatedAt}`);
+  }
+  out.push(`No anisotropy, no variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
+  return out;
+}
+
 // OBJ — plain text, universally supported. 1-indexed faces per the OBJ spec.
-export function exportSurfaceOBJ(name, geometry, origin) {
+export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
-  const lines = [`# ${name} — exported from GeoStrix (TASKS.csv #143)`, `o ${sanitizeName(name)}`];
+  const lines = [`# ${name} — exported from GeoStrix (TASKS.csv #143)`];
+  provenanceLines(name, provenance, extra).forEach((l) => lines.push(`# ${l}`)); // TASKS.csv #269
+  lines.push(`o ${sanitizeName(name)}`);
   for (const [x, y, z] of vertices) lines.push(`v ${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
   for (let t = 0; t + 2 < indices.length; t += 3) {
     lines.push(`f ${indices[t] + 1} ${indices[t + 1] + 1} ${indices[t + 2] + 1}`);
@@ -67,10 +121,14 @@ export function exportSurfaceOBJ(name, geometry, origin) {
 // $ACADVER-gated features, which a bare triangle mesh does not. A 3DFACE always carries 4 vertex codes
 // (10/20/30 .. 13/23/33) even for a triangular face — the 4th vertex is conventionally a repeat of the
 // 3rd, per the DXF spec, not a degenerate/invalid entity.
-export function exportSurfaceDXF(name, geometry, origin) {
+export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
   const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
-  const lines = ["0", "SECTION", "2", "ENTITIES"];
+  const lines = [];
+  // TASKS.csv #269 — group code 999 is the DXF spec's own comment record; readers ignore it, humans
+  // and grep don't. Written before the ENTITIES section so it sits at the top of the file.
+  provenanceLines(name, provenance, extra).forEach((l) => lines.push("999", l));
+  lines.push("0", "SECTION", "2", "ENTITIES");
   const fmt = (n) => n.toFixed(4);
   for (let t = 0; t + 2 < indices.length; t += 3) {
     const a = vertices[indices[t]], b = vertices[indices[t + 1]], c = vertices[indices[t + 2]];
@@ -93,7 +151,7 @@ export function exportSurfaceDXF(name, geometry, origin) {
 // (not via mesh.position/matrix, which would just relocate the object without changing what's actually
 // written to the exported vertex buffer the way we need) so the same real-world-coordinate convention
 // as the OBJ/DXF exporters applies here too.
-export function exportSurfaceGLTF(name, geometry, origin) {
+export function exportSurfaceGLTF(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices.flat(), 3));
@@ -101,6 +159,9 @@ export function exportSurfaceGLTF(name, geometry, origin) {
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ name: sanitizeName(name) }));
   mesh.name = sanitizeName(name);
+  // TASKS.csv #269 — glTF has no comment syntax, but GLTFExporter copies a node's userData into that
+  // node's `extras` object, which is exactly what extras is for and what every glTF inspector shows.
+  mesh.userData = { GeoStrix: provenanceLines(name, provenance, extra) };
   const exporter = new GLTFExporter();
   return new Promise((resolve, reject) => {
     exporter.parse(

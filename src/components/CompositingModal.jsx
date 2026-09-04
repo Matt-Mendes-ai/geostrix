@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
-import { compositeDownhole } from "../lib/geochem.js";
+import { compositeDownhole, countDuplicateAssayIntervals } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -52,6 +52,11 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       domainRows,
     });
   }, [compAssays, symbol, unit, elementUnits, length, minCoverage, capValue, domainRows]);
+  // TASKS.csv #286 — compositeDownhole now drops exact-duplicate raw intervals before length-
+  // weighting (a double-imported row used to silently double-weight into the composite grade). Tell
+  // the user it happened rather than quietly fixing their data underneath them, and separately flag
+  // same-interval rows with DIFFERENT results, which compositing deliberately does not resolve.
+  const dupInfo = useMemo(() => countDuplicateAssayIntervals(compAssays), [compAssays]);
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
@@ -81,6 +86,16 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          {(dupInfo.exactDuplicates > 0 || dupInfo.conflictingIntervals > 0) && (
+            <div style={{ fontSize: 11, lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
+              {dupInfo.exactDuplicates > 0 && (
+                <div>{dupInfo.exactDuplicates} exact-duplicate raw interval{dupInfo.exactDuplicates === 1 ? " was" : "s were"} found in this assay table (same hole, same from/to, same results — the classic double-import). {dupInfo.exactDuplicates === 1 ? "It was" : "They were"} counted once, not twice, so {dupInfo.exactDuplicates === 1 ? "it doesn't" : "they don't"} double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.</div>
+              )}
+              {dupInfo.conflictingIntervals > 0 && (
+                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{dupInfo.conflictingIntervals} interval{dupInfo.conflictingIntervals === 1 ? "" : "s"} appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import, so compositing left them alone — every copy is still being length-weighted in. Resolve them in the source data before using these composites for estimation.</div>
+              )}
+            </div>
+          )}
           {qaqcExcludedCount > 0 && (
             <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />

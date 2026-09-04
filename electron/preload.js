@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("desktop", {
   fsListDir: (dirPath) => ipcRenderer.invoke("fs-list-dir", { dirPath }),
   fsListDrives: () => ipcRenderer.invoke("fs-list-drives"),
   fsReadFile: (filePath) => ipcRenderer.invoke("fs-read-file", { filePath }),
+  sampleDataPath: () => ipcRenderer.invoke("sample-data-path"),
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),
   autosaveRead: () => ipcRenderer.invoke("autosave-read"),
   autosaveClear: () => ipcRenderer.invoke("autosave-clear"),

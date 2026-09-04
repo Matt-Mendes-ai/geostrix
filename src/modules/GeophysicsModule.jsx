@@ -738,6 +738,12 @@ export default function GeophysicsModule() {
             title="If these points' x/y are in a different EPSG than the project, enter it here — reprojected into the project CRS on import."
           />
         </div>
+        {(Number(geophysSourceEpsg) === 4267 || (Number(geophysSourceEpsg) >= 26701 && Number(geophysSourceEpsg) <= 26722)) && (
+          <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>
+            ⚠ NAD27 (TASKS.csv #299): no NAD27→NAD83 datum shift is applied — these points will land
+            roughly 100&nbsp;m off from where they should be in BC until a real datum-shift implementation ships.
+          </div>
+        )}
 
         <button onClick={() => fileInput.current.click()} style={pBtn}>
           <Upload size={13} /> Import CSV…
@@ -1456,6 +1462,9 @@ function VoxelLegendEditor({ model, onUpdate }) {
             <option value="log">Log-linear</option>
             <option value="quantile">Histogram equalization (quantile)</option>
             <option value="normal">Normal distribution</option>
+            {/* TASKS.csv #291 — QGIS parity: natural breaks minimizes within-class variance, the
+                right default for the clustered background + anomalous tail real survey data has. */}
+            <option value="jenks">Natural breaks (Jenks)</option>
           </select>
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>Apply</button>
