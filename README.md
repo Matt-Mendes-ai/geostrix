@@ -335,6 +335,20 @@ working first pass via GemPy through the Python sidecar — one surface at a tim
 surface stacks, persistence, and uncertainty output are follow-ups (#52), which #93 above also
 depends on. Geosoft voxel rendering is still its own future phase.
 
+## Downloads, code signing and privacy
+
+Installers are published on the [Releases page](https://github.com/Matt-Mendes-ai/geostrix/releases).
+Every release is built by GitHub Actions from the tagged commit — never from a developer machine — and
+each release carries a `latest.yml` with the installer's SHA-512 and size so you can verify a download.
+
+- **[CODE_SIGNING.md](CODE_SIGNING.md)** — how releases are built, approved and signed, and how to
+  verify one.
+- **[PRIVACY.md](PRIVACY.md)** — GeoStrix has no accounts, analytics or telemetry; this documents every
+  network connection it makes and why.
+
+Current releases are **unsigned**, so Windows SmartScreen will warn on first run — choose *More info*
+then *Run anyway*. Signing is in progress; see `CODE_SIGNING.md` for status.
+
 ## License
 
 MIT — see `LICENSE`. The goal is to make this freely available, particularly for smaller
