@@ -49,7 +49,62 @@ jobs:
         # matching files, and the shipped app's index.html was simply missing — a genuinely blank
         # window forever, not a slow load. Caught via a real install (not just a build success check).
         run: npm run build:web
+      - name: Create the GitHub release before publishing
+        # TASKS.csv #36 follow-up — electron-builder starts ONE PUBLISHER PER ARTIFACT (the installer
+        # and its .blockmap), and when the release doesn't exist yet both publishers independently
+        # decide to create it. The logs show this plainly: "creating GitHub release  reason=release
+        # doesn't exist" twice in the same run. The race has two observed failure modes, both of which
+        # bit real releases here: two separate releases sharing one tag, and — more damaging — the
+        # small .blockmap winning while the ~180MB installer upload is silently dropped, leaving a
+        # published release with NO installer and no latest.yml, which the auto-updater then can't use.
+        # electron-builder still exits 0 in that case, so CI goes green on a broken release.
+        #
+        # Creating the release up front removes the race entirely: both publishers then find an
+        # existing release and just upload into it. Idempotent so a re-run of the same tag is safe.
+        # Notes are left empty deliberately — they're filled in after the fact; --verify-tag makes this
+        # fail loudly rather than inventing a tag if the ref is somehow wrong.
+        run: |
+          # Actions runs pwsh with $ErrorActionPreference='stop'; a `gh` probe that legitimately fails
+          # (release not created yet) writes to stderr, so relax it here and branch on the exit code.
+          $ErrorActionPreference = 'Continue'
+          gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>&1 | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --notes "" --verify-tag
+          } else {
+            Write-Host "Release ${{ github.ref_name }} already exists - uploading into it."
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and publish
         run: npx electron-builder --publish always --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify the release is actually complete
+        # The failure above was invisible because electron-builder exits 0 even when an asset upload is
+        # dropped. Assert the three assets the auto-updater needs are really present, and that
+        # latest.yml's declared size matches the installer actually attached — a mismatch there means
+        # electron-updater downloads the installer and then rejects it on checksum, which is worse than
+        # no release at all. Fails the job so a broken release can never go unnoticed again.
+        run: |
+          $assets = gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets | ConvertFrom-Json
+          $names = $assets.assets | ForEach-Object { $_.name }
+          Write-Host "Assets: $($names -join ', ')"
+          foreach ($required in @('GeoStrix-Setup-*.exe', 'GeoStrix-Setup-*.exe.blockmap', 'latest.yml')) {
+            if (-not ($names | Where-Object { $_ -like $required })) {
+              Write-Error "Release is missing a required asset matching '$required'"
+              exit 1
+            }
+          }
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern 'latest.yml' --output latest.yml --clobber
+          $declared = (Select-String -Path latest.yml -Pattern '^\s*size:\s*(\d+)').Matches[0].Groups[1].Value
+          $actual = ($assets.assets | Where-Object { $_.name -like 'GeoStrix-Setup-*.exe' }).size
+          Write-Host "latest.yml declares size=$declared; attached installer size=$actual"
+          if ($declared -ne $actual) {
+            Write-Error "latest.yml size does not match the attached installer - the auto-updater would reject this download."
+            exit 1
+          }
+          Write-Host "Release verified: installer, blockmap and latest.yml all present and consistent."
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
