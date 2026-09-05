@@ -152,6 +152,43 @@ export function StoreProvider({ children }) {
   const toggleSoftIntercept = useCallback((id) => {
     setSoftIntercepts((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }, []);
+  // TASKS.csv #52 (c) — NAMED INTERCEPT SETS: hand-picked subsets of the boundary intercepts, so one
+  // lithology code that repeats in the pile (the #61 repeated-unit case) can be modelled as the two
+  // (or more) separate surfaces it actually is, instead of every pick of that unit across the property
+  // being forced onto one surface. Each entry is {id, name, ids: [interceptId, ...]}.
+  //
+  // WHY A THIRD LIST RATHER THAN EXTENDING excludedIntercepts: exclusion is a project-wide statement
+  // about a pick ("this log is wrong, never use it"), and it stays that. A set is a per-RUN statement
+  // ("these picks are the upper basalt"), and the same pick belongs to exactly one upper/lower reading
+  // while remaining perfectly valid data. Collapsing the two would mean re-editing the exclusion list
+  // between every run, which is the workflow this row exists to remove.
+  // Same plain-array-of-ids shape as the two lists above: the intercepts themselves are still derived
+  // on demand from layers.litho/layers.alt, so this stores decisions, never a copy of the data.
+  const [interceptSets, setInterceptSets] = useState([]);
+  const addInterceptSet = useCallback((name) => {
+    const id = `iset_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setInterceptSets((p) => [...p, { id, name, ids: [] }]);
+    return id;
+  }, []);
+  const renameInterceptSet = useCallback((id, name) => setInterceptSets((p) => p.map((s) => (s.id === id ? { ...s, name } : s))), []);
+  const deleteInterceptSet = useCallback((id) => setInterceptSets((p) => p.filter((s) => s.id !== id)), []);
+  const toggleInterceptInSet = useCallback((setId, interceptId) => {
+    setInterceptSets((p) => p.map((s) => {
+      if (s.id !== setId) return s;
+      const ids = s.ids || [];
+      return { ...s, ids: ids.includes(interceptId) ? ids.filter((x) => x !== interceptId) : [...ids, interceptId] };
+    }));
+  }, []);
+  // Bulk add/remove for "everything currently filtered in the table" — picking 40 intercepts one click
+  // at a time is the difference between a usable feature and one nobody uses.
+  const setInterceptsInSet = useCallback((setId, interceptIds, member) => {
+    setInterceptSets((p) => p.map((s) => {
+      if (s.id !== setId) return s;
+      const cur = new Set(s.ids || []);
+      interceptIds.forEach((i) => (member ? cur.add(i) : cur.delete(i)));
+      return { ...s, ids: Array.from(cur) };
+    }));
+  }, []);
   // TASKS.csv — cross-section contact drawing. Each entry is
   // {id, name, ax, ay, bx, by, azimuth, corridor, contacts: [{id, unit, color, points: [{l, z, x, y}]}]}
   // — `ax/ay/bx/by/corridor` are the section line/buffer (world coords, same as everywhere else in the
@@ -691,6 +728,7 @@ export function StoreProvider({ children }) {
     setDbConnections([]);
     setExcludedIntercepts([]);
     setSoftIntercepts([]);
+    setInterceptSets([]); // TASKS.csv #52 (c)
     setSections([]);
     // Saved layout templates round-trip through the project file just like themes (below), so a
     // "New project" resets them too — there's no global/user-level storage outside a project file
@@ -719,7 +757,7 @@ export function StoreProvider({ children }) {
   const snapshotCurrentPayload = () => ({
     version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
     viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
-    excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
+    excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
     generatedSurfaces, modelDomains, // TASKS.csv #52
   });
 
@@ -770,7 +808,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
+  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -830,6 +868,8 @@ export function StoreProvider({ children }) {
     setDbConnections(data.dbConnections || []);
     setExcludedIntercepts(data.excludedIntercepts || []);
     setSoftIntercepts(data.softIntercepts || []);
+    // Fallback for pre-#52(c) files: no named intercept sets yet.
+    setInterceptSets(data.interceptSets || []);
     setSections(data.sections || []);
     setSectionGroups(data.sectionGroups || []);
     // Fallback for pre-#18 files: no saved layout templates yet.
@@ -869,7 +909,7 @@ export function StoreProvider({ children }) {
     setActiveTabId(tabId);
     autosaveClear();
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
@@ -880,7 +920,7 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
@@ -915,7 +955,7 @@ export function StoreProvider({ children }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
@@ -949,8 +989,8 @@ export function StoreProvider({ children }) {
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
   const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0;
-  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
-  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
+  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
+  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
@@ -1002,7 +1042,7 @@ export function StoreProvider({ children }) {
   // existing exclusions: importing/removing/editing a raster or terrain surface is no longer undoable
   // and no longer flips the tab's unsaved-changes indicator — it IS still fully included in save/open
   // and autosave (autosaveRef below), so nothing is lost on disk, only from the in-session undo stack.
-  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, plannedHoles, surfaceSamples, surfaceElements });
+  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements });
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // are `useCallback(fn, [applySnapshot])`, and `applySnapshot` never changes identity, so `undo`/
@@ -1055,7 +1095,7 @@ export function StoreProvider({ children }) {
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, plannedHoles, surfaceSamples, surfaceElements]);
+  }, [collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements]);
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
@@ -1063,7 +1103,7 @@ export function StoreProvider({ children }) {
     setAssays(snap.assays); setAssayElements(snap.assayElements); setCustomLayers(snap.customLayers);
     setLayoutElements(snap.layoutElements); setSections(snap.sections); setSectionGroups(snap.sectionGroups || []); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
     setLayerGroups(snap.layerGroups);
-    setExcludedIntercepts(snap.excludedIntercepts); setSoftIntercepts(snap.softIntercepts);
+    setExcludedIntercepts(snap.excludedIntercepts); setSoftIntercepts(snap.softIntercepts); setInterceptSets(snap.interceptSets);
     setPlannedHoles(snap.plannedHoles || []);
     setSurfaceSamples(snap.surfaceSamples || []); setSurfaceElements(snap.surfaceElements || []);
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
@@ -1162,6 +1202,7 @@ export function StoreProvider({ children }) {
     liveDbConnections, connectDb, disconnectDb,
     excludedIntercepts, setExcludedIntercepts, toggleExcludedIntercept,
     softIntercepts, setSoftIntercepts, toggleSoftIntercept,
+    interceptSets, addInterceptSet, renameInterceptSet, deleteInterceptSet, toggleInterceptInSet, setInterceptsInSet, // TASKS.csv #52 (c)
     sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts, updateSections, renameSectionsBulk,
     sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
     viewerUiState, setViewerUiState, viewerUiStateSeq,

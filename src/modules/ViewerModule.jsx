@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity } from "lucide-react";
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
 import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
 import VariogramModal from "../components/VariogramModal.jsx"; // TASKS.csv #147
@@ -46,6 +46,8 @@ import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
 import DownholeStructurePlot from "../components/DownholeStructurePlot.jsx"; // TASKS.csv #277
 import SurfaceQueryModal from "../components/SurfaceQueryModal.jsx"; // TASKS.csv #146
+import SurfaceCompareModal from "../components/SurfaceCompareModal.jsx"; // TASKS.csv #93
+import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
 import FenceDiagramModal from "../components/FenceDiagramModal.jsx"; // TASKS.csv #139
 import CoreOrientationCalculator from "../components/CoreOrientationCalculator.jsx";
 import {
@@ -59,6 +61,7 @@ import {
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
 import { checkTopology } from "../lib/topology.js"; // TASKS.csv #90
+import { truncateAgainstSolid, splitAcrossSurface } from "../lib/crosscut.js"; // TASKS.csv #52 (d) — cross-cutting
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 import SculptPanel from "../components/SculptPanel.jsx"; // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
@@ -816,6 +819,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     excludedIntercepts, toggleExcludedIntercept,
     softIntercepts, toggleSoftIntercept,
+    interceptSets, addInterceptSet, renameInterceptSet, deleteInterceptSet, setInterceptsInSet, toggleInterceptInSet, // TASKS.csv #52 (c)
     sections, upsertSection, renameSection, deleteSection,
     sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections, updateSections, renameSectionsBulk,
   } = store;
@@ -1127,6 +1131,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
   const [tadpoleOpen, setTadpoleOpen] = useState(false); // TASKS.csv #277 — downhole structural plot
   const [surfaceQueryOpen, setSurfaceQueryOpen] = useState(false); // TASKS.csv #146 — distance/point-in-domain report
+  // TASKS.csv #93 — iterative modelling workflow. Holds the surface id the compare dialog was opened
+  // from (so it can preselect that lineage), or null when closed.
+  const [compareVersionsFor, setCompareVersionsFor] = useState(null);
   const [fenceOpen, setFenceOpen] = useState(false); // TASKS.csv #139 — fence/panel correlation diagram
   const [coreOrientOpen, setCoreOrientOpen] = useState(false);
   const [alterationTarget, setAlterationTarget] = useState("");
@@ -1214,6 +1221,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // same pattern as #66's layer-row inline expand).
   const [expandedSurfaceId, setExpandedSurfaceId] = useState(null);
   const [relationDraft, setRelationDraft] = useState({ relation: RELATION_TYPES[0].key, targetId: "" });
+  // TASKS.csv #52 (d) — which surface is selected as the cross-cutting body for the expanded surface.
+  // One draft, not one per row, for the same reason relationDraft is: only one row is ever expanded.
+  const [cutterDraft, setCutterDraft] = useState("");
   // TASKS.csv #140 — volume/watertightness for whichever surface is currently expanded. Only computed
   // for the expanded one (not all of them on every render) since a marching-cubes mesh can run into
   // the tens of thousands of triangles and there's no reason to pay that cost for collapsed rows.
@@ -1243,6 +1253,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // property of the RUN, not of one tool, so one selector covers all of them rather than repeating it
   // four times. "" = whole property (today's original, undomained behavior).
   const [modelDomainId, setModelDomainId] = useState("");
+  // TASKS.csv #52 (c) — which named intercept set (store.interceptSets) the modelling tools are
+  // restricted to. Session state, not persisted, for exactly the reason modelDomainId isn't: the SETS
+  // are project data and are saved; which one you happen to have selected right now is a UI choice.
+  // "" means every intercept feeds a run, which is the pre-#52(c) behaviour, bit for bit.
+  const [activeInterceptSetId, setActiveInterceptSetId] = useState("");
+  // A Set for O(1) membership — a run touches every litho row of the target unit in every hole, and
+  // Array.includes on a few hundred ids inside that loop is the kind of cost this project's performance
+  // priority says to just not introduce. Null when no set is active, and every call site reads that as
+  // "no restriction" rather than "an empty set that excludes everything".
+  const activeInterceptSet = useMemo(() => (interceptSets || []).find((x) => x.id === activeInterceptSetId) || null, [interceptSets, activeInterceptSetId]);
+  const activeInterceptSetIds = useMemo(() => (activeInterceptSet ? new Set(activeInterceptSet.ids || []) : null), [activeInterceptSet]);
+  const interceptInActiveSet = useCallback((id) => !activeInterceptSetIds || activeInterceptSetIds.has(id), [activeInterceptSetIds]);
+  // Read-only, for stamping provenance onto a finished surface. A ref rather than the value itself so
+  // runSurfaceStack's dependency array (deliberately tuned, and documented as such) is untouched.
+  const activeInterceptSetRef = useRef(null);
+  useEffect(() => { activeInterceptSetRef.current = activeInterceptSet; }, [activeInterceptSet]);
   // TASKS.csv #88 — the "boundary" constraint type: #89's domain already restricts which CONTROL
   // POINTS feed a run, but GemPy still fits/extrapolates its potential field across the WHOLE extent,
   // so the output mesh can bulge past the domain into territory the domain says isn't this unit's. When
@@ -2074,15 +2100,35 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // View tab with that viewport's theme, which is exactly the "3d view... reload[s] layers that were
   // turned off... when switching to another module and then switching back to 3d view" bug report —
   // reproduced and confirmed via Playwright before this fix (see TASKS.csv notes).
+  // TASKS.csv #52 (b) — a theme can now reference generated surfaces, so re-applying it brings the
+  // right surfaces back on screen instead of leaving whatever was last toggled. Read through a REF, not
+  // from `implicitSurfaces` directly, deliberately: adding it to this callback's dependency array would
+  // change currentViewBundle's identity every time a surface is generated, hidden or renamed, and the
+  // #198/#202 comments below record what that class of dependency ripple already cost this file once.
+  // A ref has stable identity and is exactly as current at call time.
+  const implicitSurfacesRef = useRef([]);
+  useEffect(() => { implicitSurfacesRef.current = implicitSurfaces; }, [implicitSurfaces]);
+  // {id: visible} plus the names, so a theme whose surface has since been deleted can say WHICH one is
+  // missing rather than silently doing nothing. Surfaces are persisted by #52's first half, so an id
+  // saved in a theme still resolves after a reload — that is what makes this worth storing at all.
+  const surfaceVisibilityBundle = useCallback(() => {
+    const list = implicitSurfacesRef.current || [];
+    return {
+      surfaceVisible: Object.fromEntries(list.map((s) => [s.id, s.visible !== false])),
+      surfaceNames: Object.fromEntries(list.map((s) => [s.id, s.name])),
+    };
+  }, []);
+
   const currentViewBundle = useCallback(() => {
     const cs = camState.current;
     return {
       layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
+      ...surfaceVisibilityBundle(),
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, surfaceVisibilityBundle]);
 
   // TASKS.csv #202 — root-cause fix. currentViewBundle() above reads local component state
   // (layerVisible, etc), which is fine for a NORMAL user action (Save theme) but turned out to be
@@ -2114,9 +2160,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       assayDisplayElements: s?.assayDisplayElements || (s?.assayDisplayElement ? [s.assayDisplayElement] : []),
       assayStyle: s?.assayStyle || {},
       gridConfig: { ...DEFAULT_GRID, ...(s?.gridConfig || {}) },
+      // #52 (b) — read from the live scene, not from viewerUiState (surfaces aren't mirrored there), so
+      // a Layout-viewport render that applies a theme hiding a surface puts it back afterwards.
+      ...surfaceVisibilityBundle(),
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
-  }, [viewerUiState]);
+  }, [viewerUiState, surfaceVisibilityBundle]);
 
   // TASKS.csv #198 — root-cause fix for the Layout Viewport render round-trip silently never
   // completing (no capture, no error, no hop back to Layout — permanently stuck showing the applied
@@ -2158,6 +2207,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setAssayDisplayElements(theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []));
     setAssayStyle(theme.assayStyle || {});
     setGridConfig({ ...DEFAULT_GRID, ...(theme.gridConfig || {}) });
+    // TASKS.csv #52 (b) — generated surfaces the theme knows about. Only ids the theme actually lists
+    // are touched: a surface modelled AFTER the theme was saved is left exactly as it is, rather than
+    // being hidden by a theme that never knew about it. Missing ids are reported once, by name, because
+    // "the theme silently didn't restore your surface" is precisely the failure this row is fixing.
+    const sv = theme.surfaceVisible;
+    if (sv && typeof sv === "object") {
+      const known = new Set(Object.keys(implicitMeshesRef.current));
+      Object.entries(sv).forEach(([id, vis]) => {
+        const mesh = implicitMeshesRef.current[id];
+        if (mesh) mesh.visible = !!vis;
+      });
+      setImplicitSurfaces((p) => p.map((s) => (Object.prototype.hasOwnProperty.call(sv, s.id) ? { ...s, visible: !!sv[s.id] } : s)));
+      const missing = Object.keys(sv).filter((id) => !known.has(id));
+      if (missing.length) {
+        const names = missing.map((id) => (theme.surfaceNames || {})[id] || id);
+        setNotices((p) => [...p, `Theme "${theme.name}" refers to ${missing.length} generated surface(s) that aren't in this project any more: ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}. Everything else in the theme was applied.`]);
+      }
+    }
     if (theme.camState) {
       const cs = camState.current;
       cs.theta = theme.camState.theta; cs.phi = theme.camState.phi; cs.radius = theme.camState.radius;
@@ -2757,6 +2824,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
         domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
         clippedToDomain: !!clipDomain,
+        // TASKS.csv #52 (c) — WHICH picks fed this surface, by name. Without it two surfaces modelled
+        // from the same logged code (upper vs lower basalt) would carry identical provenance and be
+        // indistinguishable a month later.
+        interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null,
         extent: extent.map((v) => Math.round(v)),
         generatedAt: new Date().toISOString(),
       };
@@ -2797,7 +2868,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const traces = tracesRef.current;
     const o = originRef.current;
     const out = [];
-    [["litho", "Lithology"], ["alt", "Alteration"]].forEach(([layerKey, layerLabel]) => {
+    // TASKS.csv #52 (c) — the VEIN layer is listed here too now. #84's exclusions already applied to
+    // vein intercepts inside runVeinModel, but the table that exists to review them only ever showed
+    // litho and alteration, so a vein pick could be silently excluded by a filter with no UI to see it,
+    // and (c)'s named sets could not have contained one at all. Listing it closes both gaps at once.
+    [["litho", "Lithology"], ["alt", "Alteration"], ["vein", "Vein / dyke"]].forEach(([layerKey, layerLabel]) => {
       (layers[layerKey] || []).forEach((r) => {
         if (isNaN(r.from)) return;
         const t = traces.find((tr) => tr.hole_id === r.hole_id);
@@ -2812,7 +2887,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
     });
     return out;
-  }, [layers.litho, layers.alt]);
+  }, [layers.litho, layers.alt, layers.vein]);
 
   // TASKS.csv #176 — `target` is either a raw litho code string (original behavior, unchanged for
   // that case) or a lithology-group object {id, name, color, codes} from store.lithoGroups. Matt:
@@ -2832,6 +2907,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
         if (excludedIntercepts.includes(interceptId("litho", r))) return;
+        // TASKS.csv #52 (c) — and, when a named intercept set is active, only the picks IN it. This is
+        // what lets one repeated unit be modelled as the several surfaces it really is (#61): the upper
+        // basalt and the lower basalt are the same logged code, so without this every pick of that code
+        // across the property is forced onto one surface no matter how many times the unit repeats.
+        if (!interceptInActiveSet(interceptId("litho", r))) return;
         const p = findOnTrace(t.pts, r.from);
         if (p && (!domain || pointInDomain(p, domain, implicitMeshesRef.current))) {
           const api = sceneToApi(p);
@@ -2988,7 +3068,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const spec = gatherLithoSurfaceSpec(target, traces);
     if (!spec) return;
     await runSurfaceModel(spec);
-  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups]);
+  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups]);
 
   // Stratigraphic stack tool (TASKS.csv #52 follow-up): models several lithology units' top contacts
   // in ONE sidecar request instead of one at a time. This isn't just a convenience batch — sending
@@ -3019,7 +3099,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (specs.length < 2) { setNotices((p) => [...p, "Need at least 2 units with data to model a stack — add more units or check your lithology import."]); return; }
 
     await runSurfaceStack(specs, { relation: stackRelation }); // TASKS.csv #271
-  }, [layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
+  }, [layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
 
   const addStackUnit = useCallback((u) => {
     if (!u || stackUnits.includes(u)) return;
@@ -3119,7 +3199,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setTimeout(() => {
       try {
         const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
-        const targetRows = altRows.filter((r) => r.value === altValue && !excludedIntercepts.includes(interceptId("alt", r)));
+        // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
+        // other logged alteration interval) are what close the envelope (#272), so filtering those by a
+        // set the user built to describe the target would open the halo up instead of narrowing it.
+        const targetRows = altRows.filter((r) => r.value === altValue && !excludedIntercepts.includes(interceptId("alt", r)) && interceptInActiveSet(interceptId("alt", r)));
         if (!targetRows.length) throw new Error(`No alteration intervals found for "${altValue}" — nothing to model.`);
 
         // Auto parameters come from the spacing of the holes that actually carry alteration logging,
@@ -3137,6 +3220,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         altRows.forEach((r) => {
           const isTarget = r.value === altValue;
           if (isTarget && excludedIntercepts.includes(interceptId("alt", r))) return; // #84 — reviewed-out intercepts never model
+          if (isTarget && !interceptInActiveSet(interceptId("alt", r))) return; // #52 (c) — target picks outside the active set
           splitIntervalForSampling(Number(r.from), Number(r.to), subLen).forEach((seg) => {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
@@ -3219,6 +3303,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           paddingM: pad, closure, holeSpacingM: auto.spacing,
           anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
           domain: domain ? domain.name : null,
+          interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
           generatedAt: new Date().toISOString(),
         };
@@ -3236,7 +3321,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setTaskProgress?.(null);
       setAlterationBusy(false);
     }, 40);
-  }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, anisotropy, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
+  }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, anisotropy, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
 
   // TASKS.csv #144 — vein/dyke hangingwall–footwall modelling.
   //
@@ -3268,7 +3353,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
         const rows = (layers.vein || []).filter((r) => r.value === veinValue && r.hole_id != null
           && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
-          && !excludedIntercepts.includes(interceptId("vein", r))); // #84 — reviewed-out intercepts never model
+          && !excludedIntercepts.includes(interceptId("vein", r)) // #84 — reviewed-out intercepts never model
+          && interceptInActiveSet(interceptId("vein", r))); // #52 (c) — restricted to the active intercept set, if any
         if (!rows.length) throw new Error(`No "${veinValue}" intervals found — nothing to model.`);
 
         // Both contacts of every intercept, in world ENU (east, north, elevation) — the frame vein.js,
@@ -3330,6 +3416,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           minSeparationM: ck.minSeparation, nonCrossingByConstruction: true, pinchOut: ck.pinchOut,
           nominalHwFwLabels: ck.nominalLabels,
           domain: domain ? domain.name : null,
+          interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           generatedAt: new Date().toISOString(),
         };
         const stamp = (part, suffix, color, opacity, type, relationships = []) => {
@@ -3376,7 +3463,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setTaskProgress?.(null);
       setVeinBusy(false);
     }, 40);
-  }, [layers.vein, domains, modelDomainId, excludedIntercepts, veinDip, veinDipDir, veinCellSize, veinSearchRadius, fitBox, setTaskProgress]);
+  }, [layers.vein, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, veinDip, veinDipDir, veinCellSize, veinSearchRadius, fitBox, setTaskProgress]);
 
   // TASKS.csv #142 — numeric (continuous-variable) implicit model: a grade-shell wireframe built
   // DIRECTLY from assay values, no GemPy/sidecar involved. Every other tool above keys off categorical
@@ -3683,10 +3770,25 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const removeImplicitSurface = useCallback((id) => {
     const mesh = implicitMeshesRef.current[id];
     if (mesh) { implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; }
-    setImplicitSurfaces((p) => p.filter((s) => s.id !== id));
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
     // remaining surfaces don't end up referencing a dangling id.
-    setImplicitSurfaces((p) => p.map((s) => ({ ...s, relationships: (s.relationships || []).filter((r) => r.targetId !== id) })));
+    // TASKS.csv #93 — and HEAL THE VERSION CHAIN in the same pass: if the removed surface was a middle
+    // version, its successor's `supersedes` would point at nothing, so re-point it at the removed
+    // surface's own predecessor and v1 -> v3 stays one lineage instead of silently splitting in two.
+    // (surfaceVersions.buildLineages already survives a dangling pointer without losing a surface —
+    // this is about keeping the lineage the user built, not about avoiding a crash.) Done as ONE
+    // updater rather than the two chained ones this used to be, because the healing step has to read
+    // the removed surface's own `supersedes` while it is still in the list.
+    setImplicitSurfaces((p) => {
+      const goneParent = p.find((s) => s.id === id)?.supersedes || null;
+      return p.filter((s) => s.id !== id).map((s) => {
+        const next = { ...s, relationships: (s.relationships || []).filter((r) => r.targetId !== id) };
+        if (next.supersedes === id) {
+          if (goneParent) next.supersedes = goneParent; else delete next.supersedes;
+        }
+        return next;
+      });
+    });
   }, []);
   // TASKS.csv #83 — surface type + declared relationships (geological-architecture layer 2). Purely
   // metadata until #90's checker reads it (see the long comment above SURFACE_TYPES/RELATION_TYPES).
@@ -3714,6 +3816,97 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const removeSurfaceRelationship = useCallback((id, index) => {
     setImplicitSurfaces((p) => p.map((s) => s.id === id ? { ...s, relationships: (s.relationships || []).filter((_, i) => i !== index) } : s));
   }, []);
+
+  // ---------- TASKS.csv #93 — ITERATIVE MODELLING WORKFLOW (versioned runs / compare / accept) ----------
+  //
+  // Every modelling tool above already PUSHES a new surface rather than overwriting the previous one,
+  // so two runs are already two independent, independently-persisted surfaces. The only thing missing
+  // was the link saying one descends from the other — that is `supersedes`, a plain id on the surface.
+  // See src/lib/surfaceVersions.js for the full reasoning on why a flat link beats a nested `versions`
+  // array here (short version: a mesh nested inside another surface would be hydrated by nothing, so
+  // an old version could not be drawn, zoomed to, exported or compared without a second code path).
+  //
+  // NOTHING BELOW EVER DELETES A RUN. Retention is uncapped on purpose — the same trade #52 made for
+  // persistence ("silently dropping a surface on save is worse than a large file"). Accept HIDES the
+  // superseded versions; removing one stays the explicit X the user already has.
+  //
+  // Both `supersedes` and `accepted` ride through the #52 save path for free: hydration spreads
+  // `...meta` off the persisted object and the sync-out effect spreads `...s` back, so no change to
+  // store.jsx or to either of those effects was needed to make versions round-trip.
+  const setSurfaceSupersedes = useCallback((id, targetId) => {
+    setImplicitSurfaces((p) => p.map((s) => {
+      if (s.id !== id) return s;
+      if (!targetId) { const { supersedes: _drop, ...rest } = s; return rest; }
+      return { ...s, supersedes: targetId };
+    }));
+  }, []);
+
+  // "Accept this version": a label saying which run the user is working from — NOT a claim that the
+  // run is correct. It flags one surface in the lineage and hides (never removes) the others, so the
+  // scene shows the accepted interpretation without the earlier attempts disappearing from the project.
+  const acceptSurfaceVersion = useCallback((id) => {
+    setImplicitSurfaces((p) => {
+      const { byId } = buildLineages(p);
+      const hit = byId.get(id);
+      const ids = new Set((hit ? hit.lineage : [{ id }]).map((s) => s.id));
+      const next = p.map((s) => {
+        if (!ids.has(s.id)) return s;
+        const isAccepted = s.id === id;
+        const mesh = implicitMeshesRef.current[s.id];
+        if (mesh) mesh.visible = isAccepted;
+        return { ...s, accepted: isAccepted, visible: isAccepted };
+      });
+      const name = p.find((s) => s.id === id)?.name || "surface";
+      const others = ids.size - 1;
+      setNotices((n) => [...n, `Accepted "${name}" as the version you are working from${others > 0 ? `; the other ${others} version${others === 1 ? "" : "s"} in this lineage ${others === 1 ? "was" : "were"} hidden but NOT deleted (they still save with the project and can be shown again from the list)` : ""}. "Accepted" records your choice — it is not a check that this run is correct.`]);
+      return next;
+    });
+  }, []);
+
+  // Overlay compare: both meshes are already in the one scene, so this is two material writes — no
+  // second viewport, no second camera, no extra per-frame cost beyond drawing two surfaces the user
+  // could already have had visible at once. Performance is priority #1; a split-screen viewport would
+  // have doubled the cost of the heaviest part of the app to show something this shows for free.
+  const COMPARE_A_HEX = 0x6f8fb5, COMPARE_B_HEX = 0xe2843c;
+  const overlayCompareSurfaces = useCallback((aId, bId) => {
+    setImplicitSurfaces((p) => {
+      const { byId } = buildLineages(p);
+      const lineageIds = new Set((byId.get(bId)?.lineage || []).map((s) => s.id));
+      return p.map((s) => {
+        const mesh = implicitMeshesRef.current[s.id];
+        if (s.id === aId || s.id === bId) {
+          if (mesh) {
+            // Remember the surface's own colour once, so "Reset colours" is exact rather than a guess.
+            if (mesh.userData.preCompareColorHex == null) mesh.userData.preCompareColorHex = mesh.material.color.getHex();
+            mesh.material.color.setHex(s.id === aId ? COMPARE_A_HEX : COMPARE_B_HEX);
+            mesh.material.needsUpdate = true;
+            mesh.visible = true;
+          }
+          return { ...s, visible: true };
+        }
+        // Hide the rest of the same lineage so the two being compared aren't buried under a third run.
+        if (lineageIds.has(s.id)) { if (mesh) mesh.visible = false; return { ...s, visible: false }; }
+        return s;
+      });
+    });
+    setNotices((n) => [...n, `Overlay: the older version is grey-blue, the newer is orange. Other versions of the same surface are hidden (not deleted). Use "Reset colours" in the compare dialog to put them back.`]);
+  }, []);
+
+  const clearCompareOverlay = useCallback(() => {
+    setImplicitSurfaces((p) => p.map((s) => {
+      const mesh = implicitMeshesRef.current[s.id];
+      if (mesh && mesh.userData.preCompareColorHex != null) {
+        mesh.material.color.setHex(mesh.userData.preCompareColorHex);
+        mesh.material.needsUpdate = true;
+        mesh.userData.preCompareColorHex = null;
+      }
+      return s;
+    }));
+  }, []);
+
+  // Lineage bookkeeping for the surface list below. Pure metadata over a handful of surfaces (no mesh
+  // is touched), so it's cheap; memoised anyway because the list re-renders on every visibility toggle.
+  const surfaceLineageInfo = useMemo(() => buildLineages(implicitSurfaces), [implicitSurfaces]);
 
   // TASKS.csv #89 — domain CRUD. A domain with zero constraints exists but matches everything (same
   // as no domain at all) until at least one fault-side constraint is added.
@@ -4572,6 +4765,132 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         setNotices((p) => [...p, `Topology check failed: ${err.message}`]);
       } finally {
         setTopologyBusy(false);
+      }
+    }, 40);
+  }, [implicitSurfaces]);
+
+  // ---------- TASKS.csv #52 (d) — CROSS-CUTTING: truncate a surface against a dyke, split it on a fault ----------
+  //
+  // The gap this closes: the stratigraphic stack tool (#61) EXCLUDES veins and dykes by design — a
+  // stack is a set of ordered iso-surfaces of one shared scalar field, which is exactly what makes it
+  // non-crossing, and a cross-cutting body breaks that premise. #144 then modelled veins/dykes properly
+  // but with no relationship to the stratigraphy: a dyke and the contacts it cuts were two independent
+  // meshes that merely overlapped on screen, with the contact still drawn straight through the dyke.
+  //
+  // So cross-cutting is applied AFTER the fact, as a geometric operation on the finished meshes, rather
+  // than by teaching the stack about veins (which would cost the property that makes the stack
+  // trustworthy). That is also the order the geology happened in. The maths is src/lib/crosscut.js,
+  // hand-verified in bare Node against planted ground truth before any of this existed — including the
+  // two cases that must NOT report a truncation (a dyke that stops short of the contact) and the one
+  // that must report two bodies (a dyke that fully severs it). See TASKS.csv #52 for the numbers.
+  //
+  // WHICH OPERATION RUNS IS DECIDED BY THE CUTTER'S GEOMETRY, not by a mode switch: a closed body (a
+  // vein/dyke SOLID, a grade shell, an imported wireframe) has an inside, so the host is truncated
+  // against it; an open surface (a fault plane, a draped contact) has no inside, so the host is split
+  // into the two fault blocks instead. Meshes are handed over in SCENE space (up = +Y), the same frame
+  // #90's checker uses, so no coordinate conversion happens for what is a purely geometric question.
+  const [crossCutBusy, setCrossCutBusy] = useState(false);
+  const runCrossCut = useCallback((hostId, cutterId) => {
+    const host = implicitSurfaces.find((s) => s.id === hostId);
+    const cutter = implicitSurfaces.find((s) => s.id === cutterId);
+    if (!host || !cutter || hostId === cutterId) return;
+    const hostMesh = implicitMeshesRef.current[hostId], cutMesh = implicitMeshesRef.current[cutterId];
+    if (!hostMesh || !cutMesh) { setNotices((p) => [...p, "Cross-cut failed: one of the two surfaces has no mesh in the scene."]); return; }
+    const geoOf = (m) => ({ positions: m.geometry?.attributes?.position?.array || [], indices: m.geometry?.index?.array || [] });
+    setCrossCutBusy(true);
+    setTimeout(() => {
+      try {
+        const h = geoOf(hostMesh), c = geoOf(cutMesh);
+        const mkGeo = (positions, indices) => {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(Float32Array.from(positions), 3));
+          g.setIndex(Array.from(indices));
+          g.computeVertexNormals();
+          return g;
+        };
+        const res = truncateAgainstSolid(h, c);
+        if (!res.ok && res.reason === "cutter-not-closed") {
+          // Not an error — it is the fault case, and the fault case is a SPLIT, not a truncation.
+          const sp = splitAcrossSurface(h, c);
+          if (!sp.ok || !sp.changed) {
+            setNotices((p) => [...p, `"${cutter.name}" does not divide "${host.name}": ${sp.reason === "no-overlap" ? "the two surfaces are nowhere near each other" : "the whole surface falls on one side of it"}. Nothing was changed.`]);
+            return;
+          }
+          const stamp = (part, suffix, sense) => {
+            const mesh = new THREE.Mesh(mkGeo(part.positions, part.indices), new THREE.MeshLambertMaterial({
+              color: hostMesh.material?.color?.getHex?.() ?? 0xc8a24a, side: THREE.DoubleSide, transparent: true, opacity: hostMesh.material?.opacity ?? 0.75,
+            }));
+            const name = `${host.name} — ${suffix}`;
+            mesh.userData = { tip: `${name}\n${Math.floor(part.positions.length / 3)} vertices, ${Math.floor(part.indices.length / 3)} faces` };
+            implicitGroupRef.current?.add(mesh);
+            const id = `impl_${Date.now()}_block_${sense}_${Math.random().toString(36).slice(2, 7)}`;
+            implicitMeshesRef.current[id] = mesh;
+            return {
+              id, name, visible: true, type: host.type || "other",
+              vertexCount: Math.floor(part.positions.length / 3), faceCount: Math.floor(part.indices.length / 3),
+              relationships: [{ relation: "terminates_against", targetId: cutterId }],
+              params: {
+                tool: "fault block split (TASKS.csv #52)", derivedFrom: host.name, fault: cutter.name, block: sense,
+                triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
+                edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
+                note: "Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here.",
+                sourceParams: host.params || null, generatedAt: new Date().toISOString(),
+              },
+            };
+          };
+          const a = stamp(sp.positive, "block (+ side of fault)", "+");
+          const b = stamp(sp.negative, "block (− side of fault)", "-");
+          hostMesh.visible = false;
+          setImplicitSurfaces((p) => [...p.map((s) => (s.id === hostId ? { ...s, visible: false } : s)), a, b]);
+          setNotices((p) => [...p, `Split "${host.name}" along fault "${cutter.name}": ${a.faceCount.toLocaleString()} + ${b.faceCount.toLocaleString()} triangles in two blocks. The original surface is kept but hidden, so nothing is lost. NO displacement has been applied — the blocks are exactly where the surface already was, just separated at the fault.`]);
+          if (sp.stats.unresolvedEdges > 0) {
+            setNotices((p) => [...p, `"${cutter.name}" does not span the whole of "${host.name}": ${sp.stats.unresolvedEdges} edge(s) change sides beyond the fault's own extent, where it has no surface to cut against. Those triangles were left whole and assigned to the block holding most of their corners rather than cut at an invented position, so read the division as approximate near the fault's tip.`]);
+          }
+          return;
+        }
+        if (!res.ok) { setNotices((p) => [...p, `Cross-cut failed (${res.reason}).`]); return; }
+        if (!res.changed) {
+          setNotices((p) => [...p, `"${cutter.name}" does not cut "${host.name}" — ${res.reason === "no-overlap" ? "the two bodies do not even overlap in space" : "no part of the surface falls inside it"}. Nothing was changed, which is the correct result: a dyke that stops short of a contact does not truncate it.`]);
+          return;
+        }
+        // Replace the geometry (a NEW BufferGeometry, so the #52 sync-out cache keyed on geometry uuid
+        // re-serialises it and the truncation actually reaches the project file).
+        const old = hostMesh.geometry;
+        hostMesh.geometry = mkGeo(res.positions, res.indices);
+        old?.dispose?.();
+        delete surfaceGeomCacheRef.current[hostId];
+        const st = res.stats;
+        const vertexCount = Math.floor(res.positions.length / 3), faceCount = Math.floor(res.indices.length / 3);
+        hostMesh.userData = { tip: `${host.name}\n${vertexCount} vertices, ${faceCount} faces (truncated against ${cutter.name})` };
+        setImplicitSurfaces((p) => p.map((s) => {
+          if (s.id === hostId) {
+            return {
+              ...s, vertexCount, faceCount,
+              relationships: [...(s.relationships || []).filter((r) => !(r.relation === "cuts" && r.targetId === cutterId)), { relation: "cuts", targetId: cutterId }],
+              params: {
+                ...(s.params || {}),
+                truncatedBy: [...((s.params || {}).truncatedBy || []), {
+                  cutter: cutter.name, cutterId,
+                  trianglesRemoved: st.trianglesDropped, trianglesClipped: st.trianglesClipped,
+                  componentsBefore: st.componentsBefore, componentsAfter: st.componentsAfter,
+                  openEdgeLengthBeforeM: st.boundaryLengthBeforeM, openEdgeLengthAfterM: st.boundaryLengthAfterM,
+                  at: new Date().toISOString(),
+                }],
+              },
+            };
+          }
+          if (s.id === cutterId) {
+            return { ...s, relationships: [...(s.relationships || []).filter((r) => !(r.relation === "truncates" && r.targetId === hostId)), { relation: "truncates", targetId: hostId }] };
+          }
+          return s;
+        }));
+        const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        setNotices((p) => [...p, `Truncated "${host.name}" against "${cutter.name}": ${fmt(st.trianglesDropped)} triangle(s) removed and ${fmt(st.trianglesClipped)} cut at the contact, leaving ${fmt(faceCount)}. ${st.componentsAfter > st.componentsBefore ? `The body cuts right through it — the surface is now ${st.componentsAfter} separate pieces (was ${st.componentsBefore}).` : `The surface is still ${st.componentsAfter} connected piece(s), so the cut is a notch rather than a full severance.`} Its open edge went from ${fmt(st.boundaryLengthBeforeM)} m to ${fmt(st.boundaryLengthAfterM)} m.`]);
+        setNotices((p) => [...p, `The truncation is not re-run automatically: regenerating either surface produces a fresh, untruncated mesh, and the cut has to be applied again. What was cut is recorded in "${host.name}"'s Parameters used.`]);
+      } catch (err) {
+        setNotices((p) => [...p, `Cross-cut failed: ${err.message}`]);
+      } finally {
+        setCrossCutBusy(false);
       }
     }, 40);
   }, [implicitSurfaces]);
@@ -6518,6 +6837,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <option value="">Whole property</option>
           {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
+        {/* TASKS.csv #52 (c) — named intercept sets. Sits with the Domain selector because it is the
+            same kind of control: both narrow WHICH picks feed every tool below, one spatially and one
+            by hand. */}
+        <div className="ge-section-label" style={{ marginTop: 14 }}>Intercept set</div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that
+          repeats in the pile as the separate surfaces it really is, instead of every pick of that code
+          feeding one surface. Build sets in "Boundary intercepts" on the Home tab. "All intercepts" is
+          the original behaviour. Structural orientation picks are not covered: the tools read those
+          directly from the structure layer, not through this table.
+        </div>
+        <select value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5, marginBottom: 4 }}>
+          <option value="">All intercepts</option>
+          {(interceptSets || []).map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
+        </select>
+        {activeInterceptSet && (activeInterceptSet.ids || []).length === 0 && (
+          <div style={{ fontSize: 10, color: "#a95555", marginBottom: 4, lineHeight: 1.4 }}>
+            "{activeInterceptSet.name}" is empty, so every tool below has nothing to model. Add
+            intercepts to it in "Boundary intercepts", or switch back to All intercepts.
+          </div>
+        )}
+
         {/* TASKS.csv #88 — boundary constraint: #89 above only restricts which control points feed a
             run, this additionally clips the OUTPUT mesh to the domain, since GemPy still fits/
             extrapolates across the whole extent regardless. */}
@@ -7158,6 +7499,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "#e2a63c" : "#9aa5b3" }}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
+                {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
+                    so a project with no re-runs looks exactly as it did before. */}
+                {(() => {
+                  const info = surfaceLineageInfo.byId.get(s.id);
+                  if (!info || info.lineage.length < 2) return null;
+                  return (
+                    <span
+                      style={{ flexShrink: 0, fontSize: 9, color: s.accepted ? "#20512f" : "#55606e", background: s.accepted ? "#eaf3ec" : "#e8eaee", border: `1px solid ${s.accepted ? "#c6e0cb" : "#d9dce1"}`, borderRadius: 4, padding: "1px 4px" }}
+                      title={s.accepted ? `Version ${info.index + 1} of ${info.lineage.length} — marked as the version you are working from (a record of your choice, not a validation of the run)` : `Version ${info.index + 1} of ${info.lineage.length} of this surface`}
+                    >v{info.index + 1}/{info.lineage.length}{s.accepted ? " ✓" : ""}</span>
+                  );
+                })()}
                 {/* TASKS.csv #83 — expand to set this surface's geological type + declared
                     relationships to other surfaces (metadata only for now — see this entry's own
                     TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}
@@ -7229,6 +7582,36 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     </div>
                   ) : (
                     <div style={{ fontSize: 10, color: "#94a1b0" }}>Generate another surface to declare a relationship to it.</div>
+                  )}
+
+                  {/* TASKS.csv #52 (d) — CROSS-CUTTING. The stack tool excludes veins and dykes by
+                      design (see #61), so a dyke and the contacts it cuts were previously two
+                      unrelated meshes drawn through each other. This applies the cut. */}
+                  <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Cross-cutting</div>
+                  {otherSurfaces.length > 0 ? (
+                    <>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <select value={cutterDraft} onChange={(e) => setCutterDraft(e.target.value)} style={{ ...smallSel, flex: 1 }}>
+                          <option value="">— cut this surface with… —</option>
+                          {otherSurfaces.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                        </select>
+                        <button
+                          disabled={!cutterDraft || crossCutBusy}
+                          onClick={() => runCrossCut(s.id, cutterDraft)}
+                          style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
+                        >{crossCutBusy ? "Cutting…" : "Apply"}</button>
+                      </div>
+                      <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                        A closed body (a vein/dyke solid, a shell) removes the part of this surface inside
+                        it and leaves a clean truncation. An open surface (a fault) divides this one into
+                        two fault blocks instead — geometry only, with no displacement applied. If the
+                        cutting body doesn't reach this surface, nothing changes and it says so.
+                        Regenerating either surface undoes the cut; what was cut is recorded below under
+                        Parameters used.
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 10, color: "#94a1b0" }}>Model a dyke, vein or fault to cut this surface with it.</div>
                   )}
 
                   {/* TASKS.csv #140 — volume/tonnage. Only meaningful for a genuinely closed solid, so a
@@ -7329,7 +7712,30 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       {s.params && (
                         <div style={{ fontSize: 9.5, color: "#55606e", marginTop: 8, lineHeight: 1.5 }}>
                           <div style={{ color: "#94a1b0", marginBottom: 2 }}>Parameters used</div>
-                          {s.params.element} cutoff {s.params.cutoff} {s.params.unit} · {String(s.params.method).toUpperCase()} · search {Math.round(s.params.searchRadiusM)} m{s.params.searchRadiusWasUnlimited ? " (unlimited, capped at the grid diagonal)" : ""} · {s.params.cellSizeM} m cells · pad {s.params.paddingM} m · {s.params.composited ? `${s.params.compositeLengthM} m composites` : "raw intervals"} · cap {s.params.capValue == null ? "none" : s.params.capValue} · min {s.params.minHoles} hole{s.params.minHoles === 1 ? "" : "s"} · QC {s.params.includeQAQC ? "included" : "excluded"} · closure {s.params.closure} · {s.params.samplePoints} sample points · {s.params.cellsEstimated.toLocaleString()} cells estimated{s.params.singleHoleCells ? ` (${s.params.singleHoleCells.toLocaleString()} from a single hole)` : ""}
+                          {/* BUG FIXED HERE, found by live verification for TASKS.csv #52 (d): this line
+                              formatted the NUMERIC grade-shell parameter block unconditionally, for every
+                              surface that had any params at all. A vein/dyke (#144) or a GemPy stack
+                              surface has no `cellsEstimated`, so expanding its row threw
+                              "Cannot read properties of undefined (reading 'toLocaleString')" and the
+                              whole 3D view went to the error boundary. Reproduced against the Harry
+                              sample: build a vein, expand its row, crash. The numeric line now renders
+                              only for the surfaces it describes; everything else gets its own parameter
+                              block printed generically, which is strictly more than it had before. */}
+                          {s.params.cellsEstimated != null && s.params.element ? (
+                            <>{s.params.element} cutoff {s.params.cutoff} {s.params.unit} · {String(s.params.method).toUpperCase()} · search {Math.round(s.params.searchRadiusM)} m{s.params.searchRadiusWasUnlimited ? " (unlimited, capped at the grid diagonal)" : ""} · {s.params.cellSizeM} m cells · pad {s.params.paddingM} m · {s.params.composited ? `${s.params.compositeLengthM} m composites` : "raw intervals"} · cap {s.params.capValue == null ? "none" : s.params.capValue} · min {s.params.minHoles} hole{s.params.minHoles === 1 ? "" : "s"} · QC {s.params.includeQAQC ? "included" : "excluded"} · closure {s.params.closure} · {s.params.samplePoints} sample points · {s.params.cellsEstimated.toLocaleString()} cells estimated{s.params.singleHoleCells ? ` (${s.params.singleHoleCells.toLocaleString()} from a single hole)` : ""}</>
+                          ) : (
+                            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
+                              {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && v !== null && v !== undefined).map(([k, v]) => (
+                                <React.Fragment key={k}>
+                                  <div style={{ color: "#94a1b0", whiteSpace: "nowrap" }}>{k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}</div>
+                                  {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
+                                      printed rather than skipped: a parameter block that quietly omits half of
+                                      what produced the surface is worse than a slightly ugly one. */}
+                                  <div style={{ wordBreak: "break-word" }}>{typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3)) : typeof v === "object" ? JSON.stringify(v) : String(v)}</div>
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          )}
                           <div style={{ color: "#94a1b0", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Saved with the project (TASKS #52), so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.</div>
                         </div>
                       )}
@@ -7342,6 +7748,58 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       Placed directly under the volume/tonnage block on purpose: an edit changes the
                       enclosed volume, and the number it changes is the one immediately above. */}
                   <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />
+
+                  {/* TASKS.csv #93 — VERSIONS. Re-running a tool already produces a second surface; this
+                      is where the user says the second one is a re-run OF the first, which is what makes
+                      the two comparable and what "accept" then chooses between. Linking never moves or
+                      copies a mesh — it writes one id — so it costs nothing at save time. */}
+                  {(() => {
+                    const info = surfaceLineageInfo.byId.get(s.id);
+                    const chain = info ? info.lineage : [s];
+                    const vNum = info ? info.index + 1 : 1;
+                    const cands = candidatePredecessors(implicitSurfaces, s.id);
+                    return (
+                      <>
+                        <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
+                          Version {vNum} of {chain.length}
+                          {s.accepted && <span style={{ color: "#20512f", background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 4, padding: "1px 5px", marginLeft: 6 }}>accepted</span>}
+                        </div>
+                        <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                          <span style={{ flexShrink: 0 }}>New version of</span>
+                          <select
+                            value={s.supersedes || ""}
+                            onChange={(e) => setSurfaceSupersedes(s.id, e.target.value)}
+                            style={{ ...smallSel, flex: 1, minWidth: 0 }}
+                            title="Record that this run replaces an earlier one. Both runs stay in the project — this only links them so they can be compared."
+                          >
+                            <option value="">— nothing (this is an original run) —</option>
+                            {cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </label>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button
+                            onClick={() => setCompareVersionsFor(s.id)}
+                            disabled={chain.length < 2}
+                            style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: 10.5, opacity: chain.length < 2 ? 0.5 : 1, cursor: chain.length < 2 ? "default" : "pointer" }}
+                            title={chain.length < 2 ? "Link this surface to an earlier run first" : "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed"}
+                          ><GitCompare size={12} /> Compare versions…</button>
+                          <button
+                            onClick={() => acceptSurfaceVersion(s.id)}
+                            style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: 10.5 }}
+                            title="Mark this run as the version you are working from. Hides the other versions of this surface — it does not delete them, and it is not a check that this run is correct."
+                          ><Check size={12} /> {s.accepted ? "Accepted" : "Accept this version"}</button>
+                        </div>
+                        {chain.length > 1 && (
+                          <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                            Every version keeps its own mesh and its own parameter block, so nothing is
+                            overwritten and nothing is dropped on save — which also means each one costs
+                            its own space in the project file. Delete a version you no longer want with
+                            the × on its row; GeoStrix will not do it for you.
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* TASKS.csv #143 — export to a standard mesh format, at real-world project coordinates
                       (not GeoStrix's internal scene-space), for handoff to other software. */}
@@ -7888,6 +8346,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           onClose={() => setSurfaceQueryOpen(false)}
         />
       )}
+      {/* TASKS.csv #93 — version compare. Meshes are handed over BY REFERENCE out of the live scene
+          (same pattern as SurfaceQueryModal above): the dialog never copies a mesh, and it only walks
+          them when the user presses "Compare geometry". */}
+      {compareVersionsFor && (
+        <SurfaceCompareModal
+          surfaces={implicitSurfaces}
+          initialId={compareVersionsFor}
+          getMesh={(id) => {
+            const g = implicitMeshesRef.current[id]?.geometry;
+            if (!g?.attributes?.position || !g.index) return null;
+            return { positions: g.attributes.position.array, indices: g.index.array };
+          }}
+          onOverlay={overlayCompareSurfaces}
+          onClearOverlay={clearCompareOverlay}
+          onAccept={acceptSurfaceVersion}
+          onClose={() => setCompareVersionsFor(null)}
+        />
+      )}
       {coreOrientOpen && (
         <CoreOrientationCalculator
           collars={collars}
@@ -7909,6 +8385,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           softIntercepts={softIntercepts}
           onToggle={toggleExcludedIntercept}
           onToggleSoft={toggleSoftIntercept}
+          interceptSets={interceptSets}
+          onAddSet={addInterceptSet}
+          onRenameSet={renameInterceptSet}
+          onDeleteSet={(id) => { deleteInterceptSet(id); if (activeInterceptSetId === id) setActiveInterceptSetId(""); }}
+          onToggleInSet={toggleInterceptInSet}
+          onSetMembership={setInterceptsInSet}
           onCancel={() => setInterceptsModalOpen(false)}
         />
       )}
@@ -7995,7 +8477,7 @@ function ViewToolbar({
               <button
                 onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
                 disabled={!themeNameDraft.trim()}
-                title="Save the current view (layers, filters, grid, camera) as a named theme"
+                title="Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme"
                 style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "6px 9px", opacity: themeNameDraft.trim() ? 1 : 0.5, cursor: themeNameDraft.trim() ? "pointer" : "default" }}
               ><BookmarkPlus size={14} /></button>
             </div>
@@ -8015,7 +8497,7 @@ function ViewToolbar({
                       style={{ flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 12 }}
                     />
                   ) : (
-                    <div onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, and camera position" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                    <div onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                       <Bookmark size={13} style={{ flexShrink: 0, color: "#55606e" }} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                     </div>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Milestone, CheckSquare, Square, Download, Circle } from "lucide-react";
+import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -16,12 +16,24 @@ import { overlay } from "../lib/modalStyles.js";
 // real GemPy nugget value instead of the default near-zero one, so the fitted surface is only
 // APPROXIMATELY pulled toward it rather than forced exactly through it — useful for a pick you trust
 // less (ambiguous logging, a suspect assay) without excluding it outright.
-export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel }) {
+// TASKS.csv #52 (c) — NAMED INTERCEPT SETS. Exclusion (the first column) is a project-wide statement
+// about a pick: "this log is wrong, never use it". A SET is a per-run statement: "these picks are the
+// UPPER basalt, those are the lower one". The repeated-unit case #61 flagged needs the second, because
+// one logged code appearing at several levels in the pile is one code and several surfaces, and without
+// sets every pick of it anywhere on the property is forced onto a single surface.
+// The set column only appears once a set has been created and selected for editing, so the table is
+// unchanged for anyone not using the feature.
+export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel,
+  interceptSets = [], onAddSet, onRenameSet, onDeleteSet, onToggleInSet, onSetMembership }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [layerFilter, setLayerFilter] = useState("all");
   const [unitFilter, setUnitFilter] = useState("all");
   const [holeFilter, setHoleFilter] = useState("");
+  const [editingSetId, setEditingSetId] = useState("");
+  const [newSetName, setNewSetName] = useState("");
+  const editingSet = interceptSets.find((x) => x.id === editingSetId) || null;
+  const memberSet = useMemo(() => new Set(editingSet ? editingSet.ids || [] : []), [editingSet]);
 
   const units = useMemo(() => Array.from(new Set(intercepts.map((i) => i.unit))).sort(), [intercepts]);
   const excludedSet = useMemo(() => new Set(excludedIntercepts), [excludedIntercepts]);
@@ -74,12 +86,56 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
               <option value="all">All layers</option>
               <option value="litho">Lithology</option>
               <option value="alt">Alteration</option>
+              <option value="vein">Vein / dyke</option>
             </select>
             <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
               <option value="all">All units</option>
               {units.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
             <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder="Hole ID…" style={{ ...sel, flex: 1 }} />
+          </div>
+
+          {/* TASKS.csv #52 (c) — set editor. */}
+          <div style={{ border: "1px solid #e6e8eb", borderRadius: 6, padding: 8, marginBottom: 10, background: "#fbfbfc" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <Layers size={13} color="#55606e" />
+              <div style={{ fontSize: 11.5, color: "#2a3340", fontWeight: 600 }}>Intercept sets</div>
+            </div>
+            <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.45, marginBottom: 7 }}>
+              A named subset of these picks, so a unit that repeats in the pile can be modelled as the
+              separate surfaces it actually is instead of every pick of that code feeding one surface.
+              Build a set here, then choose it on the Modeling tab to restrict a run to it. Sets are
+              saved with the project, and they exclude nothing: a pick left out of the active set is
+              simply not used by that run.
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+              <select value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
+                <option value="">— no set being edited —</option>
+                {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
+              </select>
+              {editingSet && (
+                <button onClick={() => { const n = window.prompt("Rename set", editingSet.name); if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); }} style={miniBtn} title="Rename this set">Rename</button>
+              )}
+              {editingSet && (
+                <button onClick={() => { if (window.confirm(`Delete the set "${editingSet.name}"? The intercepts themselves are untouched.`)) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} style={{ ...miniBtn, color: "#8a5555" }} title="Delete this set">
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder="New set name…"
+                onKeyDown={(e) => { if (e.key === "Enter" && newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
+                style={{ ...sel, flex: 1 }} />
+              <button disabled={!newSetName.trim()} onClick={() => { if (newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
+                style={{ ...miniBtn, opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} /> Create</button>
+            </div>
+            {editingSet && (
+              <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} style={miniBtn}>Add the {shown.length} shown</button>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} style={miniBtn}>Remove the {shown.length} shown</button>
+                <span style={{ fontSize: 10.5, color: "#55606e" }}>{(editingSet.ids || []).length} intercept(s) in this set.</span>
+              </div>
+            )}
           </div>
 
           {shown.length === 0 ? (
@@ -93,6 +149,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                   <tr style={{ background: "#ffffff" }}>
                     <th style={th}></th>
                     <th style={th} title="Soft constraint — feeds the model but only approximately honoured"></th>
+                    {editingSet && <th style={th}>Set</th>}
                     <th style={th}>Layer</th>
                     <th style={th}>Hole</th>
                     <th style={th}>Unit</th>
@@ -112,6 +169,11 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                         <td style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? "Soft (approximate) — click to make hard again" : "Hard (exact) — click to make soft"}>
                           {soft ? <Circle size={11} color="#e2a63c" fill="#e2a63c" /> : <Circle size={11} color="#c7ccd3" />}
                         </td>
+                        {editingSet && (
+                          <td style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? "In the set being edited — click to remove" : "Not in the set being edited — click to add"}>
+                            {memberSet.has(i.id) ? <CheckSquare size={13} color="#8a6a1f" /> : <Square size={13} color="#c7ccd3" />}
+                          </td>
+                        )}
                         <td style={td}>{i.layerLabel}</td>
                         <td style={td}>{i.hole_id}</td>
                         <td style={td}>{i.unit}</td>
@@ -141,4 +203,5 @@ const header = { display: "flex", alignItems: "center", justifyContent: "space-b
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
 const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, position: "sticky", top: 0, background: "#ffffff" };
 const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };
+const miniBtn = { display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 9px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" };
 const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
