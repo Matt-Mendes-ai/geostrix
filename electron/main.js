@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, Menu, session } = require("electron"); // session: TASKS.csv #300
 // User-reported bug: "there's a bug on the app that won't let me close it. I can only close it ending
 // the task" — App.jsx's beforeunload handler correctly calls e.preventDefault() when a tab has unsaved
 // changes (the standard web pattern, meant to trigger a native "leave site?" confirm), but Electron
@@ -809,7 +809,37 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// TASKS.csv #300 — OpenStreetMap started returning 403 "Access blocked — App is not following the tile
+// usage policy" for every basemap tile. One of the three causes was that this app identified itself as
+// nothing: Electron sends a default Chrome-like User-Agent, and OSM's tile usage policy requires an
+// application to identify itself so they can contact whoever is generating load. An unidentified client
+// presenting as a browser is exactly the profile that gets blocked.
+//
+// This has to happen in the MAIN process. User-Agent is a forbidden header for renderer fetch(), and
+// <img> tags — which is how tiles are actually drawn — cannot set headers at all. Consequence worth
+// knowing: this only takes effect in the packaged/dev Electron app, NOT in the browser-only vite
+// preview, so a plain `npx vite` session still presents as the bare browser.
+//
+// Scoped to tile hosts rather than set globally via app.userAgentFallback: overriding the UA for every
+// request would also change what GitHub's update check and the SRTM proxy send, which nothing asked for.
+function setTileUserAgent() {
+  const version = app.getVersion();
+  const ua = `GeoStrix/${version} (+https://github.com/Matt-Mendes-ai/geostrix)`;
+  const filter = {
+    urls: [
+      "https://tile.openstreetmap.org/*",
+      "https://*.tile.openstreetmap.org/*",
+      "https://tile.tracestrack.com/*",
+      "https://tiles.maps.eox.at/*",
+    ],
+  };
+  session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
+    callback({ requestHeaders: { ...details.requestHeaders, "User-Agent": ua } });
+  });
+}
+
 app.whenReady().then(() => {
+  setTileUserAgent(); // TASKS.csv #300 — before any window exists, so the first tile request carries it
   createMainWindow();
   startPythonSidecar();
   setupAutoUpdater();

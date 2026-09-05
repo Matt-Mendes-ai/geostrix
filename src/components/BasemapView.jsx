@@ -159,9 +159,31 @@ export default function BasemapView({
   // CachedTile's passive background caching already covers as the user pans around normally) and
   // fetches+caches every tile via tileCache.js. Limited concurrency (6 in flight) so this doesn't try
   // to fire hundreds of requests at once.
+  // TASKS.csv #300 — OSM began returning 403 "Access blocked — App is not following the tile usage
+  // policy" for every tile, and this function was the main reason. OSM's tile usage policy forbids bulk
+  // downloading outright: their tiles come from volunteer-funded servers, and sweeping three zoom levels
+  // of a viewport is precisely the "download an area for later" pattern the policy exists to stop. The
+  // 21x-tile-count reasoning in the comment above is a fair description of the cost but not a
+  // justification — a modest bulk download is still a bulk download.
+  //
+  // So this is now refused for OSM Standard specifically, rather than throttled. Offline pre-caching is
+  // legitimate against providers whose terms allow it — Tracestrack, which the user supplies their own
+  // API key for, and EOX's satellite mosaic — so the feature stays for those. Passive caching of tiles
+  // the user has ALREADY viewed (CachedTile.jsx) is ordinary browser behaviour and is untouched; the
+  // deliberate area sweep is the part that was over the line.
+  const BULK_CACHE_BLOCKED_LAYERS = new Set(["standard"]);
+  const bulkCacheBlocked = BULK_CACHE_BLOCKED_LAYERS.has(effectiveLayerId);
   const EXTRA_ZOOM_LEVELS = 2;
   const downloadAreaOffline = async () => {
     if (!center || offlineDownloading) return;
+    if (bulkCacheBlocked) {
+      setTaskProgress({
+        label: "OpenStreetMap's tile policy doesn't allow downloading areas in advance — switch to Topo or Satellite to pre-cache.",
+        pct: 100,
+      });
+      setTimeout(() => setTaskProgress(null), 6000);
+      return;
+    }
     setOfflineDownloading(true);
     const centerLonLat = worldPxToLonLat(center.wx, center.wy, zoom);
     const targets = [];
@@ -181,7 +203,10 @@ export default function BasemapView({
     let done = 0;
     const label = `Downloading ${total} map tiles for offline use…`;
     setTaskProgress({ label, pct: 0 });
-    const CONCURRENCY = 6;
+    // TASKS.csv #300 — was 6. Tile providers generally ask for a small number of parallel connections
+    // (OSM's policy names 2), and there is no user-visible benefit to saturating someone else's server:
+    // this is a background "prep before I lose signal" task, not something anyone is watching finish.
+    const CONCURRENCY = 2;
     let idx = 0;
     const worker = async () => {
       while (idx < targets.length) {
@@ -304,8 +329,13 @@ export default function BasemapView({
             <button
               onClick={downloadAreaOffline}
               disabled={offlineDownloading}
-              title="Download this area's map tiles for offline use (this zoom level + 2 closer levels)"
-              style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
+              // TASKS.csv #300 — left clickable rather than disabled when the layer is OSM, so the click
+              // can explain WHY. A greyed-out button with no reason is the thing that sends someone
+              // hunting through settings for a problem that isn't theirs.
+              title={bulkCacheBlocked
+                ? "Offline pre-download isn't available on the OpenStreetMap layer — their tile policy doesn't permit downloading areas in advance. Switch to Topo or Satellite to pre-cache."
+                : "Download this area's map tiles for offline use (this zoom level + 2 closer levels)"}
+              style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : bulkCacheBlocked ? 0.55 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
             ><Download size={14} /></button>
           )}
           <div style={{ position: "relative" }}>
