@@ -740,8 +740,9 @@ export default function GeophysicsModule() {
         </div>
         {(Number(geophysSourceEpsg) === 4267 || (Number(geophysSourceEpsg) >= 26701 && Number(geophysSourceEpsg) <= 26722)) && (
           <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>
-            ⚠ NAD27 (TASKS.csv #299): no NAD27→NAD83 datum shift is applied — these points will land
-            roughly 100&nbsp;m off from where they should be in BC until a real datum-shift implementation ships.
+            ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
+            published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
+            that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
           </div>
         )}
 

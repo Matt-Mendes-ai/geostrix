@@ -183,8 +183,9 @@ export default function RasterModule() {
         </label>
         {(Number(sourceEpsg) === 4267 || (Number(sourceEpsg) >= 26701 && Number(sourceEpsg) <= 26722)) && (
           <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
-            ⚠ NAD27 (TASKS.csv #299): no NAD27→NAD83 datum shift is applied — this raster will land
-            roughly 100&nbsp;m off from where it should be in BC until a real datum-shift implementation ships.
+            ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
+            published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
+            that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
           </div>
         )}
         <button onClick={() => fileInput.current.click()} style={pBtn} disabled={busy}>

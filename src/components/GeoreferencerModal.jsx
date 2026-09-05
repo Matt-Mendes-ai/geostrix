@@ -32,8 +32,9 @@ const CP_CRS_OPTIONS = [
   { value: "4326", label: "EPSG:4326 — WGS84 lat/lon (degrees)" },
   { value: "4269", label: "EPSG:4269 — NAD83 lat/lon (degrees)" },
   // NAD27 is offered because it IS what a lot of pre-1990s BC assessment-report maps print, but see
-  // the NAD27_WARNING below — proj4js can't do the real NAD27 datum shift without NADCON grids, so
-  // this is honest-but-approximate rather than silently wrong. TASKS.csv #299.
+  // the NAD27 note below — proj4js can't do the exact, spatially-varying NAD27 shift without NTv2
+  // grids, so reproject.js applies a published ~10 m-class Helmert approximation (EPSG:1179) instead:
+  // honest-but-approximate rather than silently wrong. TASKS.csv #299.
   { value: "4267", label: "EPSG:4267 — NAD27 lat/lon (degrees) — approximate, see note" },
   { value: "3005", label: "EPSG:3005 — BC Albers" },
   { value: "other", label: "Other EPSG code…" },
@@ -185,13 +186,13 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             {cpEpsgChoice === "other" && (
               <input type="number" value={cpEpsgOther} onChange={(e) => setCpEpsgOther(e.target.value)} placeholder="EPSG code, e.g. 32609" style={{ ...numInput, width: "100%" }} />
             )}
-            {/* TASKS.csv #299 (found while verifying #290) — proj4js has no NADCON/NTv2 grids, so a
-                NAD27 source is transformed on its ellipsoid alone with no real datum shift; in BC
-                that leaves a systematic offset of roughly 100 m. Said out loud rather than letting a
-                plausible-looking result stand. */}
+            {/* TASKS.csv #299 — was "no datum shift at all, expect ~100 m offset". An approximate
+                shift (EPSG:1179 geocentric translation, DMA TR8350.2, Alberta/BC extent) is now
+                applied, so the wording says what it actually buys (~10 m class) without pretending
+                it is a grid shift. */}
             {NAD27_CODES.has(Number(cpEpsg)) && (
               <div style={{ fontSize: 11, color: "#8a6a1f", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>
-                NAD27 note: GeoStrix has no NADCON/NTv2 datum-shift grids, so a NAD27 source is converted without the true NAD27→NAD83 shift — expect a systematic offset (roughly 100 m in BC) on top of the fit's own RMSE. Fine for rough context; don't measure off it.
+                NAD27 note: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a published 3-parameter fit for Alberta/BC — typically within ~10 m). It is not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet. Expect a small residual on top of the fit's own RMSE.
               </div>
             )}
             {needsReproject && !crsError && (

@@ -140,11 +140,11 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </div>
               {isNad27Epsg(modal.sourceEpsg) && (
                 <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: 6, lineHeight: 1.4 }}>
-                  ⚠ NAD27 (TASKS.csv #299): this reprojection applies no NAD27→NAD83 datum shift — the
-                  underlying library doesn't support the NADCON/NTv2 grid that shift requires. Points
-                  will land roughly 100&nbsp;m off from where they should be in BC. If this data is from
-                  a pre-1990s BC assessment report or old claim map (the usual source of NAD27 coordinates
-                  here), expect that offset until a real datum-shift implementation ships.
+                  ⚠ NAD27 (TASKS.csv #299): an <em>approximate</em> NAD27→NAD83 datum shift is applied
+                  (EPSG:1179, a published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m).
+                  This is not survey-grade: the exact shift varies from place to place and needs a
+                  grid-based (NTv2) transform, which GeoStrix doesn't ship yet. Fine for siting old
+                  assessment-report or claim-map coordinates in context; don't survey off it.
                 </div>
               )}
 

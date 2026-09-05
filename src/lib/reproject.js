@@ -33,10 +33,53 @@
 // unrecognized target EPSG falls back to the existing "no reprojection, here's why" warning message.
 import proj4 from "proj4";
 
+// TASKS.csv #299 — NAD27 datum shift approximation.
+//
+// proj4js has no NADCON/NTv2 grid-shift support compiled in by default, so "+datum=NAD27" is parsed
+// as datum_type 5 (PJD_NODATUM) and NO datum shift is applied at all: measured, a NAD27 lon/lat and
+// an NAD83 lon/lat with the SAME numbers produced byte-identical UTM coordinates, where the real
+// NAD27→NAD83 difference in BC is ~110 m. That is exactly the population of data these code paths
+// exist for (pre-1990s BC assessment-report maps, old claim/survey plans), so a silently 110 m-wrong
+// answer is the worst possible outcome.
+//
+// PARAMETERS AND SOURCE — do not change these without a citation. This is EPSG coordinate operation
+// 1179, "NAD27 to WGS 84 (10)":
+//   method  : Geocentric translations (geog2D domain), i.e. a 3-parameter Helmert with no rotation
+//             or scale — dX = -7 m, dY = +162 m, dZ = +188 m, applied on the Clarke 1866 ellipsoid.
+//   extent  : Canada — Alberta and British Columbia (48.25°N–60.01°N, 139.04°W–109.98°W). The Golden
+//             Triangle (~56.5°N, 130.5°W) is inside it; this is the closest-fitting published set for
+//             this app's actual users, NOT the continental-US one.
+//   accuracy: EPSG lists 13 m operation accuracy ("derived at 25 stations; 8 m, 8 m and 6 m in X, Y
+//             and Z"). So this is a ~10 m-class approximation, not survey grade.
+//   source  : U.S. Defense Mapping Agency TR8350.2, September 1987, as published in the EPSG Geodetic
+//             Parameter Dataset — https://epsg.io/1179 (transformation code 1179).
+//
+// WHY A SINGLE PARAMETER SET FOR THE WHOLE NAD27 SERIES. The real NAD27→NAD83 difference is spatially
+// variable, which is why NTv2 grids exist; one Helmert set cannot reproduce it. But the alternative
+// published sets for continental North America are close to each other: at 56.5°N 130°W this BC/Alberta
+// set gives a 110.6 m shift, EPSG:1172 (Canada mean, -10/158/187) 111.1 m and EPSG:1173 (CONUS,
+// -8/160/176) 111.6 m — a ~1 m spread. The outlier is EPSG:1176 (Alaska, -5/135/172) at 99.4 m, ~11 m
+// away, so NAD27 data from Alaska (UTM zones 5N–8N reach into the panhandle right next to the Golden
+// Triangle) is the one case where this set is meaningfully mis-tuned. Even there, ~11 m of parameter-
+// choice error replaces ~110 m of no error correction at all. A per-zone table was rejected because a
+// UTM zone does not determine which country/region a point is in (zone 10N is both BC and California),
+// so it could not actually make the choice correctly — better one documented, cited assumption than a
+// fake-precise lookup.
+//
+// WHAT THIS IS NOT: a grid shift. EPSG:9112 (NAD27 to NAD83(CSRS)v2, GeoBC's BC_27_98.GSB NTv2 grid)
+// is the survey-grade answer at 1.5 m. That is fix option (c) in #299's notes and remains open — it
+// needs a licensing/size decision. Every UI that accepts a NAD27 source EPSG must keep saying so.
+const NAD27_TO_WGS84_BC = "+towgs84=-7,162,188";
+
 const GEOGRAPHIC = {
   4326: "+proj=longlat +datum=WGS84 +no_defs",
   4269: "+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs",
-  4267: "+proj=longlat +datum=NAD27 +no_defs",
+  // TASKS.csv #299 fix option (b): "+datum=NAD27" is a NO-OP in proj4js — it resolves to
+  // datum_type 5 (PJD_NODATUM) because proj4js ships no NADCON/NTv2 grids, so NAD27 input came out
+  // byte-identical to NAD83 input, silently ~110 m off in BC. Replaced with an explicit Clarke 1866
+  // ellipsoid plus the published geocentric-translation (3-parameter Helmert) approximation — see
+  // NAD27_TO_WGS84_BC below for the source and the accuracy this does and does not buy.
+  4267: `+proj=longlat +ellps=clrk66 ${NAD27_TO_WGS84_BC} +no_defs`,
 };
 
 // NAD83(CSRS) UTM zones covering BC (7N–11N) — individually verified against the real EPSG registry
@@ -78,7 +121,9 @@ export function getProj4DefSync(epsg) {
   // NAD27 UTM North zones — TASKS.csv #223. Unlike NAD83(CSRS)'s irregular series, this IS a
   // standard, well-documented linear EPSG block (26701 = zone 1N ... 26722 = zone 22N), the same kind
   // of verified-safe-to-formula case the WGS84/NAD83 UTM ranges above already rely on.
-  if (code >= 26701 && code <= 26722) return utmProj4(code - 26700, false, "+datum=NAD27"); // NAD27 UTM N
+  // TASKS.csv #299 — "+datum=NAD27" applied no shift at all here (see NAD27_TO_WGS84_BC above);
+  // now carries the cited EPSG:1179 geocentric-translation approximation on the Clarke 1866 ellipsoid.
+  if (code >= 26701 && code <= 26722) return utmProj4(code - 26700, false, `+ellps=clrk66 ${NAD27_TO_WGS84_BC}`); // NAD27 UTM N
   return null;
 }
 
