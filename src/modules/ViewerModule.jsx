@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
 import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
 import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
-import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
-import VariogramModal from "../components/VariogramModal.jsx"; // TASKS.csv #147
+const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
+const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
 import LocatorMap from "../components/LocatorMap.jsx";
-import BasemapView from "../components/BasemapView.jsx";
+const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
@@ -20,7 +21,7 @@ import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
-import AttributeTableModal from "../components/AttributeTableModal.jsx";
+const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
@@ -29,27 +30,27 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import PanelSplitHandle from "../components/PanelSplitHandle.jsx";
 import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
 import DbBrowserPanel from "../components/DbBrowserPanel.jsx";
-import ImportMappingModal from "../components/ImportMappingModal.jsx";
+const ImportMappingModal = lazyModal(() => import("../components/ImportMappingModal.jsx"));  // TASKS.csv #301
 import LayerPickerModal from "../components/LayerPickerModal.jsx"; // TASKS.csv #288
-import DatabaseConnectModal from "../components/DatabaseConnectModal.jsx";
+const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConnectModal.jsx"));  // TASKS.csv #301
 import SectionEditModal from "../components/SectionEditModal.jsx";
-import LayerInspector from "../components/LayerInspector.jsx";
-import DataQCModal from "../components/DataQCModal.jsx";
+const LayerInspector = lazyModal(() => import("../components/LayerInspector.jsx"));  // TASKS.csv #301
+const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  // TASKS.csv #301
 // TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
 // strongest lazy-loading candidate) — SQLWorkspaceModal statically imports sqlWorkspace.js, which
 // statically imports sql.js, so a plain top-level import here pulled that wasm in on every app launch
 // regardless of whether SQL workspace is ever opened. React.lazy defers the whole chain until the
 // modal is actually rendered (see the Suspense wrapper at its render site below).
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
-import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
-import StripLog from "../components/StripLog.jsx";
-import StereonetModal from "../components/StereonetModal.jsx";
-import DownholeStructurePlot from "../components/DownholeStructurePlot.jsx"; // TASKS.csv #277
-import SurfaceQueryModal from "../components/SurfaceQueryModal.jsx"; // TASKS.csv #146
-import SurfaceCompareModal from "../components/SurfaceCompareModal.jsx"; // TASKS.csv #93
+const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
+const StripLog = lazyModal(() => import("../components/StripLog.jsx"));  // TASKS.csv #301
+const StereonetModal = lazyModal(() => import("../components/StereonetModal.jsx"));  // TASKS.csv #301
+const DownholeStructurePlot = lazyModal(() => import("../components/DownholeStructurePlot.jsx")); // TASKS.csv #277  // TASKS.csv #301
+const SurfaceQueryModal = lazyModal(() => import("../components/SurfaceQueryModal.jsx")); // TASKS.csv #146  // TASKS.csv #301
+const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompareModal.jsx")); // TASKS.csv #93  // TASKS.csv #301
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
-import FenceDiagramModal from "../components/FenceDiagramModal.jsx"; // TASKS.csv #139
-import CoreOrientationCalculator from "../components/CoreOrientationCalculator.jsx";
+const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
+const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
   diffCollarImport, // TASKS.csv #283
