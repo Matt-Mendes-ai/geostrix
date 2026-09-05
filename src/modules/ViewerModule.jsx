@@ -19,6 +19,7 @@ import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
+import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
@@ -1562,13 +1563,94 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     Object.values(layerGroupsRef.current).forEach((g) => { if (g && g.visible !== false) list.push(...g.children); });
     return list;
   }, []);
-  // Shared raycast-and-convert-to-world-coords helper used by both the live status-bar cursor (inside
-  // the three.js init effect below) and onMeasureClick further down — one raycaster, nearest hit among
-  // pickHoverTargets() above, falling back to a flat plane at local y=0 (the origin's own elevation).
-  const raycastWorldPoint = useCallback((raycaster) => {
+  // TASKS.csv #304 — cached object-level BVH over pickHoverTargets(). See src/lib/pickIndex.js for
+  // the measurement that motivated it and for the correctness contract (it only narrows the CANDIDATE
+  // list; three.js still computes every hit itself, so results are identical, not approximate).
+  //
+  // Cache invalidation is deliberately kept here, next to the code that knows how these groups are
+  // maintained, rather than inside pickIndex.js. pickTargetsSignature() is O(number of GROUPS) — it
+  // never walks the ~12,000 objects — and is recomputed on every single pick, so the index is
+  // rebuilt the moment the target list changes shape. It relies on one property of this file that is
+  // true throughout: pickable objects are REPLACED (groups cleared and rebuilt), never moved in
+  // place. `.visible` flips (visibleHoles / applyCategoryVisibility) and material.color repaints
+  // (applyLegendOverrideColors) are the only in-place mutations, and neither affects geometry or
+  // matrixWorld, so neither can invalidate the index. Object3D.id is a globally monotonic counter,
+  // so a rebuilt group can never reproduce the same (count, first id, last id) triple as the one it
+  // replaced. IF YOU EVER ADD CODE THAT MOVES/RESCALES AN ALREADY-BUILT PICKABLE OBJECT (a vertical
+  // exaggeration slider is the obvious candidate — none exists today), it must also force a rebuild,
+  // or picking will silently go stale.
+  //
+  // REAL BUG CAUGHT HERE DURING #304's OWN VERIFICATION, worth keeping in mind before touching this:
+  // the index is built from each object's matrixWorld, and three.js only recomputes matrixWorld
+  // inside renderer.render(). A pointermove landing in the window between a geometry rebuild and the
+  // next rendered frame (the render loop is idle-throttled to ~120 ms by #201's own comment below,
+  // and stops entirely while the viewer tab is hidden) therefore used to build the whole tree from
+  // freshly-created meshes whose matrixWorld was still identity — every box wrong, the tree silently
+  // returning nothing but the always-included `rest` list, and NOTHING to invalidate it afterwards
+  // because the object list itself had not changed. This reproduced 100% of the time by hovering
+  // immediately after loading the sample project: 57 of 129 picks over known-hit screen positions
+  // returned a drillhole trace Line instead of the interval mesh in front of it. Two defences now:
+  // (1) updateMatrixWorld() immediately before every build, and (2) the sampled world-space
+  // translations in the signature below, which would independently force a rebuild once the real
+  // matrices land.
+  const pickIndexRef = useRef({ sig: null, index: null });
+  const pickTargetsSignature = useCallback(() => {
+    let s = terrainMeshRef.current ? `t${terrainMeshRef.current.id}` : "t-";
+    const tag = (label, children) => {
+      const n = children ? children.length : 0;
+      s += `|${label}${n}:${n ? children[0].id : 0}:${n ? children[n - 1].id : 0}`;
+      // Sampled world translations (O(1) per group, never a walk of the ~12,000 objects): catches
+      // "same objects, different matrixWorld", which the id triple above cannot see.
+      if (n) { const a = children[0].matrixWorld.elements, b = children[n - 1].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
+    };
+    tag("v", voxelGroupRef.current?.children);
+    tag("o", omfGroupRef.current?.children);
+    tag("r", rasterGroupRef.current?.children);
+    tag("p", plannedGroupRef.current?.children);
+    tag("i", implicitGroupRef.current?.children);
+    // boundaryGroup nests one level deeper (a group per boundary), so each sub-group is tagged.
+    const bg = boundaryGroupRef.current?.children || [];
+    s += `|b${bg.length}`;
+    for (let i = 0; i < bg.length; i++) tag(`b${i}_`, bg[i].children);
+    const groups = layerGroupsRef.current;
+    for (const key in groups) {
+      const g = groups[key];
+      if (!g || g.visible === false) { s += `|${key}-`; continue; } // mirrors pickHoverTargets' own filter
+      tag(key, g.children);
+    }
+    return s;
+  }, []);
+  const pickCandidates = useCallback((raycaster) => {
+    const cache = pickIndexRef.current;
+    let sig = pickTargetsSignature();
+    if (cache.sig !== sig || !cache.index) {
+      // See the "REAL BUG CAUGHT HERE" note above: matrixWorld is only refreshed by
+      // renderer.render(), so a rebuild triggered between a geometry rebuild and the next frame
+      // would otherwise bake identity matrices into every box. Update first, then re-read the
+      // signature so what gets cached describes the same state the tree was built from. Kept inside
+      // the rebuild branch rather than run on every pointermove: it is a full scene-graph traversal,
+      // and on the steady-state path (no rebuild) there is nothing for it to do.
+      if (sceneRef.current) sceneRef.current.updateMatrixWorld();
+      sig = pickTargetsSignature();
+      cache.index = buildPickIndex(pickHoverTargets());
+      cache.sig = sig;
+    }
+    return queryPickIndex(cache.index, raycaster);
+  }, [pickHoverTargets, pickTargetsSignature]);
+  // TASKS.csv #304 — the single "what is under this ray" call. Everything that picks goes through
+  // here, so the hover handler can compute ONE sorted hit list and answer both of its questions from
+  // it instead of raycasting the same objects twice per pointermove (which is what it used to do:
+  // raycastWorldPoint over the full target list for the status-bar readout, then a second, separate
+  // intersectObjects over the layer subset for the tooltip — measured at 1.74 ms each).
+  const pickHits = useCallback((raycaster) => {
+    const targets = pickCandidates(raycaster);
+    return targets.length ? raycaster.intersectObjects(targets, false) : [];
+  }, [pickCandidates]);
+  // Converts an already-computed hit list to world coords, falling back to a flat plane at local y=0
+  // (the origin's own elevation) when nothing real was hit. Split out of raycastWorldPoint so the
+  // hover handler can reuse a hit list it already has.
+  const worldPointFromHits = useCallback((raycaster, hits) => {
     const o = originRef.current;
-    const targets = pickHoverTargets();
-    const hits = targets.length ? raycaster.intersectObjects(targets, false) : [];
     if (hits.length) {
       const p = hits[0].point;
       return { x: p.x + o.x, y: -p.z + o.y, z: p.y + o.z };
@@ -1579,7 +1661,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z };
     }
     return null;
-  }, [pickHoverTargets]);
+  }, []);
+  // Shared raycast-and-convert-to-world-coords helper used by both the live status-bar cursor (inside
+  // the three.js init effect below) and onMeasureClick further down — one raycaster, nearest hit among
+  // pickHoverTargets() above, falling back to a flat plane at local y=0 (the origin's own elevation).
+  const raycastWorldPoint = useCallback((raycaster) => worldPointFromHits(raycaster, pickHits(raycaster)), [pickHits, worldPointFromHits]);
 
   // ---------- three.js init ----------
   useEffect(() => {
@@ -1706,8 +1792,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // children regardless of the group's own .visible flag, so a toggled-off layer's meshes (still
     // present in the scene graph, just not drawn) could still be hit and show a tooltip/context menu
     // for data the user explicitly hid. Centralized here so both call sites below use the same fix.
-    const visibleLayerObjects = () =>
-      Object.values(layerGroupsRef.current).filter((g) => g.visible !== false).flatMap((g) => g.children);
+    // TASKS.csv #304 — this used to build (and separately raycast) a flat list of every visible
+    // layer group's children on every pointermove. Both call sites now take the SINGLE sorted hit
+    // list pickHits() already produces over the superset of pickable objects, and pick the nearest
+    // hit that belongs to a visible layer group out of it. That is exactly what a layer-only
+    // raycast returned before: intersectObjects sorts by distance ascending, so the first element
+    // of the sorted list that is a visible layer group's direct child IS the nearest layer object,
+    // and pickIndex.js preserves original list order so intersectObjects' stable sort still breaks
+    // exact-distance ties the same way. #63's fix (never hit-test a toggled-off layer's children)
+    // is preserved here by the same `g.visible !== false` filter, just applied to the hit instead of
+    // to the input list.
+    const firstVisibleLayerHit = (hits) => {
+      if (!hits.length) return null;
+      const groups = layerGroupsRef.current;
+      const visibleGroups = new Set();
+      for (const key in groups) { const g = groups[key]; if (g && g.visible !== false) visibleGroups.add(g); }
+      for (let i = 0; i < hits.length; i++) if (visibleGroups.has(hits[i].object.parent)) return hits[i];
+      return null;
+    };
 
     const onPointerDown = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -1824,7 +1926,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // terrain-only, which is what the "Z stuck at a fixed number" report was tracing back to).
       const mxN = (mx / rect.width) * 2 - 1, myN = -(my / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(new THREE.Vector2(mxN, myN), camera);
-      const worldPt = raycastWorldPoint(raycasterRef.current);
+      // TASKS.csv #304 — one raycast, two answers (see firstVisibleLayerHit above and pickHits'
+      // own comment): the status-bar readout wants the nearest hit of any kind, the tooltip wants
+      // the nearest hit belonging to a visible layer group. Previously these were two full
+      // intersectObjects passes over overlapping object lists on every single pointermove.
+      const hoverHits = pickHits(raycasterRef.current);
+      const worldPt = worldPointFromHits(raycasterRef.current, hoverHits);
       if (worldPt) setCursor(worldPt);
       // hover tooltip on layer objects — real bug fixed here: intersectObjects() is given the raw
       // mesh children directly (not their parent THREE.Group), and Raycaster only skips an object
@@ -1833,9 +1940,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // hovering over (say) a hidden lithology interval that happened to sit at the same spot as a
       // visible one would show the wrong tooltip, or a tooltip for data the user just turned off.
       // Filtering to only visible groups' children here (mirrors what actually renders) fixes it.
-      const objs = visibleLayerObjects();
-      const hits = raycasterRef.current.intersectObjects(objs, false);
-      if (hits.length && hits[0].object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: hits[0].object.userData.tip });
+      const layerHit = firstVisibleLayerHit(hoverHits);
+      if (layerHit && layerHit.object.userData?.tip) setTooltip({ x: e.clientX, y: e.clientY, text: layerHit.object.userData.tip });
       else setTooltip(null);
     };
     // Max radius raised again (500km -> 4,000km) alongside the far-plane bump above, so there's no
@@ -1850,11 +1956,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const rect = renderer.domElement.getBoundingClientRect();
       const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(new THREE.Vector2(mx, my), camera);
-      const objs = visibleLayerObjects();
-      const hits = raycasterRef.current.intersectObjects(objs, false);
-      if (hits.length && hits[0].object.userData?.tip) {
-        const tip = hits[0].object.userData.tip;
-        setContextMenu({ x: e.clientX, y: e.clientY, hit: { tip, holeId: tip.split("\n")[0], point: hits[0].point.clone() } });
+      const menuHit = firstVisibleLayerHit(pickHits(raycasterRef.current)); // TASKS.csv #304 — same single-raycast path as hover
+      if (menuHit && menuHit.object.userData?.tip) {
+        const tip = menuHit.object.userData.tip;
+        setContextMenu({ x: e.clientX, y: e.clientY, hit: { tip, holeId: tip.split("\n")[0], point: menuHit.point.clone() } });
       } else setContextMenu({ x: e.clientX, y: e.clientY, hit: null });
     };
     const onAuxClick = (e) => { if (e.button === 1) e.preventDefault(); };
