@@ -55,17 +55,17 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>QAQC — lab quality control</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>QAQC — lab quality control</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
               Detected by hole_id naming: {counts.standard} standard{counts.standard === 1 ? "" : "s"}, {counts.blank} blank{counts.blank === 1 ? "" : "s"}, {counts.duplicate} duplicate{counts.duplicate === 1 ? "" : "s"} (of {assays.length} total intervals).
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: 11, color: "#55606e" }}>Element
+            <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Element
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
@@ -81,25 +81,25 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
           {tab === "standards" && (
             groups.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No repeated standard insertions found. Standards are detected by hole_id containing "std", "crm", "oreas", etc. — a standard inserted only once has nothing to compare it against.</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No repeated standard insertions found. Standards are detected by hole_id containing "std", "crm", "oreas", etc. — a standard inserted only once has nothing to compare it against.</div>
             ) : (
               <>
-                <label style={{ fontSize: 11, color: "#55606e" }}>Standard
+                <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Standard
                   <select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.id} ({g.rows.length})</option>)}
                   </select>
                 </label>
                 {!series.limits ? (
-                  <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No {symbol} values found for this standard.</div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No {symbol} values found for this standard.</div>
                 ) : (
                   <>
                     <div style={label}>
                       Control chart — {symbol} ({elementUnits[symbol] || "ppm"}), self-referencing mean ± 2SD/3SD (no certified CRM value loaded — see info).
                     </div>
                     <ControlChart points={series.points} limits={series.limits} />
-                    <div style={{ fontSize: 11, color: "#55606e" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
                       Mean {series.limits.mean.toFixed(3)} · SD {series.limits.sd.toFixed(3)} · n={series.limits.n}
-                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "#d9534f", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length} point(s) outside 2SD</span>}
+                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length} point(s) outside 2SD</span>}
                     </div>
                   </>
                 )}
@@ -109,19 +109,19 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
           {tab === "blanks" && (
             <>
-              <label style={{ fontSize: 11, color: "#55606e" }}>Contamination threshold ({elementUnits[symbol] || "ppm"})
+              <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Contamination threshold ({elementUnits[symbol] || "ppm"})
                 <input type="number" step="0.01" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
               </label>
               {blanks.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No blanks found (hole_id containing "blank"/"blk"), or none have a {symbol} value.</div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No blanks found (hole_id containing "blank"/"blk"), or none have a {symbol} value.</div>
               ) : (
                 <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
                   <thead><tr><th style={th}>Hole ID</th><th style={th}>From</th><th style={th}>To</th><th style={th}>{symbol}</th><th style={th}>Flag</th></tr></thead>
                   <tbody>
                     {blanks.map((b, i) => (
-                      <tr key={i} style={b.flagged ? { background: "#2a1f1f" } : undefined}>
+                      <tr key={i} style={b.flagged ? { background: "var(--color-danger-bg)" } : undefined}>
                         <td style={td}>{b.hole_id}</td><td style={td}>{b.from}</td><td style={td}>{b.to}</td>
-                        <td style={{ ...td, color: b.flagged ? "#e0a0a0" : "#1a2028" }}>{b.value.toFixed(4)}</td>
+                        <td style={{ ...td, color: b.flagged ? "var(--color-danger-text)" : "var(--color-text)" }}>{b.value.toFixed(4)}</td>
                         <td style={td}>{b.flagged ? "⚠ contaminated" : "ok"}</td>
                       </tr>
                     ))}
@@ -133,7 +133,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
           {tab === "duplicates" && (
             dups.length === 0 ? (
-              <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No duplicate pairs found — a duplicate row (hole_id containing "dup") needs a matching original row at the exact same hole_id/from/to (see info).</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No duplicate pairs found — a duplicate row (hole_id containing "dup") needs a matching original row at the exact same hole_id/from/to (see info).</div>
             ) : (
               <>
                 <div style={label}>Relative % difference (RPD) — {symbol}, {dups.length} pair{dups.length === 1 ? "" : "s"}</div>
@@ -141,21 +141,21 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   <thead><tr><th style={th}>Original</th><th style={th}>Duplicate</th><th style={th}>Interval</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>RPD %</th></tr></thead>
                   <tbody>
                     {dups.map((d, i) => (
-                      <tr key={i} style={d.rpd > 20 ? { background: "#2a1f1f" } : undefined}>
+                      <tr key={i} style={d.rpd > 20 ? { background: "var(--color-danger-bg)" } : undefined}>
                         <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td>
                         <td style={td}>{d.from}–{d.to}</td>
                         <td style={td}>{d.v1.toFixed(4)}</td><td style={td}>{d.v2.toFixed(4)}</td>
-                        <td style={{ ...td, color: d.rpd > 20 ? "#e0a0a0" : "#1a2028" }}>{d.rpd.toFixed(1)}{d.rpd > 20 ? " ⚠" : ""}</td>
+                        <td style={{ ...td, color: d.rpd > 20 ? "var(--color-danger-text)" : "var(--color-text)" }}>{d.rpd.toFixed(1)}{d.rpd > 20 ? " ⚠" : ""}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: 10.5, color: "#94a1b0" }}>Flagged at RPD &gt; 20%, a common industry rule-of-thumb precision threshold — not a certified/regulatory limit.</div>
+                <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>Flagged at RPD &gt; 20%, a common industry rule-of-thumb precision threshold — not a certified/regulatory limit.</div>
               </>
             )
           )}
 
-          <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.5, borderTop: "1px solid #d9dce1", paddingTop: 8 }}>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
             QC samples are detected purely from hole_id naming (no dedicated "sample type" field exists yet) — defaults: standards contain "std"/"crm"/"oreas"/etc., blanks contain "blank"/"blk", duplicates contain "dup". A project using different lab conventions won't be auto-detected.
           </div>
 
@@ -164,7 +164,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
         </div>
       </div>
@@ -201,12 +201,12 @@ function ControlChart({ points, limits }) {
   );
 }
 
-const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const tabBtn = { padding: "6px 10px", borderRadius: 6, fontSize: 11.5, cursor: "pointer", border: "1px solid #d9dce1", background: "#ffffff", color: "#55606e" };
-const tabBtnActive = { ...tabBtn, background: "#1a2028", color: "#ffffff", border: "1px solid #1a2028" };
-const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid #d9dce1" };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const tabBtn = { padding: "6px 10px", borderRadius: 6, fontSize: 11.5, cursor: "pointer", border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "#55606e" };
+const tabBtnActive = { ...tabBtn, background: "var(--color-text)", color: "#ffffff", border: "1px solid var(--color-text)" };
+const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "#1a2028", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };

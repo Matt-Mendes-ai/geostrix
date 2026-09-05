@@ -88,10 +88,10 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     <div style={overlay} onClick={onClose}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>Core orientation calculator (alpha-beta method)</div>
-          <X size={16} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>Core orientation calculator (alpha-beta method)</div>
+          <X size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
-        <div style={{ fontSize: 10.5, color: "#94a1b0", lineHeight: 1.5, marginBottom: 12 }}>
+        <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>
           Recovers a non-oriented structure's true dip/dip-direction by calibrating against a second
           structure on the same core run whose true attitude you already know from a field/outcrop
           reading — alpha and beta for both are measured on the core against the SAME arbitrary scribed
@@ -112,7 +112,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               <input type="number" placeholder="Hole azimuth (°)" value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
               <input type="number" placeholder="Hole dip below horiz. (0-90°)" value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#55606e", marginTop: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
               <input type="checkbox" checked={useTop} onChange={(e) => setUseTop(e.target.checked)} />
               Use top-of-hole reference line (default: bottom-of-hole)
             </label>
@@ -145,12 +145,12 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
 
           <div>
             <div className="ge-section-label">Result</div>
-            {!result && <div style={{ fontSize: 11, color: "#94a1b0" }}>Fill in every field on the left to solve.</div>}
-            {result?.error && <div style={{ fontSize: 11, color: "#c0392b", lineHeight: 1.5 }}>{result.error}</div>}
+            {!result && <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Fill in every field on the left to solve.</div>}
+            {result?.error && <div style={{ fontSize: 11, color: "var(--color-danger-solid)", lineHeight: 1.5 }}>{result.error}</div>}
             {result && !result.error && (
-              <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "9px 10px", fontSize: 11.5, color: "#1a2028", lineHeight: 1.6 }}>
+              <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "9px 10px", fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.6 }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{unkLabel || "Unknown structure"}: true dip {result.dipDeg.toFixed(1)}° / dip-dir {result.dipDirDeg.toFixed(1)}°</div>
-                <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "#c0392b" : "#55606e" }}>
+                <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "var(--color-danger-solid)" : "var(--color-text-secondary)" }}>
                   Alpha check: reference structure's on-core alpha vs. what its known attitude implies —
                   off by {result.alphaDiscrepancyDeg.toFixed(1)}°{result.alphaDiscrepancyDeg > 5 ? " (large — is this really the same structure logged in the field?)" : ""}
                 </div>
@@ -170,12 +170,12 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div className="ge-section-label" style={{ marginTop: 16 }}>Field reference library</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 110, overflowY: "auto", marginBottom: 6 }}>
               {fieldStructuralRefs.map((r) => (
-                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e" }}>
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)" }}>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°{r.notes ? ` · ${r.notes}` : ""}</span>
                   <Trash2 size={11} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
                 </div>
               ))}
-              {!fieldStructuralRefs.length && <div style={{ fontSize: 10.5, color: "#94a1b0" }}>No saved field measurements yet.</div>}
+              {!fieldStructuralRefs.length && <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>No saved field measurements yet.</div>}
             </div>
             <div style={row}>
               <input placeholder="Label (e.g. Regional bedding)" value={newRefLabel} onChange={(e) => setNewRefLabel(e.target.value)} style={sel} />
@@ -200,8 +200,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
 }
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-const panel = { width: 720, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxHeight: "85vh", overflowY: "auto" };
+const panel = { width: 720, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxHeight: "85vh", overflowY: "auto" };
 const row = { display: "flex", gap: 6, marginBottom: 6 };
-const sel = { flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 };
-const num = { flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 };
-const saveBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "1px solid #a9c6e0", background: "#eaf1fa", color: "#2f6fe0", borderRadius: 5, fontSize: 11, padding: "6px 10px" };
+const sel = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 };
+const num = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 };
+const saveBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "#2f6fe0", borderRadius: 5, fontSize: 11, padding: "6px 10px" };

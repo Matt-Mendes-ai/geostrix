@@ -24,25 +24,25 @@ export default class ErrorBoundary extends React.Component {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div style={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", padding: 24 }}>
-        <div style={{ maxWidth: 640, background: "#ffffff", border: "1px solid #5a2a2a", borderRadius: 8, padding: "22px 26px" }}>
-          <div style={{ fontSize: 15, color: "#e0a0a0", marginBottom: 10 }}>Something crashed the view.</div>
-          <div style={{ fontSize: 12, color: "#7b8794", lineHeight: 1.6, marginBottom: 16, wordBreak: "break-word" }}>
+      <div style={{ height: "100vh", width: "100vw", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg)", color: "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif", padding: 24 }}>
+        <div style={{ maxWidth: 640, background: "var(--color-bg)", border: "1px solid var(--color-danger-border-strong)", borderRadius: 8, padding: "22px 26px" }}>
+          <div style={{ fontSize: 15, color: "var(--color-danger-text)", marginBottom: 10 }}>Something crashed the view.</div>
+          <div style={{ fontSize: 12, color: "var(--color-text-caption)", lineHeight: 1.6, marginBottom: 16, wordBreak: "break-word" }}>
             {String(this.state.error?.message || this.state.error)}
           </div>
-          <div style={{ fontSize: 11, color: "#94a1b0", marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginBottom: 16 }}>
             The full stack trace is in the DevTools console (already open in dev builds). Unsaved project
             changes since your last Save may be lost if you reload — Save first if you're able to.
           </div>
           <button
             onClick={() => this.setState({ error: null })}
-            style={{ marginRight: 10, padding: "8px 14px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" }}
+            style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: 12, cursor: "pointer" }}
           >
             Try to continue
           </button>
           <button
             onClick={() => window.location.reload()}
-            style={{ padding: "8px 14px", background: "#1e3629", border: "1px solid #3d6b52", borderRadius: 6, color: "#8fd9ab", fontSize: 12, cursor: "pointer" }}
+            style={{ padding: "8px 14px", background: "var(--color-success-bg)", border: "1px solid var(--color-success-border)", borderRadius: 6, color: "var(--color-success-text)", fontSize: 12, cursor: "pointer" }}
           >
             Reload app
           </button>

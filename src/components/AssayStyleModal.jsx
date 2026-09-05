@@ -74,10 +74,10 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Style {symbol}</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Data range: {range.min} – {range.max} {unit}</div>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Style {symbol}</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Data range: {range.min} – {range.max} {unit}</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
@@ -91,13 +91,13 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           <label style={row}>
             <span style={rowLabel} title="Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.">Size</span>
             <input type="range" min="0.3" max="3" step="0.1" value={local.sizeMult} onChange={(e) => commit({ ...local, sizeMult: Number(e.target.value) })} style={{ flex: 1 }} />
-            <span style={{ fontSize: 11, color: "#55606e", width: 34, textAlign: "right" }}>{local.sizeMult.toFixed(1)}×</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", width: 34, textAlign: "right" }}>{local.sizeMult.toFixed(1)}×</span>
           </label>
 
           <label style={row}>
             <span style={rowLabel} title="Samples below this grade aren't drawn at all — declutters low/background values.">Ignore below</span>
             <input type="number" step="any" placeholder="none" value={local.minCutoff} onChange={(e) => commit({ ...local, minCutoff: e.target.value })} style={{ ...inp, width: 100 }} />
-            <span style={{ fontSize: 11, color: "#94a1b0" }}>{unit}</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{unit}</span>
           </label>
 
           <div>
@@ -116,20 +116,20 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                       onChange={(e) => updateBreak(i, { label: e.target.value })}
                       style={{ ...inp, width: 90 }}
                     />
-                    <span style={{ fontSize: 11, color: "#94a1b0" }}>≤</span>
+                    <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>≤</span>
                     <input
                       type="number" step="any"
                       value={b.max}
                       onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
                       style={{ ...inp, width: 90 }}
                     />
-                    <span style={{ fontSize: 11, color: "#94a1b0" }}>{unit}</span>
-                    <Trash2 size={13} style={{ cursor: "pointer", color: "#a95555", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
+                    <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{unit}</span>
+                    <Trash2 size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>
                 ))}
                 <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={11} /> Add class</button>
-                {breakDraftError && <div style={{ fontSize: 10.5, color: "#a95555" }}>{breakDraftError}</div>}
-                <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.5 }}>
+                {breakDraftError && <div style={{ fontSize: 10.5, color: "var(--color-danger-icon-strong)" }}>{breakDraftError}</div>}
+                <div style={{ fontSize: 10, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                   Classes are evaluated in order — a sample's colour comes from the first class whose value is ≤ its threshold. A value above every threshold still gets the top class's colour, so nothing above the highest break silently disappears.
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
           <button onClick={reset} style={{ ...smallBtn, alignSelf: "flex-start" }}><RotateCcw size={11} /> Reset to default</button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(true), flex: 1 }}>Done</button>
         </div>
       </div>
@@ -147,11 +147,11 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   );
 }
 
-const panel = { width: "min(460px, 94vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(460px, 94vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const row = { display: "flex", alignItems: "center", gap: 8 };
 const rowLabel = { fontSize: 11.5, color: "#55606e", width: 96, flexShrink: 0 };
-const inp = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const colorInp = { width: 34, height: 28, padding: 2, border: "1px solid #d9dce1", borderRadius: 5, background: "#ffffff", cursor: "pointer", flexShrink: 0 };
-const smallBtn = { display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "1px solid #c7ccd3", background: "transparent", color: "#55606e" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
+const colorInp = { width: 34, height: 28, padding: 2, border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", cursor: "pointer", flexShrink: 0 };
+const smallBtn = { display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 6, fontSize: 11, cursor: "pointer", border: "1px solid var(--color-border-light)", background: "transparent", color: "#55606e" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

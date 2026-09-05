@@ -59,8 +59,8 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
         style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           width: 15, height: 15, borderRadius: "50%", padding: 0, flexShrink: 0,
-          background: visible ? "#eaf1fa" : "transparent",
-          border: `1px solid ${visible ? "#a9c6e0" : "#c7ccd3"}`,
+          background: visible ? "var(--color-selected-bg)" : "transparent",
+          border: `1px solid ${visible ? "var(--color-selected-border)" : "var(--color-border-light)"}`,
           color: visible ? "#3a76b0" : "#8a94a3",
           cursor: "pointer",
         }}
@@ -74,16 +74,16 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
           style={{
             position: "absolute", zIndex: 90, top: "calc(100% + 6px)",
             [align === "right" ? "right" : "left"]: 0,
-            width, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8,
+            width, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
             boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px",
           }}
         >
           {title && (
-            <div style={{ fontSize: 10.5, color: "#55606e", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {title}
             </div>
           )}
-          <div style={{ fontSize: 11.5, color: "#1a2028", lineHeight: 1.55 }}>{text}</div>
+          <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
         </div>
       )}
     </span>

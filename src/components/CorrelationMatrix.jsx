@@ -84,10 +84,10 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Multi-element correlation matrix</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Pearson r, pairwise deletion for missing values — {assays.length} intervals loaded.</div>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Multi-element correlation matrix</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Pearson r, pairwise deletion for missing values — {assays.length} intervals loaded.</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -95,7 +95,7 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
             <div style={label}>Elements ({symbols.length} of {allSymbols.length} selected)</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
-                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "#1e3629" : "#f4f5f7", border: `1px solid ${selected.has(s) ? "#3d6b52" : "#d9dce1"}`, fontSize: 11.5, color: selected.has(s) ? "#8fd9ab" : "#55606e", cursor: "pointer" }}>
+                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: 11.5, color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} style={{ display: "none" }} />
                   {s}
                 </label>
@@ -104,7 +104,7 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
           </div>
 
           {symbols.length < 2 ? (
-            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>Select at least 2 elements to compute a correlation matrix.</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>Select at least 2 elements to compute a correlation matrix.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ borderCollapse: "collapse", fontSize: 10.5 }}>
@@ -138,7 +138,7 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
         </div>
       </div>
@@ -146,13 +146,13 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
   );
 }
 
-const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const cornerCell = { width: 40, background: "#ffffff" };
-const headCell = { padding: "4px 6px", color: "#55606e", fontWeight: 500, textAlign: "center", background: "#ffffff", position: "sticky", top: 0 };
-const rowHead = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", background: "#ffffff", position: "sticky", left: 0 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const cornerCell = { width: 40, background: "var(--color-bg)" };
+const headCell = { padding: "4px 6px", color: "#55606e", fontWeight: 500, textAlign: "center", background: "var(--color-bg)", position: "sticky", top: 0 };
+const rowHead = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", background: "var(--color-bg)", position: "sticky", left: 0 };
 // cellColor() only ever produces light/pastel backgrounds (its darkest channel value stays well above
 // 100), including a near-white "#f4f5f7" fallback for r == null — white text was illegible against
 // all of these, most acutely the null/near-zero-correlation cells. Dark text reads fine across the

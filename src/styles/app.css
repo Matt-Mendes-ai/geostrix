@@ -1,35 +1,52 @@
-/* TASKS.csv #238 — design-system foundation: CSS custom properties matching src/lib/theme.js's
-   `colors` object value-for-value (same names, camelCase there / kebab-case here) — the two are
-   meant to stay in sync. This file's own class rules below are converted to reference these
-   variables instead of the raw hex they used before, as the first concrete usage of the palette;
-   the much larger share of the app's styling (inline `style={{}}` objects across src/modules and
-   src/components) is NOT touched by this pass — see theme.js's own header comment for why a plain
-   JS constants object, not CSS variables, is the more useful form for that majority-share styling,
-   and TASKS.csv #238's own notes for what's deliberately left for a follow-up pass. */
+/* TASKS.csv #238 — design system: CSS custom properties are the app's single source of truth for
+   color. They match src/lib/theme.js's `colors` object value-for-value (same names, camelCase there
+   / kebab-case here) and the two MUST stay in sync — change a value in one, change it in the other.
+
+   `var(--color-*)` is the form to reach for by default: it works in this file's class rules AND in
+   the inline `style={{}}` objects the rest of the app is built from, and it is what makes a future
+   theme swap cheap (redeclare these values, and the whole app restyles with zero React re-renders).
+   The exceptions — three.js materials, canvas 2D drawing, SVG presentation attributes, and anything
+   serialized out of the document into a standalone .svg/.png export — cannot resolve a var() and
+   must use theme.js's plain JS constants instead. theme.js's header comment documents that boundary
+   in full, including which files are deliberately excluded from the var() migration and why. */
 :root {
   --color-bg: #ffffff;
   --color-bg-subtle: #f4f5f7;
   --color-bg-subtlest: #fafbfc;
+  --color-bg-inset: #fbfbfc;
   --color-border: #d9dce1;
   --color-border-light: #c7ccd3;
   --color-divider: #dde1e6;
+  --color-border-subtle: #e6e8eb;
   --color-text: #1a2028;
+  --color-text-strong: #2a3340;
   --color-text-secondary: #55606e;
   --color-text-muted: #94a1b0;
   --color-text-faint: #6b7684;
+  --color-text-caption: #7b8794;
+  --color-text-disabled: #9aa5b3;
   --color-accent: #e2a63c;
   --color-accent-dark: #8a6a1f;
   --color-selected-bg: #eaf1fa;
   --color-selected-border: #a9c6e0;
   --color-info: #4a9be0;
+  --color-primary: #2f6fe0;
   --color-success-bg: #1e3629;
   --color-success-text: #8fd9ab;
   --color-success-border: #3d6b52;
+  --color-success-border-soft: #4a6b4a;
   --color-danger-bg: #2a1f1f;
   --color-danger-text: #e0a0a0;
   --color-danger-border: #4a2f2f;
+  --color-danger-border-strong: #5a2a2a;
   --color-danger-icon: #8a5555;
+  --color-danger-icon-strong: #a95555;
   --color-danger-solid: #c0392b;
+  --color-danger-alt: #d9534f;
+  --color-warn-bg: #fdf4e6;
+  --color-warn-border: #edd9b7;
+  --color-warn-text: #7a4a1f;
+  --color-warn-text-strong: #6b4e20;
   --color-hover-bg: #eef1f5;
   --color-tooltip-bg: #dde1e6;
 }

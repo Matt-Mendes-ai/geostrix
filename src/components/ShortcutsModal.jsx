@@ -87,12 +87,12 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
             <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={13} />} label="Shortcuts" />
             <TabBtn active={tab === "about"} onClick={() => setTab("about")} icon={<Info size={13} />} label="About" />
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {tab === "shortcuts" ? (
           <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontSize: 11, color: "#94a1b0", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
               Most of GeoStrix is a point-and-click tool by design — this is the small, real set of
               keyboard shortcuts that exist today, not an aspirational list. Undo/Redo step back
               through content changes (imports, deletes, moves, edits) — while a text field has focus,
@@ -100,25 +100,25 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
             </div>
             {SHORTCUT_GROUPS.map((g) => (
               <div key={g.title}>
-                <div style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 6 }}>{g.title}</div>
+                <div style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6 }}>{g.title}</div>
                 {g.items.map(([keys, desc]) => (
                   <div key={keys} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
                     <span style={kbd}>{keys}</span>
-                    <span style={{ fontSize: 12, color: "#1a2028" }}>{desc}</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text)" }}>{desc}</span>
                   </div>
                 ))}
               </div>
             ))}
           </div>
         ) : (
-          <div style={{ padding: 20, fontSize: 12.5, color: "#7b8794", lineHeight: 1.7 }}>
-            <div style={{ fontSize: 17, color: "#8a6a1f", fontWeight: 600, marginBottom: 4 }}>GeoStrix</div>
+          <div style={{ padding: 20, fontSize: 12.5, color: "var(--color-text-caption)", lineHeight: 1.7 }}>
+            <div style={{ fontSize: 17, color: "var(--color-accent-dark)", fontWeight: 600, marginBottom: 4 }}>GeoStrix</div>
             {/* TASKS.csv #246 — found by a pre-release review: no version was shown anywhere at rest,
                 only briefly in a self-clearing status-bar message after a manual update check. Read
                 straight from package.json (a plain Vite JSON import, works identically in the desktop
                 build and the browser-fallback dev path — no IPC needed for a value this static). */}
-            <div style={{ marginBottom: 2, color: "#94a1b0" }}>Version {APP_VERSION}</div>
-            <div style={{ marginBottom: 10, color: "#94a1b0" }}>3D drillhole & geochemistry explorer</div>
+            <div style={{ marginBottom: 2, color: "var(--color-text-muted)" }}>Version {APP_VERSION}</div>
+            <div style={{ marginBottom: 10, color: "var(--color-text-muted)" }}>3D drillhole & geochemistry explorer</div>
             <div>MIT-licensed, built for smaller mineral exploration teams — drillhole visualization, geochemistry, geophysics, layout, and implicit geological modelling in one desktop app.</div>
           </div>
         )}
@@ -129,12 +129,12 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
 
 function TabBtn({ active, onClick, icon, label }) {
   return (
-    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: active ? "#eaf1fa" : "transparent", border: active ? "1px solid #a9c6e0" : "1px solid transparent", borderRadius: 6, color: active ? "#1a2028" : "#55606e", fontSize: 12, cursor: "pointer" }}>
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: active ? "var(--color-selected-bg)" : "transparent", border: active ? "1px solid var(--color-selected-border)" : "1px solid transparent", borderRadius: 6, color: active ? "var(--color-text)" : "var(--color-text-secondary)", fontSize: 12, cursor: "pointer" }}>
       {icon} {label}
     </button>
   );
 }
 
-const panel = { width: "min(420px, 92vw)", maxHeight: "80vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid #d9dce1" };
-const kbd = { display: "inline-block", minWidth: 108, padding: "2px 7px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, color: "#e2a63c", fontSize: 10.5, fontFamily: "'Exo 2', system-ui, sans-serif", textAlign: "center" };
+const panel = { width: "min(420px, 92vw)", maxHeight: "80vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-border)" };
+const kbd = { display: "inline-block", minWidth: 108, padding: "2px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, color: "#e2a63c", fontSize: 10.5, fontFamily: "'Exo 2', system-ui, sans-serif", textAlign: "center" };

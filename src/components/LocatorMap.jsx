@@ -56,7 +56,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
   if (!layout) {
     return (
       <div style={panelStyle}>
-        <div style={{ padding: 10, fontSize: 11, color: "#7b8794", textAlign: "center" }}>
+        <div style={{ padding: 10, fontSize: 11, color: "var(--color-text-caption)", textAlign: "center" }}>
           No real-world location yet — import collars (or a georeferenced raster/terrain) first.
         </div>
         <button onClick={onClose} title="Hide locator map" style={closeBtnStyle}><X size={12} /></button>
@@ -95,7 +95,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
           </div>
         </div>
       </div>
-      <div style={{ fontSize: 9, color: "#9aa5b3", textAlign: "center", marginTop: 3 }}>{getBaseLayer(effectiveLayerId).attribution}</div>
+      <div style={{ fontSize: 9, color: "var(--color-text-disabled)", textAlign: "center", marginTop: 3 }}>{getBaseLayer(effectiveLayerId).attribution}</div>
       {onExpand && (
         <button onClick={onExpand} title="Expand to full-screen map" style={expandBtnStyle}><Maximize2 size={11} /></button>
       )}
@@ -121,21 +121,21 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
 
 const panelStyle = {
   position: "relative",
-  background: "#ffffff",
-  border: "1px solid #c7ccd3",
+  background: "var(--color-bg)",
+  border: "1px solid var(--color-border-light)",
   borderRadius: 8,
   padding: 6,
   boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
 };
 const closeBtnStyle = {
   position: "absolute", top: -8, right: -8, width: 20, height: 20, borderRadius: "50%",
-  background: "#ffffff", border: "1px solid #c7ccd3", color: "#55606e",
+  background: "var(--color-bg)", border: "1px solid var(--color-border-light)", color: "#55606e",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
   boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
 };
 const expandBtnStyle = {
   position: "absolute", top: -8, left: -8, width: 20, height: 20, borderRadius: "50%",
-  background: "#ffffff", border: "1px solid #c7ccd3", color: "#55606e",
+  background: "var(--color-bg)", border: "1px solid var(--color-border-light)", color: "#55606e",
   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
   boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
 };

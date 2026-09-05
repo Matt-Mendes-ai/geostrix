@@ -58,17 +58,17 @@ export default function HoverToolInfo({ title, text, width = 240, align = "left"
           style={{
             position: "absolute", zIndex: 90, top: "calc(100% + 6px)",
             [align === "right" ? "right" : "left"]: 0,
-            width, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8,
+            width, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8,
             boxShadow: "0 6px 20px rgba(0,0,0,0.16)", padding: "9px 11px",
             textTransform: "none", letterSpacing: "normal", fontWeight: 400, pointerEvents: "none",
           }}
         >
           {title && (
-            <div style={{ fontSize: 10.5, color: "#55606e", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {title}
             </div>
           )}
-          <div style={{ fontSize: 11.5, color: "#1a2028", lineHeight: 1.55 }}>{text}</div>
+          <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
         </div>
       )}
     </span>

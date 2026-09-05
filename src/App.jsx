@@ -328,7 +328,7 @@ export default function App() {
             file's own comments for the render-loop/pointer-handler/viewport-request guards this
             required. No `key` here — a key would defeat the whole point by forcing a fresh instance. */}
         <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
-        <Suspense fallback={<div style={{ padding: 20, color: "#94a1b0", fontSize: 13 }}>Loading…</div>}>
+        <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: 13 }}>Loading…</div>}>
           {active === "geochem" && <GeochemModule />}
           {active === "geophysics" && <GeophysicsModule />}
           {active === "raster" && <RasterModule />}
@@ -423,7 +423,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         onClick={() => onHelp?.()}
         title="Help — keyboard shortcuts & about GeoStrix"
         aria-label="Help — keyboard shortcuts and about GeoStrix"
-        style={{ background: "none", border: "1px solid #c7ccd3", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: 11, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
+        style={{ background: "none", border: "1px solid var(--color-border-light)", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: 11, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
       >
         ?
       </button>
@@ -432,9 +432,9 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : "off"}
       </span>
       {taskProgress && (
-        <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
-          <span style={{ width: 80, height: 5, borderRadius: 3, background: "#f4f5f7", overflow: "hidden", display: "inline-block" }}>
-            <span style={{ display: "block", height: "100%", width: `${pct}%`, background: "#e2a63c", transition: "width 0.3s" }} />
+        <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
+          <span style={{ width: 80, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
+            <span style={{ display: "block", height: "100%", width: `${pct}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />
           </span>
           <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskProgress.label}</span>
           <span className="val">{pct}%</span>
@@ -442,7 +442,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
           {taskProgress.onCancel && (
-            <X size={12} style={{ cursor: "pointer", color: "#e0a0a0" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
+            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-text)" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
           )}
         </span>
       )}
@@ -450,34 +450,34 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
           "checking"/"not-available"/"idle" stay silent, matching taskProgress's own pattern above of
           not cluttering the status bar with routine background activity. */}
       {updater.event === "checking" && updater.manual && (
-        <span style={{ color: "#94a1b0" }}>Checking for updates…</span>
+        <span style={{ color: "var(--color-text-muted)" }}>Checking for updates…</span>
       )}
       {updater.event === "not-available" && updater.manual && (
-        <span style={{ color: "#8fd9ab" }}>You're up to date (v{updater.currentVersion})</span>
+        <span style={{ color: "var(--color-success-text)" }}>You're up to date (v{updater.currentVersion})</span>
       )}
       {updater.event === "available" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
           Update available (v{updater.version})
-          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid #4a6b4a", color: "#8fd9ab", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Download</button>
+          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Download</button>
         </span>
       )}
       {updater.event === "downloading" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
           Downloading update…
-          <span style={{ width: 60, height: 5, borderRadius: 3, background: "#f4f5f7", overflow: "hidden", display: "inline-block" }}>
-            <span style={{ display: "block", height: "100%", width: `${updater.percent || 0}%`, background: "#e2a63c", transition: "width 0.3s" }} />
+          <span style={{ width: 60, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
+            <span style={{ display: "block", height: "100%", width: `${updater.percent || 0}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />
           </span>
           <span className="val">{updater.percent || 0}%</span>
         </span>
       )}
       {updater.event === "downloaded" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#8fd9ab" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
           Update v{updater.version} ready
-          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid #4a6b4a", color: "#8fd9ab", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Restart &amp; install</button>
+          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Restart &amp; install</button>
         </span>
       )}
       {updater.event === "error" && (
-        <span title={updater.message} style={{ color: "#e0a0a0" }}>Update check failed</span>
+        <span title={updater.message} style={{ color: "var(--color-danger-text)" }}>Update check failed</span>
       )}
       <span className="spacer" />
       {epsgEditing ? (
@@ -487,7 +487,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
             autoFocus defaultValue={project.epsg}
             onBlur={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setEpsg(v); setEpsgEditing(false); }}
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            style={{ width: 70, marginLeft: 6, background: "#ffffff", border: "1px solid #a9c6e0", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "2px 5px" }}
+            style={{ width: 70, marginLeft: 6, background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "2px 5px" }}
           />
         </span>
       ) : (
@@ -503,7 +503,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         <select
           value={desurveyMethod}
           onChange={(e) => setDesurveyMethod(e.target.value)}
-          style={{ background: "#ffffff", border: "1px solid #a9c6e0", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "1px 3px", cursor: "pointer" }}
+          style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "1px 3px", cursor: "pointer" }}
         >
           {DESURVEY_METHODS.map((m) => <option key={m.id} value={m.id} title={m.hint}>{m.label}</option>)}
         </select>

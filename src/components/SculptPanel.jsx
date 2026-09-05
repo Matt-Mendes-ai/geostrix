@@ -14,12 +14,12 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
   const edits = surface.edits || [];
 
   return (
-    <div style={{ marginTop: 10, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
-      <div style={{ fontSize: 10, color: "#55606e", marginBottom: 4 }}>Manual editing (sculpt)</div>
+    <div style={{ marginTop: 10, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
+      <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 4 }}>Manual editing (sculpt)</div>
 
       {/* Provenance, stated where the geologist works, not only in the export file. */}
       {surface.editCount > 0 && (
-        <div style={{ fontSize: 10, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 5, padding: "6px 7px", marginBottom: 6, lineHeight: 1.45 }}>
+        <div style={{ fontSize: 10, color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 6, lineHeight: 1.45 }}>
           <strong>This surface has been hand-edited.</strong> {surface.editCount} manual edit{surface.editCount === 1 ? "" : "s"} applied
           after generation, so it is no longer purely the output of the parameters listed above. Every
           mesh export of it carries the same statement. Last edit{" "}
@@ -50,19 +50,19 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
         ><Hand size={12} /> Sculpt this surface</button>
       ) : (
         <div style={{ background: "#eef3fa", border: "1px solid #c3d3e8", borderRadius: 5, padding: "7px 8px" }}>
-          <div style={{ fontSize: 10.5, color: "#1a2028", marginBottom: 6, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 10.5, color: "var(--color-text)", marginBottom: 6, lineHeight: 1.45 }}>
             {info
               ? <>Brush placed at <strong>{num(info.world.x, 1)} E / {num(info.world.y, 1)} N / {num(info.world.z, 1)} m</strong>. Click elsewhere on the surface to move it.</>
               : <>Click on this surface in the 3D view to place the brush.</>}
           </div>
 
-          <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+          <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
             <span style={{ width: 96, flexShrink: 0 }}>Brush radius (m)</span>
             <input type="number" min={0.1} step={1} value={sculpt.radius}
               onChange={(e) => sculpt.setRadius(e.target.value)} style={{ ...smallSel, width: 70 }} />
           </label>
 
-          <label style={{ fontSize: 10, color: "#55606e", display: "block", marginBottom: 5 }}>
+          <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginBottom: 5 }}>
             <span style={{ display: "block", marginBottom: 3 }}>Direction</span>
             <select value={sculpt.axis} onChange={(e) => sculpt.setAxis(e.target.value)} style={{ ...smallSel, width: "100%" }}>
               <option value="normal">Along the surface normal (outward positive)</option>
@@ -70,7 +70,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
             </select>
           </label>
 
-          <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+          <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
             <span style={{ width: 96, flexShrink: 0 }}>Offset (m)</span>
             <input type="number" step={0.5} value={sculpt.offset} disabled={!info}
               onChange={(e) => sculpt.setOffset(e.target.value)} style={{ ...smallSel, width: 70 }} />
@@ -82,12 +82,12 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
           />
 
           {info && (
-            <div style={{ fontSize: 9.5, color: "#55606e", lineHeight: 1.5, marginBottom: 6 }}>
+            <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
               {info.vertices.toLocaleString()} of {info.totalVertices.toLocaleString()} vertices under the brush
               ({info.triangles.toLocaleString()} triangles). Falloff is smooth to zero at the rim, so the
               patch bends rather than spiking. Brush built in {info.buildMs} ms.
               <div style={{ marginTop: 3 }}>
-                Live volume change: <strong style={{ color: info.dV === 0 ? "#55606e" : "#1a2028" }}>
+                Live volume change: <strong style={{ color: info.dV === 0 ? "var(--color-text-secondary)" : "var(--color-text)" }}>
                   {info.dV >= 0 ? "+" : ""}{num(info.dV, 0)} m³
                 </strong> (exact, not an estimate — computed over the affected triangles only)
               </div>
@@ -117,7 +117,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
               title="Leave sculpt mode"><XIcon size={11} /></button>
           </div>
 
-          <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 6, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginTop: 6, lineHeight: 1.45 }}>
             Moving vertices never changes which triangles share which edges, so a watertight shell stays
             watertight and an open surface stays exactly as open as it was. Undo history is for this
             session only — once the project is saved, an edit is permanent (and coordinates round to 1 cm

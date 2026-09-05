@@ -92,15 +92,15 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Isocon / mass-change calculator</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Grant (1986) isocon method, closed-form via immobile-element ratios (MacLean &amp; Barrett 1993).</div>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Isocon / mass-change calculator</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Grant (1986) isocon method, closed-form via immobile-element ratios (MacLean &amp; Barrett 1993).</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 11.5, color: "#55606e", lineHeight: 1.5 }}>
-            Check intervals into a <b style={{ color: "#8fd9ab" }}>precursor</b> group (least-altered equivalent of the protolith) and an <b style={{ color: "#e08a8a" }}>altered</b> group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.
+          <div style={{ fontSize: 11.5, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+            Check intervals into a <b style={{ color: "var(--color-success-text)" }}>precursor</b> group (least-altered equivalent of the protolith) and an <b style={{ color: "#e08a8a" }}>altered</b> group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.
           </div>
 
           <input
@@ -119,7 +119,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
             <div style={label}>Immobile elements ({immobile.size} selected)</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {symbols.map((s) => (
-                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: immobile.has(s) ? "#1e3629" : "#f4f5f7", border: `1px solid ${immobile.has(s) ? "#3d6b52" : "#d9dce1"}`, fontSize: 11.5, color: immobile.has(s) ? "#8fd9ab" : "#55606e", cursor: "pointer" }}>
+                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: immobile.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${immobile.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: 11.5, color: immobile.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={immobile.has(s)} onChange={() => toggle(immobile, setImmobile, s)} style={{ display: "none" }} />
                   {s}
                 </label>
@@ -133,10 +133,10 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
           {result && !result.error && (
             <>
-              <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8, fontSize: 12.5 }}>
-                <div><span style={{ color: "#94a1b0" }}>Isocon slope (Mo/M):</span> <b style={{ color: "#1a2028" }}>{result.slope.toFixed(3)}</b></div>
-                <div><span style={{ color: "#94a1b0" }}>Bulk mass change:</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "#8fd9ab" : "#e08a8a" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
-                <div><span style={{ color: "#94a1b0" }}>Immobile-set agreement:</span> <b style={{ color: result.spread < 0.1 ? "#8fd9ab" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}% CV</b></div>
+              <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12.5 }}>
+                <div><span style={{ color: "var(--color-text-muted)" }}>Isocon slope (Mo/M):</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>Bulk mass change:</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-text)" : "#e08a8a" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>Immobile-set agreement:</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-text)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}% CV</b></div>
               </div>
               {result.spread >= 0.1 && (
                 <div style={{ fontSize: 10.5, color: "#8a6a3a" }}>The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.</div>
@@ -144,7 +144,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
                 <thead>
-                  <tr style={{ color: "#94a1b0", textAlign: "left" }}>
+                  <tr style={{ color: "var(--color-text-muted)", textAlign: "left" }}>
                     <th style={th}>Element</th><th style={th}>Precursor (ppm)</th><th style={th}>Altered (ppm)</th><th style={th}>Ratio</th><th style={th}>Mass change</th>
                   </tr>
                 </thead>
@@ -155,7 +155,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
                       <td style={td}>{r.precursor.toFixed(2)}</td>
                       <td style={td}>{r.altered.toFixed(2)}</td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
-                      <td style={{ ...td, color: r.pct >= 0 ? "#8fd9ab" : "#e08a8a" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
+                      <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-text)" : "#e08a8a" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -168,7 +168,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
         </div>
       </div>
@@ -180,23 +180,23 @@ function IntervalList({ title, color, rows, idSet, onToggle, n }) {
   return (
     <div>
       <div style={{ ...label, color, marginBottom: 4 }}>{title} {n ? `(${n} intervals, avg)` : ""}</div>
-      <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #d9dce1", borderRadius: 6, padding: 4 }}>
+      <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 4 }}>
         {rows.map(({ a, id }) => (
-          <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px", fontSize: 11, color: idSet.has(id) ? "#1a2028" : "#55606e", cursor: "pointer" }}>
+          <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px", fontSize: 11, color: idSet.has(id) ? "var(--color-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
             <input type="checkbox" checked={idSet.has(id)} onChange={() => onToggle(id)} />
             {a.hole_id} {a.from}–{a.to}m
           </label>
         ))}
-        {rows.length === 0 && <div style={{ fontSize: 11, color: "#94a1b0", padding: 4 }}>No intervals match.</div>}
+        {rows.length === 0 && <div style={{ fontSize: 11, color: "var(--color-text-muted)", padding: 4 }}>No intervals match.</div>}
       </div>
     </div>
   );
 }
 
-const panel = { width: "min(760px, 94vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(760px, 94vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
 const th = { padding: "4px 8px", fontWeight: 500 };
 const td = { padding: "4px 8px" };

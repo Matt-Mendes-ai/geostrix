@@ -57,7 +57,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
   const yticks = ly ? logTicks(ymin, ymax) : linTicks(ymin, ymax, 6);
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, maxHeight: "72vh" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }}>
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
       {/* reference fields */}
@@ -144,7 +144,7 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
   const ty = (p) => bottom - (p.y / (Math.sqrt(3) / 2)) * (bottom - top);
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, maxHeight: "72vh" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }}>
       <polygon points={`${A[0]},${A[1]} ${Fp[0]},${Fp[1]} ${M[0]},${M[1]}`} fill="#ffffff" stroke="#d9dce1" strokeWidth="1.5" />
       {/* gridlines every 20% */}
       {[0.2, 0.4, 0.6, 0.8].map((f, i) => {
@@ -214,7 +214,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
   };
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, maxHeight: "72vh" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }}>
       <rect x={PAD} y={PAD} width={innerW} height={innerH} fill="#ffffff" stroke="#d9dce1" />
 
       {yticks.map((t, i) => (

@@ -111,7 +111,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
               {loadingCaps ? <Loader2 size={13} className="spin" /> : null} Fetch layers
             </button>
           </div>
-          {capsError && <div style={{ fontSize: 11.5, color: "#c0392b" }}>{capsError}</div>}
+          {capsError && <div style={{ fontSize: 11.5, color: "var(--color-danger-solid)" }}>{capsError}</div>}
 
           {layers && (
             <div>
@@ -145,7 +145,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
             </label>
           )}
 
-          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "#c0392b" }}>{result.text}</div>}
+          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
 
           {selectedLayer && (
             <button onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.6 : 1 }}>

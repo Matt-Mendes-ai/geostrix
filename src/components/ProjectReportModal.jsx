@@ -105,10 +105,10 @@ export default function ProjectReportModal({ store, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FileBarChart2 size={17} style={{ color: "#8a6a1f" }} />
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Project report</div>
+            <FileBarChart2 size={17} style={{ color: "var(--color-accent-dark)" }} />
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Project report</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -134,11 +134,11 @@ export default function ProjectReportModal({ store, onClose }) {
           )}
 
           {!collars.length && !surfaceSamples.length && (
-            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>Import drillholes or surface samples to generate a report.</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>Import drillholes or surface samples to generate a report.</div>
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
           <button onClick={exportCSV} style={{ ...btn(true), flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
             <Download size={13} /> Export report (CSV)
@@ -151,16 +151,16 @@ export default function ProjectReportModal({ store, onClose }) {
 
 function StatCard({ label: l, value }) {
   return (
-    <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 8, padding: "8px 10px" }}>
-      <div style={{ fontSize: 18, color: "#1a2028", fontWeight: 600 }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: "#94a1b0" }}>{l}</div>
+    <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px" }}>
+      <div style={{ fontSize: 18, color: "var(--color-text)", fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>{l}</div>
     </div>
   );
 }
 
 function MiniTable({ rows }) {
   return (
-    <div style={{ overflowX: "auto", border: "1px solid #d9dce1", borderRadius: 6 }}>
+    <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
         <thead>
           <tr>
@@ -179,9 +179,9 @@ function MiniTable({ rows }) {
   );
 }
 
-const panel = { width: "min(560px, 92vw)", maxHeight: "86vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(560px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid #d9dce1" };
+const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "#1a2028", textAlign: "right" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

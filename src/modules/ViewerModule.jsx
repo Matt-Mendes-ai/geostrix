@@ -6380,7 +6380,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         />
       )}
       <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
-      <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0, background: "#ffffff", borderRight: "1px solid #d9dce1" }}>
+      <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
       <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
         <div className="ge-section-label">Geometry</div>
@@ -6402,11 +6402,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             show" convention every other conditional sidebar section here already follows. */}
         {collars.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: "#55606e", flexShrink: 0 }}>Hole labels</span>
+            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", flexShrink: 0 }}>Hole labels</span>
             <select
               value={holeLabelMode}
               onChange={(e) => setHoleLabelMode(e.target.value)}
-              style={{ flex: 1, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 }}
+              style={{ flex: 1, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11 }}
             >
               <option value="none">Off</option>
               <option value="hole_id">Hole ID</option>
@@ -6425,10 +6425,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             collection, see #126). */}
         {collars.length > 0 && boundaries.length > 0 && (
           <div style={{ marginTop: 10, marginBottom: 4 }}>
-            <div style={{ fontSize: 10.5, color: "#94a1b0", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
               <MapPin size={11} /> Select by location
             </div>
-            <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 11.5, marginBottom: 5 }}>
+            <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5, marginBottom: 5 }}>
               <option value="">— pick a boundary/claim —</option>
               {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? " (claim)" : ""}</option>)}
             </select>
@@ -6444,7 +6444,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           {/* TASKS.csv #76 — create a new named group; layers get sorted into it via the right-click
               menu below ("Add to group…"), a lighter-weight interaction than drag-to-group. */}
           <span onClick={() => askPrompt("New group name:", "", (name) => { if (name && name.trim()) addLayerGroup(name.trim()); })}
-            style={{ cursor: "pointer", color: "#55606e", fontSize: 10, textTransform: "none", letterSpacing: 0 }} title="New layer group">+ Group</span>
+            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 10, textTransform: "none", letterSpacing: 0 }} title="New layer group">+ Group</span>
         </div>
         {/* TASKS.csv #76 — groups render first (each a collapsible header wrapping its member
             LayerRows), then any ungrouped keys below in their original order — same renderLayerRow
@@ -6455,27 +6455,27 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {layerGroups.map((g) => {
           const populatedKeys = g.keys.filter((key) => hasLayerData(key));
           return (
-          <div key={g.id} style={{ marginBottom: 8, border: "1px solid #dde1e6", borderRadius: 7, overflow: "hidden" }}>
+          <div key={g.id} style={{ marginBottom: 8, border: "1px solid var(--color-divider)", borderRadius: 7, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#151b23" }}>
-              <div onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title={g.collapsed ? "Expand group" : "Collapse group"}>
+              <div onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={g.collapsed ? "Expand group" : "Collapse group"}>
                 {g.collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+              <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                 onClick={() => askPrompt("Rename group:", g.name, (name) => { if (name && name.trim()) renameLayerGroup(g.id, name.trim()); })} title="Click to rename">
-                {g.name} <span style={{ color: "#94a1b0", fontWeight: 400 }}>({populatedKeys.length})</span>
+                {g.name} <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({populatedKeys.length})</span>
               </div>
               {/* Bulk show/hide every layer currently in this group — "on" if ANY member is visible,
                   clicking turns them all off; clicking again (all off) turns them all on. */}
               <div onClick={() => { const anyOn = g.keys.some((k) => layerVisible[k]); g.keys.forEach((k) => { if (anyOn ? layerVisible[k] : !layerVisible[k]) toggleLayer(k); }); }}
-                style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }} title="Toggle all layers in this group">
+                style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title="Toggle all layers in this group">
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }, `Delete group "${g.name}" (its layers stay, just ungrouped)`)} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }, `Delete group "${g.name}" (its layers stay, just ungrouped)`)} />
             </div>
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
                 {populatedKeys.length === 0
-                  ? <div style={{ fontSize: 10.5, color: "#94a1b0", padding: "2px 4px 6px" }}>{g.keys.length === 0 ? 'Empty — right-click a layer below and "Add to group…"' : "Every layer in this group is currently empty (no data loaded)."}</div>
+                  ? <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", padding: "2px 4px 6px" }}>{g.keys.length === 0 ? 'Empty — right-click a layer below and "Add to group…"' : "Every layer in this group is currently empty (no data loaded)."}</div>
                   : populatedKeys.map((key) => renderLayerRow(key))}
               </div>
             )}
@@ -6498,7 +6498,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <select
             value=""
             onChange={(e) => { const key = e.target.value; if (!key) return; if (key === "geophys_pts") goToModule("geophysics"); else fileInputs.current[key]?.click(); }}
-            style={{ width: "100%", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, padding: "7px 8px", color: "#55606e", fontSize: 11.5, marginBottom: 4 }}
+            style={{ width: "100%", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, padding: "7px 8px", color: "var(--color-text-secondary)", fontSize: 11.5, marginBottom: 4 }}
           >
             <option value="">+ Add layer…</option>
             {emptyLayerKeys.map((key) => <option key={key} value={key}>{LAYER_META[key].label}</option>)}
@@ -6516,12 +6516,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Rasters & terrain</div>
             {terrain && (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {terrain.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
                 </div>
-                <Mountain size={13} style={{ color: terrain.color || "#55606e", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
+                <Mountain size={13} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</span>
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}
                   onChange={(e) => updateTerrain?.({ opacity: Number(e.target.value) })}
@@ -6531,16 +6531,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     settings the way rasters' drape-mode/elevation do), but the jump still goes to
                     Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
                     lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit or remove this geophysics layer in the Geophysics tab")} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit or remove this geophysics layer in the Geophysics tab")} />
               </div>
             )}
             {rasters.map((r) => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
                 </div>
-                <Image size={13} style={{ color: "#55606e", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                <Image size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85}
                   onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })}
@@ -6550,11 +6550,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("raster"), "Edit drape mode / elevation for this raster in the Raster tab")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("raster"), "Edit drape mode / elevation for this raster in the Raster tab")} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
               </div>
             ))}
-            <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10 }}>Imported via the Raster module</div>
+            <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10 }}>Imported via the Raster module</div>
           </>
         )}
 
@@ -6571,45 +6571,45 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Geophysics</div>
             {boundaries.map((b) => (
-              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
                 </div>
-                <Shapes size={13} style={{ color: b.color || "#55606e", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
-                <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>boundary</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit boundary "${b.name}" in the Geophysics tab`)} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), `Remove boundary "${b.name}"`)} />
+                <Shapes size={13} style={{ color: b.color || "var(--color-text-secondary)", flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: 10, flexShrink: 0 }}>boundary</span>
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit boundary "${b.name}" in the Geophysics tab`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), `Remove boundary "${b.name}"`)} />
               </div>
             ))}
             {omfObjects.map((o) => (
-              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {o.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
                 </div>
-                {o.kind === "points" ? <MapPin size={13} style={{ color: o.color || "#55606e", flexShrink: 0 }} />
-                  : o.kind === "lines" ? <Waypoints size={13} style={{ color: o.color || "#55606e", flexShrink: 0 }} />
-                  : <Triangle size={13} style={{ color: o.color || "#55606e", flexShrink: 0 }} />}
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
-                <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>OMF {o.kind}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit OMF object "${o.name}" in the Geophysics tab`)} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), `Remove OMF object "${o.name}"`)} />
+                {o.kind === "points" ? <MapPin size={13} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
+                  : o.kind === "lines" ? <Waypoints size={13} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
+                  : <Triangle size={13} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />}
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: 10, flexShrink: 0 }}>OMF {o.kind}</span>
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit OMF object "${o.name}" in the Geophysics tab`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), `Remove OMF object "${o.name}"`)} />
               </div>
             ))}
             {voxelModels.map((v) => (
-              <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
                 </div>
-                <Box size={13} style={{ color: "#55606e", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
+                <Box size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
                   style={{ width: 46, flexShrink: 0 }} title="Opacity"
                 />
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => removeVoxelModel(v.id), `Remove block/voxel model "${v.name}"`)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeVoxelModel(v.id), `Remove block/voxel model "${v.name}"`)} />
               </div>
             ))}
           </>
@@ -6623,17 +6623,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {surfaceSamples.length > 0 && (
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 4 }}>
-              <div onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
+              <div onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {layerVisible.surface_samples ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <Beaker size={13} style={{ color: "#55606e", flexShrink: 0 }} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
-              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
+              <Beaker size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
+              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
-                <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+                <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--color-text-secondary)" }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: colorForMedium(m), flexShrink: 0 }} />
                   {m}
                 </div>
@@ -6650,12 +6650,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Assays</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
-              <div onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "#e2a63c" : "#9aa5b3" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
-              <div style={{ flex: 1, fontSize: 11, color: "#7b8794" }}>
+              <div onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+              <div style={{ flex: 1, fontSize: 11, color: "var(--color-text-caption)" }}>
                 {assayDisplayElements.length === 0 ? "No elements selected" : `${assayDisplayElements.length} element${assayDisplayElements.length > 1 ? "s" : ""} shown`}
               </div>
               {assayDisplayElements.length > 0 && (
-                <span onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "#55606e", fontSize: 10.5 }}>Clear</span>
+                <span onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 10.5 }}>Clear</span>
               )}
             </div>
             {/* User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each
@@ -6682,7 +6682,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     title={on ? `Hide ${e.symbol}` : `Show ${e.symbol}`}
                     style={{
                       display: "flex", alignItems: "center", gap: 5, padding: "4px 6px 4px 9px", borderRadius: 12, cursor: "pointer", fontSize: 11.5,
-                      background: on ? "#f4f5f7" : "#ffffff", border: `1px solid ${on ? color : "#d9dce1"}`, color: on ? "#1a2028" : "#7b8794",
+                      background: on ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${on ? color : "var(--color-border)"}`, color: on ? "var(--color-text)" : "var(--color-text-caption)",
                     }}
                   >
                     <span onClick={() => toggleAssayElement(e.symbol)} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -6692,7 +6692,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     {on && (
                       <Settings2
                         size={11}
-                        style={{ color: styled ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}
+                        style={{ color: styled ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}
                         {...iconAction((ev) => { ev.stopPropagation(); setAssayStyleModalSymbol(e.symbol); }, `Style ${e.symbol}${styled ? " (customized)" : ""}`)}
                       />
                     )}
@@ -6700,21 +6700,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 );
               })}
             </div>
-            <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, padding: "0 10px" }}>{assays.length} intervals loaded via Geochem module</div>
+            <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{assays.length} intervals loaded via Geochem module</div>
           </>
         )}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Custom layers</div>
         {customLayers.map((l) => (
-          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-            <div onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: 12, color: customVisible[l.id] === false ? "#9aa5b3" : "#1a2028", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {customVisible[l.id] === false ? <EyeOff size={13} /> : <Eye size={13} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({l.rows.length})</span>
+          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: 12, color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              {customVisible[l.id] === false ? <EyeOff size={13} /> : <Eye size={13} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: 10, flexShrink: 0 }}>({l.rows.length})</span>
             </div>
-            <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), `Zoom to custom layer "${l.name}"`)} />
-            <Trash2 size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
+            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), `Zoom to custom layer "${l.name}"`)} />
+            <Trash2 size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
           </div>
         ))}
-        <div onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 12, color: "#55606e", textAlign: "center" }}>+ Add CSV layer</div>
+        <div onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: 12, color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
         <input ref={setInputRef("customCsv")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
@@ -6726,7 +6726,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             and/or drilling's extent, added to the same saved-sections list below rather than opened all
             at once. */}
         <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16 }}>Slice series (fence)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth —
           each one added to the list below, ready to open individually. Includes the geophysics voxel
           slice automatically, same as any other section.
@@ -6734,11 +6734,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <label style={{ ...miniField, flex: 1 }}>
             Azimuth (°)
-            <input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 }} />
+            <input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11 }} />
           </label>
           <label style={{ ...miniField, flex: 1 }}>
             Width (m)
-            <input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 }} />
+            <input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11 }} />
           </label>
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title="Generate the slice series"><Scissors size={13} /> Generate</button>
         </div>
@@ -6758,16 +6758,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           });
           const toggleSelected = (id) => setSelectedSectionIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
           const sectionRow = (s) => (
-            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <input type="checkbox" checked={selectedSectionIds.has(s.id)} onChange={() => toggleSelected(s.id)} style={{ flexShrink: 0 }} title="Select for bulk edit/rename" />
-              <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                <Scissors size={12} style={{ flexShrink: 0, color: "#55606e" }} />
+              <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                <Scissors size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                {s.contacts?.length > 0 && <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
+                {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: 10, flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
               </div>
-              <Layers3 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
-              <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
-              <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }, `Delete section "${s.name}"`)} />
+              <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
+              <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
+              <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }, `Delete section "${s.name}"`)} />
             </div>
           );
           return (
@@ -6776,7 +6776,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <span>Cross-sections ({sections.length})</span>
                 <span
                   onClick={() => { if (window.confirm(`Delete all ${sections.length} section(s) and any contacts drawn on them? This can't be undone from here.`)) deleteAllSections(); }}
-                  style={{ cursor: "pointer", color: "#8a5555", fontSize: 10, textTransform: "none", letterSpacing: 0 }}
+                  style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: 10, textTransform: "none", letterSpacing: 0 }}
                   title="Delete every section and section group"
                 >Delete all</span>
               </div>
@@ -6784,14 +6784,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   bunch of sections and also bulk rename them." Bar only appears once at least one
                   section is checked (individually or via a group's own select-all checkbox below). */}
               {selectedSectionIds.size > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#eaf1fa", border: "1px solid #a9c6e0", borderRadius: 6, marginBottom: 6, fontSize: 11 }}>
-                  <span style={{ flex: 1, color: "#1a2028" }}>{selectedSectionIds.size} selected</span>
-                  <span onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "#2f6fe0" }}>Edit</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, marginBottom: 6, fontSize: 11 }}>
+                  <span style={{ flex: 1, color: "var(--color-text)" }}>{selectedSectionIds.size} selected</span>
+                  <span onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>Edit</span>
                   <span
                     onClick={() => askPrompt("Base name for the selected sections? (numbered automatically)", "", (base) => { if (base && base.trim()) renameSectionsBulk(Array.from(selectedSectionIds), base.trim()); })}
-                    style={{ cursor: "pointer", color: "#2f6fe0" }}
+                    style={{ cursor: "pointer", color: "var(--color-primary)" }}
                   >Rename</span>
-                  <span onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "#55606e" }}>Clear</span>
+                  <span onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Clear</span>
                 </div>
               )}
               {sectionGroups.filter((g) => grouped.has(g.id)).map((g) => {
@@ -6800,7 +6800,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 const allSelected = members.every((s) => selectedSectionIds.has(s.id));
                 return (
                   <div key={g.id} style={{ marginBottom: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#eef1f5", border: "1px solid #d9dce1", borderRadius: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-hover-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                       <input
                         type="checkbox" checked={allSelected}
                         onChange={() => setSelectedSectionIds((p) => {
@@ -6810,12 +6810,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         })}
                         title="Select every section in this group for bulk edit/rename" style={{ flexShrink: 0 }}
                       />
-                      <div onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                        {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "#55606e" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "#55606e" }} />}
+                      <div onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                        {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
-                        <span style={{ color: "#94a1b0", fontSize: 10, flexShrink: 0 }}>({members.length})</span>
+                        <span style={{ color: "var(--color-text-muted)", fontSize: 10, flexShrink: 0 }}>({members.length})</span>
                       </div>
-                      <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }, `Delete section group "${g.name}" and all ${members.length} section(s) in it`)} />
+                      <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }, `Delete section group "${g.name}" and all ${members.length} section(s) in it`)} />
                     </div>
                     {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
                   </div>
@@ -6829,12 +6829,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
         {sidebarTab === "modeling" && (<>
         <div className="ge-section-label">Domain</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Restricts every tool below to one side of one or more faults — build domains
           in "Domains" further down first, then pick one here. Applies to all four tools; "Whole
           property" is the original, undomained behavior.
         </div>
-        <select value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5, marginBottom: 4 }}>
+        <select value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5, marginBottom: 4 }}>
           <option value="">Whole property</option>
           {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
@@ -6842,19 +6842,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             same kind of control: both narrow WHICH picks feed every tool below, one spatially and one
             by hand. */}
         <div className="ge-section-label" style={{ marginTop: 14 }}>Intercept set</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that
           repeats in the pile as the separate surfaces it really is, instead of every pick of that code
           feeding one surface. Build sets in "Boundary intercepts" on the Home tab. "All intercepts" is
           the original behaviour. Structural orientation picks are not covered: the tools read those
           directly from the structure layer, not through this table.
         </div>
-        <select value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5, marginBottom: 4 }}>
+        <select value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5, marginBottom: 4 }}>
           <option value="">All intercepts</option>
           {(interceptSets || []).map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
         </select>
         {activeInterceptSet && (activeInterceptSet.ids || []).length === 0 && (
-          <div style={{ fontSize: 10, color: "#a95555", marginBottom: 4, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 10, color: "var(--color-danger-icon-strong)", marginBottom: 4, lineHeight: 1.4 }}>
             "{activeInterceptSet.name}" is empty, so every tool below has nothing to model. Add
             intercepts to it in "Boundary intercepts", or switch back to All intercepts.
           </div>
@@ -6863,7 +6863,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {/* TASKS.csv #88 — boundary constraint: #89 above only restricts which control points feed a
             run, this additionally clips the OUTPUT mesh to the domain, since GemPy still fits/
             extrapolates across the whole extent regardless. */}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: modelDomainId ? "#55606e" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: modelDomainId ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
           Clip result to domain boundary
         </label>
@@ -6873,14 +6873,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             coarser, higher = slower/finer; GemPy's own cost scales with grid cell count, so this is the
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16 }}>Resolution</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
           Grid cells per axis for every modelling run below. Lower is faster; higher is slower but
           finer-detailed. A real property-scale run at 36 (the default) commonly takes 60-90+ seconds —
           try 24 or lower for a quick first look.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "#1a2028", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
+          <span style={{ fontSize: 11, color: "var(--color-text)", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
         </div>
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
@@ -6889,7 +6889,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             own default, byte-identical to every run before this control existed); the effective value is
             reported in the run notice and stamped into the surface's export provenance either way. */}
         <div className="ge-section-label" style={{ marginTop: 12 }}>Surface stiffness (advanced)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
           Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows
           your control points more tightly (more curvature, more risk of over-fitting sparse data);
           higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too
@@ -6905,11 +6905,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Search ellipsoid</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#55606e", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
           </label>
         </div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's
           own search the way classic kriging software would — what it does instead: drops
           any control point with fewer than the minimum neighbor count within an ellipsoid oriented along
@@ -6945,11 +6945,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Anisotropy</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#55606e", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={anisotropy.enabled} onChange={(e) => setAnisotropy((p) => ({ ...p, enabled: e.target.checked }))} /> On
           </label>
         </div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Warps every coordinate into a normalized space where this ellipsoid becomes a sphere before
           the surface is fit, then warps the result back — the standard way to get directional
           continuity (a vein behaving very differently along strike than across it) out of an
@@ -6984,7 +6984,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Grade estimation</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Populate a block model FROM composited assays — nearest-neighbour or inverse-
           distance weighting, not a surface — a separate workflow from the implicit surface tools below.
         </div>
@@ -7006,15 +7006,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Lithology groups</span>
           <span onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
-            style={{ cursor: "pointer", color: "#55606e", fontSize: 10, textTransform: "none", letterSpacing: 0 }} title="New lithology group">+ New group</span>
+            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 10, textTransform: "none", letterSpacing: 0 }} title="New lithology group">+ New group</span>
         </div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one
           modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their
           own colors in 3D.
         </div>
         {lithoGroups.length === 0 && (
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>No groups yet.</div>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>No groups yet.</div>
         )}
         {lithoGroups.map((g) => {
           const open = expandedLithoGroupId === g.id;
@@ -7022,31 +7022,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const crossCuts = lithoGroupCrossCuts(g);
           const role = lithoGroupRole(g);
           return (
-            <div key={g.id} style={{ border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6, background: "#f4f5f7" }}>
+            <div key={g.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6, background: "var(--color-bg-subtle)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
+                <div onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
                   {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
                 <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend color for this group"
-                  style={{ width: 20, height: 18, padding: 0, border: "1px solid #d9dce1", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                  style={{ width: 20, height: 18, padding: 0, border: "1px solid var(--color-border)", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                   onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title="Click to rename">
-                  {g.name} <span style={{ color: "#94a1b0" }}>({codesInGroup.length})</span>
+                  {g.name} <span style={{ color: "var(--color-text-muted)" }}>({codesInGroup.length})</span>
                 </div>
-                {crossCuts && <span title="Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code" style={{ fontSize: 9, color: "#8a5555", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>X-cut</span>}
+                {crossCuts && <span title="Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code" style={{ fontSize: 9, color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>X-cut</span>}
                 {!crossCuts && role === "overburden" && <span title="Every member is overburden — modelled as an overburden_base surface" style={{ fontSize: 9, color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
-                <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete lithology group "${g.name}"? Its codes stay in the log — they just stop being modelled together.`)) removeLithoGroup(g.id); }, `Delete lithology group "${g.name}" (its codes stay in the log, just ungrouped)`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete lithology group "${g.name}"? Its codes stay in the log — they just stop being modelled together.`)) removeLithoGroup(g.id); }, `Delete lithology group "${g.name}" (its codes stay in the log, just ungrouped)`)} />
               </div>
               {open && (
                 <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {litho_units.length === 0 && <div style={{ fontSize: 10, color: "#94a1b0" }}>No lithology codes loaded yet — import a litho CSV first.</div>}
+                  {litho_units.length === 0 && <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>No lithology codes loaded yet — import a litho CSV first.</div>}
                   {litho_units.map((u) => {
                     const on = codesInGroup.includes(u);
                     return (
                       <span key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
                         title={on ? `Remove ${u} from this group` : `Add ${u} to this group`}
                         style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none",
-                          background: on ? "#1e3629" : "#ffffff", color: on ? "#8fd9ab" : "#55606e", border: `1px solid ${on ? "#3d6b52" : "#d9dce1"}` }}>
+                          background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px solid ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                         <span style={{ width: 7, height: 7, borderRadius: 2, background: colorForLithology(u), flexShrink: 0 }} />{u}
                       </span>
                     );
@@ -7070,17 +7070,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         ><Layers3 size={13} /> Fence / panel diagram…</button>
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Implicit model (beta)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models the top contact of one unit from litho intervals, via GemPy in the Python sidecar.
           Uses structure dip/azimuth for orientation when available; if not, estimates one from the
           contact points themselves so it can still run.
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 8, cursor: "pointer" }} title="Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points">
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title="Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points">
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />
           Include drawn cross-section contacts{sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : ""}
         </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+          <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}>
             <option value="">Choose a unit…</option>
             {litho_units.map((u) => {
               const role = roleForLithology(u);
@@ -7109,13 +7109,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </div>
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Stratigraphic stack (beta)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models several units' top contacts together in one run so they can't cross each other —
           add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a
           stack by nature, so model those with the Structural tool instead, not here.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+          <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}>
             <option value="">Add a unit…</option>
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
@@ -7137,7 +7137,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </select>
         </div>
         {stackUnits.length === 0 && (
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>No units added yet.</div>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>No units added yet.</div>
         )}
         {stackUnits.map((u, i) => {
           // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every
@@ -7146,26 +7146,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const role = isLithoGroupKey(u) ? (grp ? lithoGroupRole(grp) : null) : roleForLithology(u);
           const display = isLithoGroupKey(u) ? (grp ? grp.name : "(deleted group)") : u;
           return (
-          <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-            <span style={{ fontSize: 10, color: "#94a1b0", width: 14, flexShrink: 0 }}>{i + 1}</span>
+          <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: "var(--color-text-muted)", width: 14, flexShrink: 0 }}>{i + 1}</span>
             {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={`Group: ${(grp.codes || []).join(" + ")}`} />}
-            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: grp || !isLithoGroupKey(u) ? "#1a2028" : "#8a5555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? `Group: ${(grp.codes || []).join(" + ")}` : undefined}>{display}</div>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: grp || !isLithoGroupKey(u) ? "var(--color-text)" : "var(--color-danger-icon)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? `Group: ${(grp.codes || []).join(" + ")}` : undefined}>{display}</div>
             {role === "overburden" && <span title="Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact" style={{ fontSize: 9, color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
-            <ChevronUp size={13} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), `Move "${u}" up in the stratigraphic stack`)} />
-            <ChevronDown size={13} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "#c7ccd3" : "#55606e", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), `Move "${u}" down in the stratigraphic stack`)} />
-            <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), `Remove "${u}" from the stratigraphic stack`)} />
+            <ChevronUp size={13} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), `Move "${u}" up in the stratigraphic stack`)} />
+            <ChevronDown size={13} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), `Move "${u}" down in the stratigraphic stack`)} />
+            <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), `Remove "${u}" from the stratigraphic stack`)} />
           </div>
           );
         })}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
-        <label style={{ display: "block", fontSize: 10, color: "#55606e", marginTop: 6 }} title="Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).">
+        <label style={{ display: "block", fontSize: 10, color: "var(--color-text-secondary)", marginTop: 6 }} title="Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).">
           Unit relationship
           <select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
             <option value="erode">Erode — younger units truncate older (unconformity)</option>
             <option value="onlap">Onlap — units drape/terminate against those below (conformable pile)</option>
           </select>
         </label>
-        <div style={{ fontSize: 9.5, color: "#94a1b0", margin: "4px 0 6px", lineHeight: 1.45 }}>
+        <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
           {stackRelation === "erode"
             ? "Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape."
             : "Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Usually the right choice for a layered volcanic/sedimentary sequence — including the VMS-hosting stratigraphy this app is built around — and the default."}
@@ -7178,7 +7178,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         ><Layers3 size={13} /> {implicitBusy ? "Running…" : `Run stack (${stackUnits.length} unit${stackUnits.length === 1 ? "" : "s"})`}</button>
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Structural modeling (beta)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own
           position and dip/azimuth — no separate contact layer needed.
         </div>
@@ -7210,7 +7210,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           title="Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole"
         ><Milestone size={13} /> Downhole structure (tadpole)</button>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+          <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}>
             <option value="">Choose a structure type…</option>
             {struct_types.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -7226,14 +7226,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a
           0/1 "altered?" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the
           lithology/structural tools this makes no assumption about which way is "up" — a halo wraps its
           conduit rather than draping like a contact. Runs in-app, no Python sidecar needed.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+          <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}>
             <option value="">Choose an assemblage…</option>
             {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -7252,18 +7252,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: 9.5, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           0 = auto (derived from your own hole spacing). The model domain and the anisotropy trend are
           honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
           under-supported contact picks, which a closed envelope has none of.
         </div>
-        {alterationBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
+        {alterationBusy && <div style={{ fontSize: 10, color: "var(--color-success-text)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
 
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
             and cannot do (paired by construction; thickness between holes is interpolated), because a
             vein drawn from a handful of intercepts looks far more certain on screen than it is. */}
         <div className="ge-section-label" style={{ marginTop: 16 }}>Vein / dyke modeling (beta)</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are
           the two walls of one structure. A midplane is fitted through the intercept midpoints and a
           TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is
@@ -7272,7 +7272,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           no Python sidecar needed.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+          <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}>
             <option value="">Choose a vein / dyke…</option>
             {vein_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -7299,13 +7299,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <input type="number" min={0} max={360} value={veinDipDir} placeholder="fit" onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: 9.5, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the
           data. Adds three surfaces: hangingwall, footwall, and a closed solid for volume. Between holes
           the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out
           or swell no hole intersected will not be in it.
         </div>
-        {veinBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
+        {veinBusy && <div style={{ fontSize: 10, color: "var(--color-success-text)", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
 
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
             sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
@@ -7316,13 +7316,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             and deriving a regulatory label from a search radius would launder a parameter choice into
             a regulatory term). The real live risk is the opposite one: the app emitted confident
             tonnages with zero classification context. This is the fix — framing, not features. */}
-        <div style={{ fontSize: 10.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
+        <div style={{ fontSize: 10.5, color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
           visualise and target mineralisation. It has no anisotropy, no variogram, no classification and
           no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
           it must not be reported publicly as one.
         </div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Builds a wireframe envelope of everything at or above a cutoff grade directly from
           assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff.
           Runs in-app, no Python sidecar needed.
@@ -7382,20 +7382,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   </select>
                 </label>
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation, TASKS #118)">
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation, TASKS #118)">
                 <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />
                 Composite first
                 {numericUseComposites && (
                   <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title="Composite length (m)" />
                 )}
-                {numericUseComposites && <span style={{ fontSize: 10, color: "#94a1b0" }}>m</span>}
+                {numericUseComposites && <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>m</span>}
               </label>
               {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
               {numericUseComposites && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4 }} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.">
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 4 }} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.">
                   Min coverage
                   <input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />
-                  <span style={{ fontSize: 10, color: "#94a1b0" }}>%</span>
+                  <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>%</span>
                 </label>
               )}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
@@ -7414,7 +7414,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
               {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
                   Statistics but reached the grade shell unfiltered. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.">
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.">
                 <input type="checkbox" checked={numericIncludeQAQC} onChange={(e) => setNumericIncludeQAQC(e.target.checked)} />
                 Include QC samples (standards/blanks/duplicates)
               </label>
@@ -7422,7 +7422,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   no sample in range reads as below cutoff and the shell closes halfway to it: that wall
                   is the SEARCH RADIUS, not a grade boundary, and computeMeshVolume happily calls the
                   result watertight. Volume then scales as R³ while looking converged and stable. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e", marginBottom: 4, cursor: "pointer" }} title="Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.">
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.">
                 <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />
                 Close shell artificially at the search-radius boundary (volume becomes an assumption)
               </label>
@@ -7435,7 +7435,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               )}
               {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
               {!(numericSearchRadius > 0) && (
-                <div style={{ fontSize: 9.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 9.5, color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
                   With no search radius, every grid cell is estimated from the whole dataset — the run can
                   take a minute or more and the window will be unresponsive while it does. Set a real
                   search radius unless you specifically want an unbounded first pass.
@@ -7490,16 +7490,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           title="Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves."
         ><ShieldAlert size={13} /> {topologyBusy ? "Checking relationships…" : "Check relationships"}</button>
         {implicitSurfaces.length === 0 && (
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, lineHeight: 1.4 }}>None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.</div>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.</div>
         )}
         {implicitSurfaces.map((s) => {
           const expanded = expandedSurfaceId === s.id;
           const otherSurfaces = implicitSurfaces.filter((o) => o.id !== s.id);
           return (
-            <div key={s.id} style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+            <div key={s.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "#e2a63c" : "#9aa5b3" }}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</div>
-                <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
+                <div onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
                 {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
                     so a project with no re-runs looks exactly as it did before. */}
                 {(() => {
@@ -7507,7 +7507,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   if (!info || info.lineage.length < 2) return null;
                   return (
                     <span
-                      style={{ flexShrink: 0, fontSize: 9, color: s.accepted ? "#20512f" : "#55606e", background: s.accepted ? "#eaf3ec" : "#e8eaee", border: `1px solid ${s.accepted ? "#c6e0cb" : "#d9dce1"}`, borderRadius: 4, padding: "1px 4px" }}
+                      style={{ flexShrink: 0, fontSize: 9, color: s.accepted ? "#20512f" : "var(--color-text-secondary)", background: s.accepted ? "#eaf3ec" : "#e8eaee", border: `1px solid ${s.accepted ? "#c6e0cb" : "var(--color-border)"}`, borderRadius: 4, padding: "1px 4px" }}
                       title={s.accepted ? `Version ${info.index + 1} of ${info.lineage.length} — marked as the version you are working from (a record of your choice, not a validation of the run)` : `Version ${info.index + 1} of ${info.lineage.length} of this surface`}
                     >v{info.index + 1}/{info.lineage.length}{s.accepted ? " ✓" : ""}</span>
                   );
@@ -7515,24 +7515,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 {/* TASKS.csv #83 — expand to set this surface's geological type + declared
                     relationships to other surfaces (metadata only for now — see this entry's own
                     TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}
-                <div onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title="Type & relationships">
+                <div onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title="Type & relationships">
                   {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
-                <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
-                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeImplicitSurface(s.id), `Remove surface "${s.name}"`)} />
+                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
+                <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeImplicitSurface(s.id), `Remove surface "${s.name}"`)} />
               </div>
               {expanded && (
-                <div style={{ padding: "0 8px 8px", borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
+                <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
                   {/* TASKS.csv #91/#92 — data-support display for surfaces that carry a classification. */}
                   {s.surfaceSupportCounts && (
                     <div style={{ marginBottom: 8 }}>
                       <button
                         onClick={() => toggleSurfaceSupportColors(s.id)}
-                        style={{ width: "100%", padding: "5px 0", borderRadius: 5, fontSize: 10.5, cursor: "pointer", border: "1px solid #c7ccd3", background: s.supportColored ? "#eef3ee" : "transparent", color: "#55606e" }}
+                        style={{ width: "100%", padding: "5px 0", borderRadius: 5, fontSize: 10.5, cursor: "pointer", border: "1px solid var(--color-border-light)", background: s.supportColored ? "#eef3ee" : "transparent", color: "var(--color-text-secondary)" }}
                       >
                         {s.supportColored ? "Show normal colours" : "Colour by data support"}
                       </button>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 5, fontSize: 9.5, color: "#55606e" }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 5, fontSize: 9.5, color: "var(--color-text-secondary)" }}>
                         {["interpolated", "extrapolated", "unsupported"].map((k) => (
                           <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: SUPPORT_COLORS[k], display: "inline-block" }} />
@@ -7540,30 +7540,30 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           </span>
                         ))}
                       </div>
-                      <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                      <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
                         Counted over this surface's own vertices. Green means the composites that produced
                         that part of the surface bracket it on all three axes from at least two holes.
                         A geometric data-support measure — not a confidence interval or a kriging variance.
                       </div>
                     </div>
                   )}
-                  <label style={{ fontSize: 10, color: "#55606e", display: "block", marginBottom: 6 }}>
+                  <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
                     Type
                     <select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
                       {SURFACE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                     </select>
                   </label>
-                  <div style={{ fontSize: 10, color: "#55606e", marginBottom: 4 }}>Relationships to other surfaces</div>
-                  {(s.relationships || []).length === 0 && <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6 }}>None declared.</div>}
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 4 }}>Relationships to other surfaces</div>
+                  {(s.relationships || []).length === 0 && <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6 }}>None declared.</div>}
                   {(s.relationships || []).map((r, i) => {
                     const target = implicitSurfaces.find((o) => o.id === r.targetId);
                     const relLabel = RELATION_TYPES.find((rt) => rt.key === r.relation)?.label || r.relation;
                     return (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, marginBottom: 4 }}>
-                        <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {relLabel} <span style={{ color: "#55606e" }}>{target ? target.name : "(removed surface)"}</span>
+                        <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {relLabel} <span style={{ color: "var(--color-text-secondary)" }}>{target ? target.name : "(removed surface)"}</span>
                         </div>
-                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), `Remove this relationship from surface "${s.name}"`)} />
+                        <X size={11} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), `Remove this relationship from surface "${s.name}"`)} />
                       </div>
                     );
                   })}
@@ -7582,13 +7582,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       >+</button>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 10, color: "#94a1b0" }}>Generate another surface to declare a relationship to it.</div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Generate another surface to declare a relationship to it.</div>
                   )}
 
                   {/* TASKS.csv #52 (d) — CROSS-CUTTING. The stack tool excludes veins and dykes by
                       design (see #61), so a dyke and the contacts it cuts were previously two
                       unrelated meshes drawn through each other. This applies the cut. */}
-                  <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Cross-cutting</div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Cross-cutting</div>
                   {otherSurfaces.length > 0 ? (
                     <>
                       <div style={{ display: "flex", gap: 4 }}>
@@ -7602,7 +7602,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
                         >{crossCutBusy ? "Cutting…" : "Apply"}</button>
                       </div>
-                      <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                      <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
                         A closed body (a vein/dyke solid, a shell) removes the part of this surface inside
                         it and leaves a clean truncation. An open surface (a fault) divides this one into
                         two fault blocks instead — geometry only, with no displacement applied. If the
@@ -7612,14 +7612,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: 10, color: "#94a1b0" }}>Model a dyke, vein or fault to cut this surface with it.</div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Model a dyke, vein or fault to cut this surface with it.</div>
                   )}
 
                   {/* TASKS.csv #140 — volume/tonnage. Only meaningful for a genuinely closed solid, so a
                       non-watertight mesh (e.g. a clipped-open surface, a fault plane, a draped contact
                       sheet) still shows the raw divergence-theorem number but flags it rather than
                       presenting it with false confidence. */}
-                  <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Volume &amp; tonnage</div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Volume &amp; tonnage</div>
                   {expandedSurfaceVolume ? (
                     <>
                       {/* TASKS.csv #268 — computeMeshVolume documents that it assumes scene units are
@@ -7628,7 +7628,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           with no complaint. dataQC already warns about a missing EPSG; that warning
                           never reached here. */}
                       {isMetricProjectedEpsg(project?.epsg) !== true ? (
-                        <div style={{ fontSize: 10, color: "#a95555", lineHeight: 1.45, marginBottom: 6 }}>
+                        <div style={{ fontSize: 10, color: "var(--color-danger-icon-strong)", lineHeight: 1.45, marginBottom: 6 }}>
                           {project?.epsg
                             ? `This project's CRS (EPSG:${project.epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.`
                             : "No CRS is set for this project."}
@@ -7638,7 +7638,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         </div>
                       ) : (
                       <>
-                      <div style={{ fontSize: 11, color: "#1a2028", marginBottom: 4 }}>
+                      <div style={{ fontSize: 11, color: "var(--color-text)", marginBottom: 4 }}>
                         Volume: <strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
                       </div>
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
@@ -7669,14 +7669,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
                       {s.params?.meanGradeInShell != null && (
-                        <div style={{ fontSize: 10.5, color: "#1a2028", marginBottom: 4 }}>
+                        <div style={{ fontSize: 10.5, color: "var(--color-text)", marginBottom: 4 }}>
                           Mean interpolated grade inside the shell: <strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
-                          <span style={{ color: "#94a1b0" }}> — not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {s.params.cutoff} cutoff).</span>
+                          <span style={{ color: "var(--color-text-muted)" }}> — not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {s.params.cutoff} cutoff).</span>
                         </div>
                       )}
                       {/* TASKS.csv #264 — no more silent 2.7 prefill: a bold tonnage the user never
                           authorised a density for is exactly the number that gets quoted. */}
-                      <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ flexShrink: 0 }}>Density (t/m³ or g/cm³)</span>
                         <input
                           type="number" min={0} step={0.01} placeholder="required"
@@ -7689,11 +7689,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         const tonnage = computeTonnage(expandedSurfaceVolume.volumeM3, Number(s.density));
                         return tonnage != null ? (
                           <>
-                            <div style={{ fontSize: 11, color: "#1a2028" }}>
+                            <div style={{ fontSize: 11, color: "var(--color-text)" }}>
                               Tonnage: <strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
                             </div>
                             {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
-                            <div style={{ fontSize: 9.5, color: "#7a4a1f", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
+                            <div style={{ fontSize: 9.5, color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
                               <strong>Exploration target volume only — not a Mineral Resource.</strong> Public
                               disclosure of a tonnage requires an estimate prepared by a Qualified Person.
                               {/* TASKS.csv #264 */}
@@ -7703,7 +7703,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                             </div>
                           </>
                         ) : (
-                          <div style={{ fontSize: 10, color: "#94a1b0" }}>Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.</div>
+                          <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.</div>
                         );
                       })()}
                       </>
@@ -7711,8 +7711,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       {/* TASKS.csv #270 (LOW-3) — the parameter block that produced this surface, so a
                           number can be reproduced and audited rather than re-derived from memory. */}
                       {s.params && (
-                        <div style={{ fontSize: 9.5, color: "#55606e", marginTop: 8, lineHeight: 1.5 }}>
-                          <div style={{ color: "#94a1b0", marginBottom: 2 }}>Parameters used</div>
+                        <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.5 }}>
+                          <div style={{ color: "var(--color-text-muted)", marginBottom: 2 }}>Parameters used</div>
                           {/* BUG FIXED HERE, found by live verification for TASKS.csv #52 (d): this line
                               formatted the NUMERIC grade-shell parameter block unconditionally, for every
                               surface that had any params at all. A vein/dyke (#144) or a GemPy stack
@@ -7728,7 +7728,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && v !== null && v !== undefined).map(([k, v]) => (
                                 <React.Fragment key={k}>
-                                  <div style={{ color: "#94a1b0", whiteSpace: "nowrap" }}>{k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}</div>
+                                  <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}</div>
                                   {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
                                       printed rather than skipped: a parameter block that quietly omits half of
                                       what produced the surface is worse than a slightly ugly one. */}
@@ -7737,12 +7737,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                               ))}
                             </div>
                           )}
-                          <div style={{ color: "#94a1b0", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Saved with the project (TASKS #52), so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.</div>
+                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Saved with the project (TASKS #52), so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.</div>
                         </div>
                       )}
                     </>
                   ) : (
-                    <div style={{ fontSize: 10, color: "#94a1b0" }}>No mesh geometry found for this surface.</div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>No mesh geometry found for this surface.</div>
                   )}
 
                   {/* TASKS.csv #145 — manual sculpting of this surface, plus its hand-edit provenance.
@@ -7761,11 +7761,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     const cands = candidatePredecessors(implicitSurfaces, s.id);
                     return (
                       <>
-                        <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
+                        <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
                           Version {vNum} of {chain.length}
                           {s.accepted && <span style={{ color: "#20512f", background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 4, padding: "1px 5px", marginLeft: 6 }}>accepted</span>}
                         </div>
-                        <label style={{ fontSize: 10, color: "#55606e", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                        <label style={{ fontSize: 10, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                           <span style={{ flexShrink: 0 }}>New version of</span>
                           <select
                             value={s.supersedes || ""}
@@ -7791,7 +7791,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           ><Check size={12} /> {s.accepted ? "Accepted" : "Accept this version"}</button>
                         </div>
                         {chain.length > 1 && (
-                          <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                          <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
                             Every version keeps its own mesh and its own parameter block, so nothing is
                             overwritten and nothing is dropped on save — which also means each one costs
                             its own space in the project file. Delete a version you no longer want with
@@ -7804,7 +7804,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
                   {/* TASKS.csv #143 — export to a standard mesh format, at real-world project coordinates
                       (not GeoStrix's internal scene-space), for handoff to other software. */}
-                  <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Export mesh</div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Export mesh</div>
                   <div style={{ display: "flex", gap: 4 }}>
                     <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: 10.5 }} title="Wavefront OBJ — universal, human-readable">OBJ</button>
                     <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: 10.5 }} title="AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this">DXF</button>
@@ -7817,7 +7817,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         })}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Domains</div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           A domain is one or more faults plus which side of each — an AND of constraints, so you can
           bound a domain between two faults, not just split the property in two. Pick which fault
           surfaces to use as constraints below (any generated surface typed "Fault" above); the domain
@@ -7828,33 +7828,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {(() => { const faultSurfaces = implicitSurfaces.filter((s) => s.type === "fault"); return (
         <>
         {domains.length === 0 && (
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>None yet.</div>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>None yet.</div>
         )}
         {domains.map((d) => {
           const expanded = expandedDomainId === d.id;
           return (
-            <div key={d.id} style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+            <div key={d.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <GitFork size={13} style={{ color: "#55606e", flexShrink: 0 }} />
-                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${d.constraints.length} constraint${d.constraints.length === 1 ? "" : "s"}`}>{d.name}</div>
-                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }}>
+                <GitFork size={13} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${d.constraints.length} constraint${d.constraints.length === 1 ? "" : "s"}`}>{d.name}</div>
+                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}>
                   {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </div>
-                <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), `Delete domain "${d.name}"`)} />
+                <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), `Delete domain "${d.name}"`)} />
               </div>
               {expanded && (
-                <div style={{ padding: "0 8px 8px", borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
-                  <div style={{ fontSize: 10, color: "#55606e", marginBottom: 4 }}>Fault-side constraints</div>
-                  {d.constraints.length === 0 && <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 6 }}>None declared — matches the whole property.</div>}
+                <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
+                  <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 4 }}>Fault-side constraints</div>
+                  {d.constraints.length === 0 && <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6 }}>None declared — matches the whole property.</div>}
                   {d.constraints.map((c, i) => {
                     const fault = implicitSurfaces.find((s) => s.id === c.faultId);
                     return (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, marginBottom: 4 }}>
-                        <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {fault ? fault.name : "(deleted fault)"} <span style={{ color: "#55606e" }}>— side {c.side === 1 ? "A" : "B"}</span>
+                        <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {fault ? fault.name : "(deleted fault)"} <span style={{ color: "var(--color-text-secondary)" }}>— side {c.side === 1 ? "A" : "B"}</span>
                         </div>
                         <button onClick={() => flipDomainConstraint(d.id, i)} title="Flip side" style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: 10 }}>Flip</button>
-                        <X size={11} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), `Remove this fault constraint from domain "${d.name}"`)} />
+                        <X size={11} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), `Remove this fault constraint from domain "${d.name}"`)} />
                       </div>
                     );
                   })}
@@ -7874,9 +7874,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       >+</button>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 10, color: "#94a1b0" }}>No fault surfaces yet — generate one with the Structural tool above and set its type to "Fault".</div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>No fault surfaces yet — generate one with the Structural tool above and set its type to "Fault".</div>
                   )}
-                  <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 8 }}>{countCollarsInDomain(d)} of {collars.length} collars fall inside this domain (collar-only estimate — the modelling tools above classify each control point individually).</div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 8 }}>{countCollarsInDomain(d)} of {collars.length} collars fall inside this domain (collar-only estimate — the modelling tools above classify each control point individually).</div>
                 </div>
               )}
             </div>
@@ -7884,13 +7884,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         })}
         </>
         ); })()}
-        <div onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 12, color: "#55606e", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
+        <div onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: 12, color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
         </>)}
 
         {sidebarTab === "targeting" && (<>
         <div className="ge-section-label">Geophysical voxel ranges</div>
         {voxelModels.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 11.5, color: "#94a1b0", marginBottom: 12 }}>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: 11.5, color: "var(--color-text-muted)", marginBottom: 12 }}>
             No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).
           </div>
         ) : (
@@ -7902,12 +7902,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Planned drillholes ({plannedHoles.length})</span>
           {plannedHoles.length > 0 && (
-            <FileBarChart2 size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(exportPlannedHolesCSV, "Export all planned holes to CSV")} />
+            <FileBarChart2 size={13} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(exportPlannedHolesCSV, "Export all planned holes to CSV")} />
           )}
         </div>
         <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "#f4f5f7", border: "1px dashed #c7ccd3", borderRadius: 6, fontSize: 11.5, color: "#94a1b0", marginTop: 8 }}>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: 11.5, color: "var(--color-text-muted)", marginTop: 8 }}>
             No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.
           </div>
         ) : (
@@ -7932,7 +7932,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
             {collars.length > 8 && (
-              <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 8px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit", marginBottom: 4 }} />
+              <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 8px", color: "var(--color-text)", fontSize: 11.5, fontFamily: "inherit", marginBottom: 4 }} />
             )}
             {collars.filter((c) => !holeFilter || c.hole_id.toLowerCase().includes(holeFilter.toLowerCase())).map((c) => (
               <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} />
@@ -7945,7 +7945,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             read every message twice. This is the persistent record of the same messages, so it just
             gets a name so it can be found by landmark/region navigation. */}
         {notices.length > 0 && (
-          <div role="region" aria-label="Recent messages" style={{ marginTop: 14, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10, color: "#7b8794", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
+          <div role="region" aria-label="Recent messages" style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 10, color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
             {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
           </div>
         )}
@@ -7975,8 +7975,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             drag on the canvas behind it; only the card itself re-enables pointer events. */}
         {!collars.length && (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", padding: 20 }}>
-            <div style={{ pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", border: "1px solid #d9dce1", borderRadius: 8, padding: "18px 20px", color: "#55606e", fontSize: 12, lineHeight: 1.55, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
-              <div style={{ fontSize: 14, color: "#1a2028", fontWeight: 600, marginBottom: 8 }}>Nothing loaded yet</div>
+            <div style={{ pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", border: "1px solid var(--color-border)", borderRadius: 8, padding: "18px 20px", color: "var(--color-text-secondary)", fontSize: 12, lineHeight: 1.55, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+              <div style={{ fontSize: 14, color: "var(--color-text)", fontWeight: 600, marginBottom: 8 }}>Nothing loaded yet</div>
               <div style={{ marginBottom: 8 }}>
                 This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a <b>collar</b> file.
               </div>
@@ -7994,14 +7994,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               >
                 {sampleLoading ? "Loading sample project…" : "Load sample project (Harry property, 37 real holes)"}
               </button>
-              <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: 7 }}>
+              <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: 7 }}>
                 No data of your own yet? This loads a real 37-hole dataset from BC's public ARIS drillhole database (report #37584) so you can see what a full project looks like. Some interval layers in it are synthesized — the bundled README says exactly which.
               </div>
             </div>
           </div>
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
-          <button onClick={() => setShowLocator((v) => !v)} title="Toggle locator map (shows your project's real-world location)" style={{ ...iconBtn, ...(showLocator ? { background: "#dde1e6", borderColor: "#a9c6e0" } : {}) }}><MapIcon size={15} /></button>
+          <button onClick={() => setShowLocator((v) => !v)} title="Toggle locator map (shows your project's real-world location)" style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={15} /></button>
           <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, "View refreshed — geometry rebuilt from current data"]); }} title="Refresh view (force full geometry rebuild)" style={iconBtn}><RefreshCw size={15} /></button>
           <button onClick={resetView} title="Reset orientation" style={iconBtn}><RotateCcw size={15} /></button>
         </div>
@@ -8032,7 +8032,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             technique CompassRose uses), a real camera-synced N/E/Z arrow-triad drawn directly onto
             the canvas at this same bottom-left corner — no DOM element needed for it anymore. */}
         {sectionMode && sectionPreview && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: 11, color: "#8fd9ab", background: "#ffffff", padding: "6px 10px", borderRadius: 6, border: "1px solid #3d6b52" }}>Start point set — click the end point</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: 11, color: "var(--color-success-text)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Start point set — click the end point</div>
         )}
         {/* TASKS.csv #298 — the toast is now a real ARIA live region, so setNotices() messages reach a
             screen-reader user instead of only sighted ones. Two details matter here:
@@ -8050,7 +8050,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", pointerEvents: "none" }}
         >
           {toast && (
-            <div key={toast.key} style={{ fontSize: 11.5, color: "#1a2028", background: "#ffffff", padding: "8px 14px", borderRadius: 7, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
+            <div key={toast.key} style={{ fontSize: 11.5, color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
               {toast.text}
             </div>
           )}
@@ -8061,29 +8061,29 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             they're editing a specific Viewport and to explicitly commit or discard the new camera
             angle before leaving. */}
         {interactiveViewportSession && (
-          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#1a2028", background: "#ffffff", padding: "8px 12px", borderRadius: 8, border: "1px solid #c7ccd3", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 20 }}>
+          <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 20 }}>
             <span>Editing Layout viewport — drag to orbit, scroll to zoom</span>
             <button onClick={doExitInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: 11.5 }}>Update Viewport &amp; Return to Layout</button>
-            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: 11.5, background: "transparent", border: "1px solid #c7ccd3", color: "#55606e" }}>Cancel</button>
+            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: 11.5, background: "transparent", border: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>Cancel</button>
           </div>
         )}
         {rectZoomMode && !rectVisual && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: 11, color: "#8fd9ab", background: "#ffffff", padding: "6px 10px", borderRadius: 6, border: "1px solid #3d6b52" }}>Drag a rectangle to zoom in — right-click to cancel</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: 11, color: "var(--color-success-text)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Drag a rectangle to zoom in — right-click to cancel</div>
         )}
         {rectVisual && (
-          <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed #4a9be0", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed var(--color-info)", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
         )}
         {tooltip && (
-          <div style={{ position: "fixed", left: tooltip.x + 14, top: tooltip.y + 14, background: "#dde1e6", border: "1px solid #c7ccd3", borderRadius: 6, padding: "8px 10px", fontSize: 11.5, whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 220 }}>{tooltip.text}</div>
+          <div style={{ position: "fixed", left: tooltip.x + 14, top: tooltip.y + 14, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 6, padding: "8px 10px", fontSize: 11.5, whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 220 }}>{tooltip.text}</div>
         )}
       </div>
 
       {contextMenu && (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "#dde1e6", border: "1px solid #c7ccd3", borderRadius: 8, padding: 6, fontSize: 12.5, minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: 12.5, minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             {contextMenu.hit ? (
               <>
-                <div style={{ padding: "6px 10px", color: "#94a1b0", fontSize: 10.5, whiteSpace: "pre-line", borderBottom: "1px solid #d9dce1", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
+                <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: 10.5, whiteSpace: "pre-line", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
                 <ContextItem label="Zoom here" onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
                 <ContextItem label={`Hide ${contextMenu.hit.holeId}`} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
                 <ContextItem label="Copy details" onClick={() => { navigator.clipboard?.writeText(contextMenu.hit.tip); setContextMenu(null); }} />
@@ -8100,10 +8100,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             )}
             {/* Viewport background color — user-requested placeholder location ("for now") for overriding
                 the white default. Shown in both branches since it's not tied to what was clicked on. */}
-            <div style={{ borderTop: "1px solid #d9dce1", marginTop: 4, paddingTop: 4 }}>
+            <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 4, paddingTop: 4 }}>
               <label
                 htmlFor="viewport-bg-color-picker"
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "#1a2028" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
@@ -8114,7 +8114,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   value={bgColor}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setBgColor(e.target.value)}
-                  style={{ width: 26, height: 18, padding: 0, border: "1px solid #c7ccd3", borderRadius: 3, cursor: "pointer", background: "none" }}
+                  style={{ width: 26, height: 18, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, cursor: "pointer", background: "none" }}
                 />
               </label>
             </div>
@@ -8132,22 +8132,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const vectorKind = layerContextMenu.key === "__collars__" ? "collars" : layerContextMenu.key === "__survey__" ? "survey" : "layer";
         return (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setLayerContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu(null); }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "#dde1e6", border: "1px solid #c7ccd3", borderRadius: 8, padding: 6, fontSize: 12.5, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
-            <div style={{ padding: "4px 10px 6px", color: "#94a1b0", fontSize: 10.5, borderBottom: "1px solid #d9dce1", marginBottom: 4 }}>{layerContextMenu.label}</div>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: 12.5, minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+            <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: 10.5, borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{layerContextMenu.label}</div>
             {!isVector && <>
               <ContextItem label="Zoom to layer" onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
               <ContextItem label={layerVisible[layerContextMenu.key] ? "Hide layer" : "Show layer"} onClick={() => { toggleLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
               <ContextItem label="Clear layer data…" onClick={() => { clearLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
             </>}
             {/* TASKS.csv — export/inspect, the same for real layers and the collars/survey sentinels. */}
-            <div style={{ borderTop: "1px solid #d9dce1", margin: "4px 0" }} />
+            <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
             <ContextItem label="Export Shapefile (.zip)…" onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label="Export GeoPackage (.gpkg)…" onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label="Export DXF (.dxf)…" onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label="Inspect / edit table…" onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}
-              {layerGroups.length > 0 && <div style={{ borderTop: "1px solid #d9dce1", margin: "4px 0" }} />}
+              {layerGroups.length > 0 && <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />}
               {layerGroups.map((g) => {
                 const alreadyIn = g.keys.includes(layerContextMenu.key);
                 return (
@@ -8397,8 +8397,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       )}
 
       {dragOver && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed #e2a63c", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: 18, color: "#e2a63c", background: "#ffffff", padding: "14px 22px", borderRadius: 8, border: "1px solid #e2a63c", textAlign: "center" }}>Drop CSV(s) to import<div style={{ fontSize: 12, color: "#8fd9ab", marginTop: 4, fontWeight: 400 }}>Drop several at once — each auto-detects its layer, or asks if unsure</div></div>
+        <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <div style={{ fontSize: 18, color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)", textAlign: "center" }}>Drop CSV(s) to import<div style={{ fontSize: 12, color: "var(--color-success-text)", marginTop: 4, fontWeight: 400 }}>Drop several at once — each auto-detects its layer, or asks if unsure</div></div>
         </div>
       )}
 
@@ -8440,20 +8440,20 @@ function ViewToolbar({
         </HoverToolInfo>
         {openPopover === "grid" && (
           <div style={popoverStyle}>
-            <div style={popoverHeader}>Grid<X size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
-              <div onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "#e2a63c" : "#9aa5b3" }}>
+            <div style={popoverHeader}>Grid<X size={13} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
                 {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
-              <div style={{ flex: 1, fontSize: 12.5, color: gridConfig.visible ? "#1a2028" : "#6b7684" }}>Show grid</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10.5, color: "#55606e", cursor: "pointer" }} title="Add two vertical wall grids to the ground grid, forming a 3D reference box">
+              <div style={{ flex: 1, fontSize: 12.5, color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>Show grid</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10.5, color: "var(--color-text-secondary)", cursor: "pointer" }} title="Add two vertical wall grids to the ground grid, forming a 3D reference box">
                 <input type="checkbox" checked={gridConfig.mode === "3d"} onChange={(e) => setGridConfig((g) => ({ ...g, mode: e.target.checked ? "3d" : "ground" }))} /> 3D
               </label>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11, fontFamily: "inherit" }} />
-              <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11, fontFamily: "inherit" }} />
-              <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid #d9dce1", borderRadius: 5, background: "none", cursor: "pointer" }} />
+              <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11, fontFamily: "inherit" }} />
+              <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11, fontFamily: "inherit" }} />
+              <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
             </div>
           </div>
         )}
@@ -8467,13 +8467,13 @@ function ViewToolbar({
         </HoverToolInfo>
         {openPopover === "themes" && (
           <div style={{ ...popoverStyle, width: 260 }}>
-            <div style={popoverHeader}>Themes<X size={13} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
+            <div style={popoverHeader}>Themes<X size={13} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
             <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
               <input
                 type="text" placeholder="Theme name…" value={themeNameDraft}
                 onChange={(e) => setThemeNameDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
-                style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}
+                style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5 }}
               />
               <button
                 onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
@@ -8483,28 +8483,28 @@ function ViewToolbar({
               ><BookmarkPlus size={14} /></button>
             </div>
             {themes.length === 0 && (
-              <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 4, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
                 Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.
               </div>
             )}
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
               {themes.map((t) => (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }}>
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                   {renamingThemeId === t.id ? (
                     <input
                       autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
                       onBlur={() => { if (renameDraft.trim()) renameTheme(t.id, renameDraft.trim()); setRenamingThemeId(null); }}
                       onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setRenamingThemeId(null); }}
-                      style={{ flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 12 }}
+                      style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: 12 }}
                     />
                   ) : (
-                    <div onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "#1a2028", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                      <Bookmark size={13} style={{ flexShrink: 0, color: "#55606e" }} />
+                    <div onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: 12, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <Bookmark size={13} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                     </div>
                   )}
-                  <Pencil size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
-                  <X size={13} style={{ cursor: "pointer", color: "#8a5555", flexShrink: 0 }} {...iconAction(() => deleteTheme(t.id), `Delete theme "${t.name}"`)} />
+                  <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
+                  <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteTheme(t.id), `Delete theme "${t.name}"`)} />
                 </div>
               ))}
             </div>
@@ -8548,9 +8548,9 @@ function ViewToolbar({
         </HoverToolInfo>
       </div>
       {sectionMode && (
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#55606e", marginLeft: 4 }} title="Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section">
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-text-secondary)", marginLeft: 4 }} title="Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section">
           Buffer (m)
-          <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 11, fontFamily: "inherit" }} />
+          <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: 11, fontFamily: "inherit" }} />
         </label>
       )}
 
@@ -8566,14 +8566,14 @@ function ViewToolbar({
     </div>
   );
 }
-const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
+const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
 const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, color: "#55606e", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
 
 function ContextItem({ label, onClick, disabled, title }) {
   if (disabled) {
-    return <div title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "#9aa5b3" }}>{label}</div>;
+    return <div title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
   }
-  return <div onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "#1a2028" }}>{label}</div>;
+  return <div onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
 // TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
 // 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's
@@ -8588,13 +8588,13 @@ function ContextItem({ label, onClick, disabled, title }) {
 // cost) without that risk.
 const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog }) {
   return (
-    <div onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: visible === false ? "#9aa5b3" : "#1a2028" }}>
+    <div onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: 12, color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
       <span
         onClick={(e) => { e.stopPropagation(); onOpenStripLog(hole_id); }}
         title={`Strip log — ${hole_id}`}
-        style={{ display: "flex", alignItems: "center", color: "#94a1b0", padding: 2, borderRadius: 4 }}
+        style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
         onMouseLeave={(e) => (e.currentTarget.style.color = "#94a1b0")}
       >
@@ -8606,28 +8606,28 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
 
 function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
-    <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
+    <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px" }}>
         {/* TASKS.csv #66 — inline expand (category chips + sources) without opening the full
             LayerInspector modal. Only offered once there's something to expand. */}
         {count > 0 && onToggleExpand ? (
-          <div onClick={onToggleExpand} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"}>
+          <div onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"}>
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </div>
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
-        <div onClick={onToggle} style={{ cursor: "pointer", color: visible ? "#e2a63c" : "#9aa5b3" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
-        <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: visible ? "#1a2028" : "#6b7684", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
-        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
-        {count > 0 && <ListFilter size={13} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
+        <div onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+        <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
+        {count > 0 && <ListFilter size={13} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
         {/* TASKS.csv #63 — "unload" this layer's data entirely. Separate from the per-source removal
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
-        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
-        <div onClick={onUpload} style={{ cursor: "pointer", fontSize: 10.5, color: count ? "#e2a63c" : "#94a1b0", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
+        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
+        <div onClick={onUpload} style={{ cursor: "pointer", fontSize: 10.5, color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
-        <div style={{ padding: "0 10px 9px 32px", borderTop: "1px solid #dde1e6" }}>{children}</div>
+        <div style={{ padding: "0 10px 9px 32px", borderTop: "1px solid var(--color-divider)" }}>{children}</div>
       )}
     </div>
   );
@@ -8665,15 +8665,15 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
   const stops = sym?.stops || [];
   return (
     <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #e3e6ea" }}>
-      <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 5 }}>
+      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 5 }}>
         Symbology — {values.length.toLocaleString()} value{values.length === 1 ? "" : "s"}
         {values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})`}
       </div>
       <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>
         <input type="number" min="2" max="12" value={classCount} onChange={(e) => setClassCount(Math.max(2, Math.min(12, Number(e.target.value) || 5)))}
-          title="Number of classes" style={{ width: 40, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }} />
+          title="Number of classes" style={{ width: 40, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "var(--color-text)" }} />
         <select value={method} onChange={(e) => setMethod(e.target.value)} title="How the class breaks are computed"
-          style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028" }}>
+          style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "var(--color-text)" }}>
           <option value="equal">Linear (equal interval)</option>
           <option value="log">Log-linear</option>
           <option value="quantile">Histogram equalization (quantile)</option>
@@ -8682,21 +8682,21 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
           <option value="jenks">Natural breaks (Jenks)</option>
         </select>
         <select value={palette} onChange={(e) => setPalette(e.target.value)} title="Colour ramp"
-          style={{ background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "#1a2028", maxWidth: 110 }}>
+          style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: 10.5, color: "var(--color-text)", maxWidth: 110 }}>
           {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k}>{p.label.split(" — ")[0]}</option>)}
         </select>
         <button onClick={apply} disabled={!values.length}
-          style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #a9c6e0", background: values.length ? "#eaf1fa" : "#f4f5f7", color: "#2f6fe0", fontSize: 10.5, cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
+          style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--color-selected-border)", background: values.length ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", color: "var(--color-primary)", fontSize: 10.5, cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
         >Classify</button>
         {stops.length > 0 && (
           <span onClick={() => onChange(null)} title="Remove the custom classes and go back to the default ramp"
-            style={{ fontSize: 10, color: "#8a5555", cursor: "pointer" }}>Reset</span>
+            style={{ fontSize: 10, color: "var(--color-danger-icon)", cursor: "pointer" }}>Reset</span>
         )}
       </div>
       {stops.length > 0 && (
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={sym.colorMode !== "discrete"}
                 onChange={(e) => onChange({ ...sym, colorMode: e.target.checked ? "continuous" : "discrete" })} />
               Blend between classes
@@ -8707,12 +8707,12 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5 }}>
                 <input type="color" value={s.color}
                   onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, color: e.target.value } : x); onChange({ ...sym, stops: next }); }}
-                  style={{ width: 22, height: 16, padding: 0, border: "1px solid #c7ccd3", borderRadius: 3, background: "none", cursor: "pointer", flexShrink: 0 }} />
+                  style={{ width: 22, height: 16, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer", flexShrink: 0 }} />
                 <input type="number" value={s.value}
                   onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, value: Number(e.target.value) } : x); onChange({ ...sym, stops: next }); }}
                   title="Lower bound of this class"
-                  style={{ flex: 1, minWidth: 0, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 4px", fontSize: 10.5, color: "#1a2028" }} />
-                <span style={{ color: "#94a1b0", flexShrink: 0 }}>&ge;</span>
+                  style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", fontSize: 10.5, color: "var(--color-text)" }} />
+                <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>&ge;</span>
               </div>
             ))}
           </div>
@@ -8747,12 +8747,12 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
                 title={`${lbl} (${count}) — click to toggle, shift-click to show only this one`}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 7px", borderRadius: 10,
-                  fontSize: 10, cursor: "pointer", border: `1px solid ${hidden ? "#c7ccd3" : color}`,
-                  color: hidden ? "#9aa5b3" : "#1a2028", background: hidden ? "transparent" : "#dde1e6",
+                  fontSize: 10, cursor: "pointer", border: `1px solid ${hidden ? "var(--color-border-light)" : color}`,
+                  color: hidden ? "var(--color-text-disabled)" : "var(--color-text)", background: hidden ? "transparent" : "var(--color-divider)",
                 }}
               >
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0, opacity: hidden ? 0.35 : 1 }} />
-                {lbl} <span style={{ color: "#94a1b0" }}>{count}</span>
+                {lbl} <span style={{ color: "var(--color-text-muted)" }}>{count}</span>
               </span>
             );
           })}
@@ -8762,9 +8762,9 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
         <div>
           {sources.map(([src, count]) => (
             <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, marginBottom: 3 }}>
-              <div style={{ flex: 1, minWidth: 0, color: "#6b7684", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
-              <span style={{ color: "#94a1b0", flexShrink: 0 }}>{count}</span>
-              <Trash2 size={10} style={{ cursor: "pointer", color: "#6b7684", flexShrink: 0 }} {...iconAction(() => onRemoveSource(src), `Remove the ${count} row(s) imported from "${src}"`)} />
+              <div style={{ flex: 1, minWidth: 0, color: "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
+              <Trash2 size={10} style={{ cursor: "pointer", color: "var(--color-text-faint)", flexShrink: 0 }} {...iconAction(() => onRemoveSource(src), `Remove the ${count} row(s) imported from "${src}"`)} />
             </div>
           ))}
         </div>
@@ -8829,10 +8829,10 @@ function fmtArea(m2) {
 // onSwitchMode/switchMeasureMode) rather than trying to reinterpret an existing polyline as a polygon
 // or vice versa, which would silently give a nonsense reading.
 function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
-  const box = { display: "flex", alignItems: "center", gap: 10, marginLeft: 6, fontSize: 11, color: "#55606e", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "5px 10px" };
+  const box = { display: "flex", alignItems: "center", gap: 10, marginLeft: 6, fontSize: 11, color: "#55606e", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "5px 10px" };
   const clearBtn = { display: "flex", alignItems: "center", gap: 3, cursor: "pointer", color: "#8a5555", fontSize: 10.5, flexShrink: 0 };
   const pillWrap = { display: "flex", alignItems: "center", gap: 2, background: "#e8eaed", borderRadius: 5, padding: 2, flexShrink: 0 };
-  const pill = (active) => ({ padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10.5, color: active ? "#1a2028" : "#6b7684", background: active ? "#ffffff" : "transparent", boxShadow: active ? "0 1px 2px rgba(0,0,0,0.1)" : "none" });
+  const pill = (active) => ({ padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontSize: 10.5, color: active ? "#1a2028" : "#6b7684", background: active ? "var(--color-bg)" : "transparent", boxShadow: active ? "0 1px 2px rgba(0,0,0,0.1)" : "none" });
 
   const modeSwitch = (
     <div style={pillWrap}>
@@ -8857,10 +8857,10 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
     return (
       <div style={box}>
         {modeSwitch}
-        <span><b style={{ color: "#1a2028" }}>Total:</b> {fmtLen(totalPath)}</span>
-        {pts.length > 2 && <span><b style={{ color: "#1a2028" }}>Straight-line:</b> {fmtLen(straight.dist3d)}</span>}
-        <span><b style={{ color: "#1a2028" }}>Last segment:</b> {fmtLen(last.dist3d)} @ {last.azimuth.toFixed(1)}° (Δelev {last.vert >= 0 ? "+" : ""}{last.vert.toFixed(1)} m)</span>
-        <span style={{ color: "#94a1b0" }}>{pts.length} pt(s)</span>
+        <span><b style={{ color: "var(--color-text)" }}>Total:</b> {fmtLen(totalPath)}</span>
+        {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>Straight-line:</b> {fmtLen(straight.dist3d)}</span>}
+        <span><b style={{ color: "var(--color-text)" }}>Last segment:</b> {fmtLen(last.dist3d)} @ {last.azimuth.toFixed(1)}° (Δelev {last.vert >= 0 ? "+" : ""}{last.vert.toFixed(1)} m)</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
         <span onClick={onClear} style={clearBtn}><X size={11} /> Clear</span>
       </div>
     );
@@ -8881,9 +8881,9 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
   return (
     <div style={box}>
       {modeSwitch}
-      <span><b style={{ color: "#1a2028" }}>Area:</b> {fmtArea(area)}</span>
-      <span><b style={{ color: "#1a2028" }}>Perimeter:</b> {fmtLen(perimeter)}</span>
-      <span style={{ color: "#94a1b0" }}>{pts.length} pt(s)</span>
+      <span><b style={{ color: "var(--color-text)" }}>Area:</b> {fmtArea(area)}</span>
+      <span><b style={{ color: "var(--color-text)" }}>Perimeter:</b> {fmtLen(perimeter)}</span>
+      <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
       <span onClick={onClear} style={clearBtn}><X size={11} /> Clear</span>
     </div>
   );
@@ -8910,27 +8910,27 @@ function VoxelRangeRow({ model, onUpdate }) {
   const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
   return (
-    <div style={{ marginTop: 8, padding: "8px 9px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+    <div style={{ marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }} title={model.visible !== false ? "Hide" : "Show"}>
+        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? "Hide" : "Show"}>
           {model.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
         </div>
-        <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
-        {isFiltered && <span style={{ color: "#4a9be0", fontSize: 10, flexShrink: 0 }} title="A range filter is active on this model">band</span>}
+        <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
+        {isFiltered && <span style={{ color: "var(--color-info)", fontSize: 10, flexShrink: 0 }} title="A range filter is active on this model">band</span>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
-        <span style={{ color: "#6b7684", width: 30, flexShrink: 0 }}>Min</span>
+        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>Min</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMin} onChange={(e) => onMinInput(Math.min(Number(e.target.value), dispMax))} style={{ flex: 1 }} />
-        <span style={{ color: "#55606e", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMin.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMin.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-        <span style={{ color: "#6b7684", width: 30, flexShrink: 0 }}>Max</span>
+        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>Max</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMax} onChange={(e) => onMaxInput(Math.max(Number(e.target.value), dispMin))} style={{ flex: 1 }} />
-        <span style={{ color: "#55606e", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMax.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMax.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: "#94a1b0" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: "var(--color-text-muted)" }}>
         <span>Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s)</span>
-        {isFiltered && <span onClick={reset} style={{ cursor: "pointer", color: "#4a9be0" }}>Reset</span>}
+        {isFiltered && <span onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>Reset</span>}
       </div>
     </div>
   );
@@ -9002,13 +9002,13 @@ function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" });
   };
   return (
-    <div style={{ padding: "8px 9px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6 }}>
-      <input placeholder="Hole name (optional)" value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11.5, color: "#1a2028", marginBottom: 5 }} />
+    <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+      <input placeholder="Hole name (optional)" value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: 11.5, color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
         <select
           value={fromCollarId}
           onChange={(e) => applyFromCollar(e.target.value)}
-          style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "#1a2028", marginBottom: 5 }}
+          style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "var(--color-text)", marginBottom: 5 }}
           title="Fill E/N/Elev below from an existing real collar, to design a new hole starting there"
         >
           <option value="">Collar (E/N/Elev): custom, typed below</option>
@@ -9028,30 +9028,30 @@ function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars
       <div style={{ display: "flex", gap: 5 }}>
         <button
           onClick={onStartPick}
-          style={{ ...miniBtn, flex: 1, background: pickMode ? "#2f6fe0" : miniBtn.background, border: pickMode ? "1px solid #2f6fe0" : miniBtn.border, color: pickMode ? "#ffffff" : miniBtn.color }}
+          style={{ ...miniBtn, flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
           title="Click, then click anywhere in the 3D view to place a hole there"
         >
           {pickMode ? "Click on the view…" : "Pick on view"}
         </button>
-        <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "#eaf1fa" : "#f4f5f7", borderColor: canAdd ? "#a9c6e0" : "#c7ccd3", opacity: canAdd ? 1 : 0.5 }}>+ Add hole</button>
+        <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>+ Add hole</button>
       </div>
-      <div style={{ borderTop: "1px solid #d9dce1", marginTop: 7, paddingTop: 7 }}>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 4 }}>Solve azimuth/dip/length to hit a target from the E/N/Elev above</div>
+      <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4 }}>Solve azimuth/dip/length to hit a target from the E/N/Elev above</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
           <NumField label="Target E" value={target.x} onChange={(v) => setTarget((p) => ({ ...p, x: v }))} />
           <NumField label="Target N" value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />
           <NumField label="Target Elev" value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
         </div>
-        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "#eaf1fa" : "#f4f5f7", borderColor: targetReady && fromReady ? "#a9c6e0" : "#c7ccd3", opacity: targetReady && fromReady ? 1 : 0.5 }}>Solve az/dip/length to target</button>
+        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>Solve az/dip/length to target</button>
       </div>
     </div>
   );
 }
 function NumField({ label, value, onChange, placeholder }) {
   return (
-    <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, fontSize: 9.5, color: "#6b7684" }}>
+    <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, fontSize: 9.5, color: "var(--color-text-faint)" }}>
       {label}
-      <input type="number" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "4px 5px", fontSize: 11, color: "#1a2028" }} />
+      <input type="number" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 5px", fontSize: 11, color: "var(--color-text)" }} />
     </label>
   );
 }
@@ -9121,35 +9121,35 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurve
   const anyTargetModel = voxelModels.some((m) => Number.isFinite(m.threshold) && Number.isFinite(m.rangeMax) && (m.threshold > m.min || m.rangeMax < m.max));
 
   return (
-    <div style={{ marginTop: 10, padding: "9px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6 }}>
-      <div style={{ fontSize: 11, color: "#1a2028", fontWeight: 600, marginBottom: 6 }}>Planned hole checks</div>
+    <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+      <div style={{ fontSize: 11, color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>Planned hole checks</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
         <NumField label="Min. spacing (m)" value={minSpacing} onChange={(v) => setMinSpacing(v === "" ? 0 : Math.max(0, v))} />
         <NumField label="Cost ($/m)" value={costPerM} placeholder="enter your rate" onChange={setCostPerM} />
       </div>
-      <div style={{ fontSize: 10.5, color: "#55606e", marginBottom: 7 }}>
+      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 7 }}>
         {plannedHoles.length} hole{plannedHoles.length === 1 ? "" : "s"}, {totalM.toLocaleString()} m total
         {totalCost != null ? ` — est. $${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} at $${rate}/m` : ""}
       </div>
       {voxelModels.length > 0 && !anyTargetModel && (
-        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 7, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>
           Narrow a voxel model's Min/Max range above (in "Geophysical voxel ranges") to check planned holes against a target band.
         </div>
       )}
       {results.map(({ hole, nearestReal, targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;
         return (
-          <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "#2a1f1f" : "#f4f5f7", border: `1px solid ${tooClose ? "#4a2f2f" : "#d9dce1"}`, fontSize: 10.5 }}>
-            <div style={{ color: "#1a2028", marginBottom: 2 }}>{hole.name || "Planned hole"}</div>
+          <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-border)" : "var(--color-border)"}`, fontSize: 10.5 }}>
+            <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || "Planned hole"}</div>
             {nearestReal ? (
-              <div style={{ color: tooClose ? "#e0a0a0" : "#7b8794" }}>
+              <div style={{ color: tooClose ? "var(--color-danger-text)" : "var(--color-text-caption)" }}>
                 Nearest existing hole: {nearestReal.hole_id} — {nearestReal.distance.toFixed(1)} m{tooClose ? ` (within the ${minSpacing} m minimum)` : ""}
               </div>
             ) : (
-              <div style={{ color: "#94a1b0" }}>No existing drilled holes to compare against.</div>
+              <div style={{ color: "var(--color-text-muted)" }}>No existing drilled holes to compare against.</div>
             )}
             {targetHits.length > 0 && (
-              <div style={{ color: "#4a9be0", marginTop: 2 }}>
+              <div style={{ color: "var(--color-info)", marginTop: 2 }}>
                 {targetHits.map((h) => `${h.metres.toFixed(0)} m in "${h.modelName}"'s target band`).join("; ")}
               </div>
             )}
@@ -9169,21 +9169,21 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   const raw = plannedHoleTrace(hole);
   const toe = raw.length ? raw[raw.length - 1] : null;
   return (
-    <div style={{ marginBottom: 6, padding: "7px 9px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+    <div style={{ marginBottom: 6, padding: "7px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "#9aa5b3", flexShrink: 0 }} title={hole.visible !== false ? "Hide" : "Show"}>
+        <div onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? "Hide" : "Show"}>
           {hole.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
         </div>
-        <div onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
-        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setExpanded(false), "Collapse this planned hole")} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "#55606e" }} {...iconAction(() => setExpanded(true), "Expand this planned hole")} />}
-        <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }, `Remove planned hole "${hole.name || hole.id}"`)} />
+        <div onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
+        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), "Collapse this planned hole")} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), "Expand this planned hole")} />}
+        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }, `Remove planned hole "${hole.name || hole.id}"`)} />
       </div>
-      <div style={{ marginTop: 3, fontSize: 10.5, color: "#94a1b0" }}>
+      <div style={{ marginTop: 3, fontSize: 10.5, color: "var(--color-text-muted)" }}>
         Az {Math.round(hole.azimuth)}° / Dip {Math.round(hole.dip)}° / {Math.round(hole.length)} m{toe ? ` — toe E ${toe.x.toFixed(0)} N ${toe.y.toFixed(0)} Elev ${toe.z.toFixed(0)}` : ""}
       </div>
       {expanded && (
-        <div style={{ marginTop: 6, borderTop: "1px solid #dde1e6", paddingTop: 6 }}>
-          <input placeholder="Name" value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11.5, color: "#1a2028", marginBottom: 5 }} />
+        <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
+          <input placeholder="Name" value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: 11.5, color: "var(--color-text)", marginBottom: 5 }} />
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             <NumField label="E" value={hole.x} onChange={(v) => onUpdate(hole.id, { x: v })} />
             <NumField label="N" value={hole.y} onChange={(v) => onUpdate(hole.id, { y: v })} />
@@ -9194,7 +9194,7 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
             <NumField label="Dip°" value={hole.dip} onChange={(v) => onUpdate(hole.id, { dip: v })} />
             <NumField label="Length m" value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
           </div>
-          <textarea placeholder="Notes" value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "#1a2028", resize: "vertical" }} />
+          <textarea placeholder="Notes" value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "var(--color-text)", resize: "vertical" }} />
           {/* TASKS.csv #119 - drill-to-target solver and planned-vs-as-drilled comparison. `raw` is
               this row's already-built trace, so the panel never desurveys the planned hole again. */}
           <PlannedHoleTargeting hole={hole} onUpdate={onUpdate} plannedPts={raw} collars={collars} survey={survey} />
@@ -9204,8 +9204,8 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
-const miniBtn = { width: 60, padding: "5px 0", borderRadius: 6, fontSize: 10.5, cursor: "pointer", border: "1px solid #c7ccd3", background: "#f4f5f7", color: "#55606e" };
-const iconBtn = { width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", cursor: "pointer" };
-const smallSel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 10.5, padding: "3px 4px" };
+const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const miniBtn = { width: 60, padding: "5px 0", borderRadius: 6, fontSize: 10.5, cursor: "pointer", border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "#55606e" };
+const iconBtn = { width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", cursor: "pointer" };
+const smallSel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "#1a2028", fontSize: 10.5, padding: "3px 4px" };
 const miniField = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: 9.5, color: "#55606e" };

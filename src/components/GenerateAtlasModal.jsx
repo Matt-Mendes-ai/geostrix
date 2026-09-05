@@ -122,7 +122,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               })}
             </div>
           </div>
-          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "#c0392b" }}>{result.text}</div>}
+          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
           <button onClick={generate} disabled={busy || !selectedCount} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount ? 0.6 : 1 }}>
             {busy ? <Loader2 size={13} className="spin" /> : <LayoutGrid size={13} />}
             {busy ? (progress ? `Generating ${progress.done}/${progress.total}…` : "Generating…") : `Generate ${selectedCount} page${selectedCount === 1 ? "" : "s"}`}

@@ -23,33 +23,33 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
       <div style={panel} role="dialog" aria-modal="true" aria-label={`Choose a layer from ${fileName}`} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
               <Layers3 size={15} /> Choose a layer
             </div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 3 }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 3 }}>
               {fileName} contains {options.length} layers. Import one now — re-open the file to bring in another.
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onCancel} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
         <div style={{ padding: 12, overflowY: "auto", maxHeight: 380 }}>
           {options.map((o) => (
             <button key={o.name} onClick={() => onPick(o.name)} style={row} title={`Import "${o.name}"`}>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1a2028" }}>{o.name}</span>
-              <span style={{ fontSize: 10.5, color: "#7b8794", flexShrink: 0 }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>{o.name}</span>
+              <span style={{ fontSize: 10.5, color: "var(--color-text-caption)", flexShrink: 0 }}>
                 {o.count != null ? `${o.count.toLocaleString()} feature${o.count === 1 ? "" : "s"}` : ""}{o.geomType ? ` · ${o.geomType}` : ""}
               </span>
             </button>
           ))}
         </div>
-        <div style={{ padding: "10px 12px", borderTop: "1px solid #d9dce1", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ ...row, width: "auto", padding: "6px 14px", color: "#55606e" }}>Cancel</button>
+        <div style={{ padding: "10px 12px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ ...row, width: "auto", padding: "6px 14px", color: "var(--color-text-secondary)" }}>Cancel</button>
         </div>
       </div>
     </div>
   );
 }
 
-const panel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif", width: 460, maxWidth: "92vw" };
-const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
-const row = { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" };
+const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif", width: 460, maxWidth: "92vw" };
+const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
+const row = { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12, cursor: "pointer", fontFamily: "inherit" };

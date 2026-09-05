@@ -50,22 +50,22 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Layers3 size={16} style={{ color: "#55606e" }} />
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>
+            <Layers3 size={16} style={{ color: "var(--color-text-secondary)" }} />
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>
               Edit {sectionCount === 1 ? "section" : `${sectionCount} sections`}
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 11, color: "#55606e", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
             Choose what {sectionCount === 1 ? "this section" : "these sections"} actually {sectionCount === 1 ? "shows" : "show"} when reopened — by default every section shows everything currently visible in the 3D view, which can pull in unrelated content (e.g. a large terrain profile behind a section meant to show one voxel model).
           </div>
 
           <div>
             <label style={{ ...field, marginBottom: 6 }}>
-              Corridor width (m) {sectionCount > 1 && <span style={{ color: "#94a1b0", fontWeight: 400 }}>— leave blank to keep each section's own width</span>}
+              Corridor width (m) {sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>— leave blank to keep each section's own width</span>}
             </label>
             <input type="number" min="0" value={corridor} onChange={(e) => setCorridor(e.target.value)} placeholder={sectionCount > 1 ? "(unchanged)" : ""} style={inp} />
           </div>
@@ -78,9 +78,9 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
                 <span onClick={() => setAllLayers(false)} style={linkText}>None</span>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid #d9dce1", borderRadius: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
               {SECTION_LAYER_KEYS.map((key) => (
-                <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: 11.5, color: "#1a2028", cursor: "pointer" }}>
+                <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: 11.5, color: "var(--color-text)", cursor: "pointer" }}>
                   <input type="checkbox" checked={layerKeys.has(key)} onChange={() => toggleLayer(key)} />
                   {LAYER_META[key]?.label || key}
                 </label>
@@ -97,9 +97,9 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
                   <span onClick={() => setAllVoxels(false)} style={linkText}>None</span>
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid #d9dce1", borderRadius: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 {voxelModels.map((m) => (
-                  <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: 11.5, color: "#1a2028", cursor: "pointer" }}>
+                  <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 5px", fontSize: 11.5, color: "var(--color-text)", cursor: "pointer" }}>
                     <input type="checkbox" checked={voxelModelIds.has(m.id)} onChange={() => toggleVoxel(m.id)} />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
                   </label>
@@ -109,19 +109,19 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#1a2028", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text)", cursor: "pointer" }}>
               <input type="checkbox" checked={showTerrain} onChange={(e) => setShowTerrain(e.target.checked)} /> Terrain elevation profile
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#1a2028", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text)", cursor: "pointer" }}>
               <input type="checkbox" checked={showCustomLayers} onChange={(e) => setShowCustomLayers(e.target.checked)} /> Custom CSV layers
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#1a2028", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text)", cursor: "pointer" }}>
               <input type="checkbox" checked={showAssays} onChange={(e) => setShowAssays(e.target.checked)} /> Assays
             </label>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Cancel</button>
           <button onClick={save} style={{ ...btn(true), flex: 2 }}>Save</button>
         </div>
@@ -130,9 +130,9 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
   );
 }
 
-const panel = { width: "min(480px, 92vw)", maxHeight: "86vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(480px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const field = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0" };
 const linkText = { fontSize: 10.5, color: "#4a9be0", cursor: "pointer" };
-const inp = { width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });

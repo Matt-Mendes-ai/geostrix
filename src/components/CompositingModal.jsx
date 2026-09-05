@@ -76,13 +76,13 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Downhole compositing</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>
+            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Downhole compositing</div>
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
               Fixed-length composites, breaking at domain boundaries — {assays.length} raw intervals loaded.
               {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -97,7 +97,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
             </div>
           )}
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
+            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
               Include QC samples (standards/blanks/duplicates) in this report
             </label>
@@ -129,14 +129,14 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           </div>
 
           {symbols.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No assay elements loaded — import assays first.</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
           ) : results.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#55606e", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
           ) : (
             <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
                 <thead>
-                  <tr style={{ position: "sticky", top: 0, background: "#ffffff" }}>
+                  <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
                     <th style={th}>Hole</th>
                     <th style={th}>From</th>
                     <th style={th}>To</th>
@@ -149,13 +149,13 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                 <tbody>
                   {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={domainKey ? 6 : 5} style={{ padding: 0, border: "none" }} /></tr>}
                   {results.slice(startIndex, endIndex).map((r, i) => (
-                    <tr key={startIndex + i} style={{ borderBottom: "1px solid #eef1f5", height: RESULT_ROW_H, boxSizing: "border-box" }}>
+                    <tr key={startIndex + i} style={{ borderBottom: "1px solid var(--color-hover-bg)", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
                       <td style={td}>{r.length.toFixed(2)}</td>
-                      <td style={{ ...td, fontWeight: 600, color: "#1a2028" }}>{r.avgGrade.toFixed(3)}</td>
-                      <td style={{ ...td, color: r.coverage < 0.99 ? "#c9863d" : "#2a3340" }}>{(r.coverage * 100).toFixed(0)}%</td>
+                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{r.avgGrade.toFixed(3)}</td>
+                      <td style={{ ...td, color: r.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{(r.coverage * 100).toFixed(0)}%</td>
                       {domainKey && <td style={td}>{r.domain != null ? domainLabel(r.domain) : "—"}</td>}
                     </tr>
                   ))}
@@ -165,7 +165,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
             </div>
           )}
 
-          <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {results.length} composite(s) from {assays.length} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).
           </div>
 
@@ -174,7 +174,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
         </div>
       </div>
@@ -182,10 +182,10 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
   );
 }
 
-const panel = { width: "min(920px, 95vw)", maxHeight: "88vh", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
+const panel = { width: "min(920px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const fieldLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };
-const inp = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit", width: 130 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid #3d6b52" : "1px solid #c7ccd3", background: primary ? "#1e3629" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid #d9dce1", position: "sticky", top: 0, background: "#ffffff", whiteSpace: "nowrap" };
+const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit", width: 130 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
 const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };

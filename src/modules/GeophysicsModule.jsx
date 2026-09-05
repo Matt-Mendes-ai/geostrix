@@ -715,7 +715,7 @@ export default function GeophysicsModule() {
             .tif/.gxf was dropped directly on THIS tab (still supported, see onDrop above), so the
             result is visible without needing the full raster list/controls here too. */}
         {rasterError && (
-          <div style={{ marginBottom: 12, padding: "8px 10px", background: rasterError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${rasterError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: rasterError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginBottom: 12, padding: "8px 10px", background: rasterError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${rasterError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: rasterError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {rasterError.text}
           </div>
         )}
@@ -727,7 +727,7 @@ export default function GeophysicsModule() {
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: 11, color: "#6b7684", flexShrink: 0 }}>Source CRS (EPSG)</span>
+          <span style={{ fontSize: 11, color: "var(--color-text-faint)", flexShrink: 0 }}>Source CRS (EPSG)</span>
           <input
             type="text"
             inputMode="numeric"
@@ -771,15 +771,15 @@ export default function GeophysicsModule() {
           onChange={(e) => { const f = e.target.files[0]; importXYZFile(f); e.target.value = ""; }}
         />
         {xyzPending && (
-          <div style={{ marginTop: 8, padding: "10px 12px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
-            <div style={{ color: "#1a2028", marginBottom: 8 }}>
+          <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+            <div style={{ color: "var(--color-text)", marginBottom: 8 }}>
               "{xyzPending.fileName}" — {xyzPending.rows.length.toLocaleString()} row(s), {xyzPending.columns.length} column(s). Pick which columns to import as points:
             </div>
             {[
               ["X", "xCol"], ["Y", "yCol"], ["Value", "valueCol"], ["Z / elevation (optional)", "zCol"],
             ].map(([label, key]) => (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-                <span style={{ color: "#6b7684", width: 140, flexShrink: 0 }}>{label}</span>
+                <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{label}</span>
                 <select
                   value={xyzPending[key]}
                   onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
@@ -794,29 +794,29 @@ export default function GeophysicsModule() {
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 <Upload size={13} /> Import
               </button>
-              <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "#55606e" }}>
+              <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>
                 Cancel
               </button>
             </div>
           </div>
         )}
         {xyzError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${xyzError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: xyzError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {xyzError.text}
           </div>
         )}
 
         {error && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: "#2a1f1f", border: "1px solid #4a2f2f", borderRadius: 6, fontSize: 11.5, color: "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: 11.5, color: "var(--color-danger-text)", lineHeight: 1.5 }}>
             {error}
           </div>
         )}
 
         {rows.length > 0 && (
-          <div style={{ marginTop: 14, padding: "10px 12px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 12 }}>
-            <div style={{ color: "#1a2028", marginBottom: 4 }}>{rows.length} point{rows.length === 1 ? "" : "s"} loaded</div>
+          <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }}>
+            <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{rows.length} point{rows.length === 1 ? "" : "s"} loaded</div>
             {min !== null && (
-              <div style={{ color: "#55606e", fontSize: 11 }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
+              <div style={{ color: "var(--color-text-secondary)", fontSize: 11 }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
             )}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
@@ -841,7 +841,7 @@ export default function GeophysicsModule() {
               </button>
               <button
                 onClick={() => { if (window.confirm(`Clear all ${rows.length} geophysics point(s)?`)) replaceLayer("geophys_pts", []); }}
-                style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "#e0a0a0" }}
+                style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-text)" }}
               >
                 <Trash2 size={13} /> Clear
               </button>
@@ -855,18 +855,18 @@ export default function GeophysicsModule() {
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), a
                 lightweight pure-JS alternative to the Python sidecar's own (fully built but unreachable
                 from any UI) /interpolate endpoint — see idw.js's own header comment for why. */}
-            <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "#eaf1fa" : undefined }}>
+            <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
               <Box size={13} /> Grid to raster (IDW)…
             </button>
             {idwOpen && (
-              <div style={{ marginTop: 8, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
-                <div style={{ color: "#55606e", marginBottom: 8, lineHeight: 1.5 }}>Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.</div>
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ color: "#6b7684", width: 70, flexShrink: 0 }}>Cell size</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Cell size</span>
                   <input type="number" min="0.1" step="any" value={idwCellSize} onChange={(e) => setIdwCellSize(Math.max(0.1, Number(e.target.value) || 25))} style={numInput} />
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ color: "#6b7684", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
                 <button
@@ -906,7 +906,7 @@ export default function GeophysicsModule() {
             {srtmProgress ? <Loader2 size={13} className="spin" /> : <Radio size={13} />} {srtmProgress ? `Fetching ${srtmProgress.done}/${srtmProgress.total}…` : "Fetch SRTM for this area"}
           </button>
         </div>
-        <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: 4 }}>
+        <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: 4 }}>
           "Fetch SRTM for this area" opens a map to draw the exact area you want — pre-filled around your drillholes if any are loaded, but you can pan/redraw to widen or shift it. Pulls public elevation data, no manual USGS download needed. Sourced from AWS's public Terrain Tiles (SRTM-heritage, no account required), not usgs.gov directly.
         </div>
         {srtmPickerOpen && (
@@ -939,26 +939,26 @@ export default function GeophysicsModule() {
           onChange={(e) => { const files = e.target.files; importTerrain(files); e.target.value = ""; }}
         />
         {terrainError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: terrainError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${terrainError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: terrainError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: terrainError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${terrainError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: terrainError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {terrainError.text}
           </div>
         )}
         {terrain && (
-          <div style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+          <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateTerrain({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div onClick={() => updateTerrain({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {terrain.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
-              <span style={{ color: "#94a1b0", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
+              <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Color</span>
-              <input type="color" value={terrain.color || "#8a7f68"} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <input type="color" value={terrain.color || "#8a7f68"} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Opacity</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Opacity</span>
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title="Export the merged/processed terrain's elevation grid as a single-band GeoTIFF">
@@ -967,17 +967,17 @@ export default function GeophysicsModule() {
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
-            <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "#eaf1fa" : undefined }}>
+            <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }}>
               <Mountain size={13} /> Generate hillshade…
             </button>
             {hillshadeOpen && (
-              <div style={{ marginTop: 6, padding: "8px 9px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6 }}>
+              <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).">Sun azimuth</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).">Sun azimuth</span>
                   <input type="number" min="0" max="360" value={hillshadeAzimuth} onChange={(e) => setHillshadeAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={numInput} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Height of the sun above the horizon, in degrees.">Sun altitude</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Height of the sun above the horizon, in degrees.">Sun altitude</span>
                   <input type="number" min="1" max="90" value={hillshadeAltitude} onChange={(e) => setHillshadeAltitude(Math.max(1, Math.min(90, Number(e.target.value) || 45)))} style={numInput} />
                 </div>
                 <button
@@ -998,18 +998,18 @@ export default function GeophysicsModule() {
                 lands as ordinary BOUNDARY polylines (not a raster) since contours are genuinely
                 vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
-            <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "#eaf1fa" : undefined }}>
+            <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>
               <Waypoints size={13} /> Generate contours…
             </button>
             {contourOpen && (
-              <div style={{ marginTop: 6, padding: "8px 9px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6 }}>
+              <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Vertical spacing between contour lines, in the DEM's own elevation units (metres).">Interval (m)</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Vertical spacing between contour lines, in the DEM's own elevation units (metres).">Interval (m)</span>
                   <input type="number" min="1" value={contourInterval} onChange={(e) => setContourInterval(Math.max(1, Number(e.target.value) || 50))} style={numInput} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }} title="Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).">Colour</span>
-                  <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid #c7ccd3", borderRadius: 3, background: "none", cursor: "pointer" }} />
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).">Colour</span>
+                  <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer" }} />
                 </div>
                 <button
                   onClick={() => {
@@ -1049,32 +1049,32 @@ export default function GeophysicsModule() {
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
         />
         {boundaryError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: boundaryError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${boundaryError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: boundaryError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: boundaryError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${boundaryError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: boundaryError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {boundaryError.text}
           </div>
         )}
         {nonClaimBoundaries.map((b) => (
-          <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {b.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
-              <span style={{ color: "#94a1b0", flexShrink: 0 }}>{b.polylines?.length || 0} part(s)</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${b.name}"?`)) removeBoundary(b.id); }} />
+              <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{b.polylines?.length || 0} part(s)</span>
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${b.name}"?`)) removeBoundary(b.id); }} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={b.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(b.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "#7b8794" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: b.drapeMode === "terrain" ? 0.4 : 1 }}>
-              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Elev.</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Elev.</span>
               <input type="number" value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(e) => updateBoundary(b.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Color</span>
-              <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
         ))}
@@ -1103,26 +1103,26 @@ export default function GeophysicsModule() {
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
         />
         {claims.length === 0 && (
-          <div style={{ marginTop: 4, fontSize: 11, color: "#94a1b0" }}>No claims imported yet.</div>
+          <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-muted)" }}>No claims imported yet.</div>
         )}
         {claims.map((c) => (
-          <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "#9aa5b3", flexShrink: 0 }}>
+              <div onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {c.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
               <input
                 value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
-                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "#1a2028", fontSize: 11.5, padding: 0 }}
+                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: 11.5, padding: 0 }}
               />
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Tenure #</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Tenure #</span>
               <input value={c.tenureNumber || ""} placeholder="e.g. 1234567" onChange={(e) => updateBoundary(c.id, { tenureNumber: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Status</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Status</span>
               <select
                 value={c.status || "active"}
                 onChange={(e) => updateBoundary(c.id, { status: e.target.value, color: claimStatusColor(e.target.value) })}
@@ -1134,25 +1134,25 @@ export default function GeophysicsModule() {
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Expiry</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Expiry</span>
               <input type="date" value={c.expiryDate || ""} onChange={(e) => updateBoundary(c.id, { expiryDate: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11, color: "#6b7684" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11, color: "var(--color-text-faint)" }}>
               <span style={{ width: 60, flexShrink: 0 }}>Area</span>
               <span>{boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha</span>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={c.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(c.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "#7b8794" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: c.drapeMode === "terrain" ? 0.4 : 1 }}>
-              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Elev.</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Elev.</span>
               <input type="number" value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(e) => updateBoundary(c.id, { elevation: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "#6b7684", width: 60, flexShrink: 0 }}>Color</span>
-              <input type="color" value={c.color || claimStatusColor(c.status)} onChange={(e) => updateBoundary(c.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Color</span>
+              <input type="color" value={c.color || claimStatusColor(c.status)} onChange={(e) => updateBoundary(c.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
         ))}
@@ -1177,9 +1177,9 @@ export default function GeophysicsModule() {
             onChange={(e) => { const v = Number(e.target.value); setVoxelCellBudget(Number.isFinite(v) && v > 0 ? v : null); }}
             style={{ ...numInput, width: 100 }}
           />
-          <span style={{ color: "#94a1b0", fontSize: 11 }}>cells (default {MAX_CELLS.toLocaleString()})</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: 11 }}>cells (default {MAX_CELLS.toLocaleString()})</span>
           {voxelCellBudget != null && (
-            <span onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "#55606e", fontSize: 10.5, marginLeft: "auto" }}>Reset to default</span>
+            <span onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 10.5, marginLeft: "auto" }}>Reset to default</span>
           )}
         </div>
 
@@ -1198,23 +1198,23 @@ export default function GeophysicsModule() {
           onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }}
         />
         {omfError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: omfError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${omfError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: omfError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: omfError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${omfError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: omfError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {omfError.text}
           </div>
         )}
         {omfObjects.map((o) => (
-          <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+              <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {o.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
-              <span style={{ color: "#94a1b0", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
+              <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "#6b7684", width: 46, flexShrink: 0 }}>Color</span>
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "#5a9bd4"} onChange={(e) => updateOmfObject(o.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent" }} />
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "#5a9bd4"} onChange={(e) => updateOmfObject(o.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
         ))}
@@ -1245,7 +1245,7 @@ export default function GeophysicsModule() {
           onChange={(e) => { const f = e.target.files[0]; importBlockModelCSV(f); e.target.value = ""; }}
         />
         {voxelError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: voxelError.info ? "#f4f5f7" : "#2a1f1f", border: `1px solid ${voxelError.info ? "#d9dce1" : "#4a2f2f"}`, borderRadius: 6, fontSize: 11.5, color: voxelError.info ? "#55606e" : "#e0a0a0", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: voxelError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${voxelError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: voxelError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {voxelError.text}
           </div>
         )}
@@ -1253,8 +1253,8 @@ export default function GeophysicsModule() {
           <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} />
         ))}
 
-        <div style={{ marginTop: 16, fontSize: 11.5, color: "#7b8794", lineHeight: 1.6 }}>
-          <div style={{ color: "#1a2028", marginBottom: 6 }}>Also planned:</div>
+        <div style={{ marginTop: 16, fontSize: 11.5, color: "var(--color-text-caption)", lineHeight: 1.6 }}>
+          <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Also planned:</div>
           <div>• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above</div>
           <div>• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)</div>
         </div>
@@ -1264,7 +1264,7 @@ export default function GeophysicsModule() {
 
       <div
         className="ge-main"
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "#94a1b0", border: dragOver ? "2px dashed #4a9be0" : "2px dashed transparent", borderRadius: 8 }}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
         <Radio size={40} style={{ opacity: 0.4 }} />
         <div style={{ maxWidth: 460, textAlign: "center", fontSize: 12.5, lineHeight: 1.6 }}>
@@ -1320,26 +1320,26 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
   const visibleCount = model.cells.filter((c) => c.value >= displayThreshold).length;
   const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : "CSV";
   return (
-    <div style={{ marginTop: 10, padding: "9px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 11.5 }}>
+    <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "#e2a63c" : "#9aa5b3", flexShrink: 0 }}>
+        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
           {model.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
         </div>
-        <div style={{ flex: 1, minWidth: 0, color: "#1a2028", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
-        <span style={{ color: "#94a1b0", flexShrink: 0 }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
-        <Palette size={12} style={{ cursor: "pointer", color: legendOpen ? "#4a9be0" : "#55606e", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
-        <Trash2 size={12} style={{ cursor: "pointer", color: "#55606e", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
+        <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
+        <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
+        <Palette size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-        <span style={{ color: "#6b7684", width: 62, flexShrink: 0 }}>Cutoff</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Cutoff</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
-        <span style={{ color: "#55606e", width: 60, textAlign: "right", flexShrink: 0 }}>{displayThreshold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{displayThreshold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
-      <div style={{ marginTop: 3, fontSize: 10.5, color: "#94a1b0" }}>
+      <div style={{ marginTop: 3, fontSize: 10.5, color: "var(--color-text-muted)" }}>
         Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s) (value ≥ cutoff) — range {model.min.toLocaleString(undefined, { maximumFractionDigits: 2 })} to {model.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-        <span style={{ color: "#6b7684", width: 62, flexShrink: 0 }}>Opacity</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Opacity</span>
         <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1 }} />
       </div>
       {legendOpen && <VoxelLegendEditor model={model} onUpdate={onUpdate} />}
@@ -1395,16 +1395,16 @@ function VoxelLegendEditor({ model, onUpdate }) {
   const resetToDefault = () => setStops([]);
 
   return (
-    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #d9dce1" }}>
+    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ color: "#6b7684", width: 62, flexShrink: 0 }}>Range</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Range</span>
         <input type="number" value={model.min} onChange={(e) => onUpdate(model.id, { min: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
-        <span style={{ color: "#94a1b0" }}>to</span>
+        <span style={{ color: "var(--color-text-muted)" }}>to</span>
         <input type="number" value={model.max} onChange={(e) => onUpdate(model.id, { max: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-        <span style={{ color: "#6b7684", width: 62, flexShrink: 0 }}>Style</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Style</span>
         <select value={model.colorMode || "continuous"} onChange={(e) => onUpdate(model.id, { colorMode: e.target.value })} style={{ ...numInput, flex: 1 }}>
           <option value="continuous">Continuous gradient</option>
           <option value="discrete">Classified (stepped)</option>
@@ -1412,19 +1412,19 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 8 }}>
-        <div style={{ color: "#6b7684", marginBottom: 4 }}>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>
           Color legend {stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : "(default gradient — no custom stops yet)"}
         </div>
         {stops.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#5a9bd4"} onChange={(e) => updateStop(i, { color: e.target.value })} style={{ width: 24, height: 20, padding: 0, border: "1px solid #d9dce1", borderRadius: 4, background: "transparent", flexShrink: 0 }} />
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#5a9bd4"} onChange={(e) => updateStop(i, { color: e.target.value })} style={{ width: 24, height: 20, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", flexShrink: 0 }} />
             <input type="number" value={s.value} onChange={(e) => updateStop(i, { value: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             {model.colorMode === "discrete" && (
-              <span style={{ color: "#94a1b0", fontSize: 10, width: 60, flexShrink: 0 }}>
+              <span style={{ color: "var(--color-text-muted)", fontSize: 10, width: 60, flexShrink: 0 }}>
                 {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : `to ${model.max} (max)`}
               </span>
             )}
-            <Trash2 size={11} style={{ cursor: "pointer", color: "#94a1b0", flexShrink: 0 }} onClick={() => removeStop(i)} />
+            <Trash2 size={11} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
           </div>
         ))}
         {/* User report: "the values never got to the max value" — each stop's own number IS its class's
@@ -1441,7 +1441,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "#6b7684", marginBottom: 4 }}>Color palette</div>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Color palette</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }}>
             {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}
@@ -1456,7 +1456,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "#6b7684", marginBottom: 4 }}>Classify</div>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Classify</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...numInput, flex: 1 }}>
             <option value="equal">Linear (equal interval)</option>
@@ -1470,7 +1470,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>Apply</button>
         </div>
-        <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 3, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
           Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.
         </div>
       </div>
@@ -1478,5 +1478,5 @@ function VoxelLegendEditor({ model, onUpdate }) {
   );
 }
 
-const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
-const numInput = { flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 6px" };
+const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 6px" };

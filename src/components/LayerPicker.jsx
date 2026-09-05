@@ -16,17 +16,17 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
   const clearCache = () => { clearTileCache().then(() => getCacheStats().then(setCacheStats)); };
   return (
     <div style={{ ...panelStyle, ...(openUpward ? { top: "auto", bottom: "100%", marginTop: 0, marginBottom: 6 } : {}) }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ fontSize: 10.5, color: "#94a1b0", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Base layer</div>
+      <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Base layer</div>
       {BASE_LAYERS.map((l) => (
         <div key={l.id} onClick={() => onSelectLayer(l.id)} style={{ ...rowStyle, ...(layerId === l.id ? rowActiveStyle : {}) }}>
           <span style={{ width: 14, display: "inline-flex" }}>{layerId === l.id && <Check size={12} />}</span>
           <span style={{ flex: 1 }}>{l.label}</span>
-          {l.needsKey && <span style={{ fontSize: 9, color: "#94a1b0" }}>key</span>}
+          {l.needsKey && <span style={{ fontSize: 9, color: "var(--color-text-muted)" }}>key</span>}
         </div>
       ))}
       {layerId === "tracestrack" && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e6e8eb" }}>
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 5, lineHeight: 1.4 }}>
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border-subtle)" }}>
+          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 5, lineHeight: 1.4 }}>
             Tracestrack Topo needs a free personal API key (non-commercial tier) —{" "}
             <a href="https://tracestrack.com/" target="_blank" rel="noreferrer" style={{ color: "#4a7fd6" }}>get one here</a>.
           </div>
@@ -35,15 +35,15 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
               value={keyDraft}
               onChange={(e) => setKeyDraft(e.target.value)}
               placeholder="Paste API key…"
-              style={{ flex: 1, fontSize: 11, padding: "4px 6px", border: "1px solid #d9dce1", borderRadius: 4 }}
+              style={{ flex: 1, fontSize: 11, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 4 }}
             />
             <button onClick={() => onSaveKey(keyDraft)} style={saveBtnStyle}>Save</button>
           </div>
           {!tracestrackKey && <div style={{ fontSize: 9.5, color: "#a95a3a", marginTop: 4 }}>No key saved yet — showing Standard until one is set.</div>}
         </div>
       )}
-      <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #e6e8eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-        <span style={{ fontSize: 10, color: "#94a1b0" }} title="Map tiles saved for offline use — see the download button on the full map view">
+      <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+        <span style={{ fontSize: 10, color: "var(--color-text-muted)" }} title="Map tiles saved for offline use — see the download button on the full map view">
           Offline cache: {cacheStats ? `${cacheStats.count} tile${cacheStats.count === 1 ? "" : "s"} (${formatCacheBytes(cacheStats.bytes)})` : "…"}
         </span>
         {cacheStats && cacheStats.count > 0 && (
@@ -56,7 +56,7 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
 
 const panelStyle = {
   position: "absolute", top: "100%", marginTop: 6, right: 0, width: 220,
-  background: "#ffffff", border: "1px solid #c7ccd3", borderRadius: 8,
+  background: "var(--color-bg)", border: "1px solid var(--color-border-light)", borderRadius: 8,
   boxShadow: "0 6px 18px rgba(0,0,0,0.22)", padding: 10, zIndex: 20,
 };
 const rowStyle = {
@@ -65,10 +65,10 @@ const rowStyle = {
 };
 const rowActiveStyle = { background: "#eef3fb", color: "#1a2028", fontWeight: 600 };
 const saveBtnStyle = {
-  padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid #2f6fe0",
-  background: "#2f6fe0", color: "#ffffff", cursor: "pointer",
+  padding: "4px 8px", fontSize: 11, borderRadius: 4, border: "1px solid var(--color-primary)",
+  background: "var(--color-primary)", color: "#ffffff", cursor: "pointer",
 };
 const iconOnlyBtnStyle = {
   width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center",
-  borderRadius: 4, border: "1px solid #d9dce1", background: "#ffffff", color: "#8a5555", cursor: "pointer", flexShrink: 0,
+  borderRadius: 4, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "#8a5555", cursor: "pointer", flexShrink: 0,
 };

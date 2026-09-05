@@ -320,7 +320,7 @@ export default function BasemapView({
           </div>
         )}
         {bboxPx && (
-          <div style={{ position: "absolute", left: bboxPx.left, top: bboxPx.top, width: bboxPx.width, height: bboxPx.height, border: "2px solid #2f6fe0", background: "rgba(47,111,224,0.15)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: bboxPx.left, top: bboxPx.top, width: bboxPx.width, height: bboxPx.height, border: "2px solid var(--color-primary)", background: "rgba(47,111,224,0.15)", pointerEvents: "none" }} />
         )}
         <div style={zoomCtrlStyle}>
           <button onClick={() => changeZoom(1)} style={iconBtnStyle} title="Zoom in"><Plus size={14} /></button>
@@ -339,7 +339,7 @@ export default function BasemapView({
             ><Download size={14} /></button>
           )}
           <div style={{ position: "relative" }}>
-            <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "#a9c6e0" } : {}) }}><Layers size={14} /></button>
+            <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "var(--color-selected-border)" } : {}) }}><Layers size={14} /></button>
             {layerPickerOpen && (
               <LayerPicker
                 layerId={baseLayerId}
@@ -398,10 +398,10 @@ export default function BasemapView({
   );
 }
 
-const overlayStyle = { position: "fixed", inset: 0, zIndex: 500, background: "#ffffff", display: "flex", flexDirection: "column" };
-const topBarStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid #dde1e6" };
-const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderTop: "1px solid #dde1e6" };
-const iconBtnStyle = { width: 28, height: 28, borderRadius: 6, border: "1px solid #c7ccd3", background: "#ffffff", color: "#3a4048", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
+const overlayStyle = { position: "fixed", inset: 0, zIndex: 500, background: "var(--color-bg)", display: "flex", flexDirection: "column" };
+const topBarStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-divider)" };
+const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderTop: "1px solid var(--color-divider)" };
+const iconBtnStyle = { width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
 const zoomCtrlStyle = { position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 4 };
-const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "#ffffff", color: "#3a4048", fontSize: 12, cursor: "pointer" };
-const toolBtnActiveStyle = { ...toolBtnStyle, background: "#2f6fe0", borderColor: "#2f6fe0", color: "#ffffff" };
+const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", fontSize: 12, cursor: "pointer" };
+const toolBtnActiveStyle = { ...toolBtnStyle, background: "var(--color-primary)", borderColor: "var(--color-primary)", color: "#ffffff" };

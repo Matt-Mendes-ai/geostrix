@@ -129,42 +129,42 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
     <div style={overlay} onClick={onClose}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{title} <span style={{ color: "#94a1b0", fontSize: 12, fontWeight: 400 }}>({working.length} rows)</span></div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>{title} <span style={{ color: "var(--color-text-muted)", fontSize: 12, fontWeight: 400 }}>({working.length} rows)</span></div>
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
-        <div style={{ padding: "10px 14px", borderBottom: "1px solid #d9dce1", display: "flex", gap: 8, alignItems: "center" }}>
-          <input placeholder="Search rows…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 10px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" }} />
-          <button onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "#eaf1fa" : "transparent", borderColor: calcOpen ? "#a9c6e0" : "#c7ccd3", color: calcOpen ? "#1a2028" : "#55606e" }}><Sigma size={13} /> Field calculator</button>
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", gap: 8, alignItems: "center" }}>
+          <input placeholder="Search rows…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: 12, fontFamily: "inherit" }} />
+          <button onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "var(--color-selected-bg)" : "transparent", borderColor: calcOpen ? "var(--color-selected-border)" : "var(--color-border-light)", color: calcOpen ? "var(--color-text)" : "var(--color-text-secondary)" }}><Sigma size={13} /> Field calculator</button>
           <button onClick={save} disabled={!dirty} style={{ ...saveBtn, opacity: dirty ? 1 : 0.5, cursor: dirty ? "pointer" : "default" }}><Save size={13} /> {dirty ? "Save changes" : "Saved"}</button>
         </div>
         {calcOpen && (
-          <div style={{ padding: "10px 14px", borderBottom: "1px solid #d9dce1", background: "#f9fafb", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", background: "#f9fafb", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <input
                 placeholder="New/target field name (e.g. Au_eq)"
                 value={calcField}
                 onChange={(e) => setCalcField(e.target.value)}
-                style={{ width: 200, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 9px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" }}
+                style={{ width: 200, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: 11.5, fontFamily: "inherit" }}
               />
-              <span style={{ color: "#94a1b0", fontSize: 12 }}>=</span>
+              <span style={{ color: "var(--color-text-muted)", fontSize: 12 }}>=</span>
               <input
                 placeholder="Expression, e.g. Au + Cu * 1.5  (columns are numeric variables)"
                 value={calcExpr}
                 onChange={(e) => setCalcExpr(e.target.value)}
-                style={{ flex: 1, minWidth: 260, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 9px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" }}
+                style={{ flex: 1, minWidth: 260, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: 11.5, fontFamily: "inherit" }}
               />
               <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>Apply to {working.length} rows</button>
             </div>
-            <div style={{ fontSize: 10.5, color: "#94a1b0" }}>
+            <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>
               Columns available as variables: {columns.join(", ") || "—"}. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10. Missing/non-numeric values are treated as 0.
             </div>
-            {calcError && <div style={{ fontSize: 11, color: "#a95555" }}>{calcError}</div>}
+            {calcError && <div style={{ fontSize: 11, color: "var(--color-danger-icon-strong)" }}>{calcError}</div>}
           </div>
         )}
         <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, overflow: "auto", padding: "0 14px 14px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
             <thead>
-              <tr style={{ position: "sticky", top: 0, background: "#ffffff" }}>
+              <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
                 {columns.map((c) => <th key={c} style={th}>{c}</th>)}
                 <th style={{ ...th, width: 30 }} />
               </tr>
@@ -172,7 +172,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
             <tbody>
               {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={columns.length + 1} style={{ padding: 0, border: "none" }} /></tr>}
               {filtered.slice(startIndex, endIndex).map(([r, rowIdx]) => (
-                <tr key={rowIdx} style={{ borderBottom: "1px solid #eef1f5", height: ATTR_ROW_H, boxSizing: "border-box" }}>
+                <tr key={rowIdx} style={{ borderBottom: "1px solid var(--color-hover-bg)", height: ATTR_ROW_H, boxSizing: "border-box" }}>
                   {columns.map((c) => (
                     <td key={c} style={td}>
                       <input
@@ -184,7 +184,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                     </td>
                   ))}
                   <td style={{ ...td, textAlign: "center" }}>
-                    <Trash2 size={12} style={{ cursor: "pointer", color: "#a95555" }} onClick={() => deleteRow(rowIdx)} />
+                    <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)" }} onClick={() => deleteRow(rowIdx)} />
                   </td>
                 </tr>
               ))}
@@ -198,9 +198,9 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
 }
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
-const panel = { width: "min(1000px, 94vw)", height: "min(680px, 88vh)", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #d9dce1" };
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid #d9dce1", position: "sticky", top: 0, background: "#ffffff", whiteSpace: "nowrap" };
+const panel = { width: "min(1000px, 94vw)", height: "min(680px, 88vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
+const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
+const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
 const td = { padding: "2px 4px", color: "#2a3340" };
 const cellInput = { width: "100%", minWidth: 60, background: "transparent", border: "1px solid transparent", borderRadius: 3, padding: "4px 5px", color: "#1a2028", fontSize: 11.5, fontFamily: "inherit" };
-const saveBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, border: "1px solid #3d6b52", background: "#1e3629", color: "#8fd9ab", fontSize: 12, whiteSpace: "nowrap" };
+const saveBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "#8fd9ab", fontSize: 12, whiteSpace: "nowrap" };

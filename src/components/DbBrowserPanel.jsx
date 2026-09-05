@@ -88,8 +88,8 @@ export default function DbBrowserPanel({ onImportFile, onImportRows }) {
       )}
 
       <TreeSection label="This computer" onExpand={loadDrives}>
-        {drivesLoading && <div style={{ padding: "4px 0 4px 18px", color: "#94a1b0" }}><Loader2 size={11} className="spin" /> Loading drives…</div>}
-        {drives && drives.length === 0 && <div style={{ padding: "4px 0 4px 18px", color: "#94a1b0" }}>No drives found.</div>}
+        {drivesLoading && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}><Loader2 size={11} className="spin" /> Loading drives…</div>}
+        {drives && drives.length === 0 && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}>No drives found.</div>}
         {drives && drives.map((d) => (
           <FsTreeNode key={d} entry={{ name: d, path: d, isDir: true }} depth={0} isDrive
             favorites={favorites} onToggleFavorite={(fp, add) => (add ? addFavorite(fp) : removeFavorite(fp))} onFilePick={handleFilePick} />
@@ -98,7 +98,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows }) {
 
       <div style={{ ...sectionLabel, marginTop: 14 }}>PostgreSQL</div>
       {dbConnections.length === 0 && (
-        <div style={{ color: "#94a1b0", padding: "2px 0 6px" }}>No saved connections yet — use "Connect database" above to add one.</div>
+        <div style={{ color: "var(--color-text-muted)", padding: "2px 0 6px" }}>No saved connections yet — use "Connect database" above to add one.</div>
       )}
       {dbConnections.map((profile) => (
         <PgTreeNode key={profile.name} profile={profile} live={liveDbConnections[profile.name]}
@@ -117,7 +117,7 @@ function TreeSection({ label, children, onExpand }) {
   return (
     <div style={{ marginBottom: 4 }}>
       <div onClick={() => { const next = !open; setOpen(next); if (next && onExpand) onExpand(); }}
-        style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0", color: "#55606e", fontWeight: 600 }}>
+        style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0", color: "var(--color-text-secondary)", fontWeight: 600 }}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {label}
       </div>
@@ -149,7 +149,7 @@ function FsTreeNode({ entry, depth, isDrive, isFavorite, favorites, onToggleFavo
   return (
     <div>
       <div onClick={toggle} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-        style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "2.5px 0", paddingLeft: depth * 14 + 4, color: isImportable ? "#1a2028" : "#3a4453" }}>
+        style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "2.5px 0", paddingLeft: depth * 14 + 4, color: isImportable ? "var(--color-text)" : "#3a4453" }}>
         {entry.isDir ? (loading ? <Loader2 size={11} className="spin" /> : open ? <ChevronDown size={11} /> : <ChevronRight size={11} />) : <span style={{ width: 11, display: "inline-block" }} />}
         {isDrive ? <HardDrive size={12} color="#7a8698" /> : entry.isDir ? (open ? <FolderOpen size={12} color="#c9a24a" /> : <Folder size={12} color="#c9a24a" />) : <File size={12} color={isImportable ? "#3a76b0" : "#a8b0bc"} />}
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entry.path}>{entry.name}</span>
@@ -297,7 +297,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             (the dot's color), with the word only in a hover title; "live" is now always visible text
             when connected, so this row's state doesn't depend on distinguishing the dot's color. */}
         {live && <span style={{ fontSize: 9, color: "#3d9a63" }}>live</span>}
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "#c7ccd3" }} title={live ? "Connected" : "Not connected"} />
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "var(--color-border-light)" }} title={live ? "Connected" : "Not connected"} />
       </div>
       {open && (
         <div style={{ paddingLeft: 18 }}>
@@ -309,7 +309,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             </div>
           )}
           {live && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, color: "#55606e" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, color: "var(--color-text-secondary)" }}>
               <span>{live.info?.db ? `Connected — ${live.info.db}` : "Connected"}</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <RefreshCw size={11} style={{ cursor: "pointer" }} title="Refresh table list" onClick={() => loadTables(live.id)} />
@@ -317,7 +317,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
               </div>
             </div>
           )}
-          {error && <div style={{ color: "#c0392b", marginBottom: 6 }}>{error}</div>}
+          {error && <div style={{ color: "var(--color-danger-solid)", marginBottom: 6 }}>{error}</div>}
           {/* TASKS.csv #282 — the warn-before-you-pull confirmation. Nothing has been fetched at this
               point beyond the COUNT(*), so cancelling here costs the user nothing. */}
           {pending && (
@@ -334,11 +334,11 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
                   First {ROW_WARN_THRESHOLD.toLocaleString()}
                 </button>
                 <button onClick={() => fetchTable(pending.t, pending.total, null)} style={smallBtn}>Import all</button>
-                <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "#f4f5f7", border: "1px solid #d9dce1", color: "#55606e" }}>Cancel</button>
+                <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>Cancel</button>
               </div>
             </div>
           )}
-          {tablesLoading && <div style={{ color: "#94a1b0" }}><Loader2 size={11} className="spin" /> Loading tables…</div>}
+          {tablesLoading && <div style={{ color: "var(--color-text-muted)" }}><Loader2 size={11} className="spin" /> Loading tables…</div>}
           {tables && tables.map((t, i) => {
             const key = `${t.table_schema}.${t.table_name}`;
             const busy = busyTable === key;
@@ -346,7 +346,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
               <div key={i} onClick={() => { if (!busyTable) pickTable(t); }} style={{ display: "flex", alignItems: "center", gap: 6, cursor: busyTable ? "default" : "pointer", padding: "2px 0", color: "#3a4453", opacity: busyTable && !busy ? 0.5 : 1 }}
                 title={`Import ${key} (checks its row count first)`}>
                 {busy && <Loader2 size={11} className="spin" style={{ flexShrink: 0 }} />}
-                {t.table_type === "VIEW" && <span style={{ fontSize: 9, color: "#e2a63c", border: "1px solid #e2a63c", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
+                {t.table_type === "VIEW" && <span style={{ fontSize: 9, color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key}</span>
               </div>
             );
@@ -358,6 +358,6 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
 }
 
 const sectionLabel = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 6, fontWeight: 600 };
-const pwInp = { flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "4px 7px", color: "#1a2028", fontSize: 11, fontFamily: "inherit" };
-const connectBtn = { padding: "4px 9px", borderRadius: 5, fontSize: 11, cursor: "pointer", border: "1px solid #3d6b52", background: "#1e3629", color: "#8fd9ab" };
-const smallBtn = { padding: "3px 8px", borderRadius: 5, fontSize: 10.5, cursor: "pointer", border: "1px solid #c9a24a", background: "#ffffff", color: "#6b5a2a", fontFamily: "inherit" };
+const pwInp = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 7px", color: "#1a2028", fontSize: 11, fontFamily: "inherit" };
+const connectBtn = { padding: "4px 9px", borderRadius: 5, fontSize: 11, cursor: "pointer", border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "#8fd9ab" };
+const smallBtn = { padding: "3px 8px", borderRadius: 5, fontSize: 10.5, cursor: "pointer", border: "1px solid #c9a24a", background: "var(--color-bg)", color: "#6b5a2a", fontFamily: "inherit" };

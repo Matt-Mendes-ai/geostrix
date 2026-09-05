@@ -23,7 +23,7 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
   return (
     <div style={overlay} onClick={onCancel}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: 13, color: "#1a2028", marginBottom: 10, fontWeight: 600 }}>{title}</div>
+        <div style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 10, fontWeight: 600 }}>{title}</div>
         <input
           ref={inputRef}
           value={value}
@@ -44,7 +44,7 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
 }
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-const panel = { width: 320, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
-const inputStyle = { width: "100%", padding: "8px 10px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 13, boxSizing: "border-box" };
-const cancelBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 12, cursor: "pointer" };
-const okBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid #3d6b52", background: "#1e3629", color: "#8fd9ab", fontSize: 12, cursor: "pointer" };
+const panel = { width: 320, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
+const inputStyle = { width: "100%", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 13, boxSizing: "border-box" };
+const cancelBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "#55606e", fontSize: 12, cursor: "pointer" };
+const okBtn = { padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "#8fd9ab", fontSize: 12, cursor: "pointer" };
