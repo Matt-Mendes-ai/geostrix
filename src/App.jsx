@@ -3,6 +3,7 @@ import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCc
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import { iconAction } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
+import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
@@ -389,7 +390,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 }
 
 function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
-  const { project, setEpsg, setProjectName, collars } = useStore();
+  const { project, setEpsg, setProjectName, collars, desurveyMethod, setDesurveyMethod } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
@@ -492,6 +493,21 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       ) : (
         <span onClick={() => setEpsgEditing(true)} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
       )}
+      {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
+          project-wide interpretation setting that silently changes every computed coordinate, so it
+          belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a
+          plain always-on <select> (not the click-to-edit pattern EPSG uses) precisely because a hidden
+          control for something this consequential is worse than a slightly busier status bar. */}
+      <span title={DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || ""} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        Desurvey:
+        <select
+          value={desurveyMethod}
+          onChange={(e) => setDesurveyMethod(e.target.value)}
+          style={{ background: "#ffffff", border: "1px solid #a9c6e0", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "1px 3px", cursor: "pointer" }}
+        >
+          {DESURVEY_METHODS.map((m) => <option key={m.id} value={m.id} title={m.hint}>{m.label}</option>)}
+        </select>
+      </span>
     </div>
   );
 }

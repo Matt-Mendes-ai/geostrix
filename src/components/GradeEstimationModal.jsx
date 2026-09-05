@@ -2,12 +2,13 @@ import React, { useMemo, useState } from "react";
 import { X, Play } from "lucide-react";
 import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, MAX_BLOCKS } from "../lib/estimation.js";
+import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -19,6 +20,7 @@ import { overlay } from "../lib/modalStyles.js";
 export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
+  const { desurveyMethod } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -73,6 +75,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const [capValue, setCapValue] = useState(NaN);        // TASKS.csv #259
   const [includeQAQC, setIncludeQAQC] = useState(false); // TASKS.csv #266
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
+  const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
@@ -138,7 +141,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             .filter((iv) => iv.avgGrade != null)
             .map((iv) => (cap != null && iv.avgGrade > cap ? { ...iv, avgGrade: cap } : iv));
         }
-        const { points, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole);
+        const { points, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         if (!points.length) { setError("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data."); setRunning(false); return; }
         // TASKS.csv #292 — an unbounded search makes every sample a candidate for every block
         // (measured: 81 s of blocked main thread at 62,500 blocks x 5,000 points). 0 now means "cap at
@@ -151,8 +154,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples,
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
+          support: classifySupport,                              // TASKS.csv #91/#92
         });
         setResult({ ...est, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
+        setAdded(false); setAddedSupport(false); // a fresh run invalidates both "Added ✓" states
       } catch (e) {
         setError(e.message || "Estimation failed.");
       }
@@ -161,6 +166,20 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   };
 
   const [added, setAdded] = useState(false);
+  const [addedSupport, setAddedSupport] = useState(false); // TASKS.csv #92
+  // TASKS.csv #92 — same cells, `value` swapped for the 0–1 Data Support Index. Named explicitly so it
+  // can never be mistaken for a grade model or for a statistical confidence surface once it is sitting
+  // in the project's model list months later.
+  const addSupportModel = () => {
+    if (!result || !result.cells.length) return;
+    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    onAddModel({
+      name: `${base} — Data Support Index (geometric, not a confidence)`,
+      source: `support-index-${method}`,
+      cells: result.cells.map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.supportIndex, nSamples: c.nSamples, nHoles: c.nHoles, support: c.support })),
+    });
+    setAddedSupport(true);
+  };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
@@ -174,7 +193,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Grade estimation → block model</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Nearest-neighbour or inverse-distance weighting from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.</div>
+            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>Nearest-neighbour, inverse-distance or moving-least-squares interpolation from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
@@ -187,10 +206,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               </select>
             </label>
             <label style={fieldLabel}>Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)} style={inp}>
-                <option value="nn">Nearest neighbour</option>
-                <option value="idw2">Inverse distance (power 2)</option>
-                <option value="idw3">Inverse distance (power 3)</option>
+              {/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
+                  and the estimator can never disagree about what a method id means. */}
+              <select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} title={ESTIMATION_METHODS.find((m) => m.id === method)?.blurb || ""}>
+                {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </label>
             <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang (TASKS #292).">
@@ -283,6 +302,23 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             </label>
           </div>
 
+          {/* TASKS.csv #91/#92 — data support classification. */}
+          <div>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 11.5, color: "#55606e", cursor: "pointer" }} title="Classifies every block as interpolated (informing composites bracket the block on all three axes, from at least two holes), extrapolated (an estimate was produced, but all the informing data lies to one side) or unsupported (no estimate). Adds roughly 80% to the run time.">
+              <input type="checkbox" checked={classifySupport} onChange={(e) => setClassifySupport(e.target.checked)} style={{ marginTop: 2 }} />
+              <span>Classify data support per block (interpolated / extrapolated / unsupported)</span>
+            </label>
+            <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.5, marginTop: 4 }}>
+              Adds a support class and a 0–1 <strong>Data Support Index</strong> to every block, and lets you add
+              the index to the project as its own block model. The index is a <em>geometric</em> measure —
+              distance to the nearest composite, how many distinct holes informed the block, and how well
+              they surround it. It is <strong>not</strong> a confidence interval, a probability or a kriging
+              variance: nothing here measures how the grade itself decorrelates with distance, so it would
+              return the same number for a nuggety vein and a smooth porphyry drilled on the same pattern.
+              Costs about 80% extra run time.
+            </div>
+          </div>
+
           {gridPreview && (
             <div style={{ fontSize: 10.5, color: overLimit ? "#a95555" : "#94a1b0" }}>
               Grid: {gridPreview.nx} × {gridPreview.ny} × {gridPreview.nz} = {totalBlocksPreview.toLocaleString()} blocks
@@ -347,10 +383,43 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   {collarsWithoutDepth} collar(s) have no recorded length and no survey record — they contributed nothing to the grid's depth extent (rather than a silently assumed 300 m, which is what earlier versions did).
                 </div>
               )}
+              {/* TASKS.csv #91/#92 */}
+              {result.supportCounts && result.blocksEstimated > 0 && (
+                <div style={{ marginTop: 6, padding: "8px 9px", background: "#f5f7f9", border: "1px solid #e2e6ea", borderRadius: 6, lineHeight: 1.5 }}>
+                  <div style={{ fontWeight: 600, color: "#55606e", marginBottom: 4 }}>Data support</div>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {["interpolated", "extrapolated", "unsupported"].map((k) => (
+                      <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#55606e" }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 2, background: SUPPORT_COLORS[k], display: "inline-block" }} />
+                        {result.supportCounts[k].toLocaleString()} {k}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 5, color: "#7a4a1f" }}>
+                    {summarizeSupport(result.supportCounts)}
+                  </div>
+                  <div style={{ marginTop: 5, color: "#94a1b0" }}>
+                    Only blocks whose informing composites bracket them on all three axes, from at least two
+                    holes, count as interpolated. Everything else with a value is being carried outward from
+                    the data rather than between it — a real number, but not an interpolation.
+                  </div>
+                </div>
+              )}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                  <input placeholder={`${symbol} estimate (${method}, ${cellSize}m)`} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
+                  <input placeholder={`${symbol} estimate (${method}, ${cellSize}m)`} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
                   <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? "Added ✓" : "Add as block model"}</button>
+                </div>
+              )}
+              {/* TASKS.csv #92 — the index as its own block model. This IS the "where is this model
+                  well constrained" field the design doc asked for, and making it a normal block model
+                  means it renders, slices, sections and exports through the existing voxel viewer with
+                  no new display code at all. */}
+              {result.supportCounts && result.blocksEstimated > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <button onClick={addSupportModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }}>
+                    {addedSupport ? "Added ✓" : "Add Data Support Index as a separate block model"}
+                  </button>
                 </div>
               )}
             </div>
@@ -365,7 +434,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.5 }}>
-            Nearest-neighbour and inverse-distance weighting are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates), but this is NOT ordinary kriging — kriging needs a fitted variogram (nugget/sill/range) as a genuine prerequisite, which isn't built yet. A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — kriging needs a fitted variogram (nugget/sill/range) as a genuine prerequisite, which isn't built yet. A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}The search is <strong>isotropic</strong> (a plain sphere — no anisotropy or trend), there is
             no declustering, no variogram, and no classification. Domain control applies only if you both
             select a domain layer and tick "restrict the interpolation search"; high-grade capping applies

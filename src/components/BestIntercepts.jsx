@@ -10,6 +10,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { LAYER_META } from "../lib/layers.js";
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
@@ -22,6 +23,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
+  const { desurveyMethod } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -56,11 +58,11 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     survey?.forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
     const out = new Map();
     collars.forEach((c) => {
-      const t = desurveyHole(c, byHole.get(c.hole_id) || []);
+      const t = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod); // TASKS.csv #135
       if (t.length) out.set(c.hole_id, t);
     });
     return out;
-  }, [twEnabled, collars, survey]);
+  }, [twEnabled, collars, survey, desurveyMethod]); // #135 — recompute traces when the method changes
   // TASKS.csv #230 — host domain/lithology per intercept. Any interval layer works (the helper takes
   // rows, not a hard-coded `litho`), so the picker offers whichever interval layers actually have
   // data — lithology is the usual choice but alteration or a custom layer is equally valid.

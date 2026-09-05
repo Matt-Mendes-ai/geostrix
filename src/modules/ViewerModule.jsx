@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass } from "lucide-react";
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity } from "lucide-react";
 import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
 import GradeEstimationModal from "../components/GradeEstimationModal.jsx";
+import VariogramModal from "../components/VariogramModal.jsx"; // TASKS.csv #147
 import LocatorMap from "../components/LocatorMap.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -14,6 +15,7 @@ import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } fro
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
 import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
+import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
@@ -42,6 +44,8 @@ import BoundaryInterceptsModal from "../components/BoundaryInterceptsModal.jsx";
 import StripLog from "../components/StripLog.jsx";
 import StereonetModal from "../components/StereonetModal.jsx";
 import DownholeStructurePlot from "../components/DownholeStructurePlot.jsx"; // TASKS.csv #277
+import SurfaceQueryModal from "../components/SurfaceQueryModal.jsx"; // TASKS.csv #146
+import FenceDiagramModal from "../components/FenceDiagramModal.jsx"; // TASKS.csv #139
 import CoreOrientationCalculator from "../components/CoreOrientationCalculator.jsx";
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
@@ -52,12 +56,15 @@ import {
   colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
-import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF } from "../lib/meshExport.js";
+import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
+import { checkTopology } from "../lib/topology.js"; // TASKS.csv #90
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS } from "../lib/estimation.js";
+import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS, SUPPORT_COLORS, summarizeSupport, ESTIMATION_METHODS } from "../lib/estimation.js"; // SUPPORT_*: TASKS.csv #91/#92
 import { marchingCubes } from "../lib/marchingCubes.js";
 import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
+import PlannedHoleTargeting from "../components/PlannedHoleTargeting.jsx"; // TASKS.csv #119 - target solver + planned-vs-as-drilled
+import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 
 const toRad = (d) => (d * Math.PI) / 180;
@@ -82,6 +89,11 @@ const toRad = (d) => (d * Math.PI) / 180;
 // desurveyHole call sites for planned holes (the CSV export, the 3D render effect, and the row's toe
 // display) go through this one function, so there's exactly one place this conversion could go wrong.
 function plannedHoleTrace(hole) {
+  // TASKS.csv #135 — deliberately does NOT take the project's desurvey method. A planned hole has no
+  // survey stations at all, so desurveyHole's collar-only fallback builds a single constant-attitude
+  // interval — and all four methods are provably IDENTICAL on a constant azimuth/inclination hole
+  // (verified to 0.000e+0 m in #135's Node check). Passing the method here would be a no-op that
+  // implied the plan's geometry depends on a setting it cannot depend on.
   return desurveyHole({ ...hole, dip: -hole.dip }, []);
 }
 
@@ -434,6 +446,11 @@ const SURFACE_TYPES = [
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unconformity", label: "Unconformity (erosional)" },
   { key: "intrusive_contact", label: "Intrusive contact" },
+  // TASKS.csv #148 — an imported solid (pit shell, stope design, another package's wireframe) is a
+  // first-class entry in this same list, so it needs a type of its own. It is deliberately NOT one of
+  // the geological types above: those describe something GeoStrix modelled from this project's data,
+  // and an engineering design or a third-party wireframe is neither.
+  { key: "imported", label: "Imported solid / design (not modelled here)" },
   { key: "other", label: "Other" },
 ];
 const RELATION_TYPES = [
@@ -768,8 +785,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const setTaskProgress = useSetTaskProgress();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
+    desurveyMethod, // TASKS.csv #135 — project-wide desurvey method; every trace built here must use it
     surfaceSamples, surfaceElements,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
+    generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     lastCamState, setLastCamState,
@@ -930,6 +949,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [assayStyle, setAssayStyle] = useState({});
   const [assayStyleModalSymbol, setAssayStyleModalSymbol] = useState(null); // symbol string | null
   const [gradeEstOpen, setGradeEstOpen] = useState(false); // TASKS.csv #117 — grade estimation into block models
+  const [variogramOpen, setVariogramOpen] = useState(false); // TASKS.csv #147 — variogram / spatial continuity
   // Per-element min/max across ALL loaded assays for that symbol (not just the currently-visible/
   // cutoff-passing ones) — used by AssayStyleModal so its "suggest even breaks" helper and range
   // display reflect the element's real data range regardless of what's currently toggled on/filtered.
@@ -1097,6 +1117,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [structuralTarget, setStructuralTarget] = useState("");
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
   const [tadpoleOpen, setTadpoleOpen] = useState(false); // TASKS.csv #277 — downhole structural plot
+  const [surfaceQueryOpen, setSurfaceQueryOpen] = useState(false); // TASKS.csv #146 — distance/point-in-domain report
+  const [fenceOpen, setFenceOpen] = useState(false); // TASKS.csv #139 — fence/panel correlation diagram
   const [coreOrientOpen, setCoreOrientOpen] = useState(false);
   const [alterationTarget, setAlterationTarget] = useState("");
   // TASKS.csv #272 — the alteration halo is now built as a closed indicator envelope (see
@@ -1188,9 +1210,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [expandedSurfaceId, implicitSurfaces]);
   // TASKS.csv #89 — domains: named partitions of the modelling space, each an AND of fault-side
   // constraints ({id, name, constraints: [{faultId, side}]}). Not persisted yet, same as
-  // implicitSurfaces themselves (a domain references fault surfaces by id, which don't outlive a
-  // session either — see #52's still-open persistence follow-up, which now covers this too).
-  const [domains, setDomains] = useState([]);
+  // implicitSurfaces themselves. TASKS.csv #52 — both now persist: surface ids are stable across a
+  // save/reload, so a domain's fault references survive with them.
+  // TASKS.csv #52 — domains now live in the store's persisted `modelDomains` (see store.jsx), not in
+  // local state. Aliased rather than renamed at ~30 call sites below: the shape and every setter call
+  // (`setDomains((p) => ...)`) is identical, so this is a one-line change of WHERE the list lives, not
+  // a rewrite of how it's used. #89's note said domain persistence was blocked on surfaces persisting
+  // first (a domain references a fault surface by id); that's now true, so both persist together.
+  const domains = modelDomains;
+  const setDomains = setModelDomains;
   const [expandedDomainId, setExpandedDomainId] = useState(null);
   const [domainConstraintDraft, setDomainConstraintDraft] = useState({ faultId: "", side: 1 });
   // Shared across all four modelling tools below (litho/stack/structural/alteration) — a domain is a
@@ -3094,7 +3122,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
         });
-        const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole);
+        const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         if (!worldPts.length) throw new Error("No alteration sample points could be placed in 3D — check that the logged holes have collars.");
 
         // World -> api (east, north, up, origin-relative) — the space every spatial control in this
@@ -3243,7 +3271,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             .filter((iv) => iv.avgGrade != null)
             .map((iv) => (cap != null && iv.avgGrade > cap ? { ...iv, avgGrade: cap } : iv));
         }
-        const { points: rawPoints, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole);
+        const { points: rawPoints, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
         if (!rawPoints.length) throw new Error("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.");
         // TASKS.csv #273 — this tool used to ignore the model domain and the anisotropy trend entirely,
         // so a user who had set up either for the categorical tools silently got neither here. The
@@ -3295,6 +3323,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
           searchRadius: effectiveRadius, minSamples: 1, maxSamples: 16,
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
+          support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
         });
         if (!grid.estimated) throw new Error(numericMinHoles > 1
           ? `No grid cell had samples from at least ${numericMinHoles} distinct holes within the search radius — widen the search, or lower "Min holes".`
@@ -3317,6 +3346,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
         geo.setIndex(mc.faces.flat());
         geo.computeVertexNormals();
+        // TASKS.csv #91 — per-vertex data-support colour, computed here and cached on the geometry as a
+        // standard "color" attribute so the sidebar toggle is a one-line material flip rather than a
+        // second interpolation pass. Every marching-cubes vertex lies on a grid EDGE, so it is looked up
+        // at the nearest grid node — the same lattice the value it sits on came from, in the same
+        // (possibly anisotropy-warped) space, since this runs on the pre-unwarp vertex `v`.
+        // Green = interpolated (bracketed by composites from >= 2 holes), amber = extrapolated (a real
+        // estimate, but all the informing data lies to one side), red = unsupported.
+        const supColors = new Float32Array(mc.vertices.length * 3);
+        const surfCounts = { interpolated: 0, extrapolated: 0, unsupported: 0 };
+        if (grid.supportCode) {
+          const rgb = {};
+          Object.entries(SUPPORT_COLORS).forEach(([k, hex]) => { const c = new THREE.Color(hex); rgb[k] = [c.r, c.g, c.b]; });
+          const clampI = (n, hi) => (n < 0 ? 0 : n > hi ? hi : n);
+          const NAMES = ["unsupported", "extrapolated", "interpolated"];
+          mc.vertices.forEach((v, i) => {
+            const gx = clampI(Math.round((v[0] - grid.origin.x) / grid.cellSize.dx), grid.nx - 1);
+            const gy = clampI(Math.round((v[1] - grid.origin.y) / grid.cellSize.dy), grid.ny - 1);
+            const gz = clampI(Math.round((v[2] - grid.origin.z) / grid.cellSize.dz), grid.nz - 1);
+            const name = NAMES[grid.supportCode[gx + grid.nx * (gy + grid.ny * gz)]] || "unsupported";
+            surfCounts[name]++;
+            const c = rgb[name];
+            supColors[i * 3] = c[0]; supColors[i * 3 + 1] = c[1]; supColors[i * 3 + 2] = c[2];
+          });
+          geo.setAttribute("color", new THREE.BufferAttribute(supColors, 3));
+        }
         const mat = new THREE.MeshLambertMaterial({ color: 0xe2a63c, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
         const mesh = new THREE.Mesh(geo, mat);
         const vol = computeMeshVolume(geo);
@@ -3354,14 +3408,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           domain: gradeDomain ? gradeDomain.name : null,
           samplePoints: points.length, cellsEstimated: grid.estimated,
           singleHoleCells: grid.singleHoleCells, meanGradeInShell,
+          // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
+          // shell's own surface. The second is the one that matters for a reported volume: it says what
+          // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.
+          supportCounts: grid.supportCounts, surfaceSupportCounts: surfCounts,
           generatedAt: new Date().toISOString(),
         };
         mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\n${numericMethod.toUpperCase()} on ${points.length} points, ${cs} m cells${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed${closure === "artificial" ? " (artificially closed — see panel)" : ""}` : "\n(open shell)"}` };
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
-        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params }]);
+        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, `Added "${label}": ${points.length} sample point${points.length === 1 ? "" : "s"} (${intervals.length} ${numericUseComposites ? `${numericCompositeLength} m composite` : "raw interval"}${intervals.length === 1 ? "" : "s"}, ${dropped} dropped, ${above} at/above cutoff${clamped ? `, ${clamped} negative grade${clamped === 1 ? "" : "s"} clamped to zero` : ""}) → ${grid.nx}×${grid.ny}×${grid.nz} grid (${grid.estimated.toLocaleString()} cells estimated, ${grid.skipped.toLocaleString()} outside the search radius${grid.singleHoleCells ? `, ${grid.singleHoleCells.toLocaleString()} informed by only ONE hole` : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : `, open (${vol.openEdgeCount} open edges — shell reaches the edge of the estimated region)`}. Exploration target volume only — not a Mineral Resource.`]);
+        // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
+        // the shell surface itself, and point at the sidebar toggle that draws it.
+        if (grid.supportCounts) setNotices((p) => [...p, `"${label}" data support — grid: ${summarizeSupport(grid.supportCounts)}. Shell surface vertices: ${summarizeSupport(surfCounts)}. Only "interpolated" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use "Colour by data support" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.`]);
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
@@ -3372,12 +3433,92 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }, 40);
   }, [numericSymbol, assayElements, assays, collars, survey, numericCutoff, numericCellSize, numericSearchRadius, numericMethod, numericUseComposites, numericCompositeLength, numericMinCoverage, numericCloseShell, numericPadding, numericCapValue, numericMinHoles, numericIncludeQAQC, fitBox, setTaskProgress, anisotropy, domains, modelDomainId]); // anisotropy/domains/modelDomainId: TASKS.csv #273
 
+  // TASKS.csv #148 — import an existing solid/wireframe (pit shell, stope design, someone else's
+  // modelled domain) and overlay it against the drillholes and GeoStrix's own generated surfaces.
+  //
+  // Registered into implicitMeshesRef/implicitSurfaces exactly like a generated surface, deliberately:
+  // that single decision is what makes an imported solid behave like every other scene object with no
+  // parallel code path — show/hide, remove, the surface list, the distance/inside query (#146),
+  // volumetrics (#140), domain clipping and OBJ/DXF/glTF re-export all already operate on that list.
+  //
+  // `type: "imported"` and a params block marked `tool: "imported solid"` keep it honest in the two
+  // places it matters: the surface list shows what it is, and #269's export provenance stamp records
+  // that this geometry came from a file rather than from any GeoStrix calculation — an imported pit
+  // shell re-exported six months later must not read as something this app modelled.
+  const importSolidRef = useRef(null);
+  const importSolidFile = useCallback(async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const solid = parseSolidFile(file.name, text);
+      const bounds = solidBounds(solid.vertices);
+      const o = originRef.current;
+      // World (easting, northing, elevation) -> scene, the exact inverse of meshExport.js's
+      // sceneVertsToWorld (scene x = east offset, y = elevation offset, z = -(north offset)).
+      const sceneVerts = solid.vertices.map(([e, n, z]) => [e - o.x, z - o.z, o.y - n]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flat(), 3));
+      geo.setIndex(solid.indices);
+      geo.computeVertexNormals();
+      // Wireframe-ish translucent grey, visually distinct from the gold/coloured generated surfaces —
+      // an imported reference shape should not look like something this app modelled.
+      const mat = new THREE.MeshLambertMaterial({ color: 0x8fa3b8, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+      const mesh = new THREE.Mesh(geo, mat);
+      const label = file.name.replace(/\.(dxf|obj)$/i, "");
+      mesh.userData = { tip: `${label} (imported ${solid.format})\n${solid.vertices.length} vertices, ${solid.triangleCount} triangles` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${Date.now()}_imported`;
+      implicitMeshesRef.current[id] = mesh;
+      setImplicitSurfaces((p) => [...p, {
+        id, name: `${label} (imported)`, visible: true,
+        vertexCount: solid.vertices.length, faceCount: solid.triangleCount,
+        type: "imported", relationships: [], closure: null,
+        params: {
+          tool: "imported solid", sourceFile: file.name, format: solid.format,
+          detail: solid.note, vertices: solid.vertices.length, triangles: solid.triangleCount,
+          crsAssumed: project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
+          importedAt: new Date().toISOString(),
+        },
+      }]);
+      const bb = bounds
+        ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
+        : "";
+      setNotices((p) => [...p, `Imported "${file.name}" as a solid: ${solid.vertices.length.toLocaleString()} vertices / ${solid.triangleCount.toLocaleString()} triangles (${solid.format}, ${solid.note}). It appears under Generated surfaces with the same show/hide, remove and query controls.${bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.`]);
+      fitBox(new THREE.Box3().setFromObject(mesh));
+    } catch (e) {
+      setNotices((p) => [...p, `${file.name}: couldn't import as a solid (${e.message || e}).`]);
+    }
+  }, [fitBox, project?.epsg]);
+
   const toggleImplicitSurface = useCallback((id) => {
     setImplicitSurfaces((p) => p.map((s) => {
       if (s.id !== id) return s;
       const mesh = implicitMeshesRef.current[id];
       if (mesh) mesh.visible = !s.visible;
       return { ...s, visible: !s.visible };
+    }));
+  }, []);
+  // TASKS.csv #91/#92 — flip a generated surface between its normal appearance and its data-support
+  // colouring. The per-vertex colours were computed once at generation time and cached on the geometry
+  // as the "color" attribute, so this is only a material flag: setting vertexColors makes three.js
+  // multiply the material colour by the attribute, hence white as the base so the class colour shows
+  // through unchanged. Reverting restores the original material colour, kept on the mesh's userData.
+  const toggleSurfaceSupportColors = useCallback((id) => {
+    setImplicitSurfaces((p) => p.map((s) => {
+      if (s.id !== id) return s;
+      const mesh = implicitMeshesRef.current[id];
+      if (!mesh || !mesh.geometry?.getAttribute?.("color")) return s;
+      const on = !s.supportColored;
+      if (on) {
+        if (mesh.userData.baseColorHex == null) mesh.userData.baseColorHex = mesh.material.color.getHex();
+        mesh.material.vertexColors = true;
+        mesh.material.color.set(0xffffff);
+      } else {
+        mesh.material.vertexColors = false;
+        mesh.material.color.setHex(mesh.userData.baseColorHex != null ? mesh.userData.baseColorHex : 0xe2a63c);
+      }
+      mesh.material.needsUpdate = true;
+      return { ...s, supportColored: on };
     }));
   }, []);
   const removeImplicitSurface = useCallback((id) => {
@@ -3389,9 +3530,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setImplicitSurfaces((p) => p.map((s) => ({ ...s, relationships: (s.relationships || []).filter((r) => r.targetId !== id) })));
   }, []);
   // TASKS.csv #83 — surface type + declared relationships (geological-architecture layer 2). Purely
-  // metadata for now (see the long comment above SURFACE_TYPES/RELATION_TYPES) — not persisted yet,
-  // same as the rest of implicitSurfaces (#52's still-open "persist a generated surface" follow-up
-  // covers this too, not solved separately here).
+  // metadata until #90's checker reads it (see the long comment above SURFACE_TYPES/RELATION_TYPES).
+  // TASKS.csv #52 — type and relationships now persist with the surface itself, so a relationship
+  // declared today is still there (and still checkable) after a restart.
   const setSurfaceType = useCallback((id, type) => {
     setImplicitSurfaces((p) => p.map((s) => s.id === id ? { ...s, type } : s));
   }, []);
@@ -3753,7 +3894,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     collars.forEach((c) => {
      try {
       const hs = surveyByHole.get(c.hole_id) || [];
-      const raw = desurveyHole(c, hs);
+      const raw = desurveyHole(c, hs, desurveyMethod); // TASKS.csv #135
       if (!raw.length) return;
       const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) }));
       allTraces.push(pts);
@@ -4061,7 +4202,181 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+
+  // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
+  //
+  // Two effects, deliberately in this order (hydrate, then sync-out) and deliberately placed HERE,
+  // immediately after the geometry-rebuild effect above: that effect is what recomputes
+  // originRef.current from the current collars, and effects run in declaration order within a commit,
+  // so by the time hydration converts world coordinates back to scene coordinates the origin already
+  // belongs to the project being opened, not the one being replaced. That is the same reasoning the
+  // raster-drape effect right below documents for itself.
+  //
+  // Why the meshes are stored in WORLD coordinates: see store.jsx's generatedSurfaces comment. Scene
+  // space is relative to originRef, which is the mean collar position — saving scene coordinates would
+  // silently shift every surface if a collar were added or removed between save and reload.
+  const surfaceHydrationRef = useRef({ seq: -1, installed: null });
+  // id -> { uuid, vertices, indices }. Converting a mesh to world coordinates is O(vertices), and the
+  // sync-out effect runs on EVERY change to implicitSurfaces — including pure metadata edits (renaming
+  // a surface's type, toggling visibility, adding a #83 relationship, editing a #140 density), which
+  // don't touch geometry at all. Keying the cache on the geometry's own uuid means a metadata edit
+  // re-serialises nothing; only a genuinely new/regenerated mesh pays the conversion.
+  const surfaceGeomCacheRef = useRef({});
+
+  useEffect(() => {
+    // Only ever hydrate ONCE per project load. viewerUiStateSeq is the store's existing
+    // "a different project is now loaded" counter (bumped by newProject/openProject/tab switch), which
+    // is exactly the event this needs and already exists — no new signal invented for it.
+    if (surfaceHydrationRef.current.seq === viewerUiStateSeq) return;
+    const group = implicitGroupRef.current;
+    if (!group) return; // scene not built yet; `sceneReady` below gives this a second chance
+    // Tear down whatever the previous project left in the scene, so opening project B never inherits
+    // project A's surfaces.
+    Object.keys(implicitMeshesRef.current).forEach((id) => {
+      const m = implicitMeshesRef.current[id];
+      group.remove(m); m.geometry?.dispose?.(); m.material?.dispose?.();
+    });
+    implicitMeshesRef.current = {};
+    surfaceGeomCacheRef.current = {};
+    const o = originRef.current;
+    const restored = [];
+    (generatedSurfaces || []).forEach((s) => {
+      const verts = s.vertices || [];
+      const idx = s.indices || [];
+      if (verts.length < 9 || idx.length < 3) return; // nothing renderable — skip rather than add an invisible ghost row
+      // World (easting, northing, elevation) -> scene. Exact inverse of meshExport.js's
+      // sceneVertsToWorld, identical to the #148 solid importer's own conversion.
+      const scene = new Float32Array(verts.length);
+      for (let i = 0; i < verts.length; i += 3) {
+        scene[i] = verts[i] - o.x;
+        scene[i + 1] = verts[i + 2] - o.z;
+        scene[i + 2] = o.y - verts[i + 1];
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(scene, 3));
+      geo.setIndex(Array.from(idx));
+      // Normals are recomputed rather than saved — exact for a triangle soup, and it keeps the mesh's
+      // share of the project file to positions + indices only (store.jsx's size note).
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshLambertMaterial({
+        color: s.color ?? 0xc8a24a, side: THREE.DoubleSide,
+        transparent: true, opacity: s.opacity ?? 0.75,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.visible = s.visible !== false;
+      mesh.userData = { tip: `${s.name}\n${(verts.length / 3) | 0} vertices (restored from the project file)` };
+      group.add(mesh);
+      implicitMeshesRef.current[s.id] = mesh;
+      surfaceGeomCacheRef.current[s.id] = { uuid: geo.uuid, vertices: verts, indices: idx };
+      const { vertices: _v, indices: _i, ...meta } = s;
+      restored.push({ ...meta, visible: s.visible !== false });
+    });
+    surfaceHydrationRef.current = { seq: viewerUiStateSeq, installed: restored };
+    setImplicitSurfaces(restored);
+    if (restored.length) {
+      setNotices((p) => [...p, `Restored ${restored.length} generated surface${restored.length > 1 ? "s" : ""} from the project file, with the parameters that produced ${restored.length > 1 ? "them" : "it"} (see each surface's "Parameters used").`]);
+    }
+    // `generatedSurfaces` is in the deps so a project whose surfaces arrive in a later commit than the
+    // seq bump still hydrates; the seq guard at the top makes the extra runs free. `sceneReady` covers
+    // the case where this component's three.js scene didn't exist yet on the first attempt.
+  }, [viewerUiStateSeq, generatedSurfaces, sceneReady]);
+
+  useEffect(() => {
+    // BUG, caught live rather than by reading the code (a hot reload remounted this component
+    // mid-session and every persisted surface silently vanished from the project): this effect ALSO
+    // runs on mount, when implicitSurfaces is still its initial [] — so without this guard, mounting
+    // ViewerModule wrote an empty list straight over the surfaces the store had just loaded from the
+    // project file, destroying them before the hydration effect above ever got to render them. That
+    // is not a hot-reload-only problem: hydration bails out early when implicitGroupRef isn't built
+    // yet (the three.js init effect is declared further down, so on the first mount pass the scene
+    // group genuinely doesn't exist), and it is exactly on that first pass that this effect would
+    // have fired. Nothing may be written back until hydration has actually run FOR THIS PROJECT —
+    // seq matching viewerUiStateSeq is precisely that condition.
+    if (surfaceHydrationRef.current.seq !== viewerUiStateSeq) return;
+    // The array identity hydration just installed is already exactly what's in the store — writing it
+    // back would be a pointless full re-serialisation of every mesh on every project open.
+    if (surfaceHydrationRef.current.installed === implicitSurfaces) return;
+    const o = originRef.current;
+    const r2 = (v) => Math.round(v * 100) / 100; // 1 cm — see store.jsx's size note
+    const payload = implicitSurfaces.map((s) => {
+      const mesh = implicitMeshesRef.current[s.id];
+      const geo = mesh?.geometry;
+      let cached = surfaceGeomCacheRef.current[s.id];
+      if (geo && (!cached || cached.uuid !== geo.uuid)) {
+        const { vertices, indices } = sceneVertsToWorld(geo, o);
+        const flat = new Array(vertices.length * 3);
+        for (let i = 0; i < vertices.length; i++) {
+          flat[i * 3] = r2(vertices[i][0]);
+          flat[i * 3 + 1] = r2(vertices[i][1]);
+          flat[i * 3 + 2] = r2(vertices[i][2]);
+        }
+        cached = { uuid: geo.uuid, vertices: flat, indices };
+        surfaceGeomCacheRef.current[s.id] = cached;
+      }
+      return {
+        ...s,
+        color: mesh?.material?.color?.getHex?.() ?? null,
+        opacity: mesh?.material?.opacity ?? 0.75,
+        vertices: cached?.vertices || [],
+        indices: cached?.indices || [],
+      };
+    });
+    // Drop cache entries for surfaces that have been removed, so a long session doesn't hold onto the
+    // world-coordinate copy of every mesh the user ever deleted.
+    const live = new Set(implicitSurfaces.map((s) => s.id));
+    Object.keys(surfaceGeomCacheRef.current).forEach((id) => { if (!live.has(id)) delete surfaceGeomCacheRef.current[id]; });
+    setGeneratedSurfaces(payload);
+    // DEPS ARE [implicitSurfaces] ONLY, AND THAT IS load-bearing — verified live, not reasoned about.
+    // Adding viewerUiStateSeq here (which looks harmless, since the guard above reads it) breaks the
+    // restore path: opening a project bumps the seq, so this effect fires in the SAME commit as the
+    // hydration effect above, at which point `implicitSurfaces` is still the OUTGOING project's list —
+    // it passed both guards and wrote an empty list over the surfaces that had just been loaded from
+    // the file. Symptom is nasty and quiet: the restored surfaces render correctly, but the store's
+    // copy is empty, so the NEXT save silently drops them. With deps of [implicitSurfaces] alone this
+    // effect can only ever run after hydration has already replaced that array, where the identity
+    // guard above catches it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [implicitSurfaces]);
+
+  // ---------- TASKS.csv #90 — topological relationship checking ----------
+  // The consumer #83 was missing. Runs src/lib/topology.js over every surface currently in the scene,
+  // using their #83 declared relationships, and reports the ones the GEOMETRY contradicts. Meshes are
+  // handed over in SCENE space (up = +Y) — the check is scale/frame-agnostic, and this avoids
+  // converting tens of thousands of vertices just to ask a yes/no question.
+  const [topologyBusy, setTopologyBusy] = useState(false);
+  const runTopologyCheck = useCallback(() => {
+    if (!implicitSurfaces.length) { setNotices((p) => [...p, "No generated surfaces to check yet."]); return; }
+    setTopologyBusy(true);
+    // Deferred a tick so the "Checking..." state actually paints before a multi-second check on large
+    // meshes blocks the main thread — same pattern the modelling tools use for their own busy state.
+    setTimeout(() => {
+      try {
+        const input = implicitSurfaces.map((s) => {
+          const geo = implicitMeshesRef.current[s.id]?.geometry;
+          const pos = geo?.attributes?.position?.array;
+          const idx = geo?.index?.array;
+          return {
+            id: s.id, name: s.name, type: s.type, closure: s.closure,
+            relationships: s.relationships || [],
+            positions: pos || [], indices: idx || [],
+          };
+        });
+        const res = checkTopology(input, { up: "y" });
+        if (!res.checked) {
+          setNotices((p) => [...p, `Nothing to check: none of the ${res.surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare "is below" / "is above" / "must not cross" on a surface (expand its row) and run this again.`]);
+        } else if (!res.violations.length) {
+          setNotices((p) => [...p, `Topology check passed: ${res.checked} check(s) across ${res.surfacesChecked} surface(s), no violations.${res.skipped ? ` ${res.skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.` : ""}`]);
+        } else {
+          setNotices((p) => [...p, `Topology check found ${res.violations.length} violation(s) in ${res.checked} check(s):`, ...res.violations.map((v) => `  • ${v.message}`)]);
+        }
+      } catch (err) {
+        setNotices((p) => [...p, `Topology check failed: ${err.message}`]);
+      } finally {
+        setTopologyBusy(false);
+      }
+    }, 40);
+  }, [implicitSurfaces]);
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -6133,8 +6448,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           Populate a block model FROM composited assays — nearest-neighbour or inverse-
           distance weighting, not a surface — a separate workflow from the implicit surface tools below.
         </div>
-        <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
+        <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={13} /> Estimate grade into block model…
+        </button>
+        {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
+            diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
+            not a separate curiosity. It does NOT feed the estimator (GeoStrix still does not krige) —
+            the modal itself says so up front; see VariogramModal.jsx's header. */}
+        <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
+          <Activity size={13} /> Variogram / spatial continuity…
         </button>
 
         {/* TASKS.csv #176 — lithology groups: lump codes logged differently for the same real unit
@@ -6194,6 +6516,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             </div>
           );
         })}
+
+        {/* TASKS.csv #139 — fence/panel diagram. Deliberately sits immediately ABOVE the implicit
+            modelling tools because it is the lighter-weight companion to them: three holes on a line
+            cannot support a GemPy surface but can absolutely support a hand correlation, and that is
+            the stage of a project this answers. */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Section correlation</div>
+        <button
+          onClick={() => setFenceOpen(true)}
+          disabled={!collars.length}
+          style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
+          title="Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown"
+        ><Layers3 size={13} /> Fence / panel diagram…</button>
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Implicit model (beta)</div>
         <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
@@ -6452,10 +6786,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-end" }}>
                 <label style={{ ...miniField }}>Method
-                  <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }}>
-                    <option value="idw2">Inverse distance (power 2)</option>
-                    <option value="idw3">Inverse distance (power 3)</option>
-                    <option value="nn">Nearest neighbour</option>
+                  {/* TASKS.csv #87 — one shared method table (estimation.js) drives this dropdown and
+                      GradeEstimationModal's, so the grade shell and the block model can never offer
+                      different methods or mean different things by the same method id. */}
+                  <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }} title={ESTIMATION_METHODS.find((m) => m.id === numericMethod)?.blurb || ""}>
+                    {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                   </select>
                 </label>
               </div>
@@ -6529,8 +6864,45 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         })()}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Generated surfaces</div>
+        {/* TASKS.csv #146 — query the generated surfaces rather than only look at them: how far is each
+            hole from this surface, where does it pierce it, and how many downhole metres sit inside it.
+            Lives here because every one of those questions is about a surface in this list. */}
+        <button
+          onClick={() => setSurfaceQueryOpen(true)}
+          disabled={!implicitSurfaces.length}
+          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
+          title="Distance-to-surface / point-in-domain report — closest approach and pierce depths for every hole, downhole metres inside a closed shell, and a single-point distance/inside query"
+        ><Ruler size={13} /> Distance / inside query…</button>
+        {/* TASKS.csv #148 — overlay an imported solid (pit shell, stope design, someone else's
+            wireframe) alongside the generated ones for an as-built vs. as-planned check. Sits in this
+            section, not in a separate one, because an imported solid IS an entry in the list below —
+            it gets the same show/hide, remove, query and export controls with no parallel code path. */}
+        <button
+          onClick={() => importSolidRef.current?.click()}
+          style={{ ...pBtn, marginBottom: 8 }}
+          title="Import a DXF (3DFACE / polyface mesh) or OBJ solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS."
+        ><Box size={13} /> Import solid (DXF / OBJ)…</button>
+        <input
+          ref={importSolidRef}
+          type="file"
+          accept={SOLID_IMPORT_EXTENSIONS}
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) importSolidFile(f); e.target.value = ""; }}
+        />
+        {/* TASKS.csv #90 — topological relationship checking. #83 let a surface DECLARE that it sits
+            below / above / must not cross another one, but nothing ever checked the geometry against
+            those declarations, so a run could produce a well-triangulated surface that cuts straight
+            through a unit it is declared to sit under and the app said nothing. This is the checker:
+            mesh-mesh intersection plus a vertical sidedness test (src/lib/topology.js), reported into
+            the same notices/toast stream every modelling run already uses. */}
+        <button
+          onClick={runTopologyCheck}
+          disabled={!implicitSurfaces.length || topologyBusy}
+          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length && !topologyBusy ? 1 : 0.5, cursor: implicitSurfaces.length && !topologyBusy ? "pointer" : "default" }}
+          title="Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves."
+        ><ShieldAlert size={13} /> {topologyBusy ? "Checking relationships…" : "Check relationships"}</button>
         {implicitSurfaces.length === 0 && (
-          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, lineHeight: 1.4 }}>None yet — run one of the tools above. Not persisted in the project file or in themes yet (first pass). Each surface's type and its declared relationships to other surfaces (the chevron next to it) aren't persisted yet either.</div>
+          <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 10, lineHeight: 1.4 }}>None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.</div>
         )}
         {implicitSurfaces.map((s) => {
           const expanded = expandedSurfaceId === s.id;
@@ -6551,6 +6923,30 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid #dde1e6", paddingTop: 8 }}>
+                  {/* TASKS.csv #91/#92 — data-support display for surfaces that carry a classification. */}
+                  {s.surfaceSupportCounts && (
+                    <div style={{ marginBottom: 8 }}>
+                      <button
+                        onClick={() => toggleSurfaceSupportColors(s.id)}
+                        style={{ width: "100%", padding: "5px 0", borderRadius: 5, fontSize: 10.5, cursor: "pointer", border: "1px solid #c7ccd3", background: s.supportColored ? "#eef3ee" : "transparent", color: "#55606e" }}
+                      >
+                        {s.supportColored ? "Show normal colours" : "Colour by data support"}
+                      </button>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 5, fontSize: 9.5, color: "#55606e" }}>
+                        {["interpolated", "extrapolated", "unsupported"].map((k) => (
+                          <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: SUPPORT_COLORS[k], display: "inline-block" }} />
+                            {(s.surfaceSupportCounts[k] || 0).toLocaleString()} {k}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 9.5, color: "#94a1b0", marginTop: 4, lineHeight: 1.45 }}>
+                        Counted over this surface's own vertices. Green means the composites that produced
+                        that part of the surface bracket it on all three axes from at least two holes.
+                        A geometric data-support measure — not a confidence interval or a kriging variance.
+                      </div>
+                    </div>
+                  )}
                   <label style={{ fontSize: 10, color: "#55606e", display: "block", marginBottom: 6 }}>
                     Type
                     <select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
@@ -6688,7 +7084,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         <div style={{ fontSize: 9.5, color: "#55606e", marginTop: 8, lineHeight: 1.5 }}>
                           <div style={{ color: "#94a1b0", marginBottom: 2 }}>Parameters used</div>
                           {s.params.element} cutoff {s.params.cutoff} {s.params.unit} · {String(s.params.method).toUpperCase()} · search {Math.round(s.params.searchRadiusM)} m{s.params.searchRadiusWasUnlimited ? " (unlimited, capped at the grid diagonal)" : ""} · {s.params.cellSizeM} m cells · pad {s.params.paddingM} m · {s.params.composited ? `${s.params.compositeLengthM} m composites` : "raw intervals"} · cap {s.params.capValue == null ? "none" : s.params.capValue} · min {s.params.minHoles} hole{s.params.minHoles === 1 ? "" : "s"} · QC {s.params.includeQAQC ? "included" : "excluded"} · closure {s.params.closure} · {s.params.samplePoints} sample points · {s.params.cellsEstimated.toLocaleString()} cells estimated{s.params.singleHoleCells ? ` (${s.params.singleHoleCells.toLocaleString()} from a single hole)` : ""}
-                          <div style={{ color: "#94a1b0", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Not saved with the project yet (see TASKS #52) — export the mesh to keep this record.</div>
+                          <div style={{ color: "#94a1b0", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Saved with the project (TASKS #52), so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.</div>
                         </div>
                       )}
                     </>
@@ -6716,8 +7112,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           bound a domain between two faults, not just split the property in two. Pick which fault
           surfaces to use as constraints below (any generated surface typed "Fault" above); the domain
           fails open (matches everything) until it has at least one constraint, and again for any
-          constraint whose fault surface gets deleted. Not persisted yet, same as the surfaces it
-          references.
+          constraint whose fault surface gets deleted. Domains save with the project (TASKS #52), along
+          with the surfaces they reference.
         </div>
         {(() => { const faultSurfaces = implicitSurfaces.filter((s) => s.type === "fault"); return (
         <>
@@ -6807,7 +7203,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         ) : (
           <div style={{ marginTop: 8 }}>
             {plannedHoles.map((hole) => (
-              <PlannedHoleRow key={hole.id} hole={hole} onUpdate={updatePlannedHole} onRemove={removePlannedHole} />
+              <PlannedHoleRow key={hole.id} hole={hole} onUpdate={updatePlannedHole} onRemove={removePlannedHole} collars={collars} survey={survey} />
             ))}
           </div>
         )}
@@ -6815,7 +7211,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button onClick={exportPlannedHolesCSV} style={{ ...pBtn, marginTop: 8 }}><FileBarChart2 size={13} /> Export {plannedHoles.length} planned hole{plannedHoles.length === 1 ? "" : "s"} to CSV</button>
         )}
         {plannedHoles.length > 0 && (
-          <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} />
+          <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />
         )}
         </>)}
 
@@ -7170,6 +7566,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           onClose={() => setGradeEstOpen(false)}
         />
       )}
+      {/* TASKS.csv #147 — a read-only diagnostic: it takes no onAdd-style callback, so nothing it
+          computes can enter the project or any estimate. */}
+      {variogramOpen && (
+        <VariogramModal
+          assays={assays}
+          assayElements={assayElements}
+          layers={layers}
+          collars={collars}
+          survey={survey}
+          onClose={() => setVariogramOpen(false)}
+        />
+      )}
       {/* TASKS.csv #236 — onUseAsTrend closes the loop this feature was created for: the Stereonet
           exists to sanity-check an orientation BEFORE it's fed to the anisotropy/structural tools, so
           the computed mean plane can now be pushed straight into the anisotropy trend fields instead
@@ -7198,6 +7606,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           holes={holesForTadpole}
           litho={layers.litho || []}
           onClose={() => setTadpoleOpen(false)}
+        />
+      )}
+      {/* TASKS.csv #146 — distance-to-surface / point-in-domain report. Reads the SAME scene-space
+          meshes the viewport draws (implicitMeshesRef) and the SAME desurveyed traces everything else
+          uses (tracesRef), so no number here can drift from what is on screen. Packaged only while the
+          modal is open — pulling ~100k vertices out of every surface's BufferGeometry on every render
+          would be pure waste the other 99% of the time. */}
+      {/* TASKS.csv #139 — fence/panel diagram. Fed tracesRef (the same desurveyed traces the 3D scene
+          draws, in real-world coordinates) rather than re-desurveying: one source of truth, and it
+          keeps this out of desurvey.js entirely. */}
+      {fenceOpen && (
+        <FenceDiagramModal
+          traces={tracesRef.current.map((t) => ({ hole_id: t.hole_id, md: t.pts.map((p) => p.md), wx: t.wx, wy: t.wy, wz: t.wz }))}
+          litho={layers.litho || []}
+          onClose={() => setFenceOpen(false)}
+        />
+      )}
+      {surfaceQueryOpen && (
+        <SurfaceQueryModal
+          surfaces={implicitSurfaces.map((s) => {
+            const g = implicitMeshesRef.current[s.id]?.geometry;
+            return { id: s.id, name: s.name, positions: g?.attributes?.position?.array || null, indices: g?.index?.array || null };
+          }).filter((s) => s.positions && s.indices)}
+          traces={tracesRef.current}
+          sceneToWorld={(p) => { const o = originRef.current; return { x: p.x + o.x, y: o.y - p.z, z: p.y + o.z }; }}
+          worldToScene={(p) => { const o = originRef.current; return { x: p.x - o.x, y: p.z - o.z, z: -(p.y - o.y) }; }}
+          onClose={() => setSurfaceQueryOpen(false)}
         />
       )}
       {coreOrientOpen && (
@@ -7782,17 +8217,20 @@ function VoxelRangeRow({ model, onUpdate }) {
 // the azimuth/dip a straight hole from the start would need to pass through the target, and the
 // straight-line distance (pre-filled into Length so "+ Add hole" produces a hole that actually reaches
 // it, not the previous default length falling short or overshooting).
+// TASKS.csv #119 — this used to be a local 10-line implementation here. It is now a thin adapter over
+// holePlanning.js's solveOrientationToTarget, which is the same math (verified bit-identical over
+// 200,000 random collar/target pairs: max azimuth/dip difference 0.000e+0 deg, max length difference
+// 9.095e-13 m) but lives in a pure, Node-unit-tested module that the per-hole targeting panel
+// (components/PlannedHoleTargeting.jsx) also uses. Two copies of the same trigonometry in one app is
+// exactly how the two halves of a feature drift apart.
+//
+// The one behavioural difference is deliberate: solveOrientationToTarget returns null when the target
+// IS the collar (no direction is defined) where the old local version silently returned az 0 / dip 0 /
+// distance 0. Callers here already gate on targetReady/fromReady, and the `|| { ... }` fallback below
+// preserves the old shape for that degenerate case so no call site has to change.
 function solveAzDipToTarget(from, to) {
-  const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
-  const horiz = Math.hypot(dx, dy);
-  let azimuth = (Math.atan2(dx, dy) * 180) / Math.PI;
-  if (azimuth < 0) azimuth += 360;
-  // atan2(dz, horiz) already matches this app's "negative = down" dip convention directly: dz is
-  // negative when the target sits below the start point, which is the normal downhole-target case,
-  // and that naturally produces a negative angle with no sign-flip needed.
-  const dip = (Math.atan2(dz, horiz) * 180) / Math.PI;
-  const distance = Math.hypot(dx, dy, dz);
-  return { azimuth, dip, distance };
+  const s = solveOrientationToTarget(from, to) || { azimuth: 0, dip: 0, length: 0 };
+  return { azimuth: s.azimuth, dip: s.dip, distance: s.length };
 }
 function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
@@ -7890,9 +8328,12 @@ function NumField({ label, value, onChange, placeholder }) {
 // land here as one "Planned hole checks" panel, computed fresh from React state (collars/survey/
 // voxelModels) rather than read from the three.js scene refs, so it can't be stale relative to the
 // last render and always agrees with what's actually drawn.
-function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels) {
+function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels, desurveyMethod) {
+  // TASKS.csv #135 — the real-hole traces a planned hole is checked for collisions against must be
+  // built with the SAME method the 3D view draws them with, or the reported clearance is measured
+  // against a trace the user can't see.
   const realTraces = collars
-    .map((c) => ({ hole_id: c.hole_id, pts: desurveyHole(c, survey.filter((s) => s.hole_id === c.hole_id && !isNaN(s.depth))) }))
+    .map((c) => ({ hole_id: c.hole_id, pts: desurveyHole(c, survey.filter((s) => s.hole_id === c.hole_id && !isNaN(s.depth)), desurveyMethod) }))
     .filter((t) => t.pts.length);
 
   // Only voxel models the user has actually narrowed (threshold/rangeMax set inside the model's own
@@ -7934,10 +8375,10 @@ function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels
   });
 }
 
-function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels }) {
+function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurveyMethod }) { // #135
   const [minSpacing, setMinSpacing] = useState(25);
   const [costPerM, setCostPerM] = useState("");
-  const results = useMemo(() => planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels), [plannedHoles, collars, survey, voxelModels]);
+  const results = useMemo(() => planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels, desurveyMethod), [plannedHoles, collars, survey, voxelModels, desurveyMethod]);
   const totalM = plannedHoles.reduce((s, h) => s + (Number(h.length) || 0), 0);
   const rate = Number(costPerM);
   const totalCost = costPerM !== "" && Number.isFinite(rate) && rate > 0 ? totalM * rate : null;
@@ -7987,7 +8428,7 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels }) {
 // "click into place, no separate edit modal" pattern as AttributeTableModal's cells) since a planned
 // hole is a handful of numbers a geologist will realistically keep nudging while designing a
 // program, not a big enough object to warrant a whole edit modal like VoxelLegendEditor's.
-function PlannedHoleRow({ hole, onUpdate, onRemove }) {
+function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119 - collars/survey for the as-drilled comparison
   const [expanded, setExpanded] = useState(false);
   const raw = plannedHoleTrace(hole);
   const toe = raw.length ? raw[raw.length - 1] : null;
@@ -8018,6 +8459,9 @@ function PlannedHoleRow({ hole, onUpdate, onRemove }) {
             <NumField label="Length m" value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
           </div>
           <textarea placeholder="Notes" value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", fontSize: 11, color: "#1a2028", resize: "vertical" }} />
+          {/* TASKS.csv #119 - drill-to-target solver and planned-vs-as-drilled comparison. `raw` is
+              this row's already-built trace, so the panel never desurveys the planned hole again. */}
+          <PlannedHoleTargeting hole={hole} onUpdate={onUpdate} plannedPts={raw} collars={collars} survey={survey} />
         </div>
       )}
     </div>
