@@ -59,6 +59,24 @@ export function provenanceLines(name, provenance, extra = {}) {
     `Surface: ${name}`,
     `Exported: ${new Date().toISOString()}`,
   ];
+  // TASKS.csv #145 — HAND-EDIT DISCLOSURE, and it goes SECOND, immediately under the "not a Mineral
+  // Resource" line, before any parameter is stated. A sculpted surface is no longer the output of the
+  // parameters listed further down; a file that recites its cutoff and search radius while silently
+  // omitting that a geologist pulled a patch of it 6 m sideways is an integrity problem, not a missing
+  // nicety. Every applied edit is itemised (when, how far, which way, how wide, where, and what it did
+  // to the enclosed volume) so the edited surface can be audited against the generated one.
+  const me = extra.manualEdits;
+  if (me && me.count > 0) {
+    out.push(`*** HAND-EDITED AFTER GENERATION — ${me.count} manual sculpt${me.count === 1 ? "" : "s"} applied. This mesh is NOT purely the output of the parameters stated below. ***`);
+    if (me.volumeAsGeneratedM3 != null && me.volumeNowM3 != null) {
+      const d = me.volumeNowM3 - me.volumeAsGeneratedM3;
+      out.push(`Enclosed volume as generated: ${me.volumeAsGeneratedM3.toFixed(1)} m3 -> after manual editing: ${me.volumeNowM3.toFixed(1)} m3 (${d >= 0 ? "+" : ""}${d.toFixed(1)} m3). Any tonnage above is from the EDITED volume.`);
+    }
+    (me.edits || []).forEach((e, i) => {
+      out.push(`  edit ${i + 1}: ${e.at} — ${e.offsetM >= 0 ? "+" : ""}${e.offsetM} m ${e.axis === "vertical" ? "vertical" : "along the surface normal"}, ${e.radiusM} m brush radius, ${e.verticesMoved} vertices moved, centred on ${e.anchorEasting} E / ${e.anchorNorthing} N / ${e.anchorElevation} m${e.flippedTriangles ? ` — WARNING: left ${e.flippedTriangles} inverted triangle(s)` : ""}`);
+    });
+    out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
+  }
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
   if (extra.densityTPerM3 != null) out.push(`Bulk density used for tonnage: ${extra.densityTPerM3} t/m3 (assumed, not measured)`);
   if (extra.volumeM3 != null) out.push(`Enclosed volume: ${extra.volumeM3.toFixed(1)} m3 (in-situ, dry, undiluted, no recovery applied)`);
@@ -70,7 +88,23 @@ export function provenanceLines(name, provenance, extra = {}) {
     const q = provenance;
     out.push(`Tool: ${q.tool}`);
     if (q.surface) out.push(`Surface: ${q.surface} | interface points: ${q.sourcePoints} | orientations: ${q.orientations}`);
-    if (q.target) out.push(`Alteration assemblage: ${q.target} | indicator iso-level: ${q.isoLevel}`);
+    if (q.target && q.isoLevel != null) out.push(`Alteration assemblage: ${q.target} | indicator iso-level: ${q.isoLevel}`);
+    // TASKS.csv #144 — the vein/dyke tool's params have their own shape (no iso-level, no element), and
+    // the numbers that matter for auditing a vein are the attitude, the TRUE-vs-downhole thickness and
+    // the honesty diagnostics — an exported vein that stated its cell size but not that its thickness is
+    // an interpolation between a handful of intercepts would be exactly the overclaim #269 guards against.
+    if (q.construction && q.target) {
+      out.push(`Vein/dyke: ${q.target} — this file is the ${q.part || "surface"} of a paired hangingwall/footwall model`);
+      out.push(`Construction: ${q.construction}`);
+      out.push(`Reference attitude: ${q.dip?.toFixed ? q.dip.toFixed(1) : q.dip} dip / ${q.dipDir?.toFixed ? q.dipDir.toFixed(1) : q.dipDir} dip direction (${q.attitudeSource})${q.rmsOffReferencePlaneM != null ? ` | intercept midpoints scatter ${q.rmsOffReferencePlaneM.toFixed(1)} m RMS off that plane` : ""}`);
+      out.push(`TRUE thickness (corrected for oblique intersection): ${q.trueThicknessMinM?.toFixed(2)}–${q.trueThicknessMaxM?.toFixed(2)} m, mean ${q.trueThicknessMeanM?.toFixed(2)} m | mean DOWNHOLE length was ${q.downholeThicknessMeanM?.toFixed(2)} m`);
+      out.push(`Paired intercepts: ${q.intercepts} | grid: ${q.cellSizeM?.toFixed(1)} m cells${q.cellSizeAuto ? " (auto)" : ""}, ${Math.round(q.searchRadiusM)} m in-plane search${q.searchRadiusAuto ? " (auto)" : ""}${q.gridCoarsened ? ", coarsened to stay under the grid limit" : ""}, ${q.informedNodes} informed nodes`);
+      out.push(`Hangingwall and footwall cannot cross: both are offsets of one midplane by ±half a non-negative thickness field (minimum modelled thickness ${q.minSeparationM?.toFixed(3)} m${q.pinchOut ? ", the vein pinches out to zero" : ""}).`);
+      if (q.contactResidualRmsM != null) out.push(`Fit at the logged contacts: ${q.contactResidualRmsM.toFixed(2)} m RMS (max ${q.contactResidualMaxM?.toFixed(2)} m) — measured AT the intercepts, where an inverse-distance field nearly reproduces its own data.`);
+      if (q.midplaneLooRmsM != null) out.push(`Leave-one-out cross-validation of the midplane: ${q.midplaneLooRmsM.toFixed(1)} m RMS (worst ${q.midplaneLooMaxM?.toFixed(1)} m) against a ${Math.round(q.searchRadiusM)} m search radius${q.incoherentSheet ? " — NO predictive skill at this hole spacing: these intercepts are not one continuous sheet" : ""}`);
+      if (q.nominalHwFwLabels) out.push(`This structure is near-vertical, so "hangingwall" and "footwall" are nominal labels.`);
+      out.push(`Away from the drillholes this vein's shape, thickness and extent are the interpolation's, not the data's — it is an interpretation, not a measurement.`);
+    }
     if (q.relation) out.push(`Unit relationship: ${q.relation === "erode" ? "erode (each unit truncates those below — unconformity)" : "onlap (conformable pile, one shared interpolated field)"}`);
     if (q.resolution) out.push(`Model grid resolution: ${q.resolution.join(" x ")} cells`);
     if (q.gempyRange != null) out.push(`GemPy potential-field range: ${q.gempyRange}${q.gempyRangeDefault != null ? ` (GemPy default ${q.gempyRangeDefault}${q.gempyRangeMultiplier ? `, multiplier ${q.gempyRangeMultiplier}` : ", used as-is"})` : ""}${q.gempyCO != null ? ` | c_o: ${q.gempyCO}` : ""}`);

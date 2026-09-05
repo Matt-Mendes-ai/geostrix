@@ -18,6 +18,7 @@ import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
+import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import AttributeTableModal from "../components/AttributeTableModal.jsx";
 import { createCompassRose } from "../components/CompassRose.js";
@@ -58,6 +59,8 @@ import {
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
 import { checkTopology } from "../lib/topology.js"; // TASKS.csv #90
+import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
+import SculptPanel from "../components/SculptPanel.jsx"; // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS, SUPPORT_COLORS, summarizeSupport, ESTIMATION_METHODS } from "../lib/estimation.js"; // SUPPORT_*: TASKS.csv #91/#92
 import { marchingCubes } from "../lib/marchingCubes.js";
@@ -444,6 +447,12 @@ const SURFACE_TYPES = [
   { key: "breccia_body", label: "Breccia body (cross-cutting)" },
   { key: "mineralization_envelope", label: "Mineralization envelope" },
   { key: "alteration_envelope", label: "Alteration envelope" },
+  // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
+  // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
+  // reads "hangingwall is above footwall" off the relationship these are created with.
+  { key: "vein_hangingwall", label: "Vein/dyke — hangingwall" },
+  { key: "vein_footwall", label: "Vein/dyke — footwall" },
+  { key: "vein_solid", label: "Vein/dyke — solid" },
   { key: "unconformity", label: "Unconformity (erosional)" },
   { key: "intrusive_contact", label: "Intrusive contact" },
   // TASKS.csv #148 — an imported solid (pit shell, stope design, another package's wireframe) is a
@@ -1128,6 +1137,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [alterationCellSize, setAlterationCellSize] = useState(0);
   const [alterationSearchRadius, setAlterationSearchRadius] = useState(0);
   const [alterationBusy, setAlterationBusy] = useState(false);
+  // TASKS.csv #144 — vein/dyke tool state. `veinDip`/`veinDipDir` are empty strings when the attitude
+  // is to be FITTED from the intercept midpoints (the normal case); typing both overrides the fit,
+  // which is what a single section line of holes needs, since collinear midpoints cannot fix a plane.
+  const [veinTarget, setVeinTarget] = useState("");
+  const [veinDip, setVeinDip] = useState("");
+  const [veinDipDir, setVeinDipDir] = useState("");
+  const [veinCellSize, setVeinCellSize] = useState(0);
+  const [veinSearchRadius, setVeinSearchRadius] = useState(0);
+  const [veinBusy, setVeinBusy] = useState(false);
   const [stackUnits, setStackUnits] = useState([]); // ordered youngest -> oldest, for the stratigraphic stack tool
   // TASKS.csv #271 — GemPy StackRelationType. Defaults to ONLAP (conformable) for two reasons: it's the
   // right model for the volcanic-hosted stratigraphy this app targets, and it is also exactly the
@@ -2361,6 +2379,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const lithoGroupRole = (g) => { const roles = new Set((g.codes || []).map(roleForLithology)); return roles.size === 1 ? [...roles][0] : null; };
   const lithoGroupCrossCuts = (g) => (g.codes || []).some((c) => isCrossCuttingRole(roleForLithology(c)));
   const alt_units = distinctValues(layers.alt || []).map(([v]) => v);
+  const vein_units = distinctValues(layers.vein || []).map(([v]) => v); // TASKS.csv #144
   const struct_types = distinctValues(layers.structure || []).map(([v]) => v);
 
   // The sidebar's notices list sits below the (potentially long) Holes list, so on a property with
@@ -3219,6 +3238,146 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }, 40);
   }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, anisotropy, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
 
+  // TASKS.csv #144 — vein/dyke hangingwall–footwall modelling.
+  //
+  // Why this is its own tool and not a call into the stack/structural machinery: a vein intercept gives
+  // TWO contacts of ONE structure (the from-depth and the to-depth of the logged interval) plus a true
+  // thickness between them. The stack tool refuses cross-cutting bodies by design, and the structural
+  // tool fits a single self-referential surface, so neither can express "these two surfaces belong
+  // together and must stay a consistent thickness apart". The construction — one midplane plus a
+  // thickness field, offset by ±t/2 to get the pair — lives in src/lib/vein.js, which documents in full
+  // why it was chosen over fitting the two contacts independently (short version: with a positive
+  // thickness field the two surfaces CANNOT cross, so negative thickness is impossible by construction
+  // rather than something to detect afterwards).
+  //
+  // Like the alteration halo (#272) this runs entirely in-app — no GemPy/sidecar. GemPy's stratigraphic
+  // machinery models a scalar field with an assumed polarity and would have to be run twice, once per
+  // contact, with nothing tying the two runs together — exactly the failure mode this row exists to
+  // avoid.
+  const runVeinModel = useCallback((veinValue) => {
+    if (!veinValue) return;
+    const traces = tracesRef.current;
+    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the vein model."]); return; }
+    const o = originRef.current;
+    const domain = domains.find((d) => d.id === modelDomainId);
+    const label = `Vein: ${veinValue}`;
+    setVeinBusy(true);
+    setTaskProgress?.({ label, pct: 20 });
+    setTimeout(() => {
+      try {
+        const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
+        const rows = (layers.vein || []).filter((r) => r.value === veinValue && r.hole_id != null
+          && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
+          && !excludedIntercepts.includes(interceptId("vein", r))); // #84 — reviewed-out intercepts never model
+        if (!rows.length) throw new Error(`No "${veinValue}" intervals found — nothing to model.`);
+
+        // Both contacts of every intercept, in world ENU (east, north, elevation) — the frame vein.js,
+        // trueWidth.js and stereonet.js all speak, so no conversion happens inside the maths.
+        const intercepts = [];
+        let unplaceable = 0;
+        rows.forEach((r) => {
+          const t = traceOf.get(r.hole_id);
+          if (!t) { unplaceable++; return; }
+          const a = findOnTraceWorld(t, Number(r.from));
+          const b = findOnTraceWorld(t, Number(r.to));
+          if (!a || !b) { unplaceable++; return; }
+          intercepts.push({ holeId: r.hole_id, from: Number(r.from), to: Number(r.to),
+            hw: { x: a[0], y: a[1], z: a[2] }, fw: { x: b[0], y: b[1], z: b[2] } });
+        });
+        if (!intercepts.length) throw new Error("No vein intercepts could be located in 3D — check that the logged holes have collars and survey.");
+
+        let used = intercepts;
+        if (domain) {
+          const inDomain = (p) => pointInDomain(apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]), domain, implicitMeshesRef.current);
+          used = intercepts.filter((i) => inDomain(i.hw) || inDomain(i.fw));
+          if (used.length < intercepts.length) setNotices((q) => [...q, `Domain "${domain.name}": excluded ${intercepts.length - used.length} of ${intercepts.length} vein intercept(s) outside the domain.`]);
+          if (!used.length) throw new Error(`No "${veinValue}" intercepts fall inside domain "${domain.name}" — nothing to model.`);
+        }
+
+        const dip = veinDip === "" ? null : Number(veinDip);
+        const dipDir = veinDipDir === "" ? null : Number(veinDipDir);
+        const model = buildVeinModel(used, {
+          cellSize: veinCellSize > 0 ? veinCellSize : 0,
+          searchRadius: veinSearchRadius > 0 ? veinSearchRadius : 0,
+          ...(Number.isFinite(dip) && Number.isFinite(dipDir) ? { dip, dipDir } : {}),
+        });
+
+        const toScene = (p) => apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]);
+        const makeMesh = (part, color, opacity) => {
+          const pos = new Float32Array(part.positions.length * 3);
+          part.positions.forEach((p, i) => { const s = toScene(p); pos[i * 3] = s.x; pos[i * 3 + 1] = s.y; pos[i * 3 + 2] = s.z; });
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+          geo.setIndex(part.faces.flat());
+          geo.computeVertexNormals();
+          return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity }));
+        };
+
+        const th = model.thickness, ck = model.checks, pl = model.plane;
+        const base = {
+          tool: "vein/dyke (midplane + thickness field)", target: veinValue,
+          construction: "one midplane surface plus an interpolated TRUE-thickness field, offset by ±t/2 along the reference pole — the hangingwall and footwall are the same structure, so they cannot cross",
+          attitudeSource: pl.attitudeSource, dip: pl.dip, dipDir: pl.dipDir,
+          rmsOffReferencePlaneM: pl.rmsOffPlane, planarityRatio: pl.planarity,
+          intercepts: model.intercepts.length,
+          trueThicknessMinM: th.trueMin, trueThicknessMaxM: th.trueMax, trueThicknessMeanM: th.trueMean,
+          downholeThicknessMeanM: th.downholeMean, thicknessRefinedToLocalNormal: th.refined,
+          cellSizeM: model.grid.cellSize, cellSizeAuto: !(veinCellSize > 0),
+          searchRadiusM: model.grid.searchRadius, searchRadiusAuto: !(veinSearchRadius > 0),
+          gridCoarsened: model.grid.coarsened, informedNodes: model.grid.informedNodes,
+          contactResidualRmsM: ck.contactResidualRms, contactResidualMaxM: ck.contactResidualMax,
+          midplaneLooRmsM: ck.midplaneLooRms, midplaneLooMaxM: ck.midplaneLooMax, incoherentSheet: ck.incoherentSheet,
+          minSeparationM: ck.minSeparation, nonCrossingByConstruction: true, pinchOut: ck.pinchOut,
+          nominalHwFwLabels: ck.nominalLabels,
+          domain: domain ? domain.name : null,
+          generatedAt: new Date().toISOString(),
+        };
+        const stamp = (part, suffix, color, opacity, type, relationships = []) => {
+          const mesh = makeMesh(part, color, opacity);
+          const vol = computeMeshVolume(mesh.geometry);
+          mesh.userData = { tip: `${label} — ${suffix}\n${part.positions.length} vertices, ${part.faces.length} faces` };
+          implicitGroupRef.current?.add(mesh);
+          const id = `impl_${Date.now()}_vein_${suffix}_${Math.random().toString(36).slice(2, 7)}`;
+          implicitMeshesRef.current[id] = mesh;
+          setImplicitSurfaces((p) => [...p, { id, name: `${label} — ${suffix}`, visible: true,
+            vertexCount: part.positions.length, faceCount: part.faces.length, type,
+            relationships, params: { ...base, part: suffix } }]);
+          return { id, vol };
+        };
+        // Footwall first, so the hangingwall can be created already declaring "is above" it — the
+        // relationship #90's topology checker reads. The construction makes that true by definition;
+        // declaring it means the checker can independently confirm it rather than take it on trust.
+        const fwSurf = stamp(model.footwall, "footwall", 0x3d8ecf, 0.75, "vein_footwall");
+        // Only declared for a vein flat enough for "above" to mean something VERTICALLY, which is how
+        // topology.js's sidedness check reads it. On a near-vertical vein the two walls barely overlap
+        // in plan and "above" would be a meaningless (and possibly falsely violated) claim.
+        const aboveRel = pl.dip <= 75 ? [{ relation: "above", targetId: fwSurf.id }] : [];
+        stamp(model.hangingwall, "hangingwall", 0xe08a3c, 0.75, "vein_hangingwall", aboveRel);
+        const solidVol = stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
+
+        const fmt = (n, d = 2) => Number(n).toFixed(d);
+        setNotices((p) => [...p, `Added "${label}": ${model.intercepts.length} paired intercept(s)${unplaceable ? `, ${unplaceable} unplaceable` : ""} → midplane ${fmt(pl.dip, 1)}° / ${fmt(pl.dipDir, 1)}° (${pl.attitudeSource}), TRUE thickness ${fmt(th.trueMin)}–${fmt(th.trueMax)} m (mean ${fmt(th.trueMean)} m; mean DOWNHOLE length ${fmt(th.downholeMean)} m)${th.refined ? ", thickness corrected against the local modelled normal" : ""} → ${model.grid.nu}×${model.grid.nv} grid, ${model.grid.informedNodes.toLocaleString()} informed nodes, ${fmt(model.grid.cellSize, 1)} m cells, ${fmt(model.grid.searchRadius, 0)} m search${model.grid.coarsened ? " (coarsened to stay under the grid limit)" : ""}${solidVol?.watertight ? `. Solid ${solidVol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³` : ""}.`]);
+        setNotices((p) => [...p, `"${label}": hangingwall and footwall are offset ±half the interpolated thickness from one shared midplane, so they cannot cross — minimum modelled thickness ${fmt(ck.minSeparation, 3)} m${ck.pinchOut ? " (the vein pinches out to zero somewhere in the model)" : ""}. Modelled contacts sit ${fmt(ck.contactResidualRms, 2)} m RMS (max ${fmt(ck.contactResidualMax, 2)} m) from the logged ones — measured AT the intercepts, where an inverse-distance field nearly reproduces its own data, so a small number here says the pair honours the logging, not that the shape between holes is right.${pl.rmsOffPlane != null ? ` The intercept midpoints scatter ${fmt(pl.rmsOffPlane, 1)} m RMS off a single plane, so the ${fmt(pl.dip, 0)}°/${fmt(pl.dipDir, 0)}° figure is a reference attitude, not a measurement of one continuous surface.` : ""}`]);
+        setNotices((p) => [...p, `A vein fitted from ${model.intercepts.length} intercept(s) is an interpretation, not a measurement: away from the holes its shape, its thickness and its extent are the interpolation's, not the data's. Thickness between holes is interpolated, so a pinch-out or a swell that no hole cut will not appear.`]);
+        if (pl.attitudeSource === "fitted to intercept midpoints" && pl.planarity != null && pl.planarity > 0.15) setNotices((p) => [...p, `"${label}": the intercept midpoints are not very planar (out-of-plane spread is ${Math.round(pl.planarity * 100)}% of their in-plane spread), so the fitted ${fmt(pl.dip, 0)}°/${fmt(pl.dipDir, 0)}° reference attitude is a weak average — consider entering the vein's dip and dip direction instead.`]);
+        // A hole that logs one vein logs it ONCE. Many intercepts per hole means this code is a vein
+        // SET (sheeted veinlets, a stockwork), and a single hangingwall/footwall pair is then the
+        // envelope of the set at best — worth saying out loud, because the result still looks like a
+        // confident single structure on screen.
+        if (ck.midplaneLooRms != null) setNotices((p) => [...p, `"${label}": leave-one-out cross-validation — dropping each intercept and predicting it from the others misses by ${fmt(ck.midplaneLooRms, 1)} m RMS (worst ${fmt(ck.midplaneLooMax, 1)} m) against a ${fmt(model.grid.searchRadius, 0)} m search radius.${ck.incoherentSheet ? " That is no better than guessing at this hole spacing: these intercepts are NOT behaving like one continuous sheet, and a single hangingwall/footwall pair is the wrong picture for them." : ""}`]);
+        const holeCount = new Set(used.map((i) => i.holeId)).size;
+        if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, `"${label}": ${used.length} intercepts in ${holeCount} hole(s) — about ${(used.length / holeCount).toFixed(1)} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.`]);
+        if (ck.nominalLabels) setNotices((p) => [...p, `"${label}" is near-vertical (${fmt(pl.dip, 0)}° dip), so "hangingwall" and "footwall" are nominal labels here — the two surfaces are simply the two walls of the structure.`]);
+        const meshes = Object.values(implicitMeshesRef.current);
+        if (meshes.length) fitBox(new THREE.Box3().setFromObject(meshes[meshes.length - 1]));
+      } catch (e) {
+        setNotices((p) => [...p, `Vein model failed: ${e.message || e}`]);
+      }
+      setTaskProgress?.(null);
+      setVeinBusy(false);
+    }, 40);
+  }, [layers.vein, domains, modelDomainId, excludedIntercepts, veinDip, veinDipDir, veinCellSize, veinSearchRadius, fitBox, setTaskProgress]);
+
   // TASKS.csv #142 — numeric (continuous-variable) implicit model: a grade-shell wireframe built
   // DIRECTLY from assay values, no GemPy/sidecar involved. Every other tool above keys off categorical
   // litho/alt/structure codes; this is the "Au > 1 g/t envelope" Leapfrog users expect. Pipeline, all
@@ -3619,6 +3778,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // Resource estimate" stamp, so it can't come back later stripped of the assumptions behind it.
     const prov = surf.params || null;
     const extra = { epsg: project?.epsg, densityTPerM3: surf.density ?? null, volumeM3: computeMeshVolume(mesh.geometry).volumeM3 };
+    // TASKS.csv #145 — a hand-sculpted surface must not leave this app claiming to be a clean
+    // interpolation of its stated parameters. The edit log travels with the mesh (see
+    // meshExport.js's provenanceLines, where it is stamped ahead of every parameter line), including
+    // the volume as generated vs. the volume now, since volume is what drives tonnage.
+    if (surf.editCount > 0) {
+      const edits = surf.edits || [];
+      extra.manualEdits = {
+        count: surf.editCount,
+        edits,
+        volumeAsGeneratedM3: edits.length ? edits[0].volumeBeforeM3 : null,
+        volumeNowM3: extra.volumeM3,
+      };
+    }
     try {
       if (format === "obj") {
         const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra);
@@ -4338,6 +4510,32 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // guard above catches it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [implicitSurfaces]);
+
+  // ---------- TASKS.csv #145 — MANUAL SURFACE EDITING / SCULPTING ----------
+  // Implicit fits are never perfect near sparse data, and until now a generated surface was
+  // regenerate-only: a 3 m error next to one hole could only be "fixed" by changing a global parameter
+  // and re-running, which moves the surface everywhere else too. This lets a patch be corrected in
+  // place, with a smooth falloff, an exact volume delta, and an honest provenance flag.
+  //
+  // Deliberately placed here, immediately after the #52 persistence effects, because of
+  // `onGeometryEdited`: the sync-out effect above caches each mesh's world-space serialisation keyed
+  // on the GEOMETRY'S uuid so that metadata-only edits don't re-serialise tens of thousands of
+  // vertices. A sculpt mutates the position buffer IN PLACE, so the uuid is unchanged and that cache
+  // would hand the old geometry to the next save — the edit would render correctly and then quietly
+  // vanish from the project file. Dropping the surface's cache entry on commit is the fix, and it has
+  // to happen where surfaceGeomCacheRef is in scope.
+  //
+  // Everything else (the maths, the picking, the undo stack, the marker) is in src/lib/sculpt.js and
+  // src/lib/useSculpt.js, hand-verified in bare Node against analytic ground truth before any of this
+  // was wired up — see the TASKS.csv #145 notes for the numbers.
+  const sculpt = useSculpt({
+    surfaces: implicitSurfaces, // so sculpt mode can't be left pointing at a surface that no longer exists
+    meshesRef: implicitMeshesRef,
+    groupRef: implicitGroupRef,
+    mountRef, cameraRef, originRef,
+    setImplicitSurfaces, setNotices,
+    onGeometryEdited: useCallback((id) => { delete surfaceGeomCacheRef.current[id]; }, []),
+  });
 
   // ---------- TASKS.csv #90 — topological relationship checking ----------
   // The consumer #83 was missing. Runs src/lib/topology.js over every surface currently in the scene,
@@ -6719,6 +6917,54 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </div>
         {alterationBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
 
+        {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
+            and cannot do (paired by construction; thickness between holes is interpolated), because a
+            vein drawn from a handful of intercepts looks far more certain on screen than it is. */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Vein / dyke modeling (beta)</div>
+        <div style={{ fontSize: 10, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are
+          the two walls of one structure. A midplane is fitted through the intercept midpoints and a
+          TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is
+          interpolated over it; the hangingwall and footwall are that midplane offset by half the
+          thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app,
+          no Python sidecar needed.
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "6px 8px", color: "#1a2028", fontSize: 11.5 }}>
+            <option value="">Choose a vein / dyke…</option>
+            {vein_units.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <button
+            onClick={() => runVeinModel(veinTarget)}
+            disabled={!veinTarget || veinBusy}
+            title="Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)"
+            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
+          >{veinBusy ? <span style={{ fontSize: 11 }}>…</span> : <Layers3 size={14} />}</button>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <label style={{ ...miniField }} title="Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).">Cell size (m)
+            <input type="number" min={0} value={veinCellSize} onChange={(e) => setVeinCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          </label>
+          <label style={{ ...miniField }} title="In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).">Search (m)
+            <input type="number" min={0} value={veinSearchRadius} onChange={(e) => setVeinSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <label style={{ ...miniField }} title="Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.">Dip (°)
+            <input type="number" min={0} max={90} value={veinDip} placeholder="fit" onChange={(e) => setVeinDip(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          </label>
+          <label style={{ ...miniField }} title="Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.">Dip dir (°)
+            <input type="number" min={0} max={360} value={veinDipDir} placeholder="fit" onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          </label>
+        </div>
+        <div style={{ fontSize: 9.5, color: "#94a1b0", marginBottom: 8, lineHeight: 1.4 }}>
+          0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the
+          data. Adds three surfaces: hangingwall, footwall, and a closed solid for volume. Between holes
+          the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out
+          or swell no hole intersected will not be in it.
+        </div>
+        {veinBusy && <div style={{ fontSize: 10, color: "#8fd9ab", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
+
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
             sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
             Generated surfaces list below like any GemPy surface. */}
@@ -7092,6 +7338,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     <div style={{ fontSize: 10, color: "#94a1b0" }}>No mesh geometry found for this surface.</div>
                   )}
 
+                  {/* TASKS.csv #145 — manual sculpting of this surface, plus its hand-edit provenance.
+                      Placed directly under the volume/tonnage block on purpose: an edit changes the
+                      enclosed volume, and the number it changes is the one immediately above. */}
+                  <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />
+
                   {/* TASKS.csv #143 — export to a standard mesh format, at real-world project coordinates
                       (not GeoStrix's internal scene-space), for handoff to other software. */}
                   <div style={{ fontSize: 10, color: "#55606e", marginTop: 10, marginBottom: 4, borderTop: "1px solid #dde1e6", paddingTop: 8 }}>Export mesh</div>
@@ -7251,7 +7502,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode ? "crosshair" : "default" }}>
+      {/* TASKS.csv #145 — sculpt.handleViewClick joins the same click chain as the section/measure/
+          pick-hole tools; it is a no-op unless sculpt mode is on for a specific surface. */}
+      <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line
             ("Import collars, or drag a CSV in") on the very first tab every user lands on, while
