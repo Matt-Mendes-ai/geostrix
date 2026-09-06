@@ -67,14 +67,47 @@ function categoricalSafeColor(namespace, key) {
 // blue (was pale sage-green, too close to m4's pale tan — blue sits outside the red-green confusion
 // axis so this is a more reliable separation than another green/brown shade would be); kom pushed
 // toward teal (was a mid-green nearly matching flt's red at similar lightness).
+//
+// TASKS.csv #307 — the full pass #249 stopped short of, and a CONSTRAINED re-fit, not a repaint.
+// Two measured defects. (1) LIGHTNESS CLUSTERING: twelve of the 28 codes sat between CIE L* 28 and
+// 48 (v6/i6/m1/flt/kom/thol-fe/thol-mafic/ca-basalt/bas/and-bas/alk-bas/sub-alk). Lithology renders
+// at LAYER_META.litho radius 2.2 world units — a two-or-three-pixel trace on a 37-hole overview —
+// and at that width lightness is very nearly the only channel that survives antialiasing, so the
+// overview read as a near-monochrome sage-green bundle. (2) obn (#8a7860) and v5 (#6b8060) were 6.7
+// units apart under simulated deuteranopia and 0.5 under protanopia, i.e. the same colour to a
+// red-green-CVD viewer — and both codes are in the shipped sample_data/ six-hole lithology log, so
+// overburden vs. a mineralised host volcanic was indistinguishable in the app's own demo data.
+//
+// WHAT WAS DELIBERATELY PRESERVED, because it is domain meaning and not decoration:
+//   * The hue families. Mafic volcanics stay dark green (v6/bas/ca-basalt, i6/thol-mafic, and-bas),
+//     intermediates mid green (v5/ca-and/and), felsics tan/orange/gold (v1/ca-dac/rhy-dac, ca-rhy),
+//     overburden warm brown/tan (obn), faults red (flt). A geologist reads those hues as meaning.
+//   * The deliberate synonym sets — alternative NOMENCLATURES for the same rock, so they must keep
+//     an identical hex and must always be edited as a group: v6/bas/ca-basalt, v5/ca-and/and,
+//     v1/ca-dac/rhy-dac, and i6/thol-mafic. 21 distinct colours across 28 codes, unchanged.
+//   * #249's three directional decisions: m1 warm brown, s6 blue, kom teal-green — all kept, only
+//     re-levelled in lightness.
+// The change is therefore a re-fit of LIGHTNESS (and chroma) inside each fixed hue family: an even
+// L* ladder from 13.6 (s7) to 90.7 (m4) with a minimum adjacent gap of 1.8 and no gap of 0.0, so
+// units separate at trace width instead of only when you zoom to a few holes. Codes left in the
+// L* 28-48 band: six, down from twelve. obn was additionally moved off the green axis to the warm
+// tan a cover unit conventionally gets — the same reasoning #249 used for s6 and kom — which takes
+// obn/v5 from 6.7 to 106.2 (deuteranopia) and 0.5 to 112.4 (protanopia).
+// VERIFIED with a Vienot-1999 LMS-projection dichromacy simulation over all pairs in BOTH
+// deuteranopia and protanopia, using #306's ~25-unit simulated-sRGB collision threshold. On the
+// eight codes that actually ship in sample_data/litho.csv the worst pair goes from 6.7/0.5 to
+// 35.4/35.2 with zero pairs under 25; across the co-occurring base code set the worst is 29.1 and
+// across the TAS/volcanic-classification set 25.0. Residual sub-25 pairs are all CROSS-nomenclature
+// (e.g. s5 vs sub-alk) — two schemes that would not be logged in one project — and are the price of
+// holding 21 colours inside six conventional hue families; see this row's notes for the full table.
 export const LITHO_COLORS = {
-  obn: "#8a7860", v1: "#c98a5a", silbx: "#d4522e", s5: "#6b7a8a", s4: "#8a8578",
-  s7: "#332f2a", v5: "#6b8060", v6: "#33502f", i6: "#3d5a4c", m1: "#8a6a4a",
-  m4: "#d8d0b8", s6: "#9bb8c2", flt: "#c0392b",
-  kom: "#1f7a5a", "thol-fe": "#7a3d3d", "thol-mafic": "#3d5a4c", "ca-basalt": "#33502f",
-  "ca-and": "#6b8060", "ca-dac": "#c98a5a", "ca-rhy": "#d8b06a",
-  bas: "#33502f", "and-bas": "#4a6b4a", and: "#6b8060", "rhy-dac": "#c98a5a",
-  "alk-bas": "#7a3d5a", trachy: "#a5708a", "sub-alk": "#3d5a6b", fono: "#8a6fae",
+  obn: "#d0b8a0", v1: "#dc7f4c", silbx: "#de6825", s5: "#6387b4", s4: "#bda683",
+  s7: "#2a211a", v5: "#769961", v6: "#2e4433", i6: "#3c604f", m1: "#a27033",
+  m4: "#f5e1d0", s6: "#97d2f9", flt: "#c40522",
+  kom: "#52c58e", "thol-fe": "#7d2e22", "thol-mafic": "#3c604f", "ca-basalt": "#2e4433",
+  "ca-and": "#769961", "ca-dac": "#dc7f4c", "ca-rhy": "#f6d48b",
+  bas: "#2e4433", "and-bas": "#567c42", and: "#769961", "rhy-dac": "#dc7f4c",
+  "alk-bas": "#743e65", trachy: "#d884c5", "sub-alk": "#327378", fono: "#5d78df",
 };
 export const UNIT_NAMES = {
   OBN: "OBN — Overburden", V1: "V1 — Meta-rhyolite flow", SILBX: "SILBX — Hydrothermal breccia",

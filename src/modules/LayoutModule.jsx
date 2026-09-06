@@ -5,6 +5,7 @@ import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { colorForLithology, UNIT_NAMES, distinctValues, minMax } from "../lib/layers.js";
+import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 
@@ -23,17 +24,10 @@ const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" star
 // `meters * pxPerMeter` (see the "scale" branch of LayoutElement below) — so typing a new distance
 // into the "Scale length (m)" field grows/shrinks the bar to match, instead of silently relabeling a
 // fixed-width bar with a number that no longer matches its own printed length.
-function niceScaleNumber(x) {
-  if (!isFinite(x) || x <= 0) return 100;
-  const exp = Math.floor(Math.log10(x));
-  const base = x / Math.pow(10, exp);
-  let nice;
-  if (base < 1.5) nice = 1;
-  else if (base < 3.5) nice = 2;
-  else if (base < 7.5) nice = 5;
-  else nice = 10;
-  return Math.round(nice * Math.pow(10, exp));
-}
+// TASKS.csv #311 — niceScaleNumber used to be defined right here. It moved to src/lib/figureScale.js
+// (imported above, unchanged in behaviour) when #311 put a scale bar in the 3D viewport itself: the
+// viewport bar and this page's bar now round and derive metres-per-pixel through the SAME module, so
+// the two can never quietly disagree about what a metre is.
 
 export default function LayoutModule() {
   const {

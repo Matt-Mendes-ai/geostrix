@@ -25,6 +25,8 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reac
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
+import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
+import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -376,7 +378,19 @@ const ALL_LAYER_KEYS = ["litho", "alt", "vein", "mnlgy", "geotech", "recovery", 
 // the grid popover since #155, and both the project file's viewerUiState and saved themes spread over
 // DEFAULT_GRID (see the hydrate effect and applyTheme), so anyone who set their own keeps it, and any
 // project already saved keeps whatever it stored — this changes the NEW-project/new-user default only.
-const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#c8ced8" };
+const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#c8ced8", axes: false };
+// TASKS.csv #311 — the in-viewport figure overlay (title / legend / scale bar).
+//
+// DEFAULT ON, deliberately, and this was the judgement call the row asks for. The argument for
+// default-off is real: a geologist working interactively may not want chrome over their data. But
+// the two failure modes are not symmetric. Default-off fails INVISIBLY — the overlay is never
+// discovered, the 3D snip stays unusable in a report, and #311 is still open in practice even though
+// the code shipped. Default-on fails VISIBLY and cheaply — the user sees furniture they did not
+// want, switches it off in one click from the Figure popover in the sub-toolbar, and (because this
+// lives in viewerUiState alongside gridConfig/bgColor) it stays off for that project. The overlay is
+// also small, corner-parked, pointer-transparent and less intrusive than the corner gizmos the view
+// already carries. `titleText` empty means "use the project name" — see overlayTitle below.
+const DEFAULT_FIGURE_OVERLAY = { enabled: true, title: true, legend: true, scale: true, titleText: "" };
 // TASKS.csv #308 (4) — the scene background default. Was #ffffff, exactly the same white as the panels
 // and toolbar around it, so the viewport had no visible edge and pale lithologies (m4 #d8d0b8,
 // s6 #9bb8c2) nearly vanished into it. This is theme.js's `bgSubtle` token value, inlined rather than
@@ -1240,6 +1254,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
   const gridGroupRef = useRef(null);
+  // TASKS.csv #311 — the three saturated world-origin axis lines (mkAxis in the mount effect below)
+  // are the single most debug-view-looking element in a screenshot, and they sit at the PROJECT
+  // ORIGIN, which is an arbitrary place relative to the data (it can land straight through a hole
+  // cluster). They are not vestigial — #189 matched the AxisGizmo's arrow colours to them on purpose
+  // so the gizmo and the scene never disagree — so this makes them a toggle (grouped with the grid in
+  // the same popover, the same kind of reference-furniture decision) defaulting OFF rather than
+  // deleting them. The colour-agreement rationale still holds whenever they are switched back on.
+  const axisLinesRef = useRef([]);
+  // TASKS.csv #311 — figure overlay config; see DEFAULT_FIGURE_OVERLAY for the default-on reasoning.
+  const [figureOverlay, setFigureOverlay] = useState({ ...DEFAULT_FIGURE_OVERLAY });
+  // Set by ViewportFigureOverlay to its own imperative scale-bar updater, and called from
+  // updateCamera()/resize() below. Deliberately a ref-held callback rather than React state: a camera
+  // move must NOT re-render this module (#312's 142.9 fps is not something to spend on chrome), and
+  // the overlay's updater itself early-returns without touching the DOM when the bar is unchanged.
+  const figureOverlaySignalRef = useRef(null);
 
   // Viewport background color — defaults to white (matching the rest of the app's UI theme), but the
   // user can pick a different one from the viewport's right-click menu (below) for cases where white
@@ -1686,6 +1715,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setGridConfig({ ...DEFAULT_GRID });
       setBgColor(DEFAULT_BG_COLOR);
       setHoleLabelMode("none");
+      setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1703,6 +1733,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
     setBgColor(s.bgColor || DEFAULT_BG_COLOR);
     setHoleLabelMode(s.holeLabelMode || "none");
+    // TASKS.csv #311 — spread over the defaults (not replaced by them) so a project saved before this
+    // row existed opens with the overlay on, same as a new one, rather than silently missing it.
+    setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...(s.figureOverlay || {}) });
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1722,8 +1755,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       gridConfig,
       bgColor,
       holeLabelMode,
+      figureOverlay, // TASKS.csv #311
     });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, setViewerUiState]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, setViewerUiState]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -1731,6 +1765,69 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.background = new THREE.Color(bgColor);
   }, [bgColor]);
+
+  // TASKS.csv #311 — world-origin axis lines on/off (see axisLinesRef). A plain .visible flip on
+  // three already-built 2-vertex Lines: no geometry rebuild, nothing per frame.
+  useEffect(() => {
+    axisLinesRef.current.forEach((l) => { l.visible = !!gridConfig.axes; });
+    lastActivityRef.current = Date.now(); // wake the idle-throttled render loop so the change is drawn immediately
+  }, [gridConfig.axes]);
+
+  // TASKS.csv #311 — the in-viewport legend's content.
+  //
+  // "Only what is actually visible", matched to what LayoutModule's syncLegendLithologies already
+  // means by it, so the two legends cannot disagree: a layer must be switched ON (layerVisible), the
+  // category must not be filtered out (categoryFilter), and at least one row of it must belong to a
+  // hole that is not hidden (visibleHoles). Labels and colours go through effectiveLabel/
+  // effectiveColor, so a user's legend override (renamed unit, recoloured unit) shows here exactly as
+  // it is drawn in the scene.
+  //
+  // TWO DELIBERATE LIMITS, both stated in the UI rather than hidden:
+  //  - It does NOT frustum-cull. "Visible" means switched on, not "happens to be inside the current
+  //    camera frustum" — deciding that per category would mean per-frame work, which is exactly the
+  //    trade #312 says not to make. Layout's legend sync has the same semantics.
+  //  - Numeric layers (geotech/RQD, recovery, SG, mag. susc., assays) are excluded, for the same
+  //    reason buildSectionPayload's legendItems excludes them: their colour encodes a continuous
+  //    value, so a category list would be either one meaningless swatch or one row per sample. A
+  //    continuous colour ramp key is a bigger piece of work and belongs on its own row.
+  //
+  // Cost: O(rows) over the visible categorical layers, and only when one of those inputs actually
+  // changes — never on a camera move and never per frame.
+  const overlayLegendGroups = useMemo(() => {
+    if (!figureOverlay.enabled || !figureOverlay.legend) return [];
+    const groups = [];
+    CATEGORY_LAYER_KEYS.forEach((key) => {
+      if (!layerVisible[key]) return;
+      const rows = layers?.[key] || [];
+      if (!rows.length) return;
+      const hidden = categoryFilter[key];
+      const seen = new Set();
+      const items = [];
+      for (const row of rows) {
+        const v = row.value;
+        if (v == null || v === "") continue;
+        if (hidden && hidden.has(String(v))) continue;
+        if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
+        const k = String(v);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        items.push([effectiveLabel(key, v), effectiveColor(key, v)]);
+      }
+      if (items.length) groups.push({ key, label: LAYER_META[key].label, items: items.sort((a, b) => String(a[0]).localeCompare(String(b[0]))) });
+    });
+    return groups;
+  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor]);
+
+  // TASKS.csv #311 — title provenance, kept as simple as the row asks for: the project name by
+  // default, overridable with a free-text field in the Figure popover (a figure is often "Section
+  // 4200N — Main zone", which the project name cannot supply). Blank override = fall back to the
+  // project name, so clearing the box restores the default instead of blanking the title.
+  // "Untitled project" is store.jsx's own placeholder for a project that has never been named (the
+  // bundled sample loader leaves it at that), and printing it onto a figure bound for an investor
+  // deck would be worse than printing nothing — so the placeholder falls through to no title at all,
+  // and the Figure popover's title box shows the project name as ITS placeholder to say where the
+  // title normally comes from.
+  const overlayTitle = (figureOverlay.titleText || "").trim() || (project?.name && project.name !== "Untitled project" ? project.name : "");
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -1999,10 +2096,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // The grid itself is now built/rebuilt by a dedicated effect below (see gridGroupRef), driven by
     // gridConfig — replaces this single hardcoded GridHelper so visibility/size/divisions/color/3D
     // mode are all user-adjustable instead of fixed at scene-creation time.
+    // TASKS.csv #311 — kept in a ref and toggled by gridConfig.axes (default off; see axisLinesRef's
+    // own comment for why they exist at all and why they are hidden rather than removed). Three
+    // THREE.Line objects with 2 vertices each — the .visible flip below costs nothing.
     const mkAxis = (dir, color) => new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), dir.clone().multiplyScalar(80)]), new THREE.LineBasicMaterial({ color }));
-    scene.add(mkAxis(new THREE.Vector3(1, 0, 0), 0xe05a4a));
-    scene.add(mkAxis(new THREE.Vector3(0, 1, 0), 0x4ac96a));
-    scene.add(mkAxis(new THREE.Vector3(0, 0, -1), 0x4a9be0));
+    const axisLines = [
+      mkAxis(new THREE.Vector3(1, 0, 0), 0xe05a4a),
+      mkAxis(new THREE.Vector3(0, 1, 0), 0x4ac96a),
+      mkAxis(new THREE.Vector3(0, 0, -1), 0x4a9be0),
+    ];
+    axisLines.forEach((l) => { l.visible = false; scene.add(l); }); // real value applied by the gridConfig.axes effect below, which runs after mount
+    axisLinesRef.current = axisLines;
 
     const updateCamera = () => {
       const cs = camState.current;
@@ -2024,6 +2128,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         dl.target.position.copy(cs.target); dl.target.updateMatrixWorld();
       }
       lastActivityRef.current = Date.now(); // every camera move (drag/wheel/fitView/fitBox/compass) counts as activity — see lastActivityRef comment above
+      // TASKS.csv #311 — the in-viewport scale bar depends on cs.radius, so it has to be refreshed
+      // when the camera actually moves. This is the ONLY hook it gets: it is deliberately NOT in the
+      // rAF loop (see ViewportFigureOverlay's header), so an idle or purely-rendering frame does no
+      // overlay work at all, and the callback itself skips the DOM write unless the bar changed.
+      figureOverlaySignalRef.current?.();
     };
     updateCamera(); camera.__update = updateCamera;
 
@@ -2042,6 +2151,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const w = mount.clientWidth, h = mount.clientHeight;
       if (!w || !h) return;
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); lastActivityRef.current = Date.now();
+      figureOverlaySignalRef.current?.(true); // TASKS.csv #311 — metres-per-pixel depends on the canvas pixel height, so a resize changes the bar even when the camera didn't move. The `true` invalidates the overlay's cached height; this is its ONLY invalidation point, which is why it must stay in resize()
     };
     resizeFnRef.current = resize;
     resize(); const ro = new ResizeObserver(resize); ro.observe(mount);
@@ -2679,7 +2789,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const canvas = renderer.domElement;
     let dataUrl;
     try { dataUrl = canvas.toDataURL("image/png"); } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
-    const worldHeightAtTarget = 2 * cs.radius * Math.tan(fovRad / 2); // same figure either way — see the orthographic branch's comment for why it's exact (not approximate) when req.trueScale is set
+    // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
+    // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
+    // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
+    // Still exact (not approximate) when req.trueScale is set — see the orthographic branch above.
+    const worldHeightAtTarget = worldHeightAtTargetM(camera.fov, cs.radius);
     // TASKS.csv #67 — north-arrow sync. Worked out from first principles and checked numerically
     // (not just by analogy) rather than trusting a guess: CompassRose.js rotates its 3D ring by
     // -cs.theta about Y and views it through a straight-down navCamera with up=(0,0,-1), so N (ring
@@ -6769,6 +6883,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <ViewToolbar
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
+          figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length, 0)}
           themes={themes} themeNameDraft={themeNameDraft} setThemeNameDraft={setThemeNameDraft}
           captureCurrentTheme={captureCurrentTheme} applyTheme={applyTheme}
           renamingThemeId={renamingThemeId} setRenamingThemeId={setRenamingThemeId}
@@ -8378,6 +8493,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           pick-hole tools; it is a no-op unless sculpt mode is on for a specific surface. */}
       <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
+            actually take. Rendered only once there is data to annotate, so the #294 empty state is
+            never covered by a title card describing an empty project. Pointer-transparent throughout
+            (see the component) so hover picking and orbit drags are untouched, and it is DOM rather
+            than WebGL, so it adds no draw calls and nothing to the render loop (#312).
+            NOT captured by snapshotToLayout / doCaptureViewportRender, and that is deliberate: both
+            read pixels back from renderer.domElement.toDataURL(), which sees only the WebGL canvas,
+            so a Layout page built from a snapshot gets the bare view and Layout's own legend/scale/
+            north-arrow elements — no duplicated, half-scaled second legend baked into the image. */}
+        {!!collars.length && (
+          <ViewportFigureOverlay
+            config={figureOverlay}
+            title={overlayTitle}
+            legendGroups={overlayLegendGroups}
+            camStateRef={camState}
+            cameraRef={cameraRef}
+            mountRef={mountRef}
+            camSignalRef={figureOverlaySignalRef}
+          />
+        )}
         {/* TASKS.csv #294 — the fresh-project empty state. This used to be a single grey line
             ("Import collars, or drag a CSV in") on the very first tab every user lands on, while
             Geochem and Geophysics both had full multi-paragraph empty states explaining every
@@ -8836,6 +8971,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 // #155 follow-up) — its sidebar is unchanged for now.
 function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
+  figureOverlay, setFigureOverlay, projectName, legendCount, // TASKS.csv #311
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
@@ -8867,6 +9003,67 @@ function ViewToolbar({
               <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11, fontFamily: "inherit" }} />
               <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: 11, fontFamily: "inherit" }} />
               <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+            </div>
+            {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
+                kind of reference-furniture decision as the grid. Off by default now (they sit at the
+                arbitrary project origin and are the most debug-view-looking thing in a screenshot);
+                switching them on still gives colours that agree with the corner gizmo, per #189. */}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title="Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.">
+              <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} /> Origin axis lines
+            </label>
+          </div>
+        )}
+      </div>
+
+      {/* TASKS.csv #311 — Figure overlay. Lives next to Grid because both are "what furniture does
+          the view carry", and is a popover rather than a bare toggle so the honesty caveat on the
+          scale bar has somewhere to be stated. */}
+      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
+        <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
+          <button className={`ge-subtool-btn ${openPopover === "figure" ? "active" : ""}`} onClick={() => toggle("figure")}>
+            <Ruler size={15} />
+          </button>
+        </HoverToolInfo>
+        {openPopover === "figure" && (
+          <div style={{ ...popoverStyle, width: 268 }}>
+            <div style={popoverHeader}>Figure overlay<X size={13} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the figure overlay popover")} /></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
+              <div onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
+                {figureOverlay.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+              </div>
+              <div style={{ flex: 1, fontSize: 12.5, color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>Show overlay</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} /> Title
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} /> Legend{legendCount ? ` (${legendCount} shown)` : " (nothing switched on)"}
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} /> Scale bar
+              </label>
+            </div>
+            <input
+              type="text" disabled={!figureOverlay.enabled}
+              placeholder={projectName || "Figure title…"}
+              value={figureOverlay.titleText || ""}
+              onChange={(e) => setFigureOverlay((f) => ({ ...f, titleText: e.target.value }))}
+              title="Overrides the project name in the overlay title. Leave blank to use the project name."
+              style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: 11.5, fontFamily: "inherit", marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}
+            />
+            {/* The scale-bar honesty statement. A perspective camera has no single scale — the bar is
+                exact only in the plane through the point you are orbiting around. Saying so here (and
+                on the bar itself, "at view centre") is the whole reason this is a popover: an
+                authoritative-looking bar that is quietly wrong at the depth the reader cares about
+                would be worse than no bar at all. */}
+            <div style={{ fontSize: 10, color: "var(--color-text-caption)", lineHeight: 1.5 }}>
+              The scale bar is exact at the <b>view centre</b> — the point you orbit around. This is a
+              perspective view, so anything nearer the camera reads larger than the bar says and
+              anything farther reads smaller. For a figure where the scale must hold everywhere, add a
+              Viewport on the <b>Layout</b> tab and tick <b>True scale (orthographic)</b> there.
+              <br />The legend lists the categories currently switched on in this view — not everything
+              in the project, and not filtered by what happens to be on screen.
             </div>
           </div>
         )}
