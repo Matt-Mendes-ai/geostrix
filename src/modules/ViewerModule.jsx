@@ -499,7 +499,128 @@ function buildGridGroup(config) {
   return group;
 }
 function disposeThreeGroup(group) {
-  group.traverse((obj) => { obj.geometry?.dispose?.(); obj.material?.dispose?.(); });
+  // TASKS.csv #312 — skip shared prototype geometries (module-level singletons still referenced by
+  // every other layer), and give an InstancedMesh batch its own .dispose() so its instance buffers
+  // are released (disposing the geometry/material alone would not, and the geometry is shared anyway).
+  group.traverse((obj) => { if (!obj.geometry?.userData?.sharedProto) obj.geometry?.dispose?.(); obj.material?.dispose?.(); obj.dispose?.(); });
+}
+
+// ---------- TASKS.csv #312 — GPU-side batching for drillhole layer objects ----------
+// #304 fixed the CPU-side consequence of "one small mesh per interval" (a hover raycast linear-
+// scanning 12,429 objects). This is the GPU-side half of the same structure: every one of those
+// objects was also its own draw call. Measured on the real 37-hole harry_property sample in the
+// REAL Electron window: 13,011 draw calls per main-scene frame, 9.86 fps while orbiting.
+//
+// THE APPROACH, and why it is shaped this way. Everything in this file that matters resolves a
+// pick to ONE specific interval object: pickIndex.js (#304), the hover tooltip, the right-click
+// context menu, applyCategoryVisibility, applyLegendOverrideColors, the visibleHoles effect,
+// zoomToLayer. A naive merge would break those SILENTLY (a plausible-but-wrong interval). So the
+// per-interval Mesh objects are NOT removed and NOT changed structurally — they stay exactly where
+// they were, as direct children of their layer group, keeping their own userData.tip/catValue,
+// their own material.color and their own .visible flag. They simply stop being DRAWN: each one is
+// moved onto a non-camera three.js layer channel (PICK_ONLY_LAYER), and one InstancedMesh per
+// (geometry prototype + material signature) family is added to the same group to draw all of them
+// in a single call. The instanced mesh is a pure RENDER-SIDE MIRROR derived from those objects; the
+// objects remain the single source of truth. Consequences worth stating explicitly:
+//   * The picking path is untouched. pickHoverTargets/pickIndex/firstVisibleLayerHit still see the
+//     same per-interval objects, in the same order, under the same parents.
+//   * Because they are never rendered, three.js never uploads their 12,000+ geometries to the GPU.
+//   * Category/legend/hole-visibility bookkeeping keeps operating on the individual objects and is
+//     mirrored into the instance buffers afterwards by syncBatchedInstances().
+// three.js's Raycaster does NOT test object.visible (only WebGLRenderer does — see the note in
+// firstVisibleLayerHit), so moving an object to another layer channel is the only way to stop it
+// drawing without changing what is pickable. pickHits() enables PICK_ONLY_LAYER on the raycaster.
+const PICK_ONLY_LAYER = 1;
+// Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
+// saves — a handful of collar markers is not worth batching.
+const BATCH_MIN_MEMBERS = 24;
+
+// Shared prototype geometries. Batching requires the members of a family to share ONE geometry, so
+// the build code below creates unit-sized primitives and encodes the real size in the object's
+// scale instead of baking it into a per-object geometry (a unit cylinder scaled by (r, len, r) is
+// vertex-for-vertex the same shape CylinderGeometry(r, r, len) produced, and three.js's raycast
+// transforms the ray into local space, so picking is unaffected). `sharedProto` also tags them so
+// the rebuild/unmount disposal passes skip them — disposing a shared prototype would free buffers
+// still referenced by every other user of it.
+function sharedProto(geo, key) { geo.userData.protoKey = key; geo.userData.sharedProto = true; return geo; }
+// Cylinder centred on its own axis by default; translated so scale.y = interval length places the
+// BASE at position, matching what the per-interval CylinderGeometry(...).translate(0, len/2, 0) did.
+const PROTO_CYLINDER = sharedProto(new THREE.CylinderGeometry(1, 1, 1, 6, 1, false).translate(0, 0.5, 0), "cyl6");
+const PROTO_SPHERE_10 = sharedProto(new THREE.SphereGeometry(1, 10, 10), "sph10");
+const PROTO_SPHERE_8 = sharedProto(new THREE.SphereGeometry(1, 8, 8), "sph8");
+const PROTO_SPHERE_12 = sharedProto(new THREE.SphereGeometry(1, 12, 12), "sph12");
+const PROTO_CIRCLE_24 = sharedProto(new THREE.CircleGeometry(1, 24), "circ24");
+
+const _batchMatrix = new THREE.Matrix4();
+const _batchZero = new THREE.Vector3(0, 0, 0);
+// Mirrors the current state of a batch's member objects into its instance buffers. Called after a
+// rebuild and after every in-place mutation of a member (applyCategoryVisibility's .visible flips,
+// applyLegendOverrideColors' material.color repaints, the visibleHoles effect's .visible flips).
+// A hidden member is written as a zero-scale matrix, which collapses its triangles to a point so
+// nothing rasterizes — the instance is still there, so re-showing it is just another matrix write
+// and never a rebuild.
+function syncBatchedInstances(inst) {
+  const members = inst.userData.batchMembers;
+  for (let i = 0; i < members.length; i++) {
+    const m = members[i];
+    m.updateMatrix();
+    _batchMatrix.copy(m.matrix);
+    if (m.visible === false) _batchMatrix.scale(_batchZero);
+    inst.setMatrixAt(i, _batchMatrix);
+    inst.setColorAt(i, m.material.color);
+  }
+  inst.instanceMatrix.needsUpdate = true;
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+  // Both are cached and would otherwise go stale: boundingSphere drives frustum culling, boundingBox
+  // drives zoomToLayer's Box3.setFromObject.
+  inst.boundingBox = null;
+  inst.boundingSphere = null;
+}
+
+// Builds the InstancedMesh mirrors for one already-populated layer group. Members are grouped by
+// (shared prototype geometry + every material property that affects how it draws), so two objects
+// only ever share a draw call when they would have rendered identically apart from colour and
+// transform. Anything without a shared prototype geometry (a curved TubeGeometry interval, a
+// drillhole trace Line, a hole-label Sprite) is simply not a candidate and keeps drawing as before.
+function buildLayerBatches(group) {
+  const families = new Map();
+  for (const child of group.children) {
+    if (!child.isMesh || child.isInstancedMesh) continue;
+    const protoKey = child.geometry?.userData?.protoKey;
+    if (!protoKey) continue;
+    const m = child.material;
+    if (!m || Array.isArray(m) || !m.color) continue;
+    const sig = `${protoKey}|${m.type}|${m.transparent ? 1 : 0}|${m.opacity}|${m.side}|${m.depthWrite ? 1 : 0}|${m.depthTest ? 1 : 0}`;
+    let fam = families.get(sig);
+    if (!fam) families.set(sig, (fam = { geometry: child.geometry, material: m, members: [] }));
+    fam.members.push(child);
+  }
+  for (const fam of families.values()) {
+    if (fam.members.length < BATCH_MIN_MEMBERS) continue;
+    const material = fam.material.clone();
+    // Per-instance colour comes from instanceColor, which the shader MULTIPLIES by the material's
+    // own diffuse colour — so the batch material must be white or every interval would be tinted by
+    // whichever member happened to be cloned. (Do NOT set vertexColors:true here either; see the
+    // voxel InstancedMesh's own comment for the black-render bug that causes.)
+    material.color.setHex(0xffffff);
+    // three.js draws a transparent object's instances in fixed array order, not back-to-front, and
+    // the whole batch now sorts as ONE object at the group's origin instead of as thousands of
+    // individually depth-sorted tubes. With depthWrite left on, an instance that happens to be
+    // drawn first would depth-reject everything behind it and whole tubes would visibly disappear
+    // as the camera moves. depthWrite:false (exactly what #201 did for transparent voxels, for the
+    // same reason) removes that: every instance blends over what is already there. Blend ORDER is
+    // still approximate for overlapping transparent tubes, which is the one accepted visual
+    // trade-off of this row — opaque layers are unaffected and keep depthWrite:true.
+    if (material.transparent) material.depthWrite = false;
+    const inst = new THREE.InstancedMesh(fam.geometry, material, fam.members.length);
+    // Never a pick target: pickHoverTargets skips it, so a hit always resolves to the real
+    // per-interval object and never to the batch (which could not answer "which interval?").
+    inst.userData.pickIgnore = true;
+    inst.userData.batchMembers = fam.members;
+    for (const m of fam.members) m.layers.set(PICK_ONLY_LAYER);
+    group.add(inst);
+    syncBatchedInstances(inst);
+  }
 }
 
 // TASKS.csv #83 — geological-architecture layer 2 (surface/domain semantics). What a generated
@@ -1485,6 +1606,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // never needs to touch geometry. Called directly (not a hook) from two places: inline at the end of
   // the big rebuild effect (reapplies current filters to freshly-built children after a real rebuild),
   // and from the small effect right after it below (the common case — only categoryFilter changed).
+  // TASKS.csv #312 — the per-interval objects stay the source of truth for visibility and colour
+  // (see buildLayerBatches' header); this pushes whatever they currently say into the InstancedMesh
+  // batches that actually draw them. O(objects) but only ever on a real change (a category chip, a
+  // legend colour edit, a hole show/hide) — never per frame, and never a geometry rebuild.
+  const syncLayerBatches = useCallback((keys) => {
+    const groups = layerGroupsRef.current;
+    const walk = (g) => { if (!g) return; for (const c of g.children) if (c.isInstancedMesh && c.userData.batchMembers) syncBatchedInstances(c); };
+    if (keys) keys.forEach((k) => walk(groups[k]));
+    else for (const key in groups) walk(groups[key]);
+  }, []);
   const applyCategoryVisibility = useCallback(() => {
     const groups = layerGroupsRef.current;
     CATEGORY_LAYER_KEYS.forEach((key) => {
@@ -1493,7 +1624,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const hidden = categoryFilter[key];
       g.children.forEach((child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); });
     });
-  }, [categoryFilter]);
+    syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312
+  }, [categoryFilter, syncLayerBatches]);
   // TASKS.csv #227 (continuation) — the post-hoc half of baseColorForBuild above: walks each category
   // layer's already-built children and repaints material.color from the REAL effectiveColor (which does
   // check legendOverride), using the same catValue tag categoryFilter's own pass already relies on. A
@@ -1511,7 +1643,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         child.material.color.set(effectiveColor(key, child.userData.catValue));
       });
     });
-  }, [effectiveColor]);
+    syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312 — repaint the batches' instanceColor from the objects just repainted
+  }, [effectiveColor, syncLayerBatches]);
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
@@ -1638,7 +1771,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (plannedGroupRef.current) list.push(...plannedGroupRef.current.children);
     if (implicitGroupRef.current) list.push(...implicitGroupRef.current.children);
     if (boundaryGroupRef.current) list.push(...boundaryGroupRef.current.children.flatMap((g) => g.children || []));
-    Object.values(layerGroupsRef.current).forEach((g) => { if (g && g.visible !== false) list.push(...g.children); });
+    // TASKS.csv #312 — a layer group now also holds the InstancedMesh batches that DRAW its
+    // children (see buildLayerBatches). Those are never pick targets: raycasting an InstancedMesh
+    // would test every instance (undoing #304's whole win) and would answer with an instanceId
+    // instead of the interval object every consumer here expects. The real per-interval objects are
+    // still in this list, unchanged — they simply no longer render.
+    Object.values(layerGroupsRef.current).forEach((g) => {
+      if (!g || g.visible === false) return;
+      for (const c of g.children) if (!c.userData?.pickIgnore) list.push(c);
+    });
     return list;
   }, []);
   // TASKS.csv #304 — cached object-level BVH over pickHoverTargets(). See src/lib/pickIndex.js for
@@ -1679,7 +1820,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       s += `|${label}${n}:${n ? children[0].id : 0}:${n ? children[n - 1].id : 0}`;
       // Sampled world translations (O(1) per group, never a walk of the ~12,000 objects): catches
       // "same objects, different matrixWorld", which the id triple above cannot see.
-      if (n) { const a = children[0].matrixWorld.elements, b = children[n - 1].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
+      // TASKS.csv #312 — the InstancedMesh batches are appended AFTER the real objects and sit at
+      // the group's own origin, so sampling the literal last child would sample a constant and
+      // waste half of this check. Skip back over them (there are only ever a handful per group) so
+      // both samples land on real pick targets, exactly as they did before batching existed.
+      let last = n - 1;
+      while (last > 0 && children[last].userData?.pickIgnore) last--;
+      if (n) { const a = children[0].matrixWorld.elements, b = children[last].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
     };
     tag("v", voxelGroupRef.current?.children);
     tag("o", omfGroupRef.current?.children);
@@ -1721,6 +1868,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // raycastWorldPoint over the full target list for the status-bar readout, then a second, separate
   // intersectObjects over the layer subset for the tooltip — measured at 1.74 ms each).
   const pickHits = useCallback((raycaster) => {
+    // TASKS.csv #312 — batched layer objects were moved onto PICK_ONLY_LAYER so the camera stops
+    // drawing them individually (their InstancedMesh batch draws them instead). three.js's
+    // Raycaster tests object.layers against ITS OWN layers, so without this every batched interval
+    // would silently become unpickable. Done here, once, rather than at each raycaster's
+    // construction, so every current and future call site of this single pick path is covered.
+    // Enabling an extra channel can only ever ADD candidates, never remove one.
+    raycaster.layers.enable(PICK_ONLY_LAYER);
     const targets = pickCandidates(raycaster);
     return targets.length ? raycaster.intersectObjects(targets, false) : [];
   }, [pickCandidates]);
@@ -2195,7 +2349,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // implicit surface that existed at unmount. Walk the scene and dispose everything before tearing
       // down the renderer.
       scene.traverse((obj) => {
-        obj.geometry?.dispose?.();
+        // TASKS.csv #312 — shared prototype geometries are module-level singletons reused by the
+        // next mount (and by every other layer right now); disposing one here would pull the buffers
+        // out from under them. They are four small primitives, so leaving them is not a leak.
+        if (!obj.geometry?.userData?.sharedProto) obj.geometry?.dispose?.();
+        obj.dispose?.(); // InstancedMesh instance buffers
         const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
         mats.forEach((m) => { m.map?.dispose?.(); m.dispose?.(); });
       });
@@ -4261,7 +4419,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // .map), so this was a harmless no-op for all of them, but hole-label Sprites use a CanvasTexture
     // (SpriteMaterial.map) that this loop would otherwise leak — a growing, uncollectable GPU texture
     // per rebuild — since disposing the material alone does not dispose a texture it merely references.
-    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); } });
+    // TASKS.csv #312 — two additions: shared prototype geometries (PROTO_CYLINDER etc.) must NOT be
+    // disposed here, since every future rebuild and every other layer still references them, and an
+    // InstancedMesh batch needs its own .dispose() to release its instance buffers (disposing the
+    // geometry/material alone would not, and the geometry is a shared prototype anyway).
+    Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } });
     if (!collars.length) {
       setDataLoaded(false);
       hasAutoFitRef.current = false;
@@ -4365,7 +4527,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             try {
               const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
               const size = 1.4 + 2.8 * (gmax > gmin ? (row.value - gmin) / (gmax - gmin) : 0.3);
-              const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) }));
+              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) })); // TASKS.csv #312 — shared prototype + scale
+              mesh.scale.setScalar(size);
               mesh.position.set(x, y, z);
               mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
               groups.geophys_pts.add(mesh);
@@ -4381,7 +4544,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           surfaceSamples.forEach((row) => {
             try {
               const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) }));
+              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
+              mesh.scale.setScalar(1.8);
               mesh.position.set(x, y, z);
               mesh.userData = { tip: surfaceSampleTip(row) };
               groups.surface_samples.add(mesh);
@@ -4390,6 +4554,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           if (sBuildErrors.length) setNotices((p) => [...p, `${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`]);
         }
       }
+      // TASKS.csv #312 — this no-collars branch builds geophys_pts/surface_samples itself and then
+      // returns before the main path's own buildLayerBatches pass at the end of this effect, so it
+      // has to batch what it just built or a collar-less project (a standalone geophysics survey or
+      // soil-sample grid, which can easily be thousands of point markers) would keep paying one draw
+      // call per point. Same call, same semantics as the main path's.
+      Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
       return;
     }
 
@@ -4482,7 +4652,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);
       tracesRef.current.push({ hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
 
-      const marker = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xf2e9d8 }));
+      const marker = new THREE.Mesh(PROTO_SPHERE_12, new THREE.MeshBasicMaterial({ color: 0xf2e9d8 })); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
+      marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);
       marker.userData = { tip: `${c.hole_id}\ncollar` };
       groups.litho.add(marker);
@@ -4561,11 +4732,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
             const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 1e-6) return;
-            geo = new THREE.CylinderGeometry(meta.radius, meta.radius, len, 6, 1, false);
-            geo.translate(0, len / 2, 0); // CylinderGeometry is centered on its own axis by default — shift so position=p1 places the BASE at p1, matching TubeGeometry's own from-p1-to-p2 extent
+            // TASKS.csv #312 — was a per-interval CylinderGeometry(radius, radius, len, 6, 1, false)
+            // .translate(0, len/2, 0). Now the shared unit prototype (already translated the same
+            // way) with the radius/length carried in .scale instead, which is what lets every
+            // straight interval in a layer share ONE InstancedMesh draw call — see PROTO_CYLINDER
+            // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
+            // space, so picking is unchanged.
+            geo = PROTO_CYLINDER;
             const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value);
             const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
+            mesh_.scale.set(meta.radius, len, meta.radius);
             mesh_.position.set(p1.x, p1.y, p1.z);
             mesh_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
           } else {
@@ -4607,7 +4784,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
           const color = meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value);
-          const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
+          const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(size, 10, 10))
+          mesh.scale.setScalar(size);
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
           mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
@@ -4623,10 +4801,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (!p) return;
         const dip = s.dip != null && !isNaN(s.dip) ? s.dip : 45;
         const az = s.azimuth != null && !isNaN(s.azimuth) ? s.azimuth : 0;
-        const geo = new THREE.CircleGeometry(6, 24);
+        const geo = PROTO_CIRCLE_24; // TASKS.csv #312 — shared prototype + scale (was CircleGeometry(6, 24))
         const color = baseColorForBuild("structure", s.value);
         const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
         const disc = new THREE.Mesh(geo, mat);
+        disc.scale.setScalar(6);
         disc.rotation.order = "YXZ";
         disc.rotation.x = Math.PI / 2 - toRad(dip);
         disc.rotation.y = -toRad(az);
@@ -4658,7 +4837,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             const v = a.values[sym];
             const size = assaySizeFor(v, globalAssayRanges[sym], style); // TASKS.csv #306 — takes the whole range (needs its percentiles), not just min/max
             const color = assayColorFor(v, idx, style);
-            const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
+            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
+            mesh.scale.setScalar(size);
             mesh.position.set(p.x + offX, p.y, p.z + offZ);
             const unit = assayElements.find((e) => e.symbol === sym)?.unit || "";
             mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${unit}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
@@ -4681,7 +4861,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = findOnTrace(pts, row.depth);
-            const mesh = new THREE.Mesh(new THREE.SphereGeometry(2.4, 10, 10), new THREE.MeshLambertMaterial({ color: hashColor(row.value) }));
+            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: hashColor(row.value) })); // TASKS.csv #312 — shared prototype + scale
+            mesh.scale.setScalar(2.4);
             mesh.position.set(p.x, p.y, p.z);
             mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };
             layer.group.add(mesh);
@@ -4713,7 +4894,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         try {
           const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
           const size = 1.4 + 2.8 * (max > min ? (row.value - min) / (max - min) : 0.3);
-          const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 8), new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) }));
+          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) })); // TASKS.csv #312 — shared prototype + scale
+          mesh.scale.setScalar(size);
           mesh.position.set(x, y, z);
           mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
           groups.geophys_pts.add(mesh);
@@ -4729,7 +4911,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       surfaceSamples.forEach((row) => {
         try {
           const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) }));
+          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
+          mesh.scale.setScalar(1.8);
           mesh.position.set(x, y, z);
           mesh.userData = { tip: surfaceSampleTip(row) };
           groups.surface_samples.add(mesh);
@@ -4757,6 +4940,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         { x: xs.max - ox, y: zs.max - oz, z: -(ys.max - oy) },
       ]);
     });
+
+    // TASKS.csv #312 — every layer group is fully populated at this point, so collapse each group's
+    // same-geometry/same-material families into InstancedMesh batches (see buildLayerBatches). This
+    // must run BEFORE the applyCategoryVisibility/applyLegendOverrideColors calls below, since both
+    // of those mirror their per-object changes into the batches they find.
+    Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
 
     lastTracesRef.current = allTraces;
     if (buildErrors.length) setNotices((p) => [...p, `${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`]);
@@ -5649,12 +5838,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const groups = layerGroupsRef.current;
     Object.values(groups).forEach((g) => {
       g.children.forEach((child) => {
+        if (child.userData?.pickIgnore) return; // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below
         const tip = child.userData?.tip || "";
         const holeId = tip.split("\n")[0];
         child.visible = !(holeId && visibleHoles[holeId] === false);
       });
     });
-  }, [visibleHoles]);
+    syncLayerBatches(); // TASKS.csv #312
+  }, [visibleHoles, syncLayerBatches]);
 
   // ---------- generic import pipeline ----------
   const openImportModal = (file, forceTarget, chosenLayer = null) => {
