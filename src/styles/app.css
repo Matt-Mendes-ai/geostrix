@@ -49,6 +49,41 @@
   --color-warn-text-strong: #6b4e20;
   --color-hover-bg: #eef1f5;
   --color-tooltip-bg: #dde1e6;
+
+  /* TASKS.csv #305 — TYPE SCALE. Second axis of the same design system the colors above established,
+     and deliberately built on the same mechanism (custom properties on :root, mirrored in
+     src/lib/theme.js) rather than inventing a new one.
+
+     WHY. A measured audit found 870 `fontSize:` declarations across src/ using TWENTY distinct
+     values, 687 of them packed into a 10-12px band 0.5px apart — the 3D View tab alone rendered
+     seven sizes each exactly 0.5px from the next (12.5 / 12 / 11.5 / 11 / 10.5 / 10 / 9.5). A 0.5px
+     step is below the threshold at which a reader perceives a deliberate level, and at device pixel
+     ratio 1 several of them round to the same rendered size anyway — so those steps cost maintenance
+     and buy nothing, and where they ARE visible they read as an inconsistency rather than a
+     hierarchy. Four values (9.6 / 9.8 / 10.2 / 10.8) had no design reason to exist at all next to
+     10 and 10.5.
+
+     FIVE STEPS, and there is no sixth. If a new piece of UI seems to need one, it almost certainly
+     needs one of these instead — that is the whole point of a scale.
+       xs   captions, counts, units, badges — the smallest text that should ever ship
+       sm   secondary labels, uppercase section captions
+       base body text and every control (input, select, button label)
+       lg   panel and modal titles
+       xl   the one-per-screen heading
+
+     `font-weight` was NOT touched: the audit found it already disciplined (600 / 500 / 400 and a
+     single stray 700), i.e. a clean 3-step scale that needs no work.
+
+     EXCLUSIONS, same boundary as the colors: the seven files that serialize a live <svg> out to a
+     standalone .svg/.png (StripLog, SectionWindow, StereonetModal, FenceDiagramModal,
+     DownholeStructurePlot, GeochemModule, lib/striplogSvg.js) keep literal numbers. A var() does not
+     survive leaving the document, and in those files a font size is drawing geometry tuned against
+     plot dimensions, not UI text. */
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-base: 12px;
+  --font-size-lg: 14px;
+  --font-size-xl: 17px;
 }
 
 * { box-sizing: border-box; }
@@ -75,7 +110,7 @@ input, select { font-family: inherit; }
   display: flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 12px;
   background: transparent; border: 1px solid transparent; border-radius: 6px;
-  color: var(--color-text-secondary); font-size: 12.5px; cursor: pointer;
+  color: var(--color-text-secondary); font-size: var(--font-size-base); cursor: pointer;
 }
 .ge-tool-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
 .ge-tool-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); color: var(--color-text); }
@@ -119,7 +154,7 @@ input, select { font-family: inherit; }
   max-width: 180px;
   background: #f7f8fa; border: 1px solid #f0f1f3; border-bottom: none;
   border-radius: 6px 6px 0 0;
-  color: var(--color-text-faint); font-size: 11px; cursor: pointer;
+  color: var(--color-text-faint); font-size: var(--font-size-sm); cursor: pointer;
   flex-shrink: 0;
 }
 .ge-tab:hover { color: #3d4652; }
@@ -145,14 +180,14 @@ input, select { font-family: inherit; }
   display: flex; align-items: center; gap: 16px;
   height: 26px; flex-shrink: 0;
   background: var(--color-bg); border-top: 1px solid var(--color-border);
-  padding: 0 12px; font-size: 11px; color: var(--color-text-secondary);
+  padding: 0 12px; font-size: var(--font-size-sm); color: var(--color-text-secondary);
 }
 .ge-status .val { color: var(--color-text); }
 .ge-status .spacer { flex: 1; }
 
 /* generic panel */
 .ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-right: 1px solid var(--color-border); overflow-y: auto; }
-.ge-section-label { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
+.ge-section-label { font-size: var(--font-size-sm); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
 
 /* Export PDF (electron printToPDF, or window.print() in the browser dev fallback) captures the
    whole window, not just the Layout page — without this, exported PDFs would include the toolbar,

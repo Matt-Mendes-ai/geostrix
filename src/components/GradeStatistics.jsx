@@ -190,8 +190,8 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Grade statistics</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Grade statistics</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
               Univariate distribution per domain — {source === "surface" ? `${surfaceSamples.length} surface samples loaded.` : `${assays.length} intervals loaded.`}
               {source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
@@ -202,7 +202,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {surfaceSamples.length > 0 && (
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Data source
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Data source
                 <select
                   value={source}
                   onChange={(e) => {
@@ -221,40 +221,40 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
             </div>
           )}
           {source === "assays" && qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.">
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
               Include QC samples (standards/blanks/duplicates) in this report
             </label>
           )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Element
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Element
               <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
             {source === "assays" ? (
-              <label style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Domain (optional)
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Domain (optional)
                 <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   <option value="">— none, all intervals together —</option>
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
                 </select>
               </label>
             ) : (
-              <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginBottom: 6 }}>Grouped by sampling medium</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>Grouped by sampling medium</div>
             )}
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log-scale histogram
             </label>
             {/* TASKS.csv #267 */}
             {source === "assays" && (
-              <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title="Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralised zone.">
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title="Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralised zone.">
                 <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} /> Length-weight
               </label>
             )}
           </div>
           {/* TASKS.csv #267 — the panel now always states which mean it is showing. Capping decisions
               and "average grade" statements get made off this table. */}
-          <div style={{ fontSize: 10.5, color: weightingActive ? "var(--color-text-secondary)" : "var(--color-warn-text)", lineHeight: 1.45 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: weightingActive ? "var(--color-text-secondary)" : "var(--color-warn-text)", lineHeight: 1.45 }}>
             {source === "surface"
               ? "Statistics on surface samples — point samples with no interval length, so no weighting applies."
               : weightingActive
@@ -263,7 +263,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
           </div>
 
           {!overallStats ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No {symbol} values found in the loaded {source === "surface" ? "surface sample" : "assay"} data.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No {symbol} values found in the loaded {source === "surface" ? "surface sample" : "assay"} data.</div>
           ) : (
             <>
               <div>
@@ -277,7 +277,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
               </div>
 
               <div style={{ overflowX: "auto" }}>
-                <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+                <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
                       <th style={th}>Domain</th><th style={th}>n</th><th style={th}>Mean</th><th style={th}>Median</th>
@@ -304,7 +304,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
               </div>
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={13} /> Export statistics (CSV)
+                <Download size={14} /> Export statistics (CSV)
               </button>
             </>
           )}
@@ -319,7 +319,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
 }
 
 function Histogram({ data, unit, logScale }) {
-  if (!data) return <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No values to plot.</div>;
+  if (!data) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No values to plot.</div>;
   const w = 640, h = 160, padL = 40, padB = 20;
   const plotW = w - padL - 10, plotH = h - padB - 10;
   const barW = plotW / data.bins.length;
@@ -372,8 +372,8 @@ function BoxPlots({ groups, domainLabel }) {
 
 const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
-const td = { padding: "4px 8px", color: "#1a2028", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
+const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
+const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };

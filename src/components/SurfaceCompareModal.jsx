@@ -140,14 +140,14 @@ export default function SurfaceCompareModal({
     <div style={overlay} onClick={onClose}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
-            <GitCompare size={15} /> Compare model versions
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
+            <GitCompare size={14} /> Compare model versions
           </div>
-          <X size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {multiVersionLineages.length === 0 ? (
-          <div style={{ padding: "24px 8px", fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>
+          <div style={{ padding: "24px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>
             No surface has more than one version yet. Re-run a modelling tool with different parameters,
             then expand the new surface in the Generated surfaces list and set <em>“New version of…”</em>{" "}
             to the run it replaces. Both runs stay in the project — linking them only records that one
@@ -348,17 +348,17 @@ export default function SurfaceCompareModal({
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", width: 880, maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const primaryBtn = { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "#e8eef8", color: "#1a4a9c", fontSize: 11.5, cursor: "pointer" };
-const ghostBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
+const rowLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
+const primaryBtn = { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "#e8eef8", color: "#1a4a9c", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const ghostBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const acceptBtn = { ...ghostBtn, background: "#f1f7f2", borderColor: "#c6e0cb", color: "#20512f" };
-const sectionLabel = { fontSize: 10.5, color: "#94a1b0", textTransform: "uppercase", letterSpacing: 0.4, margin: "6px 0 5px" };
-const tbl = { width: "100%", borderCollapse: "collapse", fontSize: 11 };
-const th = { textAlign: "left", padding: "5px 7px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: 10.5, color: "#55606e", fontWeight: 600 };
-const td = { padding: "4px 7px", borderBottom: "1px solid #eef0f3", color: "#1a2028", whiteSpace: "nowrap" };
-const muted = { fontSize: 10.8, color: "#94a1b0", lineHeight: 1.5 };
-const bigStat = { fontSize: 12, color: "#1a2028" };
-const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: 10.8, color: "#20512f", lineHeight: 1.5 };
-const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "7px 9px", fontSize: 10.8, color: "#6b4e20", lineHeight: 1.5 };
-const hint = { fontSize: 10.2, color: "#94a1b0", marginTop: 7, lineHeight: 1.5 };
+const sectionLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: 0.4, margin: "6px 0 5px" };
+const tbl = { width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" };
+const th = { textAlign: "left", padding: "5px 7px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };
+const td = { padding: "4px 7px", borderBottom: "1px solid #eef0f3", color: "var(--color-text)", whiteSpace: "nowrap" };
+const muted = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 };
+const bigStat = { fontSize: "var(--font-size-base)", color: "var(--color-text)" };
+const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "#20512f", lineHeight: 1.5 };
+const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", lineHeight: 1.5 };
+const hint = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 7, lineHeight: 1.5 };

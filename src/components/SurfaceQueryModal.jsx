@@ -141,14 +141,14 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
     <div style={overlay} onClick={onClose}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
-            <Ruler size={15} /> Distance to surface / point-in-domain
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
+            <Ruler size={14} /> Distance to surface / point-in-domain
           </div>
-          <X size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {!surfaces.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>
             No generated surfaces to query yet. Build one with the implicit-modelling tools on the
             Modeling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear
             in this list.
@@ -193,7 +193,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
 
             {tab === "holes" && mesh && (
               <>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: "8px 0 6px" }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "8px 0 6px" }}>
                   {totals.holes} hole{totals.holes === 1 ? "" : "s"} · {totals.piercing} pierce this surface
                   {mesh.closed ? ` · ${totals.inside.toFixed(1)} m total inside` : ""}
                   {totals.piercing === 0 && totals.holes > 0 && (
@@ -201,7 +201,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                   )}
                 </div>
                 <div style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 11 }}>
+                  <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
                     <thead>
                       <tr>
                         {["Hole", "Closest (m)", "at MD (m)", "Pierce points (MD)", mesh.closed ? "Inside (m)" : "Inside", "Hole length (m)"].map((h) => (
@@ -239,7 +239,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
             {tab === "point" && mesh && (
               <div style={{ display: "flex", gap: 18, alignItems: "flex-start", marginTop: 6 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 220 }}>
-                  <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>Real-world coordinates (same frame as your collars)</div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Real-world coordinates (same frame as your collars)</div>
                   {[["Easting (X)", ptX, setPtX], ["Northing (Y)", ptY, setPtY], ["Elevation (Z)", ptZ, setPtZ]].map(([label, v, set]) => (
                     <label key={label} style={rowLabel}>
                       {label}
@@ -249,22 +249,22 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                 </div>
                 <div style={{ flex: 1, minWidth: 300 }}>
                   {!pointResult ? (
-                    <div style={{ fontSize: 11.5, color: "var(--color-text-muted)", padding: "20px 0", lineHeight: 1.6 }}>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", padding: "20px 0", lineHeight: 1.6 }}>
                       Enter all three coordinates to query. The result is the exact distance to the nearest
                       point on the surface{mesh.closed ? ", signed negative when the point is inside it" : " (this surface is open, so there is no inside to report)"}.
                     </div>
                   ) : (
-                    <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "10px 12px", fontSize: 12, lineHeight: 1.9, color: "var(--color-text)" }}>
+                    <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "10px 12px", fontSize: "var(--font-size-base)", lineHeight: 1.9, color: "var(--color-text)" }}>
                       <div><b>Distance to surface:</b> {pointResult.distance.toFixed(3)} m</div>
                       {mesh.closed ? (
                         <>
                           <div><b>Position:</b> {pointResult.inside ? <span style={{ color: "#1c7a3e" }}>INSIDE</span> : <span style={{ color: "#8a4b1f" }}>outside</span>}</div>
-                          <div><b>Signed distance:</b> {pointResult.signed.toFixed(3)} m <span style={{ color: "var(--color-text-muted)", fontSize: 10.5 }}>(negative = inside)</span></div>
+                          <div><b>Signed distance:</b> {pointResult.signed.toFixed(3)} m <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>(negative = inside)</span></div>
                         </>
                       ) : (
                         <div style={{ color: "#8a6d1f" }}>Inside/outside is not defined for an open surface.</div>
                       )}
-                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e0e3e8", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e0e3e8", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                         Nearest point on surface: {pointResult.worldNearest.x.toFixed(1)}, {pointResult.worldNearest.y.toFixed(1)}, {pointResult.worldNearest.z.toFixed(1)}
                       </div>
                     </div>
@@ -281,12 +281,12 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", width: 820, maxWidth: "94vw", maxHeight: "94vh", overflow: "auto" };
-const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
-const tabBtn = { padding: "6px 14px", border: "none", fontSize: 11.5, cursor: "pointer" };
-const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };
-const th = { textAlign: "left", padding: "6px 8px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, fontSize: 10.5, color: "#55606e", fontWeight: 600 };
-const td = { padding: "5px 8px", borderBottom: "1px solid #eef0f3", color: "#1a2028", whiteSpace: "nowrap" };
-const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: 10.8, color: "#20512f", lineHeight: 1.5 };
-const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "7px 9px", fontSize: 10.8, color: "#6b4e20", lineHeight: 1.5 };
-const hint = { fontSize: 10.2, color: "#94a1b0", marginTop: 7, lineHeight: 1.5 };
+const rowLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 3 };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };
+const tabBtn = { padding: "6px 14px", border: "none", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const th = { textAlign: "left", padding: "6px 8px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600 };
+const td = { padding: "5px 8px", borderBottom: "1px solid #eef0f3", color: "var(--color-text)", whiteSpace: "nowrap" };
+const goodNote = { background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "#20512f", lineHeight: 1.5 };
+const warnNote = { background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "7px 9px", fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", lineHeight: 1.5 };
+const hint = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 7, lineHeight: 1.5 };

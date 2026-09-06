@@ -69,19 +69,19 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>SQL workspace</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Ad hoc SQL against whatever's currently loaded — a snapshot taken when this opened, not a live connection.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>SQL workspace</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Ad hoc SQL against whatever's currently loaded — a snapshot taken when this opened, not a live connection.</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
           <div style={{ width: 200, flexShrink: 0, overflow: "auto" }}>
-            <div style={label}><Database size={11} style={{ marginRight: 4, verticalAlign: -1 }} />Tables</div>
-            {state.status === "loading" && <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Building…</div>}
-            {state.status === "ready" && state.tables.length === 0 && <div style={{ fontSize: 11.5, color: "var(--color-text-muted)" }}>Nothing loaded yet — import collars/assays/layers first.</div>}
+            <div style={label}><Database size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Tables</div>
+            {state.status === "loading" && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Building…</div>}
+            {state.status === "ready" && state.tables.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>Nothing loaded yet — import collars/assays/layers first.</div>}
             {state.status === "ready" && state.tables.map((t) => (
-              <div key={t.name} style={{ marginBottom: 8, fontSize: 11 }}>
+              <div key={t.name} style={{ marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
                 <div style={{ fontWeight: 600, color: "var(--color-text)" }}>{t.name}</div>
                 <div style={{ color: "var(--color-text-muted)", lineHeight: 1.5 }}>{t.columns.join(", ")}</div>
               </div>
@@ -90,36 +90,36 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
             {state.status === "error" && (
-              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: 11.5, color: "var(--color-danger-text)" }}>Couldn't set up the SQL engine: {state.message}</div>
+              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>Couldn't set up the SQL engine: {state.message}</div>
             )}
             {emptyLoaded && state.status === "ready" && (
-              <div style={{ fontSize: 11.5, color: "var(--color-text-muted)" }}>No data loaded yet — import collars, assays, or a layer first, then reopen this workspace.</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>No data loaded yet — import collars, assays, or a layer first, then reopen this workspace.</div>
             )}
             <textarea
               value={sql}
               onChange={(e) => setSql(e.target.value)}
               placeholder="SELECT * FROM assays WHERE Au > 1;"
               spellCheck={false}
-              style={{ width: "100%", height: 100, fontFamily: "monospace", fontSize: 12.5, padding: 10, border: "1px solid var(--color-border)", borderRadius: 6, resize: "vertical", color: "var(--color-text)" }}
+              style={{ width: "100%", height: 100, fontFamily: "monospace", fontSize: "var(--font-size-base)", padding: 10, border: "1px solid var(--color-border)", borderRadius: 6, resize: "vertical", color: "var(--color-text)" }}
             />
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={run} disabled={state.status !== "ready" || running} style={{ ...btn(true), display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", opacity: state.status === "ready" && !running ? 1 : 0.5, cursor: state.status === "ready" && !running ? "pointer" : "not-allowed" }}>
-                <Play size={13} /> {running ? "Running…" : "Run query"}
+                <Play size={14} /> {running ? "Running…" : "Run query"}
               </button>
               {result && result.rows.length > 0 && (
                 <button onClick={exportCSV} style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6, padding: "7px 14px" }}>
-                  <Download size={13} /> Export CSV
+                  <Download size={14} /> Export CSV
                 </button>
               )}
             </div>
             {queryError && (
-              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: 11.5, color: "var(--color-danger-text)" }}>{queryError}</div>
+              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{queryError}</div>
             )}
             {result && (
               <div style={{ overflow: "auto", flex: 1, minHeight: 0 }}>
-                <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginBottom: 4 }}>{result.rows.length} row{result.rows.length === 1 ? "" : "s"}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{result.rows.length} row{result.rows.length === 1 ? "" : "s"}</div>
                 {result.rows.length > 0 && (
-                  <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+                  <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                     <thead><tr>{result.columns.map((c) => <th key={c} style={th}>{c}</th>)}</tr></thead>
                     <tbody>
                       {result.rows.slice(0, 500).map((row, i) => (
@@ -128,7 +128,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
                     </tbody>
                   </table>
                 )}
-                {result.rows.length > 500 && <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: 4 }}>Showing the first 500 of {result.rows.length} rows — export to CSV for the full result.</div>}
+                {result.rows.length > 500 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>Showing the first 500 of {result.rows.length} rows — export to CSV for the full result.</div>}
               </div>
             )}
           </div>
@@ -144,7 +144,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 
 const panel = { width: "min(1000px, 96vw)", height: "min(720px, 92vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "left", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
-const td = { padding: "4px 8px", color: "#1a2028", textAlign: "left", fontFamily: "'Exo 2', system-ui, sans-serif", whiteSpace: "nowrap" };
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
+const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "left", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
+const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "left", fontFamily: "'Exo 2', system-ui, sans-serif", whiteSpace: "nowrap" };

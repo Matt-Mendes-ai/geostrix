@@ -81,14 +81,14 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Database size={16} color="#55606e" />
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Connect to database</div>
+            <Database size={18} color="#55606e" />
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Connect to database</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
             Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. Password is used for this session only; never saved to disk or to the project file. Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
           </div>
 
@@ -125,21 +125,21 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
               <input type="password" value={config.password} onChange={(e) => set("password", e.target.value)} style={inp} />
             </Field>
           </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text-secondary)", marginTop: 6, marginBottom: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginTop: 6, marginBottom: 10 }}>
             <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} /> Use SSL
           </label>
 
           <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>
-            {testing ? <Loader2 size={13} className="spin" /> : liveEntry ? "Reconnect" : "Test connection"}
+            {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? "Reconnect" : "Test connection"}
           </button>
 
           {liveEntry && !status && (
-            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: 11.5, background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>
+            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>
               Already connected as "{config.name}" — stays open in the Browser panel too, so you won't be asked for the password again this session unless you disconnect it there.
             </div>
           )}
           {status && (
-            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: 11.5, background: status.ok ? "#12241a" : "#2a1a1a", border: `1px solid ${status.ok ? "#2d5a3d" : "var(--color-danger-border-strong)"}`, color: status.ok ? "var(--color-success-text)" : "var(--color-danger-text)" }}>
+            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: status.ok ? "#12241a" : "#2a1a1a", border: `1px solid ${status.ok ? "#2d5a3d" : "var(--color-danger-border-strong)"}`, color: status.ok ? "var(--color-success-text)" : "var(--color-danger-text)" }}>
               {status.ok ? `Connected — ${status.info?.db} as ${status.info?.usr}${status.reused ? " (reused existing connection)" : " — stays open for the rest of this session"}` : status.error}
             </div>
           )}
@@ -150,10 +150,10 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
               {/* TASKS.csv #177 — a DBeaver-managed company database is exactly the case where the
                   useful thing to pull from is a pre-built VIEW (pre-joined/pre-cleaned), not a raw
                   base table, so views are marked distinctly rather than looking identical to tables. */}
-              <div style={{ maxHeight: 100, overflowY: "auto", fontSize: 11, color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
+              <div style={{ maxHeight: 100, overflowY: "auto", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
                 {tables.map((t, i) => (
                   <div key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                    {t.table_type === "VIEW" && <span style={{ fontSize: 9, color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
+                    {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
                     <span>{t.table_schema}.{t.table_name}</span>
                   </div>
                 ))}
@@ -167,7 +167,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
               <select
                 value=""
                 onChange={(e) => { const q = savedQueries.find((sq) => sq.name === e.target.value); if (q) setSql(q.sql); }}
-                style={{ ...sel, fontSize: 10.5, padding: "3px 6px" }}
+                style={{ ...sel, fontSize: "var(--font-size-sm)", padding: "3px 6px" }}
               >
                 <option value="">— saved queries —</option>
                 {savedQueries.map((q) => <option key={q.name} value={q.name}>{q.name}</option>)}
@@ -178,19 +178,19 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
           {savedQueries.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
               {savedQueries.map((q) => (
-                <div key={q.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10.5, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "2px 4px 2px 8px" }}>
+                <div key={q.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "2px 4px 2px 8px" }}>
                   <span onClick={() => setSql(q.sql)} title={q.sql} style={{ cursor: "pointer", color: "var(--color-text)" }}>{q.name}</span>
-                  <Trash2 size={11} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
+                  <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
                 </div>
               ))}
             </div>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={run} disabled={running || !status?.ok} style={{ ...btn(true), flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <Play size={13} /> {running ? "Running…" : "Run query"}
+              <Play size={14} /> {running ? "Running…" : "Run query"}
             </button>
             <button onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title="Save this query for reuse across projects/connections" style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px" }}>
-              <Save size={13} />
+              <Save size={14} />
             </button>
           </div>
           {savePromptOpen && (
@@ -207,7 +207,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             <div style={{ marginTop: 12 }}>
               <div style={label}>Preview ({result.rowCount} rows)</div>
               <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 200, overflowY: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                   <thead><tr>{result.fields.map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
                   <tbody>
                     {result.rows.slice(0, 20).map((r, i) => (
@@ -230,15 +230,15 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 }
 
 function Field({ label: l, children }) {
-  return <div><div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 3 }}>{l}</div>{children}</div>;
+  return <div><div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 3 }}>{l}</div>{children}</div>;
 }
 
 const panel = { width: "min(600px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const inp = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 };
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
-const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const th = { textAlign: "left", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
+const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

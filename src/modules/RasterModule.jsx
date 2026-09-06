@@ -9,6 +9,7 @@ import BasemapView from "../components/BasemapView.jsx";
 import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -172,24 +173,24 @@ export default function RasterModule() {
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
-        <label style={{ display: "block", fontSize: 10.5, color: "var(--color-text-caption)", marginBottom: 8 }}>
+        <label style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 8 }}>
           Source CRS (EPSG, optional)
           <input
             type="number" value={sourceEpsg} placeholder={`blank = use the file's own tag, else assume EPSG:${project?.epsg ?? "?"}`}
             onChange={(e) => setSourceEpsg(e.target.value)}
             title="The CRS the file's own coordinates are in. Leave blank to trust a GeoTIFF's embedded CRS tag. Set it for a .gxf (that format has no CRS tag at all) or when a file's tag is wrong — the raster is then reprojected into the project's EPSG on import."
-            style={{ width: "100%", boxSizing: "border-box", marginTop: 3, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: 11.5, fontFamily: "inherit" }}
+            style={{ width: "100%", boxSizing: "border-box", marginTop: 3, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
           />
         </label>
         {(Number(sourceEpsg) === 4267 || (Number(sourceEpsg) >= 26701 && Number(sourceEpsg) <= 26722)) && (
-          <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
             ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
             published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
             that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
           </div>
         )}
         <button onClick={() => fileInput.current.click()} style={pBtn} disabled={busy}>
-          {busy ? <Loader2 size={13} className="spin" /> : <Image size={13} />} {busy ? "Reading…" : "Import GeoTIFF / GXF…"}
+          {busy ? <Loader2 size={14} className="spin" /> : <Image size={14} />} {busy ? "Reading…" : "Import GeoTIFF / GXF…"}
         </button>
         <input
           ref={fileInput}
@@ -200,9 +201,9 @@ export default function RasterModule() {
           onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}
         />
         <button onClick={openSatPicker} style={pBtn} disabled={satBusy}>
-          {satProgress ? <Loader2 size={13} className="spin" /> : <Satellite size={13} />} {satProgress ? `Fetching ${satProgress.done}/${satProgress.total}…` : "Import satellite imagery…"}
+          {satProgress ? <Loader2 size={14} className="spin" /> : <Satellite size={14} />} {satProgress ? `Fetching ${satProgress.done}/${satProgress.total}…` : "Import satellite imagery…"}
         </button>
-        <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
           Free Sentinel-2 cloudless imagery (no account needed) — pick an area on a map, or match an existing terrain/boundary/raster's extent.
         </div>
         {satPickerOpen && (
@@ -219,9 +220,9 @@ export default function RasterModule() {
           />
         )}
         <button onClick={() => setGeorefOpen(true)} style={pBtn}>
-          <MapPinned size={13} /> Georeference scan (manual tie points)…
+          <MapPinned size={14} /> Georeference scan (manual tie points)…
         </button>
-        <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
           For a scanned map or claim sketch with no embedded coordinates at all — click matching points and type their real-world X/Y.
         </div>
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
@@ -237,19 +238,19 @@ export default function RasterModule() {
           />
         )}
         {error && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: error.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${error.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: error.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: error.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${error.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: error.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {error.text}
           </div>
         )}
 
         {rasters.length === 0 && (
-          <div style={{ marginTop: 14, fontSize: 11.5, color: "var(--color-text-muted)" }}>No rasters imported yet.</div>
+          <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>No rasters imported yet.</div>
         )}
         {rasters.map((r) => (
-          <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {r.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
               <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
@@ -274,13 +275,28 @@ export default function RasterModule() {
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
       <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-        <div style={{ color: "var(--color-text-muted)", fontSize: 13, textAlign: "center", pointerEvents: "none" }}>
-          Drag a GeoTIFF or .gxf in, or use the button on the left.<br />
-          Rasters render in the 3D View — switch tabs to see them.
-        </div>
+        {/* TASKS.csv #309 — was two lines of centred grey text with no icon and nothing to click,
+            one of four different empty-state treatments across seven tabs. Now the shared
+            EmptyState card (components/EmptyState.jsx), same as 3D View / Geochem / Geophysics.
+            Kept unconditional rather than gated on rasters.length, because this pane never shows
+            the rasters themselves — they render in the 3D View — so "switch tabs to see them" is
+            the useful message whether or not anything is loaded yet. */}
+        <EmptyState
+          icon={<Image size={18} />}
+          headline={rasters.length ? `${rasters.length} raster${rasters.length === 1 ? "" : "s"} loaded` : "No rasters yet"}
+          actionLabel={busy ? "Reading…" : "Import GeoTIFF / GXF…"}
+          onAction={() => fileInput.current.click()}
+          actionDisabled={busy}
+          actionTitle="Pick a georeferenced raster — GeoTIFF or Geosoft .gxf grid"
+          footnote="Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs."
+        >
+          <div style={{ marginBottom: 12 }}>
+            Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the <b>3D View</b>, so switch tabs after importing to see them.
+          </div>
+        </EmptyState>
         {dragOver && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ fontSize: 18, color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>Drop GeoTIFF(s)/.gxf to import</div>
+            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>Drop GeoTIFF(s)/.gxf to import</div>
           </div>
         )}
       </div>
@@ -288,5 +304,5 @@ export default function RasterModule() {
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12.5, cursor: "pointer", justifyContent: "flex-start" };
-const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 11 };
+const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", justifyContent: "flex-start" };
+const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };

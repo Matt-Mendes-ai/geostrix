@@ -137,8 +137,8 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Georeferencer — manual control points</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Georeferencer — manual control points</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -146,7 +146,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={() => fileInput.current.click()} style={btn(false)}>
-              <Upload size={13} style={{ marginRight: 6 }} /> Load image (PNG/JPG)…
+              <Upload size={14} style={{ marginRight: 6 }} /> Load image (PNG/JPG)…
             </button>
             <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {img ? (
@@ -161,13 +161,13 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                 />
                 {points.map((p, i) => (
                   <div key={p.id} style={{ position: "absolute", left: p.px * displayScale - 8, top: p.py * displayScale - 16, pointerEvents: "none", color: "var(--color-danger-alt)" }}>
-                    <MapPin size={16} fill="#d9534f" />
-                    <span style={{ position: "absolute", left: 16, top: 0, fontSize: 10, background: "var(--color-bg)", padding: "0 3px", borderRadius: 3, color: "var(--color-text)" }}>{i + 1}</span>
+                    <MapPin size={18} fill="#d9534f" />
+                    <span style={{ position: "absolute", left: 16, top: 0, fontSize: "var(--font-size-xs)", background: "var(--color-bg)", padding: "0 3px", borderRadius: 3, color: "var(--color-text)" }}>{i + 1}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={{ width: DISPLAY_MAX, height: 400, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: 12 }}>
+              <div style={{ width: DISPLAY_MAX, height: 400, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
                 Load an image to begin placing control points.
               </div>
             )}
@@ -176,7 +176,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
           <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
             {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
                 workflow that types project coordinates behaves exactly as it did before. */}
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block" }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block" }}>
               Control points are in
               <select value={cpEpsgChoice} onChange={(e) => setCpEpsgChoice(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}
                 title="The CRS of the coordinates printed on the scanned map. They're reprojected into the project's CRS before the transform is fitted.">
@@ -191,23 +191,23 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                 applied, so the wording says what it actually buys (~10 m class) without pretending
                 it is a grid shift. */}
             {NAD27_CODES.has(Number(cpEpsg)) && (
-              <div style={{ fontSize: 11, color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>
                 NAD27 note: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a published 3-parameter fit for Alberta/BC — typically within ~10 m). It is not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet. Expect a small residual on top of the fit's own RMSE.
               </div>
             )}
             {needsReproject && !crsError && (
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.
               </div>
             )}
             {crsError && (
-              <div style={{ fontSize: 11, color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>{crsError}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>{crsError}</div>
             )}
             <div style={label}>Control points ({points.length}, need 3+ with valid coordinates)</div>
             {points.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Click on the image to add a point, then enter its known real-world X/Y here.</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Click on the image to add a point, then enter its known real-world X/Y here.</div>
             ) : (
-              <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+              <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                 <thead><tr><th style={th}>#</th><th style={th}>Pixel</th><th style={th}>{isGeographicCp ? "Longitude" : "World X"}</th><th style={th}>{isGeographicCp ? "Latitude" : "World Y"}</th><th style={th}>Error (m)</th><th style={th}></th></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
@@ -227,15 +227,15 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
               </table>
             )}
             {fit && (
-              <div style={{ fontSize: 11.5, color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>
                 Transform fit — RMSE {rmse.toFixed(2)} world units. {rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.</span>}
               </div>
             )}
             {usablePoints.length > 0 && usablePoints.length < 3 && (
-              <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>Need at least 3 points with valid coordinates to fit a transform.</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Need at least 3 points with valid coordinates to fit a transform.</div>
             )}
             {error && (
-              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: 11.5, color: "var(--color-danger-text)" }}>{error}</div>
+              <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{error}</div>
             )}
           </div>
         </div>
@@ -253,8 +253,8 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
 
 const panel = { width: "min(1100px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0" };
-const btn = (primary) => ({ padding: "8px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e", display: "flex", alignItems: "center", justifyContent: "center" });
-const th = { padding: "4px 6px", color: "#55606e", fontWeight: 500, textAlign: "left", borderBottom: "1px solid var(--color-border)" };
-const td = { padding: "4px 6px", color: "#1a2028" };
-const numInput = { width: 80, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "#1a2028", fontSize: 11 };
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" };
+const btn = (primary) => ({ padding: "8px 12px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center" });
+const th = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "left", borderBottom: "1px solid var(--color-border)" };
+const td = { padding: "4px 6px", color: "var(--color-text)" };
+const numInput = { width: 80, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };

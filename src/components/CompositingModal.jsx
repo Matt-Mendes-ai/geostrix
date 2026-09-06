@@ -76,8 +76,8 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Downhole compositing</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Downhole compositing</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
               Fixed-length composites, breaking at domain boundaries — {assays.length} raw intervals loaded.
               {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
@@ -87,7 +87,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {(dupInfo.exactDuplicates > 0 || dupInfo.conflictingIntervals > 0) && (
-            <div style={{ fontSize: 11, lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
               {dupInfo.exactDuplicates > 0 && (
                 <div>{dupInfo.exactDuplicates} exact-duplicate raw interval{dupInfo.exactDuplicates === 1 ? " was" : "s were"} found in this assay table (same hole, same from/to, same results — the classic double-import). {dupInfo.exactDuplicates === 1 ? "It was" : "They were"} counted once, not twice, so {dupInfo.exactDuplicates === 1 ? "it doesn't" : "they don't"} double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.</div>
               )}
@@ -97,7 +97,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
             </div>
           )}
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
               Include QC samples (standards/blanks/duplicates) in this report
             </label>
@@ -129,12 +129,12 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           </div>
 
           {symbols.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
           ) : results.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
           ) : (
             <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
                     <th style={th}>Hole</th>
@@ -165,12 +165,12 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
             </div>
           )}
 
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {results.length} composite(s) from {assays.length} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).
           </div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={13} /> Export composites (CSV)
+            <Download size={14} /> Export composites (CSV)
           </button>
         </div>
 
@@ -184,8 +184,8 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
 
 const panel = { width: "min(920px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const fieldLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };
-const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit", width: 130 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
-const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };
+const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
+const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 130 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
+const th = { textAlign: "left", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
+const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };

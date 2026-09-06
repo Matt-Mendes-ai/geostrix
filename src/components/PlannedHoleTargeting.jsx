@@ -19,10 +19,10 @@ import { useStore } from "../lib/store.jsx";
 // plannedHoles.dip and the form fields beside it. solveOrientationToTarget returns that convention
 // directly (see holePlanning.js's header) so the solved value is written straight through.
 
-const fieldWrap = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: 9.5, color: "#55606e" };
-const inputStyle = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "4px 5px", fontSize: 11, color: "#1a2028" };
-const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", padding: "5px 8px", borderRadius: 5, border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "#1a2028", fontSize: 10.5, cursor: "pointer" };
-const sectionHdr = { fontSize: 10, fontWeight: 600, color: "#55606e", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 5 };
+const fieldWrap = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
+const inputStyle = { width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "4px 5px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" };
+const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 5, width: "100%", padding: "5px 8px", borderRadius: 5, border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" };
+const sectionHdr = { fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 5 };
 const rowStyle = { display: "flex", gap: 4, marginBottom: 5 };
 
 function TargetField({ label, value, onChange }) {
@@ -86,7 +86,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
       onClick={() => setTab((t) => (t === id ? null : id))}
       style={{ ...btn, background: tab === id ? "#e3ecf5" : "var(--color-bg-subtle)", borderColor: tab === id ? "var(--color-selected-border)" : "var(--color-border-light)" }}
     >
-      <Icon size={11} /> {label}
+      <Icon size={12} /> {label}
     </button>
   );
 
@@ -100,7 +100,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
       {tab === "target" && (
         <div>
           <div style={sectionHdr}>Drill to a target point</div>
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
             {/* The add form above (TASKS.csv #188) can solve a target when a hole is first created, but
                 only then, and it keeps nothing. This does it for a hole that already exists — the target
                 is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}
@@ -115,12 +115,12 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
             <TargetField label="Target Elev" value={target?.z} onChange={(v) => setTarget({ z: v })} />
           </div>
           {!targetComplete ? (
-            <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Fill in all three coordinates to solve.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Fill in all three coordinates to solve.</div>
           ) : !solved ? (
-            <div style={{ fontSize: 10, color: "var(--color-danger-text)" }}>The target is the collar itself — no direction is defined.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>The target is the collar itself — no direction is defined.</div>
           ) : (
             <div>
-              <div style={{ fontSize: 10.5, color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
                 Solved: <b>Az {solved.azimuth.toFixed(1)}°</b> / <b>Dip {solved.dip.toFixed(1)}°</b> / <b>{solved.length.toFixed(1)} m</b>
                 <div style={{ color: "var(--color-text-caption)" }}>
                   {solved.horizontal.toFixed(1)} m horizontal, {Math.abs(solved.vertical).toFixed(1)} m {solved.vertical >= 0 ? "below" : "above"} the collar
@@ -130,7 +130,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
                 )}
               </div>
               {miss && (
-                <div style={{ fontSize: 10.5, color: miss.distance < 1 ? "#3f8f5f" : "#c08a3c", marginBottom: 5 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: miss.distance < 1 ? "#3f8f5f" : "#c08a3c", marginBottom: 5 }}>
                   Current plan misses by {miss.distance.toFixed(1)} m
                   {miss.distance >= 1 && miss.beyondToe ? " — right direction, but the hole is too short." : ""}
                   {miss.distance < 1 ? " — on target." : ""}
@@ -147,7 +147,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
       {tab === "actual" && (
         <div>
           <div style={sectionHdr}>Planned vs. as-drilled</div>
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
             Once this hole has been drilled and its collar + survey imported, link it here to see how far the
             real hole wandered from the design.
           </div>
@@ -160,10 +160,10 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
             {(collars || []).map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
           </select>
           {drilledId && !comparison && (
-            <div style={{ fontSize: 10, color: "var(--color-danger-text)" }}>Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.</div>
           )}
           {comparison && (
-            <div style={{ fontSize: 10.5, color: "var(--color-text)", lineHeight: 1.6 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", lineHeight: 1.6 }}>
               <div>Collar offset: <b>{comparison.collarOffset.toFixed(1)} m</b></div>
               <div>Toe offset: <b>{comparison.toeOffset.toFixed(1)} m</b></div>
               <div>Max separation: <b>{comparison.maxSeparation.toFixed(1)} m</b> at {comparison.maxSeparationMd.toFixed(0)} m (mean {comparison.meanSeparation.toFixed(1)} m)</div>

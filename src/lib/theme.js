@@ -42,6 +42,38 @@
 // affected: those print the live document, where :root is present.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
+// ADOPTION STATUS (TASKS.csv #310) — read this before assuming "it's all var() now"
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #238 landed the tokens; #310 finished the part of the migration that CAN be finished. Measured
+// by script (count of raw quoted hex literals in src/ that are exactly equal to a token's value,
+// excluding the seven export-boundary files above and this file's own definitions):
+//     before #310: 310 raw uses across 46 files    after #310: 134 across 28 files
+// The 176 that were converted were all CSS-in-JS style objects. The 134 that REMAIN are not an
+// unfinished sweep — they are the cases where var() cannot work and must stay literal hex:
+//   • SVG presentation attributes written as JSX attributes — `fill="#..."`, `stroke="#..."`
+//     (GeochemPlot, VariogramModal, GradeStatistics, CorrelationMatrix, LayoutModule's page canvas).
+//   • lucide's `color="#..."` prop, which the library forwards to the svg's `stroke` ATTRIBUTE.
+//     If you want a token on an icon, use `style={{ color: "var(--color-…)" }}` instead — lucide
+//     defaults stroke to currentColor, so that resolves correctly.
+//   • three.js / canvas 2D values (CompassRose.js, AxisGizmo.js, ViewerModule's materials).
+//   • DEFAULT colors persisted into the .geostrix.json project file (store.jsx's boundary/litho-
+//     group/OMF/terrain defaults). These are DATA, not styling — a var() written into a save file
+//     would be meaningless to any other reader of that file, and would break on export.
+// So: the "redeclare :root and the app restyles" promise now holds for the DOM. It does not, and
+// cannot, hold for the WebGL scene, canvas overlays and standalone SVG exports — those would need
+// theme.js's JS constants re-read and the scene rebuilt, which is a separate piece of work.
+//
+// A KNOWN SEMANTIC ODDITY IN THE NAMES, deliberately NOT renamed here (a rename is a decision for
+// Matt, not a refactor): --color-success-bg #1e3629 / --color-success-text #8fd9ab and
+// --color-danger-bg #2a1f1f / --color-danger-text #e0a0a0 are DARK-background/light-text pairs in
+// an otherwise white app. They are used on purpose (the solid dark-green Export PDF button on the
+// Layout tab is the app's only filled button, and that is a useful hierarchy signal), but the names
+// read as if lifted from a dark theme, and a LIGHT advisory pair (--color-warn-bg cream /
+// --color-warn-text brown) does the same job elsewhere — so the app currently has two competing
+// advisory styles. If they stay, names like --color-primary-btn-bg / --color-notice-inverse-bg
+// would stop the next reader assuming success-bg is a pale green.
+//
+// ─────────────────────────────────────────────────────────────────────────────────────────────
 // NOT A REBRAND
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // Every value below is copied verbatim from its current, already-shipped usage. No color was
@@ -117,4 +149,21 @@ export const colors = {
   // Misc surfaces
   hoverBg: "#eef1f5",
   tooltipBg: "#dde1e6",
+};
+
+// TASKS.csv #305 — TYPE SCALE, the JS mirror of the `--font-size-*` custom properties declared on
+// :root in styles/app.css. Same two-forms rule as `colors` above and for exactly the same reason:
+// use `"var(--font-size-base)"` everywhere the BROWSER will do the styling (app.css rules and inline
+// style objects — that is essentially the whole app), and reach for these plain numbers only where a
+// var() is meaningless: canvas 2D `ctx.font`, three.js sprite/label rendering, an SVG `font-size`
+// PRESENTATION ATTRIBUTE, or anything serialized out of the document into a standalone .svg/.png.
+// Numbers, not "10px" strings, because that is the form those consumers want (ctx.font arithmetic,
+// SVG attribute values); append "px" at the call site if you need a CSS string.
+// KEEP IN SYNC WITH app.css — change a value in one, change it in the other.
+export const fontSizes = {
+  xs: 10, // captions, counts, units, badges
+  sm: 11, // secondary labels, uppercase section captions
+  base: 12, // body text and every control
+  lg: 14, // panel and modal titles
+  xl: 17, // the one-per-screen heading
 };

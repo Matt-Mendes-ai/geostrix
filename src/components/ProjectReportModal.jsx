@@ -105,8 +105,8 @@ export default function ProjectReportModal({ store, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <FileBarChart2 size={17} style={{ color: "var(--color-accent-dark)" }} />
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Project report</div>
+            <FileBarChart2 size={18} style={{ color: "var(--color-accent-dark)" }} />
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Project report</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -134,14 +134,14 @@ export default function ProjectReportModal({ store, onClose }) {
           )}
 
           {!collars.length && !surfaceSamples.length && (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>Import drillholes or surface samples to generate a report.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>Import drillholes or surface samples to generate a report.</div>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
           <button onClick={exportCSV} style={{ ...btn(true), flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
-            <Download size={13} /> Export report (CSV)
+            <Download size={14} /> Export report (CSV)
           </button>
         </div>
       </div>
@@ -152,8 +152,8 @@ export default function ProjectReportModal({ store, onClose }) {
 function StatCard({ label: l, value }) {
   return (
     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 8, padding: "8px 10px" }}>
-      <div style={{ fontSize: 18, color: "var(--color-text)", fontWeight: 600 }}>{value}</div>
-      <div style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>{l}</div>
+      <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{value}</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{l}</div>
     </div>
   );
 }
@@ -161,7 +161,7 @@ function StatCard({ label: l, value }) {
 function MiniTable({ rows }) {
   return (
     <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-      <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+      <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
         <thead>
           <tr>
             <th style={th}>Element</th><th style={th}>Unit</th><th style={th}>n</th><th style={th}>Mean</th><th style={th}>Min</th><th style={th}>Max</th>
@@ -181,7 +181,7 @@ function MiniTable({ rows }) {
 
 const panel = { width: "min(560px, 92vw)", maxHeight: "86vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const th = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
-const td = { padding: "4px 8px", color: "#1a2028", textAlign: "right" };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
+const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
+const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right" };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

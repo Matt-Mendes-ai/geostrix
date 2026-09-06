@@ -76,16 +76,16 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
     <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
       <div style={panel({ width: 480, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><LayoutGrid size={15} /> Generate atlas</div>
-          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={16} /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><LayoutGrid size={14} /> Generate atlas</div>
+          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 11, opacity: 0.75, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>
             Creates one new Layout page per item below, using the CURRENT page as a template. Any {"{{token}}"}
             {" "}in a text/title element gets filled in per item — available tokens for this mode: {tokens.map((t) => `{{${t}}}`).join(", ")}.
           </div>
           {!hasPlaceholders && (
-            <div style={{ fontSize: 11, color: "#a95a3a" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>
               The current page has no {"{{token}}"} placeholders in any text — every generated page will look identical except its name{mode === "hole" && includeStripLog ? " (and its strip log image)" : ""}. Add a text element with e.g. {"{{hole_id}}"} first if you want per-item text.
             </div>
           )}
@@ -96,7 +96,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             </select>
           </div>
           {mode === "hole" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
               <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />
               Add a strip log image (litho/alteration/vein/RQD%) to each page
             </label>
@@ -110,11 +110,11 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               </span>
             </div>
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
-              {items.length === 0 && <div style={{ fontSize: 11, opacity: 0.6, padding: 6 }}>{mode === "hole" ? "No collars loaded." : "No sections drawn yet."}</div>}
+              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{mode === "hole" ? "No collars loaded." : "No sections drawn yet."}</div>}
               {items.map((it) => {
                 const key = itemKey(it);
                 return (
-                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, padding: "3px 4px", cursor: "pointer" }}>
+                  <label key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "3px 4px", cursor: "pointer" }}>
                     <input type="checkbox" checked={selectedIds.has(key)} onChange={() => toggle(key)} />
                     {itemLabel(it)}
                   </label>
@@ -122,9 +122,9 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               })}
             </div>
           </div>
-          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
+          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
           <button onClick={generate} disabled={busy || !selectedCount} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount ? 0.6 : 1 }}>
-            {busy ? <Loader2 size={13} className="spin" /> : <LayoutGrid size={13} />}
+            {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
             {busy ? (progress ? `Generating ${progress.done}/${progress.total}…` : "Generating…") : `Generate ${selectedCount} page${selectedCount === 1 ? "" : "s"}`}
           </button>
         </div>

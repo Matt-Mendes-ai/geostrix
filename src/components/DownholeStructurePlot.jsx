@@ -158,7 +158,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
             Downhole structure (tadpole) — {activeHole || "no hole"} <span style={{ fontWeight: 400, fontSize: 11, color: "#94a1b0" }}>({holePicks.length} pick{holePicks.length === 1 ? "" : "s"})</span>
           </div>
-          <X size={16} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!holeIds.length ? (

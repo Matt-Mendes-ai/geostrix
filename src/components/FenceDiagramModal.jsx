@@ -163,7 +163,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
               {ve !== 1 ? ` · ${ve}× vertical exaggeration` : " · true scale"}
             </span>}
           </div>
-          <X size={16} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!allIds.length ? (

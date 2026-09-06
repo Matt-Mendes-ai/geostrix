@@ -21,11 +21,11 @@ export function panel(sizing) {
 }
 
 export const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: `1px solid ${colors.border}` };
-export const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: colors.textMuted, marginBottom: 8 };
-export const sel = { background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, padding: "6px 8px", color: colors.text, fontSize: 12, fontFamily: "inherit" };
+export const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: colors.textMuted, marginBottom: 8 };
+export const sel = { background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 6, padding: "6px 8px", color: colors.text, fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 export const inp = sel; // AssayImportModal-family `sel` and other files' `inp` are the same object wherever both exist
 export const th = { padding: "4px 8px", color: colors.textSecondary, fontWeight: 500, textAlign: "right", borderBottom: `1px solid ${colors.border}` };
 export const td = { padding: "4px 8px", color: colors.text, textAlign: "right" };
 export function btn(primary) {
-  return { padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? `1px solid ${colors.successBorder}` : `1px solid ${colors.borderLight}`, background: primary ? colors.successBg : "transparent", color: primary ? colors.successText : colors.textSecondary };
+  return { padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? `1px solid ${colors.successBorder}` : `1px solid ${colors.borderLight}`, background: primary ? colors.successBg : "transparent", color: primary ? colors.successText : colors.textSecondary };
 }

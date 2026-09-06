@@ -278,14 +278,14 @@ export default function BasemapView({
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true">
       <div style={topBarStyle}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#2a323c" }}>
+        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#2a323c" }}>
           {mode === "draw" ? title : "Locate"}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {Number.isFinite(lon) && Number.isFinite(lat) && (
             <button onClick={recenter} title="Center on project location" style={iconBtnStyle}><Crosshair size={14} /></button>
           )}
-          <button onClick={onClose} title="Close" style={iconBtnStyle}><X size={16} /></button>
+          <button onClick={onClose} title="Close" style={iconBtnStyle}><X size={18} /></button>
         </div>
       </div>
       <div
@@ -351,17 +351,17 @@ export default function BasemapView({
             )}
           </div>
         </div>
-        <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: 9, color: "#5a6472", background: "rgba(255,255,255,0.75)", padding: "1px 5px", borderRadius: 3 }}>
+        <div style={{ position: "absolute", bottom: 6, left: 8, fontSize: "var(--font-size-xs)", color: "#5a6472", background: "rgba(255,255,255,0.75)", padding: "1px 5px", borderRadius: 3 }}>
           {getBaseLayer(effectiveLayerId).attribution}
         </div>
       </div>
       {mode === "draw" && (
         <div style={bottomBarStyle}>
           <button onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title="Pan the map to find the area">
-            <Move size={13} /> Pan
+            <Move size={14} /> Pan
           </button>
           <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title="Drag on the map to draw the fetch area">
-            <Square size={13} /> Draw area
+            <Square size={14} /> Draw area
           </button>
           {areaOptions && areaOptions.length > 0 && (
             <select
@@ -380,7 +380,7 @@ export default function BasemapView({
           )}
           <div style={{ flex: 1 }} />
           {bbox && (
-            <div style={{ fontSize: 11, color: "#5a6472", marginRight: 10 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }}>
               ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°
             </div>
           )}
@@ -390,7 +390,7 @@ export default function BasemapView({
             disabled={!bbox}
             style={{ ...toolBtnActiveStyle, opacity: bbox ? 1 : 0.5, cursor: bbox ? "pointer" : "not-allowed" }}
           >
-            <Check size={13} /> {confirmLabel}
+            <Check size={14} /> {confirmLabel}
           </button>
         </div>
       )}
@@ -403,5 +403,5 @@ const topBarStyle = { display: "flex", alignItems: "center", justifyContent: "sp
 const bottomBarStyle = { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderTop: "1px solid var(--color-divider)" };
 const iconBtnStyle = { width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
 const zoomCtrlStyle = { position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 4 };
-const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", fontSize: 12, cursor: "pointer" };
+const toolBtnStyle = { display: "flex", alignItems: "center", gap: 5, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border-light)", background: "var(--color-bg)", color: "#3a4048", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const toolBtnActiveStyle = { ...toolBtnStyle, background: "var(--color-primary)", borderColor: "var(--color-primary)", color: "#ffffff" };

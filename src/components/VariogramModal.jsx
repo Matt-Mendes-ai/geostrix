@@ -162,8 +162,8 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
       <div style={panelStyle} role="dialog" aria-modal="true" aria-label="Variogram analysis" onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Variogram — spatial continuity</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Variogram — spatial continuity</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
               Experimental variogram + fitted nugget / sill / range, from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.
             </div>
           </div>
@@ -259,7 +259,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           </div>
 
           <div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={directional} onChange={(e) => setDirectional(e.target.checked)} />
               Directional variogram (same azimuth / dip convention as the anisotropy and search-ellipsoid fields)
             </label>
@@ -282,7 +282,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               </div>
             )}
             {directional && (
-              <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: 6 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 6 }}>
                 Directional variograms use far fewer pairs than an omnidirectional one, so they are much noisier — check the
                 pair counts and the fit quality below before believing a directional range.
               </div>
@@ -290,14 +290,14 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           </div>
 
           <button onClick={run} disabled={running || !symbols.length} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length ? 0.6 : 1 }}>
-            <Play size={13} /> {running ? "Running…" : "Compute variogram"}
+            <Play size={14} /> {running ? "Running…" : "Compute variogram"}
           </button>
 
           {error && <div style={noteBox("#fbf0f0", "#e0a9a9")}>{error}</div>}
 
           {result && plot && (
             <>
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 {result.nComposites.toLocaleString()} composites{result.domainLabel ? ` in domain "${result.domainLabel}"` : ""}
                 {result.vg.subsampled ? ` (subsampled to ${result.vg.nPoints.toLocaleString()} for the pair loop)` : ""}
                 {" · "}{result.vg.nPairsUsed.toLocaleString()} pairs used · lag {result.lag} m
@@ -356,7 +356,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
                 ))}
               </svg>
 
-              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: 12, color: "var(--color-text)" }}>
+              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                 {result.fit ? (
                   <>
                     <Stat label="Nugget" value={fmtNum(result.fit.nugget)} />
@@ -370,7 +370,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               </div>
 
               {result.fit && (
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
                   {VARIOGRAM_MODELS[result.fit.model]?.note}
                   {" "}The fit is a weighted least-squares starting point, not an answer — read the plot and override it if
                   the curve does not follow the points you trust.
@@ -425,8 +425,8 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
 function Stat({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{value}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>{label}</div>
+      <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{value}</div>
     </div>
   );
 }
@@ -441,9 +441,9 @@ function fmtNum(v) {
   return v.toFixed(0);
 }
 
-const noteBox = (bg, border) => ({ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "9px 11px", fontSize: 11, color: "#55606e", lineHeight: 1.55 });
+const noteBox = (bg, border) => ({ background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "9px 11px", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 });
 const panelStyle = { width: "min(860px, 95vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const headerStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const fieldLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };
-const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit", width: 150 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
+const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 150 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });

@@ -64,11 +64,11 @@ export default function HoverToolInfo({ title, text, width = 240, align = "left"
           }}
         >
           {title && (
-            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {title}
             </div>
           )}
-          <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
         </div>
       )}
     </span>

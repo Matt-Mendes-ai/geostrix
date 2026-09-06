@@ -520,14 +520,14 @@ export default function LayoutModule() {
             on why a blind global icon-only pass isn't the right call for those. */}
         <div className="ge-section-label">Add element</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          <ToolIconBtn icon={<Type size={15} />} title="Add text" onClick={() => addElement("text")} />
-          <ToolIconBtn icon={<ImageIcon size={15} />} title="Add company logo" onClick={() => addElement("logo")} />
+          <ToolIconBtn icon={<Type size={14} />} title="Add text" onClick={() => addElement("text")} />
+          <ToolIconBtn icon={<ImageIcon size={14} />} title="Add company logo" onClick={() => addElement("logo")} />
           <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
-          <ToolIconBtn icon={<Compass size={15} />} title="Add north arrow" onClick={() => addElement("north")} />
-          <ToolIconBtn icon={<Ruler size={15} />} title="Add scale bar" onClick={() => addElement("scale")} />
-          <ToolIconBtn icon={<Plus size={15} />} title="Add legend" onClick={() => addElement("legend")} />
+          <ToolIconBtn icon={<Compass size={14} />} title="Add north arrow" onClick={() => addElement("north")} />
+          <ToolIconBtn icon={<Ruler size={14} />} title="Add scale bar" onClick={() => addElement("scale")} />
+          <ToolIconBtn icon={<Plus size={14} />} title="Add legend" onClick={() => addElement("legend")} />
           <ToolIconBtn
-            icon={<MonitorPlay size={15} />}
+            icon={<MonitorPlay size={14} />}
             title={themes.length ? "Add a live-bound viewport of a saved 3D View theme" : "Add viewport (save a theme in the 3D View sidebar first)"}
             onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")}
             disabled={!themes.length}
@@ -540,18 +540,18 @@ export default function LayoutModule() {
               effect) and just snapshots the current state, same as it already does for "Refresh" on a
               themeless viewport (see ViewportControls' Theme dropdown). */}
           <ToolIconBtn
-            icon={<Camera size={15} />}
+            icon={<Camera size={14} />}
             title="Add a viewport snapshot of the current 3D View (no theme needed)"
             onClick={() => startViewportRender(null, "new")}
           />
         </div>
         {/* TASKS.csv #19 — shapes/annotation tools */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          <ToolIconBtn icon={<Square size={15} />} title="Add rectangle" onClick={() => addElement("rect")} />
-          <ToolIconBtn icon={<ArrowUpRight size={15} />} title="Add arrow" onClick={() => addElement("arrow")} />
-          <ToolIconBtn icon={<MessageSquare size={15} />} title="Add callout" onClick={() => addElement("callout")} />
+          <ToolIconBtn icon={<Square size={14} />} title="Add rectangle" onClick={() => addElement("rect")} />
+          <ToolIconBtn icon={<ArrowUpRight size={14} />} title="Add arrow" onClick={() => addElement("arrow")} />
+          <ToolIconBtn icon={<MessageSquare size={14} />} title="Add callout" onClick={() => addElement("callout")} />
           <ToolIconBtn
-            icon={<Pencil size={15} />}
+            icon={<Pencil size={14} />}
             title={freehandTool ? "Click and drag on the page to draw — click again to cancel" : "Freehand pen — click, then drag on the page"}
             onClick={() => setFreehandTool((v) => !v)}
             active={freehandTool}
@@ -559,9 +559,9 @@ export default function LayoutModule() {
         </div>
         {themePickerFor === "new" && (
           <div style={{ marginBottom: 8, padding: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 6 }}>Pick a theme:</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>Pick a theme:</div>
             {themes.map((t) => (
-              <div key={t.id} onClick={() => startViewportRender(t.id, "new")} style={{ padding: "5px 7px", fontSize: 12, color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }}
+              <div key={t.id} onClick={() => startViewportRender(t.id, "new")} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                 {t.name}
               </div>
@@ -581,19 +581,19 @@ export default function LayoutModule() {
             {(sel.type === "text" || sel.type === "title") && (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Size
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Size
                     <input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Color
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
                     <input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
                   </label>
                 </div>
                 <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-                  <ToolIconBtn icon={<Bold size={13} />} title="Bold" onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
-                  <ToolIconBtn icon={<Italic size={13} />} title="Italic" onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
-                  <ToolIconBtn icon={<AlignLeft size={13} />} title="Align left" onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
-                  <ToolIconBtn icon={<AlignCenter size={13} />} title="Align center" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
-                  <ToolIconBtn icon={<AlignRight size={13} />} title="Align right" onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
+                  <ToolIconBtn icon={<Bold size={14} />} title="Bold" onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
+                  <ToolIconBtn icon={<Italic size={14} />} title="Italic" onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
+                  <ToolIconBtn icon={<AlignLeft size={14} />} title="Align left" onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
+                  <ToolIconBtn icon={<AlignCenter size={14} />} title="Align center" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
+                  <ToolIconBtn icon={<AlignRight size={14} />} title="Align right" onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
                 </div>
               </div>
             )}
@@ -604,12 +604,12 @@ export default function LayoutModule() {
               <FrameControls sel={sel} updateSelected={updateSelected} />
             )}
             {"meters" in sel && (
-              <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Scale length (m)
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Scale length (m)
                 <input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
               </label>
             )}
             {(sel.type === "image" || sel.type === "viewport") && (
-              <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Width (px) — height locks to the captured aspect ratio
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Width (px) — height locks to the captured aspect ratio
                 <input type="number" value={sel.w} onChange={(e) => {
                   const w = Math.max(40, Number(e.target.value) || sel.w);
                   updateSelected({ w, h: Math.round(w / (sel.aspect || 1)) });
@@ -620,7 +620,7 @@ export default function LayoutModule() {
                 inside ViewportControls below) — mainly for the north arrow (TASKS.csv #67), whether
                 set by hand or nudged after "Sync north arrow". */}
             {sel.type === "north" && (
-              <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Rotation (°)
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Rotation (°)
                 <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
               </label>
             )}
@@ -633,7 +633,7 @@ export default function LayoutModule() {
                     it." Bind this legend to one of the page's viewport elements, then pull the
                     lithology units actually visible in that viewport's saved theme (color + name via
                     the same colorForLithology/UNIT_NAMES the 3D viewer itself uses). */}
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
                   Bound viewport / cross-section
                   <select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
                     <option value="">— none —</option>
@@ -652,7 +652,7 @@ export default function LayoutModule() {
                 <button onClick={() => syncLegendLithologies(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} /> Load from view / section
                 </button>
-                {syncNotice && <div style={{ fontSize: 10.5, color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+                {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {sel.items.map(([name, color], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
                     <input type="color" value={color} onChange={(e) => {
@@ -665,9 +665,9 @@ export default function LayoutModule() {
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                       <div onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
-                        style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: 9, lineHeight: 1 }} title="Move up">▲</div>
+                        style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move up">▲</div>
                       <div onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
-                        style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: 9, lineHeight: 1 }} title="Move down">▼</div>
+                        style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move down">▼</div>
                     </div>
                     <Trash2 size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
@@ -709,7 +709,7 @@ export default function LayoutModule() {
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
                   <Ruler size={12} /> Assign scale bar to this section
                 </button>
-                {syncNotice && <div style={{ fontSize: 10.5, color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+                {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
               </>
             )}
             {/* A plain imported photo/logo ("image" with no worldWidthAtCaptureM) has no known
@@ -719,19 +719,19 @@ export default function LayoutModule() {
             {sel.type === "rect" && (
               <>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Width
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Width
                     <input type="number" min="10" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(10, Number(e.target.value) || sel.w) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Height
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Height
                     <input type="number" min="10" value={sel.h} onChange={(e) => updateSelected({ h: Math.max(10, Number(e.target.value) || sel.h) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
                 <ColorRow label="Stroke" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Stroke width
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
                   <input type="number" min="0" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) })} style={inp} />
                 </label>
                 <ColorRow label="Fill" value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <input type="checkbox" checked={sel.fillOpacity > 0} onChange={(e) => updateSelected({ fillOpacity: e.target.checked ? 1 : 0 })} /> Filled
                 </label>
               </>
@@ -739,22 +739,22 @@ export default function LayoutModule() {
             {sel.type === "arrow" && (
               <>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Length
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Length
                     <input type="number" min="10" value={sel.length} onChange={(e) => updateSelected({ length: Math.max(10, Number(e.target.value) || sel.length) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Angle (°)
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Angle (°)
                     <input type="number" value={sel.angle} onChange={(e) => updateSelected({ angle: Number(e.target.value) || 0 })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
                 <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Stroke width
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
                   <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
               </>
             )}
             {sel.type === "callout" && (
               <>
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Width
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Width
                   <input type="number" min="60" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(60, Number(e.target.value) || sel.w) })} style={inp} />
                 </label>
                 <ColorRow label="Fill" value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
@@ -764,7 +764,7 @@ export default function LayoutModule() {
             {sel.type === "freehand" && (
               <>
                 <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Stroke width
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
                   <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
               </>
@@ -775,17 +775,17 @@ export default function LayoutModule() {
 
         {/* TASKS.csv #18 — saved layout templates */}
         <div className="ge-section-label" style={{ marginTop: 20 }}>Templates</div>
-        <button onClick={saveAsTemplate} style={pBtn}><Save size={13} /> Save page as template</button>
+        <button onClick={saveAsTemplate} style={pBtn}><Save size={14} /> Save page as template</button>
         <button onClick={() => setTemplatesOpen((v) => !v)} style={{ ...pBtn, opacity: layoutTemplates.length ? 1 : 0.5 }} disabled={!layoutTemplates.length}>
-          <FolderOpen size={13} /> Load template ({layoutTemplates.length})
+          <FolderOpen size={14} /> Load template ({layoutTemplates.length})
         </button>
         {templatesOpen && (
           <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 180, overflowY: "auto" }}>
             {layoutTemplates.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                <span onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: 12, color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
-                <span style={{ fontSize: 9.5, color: "var(--color-text-muted)" }}>{t.elements.length} el.</span>
+                <span onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{t.elements.length} el.</span>
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => deleteLayoutTemplate(t.id)} />
               </div>
             ))}
@@ -798,23 +798,23 @@ export default function LayoutModule() {
           <div onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={showGrid ? "Hide grid" : "Show grid"}>
             <Grid3x3 size={14} />
           </div>
-          <div style={{ flex: 1, fontSize: 12, color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>Grid + snap</div>
+          <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>Grid + snap</div>
           {metersPerPx ? (
             <>
-              <input type="number" min={1} value={gridMeters} onChange={(e) => setGridMeters(Math.max(1, Number(e.target.value) || 100))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "3px 5px" }} />
-              <span style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>m</span>
+              <input type="number" min={1} value={gridMeters} onChange={(e) => setGridMeters(Math.max(1, Number(e.target.value) || 100))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>m</span>
             </>
           ) : (
             <>
-              <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "3px 5px" }} />
-              <span style={{ fontSize: 10.5, color: "var(--color-text-muted)" }}>mm</span>
+              <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>mm</span>
             </>
           )}
         </div>
         {/* TASKS.csv #101 — bind the grid's real-world spacing to a Viewport's own captured scale
             instead of a fixed paper-space mm value, so a "100m grid" can sit directly over the map
             the way a printed topo sheet's grid would, staying correct across refreshes/rebinds. */}
-        <label style={{ fontSize: 10.5, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>
           Bind grid to viewport
           <select value={gridBoundViewportId} onChange={(e) => setGridBoundViewportId(e.target.value)} style={inp}>
             <option value="">None — free {gridMm}mm grid</option>
@@ -826,19 +826,19 @@ export default function LayoutModule() {
           </select>
         </label>
         {gridBoundViewportId && !metersPerPx && (
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
             This viewport hasn't been rendered yet — use "Refresh from theme" on it once to get a real-world scale to bind to.
           </div>
         )}
         {metersPerPx && (
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
             Grid spacing is locked to {gridMeters}m in the real world using this viewport's current scale — recomputes automatically whenever it's refreshed or rebound.
           </div>
         )}
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>Output</div>
-        <button onClick={() => savePDF("layout.pdf")} style={{ ...pBtn, background: "var(--color-success-bg)", border: "1px solid var(--color-success-border)", color: "var(--color-success-text)" }}><FileDown size={13} /> Export PDF</button>
-        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>
+        <button onClick={() => savePDF("layout.pdf")} style={{ ...pBtn, background: "var(--color-success-bg)", border: "1px solid var(--color-success-border)", color: "var(--color-success-text)" }}><FileDown size={14} /> Export PDF</button>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>
           Use "Snapshot to Layout" in the 3D View toolbar, or in a cross-section pop-out, to drop a capture
           of that view onto the page below — drag to place it, and use the width field to resize (aspect
           ratio locks automatically).
@@ -864,7 +864,7 @@ export default function LayoutModule() {
                   display: "flex", alignItems: "center", gap: 6, maxWidth: 160, padding: "5px 9px",
                   background: isActive ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${isActive ? "var(--color-selected-border)" : "#f0f1f3"}`,
                   borderBottom: isActive ? "1px solid var(--color-bg-subtle)" : "1px solid #f0f1f3", borderRadius: "6px 6px 0 0",
-                  color: isActive ? "var(--color-text)" : "var(--color-text-faint)", fontSize: 11.5, cursor: "pointer", position: "relative", top: 1,
+                  color: isActive ? "var(--color-text)" : "var(--color-text-faint)", fontSize: "var(--font-size-base)", cursor: "pointer", position: "relative", top: 1,
                 }}
               >
                 <span
@@ -874,7 +874,7 @@ export default function LayoutModule() {
                   {p.name}
                 </span>
                 <Trash2
-                  size={11}
+                  size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
                   onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete page "${p.name}"? This can't be undone.`)) deleteLayoutPage(p.id); }}
                 />
@@ -886,14 +886,14 @@ export default function LayoutModule() {
             title="Add page"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, marginBottom: 2, background: "transparent", border: "1px solid transparent", borderRadius: 5, color: "var(--color-text-muted)", cursor: "pointer" }}
           >
-            <Plus size={13} />
+            <Plus size={14} />
           </button>
           <button
             onClick={() => setAtlasModalOpen(true)}
             title="Generate atlas — batch-create one page per drillhole/section from the current page as a template"
-            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: 10.5, cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}
           >
-            <LayoutGrid size={11} /> Atlas…
+            <LayoutGrid size={12} /> Atlas…
           </button>
         </div>
         {atlasModalOpen && (
@@ -982,8 +982,8 @@ function Ruler2D({ axis, length, mmStep }) {
       ))}
       {ticks.filter((t) => t.major).map((t, i) => (
         <div key={`l${i}`} style={isX
-          ? { position: "absolute", left: t.px + 2, top: 9, fontSize: 8, color: "#94a1b0", fontFamily: "'Exo 2', system-ui, sans-serif" }
-          : { position: "absolute", top: t.px + 2, left: 9, fontSize: 8, color: "#94a1b0", fontFamily: "'Exo 2', system-ui, sans-serif", writingMode: "vertical-rl" }
+          ? { position: "absolute", left: t.px + 2, top: 9, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontFamily: "'Exo 2', system-ui, sans-serif" }
+          : { position: "absolute", top: t.px + 2, left: 9, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontFamily: "'Exo 2', system-ui, sans-serif", writingMode: "vertical-rl" }
         }>{t.mm}</div>
       ))}
     </div>
@@ -1006,7 +1006,7 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   })();
   return (
     <div style={{ marginTop: 4 }}>
-      <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Theme
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Theme
         <select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
           {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
               viewport can now exist with no bound theme at all (themeId: null) — "Refresh from theme"
@@ -1017,40 +1017,40 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         </select>
       </label>
       <button onClick={onRefresh} disabled={sel.refreshing} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
-        <RefreshCw size={13} /> {sel.refreshing ? "Rendering…" : "Refresh from theme"}
+        <RefreshCw size={14} /> {sel.refreshing ? "Rendering…" : "Refresh from theme"}
       </button>
       {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: switches to the 3D View tab with
           this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
           re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
           banner for the other half of this flow. */}
       <button onClick={onEnter} disabled={sel.refreshing} title="Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here" style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
-        <LogIn size={13} /> Enter &amp; adjust view…
+        <LogIn size={14} /> Enter &amp; adjust view…
       </button>
       {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
           retroactively on the image already captured — toggling it alone doesn't re-render. */}
-      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
         <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />
         True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.
       </label>
-      <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Rotation (°)
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Rotation (°)
         <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
       </label>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Frame width
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
           <input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
         </label>
-        <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Color
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
           <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
-      <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Frame style
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Frame style
         <select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
           <option value="double">Double</option>
         </select>
       </label>
-      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>
         {sel.trueScale ? "Scale" : "Approx. scale"}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
         <span style={{ color: "var(--color-text-muted)" }}>
           {sel.trueScale
@@ -1059,13 +1059,13 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         </span>
       </div>
       <button onClick={onSyncScaleBar} disabled={!scaleText} style={{ ...pBtn, opacity: scaleText ? 1 : 0.5 }}>
-        <Ruler size={13} /> Assign scale bar to this view
+        <Ruler size={14} /> Assign scale bar to this view
       </button>
-      {syncNotice && <div style={{ fontSize: 10.5, color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
+      {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
       {/* TASKS.csv #67 — cameraAzimuthDeg is computed in ViewerModule.jsx (see that comment for the
           worked-through, numerically-checked derivation of the CSS rotation angle). */}
       <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} style={{ ...pBtn, opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
-        <Compass size={13} /> Sync north arrow
+        <Compass size={14} /> Sync north arrow
       </button>
     </div>
   );
@@ -1129,7 +1129,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
         <div style={{ width: "100%", height: "100%", border: frameW ? `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}` : "none", background: "#fff", position: "relative", boxSizing: "border-box" }}>
           {el.src && <img src={el.src} alt="viewport" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} draggable={false} />}
           {el.refreshing && (
-            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>
               Rendering…
             </div>
           )}
@@ -1169,11 +1169,11 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
   }
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>Legend</div>
+      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>Legend</div>
       {el.items.map(([name, color], i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
           <span style={{ width: 14, height: 14, background: color, display: "inline-block", border: "1px solid #999" }} />
-          <span style={{ fontSize: 12, color: "#222" }}>{name}</span>
+          <span style={{ fontSize: "var(--font-size-base)", color: "#222" }}>{name}</span>
         </div>
       ))}
     </div>
@@ -1208,7 +1208,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
   }
   if (el.type === "callout") return (
     <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute" }} onMouseDown={onDown}>
-      <div style={{ fontSize: 12.5, color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      <div style={{ fontSize: "var(--font-size-base)", color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
         <polygon points="0,0 16,0 5,10" fill={el.fill} stroke={el.stroke} strokeWidth="1.5" />
       </svg>
@@ -1235,7 +1235,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
 // editors (rect/arrow/callout) instead of repeating the same label+input markup three times.
 function ColorRow({ label, value, onChange }) {
   return (
-    <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+    <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
       <span style={{ flex: 1 }}>{label}</span>
       <input type="color" value={value} onChange={(e) => onChange(e.target.value)} style={{ width: 30, height: 26, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", cursor: "pointer" }} />
     </label>
@@ -1251,14 +1251,14 @@ function FrameControls({ sel, updateSelected }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)", flex: 1 }}>Frame width
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
           <input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
         </label>
-        <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Color
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
           <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
-      <label style={{ fontSize: 11.5, color: "var(--color-text-secondary)" }}>Frame style
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Frame style
         <select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
           <option value="solid">Solid</option>
           <option value="dashed">Dashed</option>
@@ -1269,8 +1269,8 @@ function FrameControls({ sel, updateSelected }) {
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
-const inp = { width: "100%", marginTop: 4, marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12 };
+const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const inp = { width: "100%", marginTop: 4, marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 
 // TASKS.csv #65 — icon-only tool button, full name shown on hover via the native `title` attribute.
 function ToolIconBtn({ icon, title, onClick, disabled, active }) {

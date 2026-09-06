@@ -84,8 +84,8 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Multi-element correlation matrix</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>Pearson r, pairwise deletion for missing values — {assays.length} intervals loaded.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Multi-element correlation matrix</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Pearson r, pairwise deletion for missing values — {assays.length} intervals loaded.</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -95,7 +95,7 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
             <div style={label}>Elements ({symbols.length} of {allSymbols.length} selected)</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
-                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: 11.5, color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
+                <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} style={{ display: "none" }} />
                   {s}
                 </label>
@@ -104,10 +104,10 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
           </div>
 
           {symbols.length < 2 ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>Select at least 2 elements to compute a correlation matrix.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>Select at least 2 elements to compute a correlation matrix.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table style={{ borderCollapse: "collapse", fontSize: 10.5 }}>
+              <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                 <thead>
                   <tr>
                     <th style={cornerCell} />
@@ -134,7 +134,7 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
           )}
 
           <button onClick={exportCSV} disabled={symbols.length < 2} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: symbols.length < 2 ? 0.5 : 1 }}>
-            <Download size={13} /> Export matrix (CSV)
+            <Download size={14} /> Export matrix (CSV)
           </button>
         </div>
 
@@ -148,13 +148,13 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
 
 const panel = { width: "min(820px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const label = { fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "#94a1b0", marginBottom: 8 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
+const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const cornerCell = { width: 40, background: "var(--color-bg)" };
-const headCell = { padding: "4px 6px", color: "#55606e", fontWeight: 500, textAlign: "center", background: "var(--color-bg)", position: "sticky", top: 0 };
-const rowHead = { padding: "4px 8px", color: "#55606e", fontWeight: 500, textAlign: "right", background: "var(--color-bg)", position: "sticky", left: 0 };
+const headCell = { padding: "4px 6px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "center", background: "var(--color-bg)", position: "sticky", top: 0 };
+const rowHead = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", background: "var(--color-bg)", position: "sticky", left: 0 };
 // cellColor() only ever produces light/pastel backgrounds (its darkest channel value stays well above
 // 100), including a near-white "#f4f5f7" fallback for r == null — white text was illegible against
 // all of these, most acutely the null/near-zero-correlation cells. Dark text reads fine across the
 // whole range since nothing cellColor returns is actually dark.
-const cell = { width: 34, height: 24, textAlign: "center", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 600 };
+const cell = { width: 34, height: 24, textAlign: "center", color: "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 600 };

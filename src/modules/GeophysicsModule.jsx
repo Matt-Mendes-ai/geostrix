@@ -23,6 +23,20 @@ import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
+
+// TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
+// centre-aligned block of ~10px grey prose that the design review flagged as reference material
+// standing in for an invitation to act. The text is unchanged (it is accurate and hard-won — the
+// "no public spec" notes in particular are the outcome of real investigation); only its placement
+// moved, behind the InfoButton disclosure this module already uses eight times for exactly this job.
+const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation) plus a value (or reading/mag/response). "
+  + "GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM — a filename with \"dem\"/\"srtm\"/\"elev\"/"
+  + "\"terrain\"/\"topo\" in it is treated as elevation data, otherwise it's imported as a flat raster drape. "
+  + ".gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column "
+  + "picker (Geosoft line/profile data, e.g. airborne survey exports). UBC mesh+model and block-model CSV "
+  + "import (in the sidebar) render as coloured 3D blocks — Geosoft's own binary .grd/voxel formats stay "
+  + "unsupported, there is no public spec to implement against.";
 
 // TASKS.csv #25 — CSV point-cloud import (x, y, z, value[, label]) for raw geophysics survey data
 // (mag, IP, gravity, radiometrics — whatever a field instrument or a processed grid export spits
@@ -715,7 +729,7 @@ export default function GeophysicsModule() {
             .tif/.gxf was dropped directly on THIS tab (still supported, see onDrop above), so the
             result is visible without needing the full raster list/controls here too. */}
         {rasterError && (
-          <div style={{ marginBottom: 12, padding: "8px 10px", background: rasterError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${rasterError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: rasterError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginBottom: 12, padding: "8px 10px", background: rasterError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${rasterError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: rasterError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {rasterError.text}
           </div>
         )}
@@ -727,7 +741,7 @@ export default function GeophysicsModule() {
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: 11, color: "var(--color-text-faint)", flexShrink: 0 }}>Source CRS (EPSG)</span>
+          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)", flexShrink: 0 }}>Source CRS (EPSG)</span>
           <input
             type="text"
             inputMode="numeric"
@@ -739,7 +753,7 @@ export default function GeophysicsModule() {
           />
         </div>
         {(Number(geophysSourceEpsg) === 4267 || (Number(geophysSourceEpsg) >= 26701 && Number(geophysSourceEpsg) <= 26722)) && (
-          <div style={{ fontSize: 10.5, color: "#e0a030", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>
             ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
             published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
             that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
@@ -747,7 +761,7 @@ export default function GeophysicsModule() {
         )}
 
         <button onClick={() => fileInput.current.click()} style={pBtn}>
-          <Upload size={13} /> Import CSV…
+          <Upload size={14} /> Import CSV…
         </button>
         <input
           ref={fileInput}
@@ -761,7 +775,7 @@ export default function GeophysicsModule() {
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
             picker rather than a name-guessed single button — see importXYZFile/confirmImportXYZ. */}
         <button onClick={() => xyzInput.current.click()} style={{ ...pBtn, marginTop: 6 }}>
-          <MapPin size={13} /> Import Geosoft .xyz…
+          <MapPin size={14} /> Import Geosoft .xyz…
         </button>
         <input
           ref={xyzInput}
@@ -771,7 +785,7 @@ export default function GeophysicsModule() {
           onChange={(e) => { const f = e.target.files[0]; importXYZFile(f); e.target.value = ""; }}
         />
         {xyzPending && (
-          <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 8 }}>
               "{xyzPending.fileName}" — {xyzPending.rows.length.toLocaleString()} row(s), {xyzPending.columns.length} column(s). Pick which columns to import as points:
             </div>
@@ -792,7 +806,7 @@ export default function GeophysicsModule() {
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
-                <Upload size={13} /> Import
+                <Upload size={14} /> Import
               </button>
               <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>
                 Cancel
@@ -801,22 +815,22 @@ export default function GeophysicsModule() {
           </div>
         )}
         {xyzError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: xyzError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${xyzError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: xyzError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {xyzError.text}
           </div>
         )}
 
         {error && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: 11.5, color: "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", lineHeight: 1.5 }}>
             {error}
           </div>
         )}
 
         {rows.length > 0 && (
-          <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }}>
+          <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{rows.length} point{rows.length === 1 ? "" : "s"} loaded</div>
             {min !== null && (
-              <div style={{ color: "var(--color-text-secondary)", fontSize: 11 }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
+              <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
             )}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
@@ -837,29 +851,29 @@ export default function GeophysicsModule() {
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
-                View in 3D <ArrowRight size={13} />
+                View in 3D <ArrowRight size={14} />
               </button>
               <button
                 onClick={() => { if (window.confirm(`Clear all ${rows.length} geophysics point(s)?`)) replaceLayer("geophys_pts", []); }}
                 style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-text)" }}
               >
-                <Trash2 size={13} /> Clear
+                <Trash2 size={14} /> Clear
               </button>
             </div>
             {/* TASKS.csv #51 — Voronoi/Delaunay tessellation + polygonal declustering, over whatever
                 point cloud is currently loaded. Needs >=3 points to be meaningful (see SpatialAnalysis's
                 own guard), so only shown once points exist rather than as a separately-gated button. */}
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
-              <Triangle size={13} /> Spatial analysis (Voronoi / declustering)…
+              <Triangle size={14} /> Spatial analysis (Voronoi / declustering)…
             </button>
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), a
                 lightweight pure-JS alternative to the Python sidecar's own (fully built but unreachable
                 from any UI) /interpolate endpoint — see idw.js's own header comment for why. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Box size={13} /> Grid to raster (IDW)…
+              <Box size={14} /> Grid to raster (IDW)…
             </button>
             {idwOpen && (
-              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+              <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
                 <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Cell size</span>
@@ -895,7 +909,7 @@ export default function GeophysicsModule() {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
-            {terrainBusy && !srtmProgress ? <Loader2 size={13} className="spin" /> : <Mountain size={13} />} {terrainBusy && !srtmProgress ? "Reading…" : terrain ? "Replace terrain…" : "Import SRTM/DEM…"}
+            {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? "Reading…" : terrain ? "Replace terrain…" : "Import SRTM/DEM…"}
           </button>
           <button
             onClick={openSrtmPicker}
@@ -903,10 +917,10 @@ export default function GeophysicsModule() {
             disabled={terrainBusy}
             title="Pick an area on a map and fetch elevation for it — no manual download needed"
           >
-            {srtmProgress ? <Loader2 size={13} className="spin" /> : <Radio size={13} />} {srtmProgress ? `Fetching ${srtmProgress.done}/${srtmProgress.total}…` : "Fetch SRTM for this area"}
+            {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? `Fetching ${srtmProgress.done}/${srtmProgress.total}…` : "Fetch SRTM for this area"}
           </button>
         </div>
-        <div style={{ fontSize: 10.5, color: "var(--color-text-muted)", marginTop: 4 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>
           "Fetch SRTM for this area" opens a map to draw the exact area you want — pre-filled around your drillholes if any are loaded, but you can pan/redraw to widen or shift it. Pulls public elevation data, no manual USGS download needed. Sourced from AWS's public Terrain Tiles (SRTM-heritage, no account required), not usgs.gov directly.
         </div>
         {srtmPickerOpen && (
@@ -939,15 +953,15 @@ export default function GeophysicsModule() {
           onChange={(e) => { const files = e.target.files; importTerrain(files); e.target.value = ""; }}
         />
         {terrainError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: terrainError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${terrainError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: terrainError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: terrainError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${terrainError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: terrainError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {terrainError.text}
           </div>
         )}
         {terrain && (
-          <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateTerrain({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {terrain.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
@@ -962,13 +976,13 @@ export default function GeophysicsModule() {
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
             <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title="Export the merged/processed terrain's elevation grid as a single-band GeoTIFF">
-              <Download size={13} /> Export to GeoTIFF…
+              <Download size={14} /> Export to GeoTIFF…
             </button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
             <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Mountain size={13} /> Generate hillshade…
+              <Mountain size={14} /> Generate hillshade…
             </button>
             {hillshadeOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -999,7 +1013,7 @@ export default function GeophysicsModule() {
                 vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
             <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Waypoints size={13} /> Generate contours…
+              <Waypoints size={14} /> Generate contours…
             </button>
             {contourOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -1038,7 +1052,7 @@ export default function GeophysicsModule() {
           <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), or a GeoPackage (.gpkg) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={13} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg)…
+          <Waypoints size={14} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg)…
         </button>
         <input
           ref={boundaryInput}
@@ -1049,15 +1063,15 @@ export default function GeophysicsModule() {
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
         />
         {boundaryError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: boundaryError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${boundaryError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: boundaryError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: boundaryError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${boundaryError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: boundaryError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {boundaryError.text}
           </div>
         )}
         {nonClaimBoundaries.map((b) => (
-          <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {b.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{b.polylines?.length || 0} part(s)</span>
@@ -1084,7 +1098,7 @@ export default function GeophysicsModule() {
           <InfoButton title="Web layers" text="Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer." />
         </div>
         <button onClick={async () => { setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true); }} style={pBtn}>
-          <Globe size={13} /> Add web layer (WMS / WFS)…
+          <Globe size={14} /> Add web layer (WMS / WFS)…
         </button>
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -1092,7 +1106,7 @@ export default function GeophysicsModule() {
           <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), or GeoPackage (.gpkg), same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={13} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg)…
+          <Flag size={14} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg)…
         </button>
         <input
           ref={claimInput}
@@ -1103,17 +1117,17 @@ export default function GeophysicsModule() {
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
         />
         {claims.length === 0 && (
-          <div style={{ marginTop: 4, fontSize: 11, color: "var(--color-text-muted)" }}>No claims imported yet.</div>
+          <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No claims imported yet.</div>
         )}
         {claims.map((c) => (
-          <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {c.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {c.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <input
                 value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
-                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: 11.5, padding: 0 }}
+                style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: 0 }}
               />
               <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
             </div>
@@ -1137,7 +1151,7 @@ export default function GeophysicsModule() {
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Expiry</span>
               <input type="date" value={c.expiryDate || ""} onChange={(e) => updateBoundary(c.id, { expiryDate: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: 11, color: "var(--color-text-faint)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)" }}>
               <span style={{ width: 60, flexShrink: 0 }}>Area</span>
               <span>{boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha</span>
             </div>
@@ -1177,9 +1191,9 @@ export default function GeophysicsModule() {
             onChange={(e) => { const v = Number(e.target.value); setVoxelCellBudget(Number.isFinite(v) && v > 0 ? v : null); }}
             style={{ ...numInput, width: 100 }}
           />
-          <span style={{ color: "var(--color-text-muted)", fontSize: 11 }}>cells (default {MAX_CELLS.toLocaleString()})</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>cells (default {MAX_CELLS.toLocaleString()})</span>
           {voxelCellBudget != null && (
-            <span onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 10.5, marginLeft: "auto" }}>Reset to default</span>
+            <span onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>Reset to default</span>
           )}
         </div>
 
@@ -1188,7 +1202,7 @@ export default function GeophysicsModule() {
           <InfoButton title="Open Mining Format (.omf)" text="Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet." />
         </div>
         <button onClick={() => omfInput.current.click()} style={pBtn} disabled={omfBusy}>
-          {omfBusy ? <Loader2 size={13} className="spin" /> : <Box size={13} />} {omfBusy ? "Reading…" : "Import OMF (.omf)…"}
+          {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? "Reading…" : "Import OMF (.omf)…"}
         </button>
         <input
           ref={omfInput}
@@ -1198,15 +1212,15 @@ export default function GeophysicsModule() {
           onChange={(e) => { importOmf(e.target.files[0]); e.target.value = ""; }}
         />
         {omfError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: omfError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${omfError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: omfError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: omfError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${omfError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: omfError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {omfError.text}
           </div>
         )}
         {omfObjects.map((o) => (
-          <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+          <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-                {o.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
@@ -1224,7 +1238,7 @@ export default function GeophysicsModule() {
           <InfoButton title="Voxel / block models" text="Import a UBC-GIF tensor mesh (select the .msh mesh file together with its matching model file, e.g. .mod/.con/.den, in one dialog), or a block-model CSV export (x/y/z centroid, cell size, and a value column; the common exchange format from Datamine, Micromine, Surpac, Vulcan, Leapfrog and similar). Geosoft's own proprietary voxel format isn't supported — no public spec to implement against, same reasoning as .grd elsewhere — the CSV path covers the same underlying need. Rendered as coloured 3D blocks with an adjustable value cutoff." />
         </div>
         <button onClick={() => ubcInput.current.click()} style={pBtn} disabled={voxelBusy}>
-          {voxelBusy ? <Loader2 size={13} className="spin" /> : <Box size={13} />} {voxelBusy ? (voxelProgress ? `Reading… ${voxelProgress.toLocaleString()} values` : "Reading…") : "Import UBC mesh + model…"}
+          {voxelBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {voxelBusy ? (voxelProgress ? `Reading… ${voxelProgress.toLocaleString()} values` : "Reading…") : "Import UBC mesh + model…"}
         </button>
         <input
           ref={ubcInput}
@@ -1235,7 +1249,7 @@ export default function GeophysicsModule() {
           onChange={(e) => { importUBC(e.target.files); e.target.value = ""; }}
         />
         <button onClick={() => blockModelInput.current.click()} style={pBtn}>
-          <Upload size={13} /> Import block model CSV…
+          <Upload size={14} /> Import block model CSV…
         </button>
         <input
           ref={blockModelInput}
@@ -1245,7 +1259,7 @@ export default function GeophysicsModule() {
           onChange={(e) => { const f = e.target.files[0]; importBlockModelCSV(f); e.target.value = ""; }}
         />
         {voxelError && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: voxelError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${voxelError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: 11.5, color: voxelError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, padding: "8px 10px", background: voxelError.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${voxelError.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: voxelError.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
             {voxelError.text}
           </div>
         )}
@@ -1253,7 +1267,7 @@ export default function GeophysicsModule() {
           <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} />
         ))}
 
-        <div style={{ marginTop: 16, fontSize: 11.5, color: "var(--color-text-caption)", lineHeight: 1.6 }}>
+        <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
           <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Also planned:</div>
           <div>• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above</div>
           <div>• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)</div>
@@ -1266,9 +1280,16 @@ export default function GeophysicsModule() {
         className="ge-main"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
-        <Radio size={40} style={{ opacity: 0.4 }} />
-        <div style={{ maxWidth: 460, textAlign: "center", fontSize: 12.5, lineHeight: 1.6 }}>
-          {(() => {
+        {/* TASKS.csv #309 — this used to be a 40px faint icon over a TWELVE-LINE centre-aligned
+            paragraph of format reference (GeoTIFF/GXF/.ply/.dxf/.xyz/UBC), which the design review
+            called "close to unreadable as a block, and reference material rather than an invitation
+            to do anything". The reference text is NOT deleted — it is good and specific — it moves
+            behind the InfoButton progressive-disclosure component this module already uses eight
+            times elsewhere, so it is one click away instead of being the whole screen. What's left
+            is the shared EmptyState card the other three data tabs now use. */}
+        <EmptyState
+          icon={<Radio size={18} />}
+          headline={(() => {
             // Built as a list-and-join rather than chained ternaries (the pre-#77-fix version of this
             // string) — that approach stopped scaling once boundaries joined rasters/terrain as a
             // third thing that may or may not be loaded.
@@ -1277,13 +1298,20 @@ export default function GeophysicsModule() {
             if (rasters.length) parts.push(`${rasters.length} raster drape(s)`);
             if (terrain) parts.push("a terrain surface");
             if (boundaries.length) parts.push(`${boundaries.length} boundary(ies)`);
-            if (parts.length) {
-              const joined = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
-              return `${joined} loaded. Drag another CSV, GeoTIFF, .ply/.dxf, or .xyz here to add more, or head to the 3D View to see everything alongside your drillholes.`;
-            }
-            return "Drag a CSV, GeoTIFF, Geosoft .gxf grid, .ply/.dxf boundary, or .xyz line data here, or use the buttons on the left. CSV: x/y/z (or easting/northing/elevation) plus a value (or reading/mag/response). GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM (a filename with \"dem\"/\"srtm\"/\"elev\"/\"terrain\"/\"topo\" in it is treated as elevation data — otherwise it's imported as a flat raster drape). .gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column picker (Geosoft line/profile data, e.g. airborne survey exports). UBC mesh+model and block-model CSV import (below) render as coloured 3D blocks — Geosoft's own binary .grd/voxel formats stay unsupported, no public spec to implement against.";
+            if (!parts.length) return "No geophysics data yet";
+            const joined = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
+            return `${joined} loaded`;
           })()}
-        </div>
+          actionLabel="Import CSV…"
+          onAction={() => fileInput.current?.click()}
+          actionTitle="Pick a point-cloud CSV — x/y/z plus a value column"
+          secondary={<InfoButton title="Every supported format" width={430} text={FORMAT_REFERENCE} />}
+          footnote="Or drag a file straight onto this pane. Everything imported here renders in the 3D View alongside your drillholes."
+        >
+          <div style={{ marginBottom: 12 }}>
+            Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft <code>.gxf</code>, <code>.ply</code>/<code>.dxf</code> or <code>.xyz</code> here, or use the buttons on the left — the <b>i</b> beside the button lists exactly what each format does on import.
+          </div>
+        </EmptyState>
       </div>
 
       {spatialOpen && <SpatialAnalysis points={rows} onClose={() => setSpatialOpen(false)} />}
@@ -1320,10 +1348,10 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
   const visibleCount = model.cells.filter((c) => c.value >= displayThreshold).length;
   const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : "CSV";
   return (
-    <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11.5 }}>
+    <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
-          {model.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+          {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
@@ -1335,7 +1363,7 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
         <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{displayThreshold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
-      <div style={{ marginTop: 3, fontSize: 10.5, color: "var(--color-text-muted)" }}>
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
         Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s) (value ≥ cutoff) — range {model.min.toLocaleString(undefined, { maximumFractionDigits: 2 })} to {model.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
@@ -1420,11 +1448,11 @@ function VoxelLegendEditor({ model, onUpdate }) {
             <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#5a9bd4"} onChange={(e) => updateStop(i, { color: e.target.value })} style={{ width: 24, height: 20, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", flexShrink: 0 }} />
             <input type="number" value={s.value} onChange={(e) => updateStop(i, { value: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             {model.colorMode === "discrete" && (
-              <span style={{ color: "var(--color-text-muted)", fontSize: 10, width: 60, flexShrink: 0 }}>
+              <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", width: 60, flexShrink: 0 }}>
                 {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : `to ${model.max} (max)`}
               </span>
             )}
-            <Trash2 size={11} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
+            <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
           </div>
         ))}
         {/* User report: "the values never got to the max value" — each stop's own number IS its class's
@@ -1470,7 +1498,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>Apply</button>
         </div>
-        <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
           Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.
         </div>
       </div>
@@ -1478,5 +1506,5 @@ function VoxelLegendEditor({ model, onUpdate }) {
   );
 }
 
-const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
-const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 6px" };
+const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };

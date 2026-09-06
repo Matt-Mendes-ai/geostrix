@@ -63,14 +63,14 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Milestone size={16} color="#55606e" />
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Boundary intercepts</div>
+            <Milestone size={18} color="#55606e" />
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Boundary intercepts</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
             Every lithology/alteration interval's top — the same control points the implicit-modelling
             tools already read on the Modeling tab — resolved to a real 3D position along each hole's
             desurveyed trace. Uncheck one to exclude it from feeding a surface without touching the
@@ -98,10 +98,10 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
           {/* TASKS.csv #52 (c) — set editor. */}
           <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6, padding: 8, marginBottom: 10, background: "var(--color-bg-inset)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <Layers size={13} color="#55606e" />
-              <div style={{ fontSize: 11.5, color: "var(--color-text-strong)", fontWeight: 600 }}>Intercept sets</div>
+              <Layers size={14} color="#55606e" />
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>Intercept sets</div>
             </div>
-            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>
               A named subset of these picks, so a unit that repeats in the pile can be modelled as the
               separate surfaces it actually is instead of every pick of that code feeding one surface.
               Build a set here, then choose it on the Modeling tab to restrict a run to it. Sets are
@@ -133,18 +133,18 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
               <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
                 <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} style={miniBtn}>Add the {shown.length} shown</button>
                 <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} style={miniBtn}>Remove the {shown.length} shown</button>
-                <span style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>{(editingSet.ids || []).length} intercept(s) in this set.</span>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{(editingSet.ids || []).length} intercept(s) in this set.</span>
               </div>
             )}
           </div>
 
           {shown.length === 0 ? (
-            <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: 12 }}>
+            <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
               {intercepts.length === 0 ? "No litho/alteration intervals loaded yet." : "No intercepts match the current filters."}
             </div>
           ) : (
             <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                 <thead>
                   <tr style={{ background: "var(--color-bg)" }}>
                     <th style={th}></th>
@@ -164,14 +164,14 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                     return (
                       <tr key={i.id} style={{ borderTop: "1px solid var(--color-border-subtle)", opacity: excluded ? 0.45 : 1 }}>
                         <td style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? "Excluded — click to include" : "Included — click to exclude"}>
-                          {excluded ? <Square size={13} color="#55606e" /> : <CheckSquare size={13} color="#7fd9c9" />}
+                          {excluded ? <Square size={14} color="#55606e" /> : <CheckSquare size={14} color="#7fd9c9" />}
                         </td>
                         <td style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? "Soft (approximate) — click to make hard again" : "Hard (exact) — click to make soft"}>
-                          {soft ? <Circle size={11} color="#e2a63c" fill="#e2a63c" /> : <Circle size={11} color="#c7ccd3" />}
+                          {soft ? <Circle size={12} color="#e2a63c" fill="#e2a63c" /> : <Circle size={12} color="#c7ccd3" />}
                         </td>
                         {editingSet && (
                           <td style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? "In the set being edited — click to remove" : "Not in the set being edited — click to add"}>
-                            {memberSet.has(i.id) ? <CheckSquare size={13} color="#8a6a1f" /> : <Square size={13} color="#c7ccd3" />}
+                            {memberSet.has(i.id) ? <CheckSquare size={14} color="#8a6a1f" /> : <Square size={14} color="#c7ccd3" />}
                           </td>
                         )}
                         <td style={td}>{i.layerLabel}</td>
@@ -190,7 +190,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
           <button onClick={exportCsv} disabled={!intercepts.length} style={{ ...rerunBtn, opacity: intercepts.length ? 1 : 0.5 }}>
-            <Download size={13} /> Export CSV
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
@@ -200,8 +200,8 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
 
 const panel = { width: "min(720px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, position: "sticky", top: 0, background: "var(--color-bg)" };
-const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };
-const miniBtn = { display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 11, cursor: "pointer", fontFamily: "inherit" };
-const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const th = { textAlign: "left", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, position: "sticky", top: 0, background: "var(--color-bg)" };
+const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };
+const miniBtn = { display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit" };
+const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

@@ -127,8 +127,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Best-intercept report</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Best-intercept report</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
               Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays.length} intervals loaded.
               {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
@@ -138,7 +138,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't turn up as a false 'best intercept' — check this to include them anyway.">
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't turn up as a false 'best intercept' — check this to include them anyway.">
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
               Include QC samples (standards/blanks/duplicates) in this report
             </label>
@@ -167,9 +167,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
 
           {symbols.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title="Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.">
-              <span style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>Also show:</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Also show:</span>
               {symbols.filter((s) => s !== symbol).map((s) => (
-                <label key={s} style={{ fontSize: 11, color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
+                <label key={s} style={{ fontSize: "var(--font-size-sm)", color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
                   {s} ({elementUnits[s] || "ppm"})
                 </label>
@@ -182,7 +182,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
               would put confidently-wrong widths in a report. Disabled with an explanation when there's
               no collar geometry loaded, rather than silently doing nothing. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "7px 9px", background: twEnabled ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${twEnabled ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6 }}>
-            <label style={{ fontSize: 11, color: collars?.length ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 5, cursor: collars?.length ? "pointer" : "default" }}
+            <label style={{ fontSize: "var(--font-size-sm)", color: collars?.length ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 5, cursor: collars?.length ? "pointer" : "default" }}
               title={collars?.length ? "Correct each intercept's downhole length to a true (perpendicular) thickness across the structure." : "Needs collar (and ideally survey) data loaded to know each hole's orientation."}>
               <input type="checkbox" checked={twEnabled} disabled={!collars?.length} onChange={(e) => setTwEnabled(e.target.checked)} style={{ margin: 0 }} />
               True width
@@ -199,8 +199,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                 </label>
               </>
             )}
-            {!collars?.length && <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Import collars to enable.</span>}
-            {twEnabled && <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.</span>}
+            {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Import collars to enable.</span>}
+            {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.</span>}
           </div>
 
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}
@@ -216,12 +216,12 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           )}
 
           {symbols.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
           ) : results.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", padding: 8 }}>No intervals meet these criteria — try a lower cutoff or shorter minimum length.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No intervals meet these criteria — try a lower cutoff or shorter minimum length.</div>
           ) : (
             <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
                     <th style={th}>Hole</th>
@@ -275,12 +275,12 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
             </div>
           )}
 
-          <div style={{ fontSize: 10, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.
           </div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={13} /> Export report (CSV)
+            <Download size={14} /> Export report (CSV)
           </button>
         </div>
 
@@ -294,8 +294,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
 
 const panel = { width: "min(880px, 95vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const fieldLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 4 };
-const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "#1a2028", fontSize: 12, fontFamily: "inherit", width: 130 };
-const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: 12, cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid #c7ccd3", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "#8fd9ab" : "#55606e" });
-const th = { textAlign: "left", padding: "6px 8px", color: "#94a1b0", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
-const td = { padding: "5px 8px", color: "#2a3340", whiteSpace: "nowrap" };
+const fieldLabel = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 4 };
+const inp = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", width: 130 };
+const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
+const th = { textAlign: "left", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
+const td = { padding: "5px 8px", color: "var(--color-text-strong)", whiteSpace: "nowrap" };

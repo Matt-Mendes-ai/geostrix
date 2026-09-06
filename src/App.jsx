@@ -273,7 +273,7 @@ export default function App() {
   return (
     <div className="ge-app">
       {recovery && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#241f14", borderBottom: "1px solid #4a3d1e", fontSize: 12, color: "#d8c080" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#241f14", borderBottom: "1px solid #4a3d1e", fontSize: "var(--font-size-base)", color: "#d8c080" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>
             Recovered unsaved work from a previous session — "{recovery.projectName}"
@@ -304,7 +304,7 @@ export default function App() {
               title={m.disabled ? "Coming soon" : undefined}
               style={m.disabled ? { opacity: 0.45, cursor: "default" } : undefined}
             >
-              <Icon size={15} /> {m.label}
+              <Icon size={14} /> {m.label}
             </button>
           );
         })}
@@ -320,6 +320,23 @@ export default function App() {
         <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)"><FileBarChart2 size={14} /> Report</button>
       </div>
 
+      {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by
+          ViewerModule's ViewToolbar and ONLY in "view" mode. Every other tab — 3D Modeling,
+          Targeting, Geochem, Geophysics, Raster, Layout — had no such row, so switching 3D View ▸ 3D
+          Modeling shifted the entire content area UP by 38px and back down on return. That reads as
+          a rendering glitch, not as a design. Reserving the row's height here keeps the geometry
+          stable across all seven tabs while the real #155 follow-up (actual per-module tools) is
+          still outstanding. Deliberately rendered as the same .ge-subtoolbar band rather than a bare
+          38px gap: an empty band of the app's own chrome reads as consistent framing, whereas a gap
+          of page background reads as a missing element. aria-hidden + role=presentation because it
+          is pure layout — a screen reader should not be told there is an empty toolbar here.
+          NOTE this sits ABOVE .ge-body, whereas ViewerModule's real one sits inside its own column
+          INSIDE .ge-body — different position in the tree, identical resulting geometry, because
+          .ge-app is a single vertical flex column either way. */}
+      {!VIEWER_MODES[active] || VIEWER_MODES[active] !== "view" ? (
+        <div className="ge-subtoolbar" aria-hidden="true" role="presentation" />
+      ) : null}
+
       <div className="ge-body">
         {/* TASKS.csv #225 — ONE persistent ViewerModule instance instead of three separate conditional
             JSX expressions (each of which used to occupy its own position in the tree, forcing React
@@ -328,7 +345,7 @@ export default function App() {
             file's own comments for the render-loop/pointer-handler/viewport-request guards this
             required. No `key` here — a key would defeat the whole point by forcing a fresh instance. */}
         <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
-        <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: 13 }}>Loading…</div>}>
+        <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
           {active === "geochem" && <GeochemModule />}
           {active === "geophysics" && <GeophysicsModule />}
           {active === "raster" && <RasterModule />}
@@ -383,7 +400,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
         );
       })}
       <button className="ge-tab-add" onClick={onNew} title="New project (opens another tab)" aria-label="New project (opens another tab)">
-        <Plus size={13} />
+        <Plus size={14} />
       </button>
     </div>
   );
@@ -423,7 +440,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         onClick={() => onHelp?.()}
         title="Help — keyboard shortcuts & about GeoStrix"
         aria-label="Help — keyboard shortcuts and about GeoStrix"
-        style={{ background: "none", border: "1px solid var(--color-border-light)", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: 11, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
+        style={{ background: "none", border: "1px solid var(--color-border-light)", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: "var(--font-size-sm)", fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
       >
         ?
       </button>
@@ -458,7 +475,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       {updater.event === "available" && (
         <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
           Update available (v{updater.version})
-          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Download</button>
+          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Download</button>
         </span>
       )}
       {updater.event === "downloading" && (
@@ -473,7 +490,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       {updater.event === "downloaded" && (
         <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
           Update v{updater.version} ready
-          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: 10.5, cursor: "pointer" }}>Restart &amp; install</button>
+          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Restart &amp; install</button>
         </span>
       )}
       {updater.event === "error" && (
@@ -487,7 +504,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
             autoFocus defaultValue={project.epsg}
             onBlur={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setEpsg(v); setEpsgEditing(false); }}
             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            style={{ width: 70, marginLeft: 6, background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "2px 5px" }}
+            style={{ width: 70, marginLeft: 6, background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "2px 5px" }}
           />
         </span>
       ) : (
@@ -503,7 +520,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         <select
           value={desurveyMethod}
           onChange={(e) => setDesurveyMethod(e.target.value)}
-          style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: 11, padding: "1px 3px", cursor: "pointer" }}
+          style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "1px 3px", cursor: "pointer" }}
         >
           {DESURVEY_METHODS.map((m) => <option key={m.id} value={m.id} title={m.hint}>{m.label}</option>)}
         </select>
@@ -512,4 +529,4 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
   );
 }
 
-const recoveryBtn = { display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, background: "transparent", border: "1px solid #4a3d1e", color: "#d8c080", fontSize: 11.5, cursor: "pointer", flexShrink: 0 };
+const recoveryBtn = { display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5, background: "transparent", border: "1px solid #4a3d1e", color: "#d8c080", fontSize: "var(--font-size-base)", cursor: "pointer", flexShrink: 0 };

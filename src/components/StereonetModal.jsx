@@ -126,7 +126,7 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
               </span>
             )}
           </div>
-          <X size={16} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 16 }}>

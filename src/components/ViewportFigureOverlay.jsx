@@ -34,6 +34,10 @@
 //    ViewerModule for the derivation and its one documented limit (it does not frustum-cull).
 import React, { useRef, useEffect, useCallback } from "react";
 import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
+// TASKS.csv #305 — an SVG font-size PRESENTATION ATTRIBUTE cannot resolve a var(), so the scale-bar
+// labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
+// CSS-vs-JS boundary theme.js documents for colour.
+import { fontSizes } from "../lib/theme.js";
 
 const MAX_BAR_PX = 190;
 // The AxisGizmo occupies the bottom-left 76px + 12px margin of the canvas (see AxisGizmo.js's own
@@ -122,21 +126,21 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     // silently, which is exactly the failure this project's picking harness exists to catch.
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
       {showTitle && (
-        <div style={{ ...card, position: "absolute", top: 12, left: 12, maxWidth: 340, padding: "6px 11px", fontSize: 13, fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ ...card, position: "absolute", top: 12, left: 12, maxWidth: 340, padding: "6px 11px", fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {title}
         </div>
       )}
       {showLegend && (
         <div style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>Legend</div>
+          <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>Legend</div>
           {shown.map((it, i) => (
             <div key={`${it.group}|${it.label}|${i}`} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 12, height: 12, flexShrink: 0, background: it.color, border: "1px solid var(--color-border-light)", borderRadius: 2 }} />
-              <span style={{ fontSize: 11, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${it.group}: ${it.label}`}>{it.label}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${it.group}: ${it.label}`}>{it.label}</span>
             </div>
           ))}
           {hiddenCount > 0 && (
-            <div style={{ fontSize: 10, color: "var(--color-text-caption)", marginTop: 4 }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>
               + {hiddenCount} more not shown — filter categories, or build the figure in Layout
             </div>
           )}
@@ -151,12 +155,12 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
             <rect ref={barHalfRef} x="1" y="2" width={MAX_BAR_PX / 2} height="7" style={{ fill: "var(--color-text)" }} />
             <rect ref={barMidRef} x={1 + MAX_BAR_PX / 2} y="2" width="0" height="7" style={{ fill: "var(--color-bg)" }} />
             <rect ref={barRectRef} x="1" y="2" width={MAX_BAR_PX} height="7" strokeWidth="1" style={{ fill: "none", stroke: "var(--color-text)" }} />
-            <text x="1" y="21" fontSize="10.5" fontFamily="'Exo 2', system-ui, sans-serif" style={{ fill: "var(--color-text-secondary)" }}>0</text>
-            <text ref={barTextRef} x={MAX_BAR_PX + 1} y="21" fontSize="10.5" textAnchor="end" fontFamily="'Exo 2', system-ui, sans-serif" style={{ fill: "var(--color-text)" }}>—</text>
+            <text x="1" y="21" fontSize={fontSizes.sm} fontFamily="'Exo 2', system-ui, sans-serif" style={{ fill: "var(--color-text-secondary)" }}>0</text>
+            <text ref={barTextRef} x={MAX_BAR_PX + 1} y="21" fontSize={fontSizes.sm} textAnchor="end" fontFamily="'Exo 2', system-ui, sans-serif" style={{ fill: "var(--color-text)" }}>—</text>
           </svg>
           {/* The honesty label. This is not decoration: without it the bar claims a single scale for
               a perspective projection that does not have one. See figureScale.js's header. */}
-          <div style={{ fontSize: 9.5, color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>at view centre</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>at view centre</div>
         </div>
       )}
     </div>

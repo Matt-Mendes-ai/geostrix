@@ -44,14 +44,14 @@ export default function DataQCModal({ onCancel }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ShieldAlert size={16} color="#55606e" />
-            <div style={{ fontSize: 15, color: "var(--color-accent-dark)", fontWeight: 600 }}>Drillhole data QA/QC</div>
+            <ShieldAlert size={18} color="#55606e" />
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Drillhole data QA/QC</div>
           </div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
             Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for
             the kinds of problems that quietly distort a modelled surface — before you get as far as
             modelling. Doesn't fix anything automatically; re-import or hand-correct the source data
@@ -66,9 +66,9 @@ export default function DataQCModal({ onCancel }) {
               return (
                 <div key={sev} onClick={() => toggleSeverity(sev)}
                   style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
-                  <Icon size={15} color={meta.color} style={{ marginBottom: 3 }} />
-                  <div style={{ fontSize: 17, color: "var(--color-text)", fontWeight: 600 }}>{result.summary[sev] || 0}</div>
-                  <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{meta.label}{result.summary[sev] === 1 ? "" : "s"}</div>
+                  <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
+                  <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{result.summary[sev] || 0}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{meta.label}{result.summary[sev] === 1 ? "" : "s"}</div>
                 </div>
               );
             })}
@@ -83,9 +83,9 @@ export default function DataQCModal({ onCancel }) {
         </div>
 
         {result.issues.length === 0 ? (
-          <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: 12.5 }}>No issues found — collars, survey, and every layer look internally consistent.</div>
+          <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: "var(--font-size-base)" }}>No issues found — collars, survey, and every layer look internally consistent.</div>
         ) : shown.length === 0 ? (
-          <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: 12 }}>No issues match the current filters.</div>
+          <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>No issues match the current filters.</div>
         ) : (
           <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 16px" }}>
             <div style={{ height: topPad }} />
@@ -94,10 +94,10 @@ export default function DataQCModal({ onCancel }) {
               const Icon = meta.icon;
               return (
                 <div key={startIndex + i} style={{ display: "flex", gap: 8, padding: "7px 8px", borderBottom: "1px solid var(--color-border-subtle)", height: ISSUE_ROW_H, boxSizing: "border-box" }}>
-                  <Icon size={13} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <Icon size={14} color={meta.color} style={{ flexShrink: 0, marginTop: 2 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
-                    <div style={{ fontSize: 9.5, color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}</div>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{issue.message}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 1 }}>{issue.category}{issue.holeId ? ` — ${issue.holeId}` : ""}</div>
                   </div>
                 </div>
               );
@@ -108,7 +108,7 @@ export default function DataQCModal({ onCancel }) {
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
           <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries, assays }))} style={rerunBtn}>
-            <RefreshCw size={13} /> Re-run
+            <RefreshCw size={14} /> Re-run
           </button>
         </div>
       </div>
@@ -118,5 +118,5 @@ export default function DataQCModal({ onCancel }) {
 
 const panel = { width: "min(640px, 92vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "#1a2028", fontSize: 12, fontFamily: "inherit" };
-const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
+const rerunBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

@@ -139,6 +139,17 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   connection held in `electron/main.js`'s in-memory `liveDbConnections` Map for the app session,
   not a fresh connection per query, but the "never touches disk" guarantee must hold regardless of
   future changes there.
+- **Design tokens (colour + type).** `src/styles/app.css`'s `:root` block is the single source of
+  truth for both, mirrored value-for-value in `src/lib/theme.js` (`colors`, `fontSizes`). Reach for
+  `var(--color-*)` / `var(--font-size-*)` by default — they work in class rules AND in the inline
+  `style={{}}` objects the app is built from. The JS constants are only for places a `var()` is
+  meaningless: three.js, canvas 2D, SVG *presentation attributes*, and anything serialized out of
+  the document into a standalone `.svg`/`.png` export. **Seven files are deliberately excluded from
+  both migrations** (StripLog, SectionWindow, StereonetModal, FenceDiagramModal,
+  DownholeStructurePlot, GeochemModule, `lib/striplogSvg.js`) — read theme.js's header before
+  "finishing" what looks like an unfinished sweep there; it isn't one. The type scale is FIVE steps
+  (xs 10 / sm 11 / base 12 / lg 14 / xl 17) and there is deliberately no sixth — TASKS.csv #305 has
+  the measurements that produced it.
 - A lot of past bugs turned out to be state-synchronization races between local component state and
   the shared store (mount-time hydration effects, restore-after-side-effect flows) rather than
   logic errors — when something "resets" unexpectedly after a tab switch or an async operation,

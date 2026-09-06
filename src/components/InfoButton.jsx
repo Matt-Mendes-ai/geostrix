@@ -65,7 +65,7 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
           cursor: "pointer",
         }}
       >
-        <Info size={10} />
+        <Info size={12} />
       </button>
       {visible && (
         <div
@@ -79,11 +79,11 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
           }}
         >
           {title && (
-            <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {title}
             </div>
           )}
-          <div style={{ fontSize: 11.5, color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
         </div>
       )}
     </span>

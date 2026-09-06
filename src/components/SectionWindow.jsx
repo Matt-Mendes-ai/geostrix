@@ -193,31 +193,31 @@ export default function SectionWindow() {
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder="Unit name (no litho data loaded)" style={{ ...selectStyle, width: 170 }} />
               )}
               <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? `Draw ${unitPick}'s upper contact` : "Pick a unit first"}>
-                <Pencil size={13} /> Draw upper contact
+                <Pencil size={14} /> Draw upper contact
               </button>
             </>
           ) : (
             <>
               <span style={{ color: "#e2a63c", fontSize: 11 }}>Click points along {unitPick}'s upper contact… ({drawPoints.length} so far)</span>
-              <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={13} /> Undo point</button>
-              <button onClick={finishContact} disabled={drawPoints.length < 2} style={{ ...btnStyle(true), opacity: drawPoints.length >= 2 ? 1 : 0.5 }}><Check size={13} /> Finish</button>
-              <button onClick={cancelDrawing} style={btnStyle(false)}><X size={13} /> Cancel</button>
+              <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} /> Undo point</button>
+              <button onClick={finishContact} disabled={drawPoints.length < 2} style={{ ...btnStyle(true), opacity: drawPoints.length >= 2 ? 1 : 0.5 }}><Check size={14} /> Finish</button>
+              <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} /> Cancel</button>
             </>
           )}
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
-            <Save size={13} /> {saved ? "Saved ✓" : "Save contacts"}
+            <Save size={14} /> {saved ? "Saved ✓" : "Save contacts"}
           </button>
           <button onClick={snapshotToLayout} style={btnStyle(snapped)}>
-            <Camera size={13} /> {snapped ? "Sent ✓" : "Snapshot to Layout"}
+            <Camera size={14} /> {snapped ? "Sent ✓" : "Snapshot to Layout"}
           </button>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title="Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)">
             VE
             <input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
-          <button onClick={exportPNG} style={btnStyle(false)} title="Export section → PNG"><Download size={13} /> PNG</button>
-          <button onClick={exportSVG} style={btnStyle(false)} title="Export section → SVG"><Download size={13} /> SVG</button>
-          <button onClick={exportPDF} style={btnStyle(false)} title="Export section → PDF"><FileText size={13} /> PDF</button>
+          <button onClick={exportPNG} style={btnStyle(false)} title="Export section → PNG"><Download size={14} /> PNG</button>
+          <button onClick={exportSVG} style={btnStyle(false)} title="Export section → SVG"><Download size={14} /> SVG</button>
+          <button onClick={exportPDF} style={btnStyle(false)} title="Export section → PDF"><FileText size={14} /> PDF</button>
         </span>
       </div>
 
@@ -227,7 +227,7 @@ export default function SectionWindow() {
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
               {c.unit} <span style={{ color: "#94a1b0" }}>(upper contact)</span>
-              <X size={11} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
+              <X size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
             </div>
           ))}
         </div>

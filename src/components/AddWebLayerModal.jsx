@@ -86,11 +86,11 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
     <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
       <div style={panel({ width: 560, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><Globe size={15} /> Add web layer (WMS / WFS)</div>
-          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={16} /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><Globe size={14} /> Add web layer (WMS / WFS)</div>
+          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 11, opacity: 0.75, lineHeight: 1.4 }}>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>
             Point this at a government/company OGC service URL (e.g. a provincial bedrock geology WMS, an
             airborne mag WMS, or a claim-tenure WFS) — the same kind of service you'd add in QGIS.
             WMS layers import as a raster drape for a chosen area; WFS layers import as a boundary/vector layer.
@@ -108,10 +108,10 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
               onKeyDown={(e) => { if (e.key === "Enter") fetchCapabilities(); }}
             />
             <button onClick={fetchCapabilities} disabled={!url.trim() || loadingCaps} style={{ ...btn(true), width: "auto", padding: "0 12px", display: "flex", alignItems: "center", gap: 6, opacity: url.trim() && !loadingCaps ? 1 : 0.5 }}>
-              {loadingCaps ? <Loader2 size={13} className="spin" /> : null} Fetch layers
+              {loadingCaps ? <Loader2 size={14} className="spin" /> : null} Fetch layers
             </button>
           </div>
-          {capsError && <div style={{ fontSize: 11.5, color: "var(--color-danger-solid)" }}>{capsError}</div>}
+          {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}
 
           {layers && (
             <div>
@@ -120,7 +120,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
                 <option value="">Choose a layer…</option>
                 {layers.map((l) => <option key={l.name} value={l.name}>{l.title || l.name}</option>)}
               </select>
-              {selectedLayer?.abstract && <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 6, lineHeight: 1.4 }}>{selectedLayer.abstract}</div>}
+              {selectedLayer?.abstract && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 6, lineHeight: 1.4 }}>{selectedLayer.abstract}</div>}
             </div>
           )}
 
@@ -128,7 +128,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
             <div>
               <div style={labelStyle}>Area</div>
               {bboxLonLat ? (
-                <div style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", display: "flex", alignItems: "center", gap: 8 }}>
                   <span>~{(bboxLonLat[2] - bboxLonLat[0]).toFixed(3)}° × {(bboxLonLat[3] - bboxLonLat[1]).toFixed(3)}°</span>
                   <button onClick={() => setAreaPickerOpen(true)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>Draw a different area…</button>
                 </div>
@@ -139,17 +139,17 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
           )}
 
           {selectedLayer && service === "wfs" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }} title={collarsLoaded ? undefined : "No collars loaded yet — nothing to clip against, so this has no effect."}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={collarsLoaded ? undefined : "No collars loaded yet — nothing to clip against, so this has no effect."}>
               <input type="checkbox" checked={clipToArea} disabled={!collarsLoaded} onChange={(e) => setClipToArea(e.target.checked)} />
               Limit to the current project area (recommended for province/country-wide layers)
             </label>
           )}
 
-          {result && <div style={{ fontSize: 11.5, color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
+          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
 
           {selectedLayer && (
             <button onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.6 : 1 }}>
-              {busy ? <Loader2 size={13} className="spin" /> : <Download size={13} />} {busy ? "Importing…" : "Import this layer"}
+              {busy ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {busy ? "Importing…" : "Import this layer"}
             </button>
           )}
         </div>

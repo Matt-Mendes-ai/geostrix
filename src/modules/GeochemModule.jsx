@@ -23,6 +23,7 @@ const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceMod
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
+import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 
@@ -340,9 +341,9 @@ export default function GeochemModule() {
       {/* left panel */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         <div className="ge-section-label">Assays &amp; pXRF</div>
-        <button onClick={() => fileRef.current.click()} style={panelBtn}><Upload size={13} /> Import assays</button>
+        <button onClick={() => fileRef.current.click()} style={panelBtn}><Upload size={14} /> Import assays</button>
         <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
-        <button onClick={() => pxrfRef.current.click()} style={panelBtn}><Beaker size={13} /> Import pXRF</button>
+        <button onClick={() => pxrfRef.current.click()} style={panelBtn}><Beaker size={14} /> Import pXRF</button>
         <input ref={pxrfRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
         <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
 
@@ -351,7 +352,7 @@ export default function GeochemModule() {
         </div>
 
         <div className="ge-section-label" style={{ marginTop: 18 }}>Surface samples</div>
-        <button onClick={() => surfaceFileRef.current.click()} style={panelBtn}><Upload size={13} /> Import surface samples</button>
+        <button onClick={() => surfaceFileRef.current.click()} style={panelBtn}><Upload size={14} /> Import surface samples</button>
         <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
         <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 2, lineHeight: 1.4 }}>Soil, rock-chip, stream-sediment, or talus-fines samples — no drillhole required.</div>
         <div style={{ fontSize: 11, color: "#94a1b0", margin: "10px 0 4px" }}>
@@ -361,26 +362,26 @@ export default function GeochemModule() {
         {assayElements.length > 0 && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>Generate from geochem</div>
-            <button onClick={() => runMethod("alteration_boxplot")} style={genBtn}><FlaskConical size={13} /> Alteration (AI/CCPI)</button>
+            <button onClick={() => runMethod("alteration_boxplot")} style={genBtn}><FlaskConical size={14} /> Alteration (AI/CCPI)</button>
             <button onClick={() => runMethod("litho_winchester")} style={genBtn}>Lithology (Winchester)</button>
             <button onClick={() => runMethod("litho_jensen")} style={genBtn}>Lithology (Jensen)</button>
             <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 6, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
-            <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={13} /> Isocon / mass-change calculator</button>
-            <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={13} /> Correlation matrix</button>
-            <button onClick={() => setQaqcOpen(true)} style={genBtn}><ShieldCheck size={13} /> QAQC (standards/blanks/duplicates)</button>
-            <button onClick={() => setSqlOpen(true)} style={genBtn}><TerminalSquare size={13} /> SQL workspace</button>
+            <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={14} /> Isocon / mass-change calculator</button>
+            <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={14} /> Correlation matrix</button>
+            <button onClick={() => setQaqcOpen(true)} style={genBtn}><ShieldCheck size={14} /> QAQC (standards/blanks/duplicates)</button>
+            <button onClick={() => setSqlOpen(true)} style={genBtn}><TerminalSquare size={14} /> SQL workspace</button>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Reporting</div>
-            <button onClick={() => setBestIntOpen(true)} style={genBtn}><Ruler size={13} /> Best-intercept report</button>
-            <button onClick={() => setCompositingOpen(true)} style={genBtn}><Ruler size={13} /> Downhole compositing</button>
+            <button onClick={() => setBestIntOpen(true)} style={genBtn}><Ruler size={14} /> Best-intercept report</button>
+            <button onClick={() => setCompositingOpen(true)} style={genBtn}><Ruler size={14} /> Downhole compositing</button>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Export</div>
-            <button onClick={exportAssaysCSV} style={panelBtn}><Download size={13} /> Assays → CSV</button>
-            <button onClick={exportProjectedCSV} style={panelBtn}><Download size={13} /> Plot data → CSV</button>
-            <button onClick={exportPlotPNG} style={panelBtn}><Download size={13} /> Plot → PNG</button>
-            <button onClick={exportPlotSVG} style={panelBtn}><Download size={13} /> Plot → SVG</button>
+            <button onClick={exportAssaysCSV} style={panelBtn}><Download size={14} /> Assays → CSV</button>
+            <button onClick={exportProjectedCSV} style={panelBtn}><Download size={14} /> Plot data → CSV</button>
+            <button onClick={exportPlotPNG} style={panelBtn}><Download size={14} /> Plot → PNG</button>
+            <button onClick={exportPlotSVG} style={panelBtn}><Download size={14} /> Plot → SVG</button>
           </>
         )}
 
@@ -392,7 +393,7 @@ export default function GeochemModule() {
         {(assayElements.length > 0 || surfaceElements.length > 0) && (
           <>
             {!assayElements.length && <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>}
-            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={13} /> Grade statistics</button>
+            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={14} /> Grade statistics</button>
           </>
         )}
 
@@ -444,8 +445,26 @@ export default function GeochemModule() {
         )}
 
         {assays.length === 0 ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a1b0", fontSize: 13 }}>
-            Import assays or pXRF data to start plotting.
+          // TASKS.csv #309 — was a single line of centred grey text, one of four different
+          // empty-state treatments across the app's seven tabs. Now the shared EmptyState card (see
+          // components/EmptyState.jsx), same as 3D View / Raster / Geophysics. `position: relative`
+          // on the wrapper because EmptyState positions itself absolutely into its container.
+          <div style={{ flex: 1, position: "relative", minHeight: 260 }}>
+            <EmptyState
+              icon={<FlaskConical size={18} />}
+              headline="No assay data yet"
+              actionLabel="Import assays…"
+              onAction={() => fileRef.current.click()}
+              actionTitle="Pick an assay CSV — a hole ID, from/to depths, and one column per element"
+              secondary={
+                <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title="Import a pXRF export instead">Import pXRF…</button>
+              }
+              footnote="An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically."
+            >
+              <div style={{ marginBottom: 12 }}>
+                Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.
+              </div>
+            </EmptyState>
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>

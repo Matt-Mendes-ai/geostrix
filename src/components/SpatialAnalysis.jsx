@@ -71,12 +71,12 @@ export default function SpatialAnalysis({ points, onClose }) {
     <div style={overlay} onClick={onClose}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ color: "var(--color-text)", fontSize: 13, fontWeight: 600 }}>Spatial analysis — Voronoi / declustering</div>
+          <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>Spatial analysis — Voronoi / declustering</div>
           <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {valid.length < 3 ? (
-          <div style={{ padding: 20, fontSize: 12.5, color: "var(--color-text-secondary)" }}>
+          <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
             Need at least 3 points with valid x, y, and value to build a tessellation — currently {valid.length}.
           </div>
         ) : (
@@ -102,7 +102,7 @@ export default function SpatialAnalysis({ points, onClose }) {
                 ))}
               </svg>
               {hoverIdx !== null && cells[hoverIdx] && (
-                <div style={{ marginTop: 6, fontSize: 11, color: "var(--color-text-caption)" }}>
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
                   {cells[hoverIdx].point.label ? `${cells[hoverIdx].point.label} — ` : ""}
                   value {cells[hoverIdx].point.value.toLocaleString()}, cell area {cells[hoverIdx].area.toFixed(1)} units²,
                   decluster weight {(stats.cells[hoverIdx]?.weight * 100).toFixed(2)}%
@@ -111,8 +111,8 @@ export default function SpatialAnalysis({ points, onClose }) {
             </div>
 
             <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.6, display: "flex", gap: 6 }}>
-                <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, display: "flex", gap: 6 }}>
+                <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
                 <span>
                   Each point's Voronoi cell area is used as a declustering weight (Isaaks &amp; Srivastava
                   polygonal method) — clustered points get small cells/low weight, isolated points get
@@ -127,7 +127,7 @@ export default function SpatialAnalysis({ points, onClose }) {
               <StatRow label="Total tessellated area" value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
 
               <button onClick={exportCSV} style={btn}>
-                <Download size={13} /> Export cells (CSV)
+                <Download size={14} /> Export cells (CSV)
               </button>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function SpatialAnalysis({ points, onClose }) {
 
 function StatRow({ label, value, highlight }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 8px", background: highlight ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${highlight ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 5, fontSize: 11.5 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 8px", background: highlight ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${highlight ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 5, fontSize: "var(--font-size-base)" }}>
       <span style={{ color: "var(--color-text-secondary)" }}>{label}</span>
       <span style={{ color: highlight ? "var(--color-accent)" : "var(--color-text)", fontWeight: highlight ? 600 : 400 }}>{value ?? "—"}</span>
     </div>
@@ -148,4 +148,4 @@ function StatRow({ label, value, highlight }) {
 
 const panel = { width: "min(880px, 94vw)", maxHeight: "88vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-border)" };
-const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
+const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };

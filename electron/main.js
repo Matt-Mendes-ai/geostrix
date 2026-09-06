@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session } = require("electron"); // session: TASKS.csv #300
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell } = require("electron"); // session: TASKS.csv #300; shell: TASKS.csv #310
 // User-reported bug: "there's a bug on the app that won't let me close it. I can only close it ending
 // the task" — App.jsx's beforeunload handler correctly calls e.preventDefault() when a tab has unsaved
 // changes (the standard web pattern, meant to trigger a native "leave site?" confirm), but Electron
@@ -181,6 +181,21 @@ function createMainWindow() {
     },
   });
   mainWindow.loadURL(resolveUrl("/"));
+  // TASKS.csv #310 — external links (the repository / licence links on the About tab, and the
+  // existing "get a Tracestrack key" link in LayerPicker) must open in the user's OWN browser, not
+  // in a chromeless second Electron window. Electron's default for an unhandled window.open /
+  // target="_blank" is to spawn a bare BrowserWindow with no address bar, no back button and no way
+  // to tell what site you are on — which is both a bad experience and a phishing surface. Deny the
+  // in-app window unconditionally and hand http/https off to the OS; anything else (file:, and any
+  // other scheme a future link or a compromised page might try) is dropped silently rather than
+  // passed to shell.openExternal, which on Windows would happily launch a registered handler.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const proto = new URL(url).protocol;
+      if (proto === "https:" || proto === "http:") shell.openExternal(url);
+    } catch { /* unparseable URL — ignore */ }
+    return { action: "deny" };
+  });
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   buildMenu();
   // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
