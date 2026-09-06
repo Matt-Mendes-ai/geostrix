@@ -43,7 +43,10 @@ function hashColor(key, sat = 55, light = 52) {
 // real single-project dataset seen in this app so far. Falls back to hashColor (hash-to-restricted-hue)
 // only past that, since a literal unbounded set of possible site-specific codes has no way to reserve
 // slots for in advance.
-const CATEGORICAL_SAFE_COLORS = [
+// TASKS.csv #306 — now also consumed by ViewerModule's ASSAY_ELEMENT_COLORS (see that constant's own
+// comment for the measured deuteranopia collisions in the hand-picked palette it replaced), hence the
+// export. Nothing else about it changed; the ordering below is still #249's.
+export const CATEGORICAL_SAFE_COLORS = [
   "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
   "#332288", "#117733", "#44AA99", "#88CCEE", "#DDCC77", "#CC6677", "#AA4499", "#882255", "#999933",
 ];

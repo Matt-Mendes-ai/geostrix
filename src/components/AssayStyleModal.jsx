@@ -18,15 +18,61 @@ import { overlay } from "../lib/modalStyles.js";
 // newly-toggled-on element a grade-based ramp by default instead of a flat color — a 0.01 g/t and a
 // 50 g/t intercept looking identical until a user finds this modal's gear icon was a real first-look
 // gap for a tool whose whole point is spotting where the high-grade intercepts sit in 3D.
-export function seedBreaks({ min, max }) {
+//
+// TASKS.csv #306 — #247's seeding was RIGHT in principle and degenerate in practice, and the numbers
+// are the whole argument. The class boundaries were EQUAL-INTERVAL (min + span/3, min + 2·span/3),
+// which is the wrong classifier for geochemical assay data: it is lognormal, a large background
+// population plus a long anomalous tail spanning three to five orders of magnitude. Measured over the
+// bundled 37-hole harry_property assay_wide.csv (6,297 intervals, 14 elements), equal-interval put
+// 99.8-100.0% of every ore/pathfinder element into class 1 — Au 99.9/0.1/0.1, Cu 99.9/0.0/0.0,
+// Pb 100.0/0.0/0.0, Zn 99.9/0.0/0.0, Ag 99.8/0.2/0.0, As 99.8/0.1/0.0. So the ramp existed but every
+// sphere in the view was the same grey; on screen a whole 37-hole Au view showed exactly ONE
+// non-grey marker. Two alternatives were measured and rejected before landing on percentiles:
+//   • jenks (classifyBreaks' 'jenks', suggested by this row and already implemented for #291) —
+//     minimises within-class variance in LINEAR space, so on this data it just fences off the
+//     outliers: still 99.2/0.8/0.0 for Au, 99.5/0.5/0.0 for Cu. Barely better than equal-interval.
+//   • geometric/log spacing from min·(max/min)^(k/3) — excellent for the trace elements
+//     (Au 77.2/21.8/1.0) but it inverts on the near-normally-distributed major oxides in the same
+//     file, where the minimum is a tiny outlier: K 0.0/0.7/99.2, Al 0.0/0.0/99.9. A default has to
+//     work for both, and this dataset contains both.
+// PERCENTILE (p50/p90) boundaries are used instead: robust to distribution shape by construction,
+// they give ~50/40/10 for anything — lognormal trace element or near-normal major oxide alike — which
+// is also the geologically conventional read (background / anomalous / strongly anomalous). They need
+// the element's actual distribution rather than just its range, so ViewerModule's globalAssayRanges
+// now carries p50/p90 alongside min/max; if a caller passes a range without them (an older saved
+// project's shape, or any future caller) this falls back to the original equal-interval split rather
+// than throwing.
+// The class COLOURS changed too. The old grey #5a6472 -> amber #e2a63c -> red #e05a4a ramp is not
+// monotonic in lightness (L* 42.0 -> 72.1 -> 55.7), i.e. the "High" class read as LESS extreme than
+// "Medium" in greyscale and under simulated deuteranopia. These markers sit on a light background, so
+// salience against that background is the channel that has to increase with grade: this ramp runs
+// pale-and-low-chroma -> saturated -> near-black-red, L* 88.9 -> 65.2 -> 33.4, strictly DECREASING, so
+// low grade recedes into the scene and high grade advances out of it (contrast against the viewport
+// background #f4f5f7: 1.22 -> 2.45 -> 7.57, i.e. salience rises monotonically with grade, which the old
+// ramp's 5.50 -> 1.97 -> 3.36 did not). Adjacent-class separation under a Vienot-1999 deuteranopia
+// simulation is 142.3 and 123.0 units of simulated-sRGB distance (protanopia 150.5 / 126.3), against
+// 139.6 / 57.1 for the old ramp — so the weak step is gone as well. Not a rainbow/jet ramp,
+// deliberately: those manufacture false class boundaries in continuous data.
+export function seedBreaks(range) {
+  const { min, max, p50, p90 } = range || {};
   const span = max - min;
-  return span > 0
-    ? [
-        { max: +(min + span / 3).toFixed(3), color: "#5a6472", label: "Low" },
-        { max: +(min + (2 * span) / 3).toFixed(3), color: "#e2a63c", label: "Medium" },
-        { max: +max.toFixed(3), color: "#e05a4a", label: "High" },
-      ]
-    : [{ max: max || 1, color: "#e05a4a", label: "All" }];
+  const C = ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
+  if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All" }];
+  // Percentile boundaries when the caller supplied a distribution; equal-interval otherwise.
+  const usable = Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max;
+  const b1 = usable ? p50 : min + span / 3;
+  const b2 = usable ? p90 : min + (2 * span) / 3;
+  // toFixed(3) is the original rounding, kept so the numbers in the break editor stay readable — but a
+  // trace-element percentile can legitimately be smaller than 0.001 (Au p50 on this dataset is 0.033,
+  // and a lower-grade property would go below 0.001), and rounding those to 0.000 would collapse the
+  // low class back to nothing. Below that scale, keep three SIGNIFICANT figures instead of three
+  // decimal places.
+  const round = (v) => (Math.abs(v) >= 0.001 ? +v.toFixed(3) : +v.toPrecision(3));
+  return [
+    { max: round(b1), color: C[0], label: "Low" },
+    { max: round(b2), color: C[1], label: "Medium" },
+    { max: round(max), color: C[2], label: "High" },
+  ];
 }
 
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {

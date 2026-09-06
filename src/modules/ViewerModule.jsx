@@ -59,6 +59,7 @@ import {
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
   roleForLithology, isCrossCuttingRole,
   colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
+  CATEGORICAL_SAFE_COLORS, // TASKS.csv #306
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
@@ -366,12 +367,46 @@ const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: f
 // generic upload loop + geophys_pts special case used to enumerate separately.
 // TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
 const ALL_LAYER_KEYS = ["litho", "alt", "vein", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
-const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#30394a" };
+// TASKS.csv #308 (1) — the default grid colour used to be #30394a, a near-black slate at full opacity
+// on a light background. Measured 11.60:1 contrast against white, against ~2.8:1 for a mid lithology
+// colour, i.e. the reference grid had roughly 4x the contrast of the data it exists to reference, and
+// on the loaded sample project it was genuinely the first thing the eye landed on. #c8ced8 is the same
+// hue family a shade above the app's own --color-border, so the grid recedes to graph-paper the way
+// Leapfrog/Micromine/Vulcan draw theirs. This is ONLY the default: gridConfig.color has had a picker in
+// the grid popover since #155, and both the project file's viewerUiState and saved themes spread over
+// DEFAULT_GRID (see the hydrate effect and applyTheme), so anyone who set their own keeps it, and any
+// project already saved keeps whatever it stored — this changes the NEW-project/new-user default only.
+const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#c8ced8" };
+// TASKS.csv #308 (4) — the scene background default. Was #ffffff, exactly the same white as the panels
+// and toolbar around it, so the viewport had no visible edge and pale lithologies (m4 #d8d0b8,
+// s6 #9bb8c2) nearly vanished into it. This is theme.js's `bgSubtle` token value, inlined rather than
+// referenced because a three.js scene background is a JS colour value, not CSS — see theme.js's
+// CSS-vs-JS boundary header. Same "default only" caveat as DEFAULT_GRID above (bgColor is persisted
+// per project and has its own picker in the viewport right-click menu).
+const DEFAULT_BG_COLOR = "#f4f5f7";
 // Multi-element assay display — a fixed, distinct-hue-per-slot palette (not a value-driven gradient
 // like magColor) so simultaneously-shown elements stay visually distinguishable from each other; each
 // element's OWN value still modulates marker size within its own min/max range (see the marker-
-// building loop below). Cycles if more than 8 elements are ever toggled on at once.
-const ASSAY_ELEMENT_COLORS = ["#e05a4a", "#4a9be0", "#e2a63c", "#2fae6b", "#b47ee0", "#e0708f", "#2ab5b0", "#a97c3f"];
+// building loop below). Cycles if more than 14 elements are ever toggled on at once.
+//
+// TASKS.csv #306 — this was eight hand-picked hues that #249's colourblind-safety pass never saw,
+// because that pass was scoped to layers.js and this array lives here. A Vienot-1999 LMS-projection
+// deuteranopia simulation over all 28 pairs found two genuine collisions: #4a9be0 (idx 1) vs #b47ee0
+// (idx 4) at 10.2 units of simulated-sRGB distance, and #e05a4a (idx 0) vs #a97c3f (idx 7) at 12.1 —
+// with the next-closest pair at 30.9, so those two were isolated failures rather than a palette-wide
+// squeeze. The 1-vs-4 collision bites at a FIVE-element selection, an ordinary multi-element view.
+// Replaced with CATEGORICAL_SAFE_COLORS (Okabe-Ito + Paul Tol, already in layers.js for exactly this),
+// NOT a third bespoke palette. Two notes on the ordering:
+//   • the first eight are Okabe-Ito in its canonical order, which is the straight substitution;
+//   • the remaining six are a subset of layers.js's Paul Tol tail, reordered greedily for maximum
+//     minimum-pair separation. Taking all 16 in their layers.js order is NOT safe past nine — #009E73
+//     vs #CC6677 collapse to 10.3 and #CC79A7 vs #44AA99 to 11.1 under deuteranopia, i.e. as bad as the
+//     palette being replaced. This 14 keeps the worst pair at 33.8 (deuteranopia and protanopia both),
+//     ~3x the collision it replaces, and 14 is exactly the length of a routine multi-element ICP
+//     package (the bundled harry_property assay_wide.csv has 14), so a full package now gets a
+//     distinguishable colour per element instead of wrapping at 8.
+// Verification numbers and the simulation are written up in this row's TASKS.csv notes.
+const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
 
 // User request: "change the assay legend — change colour, size, recategorize, ignore values lower
 // than". `style` is one entry of the assayStyle state (or undefined for "never customized" — every
@@ -394,9 +429,43 @@ function assayColorFor(value, idx, style) {
 // assaySizeFor: same continuous min/max normalization as the original hardcoded 1.2–3.8 range, just
 // scaled by style.sizeMult (default 1) so "change the size" has an effect without changing what the
 // size differences MEAN (still "bigger sphere = higher grade within this element's own range").
-function assaySizeFor(value, min, max, style) {
+// TASKS.csv #306 — the normalisation inside that 1.2-3.8 range used to be LINEAR in raw grade, and on
+// real assay data that means the channel carries almost nothing. Measured over the bundled 37-hole
+// harry_property assay_wide.csv: 99.2% of Au markers, 99.6% of Cu, 99.7% of Zn and 98.8% of As landed
+// in the bottom 10% of the radius range, because a single high-grade outlier sets `max` three to five
+// orders of magnitude above the median and every ordinary sample then maps to ~1.2. Combined with the
+// per-element hue this row's palette work covers, that meant NEITHER channel actually carried grade.
+// Replaced with a piecewise-linear QUANTILE map through the element's own distribution — (min, 0),
+// (p50, 0.5), (p90, 0.9), (max, 1) — which is the same distribution-robust idea seedBreaks now uses for
+// the colour classes, so size and colour encode the same quantity the same way. Redundant encoding is
+// also what keeps grade readable for a colourblind user, radius being an achromatic channel.
+// A log(value) map was implemented and measured first and is NOT what shipped: it fixes the trace
+// elements (Au p05-p95 radius 1.20-2.49 instead of 1.20-1.24) but inverts on the near-normally-
+// distributed major oxides in the same file, where the minimum is a tiny outlier — every Al_pct marker
+// came out at radius 3.58-3.72, i.e. uniformly near-maximum, which is just the old failure at the
+// other end. The quantile map fixes both: measured p05/p50/p95 radius Au 1.20/2.50/3.54 and
+// Al_pct 2.27/2.50/3.56, and the share of markers stuck in the bottom tenth of the radius range falls
+// from 98.8-99.7% (ore elements, linear) to 0.1-26.4% across all 14 — and what is left down there is
+// now genuinely the low tail of the distribution rather than 99% of the dataset.
+// `range` is one entry of globalAssayRanges. A range with no percentiles (any future caller, or a
+// degenerate single-value element) falls back to the original linear min/max mapping rather than
+// producing NaN radii; `min === max` keeps its original 0.3 midpoint constant.
+function assaySizeFor(value, range, style) {
   const mult = style?.sizeMult ?? 1;
-  return (1.2 + 2.6 * (max > min ? (value - min) / (max - min) : 0.3)) * mult;
+  const { min, max, p50, p90 } = range || {};
+  let t = 0.3;
+  if (max > min) {
+    const seg = (v, lo, hi, tLo, tHi) => tLo + ((v - lo) / (hi - lo)) * (tHi - tLo);
+    if (Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max) {
+      t = value <= p50 ? seg(value, min, p50, 0, 0.5)
+        : value <= p90 ? seg(value, p50, p90, 0.5, 0.9)
+        : seg(value, p90, max, 0.9, 1);
+    } else {
+      t = (value - min) / (max - min);
+    }
+    t = Math.max(0, Math.min(1, t));
+  }
+  return (1.2 + 2.6 * t) * mult;
 }
 // assayPassesCutoff: "ignore values lower than X" — a value strictly below minCutoff is dropped
 // entirely (not just recolored/shrunk), matching how a geologist would actually want a screening
@@ -414,7 +483,7 @@ function buildGridGroup(config) {
   if (!config.visible) return group;
   const size = Math.max(1, config.size) || 1000;
   const divisions = Math.max(1, Math.round(config.divisions) || 20);
-  const color = new THREE.Color(config.color || "#30394a");
+  const color = new THREE.Color(config.color || DEFAULT_GRID.color); // TASKS.csv #308 — one source of truth for the default
   const mkGrid = () => new THREE.GridHelper(size, divisions, color, color);
   group.add(mkGrid()); // ground plane (XZ, y=0) — same as the original always-on grid
   if (config.mode === "3d") {
@@ -848,6 +917,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const rendererRef = useRef(null);
   const layerGroupsRef = useRef({});
   const raycasterRef = useRef(new THREE.Raycaster());
+  const headlightRef = useRef(null); // TASKS.csv #308 — the scene's DirectionalLight, repositioned to follow the camera in updateCamera()
   // Restore the camera angle/distance/target from wherever it was left last time this component was
   // mounted (View<->Modeling round trip, or any other module round trip) — see lastCamState's own
   // comment in store.jsx for why this couldn't just live in React state directly.
@@ -976,7 +1046,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const out = {};
     assayElements.forEach((e) => {
       const vals = assays.filter((a) => a.values[e.symbol] != null).map((a) => a.values[e.symbol]);
-      out[e.symbol] = minMax(vals); // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
+      // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are
+      // now percentile-based rather than equal-interval (see seedBreaks' own comment for the measured
+      // reason: equal-interval put 99.8-100% of every ore element in this file's data into class 1).
+      // Cost is one sort of each element's values, once per assays/assayElements change — measured at
+      // ~11 ms total for all 14 elements of the 6,297-interval harry_property assay file, inside a
+      // useMemo that already walks the same array 14 times to build the ranges at all.
+      const finite = vals.filter(Number.isFinite).sort((a, b) => a - b);
+      const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
+      out[e.symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) }; // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
     });
     return out;
   }, [assays, assayElements]);
@@ -1046,7 +1124,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // user can pick a different one from the viewport's right-click menu (below) for cases where white
   // washes out a light-colored model/raster, or just personal preference. Persisted the same way as
   // every other viewer UI setting (layerVisible, gridConfig, etc. — see the hydrate/push effects below).
-  const [bgColor, setBgColor] = useState("#ffffff");
+  const [bgColor, setBgColor] = useState(DEFAULT_BG_COLOR);
   // TASKS.csv #131 — QGIS-specialist audit finding: "no configurable label expression in the 3D/plan
   // view." Scoped narrowly here to collar (hole) labels specifically, since that's the concrete case
   // every downhole tool actually labels by default and GeoStrix currently has NO text labeling
@@ -1473,7 +1551,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setVisibleHoles({}); setCustomVisible({});
       setAssayVisible(true); setAssayDisplayElements([]); setAssayStyle({});
       setGridConfig({ ...DEFAULT_GRID });
-      setBgColor("#ffffff");
+      setBgColor(DEFAULT_BG_COLOR);
       setHoleLabelMode("none");
       return;
     }
@@ -1490,7 +1568,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setAssayDisplayElements(s.assayDisplayElements || (s.assayDisplayElement ? [s.assayDisplayElement] : []));
     setAssayStyle(s.assayStyle || {});
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
-    setBgColor(s.bgColor || "#ffffff");
+    setBgColor(s.bgColor || DEFAULT_BG_COLOR);
     setHoleLabelMode(s.holeLabelMode || "none");
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
@@ -1670,7 +1748,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // ---------- three.js init ----------
   useEffect(() => {
     const mount = mountRef.current;
-    const scene = new THREE.Scene(); scene.background = new THREE.Color("#ffffff"); sceneRef.current = scene;
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(DEFAULT_BG_COLOR); sceneRef.current = scene;
     // Far plane bumped alongside the zoom max below — a camera can't see past its far plane, so
     // raising how far out the wheel can zoom is pointless without raising this too.
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000000); cameraRef.current = camera;
@@ -1747,8 +1825,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // run before this one on initial mount) re-run now that sceneRef.current is actually populated.
     setSceneReady((v) => v + 1);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(200, 400, 200); scene.add(dl);
+    // TASKS.csv #308 (2) — lighting was AmbientLight 0.9 + one DirectionalLight 0.6 fixed at world
+    // (200, 400, 200). Two problems, both visible on the loaded sample project. (a) The darkest a
+    // surface could get was 0.9/(0.9+0.6) = 60% of the brightest — a 1.67:1 shading range across a
+    // whole cylinder, which is why interval tubes read as flat coloured strips and generated surfaces
+    // as flat-shaded blobs. (b) The light was fixed in WORLD space while the camera orbits, so orbiting
+    // to the far side put it behind the geometry and the scene collapsed to pure ambient — the same
+    // model looked shaded from one azimuth and flat from the opposite one.
+    // Rebalanced to 0.45/0.85 (total illumination essentially unchanged at 1.30 vs 1.50, so nothing
+    // goes dark, but the shading range roughly triples to ~2.9:1) and turned into a HEADLIGHT: dl's
+    // position is copied from the camera on every camera move inside updateCamera() below. Cost is one
+    // Vector3 copy per camera move — not per frame, and not per rendered object — so this is free at
+    // the scale that matters here; measured render cost is unchanged (see this row's notes).
+    // Deliberately NOT adding shadow maps or an ambient-occlusion pass: those are the usual answers to
+    // "make the 3D look better" and both are a real per-frame cost on this project's target hardware.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(200, 400, 200); scene.add(dl);
+    headlightRef.current = dl;
     // The grid itself is now built/rebuilt by a dedicated effect below (see gridGroupRef), driven by
     // gridConfig — replaces this single hardcoded GridHelper so visibility/size/divisions/color/3D
     // mode are all user-adjustable instead of fixed at scene-creation time.
@@ -1765,6 +1858,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         cs.target.z + cs.radius * Math.sin(cs.phi) * Math.cos(cs.theta)
       );
       camera.lookAt(cs.target);
+      // TASKS.csv #308 (2) — headlight: keep the single DirectionalLight with the camera so the model
+      // is lit consistently from every azimuth instead of collapsing to flat ambient on the far side.
+      // Raised half an orbit-radius above the camera rather than sitting exactly on it, because a light
+      // exactly on the view axis produces almost no gradient across a surface facing the viewer — the
+      // offset is what actually gives the cylinders their form. dl.target is not in the scene graph, so
+      // its matrixWorld is refreshed by hand (three.js only auto-updates objects it can reach).
+      const dl = headlightRef.current;
+      if (dl) {
+        dl.position.copy(camera.position); dl.position.y += cs.radius * 0.5;
+        dl.target.position.copy(cs.target); dl.target.updateMatrixWorld();
+      }
       lastActivityRef.current = Date.now(); // every camera move (drag/wheel/fitView/fitBox/compass) counts as activity — see lastActivityRef comment above
     };
     updateCamera(); camera.__update = updateCamera;
@@ -4357,7 +4461,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (assayVisible) {
       assayDisplayElements.forEach((sym) => {
         const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
-        globalAssayRanges[sym] = minMax(vals); // not Math.min/max(...) — see layers.js's minMax comment
+        // TASKS.csv #306 — p50/p90 as well, so assaySizeFor's quantile map has the distribution it
+        // needs. Same shape (and same computation) as the component-level globalAssayRanges memo
+        // above; kept computed separately here for the reason that memo's own comment gives, but the
+        // two must stay shape-compatible since seedBreaks and assaySizeFor both read this shape.
+        const finite = vals.filter(Number.isFinite).sort((a, b) => a - b);
+        const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
+        globalAssayRanges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) }; // not Math.min/max(...) — see layers.js's minMax comment
       });
     }
 
@@ -4546,7 +4656,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             const p = findOnTrace(pts, mid);
             if (!p) return;
             const v = a.values[sym];
-            const size = assaySizeFor(v, min, max, style);
+            const size = assaySizeFor(v, globalAssayRanges[sym], style); // TASKS.csv #306 — takes the whole range (needs its percentiles), not just min/max
             const color = assayColorFor(v, idx, style);
             const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 10), new THREE.MeshLambertMaterial({ color }));
             mesh.position.set(p.x + offX, p.y, p.z + offZ);
@@ -6787,7 +6897,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     title={on ? `Hide ${e.symbol}` : `Show ${e.symbol}`}
                     style={{
                       display: "flex", alignItems: "center", gap: 5, padding: "4px 6px 4px 9px", borderRadius: 12, cursor: "pointer", fontSize: 11.5,
-                      background: on ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${on ? color : "var(--color-border)"}`, color: on ? "var(--color-text)" : "var(--color-text-caption)",
+                      // TASKS.csv #306 — the chip BORDER now carries the element's own identity hue
+                      // (ASSAY_ELEMENT_COLORS, now colourblind-safe) while the swatch keeps carrying the
+                      // grade ramp. Since #247 seeds every newly-toggled element with the same 3-class
+                      // ramp, every chip's swatch is the same colour once two or more elements are on,
+                      // so the chip row had stopped working as the per-element legend its comment above
+                      // claims it is. Border-vs-fill gives both back in the same chip: which element
+                      // (border) and what its markers look like (fill).
+                      background: on ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${on ? defaultHue : "var(--color-border)"}`, color: on ? "var(--color-text)" : "var(--color-text-caption)",
                     }}
                   >
                     <span onClick={() => toggleAssayElement(e.symbol)} style={{ display: "flex", alignItems: "center", gap: 5 }}>
