@@ -29,6 +29,7 @@ import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // 
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
 import InfoButton from "../components/InfoButton.jsx"; // TASKS.csv #309 — 3D Modeling's always-on help prose, moved behind a disclosure
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
+import { legibilityRadius, densestCentre } from "../lib/cameraFit.js"; // TASKS.csv #313 — opening-view framing (read cameraFit.js's header before touching fitBox)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -366,6 +367,15 @@ function looksLikeAssay(headers) {
   return count >= 4;
 }
 
+// TASKS.csv #313 — how wide, in screen pixels, a lithology tube must be in the OPENING view before we
+// stop zooming out to fit more of the property in. 2.5 px is the smallest width at which an
+// antialiased coloured cylinder still reads as a coloured cylinder rather than as the 1 px trace line
+// running down its own axis (measured on the harry_property sample; at 1 px they are indistinguishable
+// — that indistinguishability is the entire bug). Lithology is the reference because it is the only
+// interval layer on by default (DEFAULT_LAYER_VISIBLE below) and it is the thinnest of the tubes a
+// first-time user will see; every other default-on interval layer is wider, so sizing to litho is
+// conservative in the right direction.
+const MIN_OPENING_TUBE_PX = 2.5;
 const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
@@ -2488,6 +2498,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return () => cancelAnimationFrame(raf);
   }, [visible]);
 
+  // TASKS.csv #313 — DO NOT "fix" the 1.3 here thinking it is arbitrary padding on a conservative
+  // diagonal bound. It is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, so this is a snug fit to
+  // the box's bounding sphere, i.e. (to within 0.4%, verified by an orientation sweep against the
+  // exact per-corner perspective fit — see src/lib/cameraFit.js's header) the tightest radius that
+  // frames the box from EVERY orbit angle. Every caller of fitBox is an explicit user "zoom to this"
+  // action (zoom-to-layer / zoom-to-custom / zoom-to-fit-all / zoom-to-screen-rect / the context menu
+  // / each surface-generation routine), and all of them should keep doing exactly what they say
+  // regardless of which way the user then orbits. #313's legibility clamp is deliberately NOT applied
+  // here — a user who asks to fit everything must GET everything — only on the one-time opening
+  // auto-fit below, which is an editorial choice about a first impression rather than a command.
   const fitBox = useCallback((box, padFactor = 1.3, minRadius = 80) => {
     if (box.isEmpty()) return false;
     const center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
@@ -2496,6 +2516,60 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return true;
   }, []);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
+  // TASKS.csv #313 — the ONE-TIME opening auto-fit, and the only place the legibility clamp applies.
+  //
+  // Step 1 is the plain fitView above: frame everything. If the whole property is small enough that
+  // its tubes are still legible at that distance (a single hole, a tight grid, most of the 6-hole
+  // sample_data project), nothing else happens and this is exactly the old behaviour.
+  //
+  // Step 2 only fires when framing everything would draw a lithology tube thinner than
+  // MIN_OPENING_TUBE_PX. Then we cap the radius at the distance where a tube is exactly that wide and
+  // re-point the camera at the densest part of the drilling (densestCentre) rather than the centre of
+  // the bounding box — on a clustered property those are different places, and a zoomed-in camera
+  // aimed at the bbox centre frames the empty ground between clusters, which would replace "my data
+  // is invisible" with "my data is missing". Because holes can then be off-screen, and because a user
+  // has no way to know that from the picture, this posts a notice saying so and naming the action
+  // that undoes it. That notice is not optional politeness — it is what keeps this change honest.
+  // `hasIntervalRows` is passed in rather than read from `layers`/`layerVisible` here on purpose: this
+  // callback is called from the geometry-rebuild effect, whose dependency array is load-bearing (see
+  // its trailing comment — a mere visibility toggle must not re-trigger a rebuild), and closing over
+  // layerVisible would drag the whole object into that array.
+  const autoFitInitial = useCallback((traces) => {
+    const box = new THREE.Box3();
+    traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z))));
+    if (!fitBox(box)) return;
+    // No interval geometry means no tubes to be sub-pixel: a collars/survey-only project (or points
+    // and surfaces only) renders 1 px trace lines that look identical at any distance, so clamping in
+    // would hide holes for no gain at all. Leave those framed the way they always were.
+    // TASKS.csv #313 — "are there tubes on screen to be sub-pixel?", answered from the SCENE, not from
+    // React state. Two earlier attempts got this wrong and both failed silently, which is worth
+    // recording because the failure mode is identical each time — no error, just the sub-pixel framing
+    // this row exists to fix, still there:
+    //   1. It began as a second parameter, but the single call site passed only `traces`, so the flag
+    //      was always undefined and the clamp below never ran.
+    //   2. Deriving it from `layers` + `layerVisible` looked right and still didn't fire: this callback
+    //      runs from the geometry-rebuild effect, whose dependency array deliberately does NOT track
+    //      `layerVisible`, so at auto-fit time a freshly imported layer is not yet marked visible in
+    //      React state even though its geometry has just been built.
+    // The layer groups are populated synchronously by the rebuild immediately above, so asking them
+    // directly cannot be stale and cannot disagree with what is actually rendered — which is the only
+    // thing this check is really about.
+    const hasIntervalRows = Object.keys(LAYER_META).some(
+      (key) => LAYER_META[key].kind === "interval" && (layerGroupsRef.current[key]?.children.length || 0) > 0,
+    );
+    if (!hasIntervalRows) return;
+    const fovDeg = cameraRef.current?.fov || 45;
+    const pixelHeight = mountRef.current?.clientHeight || 800; // 0 while the tab is display:none — fall back rather than divide by it
+    const maxRadius = legibilityRadius(LAYER_META.litho.radius * 2, MIN_OPENING_TUBE_PX, fovDeg, pixelHeight);
+    if (!(maxRadius > 0) || camState.current.radius <= maxRadius) return;
+    // Cell size = roughly the world height the clamped view will show, so "densest" means "the
+    // neighbourhood that fills this view with the most drilling", not some scale-free abstraction.
+    const centre = densestCentre(traces.flat(), worldHeightAtTargetM(fovDeg, maxRadius) || maxRadius);
+    if (centre) camState.current.target.set(centre.x, centre.y, centre.z);
+    camState.current.radius = Math.max(80, maxRadius);
+    cameraRef.current?.__update?.();
+    setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Zoom to fit all (toolbar, or right-click the viewport) to frame the whole property."]);
+  }, [fitBox, layers, layerVisible]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
     if (!group || !group.children.length) { setNotices((p) => [...p, `${LAYER_META[key]?.label || key}: nothing rendered to zoom to.`]); return; }
@@ -5066,7 +5140,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     lastTracesRef.current = allTraces;
     if (buildErrors.length) setNotices((p) => [...p, `${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`]);
     if (allTraces.length) {
-      if (!hasAutoFitRef.current) { fitView(allTraces); hasAutoFitRef.current = true; }
+      if (!hasAutoFitRef.current) { autoFitInitial(allTraces); hasAutoFitRef.current = true; } // TASKS.csv #313 — fitView + a legibility clamp; see autoFitInitial
       setDataLoaded(true);
     }
     // TASKS.csv #227 (continuation) — categoryFilter was pulled out of this effect's own dependency
