@@ -68,10 +68,38 @@ function startPythonSidecar() {
     : [process.env.GEOSTRIX_PYTHON || (process.platform === "win32" ? "python" : "python3"),
        ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(PY_SIDECAR_PORT)]];
 
+  // TASKS.csv #314 — keep the sidecar's output in a PACKAGED build instead of discarding it.
+  //
+  // This was `stdio: isDev ? "inherit" : "ignore"`. In dev that inherits the terminal and you see
+  // Python tracebacks; in a packaged build "ignore" threw them away entirely. So when a real user hit
+  // "Sidecar returned HTTP 500", the traceback explaining it had already been discarded — there was
+  // nothing to ask them for, and nothing on their machine to look at. The sidecar's own unhandled-
+  // exception handler (python-sidecar/app/main.py) now puts the message in the HTTP response too, but
+  // that only covers exceptions raised while handling a request: a crash during startup, a segfault
+  // in a native dependency, or a numba/GemPy import failure produces output and no HTTP response at
+  // all, and those are precisely the cases where a log is the only evidence that will ever exist.
+  //
+  // Appends rather than truncates (a crash-restart loop should leave every attempt, not just the last)
+  // and lives in userData next to the autosave, so "send me your sidecar log" is a path a user can
+  // actually find. Best-effort throughout: if the stream cannot be opened for any reason, fall back to
+  // the old "ignore" rather than preventing the sidecar from starting over a logging problem.
+  let sidecarLogFd = null;
+  if (!isDev) {
+    try {
+      const logPath = path.join(app.getPath("userData"), "python-sidecar.log");
+      sidecarLogFd = fs.openSync(logPath, "a");
+      fs.writeSync(sidecarLogFd, `\n=== sidecar start ${new Date().toISOString()} (GeoStrix ${app.getVersion()}) ===\n`);
+    } catch (err) {
+      console.error("[python-sidecar] could not open log file, continuing without one:", err.message);
+      sidecarLogFd = null;
+    }
+  }
+
   try {
     pySidecar = spawn(cmd, args, {
       cwd: useFrozen ? path.dirname(frozenPath) : cwd,
-      stdio: isDev ? "inherit" : "ignore",
+      // dev: inherit the terminal. packaged: both streams to the log file when we have one.
+      stdio: isDev ? "inherit" : (sidecarLogFd !== null ? ["ignore", sidecarLogFd, sidecarLogFd] : "ignore"),
     });
     pySidecar.on("error", (err) => {
       console.error(`[python-sidecar] failed to start (${useFrozen ? frozenPath : `${cmd} not found, or deps missing — see python-sidecar/README.md`}):`, err.message);

@@ -16,6 +16,7 @@ import threading
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse  # TASKS.csv #314 — unhandled-exception handler below
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="GeoStrix Python sidecar", version="0.1.0")
@@ -56,6 +57,34 @@ def _warm_up_gempy():
 @app.on_event("startup")
 def _on_startup():
     threading.Thread(target=_warm_up_gempy, daemon=True).start()
+
+
+# TASKS.csv #314 — make an unexpected failure say what it was.
+#
+# A real user hit "Top of V1 failed: Sidecar returned HTTP 500" with no further information, and there
+# was no way to find out more: /implicit-model guards the GemPy SOLVE (returning a readable 400,
+# "GemPy could not solve this model: ..."), but everything BEFORE it — building the surface-point and
+# orientation tables, the structural elements, the frame — was unguarded, so anything failing there
+# escaped as an unhandled exception. FastAPI renders that as a bare 500 whose body carries no `detail`
+# field at all, and src/lib/desktop.js then correctly falls back to reporting just the status code.
+# Meanwhile electron/main.js spawned the sidecar with stdio "ignore" in packaged builds, so the Python
+# traceback was discarded too (also fixed). Net effect: a failure with no message, no log, and no way
+# for either the user or whoever is fixing it to learn anything.
+#
+# Registering a handler for Exception catches whatever the per-endpoint guards miss, ANYWHERE in this
+# service, and puts the exception type and message into the `detail` field the renderer already knows
+# how to render. Deliberately not a redesign of each endpoint's error handling — the existing
+# HTTPExceptions still take their own paths untouched; this is the safety net under them.
+#
+# Returning internals in an error body is normally something to think twice about; here the service
+# binds to 127.0.0.1 only and its sole client is this app's own renderer, so the exception text is
+# going straight back to the person who triggered it, which is exactly who needs it.
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signature fixed by FastAPI
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Unhandled sidecar error ({type(exc).__name__}): {exc}"},
+    )
 
 
 @app.get("/health")
