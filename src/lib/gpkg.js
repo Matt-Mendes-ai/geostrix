@@ -68,38 +68,61 @@ function gpbBlob(wkbBytes, srsId) {
 }
 
 // ---------- WKB reader ----------
+// TASKS.csv #316 — returns { type, pts, parts, nextOff }. `pts` keeps its original meaning (a
+// polygon's FIRST outer ring / a line's vertices / a point) so every existing caller (Boundaries,
+// collar/CSV-row import) is unchanged. `parts` is new: EVERY ring of every polygon and every line of a
+// multi-line, as separate vertex lists — a geology map needs holes (an inlier of one unit inside
+// another) and multipart units, which "outer ring only" silently filled in or dropped. Multi* types
+// (4/5/6) are now read instead of skipped: QGIS writes MultiPolygon for almost every polygon layer.
+// Also honours M and ZM dimensions (ISO 2001-3999) — the old reader treated only 1001-1999 as having a
+// third ordinate and would have mis-stepped through an M or ZM geometry's bytes.
 function readWkbGeometry(dv, off) {
   const le = dv.getUint8(off) === 1; off += 1;
-  let type = dv.getUint32(off, le); off += 4;
-  const hasZ = type > 1000 && type < 2000; // ISO extended Z range (1001-1999)
-  const baseType = hasZ ? type - 1000 : type;
+  const rawType = dv.getUint32(off, le); off += 4;
+  // ISO: +1000 Z, +2000 M, +3000 ZM. EWKB-style high flag bits (0x80000000 Z, 0x40000000 M) handled too.
+  let type = rawType & 0x0fffffff;
+  let hasZ = (rawType & 0x80000000) !== 0;
+  let hasM = (rawType & 0x40000000) !== 0;
+  if (type > 3000) { hasZ = true; hasM = true; type -= 3000; }
+  else if (type > 2000) { hasM = true; type -= 2000; }
+  else if (type > 1000) { hasZ = true; type -= 1000; }
   const readCoord = () => {
     const x = dv.getFloat64(off, le); off += 8;
     const y = dv.getFloat64(off, le); off += 8;
-    const z = hasZ ? (() => { const v = dv.getFloat64(off, le); off += 8; return v; })() : 0;
+    let z = 0;
+    if (hasZ) { z = dv.getFloat64(off, le); off += 8; }
+    if (hasM) off += 8;
     return [x, y, z];
   };
-  if (baseType === 1) { const pt = readCoord(); return { type: "point", pts: [pt], nextOff: off }; }
-  if (baseType === 2) {
+  const readRing = () => {
     const n = dv.getUint32(off, le); off += 4;
-    const pts = [];
-    for (let i = 0; i < n; i++) pts.push(readCoord());
-    return { type: "polyline", pts, nextOff: off };
-  }
-  if (baseType === 3) {
-    // Polygon: numRings, then per ring numPoints + coords — only the first (outer) ring is kept,
-    // matching shapefile.js's own "a polygon import comes in as its outline" scope.
+    const ring = [];
+    for (let i = 0; i < n; i++) ring.push(readCoord());
+    return ring;
+  };
+  if (type === 1) { const pt = readCoord(); return { type: "point", pts: [pt], parts: [[pt]], nextOff: off }; }
+  if (type === 2) { const pts = readRing(); return { type: "polyline", pts, parts: [pts], nextOff: off }; }
+  if (type === 3) {
     const numRings = dv.getUint32(off, le); off += 4;
-    let outerPts = [];
-    for (let r = 0; r < numRings; r++) {
-      const n = dv.getUint32(off, le); off += 4;
-      const ringPts = [];
-      for (let i = 0; i < n; i++) ringPts.push(readCoord());
-      if (r === 0) outerPts = ringPts;
-    }
-    return { type: "polygon", pts: outerPts, nextOff: off };
+    const parts = [];
+    for (let r = 0; r < numRings; r++) parts.push(readRing());
+    return { type: "polygon", pts: parts[0] || [], parts, nextOff: off };
   }
-  return null; // unsupported geometry type (Multi*, GeometryCollection, etc.) — caller skips + counts it
+  if (type === 4 || type === 5 || type === 6) {
+    const numGeoms = dv.getUint32(off, le); off += 4;
+    const parts = [];
+    let baseType = null;
+    for (let g = 0; g < numGeoms; g++) {
+      const sub = readWkbGeometry(dv, off);
+      if (!sub) return null;
+      off = sub.nextOff;
+      baseType = baseType || sub.type;
+      parts.push(...sub.parts);
+    }
+    const outType = type === 4 ? "point" : type === 5 ? "polyline" : "polygon";
+    return { type: baseType || outType, pts: parts[0] || [], parts, nextOff: off };
+  }
+  return null; // GeometryCollection / curves etc. — caller skips + counts it
 }
 // Strips the GeoPackageBinaryHeader (validates the "GP" magic) and returns the WKB geometry parsed
 // from what follows, honoring the flags byte's envelope-length bits so envelope bytes (if any — e.g.
@@ -227,7 +250,7 @@ export async function parseGeoPackage(gpkgBytes) {
         geomTypeSeen = geomTypeSeen || parsed.type;
         const attributes = {};
         cols.forEach((c, i) => { if (i !== geomIdx && i !== fidIdx) attributes[c] = row[i]; });
-        features.push({ geometry: parsed.pts, attributes });
+        features.push({ geometry: parsed.pts, parts: parsed.parts, attributes });
       });
       layers.push({ name: tableName, features, geomType: geomTypeSeen || "point", epsg: epsgBySrsId[geomInfo.srsId], skippedCount });
     }

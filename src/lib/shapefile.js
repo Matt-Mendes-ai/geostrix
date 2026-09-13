@@ -427,7 +427,15 @@ function parseShp(shpBytes) {
         for (let i = 0; i < numPoints; i++) z[i] = r.f64le();
       }
       const pts = xy.slice(firstPartStart, firstPartEnd).map(([x, y], i) => [x, y, z[firstPartStart + i] ?? 0]);
-      geoms.push({ type: (shapeType === 5 || shapeType === 15) ? "polygon" : "polyline", pts });
+      // TASKS.csv #316 — also keep EVERY part (all rings of a polygon, all lines of a multi-part
+      // polyline) as `parts`, for map layers that need holes/multipart units. `pts` is unchanged.
+      const partStarts = [];
+      for (let p = 0; p < numParts; p++) partStarts.push(new DataView(shpBytes.buffer, shpBytes.byteOffset + partsStart + p * 4, 4).getInt32(0, true));
+      const parts = partStarts.map((s, p) => {
+        const e = p + 1 < partStarts.length ? partStarts[p + 1] : numPoints;
+        return xy.slice(s, e).map(([x, y], i) => [x, y, z[s + i] ?? 0]);
+      }).filter((part) => part.length);
+      geoms.push({ type: (shapeType === 5 || shapeType === 15) ? "polygon" : "polyline", pts, parts });
     }
     r.off = recordEnd;
   }
@@ -507,7 +515,7 @@ export function parseShapefileParts({ shp, dbf }, otherBaseNames = 0, prjWkt = n
   if (!shp) throw new Error("No .shp data found.");
   const { geoms, skippedCount } = parseShp(shp);
   const attrRows = dbf ? parseDbf(dbf) : [];
-  const features = geoms.map((g, i) => (g ? { geometry: g.pts, attributes: attrRows[i] || {} } : null)).filter(Boolean);
+  const features = geoms.map((g, i) => (g ? { geometry: g.pts, parts: g.parts || [g.pts], attributes: attrRows[i] || {} } : null)).filter(Boolean);
   if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
   const geomType = geoms.find((g) => g)?.type || "point";
   return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };

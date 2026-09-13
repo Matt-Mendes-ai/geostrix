@@ -17,6 +17,7 @@ import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFea
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
 import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
+import SurfaceGeologyProjection from "../components/SurfaceGeologyProjection.jsx"; // TASKS.csv #318
 import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
@@ -80,6 +81,7 @@ import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import PlannedHoleTargeting from "../components/PlannedHoleTargeting.jsx"; // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
+import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -1027,6 +1029,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     viewportRenderRequest, viewportRenderRequestSeq, viewportPendingRequest, resolveViewportRender,
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
+    mapLayers, surfaceStructures, // TASKS.csv #316/#317
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     omfObjects, updateOmfObject, removeOmfObject,
@@ -1341,6 +1344,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // by the store's persisted `boundaries` list, not by layer-visibility churn.
   const boundaryGroupRef = useRef(null);
   const boundaryLinesRef = useRef({}); // id -> THREE.Group (one child LineLoop per polyline/part)
+  // TASKS.csv #316/#317 — draped GIS map layers and outcrop structure symbols, same own-group pattern.
+  // The geometry-rebuild effect only needs map data for its no-collar camera anchor, so it depends on
+  // this extent signature rather than the layers themselves (style edits change mapLayers constantly).
+  const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
+  const mapLayerGroupRef = useRef(null);
+  const mapLayerMeshesRef = useRef({}); // id -> THREE.Mesh (one textured drape per layer)
+  const surfStructGroupRef = useRef(null);
+  const surfStructObjsRef = useRef({}); // id -> THREE.Group (InstancedMesh discs + dip ticks)
   const omfGroupRef = useRef(null);
   const omfMeshesRef = useRef({}); // id -> THREE.Object3D (Points | LineSegments | Mesh, one per omfObject)
   // ---- Terrain surface (TASKS.csv #77) — own group/mesh ref, same pattern as the raster drapes just
@@ -1369,6 +1380,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // this is the "source picker" the task note called for, kept as one explicit toggle rather than a
   // full per-source review UI (that's still a real follow-up if this turns out to need finer control).
   const [includeSectionContacts, setIncludeSectionContacts] = useState(false);
+  // TASKS.csv #318 — a mapped surface contact (plus nearby outcrop measurements) to feed the next
+  // single-unit implicit run: { layerId, contactKey, units, classes, radius, tolerance, ... } | null.
+  // Session-only, like includeSectionContacts: it is a per-run modelling choice, not project data.
+  const [mapConstraint, setMapConstraint] = useState(null);
   const [structuralTarget, setStructuralTarget] = useState("");
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
   const [tadpoleOpen, setTadpoleOpen] = useState(false); // TASKS.csv #277 — downhole structural plot
@@ -2057,6 +2072,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const boundaryGroup = new THREE.Group(); boundaryGroup.name = "boundaries"; root.add(boundaryGroup);
     boundaryGroupRef.current = boundaryGroup;
     boundaryLinesRef.current = {};
+
+    const mapLayerGroup = new THREE.Group(); mapLayerGroup.name = "mapLayers"; root.add(mapLayerGroup); // TASKS.csv #316
+    mapLayerGroupRef.current = mapLayerGroup;
+    mapLayerMeshesRef.current = {};
+    const surfStructGroup = new THREE.Group(); surfStructGroup.name = "surfaceStructures"; root.add(surfStructGroup); // TASKS.csv #317
+    surfStructGroupRef.current = surfStructGroup;
+    surfStructObjsRef.current = {};
 
     // TASKS.csv — OMF import (own group, own mesh ref, same reasoning as boundaryGroup above: driven
     // by the store's `omfObjects` list, not layer-visibility churn).
@@ -3269,7 +3291,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const anisoCenter = anisotropy.enabled && allApiPts.length
       ? { x: allApiPts.reduce((s, p) => s + p.x, 0) / allApiPts.length, y: allApiPts.reduce((s, p) => s + p.y, 0) / allApiPts.length, z: allApiPts.reduce((s, p) => s + p.z, 0) / allApiPts.length }
       : null;
-    const warpedApiPts = anisotropy.enabled ? allApiPts.map((p) => anisoWarpPoint(p, anisoCenter, anisoBasis, anisoScl)) : allApiPts;
+    // TASKS.csv #318 — the extent must also contain this run's own control points and orientations, not
+    // only the hole traces. Drillhole-derived ones always lie on a trace so this changes nothing for
+    // them, but a mapped surface contact (or a drawn section contact, #98) can run kilometres past the
+    // drilling: measured on the Orion map, 129 contact points reached 2.4 km south of a 4-hole extent
+    // and every one of the 12 outcrop orientations sat outside it. The anisotropy centre above stays
+    // anchored on the traces, as its comment requires.
+    const extentApiPts = [...allApiPts, ...specs.flatMap((s) => [...s.points, ...s.orientations])];
+    const warpedApiPts = anisotropy.enabled ? extentApiPts.map((p) => anisoWarpPoint(p, anisoCenter, anisoBasis, anisoScl)) : extentApiPts;
 
     const xs = warpedApiPts.map((p) => p.x), ys = warpedApiPts.map((p) => p.y), zs = warpedApiPts.map((p) => p.z);
     // Never pads more than MODEL_EXTENT_PAD_M past the actual data on any axis, however large the
@@ -3387,6 +3416,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // indistinguishable a month later.
         interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null,
         extent: extent.map((v) => Math.round(v)),
+        // TASKS.csv #318 — a mapped surface contact that fed this run, if any (set by runImplicitModel).
+        ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
         generatedAt: new Date().toISOString(),
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
@@ -3454,7 +3485,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // conventions for one real unit produced two separate, incomplete surfaces. A group matches any
   // interval (and any drawn section contact) whose code is IN its code set, so every convention's
   // intervals feed ONE surface, named/colored by the group itself.
-  const gatherLithoSurfaceSpec = (target, traces, { silent = false } = {}) => {
+  const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null } = {}) => {
     const isGroup = typeof target === "object" && target !== null;
     const unitName = isGroup ? target.name : target;
     const codes = new Set(isGroup ? (target.codes || []) : [target]);
@@ -3508,6 +3539,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (sectionContactCount && !silent) {
         setNotices((p) => [...p, `Included ${sectionContactCount} drawn cross-section contact point(s) for "${unitName}" as extra interface points.`]);
       }
+    }
+
+    // TASKS.csv #318 — a mapped surface contact as extra interface points: the contact trace draped on
+    // the terrain, thinned to one point per ~25 m so a long, densely digitized trace doesn't outvote the
+    // drillholes by sheer count. Same api-coordinate conversion and domain filter as the section
+    // contacts above. The orientations that go with it are added further down.
+    const mapPts = mapC ? mapContactWorldPoints(mapC, 25) : [];
+    if (mapPts.length) {
+      const o = originRef.current;
+      let used = 0;
+      mapPts.forEach(([x, y, z]) => {
+        const api = { x: x - o.x, y: y - o.y, z: z - o.z, srcCode: "surface map" };
+        if (domain && !pointInDomain({ x: api.x, y: api.z, z: -api.y }, domain, implicitMeshesRef.current)) return;
+        points.push(api);
+        used++;
+      });
+      if (!silent) setNotices((p) => [...p, `Included ${used} point(s) along the mapped ${mapC.units.join(" | ")} contact as extra interface points for "${unitName}".`]);
     }
 
     if (!points.length) {
@@ -3591,6 +3639,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
     }
     let orientations = structureRowsToOrientations(structRows, traces);
+    // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
+    // contact, as orientations at their own (terrain) position. Only when a map contact is in play: a
+    // bedding reading 3 km from anything being modelled has no business steering this surface.
+    if (mapC && mapPts.length) {
+      const o = originRef.current;
+      const near = surfaceOrientationsNear(mapPts, mapC);
+      near.forEach((m) => orientations.push({ x: m.x - o.x, y: m.y - o.y, z: m.z - o.z, dip: m.dip, azimuth: m.dipDir }));
+      if (!silent) setNotices((p) => [...p, near.length ? `Added ${near.length} outcrop measurement(s) (${mapC.classes.join(", ")}) within ${mapC.radius} m of the mapped contact as orientations.` : `No outcrop measurements of the chosen types lie within ${mapC.radius} m of the mapped contact — none added as orientations.`]);
+    }
     if (!orientations.length) {
       // No structure/contact data to draw an orientation from — estimate one from the shape of the
       // litho points themselves instead of blocking the run. Less accurate than a real structure
@@ -3623,10 +3680,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #176 — a `group:<id>` pick resolves to its group object here; the raw-code path is untouched.
     const target = resolveLithoTarget(unitName);
     if (!target) { setNotices((p) => [...p, "That lithology group no longer exists — pick another unit."]); return; }
-    const spec = gatherLithoSurfaceSpec(target, traces);
+    const spec = gatherLithoSurfaceSpec(target, traces, { mapConstraint });
     if (!spec) return;
+    if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
     await runSurfaceModel(spec);
-  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups]);
+  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, mapConstraint, mapLayers, surfaceStructures, terrain]);
 
   // Stratigraphic stack tool (TASKS.csv #52 follow-up): models several lithology units' top contacts
   // in ONE sidecar request instead of one at a time. This isn't just a convenience batch — sending
@@ -4294,6 +4352,91 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
   }, [fitBox, project?.epsg]);
 
+
+  // ---------- TASKS.csv #318 — mapped surface contacts ----------
+  // World-coordinate [x, y, z] points along a chosen mapped contact, draped on the terrain. `spacing`
+  // thins the (5 m-sampled) contact runs so the output is roughly one point per `spacing` metres.
+  // Returns [] without a terrain: a map contact has no elevation of its own.
+  const mapContactLines = (mc) => {
+    const layer = mapLayers.find((l) => l.id === mc?.layerId);
+    if (!layer || !terrain) return [];
+    const { contacts } = extractMapContacts(layer, layer.styleField, { tolerance: mc.tolerance || 2, spacing: 5 });
+    return contacts.find((c) => c.key === mc.contactKey)?.lines || [];
+  };
+  const mapContactWorldPoints = (mc, spacing) => mapContactLines(mc)
+    .flatMap((line) => thinLine(line, spacing))
+    .map(([x, y]) => [x, y, sampleTerrainElevation(terrain, x, y)]);
+  const surfaceMeasurementsFor = (classes) => surfaceStructures.flatMap((st) => st.rows || []).filter((r) => classes.includes(r.cls))
+    .map((r) => ({ ...r, z: terrain ? sampleTerrainElevation(terrain, r.x, r.y) : (r.z ?? originRef.current.z) }));
+  const surfaceOrientationsNear = (pts, mc) => {
+    const r2 = (mc.radius || 500) ** 2;
+    return surfaceMeasurementsFor(mc.classes || []).filter((m) => pts.some(([x, y]) => (x - m.x) ** 2 + (y - m.y) ** 2 <= r2));
+  };
+
+  // "Project contact to depth": sweep the draped trace down-dip (mapLayers.js projectContactRibbon) and
+  // register the result exactly like an imported solid (#148) — in implicitMeshesRef/implicitSurfaces —
+  // so it gets show/hide, remove, query, export, persistence and section intersection for free. Tagged
+  // type "projected_contact" with the parameters that made it, so it can never be mistaken for a GemPy
+  // result: it is a geometric extrapolation of outcrop data, nothing more.
+  const projectMapContact = useCallback((settings, contact, layer, measurements) => {
+    if (!contact || !terrain) return;
+    const o = originRef.current;
+    const meas = measurements.map((r) => ({ ...r }));
+    let fromData = 0, fromManual = 0;
+    const orient = (x, y) => {
+      const hit = meas.length ? orientationAt(x, y, meas, settings.radius) : null;
+      if (hit) { fromData++; return hit; }
+      fromManual++;
+      return { dip: settings.manualDip, dipDir: settings.manualDipDir };
+    };
+    const allV = [];
+    const allI = [];
+    let clamped = 0;
+    contact.lines.forEach((line) => {
+      // Trace resampled every 10 m along its length so the draped top edge follows the ground between
+      // map vertices, then each vertex swept down-dip.
+      const trace = densifyLine(thinLine(line, 10), 10).map(([x, y]) => [x, y, sampleTerrainElevation(terrain, x, y)]);
+      if (trace.length < 2) return;
+      const rows = Math.max(4, Math.min(30, Math.round(settings.depth / 25)));
+      const rb = projectContactRibbon(trace, orient, { depth: settings.depth, rows, minDip: 10 });
+      clamped += rb.clampedDips;
+      const base = allV.length / 3;
+      allV.push(...rb.vertices);
+      rb.indices.forEach((i) => allI.push(i + base));
+    });
+    if (allV.length < 9) { setNotices((p) => [...p, "That contact is too short to project."]); return; }
+    const scene = new Float32Array(allV.length);
+    for (let i = 0; i < allV.length; i += 3) { scene[i] = allV[i] - o.x; scene[i + 1] = allV[i + 2] - o.z; scene[i + 2] = o.y - allV[i + 1]; }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(scene, 3));
+    geo.setIndex(allI);
+    geo.computeVertexNormals();
+    const labelFor = (v) => layer.categories?.find((c) => c.value === v)?.label || v || "(no value)";
+    const color = layer.categories?.find((c) => c.value === contact.units[0])?.color || "#c8a24a";
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.7 }));
+    const name = `Projected contact: ${labelFor(contact.units[0])} | ${labelFor(contact.units[1])}`;
+    const nVerts = allV.length / 3;
+    mesh.userData = { tip: `${name}\n${settings.depth} m down-dip from the mapped trace` };
+    implicitGroupRef.current?.add(mesh);
+    const id = `impl_${Date.now()}_mapproj`;
+    implicitMeshesRef.current[id] = mesh;
+    const total = fromData + fromManual || 1;
+    setImplicitSurfaces((p) => [...p, {
+      id, name, visible: true, color, opacity: 0.7,
+      vertexCount: nVerts, faceCount: allI.length / 3,
+      type: "projected_contact", relationships: [], closure: null,
+      params: {
+        tool: "surface map dip projection", mapLayer: layer.name, attribute: layer.styleField, contact: contact.units,
+        depthM: settings.depth, measurementTypes: settings.classes, searchRadiusM: settings.radius,
+        fallbackDip: settings.manualDip, fallbackDipDirection: settings.manualDipDir,
+        traceVerticesDipFromMeasurements: fromData, traceVerticesDipFromFallback: fromManual, dipsClampedTo10: clamped,
+        snapToleranceM: settings.tolerance, createdAt: new Date().toISOString(),
+      },
+    }]);
+    const pct = Math.round((100 * fromData) / total);
+    setNotices((p) => [...p, `${name}: ${Math.round(contact.lengthM).toLocaleString()} m of mapped contact projected ${settings.depth} m below surface (${nVerts.toLocaleString()} vertices). Dip came from outcrop measurements along ${pct}% of the trace${fromManual ? ` and from the typed ${settings.manualDip}°→${settings.manualDipDir}° along the rest (no chosen measurement within ${settings.radius} m)` : ""}${clamped ? `; ${clamped} sub-10° dip(s) were steepened to 10°` : ""}. This is a straight dip extrapolation of surface data, not a model — check it against any drilling.`]);
+  }, [terrain]);
+
   const toggleImplicitSurface = useCallback((id) => {
     setImplicitSurfaces((p) => p.map((s) => {
       if (s.id !== id) return s;
@@ -4673,7 +4816,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const sxr = minMax(surfaceSamples, (p) => p.x), syr = minMax(surfaceSamples, (p) => p.y);
         return [sxr.min, syr.min, sxr.max, syr.max];
       })();
-      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || surfaceSamplesBbox || null;
+      // TASKS.csv #316/#317 — a map-layer-only or outcrop-structure-only project (mapping before any
+      // drilling) has the same off-screen risk; both carry world coordinates.
+      const mapLayersBbox = (() => {
+        const bbs = (mapLayers || []).map((l) => l.bbox).filter(Boolean);
+        (surfaceStructures || []).forEach((st) => {
+          if (!st.rows?.length) return;
+          const xr = minMax(st.rows, (r) => r.x), yr = minMax(st.rows, (r) => r.y);
+          bbs.push([xr.min, yr.min, xr.max, yr.max]);
+        });
+        if (!bbs.length) return null;
+        return [Math.min(...bbs.map((b) => b[0])), Math.min(...bbs.map((b) => b[1])), Math.max(...bbs.map((b) => b[2])), Math.max(...bbs.map((b) => b[3]))];
+      })();
+      const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || surfaceSamplesBbox || mapLayersBbox || null;
       if (anchorBbox) {
         const [bxmin, bymin, bxmax, bymax] = anchorBbox;
         const ox = (bxmin + bxmax) / 2, oy = (bymin + bymax) / 2;
@@ -5162,7 +5317,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //
@@ -5645,6 +5800,132 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       boundaryLinesRef.current[b.id] = g;
     });
   }, [boundaries, collars, terrain, rebuildSeq]);
+
+  // ---------- rebuild draped map layers (TASKS.csv #316) ----------
+  // Each GIS map layer is rasterized into a canvas (mapLayers.js explains why a texture, not triangulated
+  // polygons) and laid on a terrain-conforming grid built the same way raster drapes are (#81), lifted a
+  // little higher than a raster (0.3 m vs 0.15 m) so a geology map sits over a hillshade or mag grid
+  // rather than z-fighting with it. Three levels of rebuild, cheapest first: opacity/visibility are
+  // material/mesh flags; a style change (colours, hidden units, outlines, colour-by field) re-rasterizes
+  // into the existing texture's canvas; only a drape change (terrain replaced, flat<->terrain, origin
+  // shift, flat elevation) rebuilds geometry.
+  useEffect(() => {
+    const group = mapLayerGroupRef.current;
+    if (!group) return;
+    const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
+    const wanted = new Set(mapLayers.map((l) => l.id));
+    Object.keys(mapLayerMeshesRef.current).forEach((id) => { if (!wanted.has(id)) { disposeMesh(mapLayerMeshesRef.current[id]); delete mapLayerMeshesRef.current[id]; } });
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const maxTex = Math.min(4096, rendererRef.current?.capabilities?.maxTextureSize || 4096);
+    mapLayers.forEach((l, li) => {
+      if (!l.bbox || !l.features?.length) return;
+      // Later layers sit 0.2 m above earlier ones so two overlapping maps never z-fight with each other.
+      const lift = 0.3 + li * 0.2;
+      // Pad a little so outlines on the layer's outer edge aren't clipped in half.
+      const [bx0, by0, bx1, by1] = l.bbox;
+      const pad = Math.max(bx1 - bx0, by1 - by0) / 2000 + 1;
+      const bbox = [bx0 - pad, by0 - pad, bx1 + pad, by1 + pad];
+      const w = bbox[2] - bbox[0], h = bbox[3] - bbox[1];
+      const cx = (bbox[0] + bbox[2]) / 2, cy = (bbox[1] + bbox[3]) / 2;
+      const drapeOnTerrain = l.drapeMode === "terrain" && !!terrain;
+      const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : `flat:${l.elevation || 0}`}|${ox},${oy},${oz}|${lift}|${bbox.join(",")}`;
+      const styleKey = mapStyleSignature(l);
+      let mesh = mapLayerMeshesRef.current[l.id];
+      if (mesh && mesh.userData.geoKey !== geoKey) { disposeMesh(mesh); mesh = null; delete mapLayerMeshesRef.current[l.id]; }
+      if (!mesh) {
+        const { width, height } = mapTextureSize(bbox, { targetMetresPerPixel: 1, maxSize: maxTex });
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = rendererRef.current?.capabilities?.getMaxAnisotropy?.() ?? 1;
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: l.opacity ?? 0.6, side: THREE.DoubleSide, depthWrite: false });
+        let geometry;
+        if (drapeOnTerrain) {
+          // Same resolution reasoning as the raster drape above: follow the terrain's own grid over this
+          // layer's footprint (x1.5 so the drape doesn't cut corners between terrain samples), capped.
+          const fracX = w / Math.max(1e-6, terrain.bbox[2] - terrain.bbox[0]);
+          const fracY = h / Math.max(1e-6, terrain.bbox[3] - terrain.bbox[1]);
+          const segX = Math.round(Math.min(256, Math.max(32, fracX * terrain.gridW * 1.5)));
+          const segY = Math.round(Math.min(256, Math.max(32, fracY * terrain.gridH * 1.5)));
+          geometry = new THREE.PlaneGeometry(w, h, segX, segY);
+          const pos = geometry.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            const el = sampleTerrainElevation(terrain, cx + pos.getX(i), cy + pos.getY(i));
+            pos.setZ(i, el - oz + lift);
+          }
+          pos.needsUpdate = true;
+        } else {
+          geometry = new THREE.PlaneGeometry(w, h);
+        }
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2; // plane local +Y (image top = north) becomes scene -z, the app's north
+        mesh.position.set(cx - ox, drapeOnTerrain ? 0 : (l.elevation || 0) - oz + lift - 0.3, -(cy - oy));
+        mesh.renderOrder = 2 + li;
+        mesh.userData = { geoKey, styleKey: null, canvas };
+        group.add(mesh);
+        mapLayerMeshesRef.current[l.id] = mesh;
+      }
+      if (mesh.userData.styleKey !== styleKey) {
+        const { canvas } = mesh.userData;
+        drawMapLayer(canvas.getContext("2d"), l, bbox, canvas.width, canvas.height);
+        mesh.material.map.needsUpdate = true;
+        mesh.userData.styleKey = styleKey;
+      }
+      mesh.material.opacity = l.opacity ?? 0.6;
+      mesh.visible = l.visible !== false;
+    });
+  }, [mapLayers, collars, terrain, rebuildSeq]);
+
+  // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
+  // One InstancedMesh of thin discs per imported file (a disc lying in the measured plane, i.e. its axis
+  // along the pole) plus one LineSegments of down-dip ticks from each disc's centre — two draw calls per
+  // file however many measurements it holds, same "don't do it one mesh per item" rule as #312. The tick
+  // is what makes a moderately dipping disc readable from above, where its tilt alone is hard to judge.
+  useEffect(() => {
+    const group = surfStructGroupRef.current;
+    if (!group) return;
+    Object.values(surfStructObjsRef.current).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); }); });
+    surfStructObjsRef.current = {};
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const up = new THREE.Vector3(0, 1, 0);
+    surfaceStructures.forEach((set) => {
+      const rows = set.rows || [];
+      if (!rows.length) return;
+      const size = set.size ?? 25;
+      const g = new THREE.Group();
+      const inst = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 28), new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), rows.length);
+      const tickPos = new Float32Array(rows.length * 6);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(size, size, size), col = new THREE.Color();
+      const pole = new THREE.Vector3(), down = new THREE.Vector3();
+      rows.forEach((r, i) => {
+        let z = r.z;
+        if (terrain && (set.snapToTerrain !== false || z == null)) z = sampleTerrainElevation(terrain, r.x, r.y);
+        if (z == null) z = oz;
+        const dd = (r.dipDir * Math.PI) / 180, dp = (r.dip * Math.PI) / 180;
+        // Upward pole (E, N, U) -> scene (x = E, y = U, z = -N).
+        pole.set(Math.sin(dd) * Math.sin(dp), Math.cos(dp), -Math.cos(dd) * Math.sin(dp)).normalize();
+        q.setFromUnitVectors(up, pole);
+        const lift = size * 0.5 * Math.sin(dp) + 0.5; // keep the disc's lower rim out of the ground
+        p.set(r.x - ox, z - oz + lift, -(r.y - oy));
+        m.compose(p, q, sc);
+        inst.setMatrixAt(i, m);
+        inst.setColorAt(i, col.set(STRUCTURE_CLASS_COLORS[r.cls] || STRUCTURE_CLASS_COLORS.other));
+        down.set(Math.sin(dd) * Math.cos(dp), -Math.sin(dp), -Math.cos(dd) * Math.cos(dp)).multiplyScalar(size * 0.75);
+        tickPos.set([p.x, p.y, p.z, p.x + down.x, p.y + down.y, p.z + down.z], i * 6);
+      });
+      inst.instanceMatrix.needsUpdate = true;
+      if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+      inst.computeBoundingSphere();
+      g.add(inst);
+      const tickGeo = new THREE.BufferGeometry();
+      tickGeo.setAttribute("position", new THREE.BufferAttribute(tickPos, 3));
+      g.add(new THREE.LineSegments(tickGeo, new THREE.LineBasicMaterial({ color: 0x1b1b1b })));
+      g.visible = set.visible !== false;
+      group.add(g);
+      surfStructObjsRef.current[set.id] = g;
+    });
+  }, [surfaceStructures, collars, terrain, rebuildSeq]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // Own effect/group, same reasoning as the boundary/raster effects above. Unlike boundaries (always a
@@ -7666,6 +7947,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           title="Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown"
         ><Layers3 size={14} /> Fence / panel diagram…</button>
 
+        {/* TASKS.csv #318 — mapped surface contacts projected underground (dip projection), or fed to the
+            implicit model run just below as extra interface points + orientations. */}
+        <SurfaceGeologyProjection
+          mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} pBtn={pBtn}
+          onProject={projectMapContact} mapConstraint={mapConstraint} setMapConstraint={setMapConstraint}
+        />
+
         <div className="ge-section-label" style={{ marginTop: 16 }}>Implicit model (beta)</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models the top contact of one unit from litho intervals, via GemPy in the Python sidecar.
@@ -8596,7 +8884,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             the best in the app and the model the others should follow, so it was extracted, not
             rewritten. EmptyState's `children` slot exists precisely so this tab keeps its three
             paragraphs while the shorter tabs get a one-sentence card. */}
-        {!collars.length && (
+        {/* TASKS.csv #316 — a mapping-stage project (terrain, a geology map, outcrop structures, rasters,
+            no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
+        {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
             headline="Nothing loaded yet"
             actionLabel={sampleLoading ? "Loading sample project…" : "Load sample project (Harry property, 37 real holes)"}

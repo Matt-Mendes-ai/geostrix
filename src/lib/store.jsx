@@ -344,6 +344,40 @@ export function StoreProvider({ children }) {
   const updateBoundary = useCallback((id, patch) => setBoundaries((p) => p.map((b) => b.id === id ? { ...b, ...patch } : b)), []);
   const removeBoundary = useCallback((id) => setBoundaries((p) => p.filter((b) => b.id !== id)), []);
 
+  // ---- Map layers (TASKS.csv #316) — imported GIS vector layers (GeoPackage/shapefile polygons, lines,
+  // points) with an attribute-driven categorical style, draped on the terrain. Unlike `boundaries` (an
+  // outline in one colour, attributes thrown away) a map layer keeps every ring/part and every
+  // attribute, because the style, the legend and the contact extraction used to project mapped geology
+  // underground (#318) all need them. Each: { id, name, sourceName, geomType, features: [{ parts:
+  // [[[x,y],...],...], attributes }], fields, bbox, styleField, categories: [{ value, label, color,
+  // outline, visible, count }], opacity, visible, drapeMode: "terrain"|"flat", elevation, showOutlines,
+  // sourceEpsg, reprojected }. Coordinates are project-CRS, rounded to 1 cm at import (mapLayers.js).
+  // Same persistence treatment as rasters: saved/autosaved, NOT in the undo snapshot (a 100-polygon map
+  // is thousands of vertices, and undo JSON-compares its tracked fields on every edit).
+  const [mapLayers, setMapLayers] = useState([]);
+  const addMapLayer = useCallback((layer) => {
+    const id = `maplayer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setMapLayers((p) => [...p, { opacity: 0.6, visible: true, drapeMode: "terrain", elevation: 0, showOutlines: true, ...layer, id }]);
+    return id;
+  }, []);
+  const updateMapLayer = useCallback((id, patch) => setMapLayers((p) => p.map((l) => l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)), []);
+  const removeMapLayer = useCallback((id) => setMapLayers((p) => p.filter((l) => l.id !== id)), []);
+
+  // ---- Surface structural measurements (TASKS.csv #317) — outcrop strike/dip picks with real map
+  // coordinates. Deliberately NOT the downhole `structure` layer (that is keyed by hole_id + depth and
+  // desurveyed onto a trace) and NOT fieldStructuralRefs (#256's location-less reference library). One
+  // entry per imported file: { id, name, visible, size, snapToTerrain, rows: [{ x, y, z|null, dip, dipDir,
+  // strike, type, cls, comment }] }. z is null where the file had no elevation; the renderer then sits
+  // the symbol on the terrain.
+  const [surfaceStructures, setSurfaceStructures] = useState([]);
+  const addSurfaceStructureSet = useCallback((set) => {
+    const id = `surfstruct_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setSurfaceStructures((p) => [...p, { visible: true, size: 25, snapToTerrain: true, ...set, id }]);
+    return id;
+  }, []);
+  const updateSurfaceStructureSet = useCallback((id, patch) => setSurfaceStructures((p) => p.map((s) => s.id === id ? { ...s, ...patch } : s)), []);
+  const removeSurfaceStructureSet = useCallback((id) => setSurfaceStructures((p) => p.filter((s) => s.id !== id)), []);
+
   // TASKS.csv — "we need to find a way to calculate the beta angle for non-oriented drilling based on
   // field structural measurements." A small reusable library of surface/outcrop structural readings
   // (known true dip/dip-direction), independent of any specific drillhole or core interval — the
@@ -715,6 +749,7 @@ export function StoreProvider({ children }) {
     setPendingLayoutImages([]);
     setThemes([]);
     setRasters([]);
+    setMapLayers([]); setSurfaceStructures([]); // TASKS.csv #316/#317
     setTerrain(null);
     setGeophysPtsStops([]); setGeophysPtsColorMode("continuous"); setGeophysPtsMin(null); setGeophysPtsMax(null);
     setVoxelModels([]);
@@ -756,7 +791,7 @@ export function StoreProvider({ children }) {
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => ({
     version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
-    viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
+    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
     excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
     generatedSurfaces, modelDomains, // TASKS.csv #52
   });
@@ -808,7 +843,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
+  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -840,6 +875,8 @@ export function StoreProvider({ children }) {
     // any file saved before that feature also just falls back to [].
     setRasters(data.rasters || []);
     setBoundaries(data.boundaries || []);
+    setMapLayers(data.mapLayers || []); // TASKS.csv #316 — older files just lack the key
+    setSurfaceStructures(data.surfaceStructures || []); // TASKS.csv #317
     setFieldStructuralRefs(data.fieldStructuralRefs || []);
     setLithoGroups(data.lithoGroups || []); // TASKS.csv #176 — pre-#176 files just lack the key
     setOmfObjects(data.omfObjects || []);
@@ -909,7 +946,7 @@ export function StoreProvider({ children }) {
     setActiveTabId(tabId);
     autosaveClear();
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
@@ -920,7 +957,7 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
@@ -955,7 +992,7 @@ export function StoreProvider({ children }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
@@ -988,9 +1025,9 @@ export function StoreProvider({ children }) {
   // "Save", not a replacement for it — real saves and explicit discards both clear it (see
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
-  const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0;
-  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
-  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
+  const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0 || mapLayers.length > 0 || surfaceStructures.length > 0; // #316/#317 — a map-only project is still work worth autosaving
+  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
+  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
@@ -1213,6 +1250,8 @@ export function StoreProvider({ children }) {
     themes, addTheme, updateTheme, renameTheme, deleteTheme,
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
+    mapLayers, addMapLayer, updateMapLayer, removeMapLayer, // TASKS.csv #316
+    surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet, // TASKS.csv #317
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,

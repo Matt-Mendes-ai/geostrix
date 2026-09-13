@@ -24,6 +24,7 @@ import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
+import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -1092,6 +1093,9 @@ export default function GeophysicsModule() {
             </div>
           </div>
         ))}
+
+        {/* TASKS.csv #316/#317 — GIS map layers draped on the terrain + outcrop structure measurements */}
+        <SurfaceMappingPanel pBtn={pBtn} numInput={numInput} />
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Web layers (WMS / WFS)
