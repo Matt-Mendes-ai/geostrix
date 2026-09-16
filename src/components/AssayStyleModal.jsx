@@ -3,6 +3,7 @@ import { X, Plus, Trash2, RotateCcw } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { lightnessRamp } from "../lib/colorRamp.js"; // TASKS.csv #319
 
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
 // ignore values lower than (what the user specifies)". Per-element styling for the 3D View / cross-
@@ -53,11 +54,18 @@ import { overlay } from "../lib/modalStyles.js";
 // simulation is 142.3 and 123.0 units of simulated-sRGB distance (protanopia 150.5 / 126.3), against
 // 139.6 / 57.1 for the old ramp — so the weak step is gone as well. Not a rainbow/jet ramp,
 // deliberately: those manufacture false class boundaries in continuous data.
-export function seedBreaks(range) {
+// TASKS.csv #319 — `baseColor` (an element's own identity hue) turns this into a PER-ELEMENT ramp:
+// same three lightness classes, built around that hue, so a multi-element view carries identity in hue
+// and grade in lightness at once instead of painting every element with the same three colours. Callers
+// that pass nothing keep the original shared ramp exactly, so nothing that does not know about element
+// colours changes behaviour. Seeded breaks are tagged `seeded: true`; editing one in this modal drops
+// the tag (see updateBreak), which is what lets a future re-seed tell "GeoStrix chose this" from "the
+// user chose this" — the distinction #319 recorded as missing.
+export function seedBreaks(range, baseColor) {
   const { min, max, p50, p90 } = range || {};
   const span = max - min;
-  const C = ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
-  if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All" }];
+  const C = lightnessRamp(baseColor) || ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
+  if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All", seeded: true }];
   // Percentile boundaries when the caller supplied a distribution; equal-interval otherwise.
   const usable = Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max;
   const b1 = usable ? p50 : min + span / 3;
@@ -69,9 +77,9 @@ export function seedBreaks(range) {
   // decimal places.
   const round = (v) => (Math.abs(v) >= 0.001 ? +v.toFixed(3) : +v.toPrecision(3));
   return [
-    { max: round(b1), color: C[0], label: "Low" },
-    { max: round(b2), color: C[1], label: "Medium" },
-    { max: round(max), color: C[2], label: "High" },
+    { max: round(b1), color: C[0], label: "Low", seeded: true },
+    { max: round(b2), color: C[1], label: "Medium", seeded: true },
+    { max: round(max), color: C[2], label: "High", seeded: true },
   ];
 }
 
@@ -101,14 +109,16 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       // Seed with a sensible 3-class split of the element's real data range so the user has something
       // concrete to edit rather than a blank row — same "nice round numbers" spirit as the scale-bar
       // helper elsewhere in the app, just simpler (no cartographic convention needed here).
-      commit({ ...local, breaks: seedBreaks(range) });
+      commit({ ...local, breaks: seedBreaks(range, local.color) }); // #319 — seed from THIS element's colour
       return;
     }
     const last = local.breaks[local.breaks.length - 1];
     commit({ ...local, breaks: [...local.breaks, { max: +(last.max * 1.5).toFixed(3), color: "#e05a4a", label: "" }] });
   };
   const updateBreak = (i, patch) => {
-    const breaks = local.breaks.map((b, bi) => (bi === i ? { ...b, ...patch } : b));
+    // #319 — a break the user has touched is theirs: drop the `seeded` tag so nothing later treats it
+    // as something GeoStrix picked and is free to replace.
+    const breaks = local.breaks.map((b, bi) => (bi === i ? { ...b, ...patch, seeded: false } : b));
     commit({ ...local, breaks });
   };
   const removeBreak = (i) => commit({ ...local, breaks: local.breaks.filter((_, bi) => bi !== i) });

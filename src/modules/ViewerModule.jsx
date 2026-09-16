@@ -1167,14 +1167,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // or one with no breaks — e.g. from an older saved project), it's auto-seeded with the same 3-class
   // split AssayStyleModal's own "Add break" button seeds with (seedBreaks), so grade patterns are
   // visible immediately — still fully overridable/removable via that same modal.
+  // TASKS.csv #319 — the seeded ramp is now built around the element's OWN colour, so switching several
+  // elements on gives each its own hue with grade as lightness inside it, instead of painting all of
+  // them with one shared three-colour ramp (which left identity carried only by a sub-pixel fan offset).
+  // The colour used is the one this element will actually be drawn with: the user's override if they set
+  // one, otherwise its pick-order colour — and the index is the position it is about to occupy, which is
+  // the end of the list, matching how assayColorFor indexes the same array at marker-build time.
   const toggleAssayElement = (symbol) => {
     const turningOn = !assayDisplayElements.includes(symbol);
+    const idx = turningOn ? assayDisplayElements.length : assayDisplayElements.indexOf(symbol);
     setAssayDisplayElements((p) => p.includes(symbol) ? p.filter((s) => s !== symbol) : [...p, symbol]);
     if (turningOn) {
       setAssayStyle((s) => {
         if (s[symbol]?.breaks?.length) return s; // user already has their own breaks -- don't clobber
         const range = globalAssayRanges[symbol] || { min: 0, max: 0 };
-        return { ...s, [symbol]: { ...(s[symbol] || {}), breaks: seedBreaks(range) } };
+        const baseColor = s[symbol]?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
+        return { ...s, [symbol]: { ...(s[symbol] || {}), breaks: seedBreaks(range, baseColor) } };
       });
     }
   };
