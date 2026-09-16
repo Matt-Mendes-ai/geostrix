@@ -1094,6 +1094,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const compassRef = useRef(null);
   const axisGizmoRef = useRef(null); // TASKS.csv #189 — small camera-synced N/E/Z axis-triad widget, bottom-left of the 3D view
   const lastTracesRef = useRef([]);
+  // TASKS.csv #313 — the opening (legibility-clamped) view, kept so a later canvas resize can redo it:
+  // { traces, radius, target }. Cleared as soon as the camera no longer matches what the clamp set,
+  // i.e. the moment the view belongs to the user. applyClampRef is the indirection the mount effect's
+  // resize() needs, since the clamp callback is declared far below it.
+  const openingFitRef = useRef(null);
+  const applyClampRef = useRef(null);
   // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new
   // layer." Same class of bug as the earlier voxel-visibility camera-reset fix a few lines below (see
   // voxelGeomSignature's own comment) — the geometry-rebuild effect calls fitView() unconditionally
@@ -2185,9 +2191,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const w = mount.clientWidth, h = mount.clientHeight;
       if (!w || !h) return;
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h); lastActivityRef.current = Date.now();
+      // TASKS.csv #313 — a shorter canvas means fewer pixels across a tube, so the opening view has to
+      // be re-clamped or it silently lands looser than MIN_OPENING_TUBE_PX. This is not hypothetical:
+      // the autosave-recovery banner appears AFTER the project loads and takes ~41 px off the canvas,
+      // which is what made the shipped clamp land at ~73% of its target (measured 1.83 px against a
+      // 2.5 px setting). Only applies while the camera is still exactly where the clamp put it.
+      applyClampRef.current?.();
       figureOverlaySignalRef.current?.(true); // TASKS.csv #311 — metres-per-pixel depends on the canvas pixel height, so a resize changes the bar even when the camera didn't move. The `true` invalidates the overlay's cached height; this is its ONLY invalidation point, which is why it must stay in resize()
     };
-    resizeFnRef.current = resize;
     resize(); const ro = new ResizeObserver(resize); ro.observe(mount);
 
     // Real bug fix (TASKS.csv #63): hover/right-click hit-testing used to flatten EVERY layer group's
@@ -2505,6 +2516,57 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     };
   }, [setCursor]);
 
+  // TASKS.csv #313 — the legibility clamp, split out of autoFitInitial so the reveal path below can
+  // re-apply it. Returns true when it actually changed the camera.
+  //
+  // WHICH HEIGHT. The pixel size a tube ends up with is set by the canvas height AT THE MOMENT THE
+  // CLAMP RUNS, so the height it measures has to be the one the scene is actually drawn into. This
+  // used to read mountRef.clientHeight with an 800 fallback, which is wrong twice over: while the tab
+  // is display:none that is 0 and the fallback silently invents a height the canvas does not have
+  // (the follow-up this row recorded — the clamp was landing at ~73% of MIN_OPENING_TUBE_PX), and even
+  // when visible the mount can be a few tens of pixels shorter than the canvas it contains mid-layout
+  // (measured live: mount 721 vs canvas 762 on the sample project). The renderer's own canvas is the
+  // authority; the mount and the 800 are fallbacks only for the case where there is no canvas yet.
+  // pendingLegibilityRef records that the clamp had to guess, so the reveal effect can redo it against
+  // a real canvas — and it stores the radius that was applied, so a user who has since moved the
+  // camera is never yanked back.
+  const pendingLegibilityRef = useRef(null);
+  const applyLegibilityClamp = useCallback((traces, { notify = false } = {}) => {
+    if (!traces?.length) return false;
+    const canvas = rendererRef.current?.domElement;
+    const canvasHeight = canvas?.clientHeight || canvas?.height || 0;
+    const pixelHeight = canvasHeight || mountRef.current?.clientHeight || 800;
+    const guessed = !canvasHeight;
+    const fovDeg = cameraRef.current?.fov || 45;
+    const maxRadius = legibilityRadius(LAYER_META.litho.radius * 2, MIN_OPENING_TUBE_PX, fovDeg, pixelHeight);
+    if (!(maxRadius > 0) || camState.current.radius <= maxRadius) { pendingLegibilityRef.current = null; return false; }
+    // Cell size = roughly the world height the clamped view will show, so "densest" means "the
+    // neighbourhood that fills this view with the most drilling", not some scale-free abstraction.
+    const centre = densestCentre(traces.flat(), worldHeightAtTargetM(fovDeg, maxRadius) || maxRadius);
+    if (centre) camState.current.target.set(centre.x, centre.y, centre.z);
+    camState.current.radius = Math.max(80, maxRadius);
+    cameraRef.current?.__update?.();
+    openingFitRef.current = { traces, radius: camState.current.radius, target: camState.current.target.clone() };
+    pendingLegibilityRef.current = guessed ? { traces, radius: camState.current.radius } : null;
+    if (notify) setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Zoom to fit all (toolbar, or right-click the viewport) to frame the whole property."]);
+    return true;
+  }, []);
+
+  // Re-run the opening clamp against the canvas as it is NOW. No-op unless the camera is still
+  // untouched since the clamp set it (radius and target both), so a user who has zoomed, panned or
+  // fitted to everything is never pulled back. The clamp only ever tightens, so a canvas that got
+  // TALLER simply leaves the view alone — the tubes are already bigger than the target there.
+  const reapplyOpeningFit = useCallback(() => {
+    const o = openingFitRef.current;
+    if (!o) return;
+    if (Math.abs(camState.current.radius - o.radius) > 1e-6 || camState.current.target.distanceTo(o.target) > 1e-6) {
+      openingFitRef.current = null;
+      return;
+    }
+    applyLegibilityClamp(o.traces);
+  }, [applyLegibilityClamp]);
+  applyClampRef.current = reapplyOpeningFit;
+
   // TASKS.csv #225 — on becoming visible again, the ResizeObserver above won't necessarily have fired
   // (the mount's box size while `display:none` and its size just after `display:flex` can be
   // identical if the window itself didn't resize meanwhile — a CSS display change alone doesn't
@@ -2515,10 +2577,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!visible) return;
     const raf = requestAnimationFrame(() => {
       resizeFnRef.current?.();
+      // TASKS.csv #313 — if the opening clamp had to guess the canvas height (the project was loaded
+      // while this tab was display:none, so there was no canvas to measure), redo it now that there
+      // is one. Skipped if the user has moved the camera since: pendingLegibilityRef holds the radius
+      // the clamp set, and anything else means the view is theirs now, not the opening view.
+      const pending = pendingLegibilityRef.current;
+      if (pending && Math.abs(camState.current.radius - pending.radius) < 1e-6) {
+        pendingLegibilityRef.current = null;
+        applyLegibilityClamp(pending.traces);
+      }
       lastActivityRef.current = Date.now();
     });
     return () => cancelAnimationFrame(raf);
-  }, [visible]);
+  }, [visible, applyLegibilityClamp]);
 
   // TASKS.csv #313 — DO NOT "fix" the 1.3 here thinking it is arbitrary padding on a conservative
   // diagonal bound. It is not padding: 1/(2 sin(fov/2)) at fov 45 is 1.3066, so this is a snug fit to
@@ -2580,18 +2651,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       (key) => LAYER_META[key].kind === "interval" && (layerGroupsRef.current[key]?.children.length || 0) > 0,
     );
     if (!hasIntervalRows) return;
-    const fovDeg = cameraRef.current?.fov || 45;
-    const pixelHeight = mountRef.current?.clientHeight || 800; // 0 while the tab is display:none — fall back rather than divide by it
-    const maxRadius = legibilityRadius(LAYER_META.litho.radius * 2, MIN_OPENING_TUBE_PX, fovDeg, pixelHeight);
-    if (!(maxRadius > 0) || camState.current.radius <= maxRadius) return;
-    // Cell size = roughly the world height the clamped view will show, so "densest" means "the
-    // neighbourhood that fills this view with the most drilling", not some scale-free abstraction.
-    const centre = densestCentre(traces.flat(), worldHeightAtTargetM(fovDeg, maxRadius) || maxRadius);
-    if (centre) camState.current.target.set(centre.x, centre.y, centre.z);
-    camState.current.radius = Math.max(80, maxRadius);
-    cameraRef.current?.__update?.();
-    setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Zoom to fit all (toolbar, or right-click the viewport) to frame the whole property."]);
-  }, [fitBox, layers, layerVisible]);
+    applyLegibilityClamp(traces, { notify: true });
+  }, [fitBox, layers, layerVisible, applyLegibilityClamp]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
     if (!group || !group.children.length) { setNotices((p) => [...p, `${LAYER_META[key]?.label || key}: nothing rendered to zoom to.`]); return; }
