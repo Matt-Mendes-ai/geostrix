@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
+import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
 import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
@@ -18,6 +18,7 @@ import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpk
 import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import SurfaceGeologyProjection from "../components/SurfaceGeologyProjection.jsx"; // TASKS.csv #318
+import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
@@ -1389,6 +1390,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
   const [implicitTarget, setImplicitTarget] = useState("");
+  // TASKS.csv #52 (a) — sensitivity-spread inputs. The two sigmas deliberately start EMPTY and the run
+  // button stays disabled until both are typed: #52's gate is that the input uncertainty must come from
+  // the geologist, never from a default GeoStrix picked. Session-only UI state, like includeSectionContacts.
+  const [sensOpen, setSensOpen] = useState(false);
+  const [sensN, setSensN] = useState(8);
+  const [sensSigmaPos, setSensSigmaPos] = useState("");
+  const [sensSigmaDeg, setSensSigmaDeg] = useState("");
+  const [sensBudget, setSensBudget] = useState(300);
   // TASKS.csv #98 — feed drawn cross-section contacts into 3D surface generation. Off by default:
   // drawn contacts are an interpretation, not raw data, so they shouldn't silently join every run —
   // this is the "source picker" the task note called for, kept as one explicit toggle rather than a
@@ -3381,8 +3390,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const [zmin, zmax] = pad(zr.min, zr.max);
     const extent = [xmin, xmax, ymin, ymax, zmin, zmax];
 
-    const sidecarSpecs = anisotropy.enabled
-      ? specs.map((s) => ({
+    // TASKS.csv #52 (a) — a named function now, because the sensitivity realisations below must go
+    // through exactly the same warp as the base request (perturbation happens in real metres/degrees
+    // BEFORE it, so a stated sigma always means what it says).
+    const warpForSidecar = (s) => (anisotropy.enabled
+      ? {
           ...s,
           points: s.points.map((p) => anisoWarpPoint(p, anisoCenter, anisoBasis, anisoScl)),
           orientations: s.orientations.map((o) => {
@@ -3390,8 +3402,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             const dir = anisoWarpDirection(o.dip, o.azimuth, anisoBasis, anisoScl);
             return { ...o, x: pos.x, y: pos.y, z: pos.z, dip: dir.dip, azimuth: dir.azimuth };
           }),
-        }))
-      : specs;
+        }
+      : s);
+    const sidecarSpecs = specs.map(warpForSidecar);
 
     const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
     const totalPoints = specs.reduce((s, x) => s + x.points.length, 0);
@@ -3413,6 +3426,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const rampTimer = setInterval(() => {
       setTaskProgress?.((cur) => (cur && cur.label === label ? { ...cur, pct: Math.min(90, cur.pct + 6 + Math.random() * 8) } : cur));
     }, 500);
+    const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
@@ -3420,6 +3434,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal },
     );
     clearInterval(rampTimer);
+    const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
     setImplicitBusy(false);
     modelAbortControllerRef.current = null;
     if (!res.ok) {
@@ -3434,12 +3449,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const newMeshes = [];
     const missing = [];
     const unwarpScl = anisotropy.enabled ? invScales(anisoScl) : null;
+    const unwarpVerts = (verts) => (anisotropy.enabled
+      ? verts.map(([x, y, z]) => { const w = anisoWarpPoint({ x, y, z }, anisoCenter, anisoBasis, unwarpScl); return [w.x, w.y, w.z]; })
+      : verts);
+    let ensembleBase = null; // TASKS.csv #52 (a)
     specs.forEach((spec) => {
       const surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
-      const apiVerts = anisotropy.enabled
-        ? surf.vertices.map(([x, y, z]) => { const w = anisoWarpPoint({ x, y, z }, anisoCenter, anisoBasis, unwarpScl); return [w.x, w.y, w.z]; })
-        : surf.vertices;
+      const apiVerts = unwarpVerts(surf.vertices);
       const sceneVerts = apiVerts.map(apiToScene);
       // TASKS.csv #88 — boundary constraint: drop any triangle with a vertex outside the selected
       // domain, since GemPy fit/extrapolated across the whole extent regardless of which control points
@@ -3462,6 +3479,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
       newMeshes.push(mesh);
+      if (stackOpts.ensemble && specs.length === 1) ensembleBase = { spec, mesh, id, sceneVerts, faces };
       // TASKS.csv #83 — `type` starts from each tool's own guess (see guessSurfaceType/the inline
       // guesses at each spec's construction site above); `relationships` starts empty — declared
       // afterward in the Modeling tab's surface list, since a relationship needs another surface to
@@ -3507,10 +3525,141 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       newMeshes.forEach((m) => box.expandByObject(m));
       fitBox(box);
     }
+    // ---------- TASKS.csv #52 (a) — spread across N realisations ----------
+    // Re-runs the SAME model (same extent, resolution, range, relation, anisotropy) with its interface
+    // points and orientations perturbed by the sigmas the user typed, and measures, for every vertex of
+    // the base surface, how far each realisation's surface lies from it. See lib/surfaceSpread.js's
+    // header for why this is a sensitivity spread and not a "confidence": no posterior, no invented prior.
+    // Budgeted by the MEASURED cost of the base run just made, not by an assumption — #52's first gate.
+    if (stackOpts.ensemble && ensembleBase) {
+      const ens = stackOpts.ensemble;
+      const { spec: bSpec, sceneVerts: bVerts } = ensembleBase;
+      // ADAPTIVE, not a cap computed up front. The first version divided the budget by the base run's
+      // time, but the base run is the COLD one: measured on the Harry sample (DACT, 88 points, 317
+      // orientations, 36^3) it took 120.6 s against 92.7 s for each warm realisation after it, so an
+      // up-front cap under-ran the budget by ~25%. Now each realisation starts only if the average so far
+      // (the base run's time until there is one) says it will finish inside the budget.
+      const n = Math.max(1, Math.floor(ens.n));
+      const estPerRun = Math.max(0.2, baseSolveSeconds);
+      if (ens.budgetS < 3 * estPerRun * 0.7) {
+        setNotices((p) => [...p, `Sensitivity not run: the base run took ${estPerRun.toFixed(1)} s, so a ${ens.budgetS} s budget cannot fit even 3 realisations, and a spread from 1-2 runs means nothing. Raise the time budget, or lower the model resolution.`]);
+        return;
+      }
+      setNotices((p) => [...p, `Sensitivity: running up to ${n} realisations of "${ensembleBase.spec.label}" within ${ens.budgetS} s (the base run took ${estPerRun.toFixed(1)} s; the first run is usually the slowest).`]);
+      const seed = Number.isFinite(ens.seed) ? ens.seed : (Date.now() % 2147483647);
+      const rng = makeRng(seed);
+      const ac = new AbortController();
+      modelAbortControllerRef.current = ac;
+      setImplicitBusy(true);
+      // Only vertices that belong to at least one triangle are ON the surface. GemPy's vertex list also
+      // carries orphans no face references (and domain clipping leaves more), and a distance measured
+      // from an orphan is meaningless. That was a real bug, found by a control run: with both sigmas
+      // at 1e-9 (inputs identical to far below float precision) the median and p90 spread were 0.0 m,
+      // but the MAX was 85 m. Traced to Harry DACT's vertex 4 — zero incident faces, identical in every
+      // realisation, 85 m from the surface in all of them. Excluded, the control run is clean.
+      const onSurface = new Uint8Array(bVerts.length);
+      ensembleBase.faces.forEach((f) => { onSurface[f[0]] = 1; onSurface[f[1]] = 1; onSurface[f[2]] = 1; });
+      const measured = [];
+      for (let v = 0; v < bVerts.length; v++) if (onSurface[v]) measured.push(v);
+      const basePts = measured.map((v) => [bVerts[v].x, bVerts[v].y, bVerts[v].z]);
+      const ext = extent;
+      const maxDist = Math.hypot(ext[1] - ext[0], ext[3] - ext[2], ext[5] - ext[4]) * 0.25;
+      const distances = [];
+      let failed = 0;
+      const tStart = performance.now();
+      let budgetStopped = false;
+      for (let i = 0; i < n; i++) {
+        if (ac.signal.aborted) break;
+        const spent = (performance.now() - tStart) / 1000;
+        const avg = i ? spent / i : estPerRun;
+        if (spent + avg > ens.budgetS) { budgetStopped = true; break; }
+        setTaskProgress?.({ label: `Sensitivity ${i + 1}/${n}: ${bSpec.label}`, pct: Math.round(4 + (92 * i) / n), onCancel: () => ac.abort("user-cancelled") });
+        const perturbed = {
+          ...bSpec,
+          points: perturbPoints(bSpec.points, ens.sigmaPos, rng),
+          orientations: bSpec.orientations.map((o) => perturbOrientation(o, ens.sigmaDeg, rng)),
+        };
+        const w = warpForSidecar(perturbed);
+        const r = await pythonImplicitModel(
+          ext,
+          [{ name: bSpec.meshName, points: w.points, orientations: w.orientations }],
+          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal },
+        );
+        if (!r.ok) { if (r.cancelled) break; failed++; continue; }
+        const out = (r.surfaces || []).find((x) => x.name === bSpec.meshName);
+        if (!out?.vertices?.length) { distances.push(basePts.map(() => Infinity)); continue; }
+        const rVerts = unwarpVerts(out.vertices).map(apiToScene).map((v) => [v.x, v.y, v.z]);
+        distances.push(pointsToMeshDistance(basePts, rVerts, out.faces, { maxDist }));
+      }
+      const cancelled = ac.signal.aborted;
+      setImplicitBusy(false);
+      modelAbortControllerRef.current = null;
+      setTaskProgress?.(null);
+      const elapsed = (performance.now() - tStart) / 1000;
+      if (distances.length < 3) {
+        setNotices((p) => [...p, `Sensitivity for "${bSpec.label}" ${cancelled ? "cancelled" : "stopped"} after ${distances.length} usable realisation(s)${failed ? ` (${failed} failed in GemPy)` : ""} — at least 3 are needed, so no spread was produced.`]);
+        return;
+      }
+      const summary = spreadSummary(distances); // over the ON-SURFACE vertices only (see `measured`)
+      const { stats } = summary;
+      // Scatter back onto the full vertex buffer so it stays aligned with the mesh; orphans get null.
+      const rms = new Array(bVerts.length).fill(null);
+      const missing = new Uint16Array(bVerts.length);
+      measured.forEach((v, k) => { rms[v] = summary.rms[k]; missing[v] = summary.missing[k]; });
+      // Colour scale runs to the 90th percentile so one extreme corner doesn't wash out the rest — but
+      // never below the position sigma itself (or 0.1 m): a control run with sigma ~0 has a p90 of ~0,
+      // and a scale that tops out at 0 m painted every vertex that moved at all as "moves a lot".
+      const scaleMax = Math.max(stats.p90 || 0, ens.sigmaPos || 0, 0.1);
+      // The share of the surface that moved further than the contacts themselves were moved — i.e. where
+      // the model AMPLIFIES the stated input uncertainty rather than damping it. Typically far from data.
+      const ampThreshold = Math.max(ens.sigmaPos || 0, 0.01);
+      let amplified = 0, counted = 0;
+      for (let v = 0; v < rms.length; v++) { if (rms[v] == null || missing[v]) continue; counted++; if (rms[v] > ampThreshold) amplified++; }
+      const amplifiedPct = counted ? (100 * amplified) / counted : 0;
+      const geo = ensembleBase.mesh.geometry.clone();
+      const colors = new Float32Array(rms.length * 3);
+      for (let v = 0; v < rms.length; v++) {
+        const c = rms[v] == null ? [1, 1, 1] : missing[v] ? SPREAD_NOT_REPRODUCED : spreadColor(rms[v] / scaleMax);
+        colors[v * 3] = c[0]; colors[v * 3 + 1] = c[1]; colors[v * 3 + 2] = c[2];
+      }
+      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+      const smesh = new THREE.Mesh(geo, mat);
+      const fmt = (v) => (v == null ? "n/a" : v < 10 ? v.toFixed(1) : Math.round(v).toString());
+      const perPick = bSpec.points.filter((q) => Number.isFinite(q.sigma)).length;
+      const name = `Spread: ${bSpec.label} (${distances.length} realisations)`;
+      smesh.userData = { tip: `${name}\nRMS distance each realisation's surface lies from this one, under the input sigmas you entered\nmedian ${fmt(stats.median)} m, 90th pct ${fmt(stats.p90)} m` };
+      implicitGroupRef.current?.add(smesh);
+      ensembleBase.mesh.visible = false; // the spread copy sits exactly on it; showing both z-fights
+      const sid = `impl_${Date.now()}_spread`;
+      implicitMeshesRef.current[sid] = smesh;
+      setImplicitSurfaces((p) => [
+        ...p.map((x) => (x.id === ensembleBase.id ? { ...x, visible: false } : x)),
+        {
+          id: sid, name, visible: true, vertexCount: rms.length, faceCount: ensembleBase.faces.length,
+          type: "sensitivity", relationships: [],
+          // Per-vertex RMS spread (0.1 m), aligned with the mesh's vertex order — stored beside the mesh so
+          // the colouring survives a save/reload (the hydrate effect rebuilds it from this).
+          spread: rms.map((v, k) => (v == null || missing[k] ? null : Math.round(v * 10) / 10)),
+          spreadScaleMax: scaleMax,
+          params: {
+            tool: "sensitivity spread (GemPy realisations)",
+            of: bSpec.label, realisations: distances.length, realisationsRequested: ens.n, failedRealisations: failed, cancelled, stoppedByTimeBudget: budgetStopped, timeBudgetS: ens.budgetS, baseRunSeconds: +baseSolveSeconds.toFixed(1),
+            pointSigmaM: ens.sigmaPos, orientationSigmaDeg: ens.sigmaDeg, perPickSigmas: perPick,
+            seed, secondsPerRealisation: +(elapsed / Math.max(1, distances.length + failed)).toFixed(2),
+            spreadMedianM: stats.median, spreadP90M: stats.p90, spreadMaxM: stats.max, verticesNotReproduced: stats.verticesNotReproduced,
+            pctMovedMoreThanPositionSigma: +amplifiedPct.toFixed(1),
+            measure: "per-vertex RMS of the distance from this surface to each realisation's surface",
+            generatedAt: new Date().toISOString(),
+          },
+        },
+      ]);
+      setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
+    }
   }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
 
   // Thin single-surface wrapper for the three single-unit tools below.
-  const runSurfaceModel = useCallback((spec) => runSurfaceStack([spec]), [runSurfaceStack]);
+  const runSurfaceModel = useCallback((spec, opts) => runSurfaceStack([spec], opts), [runSurfaceStack]);
 
   // Shared by the single-unit litho tool and the stratigraphic stack tool below: gathers a unit's
   // interface points (litho interval tops across every hole) and an orientation (real structure
@@ -3578,6 +3727,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // can say WHICH codes make up each spatial cluster. Rides along on the point object the same
           // way #88's nugget does; the sidecar's pydantic models ignore fields they don't declare.
           api.srcCode = r.value;
+          // TASKS.csv #52 (a) — a per-pick uncertainty the geologist recorded (an `uncertainty_m` column
+          // mapped as an extra number field on import) overrides the run's global sigma for this pick in
+          // a sensitivity run. Rides along like srcCode; the sidecar ignores fields it doesn't declare.
+          const pickSigma = r.uncertainty_m == null || r.uncertainty_m === "" ? NaN : Number(r.uncertainty_m);
+          if (Number.isFinite(pickSigma) && pickSigma >= 0) api.sigma = pickSigma;
           points.push(api);
         }
       });
@@ -3742,7 +3896,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type };
   };
 
-  const runImplicitModel = useCallback(async (unitName) => {
+  const runImplicitModel = useCallback(async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
     if (!unitName) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the implicit model."]); return; }
@@ -3752,7 +3906,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const spec = gatherLithoSurfaceSpec(target, traces, { mapConstraint });
     if (!spec) return;
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
-    await runSurfaceModel(spec);
+    await runSurfaceModel(spec, runOpts.ensemble ? { ensemble: runOpts.ensemble } : undefined);
   }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, mapConstraint, mapLayers, surfaceStructures, terrain]);
 
   // Stratigraphic stack tool (TASKS.csv #52 follow-up): models several lithology units' top contacts
@@ -5443,8 +5597,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // Normals are recomputed rather than saved — exact for a triangle soup, and it keeps the mesh's
       // share of the project file to positions + indices only (store.jsx's size note).
       geo.computeVertexNormals();
+      // TASKS.csv #52 (a) — a sensitivity-spread surface carries its per-vertex spread; recolour from it.
+      const hasSpread = Array.isArray(s.spread) && s.spread.length === verts.length / 3;
+      if (hasSpread) {
+        const scaleMax = s.spreadScaleMax || 1;
+        const cols = new Float32Array(s.spread.length * 3);
+        s.spread.forEach((v, k) => {
+          const c = v == null ? SPREAD_NOT_REPRODUCED : spreadColor(v / scaleMax);
+          cols[k * 3] = c[0]; cols[k * 3 + 1] = c[1]; cols[k * 3 + 2] = c[2];
+        });
+        geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+      }
       const mat = new THREE.MeshLambertMaterial({
-        color: s.color ?? 0xc8a24a, side: THREE.DoubleSide,
+        color: hasSpread ? 0xffffff : (s.color ?? 0xc8a24a), vertexColors: hasSpread, side: THREE.DoubleSide,
         transparent: true, opacity: s.opacity ?? 0.75,
       });
       const mesh = new THREE.Mesh(geo, mat);
@@ -8061,6 +8226,47 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
+        {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
+            casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
+        <div onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
+          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sensitivity: spread across realisations
+          <InfoButton title="Sensitivity spread" width={380} text={"Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realisations land from it (RMS distance per vertex).\n\nPale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realisation produced no surface there at all.\n\nIt is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick.\n\nCost: each realisation is a full GemPy run. The base run is timed first and the number of realisations is cut to fit your time budget."} />
+        </div>
+        {sensOpen && (
+          <div style={{ padding: "8px 9px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+            {[
+              ["Contact position ±", sensSigmaPos, setSensSigmaPos, "m", "e.g. 2"],
+              ["Orientation ±", sensSigmaDeg, setSensSigmaDeg, "°", "e.g. 5"],
+            ].map(([label, val, set, unit, ph]) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                <span style={{ width: 108, flexShrink: 0 }}>{label}</span>
+                <input type="number" min={0} step="any" value={val} placeholder={ph} onChange={(e) => set(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+                <span>{unit} (1 σ)</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+              <span style={{ width: 108, flexShrink: 0 }}>Realisations</span>
+              <input type="number" min={3} max={50} value={sensN} onChange={(e) => setSensN(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
+              <span style={{ width: 108, flexShrink: 0 }}>Time budget</span>
+              <input type="number" min={10} step={30} value={sensBudget} onChange={(e) => setSensBudget(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+              <span>s</span>
+            </div>
+            {(() => {
+              const sp = Number(sensSigmaPos), sd = Number(sensSigmaDeg);
+              const ready = implicitTarget && !implicitBusy && sensSigmaPos !== "" && sensSigmaDeg !== "" && sp >= 0 && sd >= 0 && (sp > 0 || sd > 0);
+              return (
+                <button
+                  onClick={() => runImplicitModel(implicitTarget, { ensemble: { n: Math.min(50, Math.max(3, Number(sensN) || 8)), sigmaPos: sp, sigmaDeg: sd, budgetS: Math.max(10, Number(sensBudget) || 300) } })}
+                  disabled={!ready}
+                  title={!implicitTarget ? "Choose a unit above first" : (sensSigmaPos === "" || sensSigmaDeg === "") ? "Enter both sigmas — there is deliberately no default" : "Run the model, then the realisations"}
+                  style={{ ...pBtn, marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
+                >Run with sensitivity spread</button>
+              );
+            })()}
+          </div>
+        )}
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Stratigraphic stack (beta)</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
