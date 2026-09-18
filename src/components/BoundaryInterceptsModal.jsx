@@ -3,6 +3,7 @@ import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Tras
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every
@@ -66,7 +67,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
             <Milestone size={18} color="#55606e" />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Boundary intercepts</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
@@ -163,14 +164,14 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                     const soft = softSet.has(i.id);
                     return (
                       <tr key={i.id} style={{ borderTop: "1px solid var(--color-border-subtle)", opacity: excluded ? 0.45 : 1 }}>
-                        <td style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? "Excluded — click to include" : "Included — click to exclude"}>
+                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? "Excluded — click to include" : "Included — click to exclude"}>
                           {excluded ? <Square size={14} color="#55606e" /> : <CheckSquare size={14} color="#7fd9c9" />}
                         </td>
-                        <td style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? "Soft (approximate) — click to make hard again" : "Hard (exact) — click to make soft"}>
+                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? "Soft (approximate) — click to make hard again" : "Hard (exact) — click to make soft"}>
                           {soft ? <Circle size={12} color="#e2a63c" fill="#e2a63c" /> : <Circle size={12} color="#c7ccd3" />}
                         </td>
                         {editingSet && (
-                          <td style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? "In the set being edited — click to remove" : "Not in the set being edited — click to add"}>
+                          <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? "In the set being edited — click to remove" : "Not in the set being edited — click to add"}>
                             {memberSet.has(i.id) ? <CheckSquare size={14} color="#8a6a1f" /> : <Square size={14} color="#c7ccd3" />}
                           </td>
                         )}

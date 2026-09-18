@@ -16,6 +16,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 function elementStats(rows, elements) {
   const unitOf = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
@@ -108,7 +109,7 @@ export default function ProjectReportModal({ store, onClose }) {
             <FileBarChart2 size={18} style={{ color: "var(--color-accent-dark)" }} />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Project report</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>

@@ -13,6 +13,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 
@@ -55,7 +56,7 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
               Edit {sectionCount === 1 ? "section" : `${sectionCount} sections`}
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -74,8 +75,8 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <span style={field}>Layers</span>
               <div style={{ display: "flex", gap: 8 }}>
-                <span onClick={() => setAllLayers(true)} style={linkText}>All</span>
-                <span onClick={() => setAllLayers(false)} style={linkText}>None</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(true)} style={linkText}>All</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(false)} style={linkText}>None</span>
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -93,8 +94,8 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <span style={field}>Voxel / block models</span>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span onClick={() => setAllVoxels(true)} style={linkText}>All</span>
-                  <span onClick={() => setAllVoxels(false)} style={linkText}>None</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(true)} style={linkText}>All</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(false)} style={linkText}>None</span>
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>

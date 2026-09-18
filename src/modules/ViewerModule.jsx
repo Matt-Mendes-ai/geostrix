@@ -23,7 +23,7 @@ import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
-import { iconAction } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
+import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
@@ -7498,12 +7498,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label">Geometry</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
-          {collars.length > 0 && <div onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
+          {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("collar")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Survey {survey.length ? `(${survey.length})` : ""}</button>
-          {survey.length > 0 && <div onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
+          {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
@@ -7555,7 +7555,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <span>Layers</span>
           {/* TASKS.csv #76 — create a new named group; layers get sorted into it via the right-click
               menu below ("Add to group…"), a lighter-weight interaction than drag-to-group. */}
-          <span onClick={() => askPrompt("New group name:", "", (name) => { if (name && name.trim()) addLayerGroup(name.trim()); })}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New group name:", "", (name) => { if (name && name.trim()) addLayerGroup(name.trim()); })}
             style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title="New layer group">+ Group</span>
         </div>
         {/* TASKS.csv #76 — groups render first (each a collapsible header wrapping its member
@@ -7569,16 +7569,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           return (
           <div key={g.id} style={{ marginBottom: 8, border: "1px solid var(--color-divider)", borderRadius: 7, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#151b23" }}>
-              <div onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={g.collapsed ? "Expand group" : "Collapse group"}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={g.collapsed ? "Expand group" : "Collapse group"}>
                 {g.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
               </div>
-              <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                 onClick={() => askPrompt("Rename group:", g.name, (name) => { if (name && name.trim()) renameLayerGroup(g.id, name.trim()); })} title="Click to rename">
                 {g.name} <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({populatedKeys.length})</span>
               </div>
               {/* Bulk show/hide every layer currently in this group — "on" if ANY member is visible,
                   clicking turns them all off; clicking again (all off) turns them all on. */}
-              <div onClick={() => { const anyOn = g.keys.some((k) => layerVisible[k]); g.keys.forEach((k) => { if (anyOn ? layerVisible[k] : !layerVisible[k]) toggleLayer(k); }); }}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { const anyOn = g.keys.some((k) => layerVisible[k]); g.keys.forEach((k) => { if (anyOn ? layerVisible[k] : !layerVisible[k]) toggleLayer(k); }); }}
                 style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title="Toggle all layers in this group">
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
@@ -7629,7 +7629,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <div className="ge-section-label" style={{ marginTop: 16 }}>Rasters & terrain</div>
             {terrain && (
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Mountain size={14} style={{ color: terrain.color || "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7648,7 +7648,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             )}
             {rasters.map((r) => (
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Image size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7684,7 +7684,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <div className="ge-section-label" style={{ marginTop: 16 }}>Geophysics</div>
             {boundaries.map((b) => (
               <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Shapes size={14} style={{ color: b.color || "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7696,7 +7696,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             ))}
             {omfObjects.map((o) => (
               <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 {o.kind === "points" ? <MapPin size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7710,7 +7710,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             ))}
             {voxelModels.map((v) => (
               <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                <div onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Box size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7736,7 +7736,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
-              <div onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {layerVisible.surface_samples ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <Beaker size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
@@ -7762,12 +7762,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Assays</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
-              <div onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
                 {assayDisplayElements.length === 0 ? "No elements selected" : `${assayDisplayElements.length} element${assayDisplayElements.length > 1 ? "s" : ""} shown`}
               </div>
               {assayDisplayElements.length > 0 && (
-                <span onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Clear</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Clear</span>
               )}
             </div>
             {/* User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each
@@ -7804,7 +7804,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                       background: on ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${on ? defaultHue : "var(--color-border)"}`, color: on ? "var(--color-text)" : "var(--color-text-caption)",
                     }}
                   >
-                    <span onClick={() => toggleAssayElement(e.symbol)} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleAssayElement(e.symbol)} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       {on && <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />}
                       {e.symbol}
                     </span>
@@ -7826,14 +7826,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ marginTop: 16 }}>Custom layers</div>
         {customLayers.map((l) => (
           <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-            <div onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
             </div>
             <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), `Zoom to custom layer "${l.name}"`)} />
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
           </div>
         ))}
-        <div onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
         <input ref={setInputRef("customCsv")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
@@ -7879,7 +7879,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const sectionRow = (s) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <input type="checkbox" checked={selectedSectionIds.has(s.id)} onChange={() => toggleSelected(s.id)} style={{ flexShrink: 0 }} title="Select for bulk edit/rename" />
-              <div onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                 <Scissors size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                 {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
@@ -7893,7 +7893,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Cross-sections ({sections.length})</span>
-                <span
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                   onClick={() => { if (window.confirm(`Delete all ${sections.length} section(s) and any contacts drawn on them? This can't be undone from here.`)) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
                   title="Delete every section and section group"
@@ -7905,12 +7905,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               {selectedSectionIds.size > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
                   <span style={{ flex: 1, color: "var(--color-text)" }}>{selectedSectionIds.size} selected</span>
-                  <span onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>Edit</span>
-                  <span
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>Edit</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                     onClick={() => askPrompt("Base name for the selected sections? (numbered automatically)", "", (base) => { if (base && base.trim()) renameSectionsBulk(Array.from(selectedSectionIds), base.trim()); })}
                     style={{ cursor: "pointer", color: "var(--color-primary)" }}
                   >Rename</span>
-                  <span onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Clear</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Clear</span>
                 </div>
               )}
               {sectionGroups.filter((g) => grouped.has(g.id)).map((g) => {
@@ -7929,7 +7929,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                         })}
                         title="Select every section in this group for bulk edit/rename" style={{ flexShrink: 0 }}
                       />
-                      <div onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
                         <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({members.length})</span>
@@ -8117,7 +8117,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             a short, infrequently-edited list, not a modal workflow. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Lithology groups</span>
-          <span onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
             style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title="New lithology group">+ New group</span>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
@@ -8136,12 +8136,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           return (
             <div key={g.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6, background: "var(--color-bg-subtle)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
                   {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend color for this group"
                   style={{ width: 20, height: 18, padding: 0, border: "1px solid var(--color-border)", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                   onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title="Click to rename">
                   {g.name} <span style={{ color: "var(--color-text-muted)" }}>({codesInGroup.length})</span>
                 </div>
@@ -8155,7 +8155,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   {litho_units.map((u) => {
                     const on = codesInGroup.includes(u);
                     return (
-                      <span key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
+                      <span role="button" tabIndex={0} onKeyDown={activateOnKey} key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
                         title={on ? `Remove ${u} from this group` : `Add ${u} to this group`}
                         style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none",
                           background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px solid ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
@@ -8228,7 +8228,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </div>
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
-        <div onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
           {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sensitivity: spread across realisations
           <InfoButton title="Sensitivity spread" width={380} text={"Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realisations land from it (RMS distance per vertex).\n\nPale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realisation produced no surface there at all.\n\nIt is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick.\n\nCost: each realisation is a full GemPy run. The base run is timed first and the number of realisations is cut to fit your time budget."} />
         </div>
@@ -8658,7 +8658,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           return (
             <div key={s.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
                 {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
                     so a project with no re-runs looks exactly as it did before. */}
@@ -8675,7 +8675,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 {/* TASKS.csv #83 — expand to set this surface's geological type + declared
                     relationships to other surfaces (metadata only for now — see this entry's own
                     TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}
-                <div onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title="Type & relationships">
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title="Type & relationships">
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
@@ -8996,8 +8996,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <div key={d.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <GitFork size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${d.constraints.length} constraint${d.constraints.length === 1 ? "" : "s"}`}>{d.name}</div>
-                <div onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${d.constraints.length} constraint${d.constraints.length === 1 ? "" : "s"}`}>{d.name}</div>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), `Delete domain "${d.name}"`)} />
@@ -9044,7 +9044,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         })}
         </>
         ); })()}
-        <div onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
         </>)}
 
         {sidebarTab === "targeting" && (<>
@@ -9123,7 +9123,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       {/* TASKS.csv #145 — sculpt.handleViewClick joins the same click chain as the section/measure/
           pick-hole tools; it is a no-op unless sculpt mode is on for a specific surface. */}
-      <div className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
+      <div role="button" tabIndex={0} onKeyDown={activateOnKey} className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -9626,7 +9626,7 @@ function ViewToolbar({
           <div style={popoverStyle}>
             <div style={popoverHeader}>Grid<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-              <div onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
                 {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>Show grid</div>
@@ -9663,7 +9663,7 @@ function ViewToolbar({
           <div style={{ ...popoverStyle, width: 268 }}>
             <div style={popoverHeader}>Figure overlay<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the figure overlay popover")} /></div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
-              <div onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
                 {figureOverlay.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>Show overlay</div>
@@ -9743,7 +9743,7 @@ function ViewToolbar({
                       style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
                     />
                   ) : (
-                    <div onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                       <Bookmark size={14} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                     </div>
@@ -9818,7 +9818,7 @@ function ContextItem({ label, onClick, disabled, title }) {
   if (disabled) {
     return <div title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
   }
-  return <div onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
+  return <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
 // TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
 // 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's
@@ -9833,10 +9833,10 @@ function ContextItem({ label, onClick, disabled, title }) {
 // cost) without that risk.
 const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog }) {
   return (
-    <div onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
+    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
-      <span
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey}
         onClick={(e) => { e.stopPropagation(); onOpenStripLog(hole_id); }}
         title={`Strip log — ${hole_id}`}
         style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
@@ -9856,11 +9856,11 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
         {/* TASKS.csv #66 — inline expand (category chips + sources) without opening the full
             LayerInspector modal. Only offered once there's something to expand. */}
         {count > 0 && onToggleExpand ? (
-          <div onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"}>
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"}>
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
-        <div onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
         <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
         {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
         {count > 0 && <ListFilter size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
@@ -9868,7 +9868,7 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
-        <div onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
@@ -9934,7 +9934,7 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
           style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--color-selected-border)", background: values.length ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", color: "var(--color-primary)", fontSize: "var(--font-size-sm)", cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
         >Classify</button>
         {stops.length > 0 && (
-          <span onClick={() => onChange(null)} title="Remove the custom classes and go back to the default ramp"
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onChange(null)} title="Remove the custom classes and go back to the default ramp"
             style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>Reset</span>
         )}
       </div>
@@ -9986,7 +9986,7 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
             const color = meta.colorFn ? meta.colorFn(value) : "#55606e";
             const lbl = meta.nameFn ? (meta.nameFn(value) || value) : value;
             return (
-              <span
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                 key={value}
                 onClick={(e) => (e.shiftKey ? onIsolate(value) : onToggleCategory(value))}
                 title={`${lbl} (${count}) — click to toggle, shift-click to show only this one`}
@@ -10081,8 +10081,8 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
 
   const modeSwitch = (
     <div style={pillWrap}>
-      <span style={pill(mode === "distance")} onClick={() => onSwitchMode("distance")}>Distance</span>
-      <span style={pill(mode === "area")} onClick={() => onSwitchMode("area")}>Area</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "distance")} onClick={() => onSwitchMode("distance")}>Distance</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "area")} onClick={() => onSwitchMode("area")}>Area</span>
     </div>
   );
 
@@ -10092,7 +10092,7 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
         <div style={box}>
           {modeSwitch}
           <span>{pts.length === 0 ? "Click on the model to start measuring…" : "1 point placed — click to add the next."}</span>
-          {pts.length > 0 && <span onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
+          {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
         </div>
       );
     }
@@ -10106,7 +10106,7 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
         {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>Straight-line:</b> {fmtLen(straight.dist3d)}</span>}
         <span><b style={{ color: "var(--color-text)" }}>Last segment:</b> {fmtLen(last.dist3d)} @ {last.azimuth.toFixed(1)}° (Δelev {last.vert >= 0 ? "+" : ""}{last.vert.toFixed(1)} m)</span>
         <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
-        <span onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
       </div>
     );
   }
@@ -10117,7 +10117,7 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
       <div style={box}>
         {modeSwitch}
         <span>{pts.length} point(s) placed — need at least 3 to compute an area.</span>
-        {pts.length > 0 && <span onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
+        {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
       </div>
     );
   }
@@ -10129,7 +10129,7 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
       <span><b style={{ color: "var(--color-text)" }}>Area:</b> {fmtArea(area)}</span>
       <span><b style={{ color: "var(--color-text)" }}>Perimeter:</b> {fmtLen(perimeter)}</span>
       <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
-      <span onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
     </div>
   );
 }
@@ -10157,7 +10157,7 @@ function VoxelRangeRow({ model, onUpdate }) {
   return (
     <div style={{ marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? "Hide" : "Show"}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? "Hide" : "Show"}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
@@ -10175,7 +10175,7 @@ function VoxelRangeRow({ model, onUpdate }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
         <span>Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s)</span>
-        {isFiltered && <span onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>Reset</span>}
+        {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>Reset</span>}
       </div>
     </div>
   );
@@ -10416,10 +10416,10 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   return (
     <div style={{ marginBottom: 6, padding: "7px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? "Hide" : "Show"}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? "Hide" : "Show"}>
           {hole.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
-        <div onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
         {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), "Collapse this planned hole")} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), "Expand this planned hole")} />}
         <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }, `Remove planned hole "${hole.name || hole.id}"`)} />
       </div>

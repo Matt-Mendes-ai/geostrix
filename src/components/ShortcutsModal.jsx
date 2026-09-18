@@ -4,6 +4,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { version as APP_VERSION } from "../../package.json";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -87,7 +88,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
             <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={14} />} label="Shortcuts" />
             <TabBtn active={tab === "about"} onClick={() => setTab("about")} icon={<Info size={14} />} label="About" />
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {tab === "shortcuts" ? (

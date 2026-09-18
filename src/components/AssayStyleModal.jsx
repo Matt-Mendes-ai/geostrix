@@ -4,6 +4,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { lightnessRamp } from "../lib/colorRamp.js"; // TASKS.csv #319
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
 // ignore values lower than (what the user specifies)". Per-element styling for the 3D View / cross-
@@ -133,7 +134,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Style {symbol}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Data range: {range.min} – {range.max} {unit}</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
@@ -180,7 +181,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                       style={{ ...inp, width: 90 }}
                     />
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unit}</span>
-                    <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
+                    <Trash2 aria-label={"Remove this grade class"} title={"Remove this grade class"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>
                 ))}
                 <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} /> Add class</button>

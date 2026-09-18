@@ -5,6 +5,7 @@ import { reprojectXY, getProj4DefSync } from "../lib/reproject.js"; // TASKS.csv
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -140,7 +141,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Georeferencer — manual control points</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
@@ -150,7 +151,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             </button>
             <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {img ? (
-              <div
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey}
                 onClick={onCanvasClick}
                 style={{ position: "relative", width: dispW, height: dispH, cursor: "crosshair", border: "1px solid var(--color-border)", background: "#ececec" }}
               >
@@ -219,7 +220,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                         <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value })} style={numInput} /></td>
                         <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value })} style={numInput} /></td>
                         <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r ? r.error.toFixed(2) : "—"}</td>
-                        <td style={td}><Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
+                        <td style={td}><Trash2 aria-label={"Remove this control point"} title={"Remove this control point"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
                       </tr>
                     );
                   })}

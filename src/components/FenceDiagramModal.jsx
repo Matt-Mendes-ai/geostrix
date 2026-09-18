@@ -5,6 +5,7 @@ import { buildFencePanel, panelPointAtDepth, correlationBands } from "../lib/fen
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -163,7 +164,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
               {ve !== 1 ? ` · ${ve}× vertical exaggeration` : " · true scale"}
             </span>}
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!allIds.length ? (

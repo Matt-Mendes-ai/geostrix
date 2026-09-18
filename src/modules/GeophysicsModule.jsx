@@ -25,6 +25,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -961,12 +962,12 @@ export default function GeophysicsModule() {
         {terrain && (
           <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateTerrain({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
+              <Trash2 aria-label={`Remove terrain "${terrain.name}"`} title={`Remove terrain "${terrain.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
@@ -1071,12 +1072,12 @@ export default function GeophysicsModule() {
         {nonClaimBoundaries.map((b) => (
           <div key={b.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{b.polylines?.length || 0} part(s)</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${b.name}"?`)) removeBoundary(b.id); }} />
+              <Trash2 aria-label={`Remove boundary "${b.name}"`} title={`Remove boundary "${b.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${b.name}"?`)) removeBoundary(b.id); }} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={b.drapeMode === "terrain"} disabled={!terrain}
@@ -1126,14 +1127,14 @@ export default function GeophysicsModule() {
         {claims.map((c) => (
           <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(c.id, { visible: c.visible === false })} style={{ cursor: "pointer", color: c.visible !== false ? (c.color || "#3ca65e") : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {c.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <input
                 value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: 0 }}
               />
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
+              <Trash2 aria-label={`Remove claim "${c.name}"`} title={`Remove claim "${c.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Tenure #</span>
@@ -1197,7 +1198,7 @@ export default function GeophysicsModule() {
           />
           <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>cells (default {MAX_CELLS.toLocaleString()})</span>
           {voxelCellBudget != null && (
-            <span onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>Reset to default</span>
+            <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>Reset to default</span>
           )}
         </div>
 
@@ -1223,12 +1224,12 @@ export default function GeophysicsModule() {
         {omfObjects.map((o) => (
           <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
+              <Trash2 aria-label={`Remove "${o.name}"`} title={`Remove "${o.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
@@ -1354,13 +1355,13 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
   return (
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <div onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
-        <Palette size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
-        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
+        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Cutoff</span>
@@ -1456,7 +1457,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
                 {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : `to ${model.max} (max)`}
               </span>
             )}
-            <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
+            <Trash2 aria-label={"Remove this colour stop"} title={"Remove this colour stop"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
           </div>
         ))}
         {/* User report: "the values never got to the max value" — each stop's own number IS its class's

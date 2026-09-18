@@ -6,6 +6,7 @@ import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
 // nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
@@ -47,7 +48,7 @@ export default function DataQCModal({ onCancel }) {
             <ShieldAlert size={18} color="#55606e" />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Drillhole data QA/QC</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
@@ -64,7 +65,7 @@ export default function DataQCModal({ onCancel }) {
               const Icon = meta.icon;
               const active = filter.has(sev);
               return (
-                <div key={sev} onClick={() => toggleSeverity(sev)}
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={sev} onClick={() => toggleSeverity(sev)}
                   style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
                   <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
                   <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{result.summary[sev] || 0}</div>

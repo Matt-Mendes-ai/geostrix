@@ -10,6 +10,7 @@ import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
 
@@ -49,7 +50,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Import surface samples: {modal.fileName}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.elements.length} elements recognized</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -84,8 +85,8 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
             <div style={{ ...label, marginBottom: 0 }}>Elements ({checkedCount} of {modal.elements.length})</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <span onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>All</span>
-              <span onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>None</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>All</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>None</span>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -99,7 +100,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
                 <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                   <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                 </select>
-                <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" />
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" />
               </div>
             ))}
             {modal.elements.length === 0 && (

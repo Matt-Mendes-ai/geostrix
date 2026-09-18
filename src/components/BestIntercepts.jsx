@@ -12,6 +12,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { LAYER_META } from "../lib/layers.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -133,7 +134,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
               {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>

@@ -10,6 +10,7 @@ import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -249,11 +250,11 @@ export default function RasterModule() {
         {rasters.map((r) => (
           <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
+              <Trash2 aria-label={`Remove raster "${r.name}"`} title={`Remove raster "${r.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}

@@ -37,3 +37,20 @@ export function iconAction(onActivate, label) {
     },
   };
 }
+
+// TASKS.csv #238 — the same Enter/Space contract for the ~190 clickable elements #296 did not reach:
+// <div>/<span> rows, chips, collapsible headers and icons that already carry their own onClick (and
+// often their own title) and only lacked keyboard support. iconAction above REPLACES a control's
+// onClick; this one leaves the existing onClick exactly as it is and is added alongside role="button"
+// and tabIndex={0}, so a one-off codemod could apply it without touching any click logic.
+// Enter/Space on the element itself dispatches a real click, so the existing onClick is the only code
+// path. A MouseEvent is dispatched rather than calling .click(), because lucide icons are <svg>
+// elements and SVGElement has no .click(). Keys that originate from a CHILD (a space typed into an
+// <input> inside a clickable row, Enter on a nested <button>) are ignored, so a clickable container
+// never steals a keystroke meant for something inside it.
+export function activateOnKey(e) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  if (e.target !== e.currentTarget) return;
+  e.preventDefault(); // stop Space from scrolling the sidebar
+  e.currentTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+}

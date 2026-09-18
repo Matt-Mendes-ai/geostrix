@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, X
 import { fsListDir, fsListDrives, fsReadFile, base64ToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #206 — "#206 will live in the 3d view side panel like in QGIS... In the browser panel the
 // user will have their C drive folder as default, the recent folders that GeoStrix imported/exported
@@ -116,7 +117,7 @@ function TreeSection({ label, children, onExpand }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ marginBottom: 4 }}>
-      <div onClick={() => { const next = !open; setOpen(next); if (next && onExpand) onExpand(); }}
+      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { const next = !open; setOpen(next); if (next && onExpand) onExpand(); }}
         style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0", color: "var(--color-text-secondary)", fontWeight: 600 }}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {label}
@@ -148,13 +149,13 @@ function FsTreeNode({ entry, depth, isDrive, isFavorite, favorites, onToggleFavo
 
   return (
     <div>
-      <div onClick={toggle} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={toggle} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
         style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "2.5px 0", paddingLeft: depth * 14 + 4, color: isImportable ? "var(--color-text)" : "#3a4453" }}>
         {entry.isDir ? (loading ? <Loader2 size={12} className="spin" /> : open ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span style={{ width: 11, display: "inline-block" }} />}
         {isDrive ? <HardDrive size={12} color="#7a8698" /> : entry.isDir ? (open ? <FolderOpen size={12} color="#c9a24a" /> : <Folder size={12} color="#c9a24a" />) : <File size={12} color={isImportable ? "#3a76b0" : "#a8b0bc"} />}
         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={entry.path}>{entry.name}</span>
         {entry.isDir && hover && onToggleFavorite && (
-          <Star size={12} color={isFav ? "#e2a63c" : "#c7ccd3"} fill={isFav ? "#e2a63c" : "none"}
+          <Star role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} color={isFav ? "#e2a63c" : "#c7ccd3"} fill={isFav ? "#e2a63c" : "none"}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(entry.path, !isFav); }}
             title={isFav ? "Remove from favorites" : "Add to favorites"} />
         )}
@@ -289,7 +290,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
 
   return (
     <div style={{ marginBottom: 2 }}>
-      <div onClick={toggle} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0" }}>
+      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={toggle} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0" }}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         <Database size={12} color={live ? "#3d9a63" : "#94a1b0"} />
         <span style={{ flex: 1 }}>{profile.name}</span>
@@ -312,8 +313,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, color: "var(--color-text-secondary)" }}>
               <span>{live.info?.db ? `Connected — ${live.info.db}` : "Connected"}</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <RefreshCw size={12} style={{ cursor: "pointer" }} title="Refresh table list" onClick={() => loadTables(live.id)} />
-                <Unplug size={12} style={{ cursor: "pointer" }} color="#a05050" title="Disconnect" onClick={() => { disconnectDb(profile.name); setTables(null); }} />
+                <RefreshCw role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} title="Refresh table list" onClick={() => loadTables(live.id)} />
+                <Unplug role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} color="#a05050" title="Disconnect" onClick={() => { disconnectDb(profile.name); setTables(null); }} />
               </div>
             </div>
           )}
@@ -343,7 +344,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             const key = `${t.table_schema}.${t.table_name}`;
             const busy = busyTable === key;
             return (
-              <div key={i} onClick={() => { if (!busyTable) pickTable(t); }} style={{ display: "flex", alignItems: "center", gap: 6, cursor: busyTable ? "default" : "pointer", padding: "2px 0", color: "#3a4453", opacity: busyTable && !busy ? 0.5 : 1 }}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => { if (!busyTable) pickTable(t); }} style={{ display: "flex", alignItems: "center", gap: 6, cursor: busyTable ? "default" : "pointer", padding: "2px 0", color: "#3a4453", opacity: busyTable && !busy ? 0.5 : 1 }}
                 title={`Import ${key} (checks its row count first)`}>
                 {busy && <Loader2 size={12} className="spin" style={{ flexShrink: 0 }} />}
                 {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}

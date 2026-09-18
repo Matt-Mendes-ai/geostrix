@@ -6,6 +6,7 @@ import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePa
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #134 — lab QAQC dashboard (standards/blanks/duplicates), distinct from dataQC.js's
 // geometric QC. See qaqc.js's header comment for the identification approach (hole_id naming
@@ -60,7 +61,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               Detected by hole_id naming: {counts.standard} standard{counts.standard === 1 ? "" : "s"}, {counts.blank} blank{counts.blank === 1 ? "" : "s"}, {counts.duplicate} duplicate{counts.duplicate === 1 ? "" : "s"} (of {assays.length} total intervals).
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>

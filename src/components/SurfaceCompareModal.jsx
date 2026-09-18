@@ -6,6 +6,7 @@ import { buildLineages, compareSurfaceGeometry, diffParams, editDisclosure } fro
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #93 — COMPARE TWO VERSIONS OF A SURFACE.
 //
@@ -143,7 +144,7 @@ export default function SurfaceCompareModal({
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
             <GitCompare size={14} /> Compare model versions
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {multiVersionLineages.length === 0 ? (

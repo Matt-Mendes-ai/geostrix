@@ -4,6 +4,7 @@ import { buildMeshQuery, isMeshClosed, signedDistanceToMesh, intervalsInsideMesh
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -144,7 +145,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
             <Ruler size={14} /> Distance to surface / point-in-domain
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {!surfaces.length ? (

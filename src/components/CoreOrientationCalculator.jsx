@@ -4,6 +4,7 @@ import { holeDirection, referenceLine, solveUnoriented } from "../lib/coreOrient
 import { surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // User request: "we need to find a way to calculate the beta angle for non-oriented drilling based on
 // field structural measurements." Core-logging reality: alpha (the acute angle between the core axis
@@ -89,7 +90,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>Core orientation calculator (alpha-beta method)</div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>
           Recovers a non-oriented structure's true dip/dip-direction by calibrating against a second
@@ -172,7 +173,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               {fieldStructuralRefs.map((r) => (
                 <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°{r.notes ? ` · ${r.notes}` : ""}</span>
-                  <Trash2 size={12} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
+                  <Trash2 aria-label={`Remove reference "${r.label}"`} title={`Remove reference "${r.label}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
                 </div>
               ))}
               {!fieldStructuralRefs.length && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No saved field measurements yet.</div>}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
-import { iconAction } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
+import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
@@ -378,7 +378,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
         const label = isActive ? activeName : t.name;
         const dirty = isActive ? activeDirty : t.dirty;
         return (
-          <div
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey}
             key={t.id}
             className={`ge-tab ${isActive ? "active" : ""}`}
             onClick={() => onSwitch(t.id)}
@@ -508,7 +508,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
           />
         </span>
       ) : (
-        <span onClick={() => setEpsgEditing(true)} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setEpsgEditing(true)} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
       )}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it

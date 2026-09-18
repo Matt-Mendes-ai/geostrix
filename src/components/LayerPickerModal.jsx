@@ -14,6 +14,7 @@ import { X, Layers3 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 export default function LayerPickerModal({ fileName, options, onPick, onCancel }) {
   useEscapeKey(onCancel);
@@ -30,7 +31,7 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
               {fileName} contains {options.length} layers. Import one now — re-open the file to bring in another.
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
         <div style={{ padding: 12, overflowY: "auto", maxHeight: 380 }}>
           {options.map((o) => (

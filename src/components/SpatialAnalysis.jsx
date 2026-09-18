@@ -6,6 +6,7 @@ import { minMax } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -72,7 +73,7 @@ export default function SpatialAnalysis({ points, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>Spatial analysis — Voronoi / declustering</div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {valid.length < 3 ? (

@@ -6,6 +6,7 @@ import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #133 — "Downhole strip logs (single-hole 1D graphic log: litho/alt/vein/assay columns
 // side by side)". A classic drill-logging display: one hole, depth running down the page, several
@@ -101,7 +102,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Strip log — {holeId}</div>
             <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>{maxDepth.toFixed(0)} m total depth</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>

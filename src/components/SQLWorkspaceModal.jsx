@@ -6,6 +6,7 @@ import { buildWorkspaceDatabase, runQuery } from "../lib/sqlWorkspace.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
@@ -72,7 +73,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>SQL workspace</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Ad hoc SQL against whatever's currently loaded — a snapshot taken when this opened, not a live connection.</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, minHeight: 0 }}>

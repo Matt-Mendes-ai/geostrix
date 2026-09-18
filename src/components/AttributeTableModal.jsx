@@ -3,6 +3,7 @@ import { X, Trash2, Save, Sigma } from "lucide-react";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
@@ -130,7 +131,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{title} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>({working.length} rows)</span></div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", gap: 8, alignItems: "center" }}>
           <input placeholder="Search rows…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
@@ -184,7 +185,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                     </td>
                   ))}
                   <td style={{ ...td, textAlign: "center" }}>
-                    <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)" }} onClick={() => deleteRow(rowIdx)} />
+                    <Trash2 aria-label={"Delete this row"} title={"Delete this row"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)" }} onClick={() => deleteRow(rowIdx)} />
                   </td>
                 </tr>
               ))}

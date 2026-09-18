@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText } from "lucide-react";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -227,7 +228,7 @@ export default function SectionWindow() {
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
               {c.unit} <span style={{ color: "#94a1b0" }}>(upper contact)</span>
-              <X size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
+              <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
             </div>
           ))}
         </div>

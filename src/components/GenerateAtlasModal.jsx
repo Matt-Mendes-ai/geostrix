@@ -4,6 +4,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
 import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #130 — QGIS-Atlas-style batch page generation from the CURRENTLY ACTIVE page as a
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
@@ -105,8 +106,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
               <span>{selectedCount} of {items.length} selected</span>
               <span style={{ display: "flex", gap: 8 }}>
-                <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>All</span>
-                <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>None</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>All</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>None</span>
               </span>
             </div>
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>

@@ -9,6 +9,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -195,7 +196,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Grade estimation → block model</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Nearest-neighbour, inverse-distance or moving-least-squares interpolation from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>

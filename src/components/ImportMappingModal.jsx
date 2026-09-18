@@ -4,6 +4,7 @@ import { TARGET_SCHEMAS } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #299 — proj4js applies no real NAD27->NAD83 datum shift, so any of these codes silently
 // lands data ~100m off in BC. 4267 = NAD27 geographic, 26701-26722 = NAD27 UTM zones 1N-22N.
@@ -57,7 +58,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Import {modal.fileName}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.rowCount} rows detected · match each field to a column below</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
@@ -95,7 +96,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <option value="number">number</option>
                   <option value="category">category</option>
                 </select>
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />
               </div>
             ))}
             <div style={{ display: "flex", gap: 6 }}>

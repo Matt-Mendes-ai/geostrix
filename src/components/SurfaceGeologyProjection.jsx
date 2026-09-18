@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowDownToLine } from "lucide-react";
 import InfoButton from "./InfoButton.jsx";
 import { extractMapContacts, STRUCTURE_CLASS_LABELS } from "../lib/mapLayers.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 const DEFAULT_CLASSES = ["bedding", "foliation", "contact", "cleavage"];
 
@@ -92,7 +93,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
             {Object.keys(STRUCTURE_CLASS_LABELS).filter((k) => classCounts[k]).map((k) => {
               const on = classes.includes(k);
               return (
-                <span key={k} onClick={() => setClasses((p) => (on ? p.filter((x) => x !== k) : [...p, k]))}
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} key={k} onClick={() => setClasses((p) => (on ? p.filter((x) => x !== k) : [...p, k]))}
                   style={{ fontSize: "var(--font-size-sm)", padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none", background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px solid ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   {STRUCTURE_CLASS_LABELS[k]} {classCounts[k]}
                 </span>

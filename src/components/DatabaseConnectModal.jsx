@@ -7,6 +7,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import PromptModal from "./PromptModal.jsx";
 import { overlay } from "../lib/modalStyles.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -84,7 +85,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             <Database size={18} color="#55606e" />
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Connect to database</div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
@@ -152,7 +153,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
                   base table, so views are marked distinctly rather than looking identical to tables. */}
               <div style={{ maxHeight: 100, overflowY: "auto", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
                 {tables.map((t, i) => (
-                  <div key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
                     {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
                     <span>{t.table_schema}.{t.table_name}</span>
                   </div>
@@ -179,8 +180,8 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
               {savedQueries.map((q) => (
                 <div key={q.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "2px 4px 2px 8px" }}>
-                  <span onClick={() => setSql(q.sql)} title={q.sql} style={{ cursor: "pointer", color: "var(--color-text)" }}>{q.name}</span>
-                  <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSql(q.sql)} title={q.sql} style={{ cursor: "pointer", color: "var(--color-text)" }}>{q.name}</span>
+                  <Trash2 aria-label={`Remove saved query "${q.name}"`} title={`Remove saved query "${q.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
                 </div>
               ))}
             </div>

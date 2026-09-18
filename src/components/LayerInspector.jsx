@@ -4,6 +4,7 @@ import { distinctValues } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -68,7 +69,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{meta.label} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>({rows.length} rows)</span></div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           <div style={{ width: 280, borderRight: "1px solid var(--color-border)", padding: 14, overflowY: "auto" }}>
@@ -112,11 +113,11 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   return (
                     <div key={value} style={{ marginBottom: 8, opacity: hidden ? 0.4 : 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div onClick={() => onToggleCategory(value)} style={{ cursor: "pointer", color: hidden ? "var(--color-text-disabled)" : "var(--color-accent)", flexShrink: 0 }}>{hidden ? <EyeOff size={14} /> : <Eye size={14} />}</div>
+                        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggleCategory(value)} style={{ cursor: "pointer", color: hidden ? "var(--color-text-disabled)" : "var(--color-accent)", flexShrink: 0 }}>{hidden ? <EyeOff size={14} /> : <Eye size={14} />}</div>
                         <input type="color" value={toHex(color)} onChange={(e) => onSetColor(value, e.target.value)} style={{ width: 20, height: 20, padding: 0, border: "none", background: "none", cursor: "pointer", flexShrink: 0 }} />
                         <input value={lbl} onChange={(e) => onSetLabel(value, e.target.value)} style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", borderBottom: "1px solid var(--color-border)", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: "2px 0", fontFamily: "inherit" }} />
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-                        <span onClick={() => onIsolate(value)} style={{ fontSize: "var(--font-size-xs)", color: "#6a9fd8", cursor: "pointer", flexShrink: 0, textDecoration: "underline" }}>only</span>
+                        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onIsolate(value)} style={{ fontSize: "var(--font-size-xs)", color: "#6a9fd8", cursor: "pointer", flexShrink: 0, textDecoration: "underline" }}>only</span>
                       </div>
                     </div>
                   );
@@ -130,7 +131,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
                     <div style={{ flex: 1, minWidth: 0, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
                     <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-                    <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the ${count} row(s) from "${src}"?`)) onRemoveSource(src); }} />
+                    <Trash2 aria-label={`Remove the rows imported from "${src}"`} title={`Remove the rows imported from "${src}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the ${count} row(s) from "${src}"?`)) onRemoveSource(src); }} />
                   </div>
                 ))}
               </>

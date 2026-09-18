@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { BASE_LAYERS } from "../lib/baseLayers.js";
 import { getCacheStats, clearTileCache, formatCacheBytes } from "../lib/tileCache.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // Small base-layer switcher — the "layers" stack icon openstreetmap.org itself shows to switch
 // between Standard/Cycle/Transport/Tracestrack Topo — reused by both LocatorMap.jsx (small corner
@@ -18,7 +19,7 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
     <div style={{ ...panelStyle, ...(openUpward ? { top: "auto", bottom: "100%", marginTop: 0, marginBottom: 6 } : {}) }} onClick={(e) => e.stopPropagation()}>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Base layer</div>
       {BASE_LAYERS.map((l) => (
-        <div key={l.id} onClick={() => onSelectLayer(l.id)} style={{ ...rowStyle, ...(layerId === l.id ? rowActiveStyle : {}) }}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={l.id} onClick={() => onSelectLayer(l.id)} style={{ ...rowStyle, ...(layerId === l.id ? rowActiveStyle : {}) }}>
           <span style={{ width: 14, display: "inline-flex" }}>{layerId === l.id && <Check size={12} />}</span>
           <span style={{ flex: 1 }}>{l.label}</span>
           {l.needsKey && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>key</span>}

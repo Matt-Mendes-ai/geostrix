@@ -12,6 +12,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -167,7 +168,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               Experimental variogram + fitted nugget / sill / range, from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.
             </div>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>

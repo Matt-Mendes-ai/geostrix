@@ -17,6 +17,7 @@ import {
   parseQmlStyle, autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer,
   guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS,
 } from "../lib/mapLayers.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
 // with DBF-uppercased names ("LITH"). Match case-insensitively and use the layer's own spelling.
@@ -232,12 +233,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput }) {
         return (
           <div key={l.id} style={card}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} style={{ cursor: "pointer", color: l.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} style={{ cursor: "pointer", color: l.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {l.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${l.name}\n${l.crsNote || ""}`}>{l.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{l.features.length} {l.geomType}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${l.name}"?`)) removeMapLayer(l.id); }} />
+              <Trash2 aria-label={`Remove map layer "${l.name}"`} title={`Remove map layer "${l.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${l.name}"?`)) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain}
@@ -275,7 +276,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput }) {
             )}
             {l.categories?.length > 0 && (
               <>
-                <div onClick={() => setOpenLegend((p) => ({ ...p, [l.id]: !legendOpen }))} style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setOpenLegend((p) => ({ ...p, [l.id]: !legendOpen }))} style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}>
                   {legendOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                   <span>Legend ({l.categories.length} unit{l.categories.length === 1 ? "" : "s"})</span>
                   {!legendOpen && (
@@ -344,12 +345,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput }) {
         return (
           <div key={s.id} style={card}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <div onClick={() => updateSurfaceStructureSet(s.id, { visible: s.visible === false })} style={{ cursor: "pointer", color: s.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSurfaceStructureSet(s.id, { visible: s.visible === false })} style={{ cursor: "pointer", color: s.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {s.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{s.rows.length}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${s.name}"?`)) removeSurfaceStructureSet(s.id); }} />
+              <Trash2 aria-label={`Remove structure set "${s.name}"`} title={`Remove structure set "${s.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${s.name}"?`)) removeSurfaceStructureSet(s.id); }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>
               {Object.entries(counts).map(([cls, n]) => (

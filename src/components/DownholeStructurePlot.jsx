@@ -5,6 +5,7 @@ import { colorForStructure, colorForLithology } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -158,7 +159,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
             Downhole structure (tadpole) — {activeHole || "no hole"} <span style={{ fontWeight: 400, fontSize: 11, color: "#94a1b0" }}>({holePicks.length} pick{holePicks.length === 1 ? "" : "s"})</span>
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!holeIds.length ? (

@@ -8,6 +8,7 @@ import { colorForLithology, UNIT_NAMES, distinctValues, minMax } from "../lib/la
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // A simple drag-and-drop page-layout canvas. Elements are absolutely positioned on an A4-landscape
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
@@ -561,7 +562,7 @@ export default function LayoutModule() {
           <div style={{ marginBottom: 8, padding: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>Pick a theme:</div>
             {themes.map((t) => (
-              <div key={t.id} onClick={() => startViewportRender(t.id, "new")} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={t.id} onClick={() => startViewportRender(t.id, "new")} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                 {t.name}
               </div>
@@ -664,12 +665,12 @@ export default function LayoutModule() {
                       updateSelected({ items });
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <div onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
                         style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move up">▲</div>
-                      <div onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
                         style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move down">▼</div>
                     </div>
-                    <Trash2 size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
+                    <Trash2 aria-label={"Remove this item"} title={"Remove this item"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
                   </div>
                 ))}
@@ -784,9 +785,9 @@ export default function LayoutModule() {
             {layoutTemplates.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                <span onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{t.elements.length} el.</span>
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => deleteLayoutTemplate(t.id)} />
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => deleteLayoutTemplate(t.id)} aria-label={`Delete template "${t.name}"`} title={`Delete template "${t.name}"`} />
               </div>
             ))}
           </div>
@@ -795,7 +796,7 @@ export default function LayoutModule() {
         {/* TASKS.csv #67 — QGIS-style alignment grid + rulers. */}
         <div className="ge-section-label" style={{ marginTop: 20 }}>View</div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-          <div onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={showGrid ? "Hide grid" : "Show grid"}>
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={showGrid ? "Hide grid" : "Show grid"}>
             <Grid3x3 size={14} />
           </div>
           <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>Grid + snap</div>
@@ -856,7 +857,7 @@ export default function LayoutModule() {
           {layoutPages.map((p) => {
             const isActive = p.id === activeLayoutPageId;
             return (
-              <div
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey}
                 key={p.id}
                 onClick={() => switchLayoutPage(p.id)}
                 title={p.name}
@@ -873,7 +874,8 @@ export default function LayoutModule() {
                 >
                   {p.name}
                 </span>
-                <Trash2
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey}
+                  aria-label={`Delete page "${p.name}"`} title={`Delete page "${p.name}"`} /* TASKS.csv #238 — was keyboard-reachable but nameless */
                   size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
                   onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete page "${p.name}"? This can't be undone.`)) deleteLayoutPage(p.id); }}

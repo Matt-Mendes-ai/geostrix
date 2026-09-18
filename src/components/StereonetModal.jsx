@@ -5,6 +5,7 @@ import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -126,7 +127,7 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
               </span>
             )}
           </div>
-          <X size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 16 }}>
