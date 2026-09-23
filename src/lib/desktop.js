@@ -416,7 +416,45 @@ export async function pythonInterpolate(points, query, opts = {}) {
 
 // TASKS.csv #29 — implicit surface modelling (GemPy, via the sidecar's /implicit-model endpoint).
 // surfaces: [{ name, points: [{x,y,z}], orientations: [{x,y,z,dip,azimuth}] }]
+// TASKS.csv #355 — runs as a sidecar JOB (its own process) so Cancel really stops the solve: the job is
+// started, polled once a second, and cancelled (process terminated) when opts.signal fires. Same
+// signature and return shape as before, so no caller changes. Falls back to the old synchronous endpoint
+// when talking to an older sidecar that doesn't know jobKind "implicit".
 export async function pythonImplicitModel(extent, surfaces, opts = {}) {
+  const request = {
+    extent, surfaces,
+    resolution: opts.resolution || [40, 40, 40],
+    relation: opts.relation || "erode",
+    ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
+  };
+  const start = await sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "implicit", request }, timeoutMs: 60000 });
+  if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
+  if (!start.ok) return { ok: false, error: start.status === 0 ? "Python sidecar not reachable, or gempy isn't installed there yet (pip install -r python-sidecar/requirements.txt)." : start.error };
+  const id = start.data.id;
+  const deadline = Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now
+  const cancelled = () => opts.signal?.aborted;
+  for (;;) {
+    if (cancelled()) { await sidecarCancelJob(id); return { ok: false, cancelled: true, error: "Cancelled." }; }
+    if (Date.now() > deadline) { await sidecarCancelJob(id); return { ok: false, error: "Stopped after 15 minutes. Try a coarser resolution or fewer points/orientations." }; }
+    await new Promise((resolve) => {
+      const t = setTimeout(resolve, 1000);
+      opts.signal?.addEventListener?.("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+    });
+    if (cancelled()) continue;
+    const st = await sidecarJobStatus(id);
+    if (!st.ok) return { ok: false, error: st.error };
+    if (st.data.state === "done") break;
+    if (st.data.state === "cancelled") return { ok: false, cancelled: true, error: "Cancelled." };
+    if (st.data.state === "failed") return { ok: false, error: st.data.error || "The modelling job failed." };
+  }
+  const r = await sidecarJobResult(id);
+  if (!r.ok) return { ok: false, error: r.error };
+  const data = r.data;
+  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o };
+}
+
+// The pre-#355 synchronous call, kept only as a fallback for an older sidecar.
+async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/implicit-model`, {
       method: "POST",

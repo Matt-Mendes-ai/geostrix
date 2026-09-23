@@ -91,6 +91,16 @@ def _child(kind, req, q, cap):
         if kind == "potential":
             from app.geophys.potential import run_job
             out = run_job(req, lambda ev: q.put(("progress", ev)), cap)
+        elif kind == "implicit":
+            # TASKS.csv #355 — the same implicit_model() the synchronous endpoint runs, in this process.
+            from fastapi import HTTPException
+            from app.main import implicit_model, ImplicitModelRequest
+            q.put(("progress", {"stage": "modelling", "message": "Solving the implicit model (GemPy)…"}))
+            try:
+                out = implicit_model(ImplicitModelRequest(**req)).model_dump()
+            except HTTPException as exc:  # a handled, user-facing message (too few points, etc.)
+                q.put(("error", str(exc.detail), ""))
+                return
         else:
             raise ValueError(f"Unknown job kind {kind!r}")
         q.put(("result", out))
@@ -137,7 +147,7 @@ class JobManager:
                         pass
                     if job["state"] == "running":
                         job["state"] = "failed"
-                        job["error"] = f"The inversion process exited unexpectedly (exit code {proc.exitcode}). It may have run out of memory."
+                        job["error"] = f"The {'modelling' if job['kind'] == 'implicit' else 'inversion'} process exited unexpectedly (exit code {proc.exitcode}). It may have run out of memory."
                     return
                 continue
             self._apply(job, msg)

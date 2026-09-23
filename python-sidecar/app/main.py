@@ -222,8 +222,27 @@ def geophys_plan(req: dict = Body(...)):
 
 @app.post("/v1/jobs")
 def start_job(req: dict = Body(...)):
+    # TASKS.csv #355 — GemPy implicit models run as jobs too, in their own process: /implicit-model is a
+    # synchronous handler, so "Cancel" in the app only abandoned the HTTP request while the 80-120 s solve
+    # kept running (and a re-run after cancelling meant two solves competing for RAM on an 8 GB laptop).
+    # A job is terminated on cancel, and the one-job-at-a-time rule also stops GemPy running beside a
+    # SimPEG inversion.
+    if req.get("jobKind") == "implicit":
+        payload = req.get("request") or {}
+        try:
+            parsed = ImplicitModelRequest(**payload)
+        except Exception as exc:  # pydantic ValidationError -> the same 422 shape /implicit-model gives
+            raise HTTPException(422, getattr(exc, "errors", lambda: str(exc))())
+        res = [max(4, min(96, r)) for r in parsed.resolution]
+        if res[0] * res[1] * res[2] > MAX_RESOLUTION_CELLS:
+            raise HTTPException(400, f"Resolution {res} exceeds the sidecar's cap ({MAX_RESOLUTION_CELLS} cells) — use a coarser grid.")
+        from app.jobs import manager
+        job_id = manager.start("implicit", payload)
+        if job_id is None:
+            raise HTTPException(409, "Another modelling or inversion job is already running — wait for it or cancel it first.")
+        return {"id": job_id}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential'.")
+        raise HTTPException(400, "jobKind must be 'potential' or 'implicit'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan
