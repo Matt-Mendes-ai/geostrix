@@ -5199,7 +5199,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // path below, just using this branch's own rox/roy/roz and a local buildErrors since the main
         // one isn't declared until after this early return). Without this, the anchor-bbox fit above
         // would correctly frame the camera on the right spot, but nothing would actually be drawn there.
-        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => isRowVisibleForBuild("geophys_pts", r)); // #431
+        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
         if (geophysPtsRows.length) {
           const gBuildErrors = [];
           const vals = geophysPtsRows.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -5562,7 +5562,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // the same origin-recentering (ox/oy/oz) and axis convention as everything else in the scene
     // (scene x = world x - ox, scene y = world z - oz [elevation], scene z = -(world y - oy)
     // [-northing]) so they line up correctly with drillholes rather than needing their own transform.
-    const geophysPts = (layers.geophys_pts || []).filter((r) => isRowVisibleForBuild("geophys_pts", r)); // #431
+    const geophysPts = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365
     if (geophysPts.length) {
       const vals = geophysPts.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
       const { min, max } = minMax(vals); // not Math.min/max(...) — a real airborne survey import can have far more points than the JS engine's argument-spread limit allows (see layers.js's minMax comment)

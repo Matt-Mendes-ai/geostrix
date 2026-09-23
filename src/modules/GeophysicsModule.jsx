@@ -52,11 +52,16 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation) plus a valu
 // and get rendered directly by ViewerModule's geometry-rebuild effect as their own "point3d" layer
 // kind (see LAYER_META.geophys_pts in layers.js), co-visualized in the same 3D scene as drillholes
 // per the user's request rather than a separate scene here.
+// TASKS.csv #365 — a blank or missing z is kept as null ("elevation not recorded"), never 0 or an invented
+// elevation: ground mag files usually have no elevation column, and the inversion's "sensor at a fixed
+// height above terrain" mode is exactly how such data must be used.
+const cellNum = (v) => (v === "" || v == null ? NaN : Number(v));
 function normGeophysRow(r) {
-  const x = Number(getCol(r, ["x", "easting", "east"]));
-  const y = Number(getCol(r, ["y", "northing", "north"]));
-  const z = Number(getCol(r, ["z", "elevation", "elev"]));
-  const value = Number(getCol(r, ["value", "val", "reading", "mag", "response"]));
+  const x = cellNum(getCol(r, ["x", "easting", "east"]));
+  const y = cellNum(getCol(r, ["y", "northing", "north"]));
+  const zRaw = cellNum(getCol(r, ["z", "elevation", "elev"]));
+  const z = Number.isFinite(zRaw) ? zRaw : null;
+  const value = cellNum(getCol(r, ["value", "val", "reading", "mag", "response"]));
   const label = getCol(r, ["label", "channel", "field", "survey"]);
   return { x, y, z, value, label: label !== undefined ? String(label) : undefined };
 }
@@ -138,10 +143,11 @@ export default function GeophysicsModule() {
       skipEmptyLines: true,
       complete: (res) => {
         const parsed = res.data.map(normGeophysRow);
-        const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.z) || !Number.isFinite(r.value));
-        let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
+        const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.value));
+        let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
+        const noZ = good.filter((r) => r.z == null).length; // #365
         if (!good.length) {
-          setError(`No usable rows found — looked for x/y/z (or easting/northing/elevation) and a value (or reading/mag/response) column. Got headers: ${res.meta.fields?.join(", ") || "(none)"}.`);
+          setError(`No usable rows found — looked for x/y (or easting/northing) and a value (or reading/mag/response) column. Got headers: ${res.meta.fields?.join(", ") || "(none)"}.`);
           return;
         }
         let reprojectNote = "";
@@ -157,8 +163,9 @@ export default function GeophysicsModule() {
             : ` Reprojected from EPSG:${geophysSourceEpsg} to the project's EPSG:${project.epsg}.`;
         }
         mergeLayer("geophys_pts", good);
-        if (bad.length) setError(`Imported ${good.length} point(s); skipped ${bad.length} row(s) missing x/y/z or a value.${reprojectNote}`);
-        else if (reprojectNote) setError(`Imported ${good.length} point(s).${reprojectNote}`);
+        const zNote = noZ ? ` ${noZ} point(s) have no elevation: they are kept for modelling with "sensor at a fixed height above terrain", and are not drawn in 3D.` : ""; // #365
+        if (bad.length) setError(`Imported ${good.length} point(s); skipped ${bad.length} row(s) missing x/y or a value.${zNote}${reprojectNote}`);
+        else if (reprojectNote || zNote) setError(`Imported ${good.length} point(s).${zNote}${reprojectNote}`);
       },
       error: (err) => setError(`Could not parse ${file.name}: ${err.message}`),
     });
@@ -555,11 +562,12 @@ export default function GeophysicsModule() {
     }
     let mapped = parsedRows
       .map((r) => ({
-        x: r[xCol], y: r[yCol], z: zCol ? r[zCol] : defaultElevation, value: r[valueCol],
+        // TASKS.csv #365 — no z column means "elevation not recorded" (null), not the mean collar elevation.
+        x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol],
         label: r._line !== null && r._line !== undefined ? `Line ${r._line}` : undefined,
         _src: fileName,
       }))
-      .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value));
+      .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value));
     if (!mapped.length) {
       setXyzError({ info: false, text: `None of the ${parsedRows.length} row(s) had usable values in the chosen columns (likely all "*"/no-data for this combination) — try different columns.` });
       return;
@@ -803,7 +811,7 @@ export default function GeophysicsModule() {
                   onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
                   style={{ ...numInput, width: "auto", flex: 1 }}
                 >
-                  <option value="">{key === "zCol" ? `(none — use ${Math.round(defaultElevation)})` : "(choose a column)"}</option>
+                  <option value="">{key === "zCol" ? "(none — elevation not recorded)" : "(choose a column)"}</option>
                   {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>

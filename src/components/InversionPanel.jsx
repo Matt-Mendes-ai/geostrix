@@ -36,7 +36,14 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 export default function InversionPanel({ pBtn, numInput }) {
   const { layers, terrain, project, addVoxelModel, surfaceStructures } = useStore();
   const setTaskProgress = useSetTaskProgress();
-  const rows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [layers.geophys_pts]);
+  // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
+  // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
+  // exactly one imported survey (by source file); with more than one loaded, the user must pick.
+  const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [layers.geophys_pts]);
+  const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
+  const [survey, setSurvey] = useState("");
+  const activeSurvey = surveys.length === 1 ? surveys[0] : survey;
+  const rows = useMemo(() => (activeSurvey ? allRows.filter((r) => (r._src || "(unnamed import)") === activeSurvey) : []), [allRows, activeSurvey]);
 
   const [open, setOpen] = useState(false);
   const [engine, setEngine] = useState(null); // null = checking, {ok, available, simpeg} otherwise
@@ -79,6 +86,7 @@ export default function InversionPanel({ pBtn, numInput }) {
     const problems = [];
     if (!M) problems.push("Choose magnetics or gravity.");
     if (!confirmed) problems.push("Confirm what the data values are.");
+    if (surveys.length > 1 && !activeSurvey) problems.push("Choose which imported survey to model — several are loaded and they must not be mixed.");
     if (!zMode) problems.push("Say what the station z values mean.");
     if (zMode === "drape" && !(num(sensorHeight) > 0)) problems.push("Enter the sensor height above the terrain.");
     if (zMode === "drape" && !terrain) problems.push("A terrain surface is needed to drape the stations on.");
@@ -172,7 +180,7 @@ export default function InversionPanel({ pBtn, numInput }) {
   const runInversion = async () => {
     const p = await doPlan("inversion");
     if (!p) return;
-    const meta = { label: `${M.label} inversion`, surveyName: `${rows.length} ${M.unit} stations`, ...p.meta };
+    const meta = { label: `${M.label} inversion`, surveyName: `${activeSurvey}: ${rows.length} ${M.unit} stations`, ...p.meta }; // #364
     const params = {
       tool: `${method === "mag" ? "magnetic" : "gravity"} inversion (SimPEG)`,
       interpretation: "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
@@ -218,7 +226,7 @@ export default function InversionPanel({ pBtn, numInput }) {
     if (!plates) { setMsg({ ok: false, text: "Fill in every plate field (centre, dip, dip direction, sizes and the contrast)." }); return; }
     const p = await doPlan("forward", { plates });
     if (!p) return;
-    const meta = { label: `${M.label} forward model`, surveyName: `${rows.length} stations`, ...p.meta };
+    const meta = { label: `${M.label} forward model`, surveyName: `${activeSurvey}: ${rows.length} stations`, ...p.meta }; // #364
     const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null }) });
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
@@ -260,7 +268,17 @@ export default function InversionPanel({ pBtn, numInput }) {
           {engine === null && <div style={small}>Checking the Python engine…</div>}
           {engine && !engine.ok && <div style={small}>Needs GeoStrix's Python engine, which isn't running (status bar: Py). It starts with the desktop app.</div>}
           {engine && engine.ok && !engine.available && <div style={small}>The running Python engine has no SimPEG — update GeoStrix to a version that includes it.</div>}
-          {engine?.available && !rows.length && <div style={small}>Import a magnetic or gravity survey in Point cloud (CSV) above first — x, y, z and the measured value per station.</div>}
+          {engine?.available && !allRows.length && <div style={small}>Import a magnetic or gravity survey in Point cloud (CSV) above first — x, y, z and the measured value per station.</div>}
+          {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
+          {engine?.available && surveys.length > 1 && (
+            <label style={{ ...small, display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              Survey to model ({surveys.length} imported — they are never mixed)
+              <select value={survey} onChange={(e) => { setSurvey(e.target.value); setPlan(null); }} style={{ ...numInput, width: "100%" }}>
+                <option value="">— choose one —</option>
+                {surveys.map((sv) => <option key={sv} value={sv}>{sv} ({allRows.filter((r) => (r._src || "(unnamed import)") === sv).length.toLocaleString()} stations)</option>)}
+              </select>
+            </label>
+          )}
           {engine?.available && rows.length > 0 && (
             <>
               <div style={small}>{rows.length.toLocaleString()} survey stations loaded{spacing ? `, median spacing ${spacing.toFixed(spacing < 10 ? 1 : 0)} m` : ""}. SimPEG {engine.simpeg}.</div>
