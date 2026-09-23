@@ -524,12 +524,12 @@ export const EPSG_COL_ALIASES = ["epsg_srid", "source_epsg", "epsg", "srid", "cr
 export const TARGET_SCHEMAS = {
   collars: { label: "Collars", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "hole_name"] },
-    { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east"] },
-    { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north"] },
-    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev"] },
+    { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme"] },
+    { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
+    { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi"] },
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip"] },
-    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh"] },
+    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "depth"] },
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -561,6 +561,42 @@ export const TARGET_SCHEMAS = {
   ] },
 };
 
+// TASKS.csv #335 — exact (case-insensitive) header match only, no substring pass. The multi-file drop
+// uses this to decide whether a guess is safe to commit without showing the mapping dialog: a required
+// field that only matched via guessColumn's substring pass ("inferred_dip_deg" contains "dip") is a
+// guess the user must see.
+// TASKS.csv #337 — CSV/DB cell -> number, with BLANK meaning "missing" (NaN), never 0. Papa's
+// dynamicTyping turns "" into null and Number(null) === 0, so a blank collar RL used to put the collar at
+// sea level, a blank survey dip made the hole horizontal and a blank RQD read as 0 %. Common no-data
+// spellings count as blank too.
+const NO_DATA_TEXT = new Set(["", "na", "n/a", "nan", "null", "none", "-", "--", "nd"]);
+export function num(v) {
+  if (v == null) return NaN;
+  if (typeof v === "number") return v;
+  const s = String(v).trim();
+  if (NO_DATA_TEXT.has(s.toLowerCase())) return NaN;
+  return Number(s);
+}
+
+// TASKS.csv #336 — re-importing a hole's rows REPLACES that hole's existing rows instead of appending a
+// second copy. Daily camp re-imports of corrected survey/logging files used to leave old and new rows
+// interleaved (holes zig-zagging between two surveys, intercept metres doubled); QC only warned after
+// the fact. Holes not in the new file are untouched, so building one layer from several files that
+// cover DIFFERENT holes still works. Returns the merged list and which holes were replaced.
+export function replaceRowsByHole(prev, incoming) {
+  const incomingHoles = new Set(incoming.map((r) => r.hole_id));
+  const replacedHoles = new Set();
+  const kept = [];
+  (prev || []).forEach((r) => { if (incomingHoles.has(r.hole_id)) replacedHoles.add(r.hole_id); else kept.push(r); });
+  return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles] };
+}
+
+export function guessColumnExact(headers, aliases) {
+  const lower = headers.map((h) => h.toLowerCase().trim());
+  for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
+  return "";
+}
+
 export function guessColumn(headers, aliases) {
   const lower = headers.map((h) => h.toLowerCase().trim());
   for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
@@ -579,10 +615,15 @@ export function guessTarget(headers) {
   // exports (including the app's own sample datasets) commonly just use bare x/y/z headers,
   // which that check missed entirely, silently falling through to "custom" and forcing a manual
   // mapping every time.
-  if (!has("from") && !has("depth") &&
-      (has("easting") || hasCol("x")) &&
-      (has("northing") || hasCol("y")) &&
-      (has("elevation") || hasCol("z"))) return "collars";
+  // TASKS.csv #335 — a "depth"/"total_depth" column no longer vetoes collars: it is the hole LENGTH in
+  // most collar exports (total_depth is the collar schema's own length alias), and the veto sent
+  // hole_id,x,y,z,azimuth,dip,total_depth to the survey rule below, which the multi-file drop then
+  // auto-committed as "N survey stations" with the coordinates thrown away. A survey table has no
+  // coordinate trio, so the trio itself is the discriminator. UTM_E/UTM_N/RL headers count too.
+  const hasEast = has("easting") || hasCol("x") || hasCol("utm_e") || hasCol("utme") || hasCol("east");
+  const hasNorth = has("northing") || hasCol("y") || hasCol("utm_n") || hasCol("utmn") || hasCol("north");
+  const hasElev = has("elevation") || hasCol("z") || hasCol("rl") || hasCol("elev") || hasCol("utm_z");
+  if (!has("from") && hasEast && hasNorth && hasElev) return "collars";
   // Structure picks checked before survey: real bug found here — a structure CSV with columns
   // like depth_m/inferred_dip_deg/assumed_dip_azimuth satisfies the survey check below (it has
   // "azimuth", "depth", and no "from"), AND guessColumn's substring matching resolves survey's

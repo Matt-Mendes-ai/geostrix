@@ -344,6 +344,25 @@ ipcMain.handle("section-contacts", (_e, payload) => {
   return { ok: false };
 });
 
+// TASKS.csv #341 — every user-facing file write goes to a temp file first and is then renamed over the
+// target, so a crash, power cut or a OneDrive sync mid-write can never leave a truncated project or
+// autosave (the old fs.writeFileSync wrote straight onto the target, and a corrupt autosave was then
+// silently treated as "no autosave" - losing exactly the work it existed to protect). Async, so a
+// multi-MB autosave no longer blocks the main process either.
+async function writeFileAtomic(filePath, data, encoding) {
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmp, data, encoding);
+  try {
+    await fs.promises.rename(tmp, filePath);
+  } catch (err) {
+    // Windows can refuse the rename when the target is locked (an open viewer, a sync client). The
+    // complete temp file still exists, so fall back to copying it over — not atomic, but never partial
+    // from our side — and always remove the temp file.
+    try { await fs.promises.copyFile(tmp, filePath); }
+    finally { await fs.promises.unlink(tmp).catch(() => {}); }
+  }
+}
+
 // ---------- PDF export ----------
 ipcMain.handle("export-pdf", async (_e, { suggestedName }) => {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -354,7 +373,7 @@ ipcMain.handle("export-pdf", async (_e, { suggestedName }) => {
   });
   if (canceled || !filePath) return { ok: false };
   const data = await win.webContents.printToPDF({ printBackground: true, landscape: true, pageSize: "A4" });
-  fs.writeFileSync(filePath, data);
+  await writeFileAtomic(filePath, data); // #341
   return { ok: true, filePath };
 });
 
@@ -367,8 +386,9 @@ ipcMain.handle("save-file", async (_e, { suggestedName, filters, content, encodi
     filters: filters || [{ name: "All Files", extensions: ["*"] }],
   });
   if (canceled || !filePath) return { ok: false };
-  if (encoding === "base64") fs.writeFileSync(filePath, Buffer.from(content, "base64"));
-  else fs.writeFileSync(filePath, content, "utf8");
+  // #341 — atomic write (see writeFileAtomic)
+  if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
+  else await writeFileAtomic(filePath, content, "utf8");
   return { ok: true, filePath };
 });
 
@@ -399,7 +419,7 @@ ipcMain.handle("open-file", async (_e, { filters }) => {
 const AUTOSAVE_PATH = () => path.join(app.getPath("userData"), "autosave.geostrix.json");
 const OLD_AUTOSAVE_PATH = () => path.join(app.getPath("userData"), "autosave.geox.json");
 ipcMain.handle("autosave-write", async (_e, { content }) => {
-  try { fs.writeFileSync(AUTOSAVE_PATH(), content, "utf8"); return { ok: true }; }
+  try { await writeFileAtomic(AUTOSAVE_PATH(), content, "utf8"); return { ok: true }; } // #341
   catch (err) { return { ok: false, error: err.message }; }
 });
 ipcMain.handle("autosave-read", async () => {

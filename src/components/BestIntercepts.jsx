@@ -79,7 +79,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const results = useMemo(() => {
     if (!symbol) return [];
     const rows = computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
-    return rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
+    const out = rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
       ...r,
       extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(reportAssays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
       // null (not a fallback to downhole length) whenever the geometry can't be resolved — see
@@ -88,6 +88,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       tw: tracesByHole ? trueWidthForIntercept(tracesByHole.get(r.hole_id), r.from, r.to, twDipDir, twDip) : null,
       dom: domainRows ? domainsForInterval(domainRows, r.hole_id, r.from, r.to) : null,
     }));
+    out.stats = rows.stats; // TASKS.csv #331/#333 — duplicates skipped, overlapping rows, negative codes
+    return out;
   }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows]);
 
   // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
@@ -116,6 +118,10 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
         host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
       } : {}),
       [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
+      // TASKS.csv #331/#332/#402 — what the grade figure is built from, carried into the report itself.
+      grade_is_minimum: r.overRange ? "yes (contains an over-range '>' result read at its ceiling)" : "",
+      unsampled_or_unassayed_m: r.unsampledM ? r.unsampledM.toFixed(2) : "0",
+      overlapping_assays_averaged_m: r.overlapM ? r.overlapM.toFixed(2) : "0",
       grade_x_length: (r.avgGrade * r.length).toFixed(2),
       ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : r.extras[s].toFixed(3)])),
       assay_intervals: r.intervals,
@@ -264,7 +270,14 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                           </td>
                         );
                       })()}
-                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{r.avgGrade.toFixed(3)}</td>
+                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}
+                        title={[
+                          r.overRange ? "Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this." : null,
+                          r.unsampledM > 1e-6 ? `${r.unsampledM.toFixed(2)} m inside this intercept has no ${symbol} result (unsampled or not assayed) and is counted at zero grade.` : null,
+                          r.overlapM > 1e-6 ? `${r.overlapM.toFixed(2)} m is covered by overlapping assay rows with different results; their average is used.` : null,
+                        ].filter(Boolean).join(" ") || undefined}>
+                        {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}
+                      </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
                       <td style={td}>{r.intervals}</td>
@@ -277,7 +290,17 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.
+            {/* TASKS.csv #331/#333 — say what was done to the data, not just the result. */}
+            {results.stats && (results.stats.duplicatesSkipped > 0 || results.stats.overlappingRows > 0 || results.stats.negativeValues > 0) && (
+              <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>
+                {[
+                  results.stats.duplicatesSkipped > 0 ? `${results.stats.duplicatesSkipped} exact duplicate row(s) counted once` : null,
+                  results.stats.overlappingRows > 0 ? `${results.stats.overlappingRows} row(s) overlap another row in the same hole — each metre is counted once, and where overlapping ${symbol} results differ their average is used (⚠ in the table)` : null,
+                  results.stats.negativeValues > 0 ? `${results.stats.negativeValues} negative ${symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)` : null,
+                ].filter(Boolean).join(". ")}. Fix these in the source data for a clean report.
+              </div>
+            )}
+            Intercepts never average below the cutoff: internal dilution is only bridged while the result stays at or above it. "≥" marks a grade that contains an over-range result. Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.
           </div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>

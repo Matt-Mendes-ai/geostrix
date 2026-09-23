@@ -100,6 +100,21 @@ const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], mag
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
 const PROJECT_VERSION = 6;
 
+// TASKS.csv #342 — PROJECT_VERSION used to be written but never read. A file from a NEWER GeoStrix can
+// carry fields this build doesn't know; loadProjectPayload silently drops unknown keys, and saving the
+// file again would make that loss permanent. And any JSON (a package.json, a GeoJSON) used to "open" as
+// an empty project. Returns { ok, error?, newer? }. Older versions need no migration today (every format
+// change so far was additive with defaults in loadProjectPayload); an ordered migrations table goes here
+// the first time one isn't.
+export function checkProjectFile(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return { ok: false, error: "This file isn't a GeoStrix project (it isn't a project object)." };
+  const known = ["collars", "survey", "layers", "assays", "project"];
+  if (!known.some((k) => k in data)) return { ok: false, error: "This file isn't a GeoStrix project (none of collars/survey/layers/assays/project is in it)." };
+  const v = Number(data.version);
+  if (Number.isFinite(v) && v > PROJECT_VERSION) return { ok: true, newer: v };
+  return { ok: true };
+}
+
 // TASKS.csv #199 — user request: "we need the project name (file name) instead of untitled." The tab
 // bar/title previously always showed whatever project.name happened to be (usually still "Untitled
 // project" forever, since nothing updated it on save/open — see saveProject/openProject below), never
@@ -811,12 +826,25 @@ export function StoreProvider({ children }) {
     // yet, so a template that should survive across projects needs to be re-saved from the new
     // project once it's set up, same as themes already work.
     setLayoutTemplates([]);
+    // TASKS.csv #343 — these seven saved fields were never reset, so a "new" tab started with the previous
+    // project's boundaries, planned holes, surface samples, OMF objects, section groups and field
+    // references, and saving wrote them into the new file. (Longer-term fix in #343: one field table
+    // driving snapshot/load/new/autosave so a list can't drift again.)
+    setBoundaries([]);
+    setFieldStructuralRefs([]);
+    setOmfObjects([]);
+    setSectionGroups([]);
+    setPlannedHoles([]);
+    setSurfaceSamples([]);
+    setSurfaceElements([]);
     // Historically doNew() in App.jsx confirmed with the user before calling this ("Unsaved changes
     // will be lost"), since it reset the only project in place. TASKS.csv #34 (workspace tabs, below)
     // now calls this only from newWorkspaceTab() / closeWorkspaceTab()'s "last tab closed" branch,
     // both of which have already stashed or discarded-with-confirmation whatever was live — so this
     // reset itself never has to reprompt.
-    autosaveClear();
+    // TASKS.csv #340 — no autosaveClear() here any more: a new tab must not delete the crash-recovery
+    // copy of the OTHER tabs' unsaved work. The autosave tick below rewrites (or clears) it from the
+    // current tabs within a minute.
     // TASKS.csv #31 — undoing "back into" a project that no longer exists would be nonsensical, so a
     // fresh project starts with a clean undo history rather than one that could restore the old one.
     clearUndoHistory();
@@ -844,6 +872,7 @@ export function StoreProvider({ children }) {
   // zone ReferenceError. See each function's own comment further down for what these are for.
   const [workspaceTabs, setWorkspaceTabs] = useState([{ id: "tab_initial", name: "Untitled project", payload: null, dirty: false }]);
   const [activeTabId, setActiveTabId] = useState("tab_initial");
+  const newerFormatTabsRef = useRef(new Set()); // TASKS.csv #342 — tabs opened from a newer file format
   // Whether the active tab has changed since it was last loaded/created/saved. Piggybacks on the
   // undo-tracking effect further down (which already detects "a real tracked change happened" on
   // every meaningful edit) rather than a separate deep-diff against a saved snapshot — cheap, and
@@ -855,6 +884,8 @@ export function StoreProvider({ children }) {
   const [activeTabDirty, setActiveTabDirty] = useState(false);
 
   const saveProject = useCallback(async () => {
+    // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
+    if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?")) return { ok: false, cancelled: true };
     const payload = snapshotCurrentPayload();
     const res = await saveFile({
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
@@ -867,7 +898,8 @@ export function StoreProvider({ children }) {
     // A real save just happened — the crash-recovery snapshot's whole job was to protect work that
     // hadn't reached a real save yet, so it's redundant now (and stale-recovery-prompt bait later).
     if (res.ok) {
-      autosaveClear();
+      // TASKS.csv #340 — only drop the recovery copy when no OTHER tab still has unsaved work in it.
+      if (!workspaceTabs.some((t) => t.id !== activeTabId && t.dirty)) autosaveClear();
       setActiveTabDirty(false);
       // TASKS.csv #199 — derive the display name from the actual saved file path (a "Save As" can
       // rename the file), not from whatever project.name happened to be before this save — that field
@@ -884,7 +916,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
+  }, [workspaceTabs, activeTabId, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -985,7 +1017,9 @@ export function StoreProvider({ children }) {
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)));
     loadProjectPayload(target.payload, target.name);
     setActiveTabId(tabId);
-    autosaveClear();
+    // TASKS.csv #340 — switching tabs used to autosaveClear() here, deleting the only crash-recovery copy
+    // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
+    // autosave now carries every dirty background tab, so nothing is cleared on a switch.
     clearUndoHistory();
   }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
@@ -1010,6 +1044,11 @@ export function StoreProvider({ children }) {
     if (!res.ok) return res;
     try {
       const data = JSON.parse(res.content);
+      const check = checkProjectFile(data); // TASKS.csv #342
+      if (!check.ok) return { ok: false, error: check.error };
+      if (check.newer && !window.confirm(`This project was saved by a newer version of GeoStrix (file format ${check.newer}; this version reads up to ${PROJECT_VERSION}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.
+
+Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, cancelled: true };
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       // TASKS.csv #199 — the tab/title should show the actual opened file's name, not whatever
@@ -1024,10 +1063,10 @@ export function StoreProvider({ children }) {
       ]);
       loadProjectPayload(data, displayName);
       setActiveTabId(id);
-      // A freshly-opened project supersedes whatever crash-recovery snapshot might be sitting
-      // around — keeping a stale one would offer to "restore" work from a different project entirely
-      // the next time the app starts.
-      autosaveClear();
+      if (check.newer) newerFormatTabsRef.current.add(id);
+      // TASKS.csv #340 — opening a project into a new tab no longer deletes the crash-recovery copy:
+      // the tab it was opened beside may hold hours of unsaved work (Ctrl+O to glance at an old project,
+      // then a crash, used to lose it). The autosave tick rewrites it from the current tabs.
       clearUndoHistory();
       return { ok: true };
     } catch (err) {
@@ -1047,6 +1086,7 @@ export function StoreProvider({ children }) {
     if (tabId !== activeTabId) { setWorkspaceTabs(remaining); return; }
     if (!remaining.length) {
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      autosaveClear(); // the only tab, closed after a confirm — nothing left to protect
       newProject();
       setWorkspaceTabs([{ id, name: "Untitled project", payload: null, dirty: false }]);
       setActiveTabId(id);
@@ -1055,8 +1095,7 @@ export function StoreProvider({ children }) {
     const next = remaining[0];
     loadProjectPayload(next.payload, next.name);
     setActiveTabId(next.id);
-    autosaveClear();
-    clearUndoHistory();
+    clearUndoHistory(); // #340 — no autosaveClear(): other tabs may still hold unsaved work
     setWorkspaceTabs(remaining);
   }, [workspaceTabs, activeTabId, activeTabDirty, project.name, newProject, loadProjectPayload]);
 
@@ -1069,13 +1108,40 @@ export function StoreProvider({ children }) {
   const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0 || mapLayers.length > 0 || surfaceStructures.length > 0; // #316/#317 — a map-only project is still work worth autosaving
   const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
   autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
+  // TASKS.csv #340 — the tabs themselves ride along so the autosave can include every DIRTY background
+  // tab (a stashed payload lives only in memory otherwise).
+  const autosaveTabsRef = useRef({ workspaceTabs, activeTabId, activeTabDirty });
+  autosaveTabsRef.current = { workspaceTabs, activeTabId, activeTabDirty };
+  // TASKS.csv #340 — while a recovery banner is waiting for Restore/Discard, autosave must not run: the
+  // first tick after the user started working would otherwise overwrite the very file being offered.
+  const autosaveHoldRef = useRef(false);
+  // TASKS.csv #341 — references of what was last written; an unchanged project is not re-serialised
+  // every 60 s (the old tick stringified rasters/terrain/surfaces every minute regardless).
+  const lastAutosaveSigRef = useRef(null);
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
+      if (autosaveHoldRef.current) return;
       const snap = autosaveRef.current;
-      if (!snap.hasWork) return; // nothing worth protecting yet — an empty new project autosaving itself would just be noise
+      const { workspaceTabs: tabs, activeTabId: activeId, activeTabDirty: activeDirty } = autosaveTabsRef.current;
+      const background = tabs.filter((t) => t.id !== activeId && t.dirty && t.payload);
+      const activeWorth = snap.hasWork && activeDirty;
+      if (!activeWorth && !background.length) {
+        // Nothing unsaved anywhere: a leftover recovery file would only offer already-saved work later.
+        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; }
+        return;
+      }
       const { hasWork: _drop, ...payload } = snap;
-      autosaveWrite(JSON.stringify({ version: PROJECT_VERSION, ...payload, voxelModels: compactVoxelModels(payload.voxelModels), autosavedAt: Date.now() }));
+      const sig = [...Object.values(payload), activeWorth, ...background.map((t) => t.payload)];
+      const last = lastAutosaveSigRef.current;
+      if (last && last.length === sig.length && last.every((v, i) => v === sig[i])) return; // unchanged since the last write
+      lastAutosaveSigRef.current = sig;
+      autosaveWrite(JSON.stringify({
+        version: PROJECT_VERSION, ...payload, voxelModels: compactVoxelModels(payload.voxelModels),
+        activeDirty: activeWorth,
+        backgroundTabs: background.map((t) => ({ name: t.name, payload: { ...t.payload, voxelModels: compactVoxelModels(t.payload.voxelModels) } })),
+        autosavedAt: Date.now(),
+      }));
     }, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
@@ -1088,13 +1154,26 @@ export function StoreProvider({ children }) {
     if (!res.ok) return null;
     try {
       const data = JSON.parse(res.content);
-      return { data, projectName: data.project?.name || "Untitled project", autosavedAt: data.autosavedAt || res.mtime || null };
+      if (!checkProjectFile(data).ok) return null; // #342
+      autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
+      const bgNames = (data.backgroundTabs || []).map((t) => t.name);
+      return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null };
     } catch (_) {
       return null;
     }
   }, []);
-  const restoreAutosave = useCallback((data) => { loadProjectPayload(data); clearUndoHistory(); }, [loadProjectPayload]);
-  const discardAutosave = useCallback(() => { autosaveClear(); }, []);
+  const restoreAutosave = useCallback((data) => {
+    loadProjectPayload(data);
+    // TASKS.csv #340 — unsaved background tabs come back as tabs, still marked unsaved.
+    const bg = (data.backgroundTabs || []).filter((t) => t && t.payload);
+    if (bg.length) {
+      setWorkspaceTabs((prev) => [...prev, ...bg.map((t, i) => ({ id: `tab_${Date.now()}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }))]);
+    }
+    setActiveTabDirty(data.activeDirty !== false);
+    clearUndoHistory();
+    autosaveHoldRef.current = false;
+  }, [loadProjectPayload]);
+  const discardAutosave = useCallback(() => { autosaveHoldRef.current = false; lastAutosaveSigRef.current = null; autosaveClear(); }, []);
 
   // TASKS.csv #31 — undo/redo. Snapshot-based rather than instrumenting every individual setter call
   // site across every module (collars/survey/layers/assays/customLayers/layoutElements/sections/

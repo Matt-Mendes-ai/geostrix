@@ -69,6 +69,56 @@ export function assayQualifier(raw) {
   return null;
 }
 
+// TASKS.csv #333 — negative assay numbers are never grades: labs and databases use them as codes.
+// "-0.005" means "below 0.005" (the detection limit, negated), and -99 / -999 / -9999 mean "not assayed /
+// sample lost". Values at or below this threshold are no-data sentinels; values between it and 0 are
+// below-detection codes unless the user says otherwise at import.
+export const NO_DATA_SENTINEL_MAX = -99;
+// raw cell -> { value, qualifier, kind } with negative codes resolved:
+//   mode "bdl"     (default) -0.005 -> 0.0025 with qualifier '<' (same half-detection rule as "<0.005")
+//   mode "missing"           -0.005 -> not assayed
+// kind is "neg_bdl" / "neg_missing" when a negative was converted, so the importer can report counts.
+export function readAssayCell(raw, negativeMode = "bdl") {
+  const value = parseAssayValue(raw);
+  const qualifier = assayQualifier(raw);
+  if (value == null || value >= 0) return { value, qualifier, kind: null };
+  if (value <= NO_DATA_SENTINEL_MAX || negativeMode === "missing") return { value: null, qualifier: null, kind: "neg_missing" };
+  return { value: Math.abs(value) / 2, qualifier: "<", kind: "neg_bdl" };
+}
+
+// TASKS.csv #334 — convert a value between ppb / ppm / % (g/t == ppm).
+export function convertUnit(v, fromUnit, toUnit) {
+  if (v == null || fromUnit === toUnit) return v;
+  const asPpm = fromUnit === "%" ? v * 10000 : fromUnit === "ppb" ? v / 1000 : v;
+  return toUnit === "%" ? asPpm / 10000 : toUnit === "ppb" ? asPpm * 1000 : asPpm;
+}
+
+// TASKS.csv #336 — re-importing assays used to append a second copy of every row (a daily camp re-drop
+// doubled every intercept metre). An incoming row for the same hole + from + to now MERGES into the
+// existing row: its element values overwrite the same elements, and elements it doesn't carry are kept
+// (so a later batch that only adds Cu to already-imported Au intervals fills them in rather than
+// duplicating them). Rows for new intervals are appended. Returns the merged list and counts.
+export function mergeAssayRows(prev, incoming) {
+  const key = (r) => `${r.hole_id}|${r.from}|${r.to}|${r.source || ""}`;
+  const out = (prev || []).slice();
+  const index = new Map(out.map((r, i) => [key(r), i]));
+  let merged = 0, added = 0;
+  incoming.forEach((r) => {
+    const k = key(r);
+    const i = index.get(k);
+    if (i == null) { index.set(k, out.length); out.push(r); added++; return; }
+    const old = out[i];
+    const quals = { ...(old.qualifiers || {}) };
+    Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
+    Object.assign(quals, r.qualifiers || {});
+    const next = { ...old, ...r, values: { ...(old.values || {}), ...(r.values || {}) } };
+    if (Object.keys(quals).length) next.qualifiers = quals; else delete next.qualifiers;
+    out[i] = next;
+    merged++;
+  });
+  return { rows: out, merged, added };
+}
+
 // element wt% -> oxide wt%
 const OXIDE_FACTOR = { Na: 1.348, K: 1.205, Mg: 1.658, Ca: 1.399, Fe: 1.2865, Ti: 1.668, Al: 1.889, P: 2.291, Mn: 1.291, Si: 2.1392 };
 export function toOxide(elementPct, symbol) { return elementPct == null ? null : elementPct * (OXIDE_FACTOR[symbol] || 1); }
@@ -103,55 +153,71 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
   const minLength = opts.minLength ?? 0;
   const EPS = 1e-6;
 
-  const byHole = new Map();
-  assays.forEach((a) => {
-    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
-    byHole.get(a.hole_id).push(a);
-  });
+  const { byHole, stats } = groupAssayRowsByHole(assays);
 
   const composites = [];
   byHole.forEach((rows, hole_id) => {
-    const sorted = rows.slice().sort((a, b) => a.from - b.from);
-    let current = null; // { from, to, subs: [{from,to,value,width}] }
-    let pending = []; // below-cutoff rows seen since the last above-cutoff row, not yet committed
+    // TASKS.csv #331 — walk non-overlapping depth SEGMENTS, not raw rows: a re-assay overlapping its
+    // parent interval, or a double-imported row, used to be counted once per row (0-4 m @ 2 plus a 1-2 m
+    // re-assay @ 5 reported "0-2 m @ 6.5"; a duplicated 0-1 m @ 10 plus 1-2 m @ 1 reported "2 m @ 10.5"
+    // when the true answer is 5.5). See resolveAssaySegments for how overlaps are resolved.
+    const segs = resolveAssaySegments(rows, symbol, unit, elementUnits, stats);
+    let current = null; // { from, to, subs: [{from,to,value,width,gt,conflict}], gradeLen }
+    let pending = []; // below-cutoff segments seen since the last above-cutoff one, not yet committed
+    const startAt = (r, v, width) => ({ from: r.from, to: r.to, subs: [{ from: r.from, to: r.to, value: v, width, gt: r.gt, conflict: r.conflict }], gradeLen: v * width });
     const flush = () => {
       if (!current) return;
       const length = current.to - current.from;
       if (length >= minLength - EPS) {
-        const gradeLen = current.subs.reduce((s, r) => s + (r.value || 0) * r.width, 0);
+        const unsampled = current.subs.reduce((t, r) => t + (r.unsampled ? r.width : 0), 0);
         composites.push({
           hole_id, from: current.from, to: current.to, length,
-          avgGrade: length > 0 ? gradeLen / length : 0,
-          intervals: current.subs.filter((r) => r.value != null && r.value >= cutoff).length,
+          avgGrade: length > 0 ? current.gradeLen / length : 0,
+          intervals: current.subs.filter((r) => !r.unsampled && r.value != null && r.value >= cutoff && !r.lt).length,
+          // TASKS.csv #332 — metres inside the intercept with no result for this element (unsampled core, or
+          // not assayed / a negative no-data code) that were counted at zero grade.
+          unsampledM: unsampled,
+          // TASKS.csv #402 — an over-range ('>x', read at its ceiling) sample inside the intercept makes
+          // the reported grade a MINIMUM; and metres where overlapping assays were averaged are reported.
+          overRange: current.subs.some((r) => r.gt),
+          overlapM: current.subs.reduce((t, r) => t + (r.conflict ? r.width : 0), 0),
         });
       }
       current = null; pending = [];
     };
-    for (const r of sorted) {
+    for (const r of segs) {
       const width = r.to - r.from;
-      const v = valueIn(r, symbol, unit, elementUnits);
-      const above = v != null && v >= cutoff;
+      const v = r.value;
+      // TASKS.csv #402 — a '<x' below-detection value is substituted at x/2 for averaging, but it can
+      // never make a sample "above cutoff" on its own: the lab said the grade is BELOW x.
+      const above = v != null && v >= cutoff && !r.lt;
       if (above) {
         if (current) {
           const gap = r.from - current.to; // total distance to bridge, sampled + unsampled
-          if (gap <= maxInternalDilution + EPS) {
-            pending.forEach((p) => current.subs.push(p));
-            const pendingWidth = pending.reduce((s, p) => s + p.width, 0);
+          const pendingWidth = pending.reduce((t, q) => t + q.width, 0);
+          const pendingGrade = pending.reduce((t, q) => t + (q.value || 0) * q.width, 0);
+          // TASKS.csv #332 — a bridge is only taken if the intercept still averages at or above the cutoff
+          // afterwards. Chained bridges used to be accepted blindly, so a table headed "0.5 g/t cutoff"
+          // could contain "0-7 m @ 0.21 g/t".
+          const newLen = r.to - current.from;
+          const bridgedAvg = newLen > 0 ? (current.gradeLen + pendingGrade + v * width) / newLen : 0;
+          if (gap <= maxInternalDilution + EPS && bridgedAvg >= cutoff - EPS) {
+            pending.forEach((q) => current.subs.push(q));
             const unsampled = gap - pendingWidth;
-            if (unsampled > EPS) current.subs.push({ from: current.to + pendingWidth, to: r.from, value: 0, width: unsampled });
+            if (unsampled > EPS) current.subs.push({ from: current.to + pendingWidth, to: r.from, value: 0, width: unsampled, unsampled: true });
             current.to = r.to;
-            current.subs.push({ from: r.from, to: r.to, value: v, width });
+            current.subs.push({ from: r.from, to: r.to, value: v, width, gt: r.gt, conflict: r.conflict });
+            current.gradeLen += pendingGrade + v * width;
             pending = [];
           } else {
             flush();
-            current = { from: r.from, to: r.to, subs: [{ from: r.from, to: r.to, value: v, width }] };
+            current = startAt(r, v, width);
           }
         } else {
-          current = { from: r.from, to: r.to, subs: [{ from: r.from, to: r.to, value: v, width }] };
+          current = startAt(r, v, width);
         }
       } else if (current) {
-        pending.push({ from: r.from, to: r.to, value: v == null ? 0 : v, width });
+        pending.push({ from: r.from, to: r.to, value: v == null ? 0 : v, width, lt: r.lt, gt: r.gt, conflict: r.conflict, unsampled: v == null }); // not assayed for this element = zero, and reported as such
         if (r.to - current.to > maxInternalDilution + EPS) flush(); // already past the bridging allowance
       }
     }
@@ -159,7 +225,70 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
   });
 
   composites.sort((a, b) => (b.avgGrade * b.length) - (a.avgGrade * a.length));
+  // Data-handling counts ride along on the array so the report can say what it did, not just do it.
+  composites.stats = stats;
   return composites;
+}
+
+// TASKS.csv #331 — shared by the intercept tools. Drops EXACT duplicate rows (same hole, from, to AND
+// values — the same rule #286 uses for compositing: two rows over one interval with DIFFERENT results are
+// a real conflict, not a double import) and groups the rest by hole.
+function groupAssayRowsByHole(assays) {
+  const byHole = new Map();
+  const seen = new Set();
+  const stats = { duplicatesSkipped: 0, overlappingRows: 0, negativeValues: 0 };
+  assays.forEach((a) => {
+    if (a.from == null || a.to == null || !(a.to > a.from) || a.hole_id == null) return;
+    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
+    if (seen.has(key)) { stats.duplicatesSkipped++; return; }
+    seen.add(key);
+    if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
+    byHole.get(a.hole_id).push(a);
+  });
+  return { byHole, stats };
+}
+
+// TASKS.csv #331/#333 — one hole's rows -> non-overlapping depth segments for one element, so every metre
+// is counted exactly once. Where rows overlap (a re-assay inside its parent interval, a mislabelled
+// sample) the segment takes the MEAN of the overlapping results and is flagged `conflict`: picking one
+// of them would be a silent guess about which result is right, and summing them is what double-counted.
+// Negative values are lab/database codes ("-0.005" = below 0.005, -9999 = not assayed), never real
+// grades, so they are treated as not assayed here and counted (stats.negativeValues) — an intercept of
+// "0-3 m @ -3332 g/t" was the result of averaging one in as a number. Import can convert them properly.
+// Segments carry `lt` (every contributing result was '<x') and `gt` (some result was '>x', read at its
+// ceiling) from the #261 qualifiers.
+function resolveAssaySegments(rows, symbol, unit, elementUnits, stats) {
+  const EPS = 1e-6;
+  const sorted = rows.slice().sort((a, b) => a.from - b.from || a.to - b.to);
+  const vals = sorted.map((r) => {
+    const v = valueIn(r, symbol, unit, elementUnits);
+    if (v != null && v < 0) { if (stats) stats.negativeValues++; return null; }
+    return v;
+  });
+  const bps = Array.from(new Set(sorted.flatMap((r) => [r.from, r.to]))).sort((a, b) => a - b);
+  const segs = [];
+  const overlapping = new Set();
+  let active = [];
+  let i = 0;
+  for (let k = 0; k < bps.length - 1; k++) {
+    const a = bps[k], b = bps[k + 1];
+    if (b - a <= EPS) continue;
+    while (i < sorted.length && sorted[i].from <= a + EPS) { active.push(i); i++; }
+    active = active.filter((j) => sorted[j].to > a + EPS);
+    if (!active.length) continue; // unsampled gap — the intercept walk fills it at zero grade
+    const withValue = active.filter((j) => vals[j] != null);
+    if (active.length > 1) active.forEach((j) => overlapping.add(j));
+    const value = withValue.length ? withValue.reduce((t, j) => t + vals[j], 0) / withValue.length : null;
+    const qual = (j) => sorted[j].qualifiers?.[symbol];
+    segs.push({
+      from: a, to: b, value,
+      lt: withValue.length > 0 && withValue.every((j) => qual(j) === "<"),
+      gt: withValue.some((j) => qual(j) === ">"),
+      conflict: withValue.length > 1,
+    });
+  }
+  if (stats) stats.overlappingRows += overlapping.size;
+  return segs;
 }
 
 // TASKS.csv #230 (Micromine/mineral-exploration/Leapfrog-specialist audit finding) — best-intercept
@@ -241,15 +370,17 @@ export function domainsForInterval(domainRows, hole_id, from, to) {
 
 export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, elementUnits) {
   const EPS = 1e-6;
+  // TASKS.csv #331 — same duplicate/overlap resolution as computeBestIntercepts, so an "Also show" grade
+  // over an intercept can't double-count a re-assay or a double-imported row either.
+  const { byHole } = groupAssayRowsByHole(assays.filter((a) => a.hole_id === hole_id));
+  const rows = byHole.get(hole_id);
+  if (!rows) return null;
   let weighted = 0, coveredWidth = 0;
-  assays.forEach((a) => {
-    if (a.hole_id !== hole_id || a.from == null || a.to == null || a.to <= a.from) return;
-    const overlapFrom = Math.max(a.from, from), overlapTo = Math.min(a.to, to);
-    const overlap = overlapTo - overlapFrom;
+  resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((sg) => {
+    if (sg.value == null) return;
+    const overlap = Math.min(sg.to, to) - Math.max(sg.from, from);
     if (overlap <= EPS) return;
-    const v = valueIn(a, symbol, unit, elementUnits);
-    if (v == null) return;
-    weighted += v * overlap;
+    weighted += sg.value * overlap;
     coveredWidth += overlap;
   });
   if (coveredWidth <= EPS) return null;

@@ -4,6 +4,7 @@ import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { compileCalc } from "../lib/calcExpr.js"; // TASKS.csv #344
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
@@ -14,38 +15,9 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const ATTR_ROW_H = 30;
 const SEARCH_DEBOUNCE_MS = 150;
 
-// TASKS.csv #116 — QGIS-style field calculator. Expressions are restricted to a safe character set
-// (letters/digits/operators/parens/dots/commas/underscore/whitespace only) before ever reaching
-// `Function(...)`, so there's no way to smuggle in `;`, backticks, `=`, template literals, or anything
-// else that isn't a plain arithmetic expression — this runs entirely on the user's own local project
-// data, but it's still worth not handing arbitrary code execution to a text box. Existing column names
-// become numeric variables (unparseable/missing values pass through as 0 so a formula referencing a
-// partially-populated column doesn't just throw for every row); a handful of Math functions are exposed
-// under short names since that's what people expect from Au+Ag*0.01-style geochem formulas.
-const CALC_SAFE_RE = /^[a-zA-Z0-9_+\-*/%().,\s]*$/;
-const CALC_SCOPE_FNS = { abs: Math.abs, sqrt: Math.sqrt, min: Math.min, max: Math.max, round: Math.round, floor: Math.floor, ceil: Math.ceil, pow: Math.pow, log: Math.log, log10: Math.log10 };
-function evalFieldCalc(expr, row, columns) {
-  if (!CALC_SAFE_RE.test(expr)) throw new Error("Only numbers, column names, and + - * / % ( ) . , are allowed.");
-  // The character-class check above still lets "anyGlobalFn(...)" through — letters+parens are needed
-  // for legit calls like sqrt(2), but that same shape matches alert(1), fetch(...), etc. `new Function`
-  // resolves any identifier it doesn't bind as a parameter from the surrounding global scope, so an
-  // unrecognized name would silently reach whatever global happens to have that name. Close that off by
-  // walking every identifier token in the expression and rejecting the whole thing unless every one of
-  // them is either a real column or one of the whitelisted Math functions above.
-  const allowedNames = new Set([...columns, ...Object.keys(CALC_SCOPE_FNS)]);
-  const idents = expr.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
-  const unknown = idents.find((id) => !allowedNames.has(id));
-  if (unknown) throw new Error(`Unknown name "${unknown}" — must be a column (${columns.join(", ") || "none"}) or a listed function.`);
-  const scopeKeys = [...columns, ...Object.keys(CALC_SCOPE_FNS)];
-  const scopeVals = [
-    ...columns.map((c) => { const v = Number(row[c]); return Number.isFinite(v) ? v : 0; }),
-    ...Object.values(CALC_SCOPE_FNS),
-  ];
-  // eslint-disable-next-line no-new-func
-  const fn = new Function(...scopeKeys, `return (${expr});`);
-  return fn(...scopeVals);
-}
-
+// TASKS.csv #116 — QGIS-style field calculator. TASKS.csv #344 — formulas are compiled by lib/calcExpr.js
+// (a small parser; no eval/Function), because the old `new Function(...columnNames, ...)` let a column
+// NAME carried in a shared project file run code.
 // User request: "We need options to right click on the vector layers, including collar and survey,
 // and do a few things: ... inspect the table and be able to edit attributes in that table." A generic
 // spreadsheet-style grid over whatever rows a layer/collars/survey array actually has — columns are
@@ -114,10 +86,10 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
     if (field.startsWith("_")) { setCalcError('Field names starting with "_" are reserved.'); return; }
     if (!calcExpr.trim()) { setCalcError("Expression is required."); return; }
     try {
-      const next = working.map((r) => ({ ...r, [field]: evalFieldCalc(calcExpr, r, columns) }));
-      // one throwaway evaluation up front (via the map above, which already ran it for every row) is
-      // enough to surface a bad expression — if evalFieldCalc throws, we never reach setWorking below
-      // and the table stays exactly as it was.
+      // Compiling throws on a bad expression before any row is touched, so the table stays as it was.
+      const calc = compileCalc(calcExpr, columns);
+      // A row whose inputs are missing gets a BLANK result, not a number computed from invented zeros.
+      const next = working.map((r) => { const v = calc(r); return { ...r, [field]: Number.isFinite(v) ? v : null }; });
       setWorking(next);
       setDirty(true);
       setCalcError("");
@@ -157,7 +129,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
               <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>Apply to {working.length} rows</button>
             </div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-              Columns available as variables: {columns.join(", ") || "—"}. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10. Missing/non-numeric values are treated as 0.
+              Columns available as variables: {columns.join(", ") || "—"}. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10, exp; ^ for powers. A row with a missing or non-numeric input gets a blank result.
             </div>
             {calcError && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon-strong)" }}>{calcError}</div>}
           </div>

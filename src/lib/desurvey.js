@@ -162,6 +162,12 @@ function stationsWithInclination(collar, survey) {
     stations = [{ depth: 0, azimuth: collar.azimuth, dip: collar.dip }, { depth: md, azimuth: collar.azimuth, dip: collar.dip }];
   }
   if (stations[0].depth > 0) stations.unshift({ depth: 0, azimuth: stations[0].azimuth, dip: stations[0].dip });
+  // TASKS.csv #338 — carry the trace on to end of hole with the last surveyed attitude (Leapfrog/Micromine
+  // behaviour). Surveys usually stop 10-30 m short of EOH; the trace used to end at the last shot, so every
+  // interval below it collapsed onto one point (tubes vanished, labels showed the wrong depth).
+  const last = stations[stations.length - 1];
+  const eoh = Number(collar.length);
+  if (Number.isFinite(eoh) && eoh > last.depth + 1e-6) stations.push({ depth: eoh, azimuth: last.azimuth, dip: last.dip });
   return stations.map((s) => ({ md: s.depth, I: 90 - s.dip, Az: s.azimuth }));
 }
 

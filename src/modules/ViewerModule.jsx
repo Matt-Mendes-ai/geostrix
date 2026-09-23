@@ -60,7 +60,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import {
-  LAYER_META, TARGET_SCHEMAS, guessColumn, guessTarget, getCol, EPSG_COL_ALIASES,
+  LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessTarget, num, replaceRowsByHole, getCol, EPSG_COL_ALIASES,
   diffCollarImport, // TASKS.csv #283
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
@@ -216,28 +216,28 @@ function applyCustomFields(row, r, customFields) {
 function normInterval(r, mapping, customFields) {
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    from: Number(r[mapping.from]),
-    to: Number(r[mapping.to]),
+    from: num(r[mapping.from]), // TASKS.csv #337 — blank is missing, not 0
+    to: num(r[mapping.to]),
     value: String(r[mapping.value] ?? "Unknown").trim(),
-    extra: mapping.extra ? Number(r[mapping.extra]) : undefined,
+    extra: mapping.extra ? num(r[mapping.extra]) : undefined,
     description: mapping.description ? (String(r[mapping.description] ?? "").trim() || undefined) : undefined,
   }, r, customFields);
 }
 function normNumericInterval(r, mapping, customFields) {
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    from: Number(r[mapping.from]),
-    to: Number(r[mapping.to]),
-    value: Number(r[mapping.value]),
+    from: num(r[mapping.from]), // TASKS.csv #337 — a blank RQD/recovery/magsusc cell is missing, not 0
+    to: num(r[mapping.to]),
+    value: num(r[mapping.value]),
   }, r, customFields);
 }
 function normStructure(r, mapping, customFields) {
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    depth: Number(r[mapping.depth]),
+    depth: num(r[mapping.depth]), // TASKS.csv #337
     value: String(r[mapping.value] ?? "").trim(),
-    dip: mapping.dip ? Number(r[mapping.dip]) : undefined,
-    azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
+    dip: mapping.dip ? num(r[mapping.dip]) : undefined,
+    azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
   }, r, customFields);
 }
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
@@ -1015,6 +1015,10 @@ function sampleTerrainElevation(terrain, x, y) {
 // while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
 export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
+  // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
+  // multi-file queue's long-lived callback, whose closure can hold stale store values.
+  const importStateRef = useRef({});
+  importStateRef.current = { survey: store.survey, layers: store.layers };
   // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
   // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
   // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only
@@ -6643,14 +6647,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
     if (target === "collars") {
       let rows = allRows.map((r) => applyCustomFields({
-        hole_id: String(r[mapping.hole_id] ?? "").trim(), x: Number(r[mapping.x]), y: Number(r[mapping.y]), z: Number(r[mapping.z]),
-        azimuth: mapping.azimuth ? Number(r[mapping.azimuth]) : undefined,
-        dip: mapping.dip ? flipDip(Number(r[mapping.dip])) : undefined,
-        length: mapping.length ? Number(r[mapping.length]) : undefined,
+        // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
+        hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
+        azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
+        dip: mapping.dip ? flipDip(num(r[mapping.dip])) : undefined,
+        length: mapping.length ? num(r[mapping.length]) : undefined,
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
-      }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.x));
+      }, r, customFields));
+      // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
+      // instead of the old behaviour of keeping it at z = 0.
+      const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z))).map((r) => r.hole_id);
+      rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
+      if (noCoords.length) setNotices((p) => [...p, `${fileName}: ${noCoords.length} collar(s) skipped — missing or non-numeric X, Y or Z (${noCoords.slice(0, 8).join(", ")}${noCoords.length > 8 ? ", …" : ""}). Fix them in the file and re-import.`]);
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
       // its position by desurveying against a collar+survey trace), so reprojecting here is what
@@ -6730,20 +6740,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
       setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}`]);
     } else if (target === "survey") {
-      const rows = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: Number(r[mapping.depth]), azimuth: Number(r[mapping.azimuth]), dip: flipDip(Number(r[mapping.dip])) }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
-      setSurvey((prev) => [...prev, ...rows]);
-      setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`]);
+      const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
+      // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
+      // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
+      const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
+      const rows = all.filter((r) => Number.isFinite(r.azimuth) && Number.isFinite(r.dip));
+      // TASKS.csv #336 — a hole's survey in this file REPLACES its earlier survey (with _src stamped so
+      // the layer inspector can tell imports apart); undo restores the old one.
+      const replaced = replaceRowsByHole(importStateRef.current.survey, rows).replacedHoles; // for the notice only
+      setSurvey((prev) => replaceRowsByHole(prev, rows).rows);
+      setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
+        + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
+        + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")]);
     } else if (target === "structure") {
       const rows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
-      setLayers((p) => ({ ...p, structure: [...(p.structure || []), ...rows] }));
+      const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows).replacedHoles;
+      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, rows).rows })); // TASKS.csv #336
+      if (replaced.length) setNotices((p) => [...p, `${fileName}: replaced the earlier structure picks of ${replaced.length} hole(s) — Ctrl+Z to undo.`]);
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
     } else if (target === "custom") {
       const isPoint = mapping.depth && !mapping.from;
       const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),
-        from: mapping.from ? Number(r[mapping.from]) : undefined, to: mapping.to ? Number(r[mapping.to]) : undefined,
-        depth: mapping.depth ? Number(r[mapping.depth]) : undefined, value: r[mapping.value],
+        from: mapping.from ? num(r[mapping.from]) : undefined, to: mapping.to ? num(r[mapping.to]) : undefined,
+        depth: mapping.depth ? num(r[mapping.depth]) : undefined, value: r[mapping.value],
       }, r, customFields)).filter((r) => r.hole_id);
       const id = `custom_${Date.now()}`;
       const group = new THREE.Group(); group.name = id;
@@ -6760,10 +6781,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const numeric = LAYER_META[target].numeric;
       const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
         : allRows.map((r) => normInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
-      setLayers((p) => ({ ...p, [target]: [...(p[target] || []), ...rows] }));
+      // TASKS.csv #336 — rows for a hole already in this layer replace that hole's earlier rows.
+      const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows).replacedHoles;
+      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], rows).rows }));
       setLayerVisible((p) => ({ ...p, [target]: true }));
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
-      setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`]);
+      setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`
+        + (replaced.length ? ` Replaced the earlier rows of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")]);
     }
     return true;
   };
@@ -6819,7 +6843,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const mapping = {};
       schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]);
-      const confident = target !== "custom" && missingRequired.length === 0;
+      // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
+      // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
+      // actually consistent with the "negative = down" convention this path assumes. A positive-down
+      // export (Datamine style) used to be committed silently and plotted every hole pointing up.
+      const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && guessColumnExact(headers, f.aliases) === mapping[f.key]);
+      const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
+      const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
+      const confident = target !== "custom" && missingRequired.length === 0 && exactRequired && dipsAgree;
       const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down" };
       if (confident) {
         commitImportData(modalData);

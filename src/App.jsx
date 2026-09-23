@@ -148,6 +148,7 @@ export default function App() {
   const doOpen = useCallback(async () => {
     const res = await openProject();
     if (res.ok) setActive("viewer");
+    else if (res.error) window.alert(`Couldn't open that file: ${res.error}`); // TASKS.csv #342 — used to fail silently
   }, [openProject]);
   // TASKS.csv #34 — "New Project" now opens a fresh workspace tab instead of resetting the only
   // project in place, so nothing is ever discarded by this action and the old "unsaved changes will
@@ -265,10 +266,15 @@ export default function App() {
     setRecovery(null);
     setActive("viewer");
   }, [recovery, restoreAutosave]);
+  // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
+  // first (the button also no longer carries an X icon, which read as "close this banner").
   const doDiscardRecovery = useCallback(() => {
+    const when = recovery?.autosavedAt ? ` autosaved ${new Date(recovery.autosavedAt).toLocaleString()}` : "";
+    const others = recovery?.otherTabs?.length ? ` and ${recovery.otherTabs.length} other unsaved tab(s)` : "";
+    if (!window.confirm(`Permanently delete the recovered work for "${recovery?.projectName}"${others}${when}? This can't be undone.`)) return;
     discardAutosave();
     setRecovery(null);
-  }, [discardAutosave]);
+  }, [discardAutosave, recovery]);
 
   return (
     <div className="ge-app">
@@ -277,10 +283,11 @@ export default function App() {
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>
             Recovered unsaved work from a previous session — "{recovery.projectName}"
+            {recovery.otherTabs?.length ? ` plus ${recovery.otherTabs.length} other tab(s) (${recovery.otherTabs.join(", ")})` : ""}
             {recovery.autosavedAt ? ` (autosaved ${new Date(recovery.autosavedAt).toLocaleString()})` : ""}.
           </span>
           <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>Restore</button>
-          <button onClick={doDiscardRecovery} style={recoveryBtn}><X size={12} /> Discard</button>
+          <button onClick={doDiscardRecovery} style={recoveryBtn}>Discard…</button>
         </div>
       )}
       <WorkspaceTabBar

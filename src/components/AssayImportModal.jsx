@@ -1,15 +1,27 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
-export default function AssayImportModal({ modal, onChange, onCancel, onCommit }) {
+export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
+  // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they
+  // mean before they become grades.
+  const negatives = useMemo(() => {
+    let codes = 0, sentinels = 0;
+    const cells = modal.format === "long"
+      ? modal.allRows.map((r) => r[modal.mapping.value])
+      : modal.elements.filter((e) => e.checked).flatMap((e) => modal.allRows.map((r) => r[e.header]));
+    cells.forEach((raw) => { const v = parseAssayValue(raw); if (v != null && v < 0) { if (v <= NO_DATA_SENTINEL_MAX) sentinels++; else codes++; } });
+    return { codes, sentinels };
+  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
+  // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
+  const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== e.unit);
   // TASKS.csv #210 — manual "add a column the auto-detector missed" control, wide format only (long
   // format's elements come from distinct analyte VALUES in one column, not headers — a different,
   // already-complete picker via the method/analyte dropdowns above).
@@ -145,6 +157,26 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit }
             </div>
           )}
         </div>
+
+        {(negatives.codes > 0 || negatives.sentinels > 0 || unitClashes.length > 0) && (
+          <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
+            {negatives.codes > 0 && (
+              <div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{negatives.codes} negative value(s) between {NO_DATA_SENTINEL_MAX} and 0. Assays can't be negative, so these are codes. What do they mean?</div>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />
+                  Below detection (-0.005 means "&lt;0.005"; stored at half and flagged "&lt;")
+                </label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="negmode" checked={modal.negativeMode === "missing"} onChange={() => onChange({ ...modal, negativeMode: "missing" })} />
+                  Not assayed (leave blank)
+                </label>
+              </div>
+            )}
+            {negatives.sentinels > 0 && <div>{negatives.sentinels} value(s) at or below {NO_DATA_SENTINEL_MAX} (e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.</div>}
+            {unitClashes.length > 0 && <div>Already in this project in another unit: {unitClashes.map((e) => `${e.symbol} (file ${e.unit}, project ${existingUnits[e.symbol]})`).join(", ")}. These values will be converted to the project's unit so earlier assays keep their meaning.</div>}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>

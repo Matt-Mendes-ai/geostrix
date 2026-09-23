@@ -5,7 +5,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, GEOCHEM_LABELS, classColor,
-  isElementColumn, inferUnit, parseAssayValue, assayQualifier, valueIn, reeProfile,
+  isElementColumn, inferUnit, parseAssayValue, assayQualifier, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
@@ -138,6 +138,23 @@ export default function GeochemModule() {
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     const chosen = elements.filter((e) => e.checked);
     if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, "Map hole ID, from, and to columns."]); return; }
+    // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every
+    // stored value in it, so importing a batch in a different unit used to silently rescale all the
+    // EARLIER values (Au in ppm, then a ppb batch: every earlier Au read 1000x too low). Incoming values
+    // are now converted into the unit the project already uses for that element, and the notice says so.
+    const existingUnit = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+    const chosenBySymbol = new Map(chosen.map((e) => [e.symbol, e]));
+    const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
+    // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
+    const negativeMode = modal.negativeMode || "bdl";
+    let negBdl = 0, negMissing = 0;
+    const read = (raw, sym) => {
+      const c = readAssayCell(raw, negativeMode);
+      if (c.kind === "neg_bdl") negBdl++;
+      else if (c.kind === "neg_missing") negMissing++;
+      const e = chosenBySymbol.get(sym);
+      return { v: e ? convertUnit(c.value, e.unit, existingUnit[sym] || e.unit) : c.value, q: c.qualifier };
+    };
     let rows = [];
     if (format === "wide") {
       rows = allRows.map((r) => {
@@ -147,10 +164,9 @@ export default function GeochemModule() {
         // over-range rows; nothing else has to care).
         const quals = {};
         chosen.forEach((e) => {
-          const v = parseAssayValue(r[e.header]);
+          const { v, q } = read(r[e.header], e.symbol);
           if (v != null) {
             values[e.symbol] = v;
-            const q = assayQualifier(r[e.header]);
             if (q) quals[e.symbol] = q;
           }
         });
@@ -166,20 +182,28 @@ export default function GeochemModule() {
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = Number(r[mapping.from]), to = Number(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, { hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" });
-        const v = parseAssayValue(r[mapping.value]);
+        const { v, q } = read(r[mapping.value], sym); // TASKS.csv #261 qualifiers, #333 negatives, #334 units
         if (v != null) {
           const target = byInterval.get(key);
           target.values[sym] = v;
-          const q = assayQualifier(r[mapping.value]); // TASKS.csv #261
           if (q) { if (!target.qualifiers) target.qualifiers = {}; target.qualifiers[sym] = q; }
         }
       });
       rows = Array.from(byInterval.values()).filter((r) => r.hole_id && !isNaN(r.from));
     }
-    setAssays((prev) => [...prev, ...rows]);
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => merged.set(e.symbol, e)); return Array.from(merged.values()); });
+    // TASKS.csv #336 — same hole/from/to merges into the existing row instead of duplicating it.
+    const mergedCount = mergeAssayRows(assays, rows).merged; // for the notice only
+    setAssays((prev) => mergeAssayRows(prev, rows).rows);
+    // Existing elements keep their unit (#334); only new symbols add an entry.
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, e); }); return Array.from(merged.values()); });
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
-    setNotices((p) => [...p, `Loaded ${rows.length} ${modal.isPxrf ? "pXRF" : "assay"} intervals (${chosen.length} elements).`]);
+    const extra = [
+      converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
+      negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
+      negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
+      mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+    ].filter(Boolean).join(" ");
+    setNotices((p) => [...p, `Loaded ${rows.length} ${modal.isPxrf ? "pXRF" : "assay"} intervals (${chosen.length} elements).${extra ? " " + extra : ""}`]);
     setAssayModal(null);
   };
 
@@ -232,9 +256,19 @@ export default function GeochemModule() {
     const chosen = elements.filter((e) => e.checked);
     if (!mapping.x || !mapping.y || !mapping.z) { setNotices((p) => [...p, "Map X, Y, and Z columns."]); return; }
     const mediaSet = new Set(SURFACE_MEDIA);
+    // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
+    // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
+    const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
+    const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
+    let negBdl = 0, negMissing = 0;
     const rows = allRows.map((r) => {
       const values = {};
-      chosen.forEach((e) => { const v = parseAssayValue(r[e.header]); if (v != null) values[e.symbol] = v; });
+      chosen.forEach((e) => {
+        const c = readAssayCell(r[e.header]);
+        if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
+        const v = convertUnit(c.value, e.unit, existingUnit[e.symbol] || e.unit);
+        if (v != null) values[e.symbol] = v;
+      });
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
       return {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
@@ -244,8 +278,13 @@ export default function GeochemModule() {
       };
     }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
     setSurfaceSamples((prev) => [...prev, ...rows]);
-    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => merged.set(e.symbol, e)); return Array.from(merged.values()); });
-    setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.`]);
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, e); }); return Array.from(merged.values()); });
+    const extra = [
+      converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
+      negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
+      negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
+    ].filter(Boolean).join(" ");
+    setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.${extra ? " " + extra : ""}`]);
     setSurfaceModal(null);
   };
 
@@ -482,6 +521,7 @@ export default function GeochemModule() {
       {assayModal && (
         <AssayImportModal
           modal={assayModal}
+          existingUnits={elementUnits}
           onChange={setAssayModal}
           onCancel={() => setAssayModal(null)}
           onCommit={() => commitAssayImport(assayModal)}
