@@ -15,7 +15,7 @@
 // real vector features (imported as a `boundaries` polylines layer) since that's exactly what GetFeature
 // returns.
 import { fetchWebLayerUrl } from "./desktop.js";
-import { reprojectXY } from "./reproject.js";
+import { reprojectXY, reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 function stripTrailingParams(url) {
@@ -93,11 +93,8 @@ export async function fetchWmsLayers(baseUrl) {
 // Fetches one GetMap image for a lon/lat bbox and returns it as a raster ready for store.addRaster —
 // { name, bbox (project EPSG), dataUrl }. `projectEpsg` is used only to reproject the 4 corners of the
 // requested lon/lat box into the project's own CRS for positioning the drape plane; the image itself is
-// requested and returned exactly as rendered by the server (SRS=EPSG:4326), no pixel reprojection —
-// same "reproject the footprint, not the pixels" approach a flat-drape raster already uses elsewhere in
-// this app, an acceptable approximation for a single moderate-sized area (not warping-accurate at wide
-// extents/high latitudes, but correct in position and scale for the kind of property-scale area this
-// is meant to cover).
+// requested from the server in EPSG:4326 (WMS 1.1.1, so lon/lat axis order is unambiguous) and then
+// warped pixel by pixel into the project CRS (TASKS.csv #418 — see below).
 export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width = 1024, height = 1024, transparent = true, format = "image/png" }) {
   const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
   const url = buildQuery(baseUrl, {
@@ -115,14 +112,26 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
     try { message = parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || message; } catch { /* fall through to the generic message */ }
     throw new Error(message);
   }
-  const b64 = btoa(new Uint8Array(arrayBuffer).reduce((s, b) => s + String.fromCharCode(b), ""));
-  const dataUrl = `data:${contentType || format};base64,${b64}`;
-  const corners = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
-  const projected = corners.map(([lon, lat]) => reprojectXY(lon, lat, 4326, projectEpsg));
-  if (projected.some((p) => !p)) throw new Error(`Can't reproject WGS84 into the project's EPSG:${projectEpsg} — unrecognized target CRS.`);
-  const xs = projected.map((p) => p.x), ys = projected.map((p) => p.y);
-  const bbox = [arrMin(xs), arrMin(ys), arrMax(xs), arrMax(ys)];
-  return { name: layerName, bbox, dataUrl };
+  // TASKS.csv #418 — WARP the pixels into the project CRS. The image used to be stretched over the
+  // projected bounding box of its four corners, which is only right at the corners: a lon/lat grid is
+  // curved and rotated in UTM, so the interior was measured 148 m off over a 10 km area at -130.1 and
+  // 1,005 m off over 25 km (EPSG:3156, 56.5N). Same per-pixel warp raster.js already uses for GeoTIFF
+  // drapes (#287), fast since the converter caching in #416. Pixels outside the source footprint stay
+  // transparent.
+  const fromDef = getProj4DefSync(4326), toDef = getProj4DefSync(projectEpsg);
+  if (!fromDef || !toDef) throw new Error(`Can't reproject WGS84 into the project's EPSG:${projectEpsg} — unrecognized target CRS.`);
+  const blob = new Blob([arrayBuffer], { type: contentType || format });
+  const bmp = await createImageBitmap(blob);
+  const src = document.createElement("canvas");
+  src.width = bmp.width; src.height = bmp.height;
+  const sctx = src.getContext("2d");
+  sctx.drawImage(bmp, 0, 0);
+  const pixels = sctx.getImageData(0, 0, bmp.width, bmp.height).data;
+  const rp = reprojectImageRGBA({ xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, width: bmp.width, height: bmp.height, data: pixels }, fromDef, toDef, bmp.width, bmp.height);
+  const out = document.createElement("canvas");
+  out.width = rp.width; out.height = rp.height;
+  out.getContext("2d").putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
+  return { name: layerName, bbox: rp.bbox, dataUrl: out.toDataURL("image/png") };
 }
 
 // ---------------- WFS ----------------
@@ -145,9 +154,11 @@ export async function fetchWfsFeatureTypes(baseUrl) {
 // bare Point becomes a single-vertex "loop" — degenerate as a polyline, but round-trips through the
 // existing boundary renderer as a dot rather than being silently dropped, which matters for point
 // features like a claim-post or a drillhole-collar-style WFS layer.
-function geometryToPolylines(geom, projectEpsg) {
+function geometryToPolylines(geom, projectEpsg, fromEpsg = 4326) {
   if (!geom) return [];
-  const proj = ([lon, lat]) => { const p = reprojectXY(lon, lat, 4326, projectEpsg); return p ? { x: p.x, y: p.y } : null; };
+  const proj = Number(fromEpsg) === Number(projectEpsg)
+    ? ([x, y]) => (Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null)
+    : ([x, y]) => { const p = reprojectXY(x, y, fromEpsg, projectEpsg); return p ? { x: p.x, y: p.y } : null; };
   const ring = (coords) => coords.map(proj).filter(Boolean);
   switch (geom.type) {
     case "Point": return [ring([geom.coordinates])];
@@ -166,28 +177,76 @@ function geometryToPolylines(geom, projectEpsg) {
 // is given, features are filtered CLIENT-SIDE after fetching by discarding any whose own vertices fall
 // entirely outside that box, which is exactly right for "don't clutter my view with the whole
 // province's claims" without depending on the server understanding a spatial filter at all.
-export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
-  const url = buildQuery(baseUrl, {
-    SERVICE: "WFS", REQUEST: "GetFeature", VERSION: "2.0.0",
-    TYPENAMES: typeName, OUTPUTFORMAT: "application/json", COUNT: maxFeatures,
-  });
-  const { contentType, arrayBuffer } = await fetchWebLayerUrl(url);
+// TASKS.csv #417 — the request used to name no CRS and no area, and then treated every coordinate as
+// lon/lat. DataBC's WFS (the MTO tenure layers #127 was built for) answers in BC Albers (EPSG:3005)
+// metres by default, so claims were projected as if metres were degrees; and COUNT with no BBOX returned
+// the first N features in the PROVINCE, which the client-side clip then usually threw away entirely.
+// Now: ask for the project's own CRS (a projected CRS has no axis-order ambiguity) and a BBOX of the
+// area in that CRS; read the CRS the server says it used (GeoJSON `crs`) and reproject from it. If the
+// server refuses those parameters, fall back to the plain request and refuse coordinates that are
+// clearly not lon/lat when the server doesn't say what they are, instead of drawing them wrong.
+function epsgFromCrsName(name) {
+  const m = /EPSG(?::+|\/)(\d+)/i.exec(String(name || ""));
+  return m ? Number(m[1]) : null;
+}
+async function wfsGetFeature(baseUrl, params) {
+  const { contentType, arrayBuffer } = await fetchWebLayerUrl(buildQuery(baseUrl, params));
   const bodyText = new TextDecoder("utf-8").decode(arrayBuffer);
-  if (contentType.includes("xml")) throw new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || "Server rejected the feature request — check the layer name.");
-  let geojson;
-  try { geojson = JSON.parse(bodyText); } catch { throw new Error("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have)."); }
+  if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || "Server rejected the feature request — check the layer name."), { serverRejected: true });
+  try { return JSON.parse(bodyText); } catch { throw new Error("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have)."); }
+}
+export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
+  const base = { SERVICE: "WFS", REQUEST: "GetFeature", VERSION: "2.0.0", TYPENAMES: typeName, OUTPUTFORMAT: "application/json", COUNT: maxFeatures };
+  let areaProj = null;
+  if (clipBboxLonLat && projectEpsg && ![4326, 4269, 4617, 4258, 4283].includes(Number(projectEpsg))) {
+    const [cxMin, cyMin, cxMax, cyMax] = clipBboxLonLat;
+    const pts = [[cxMin, cyMin], [cxMax, cyMin], [cxMax, cyMax], [cxMin, cyMax]].map(([x, y]) => reprojectXY(x, y, 4326, projectEpsg));
+    if (pts.every(Boolean)) areaProj = [arrMin(pts.map((q) => q.x)), arrMin(pts.map((q) => q.y)), arrMax(pts.map((q) => q.x)), arrMax(pts.map((q) => q.y))];
+  }
+  let geojson, askedEpsg = null, usedServerFilter = false;
+  // Geographic project CRSs are skipped here: WFS 2.0 puts their axes lat/lon, which servers disagree on.
+  const projected = projectEpsg && ![4326, 4269, 4617, 4258, 4283].includes(Number(projectEpsg));
+  if (projected) {
+    try {
+      geojson = await wfsGetFeature(baseUrl, {
+        ...base, SRSNAME: `urn:ogc:def:crs:EPSG::${projectEpsg}`,
+        ...(areaProj ? { BBOX: `${areaProj.join(",")},urn:ogc:def:crs:EPSG::${projectEpsg}` } : {}),
+      });
+      askedEpsg = Number(projectEpsg); usedServerFilter = !!areaProj;
+    } catch (err) {
+      if (!err.serverRejected) throw err;
+      geojson = null; // server doesn't accept SRSNAME/BBOX — plain request below
+    }
+  }
+  if (!geojson) geojson = await wfsGetFeature(baseUrl, base);
   const features = geojson.features || [];
-  if (!features.length) throw new Error("No features returned for this layer.");
-  let polylines = features.flatMap((f) => geometryToPolylines(f.geometry, projectEpsg));
+  if (!features.length) throw new Error(usedServerFilter ? "No features of this layer fall inside the project area." : "No features returned for this layer.");
+  // Which CRS are these coordinates in? The server's own statement wins, then what we asked for, then
+  // WGS84 only if the numbers actually look like degrees.
+  let fromEpsg = epsgFromCrsName(geojson.crs?.properties?.name) || askedEpsg;
+  if (!fromEpsg) {
+    const first = features.find((f) => f.geometry)?.geometry;
+    const probe = JSON.stringify(first?.coordinates || []).match(/-?\d+(\.\d+)?/g)?.slice(0, 2).map(Number) || [];
+    if (probe.some((v) => Math.abs(v) > 180)) throw new Error("This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server.");
+    fromEpsg = 4326;
+  }
+  let polylines = features.flatMap((f) => geometryToPolylines(f.geometry, projectEpsg, fromEpsg));
   let clippedCount = 0;
-  if (clipBboxLonLat) {
+  // #417 — when the server already filtered by BBOX, its answer is "features that intersect the area";
+  // re-clipping by "has a vertex inside" threw away big claims that cross the area (31 of 192 in a live
+  // DataBC test). Without a server filter, clip by bounding-box OVERLAP for the same reason.
+  if (clipBboxLonLat && !usedServerFilter) {
     const [cxMin, cyMin, cxMax, cyMax] = clipBboxLonLat;
     const corner = reprojectXY(cxMin, cyMin, 4326, projectEpsg), corner2 = reprojectXY(cxMax, cyMax, 4326, projectEpsg);
     if (corner && corner2) {
       const xmin = Math.min(corner.x, corner2.x), xmax = Math.max(corner.x, corner2.x);
       const ymin = Math.min(corner.y, corner2.y), ymax = Math.max(corner.y, corner2.y);
       const before = polylines.length;
-      polylines = polylines.filter((loop) => loop.some((p) => p.x >= xmin && p.x <= xmax && p.y >= ymin && p.y <= ymax));
+      polylines = polylines.filter((loop) => {
+        let lx0 = Infinity, ly0 = Infinity, lx1 = -Infinity, ly1 = -Infinity;
+        for (const p of loop) { if (p.x < lx0) lx0 = p.x; if (p.x > lx1) lx1 = p.x; if (p.y < ly0) ly0 = p.y; if (p.y > ly1) ly1 = p.y; }
+        return lx1 >= xmin && lx0 <= xmax && ly1 >= ymin && ly0 <= ymax;
+      });
       clippedCount = before - polylines.length;
     }
   }
