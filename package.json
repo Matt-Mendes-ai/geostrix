@@ -12,7 +12,8 @@
     "build": "vite build && electron-builder",
     "build:dir": "vite build && electron-builder --dir",
     "build:full": "npm run build:sidecar && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --no-warnings --test \"test/*.test.mjs\""
   },
   "dependencies": {
     "@fontsource/exo-2": "^5.3.0",

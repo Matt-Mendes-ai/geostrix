@@ -23,4 +23,6 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      # TASKS.csv #443 — pure-logic regression tests (intercepts, import detection, desurvey, calculator...)
+      - run: npm test
       - run: npm run build:dir

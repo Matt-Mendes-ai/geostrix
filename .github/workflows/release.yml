@@ -38,6 +38,13 @@ jobs:
           python -m venv venv
           venv\Scripts\python.exe -m pip install --upgrade pip
           venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
+      # TASKS.csv #443 — never ship a build whose maths tests fail: JS logic tests, then the SimPEG
+      # potential-field acceptance tests against the exact venv that gets frozen.
+      - name: JS logic tests
+        run: npm test
+      - name: Sidecar physics tests
+        working-directory: python-sidecar
+        run: venv\Scripts\python.exe tests/test_potential.py
       - name: Freeze the Python sidecar
         run: npm run build:sidecar
       - name: Build the web bundle
