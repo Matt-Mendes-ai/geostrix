@@ -1,6 +1,7 @@
 // ============================================================
 // Layer metadata, colors, and generic CSV import mapping helpers
 // ============================================================
+import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 
 // Bug found during the UBC-mesh-coarsening perf fix (real repro: a 432,000-value array crashed with
 // "Maximum call stack size exceeded"): `Math.min(...arr)`/`Math.max(...arr)` spreads the WHOLE array
@@ -548,9 +549,12 @@ export const TARGET_SCHEMAS = {
   structure: { label: "Structure planes", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md"] },
-    { key: "value", label: "Structure type", required: true, aliases: ["structure_type", "type"] },
+    { key: "value", label: "Structure type", required: true, aliases: ["structure_type", "type", "struct", "structure"] },
     { key: "dip", label: "Dip (optional)", required: false, aliases: ["inferred_dip_deg", "dip"] },
-    { key: "azimuth", label: "Dip azimuth (optional)", required: false, aliases: ["assumed_dip_azimuth", "dip_azimuth", "azimuth"] },
+    { key: "azimuth", label: "Dip direction / dip azimuth (optional)", required: false, aliases: ["assumed_dip_azimuth", "dip_azimuth", "dip_direction", "dipdirection", "dip_dir", "dipdir", "ddir", "dd", "azimuth"] },
+    // TASKS.csv #426 — strike (right-hand rule) is converted to dip direction = strike + 90 when there is
+    // no dip-direction column; it used to be silently ignored.
+    { key: "strike", label: "Strike, right-hand rule (optional — used when no dip direction)", required: false, aliases: ["strike", "strike_rhr"] },
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -589,6 +593,29 @@ export function replaceRowsByHole(prev, incoming) {
   const kept = [];
   (prev || []).forEach((r) => { if (incomingHoles.has(r.hole_id)) replacedHoles.add(r.hole_id); else kept.push(r); });
   return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles] };
+}
+
+// TASKS.csv #426 — one place that turns (target, headers) into a first-guess mapping. For structure
+// tables the dip / dip-direction pair comes from mapLayers.guessStructureColumns, which knows that
+// "DipDirection", "dip_dir", "DipDir" and "dd" are the DIRECTION and must not be taken as the dip:
+// guessColumn's substring pass matched "dip" inside "DipDirection" first, so a HoleID,Depth,Type,
+// DipDirection,Dip_deg file mapped DIP to the dip-direction column and left azimuth unmapped.
+export function guessMapping(target, headers) {
+  const schema = TARGET_SCHEMAS[target];
+  const mapping = {};
+  if (!schema) return mapping;
+  schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
+  if (target === "structure") {
+    const g = guessStructureColumns(headers);
+    // Only where the structure-aware guesser found something: sample_data's inferred_dip_deg /
+    // assumed_dip_azimuth are exact schema aliases it doesn't know, and must keep their mapping.
+    if (g.dip) mapping.dip = g.dip;
+    if (g.dipDir) mapping.azimuth = g.dipDir;
+    else if (mapping.azimuth && mapping.azimuth === mapping.dip) mapping.azimuth = "";
+    if (g.strike) mapping.strike = g.strike;
+    if (!mapping.value && g.type) mapping.value = g.type;
+  }
+  return mapping;
 }
 
 export function guessColumnExact(headers, aliases) {
@@ -632,6 +659,11 @@ export function guessTarget(headers) {
   // and confidently, no mapping dialog and no chance to catch it. Checking structure_type first
   // (before survey ever gets a look) fixes it at the source.
   if (has("structure_type")) return "structure";
+  // TASKS.csv #426 — a downhole structure file without a literal structure_type column (HoleID, Depth,
+  // Type, DipDirection, Dip_deg) used to fall through to the vein rule. Point data (depth, no from) with a
+  // dip AND something only a structure table has — a type/struct column, a dip direction, strike or alpha.
+  const structy = has("struct") || hasCol("type") || has("dipdir") || has("dip_dir") || has("dipdirection") || has("dip_direction") || hasCol("dd") || has("strike") || has("alpha");
+  if (!has("from") && has("depth") && has("dip") && structy) return "structure";
   if (has("azimuth") && has("depth") && !has("from")) return "survey";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy

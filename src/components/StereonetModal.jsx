@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
-import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT } from "../lib/stereonet.js";
+import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -102,7 +102,10 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
   // there, even though fisherStats' eigendecomposition had already computed the fold axis. This is the
   // same shape test that drives that message, hoisted so both the readout and the plotted β symbol use
   // one definition of "this population is a girdle" and can never disagree about whether to show it.
-  const isGirdle = !!stats && stats.s1 - stats.s2 < 0.12 && stats.s3 < 0.2;
+  // TASKS.csv #425 — Woodcock K/C (lib/stereonet.js fabricShape) instead of s1 - s2 < 0.12, which was
+  // only reached after a "s1 > 0.65 = tight cluster" check and so called open folds tight clusters.
+  const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3) : null;
+  const isGirdle = fabric?.shape === "girdle";
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
   const toSvg = (p) => ({ x: CX + p.x * R, y: CY - p.y * R }); // net y+ = north = up on screen, so flip for SVG's y-down
@@ -395,10 +398,12 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                   <div title="Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.">S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
                 </div>
                 <div style={{ marginTop: 4, color: "#55606e" }}>
-                  {stats.s1 > 0.65 ? "Tight cluster — a single dominant orientation."
-                    : isGirdle ? "Girdle — picks spread along a great circle (possible fold); a single mean plane may not be meaningful."
-                    : stats.s1 < 0.45 ? "Weak / no preferred orientation — treat this mean with caution."
-                    : "Moderate clustering."}
+                  <span title={`Woodcock shape K = ${fabric.K.toFixed(2)} (< 1 girdle, > 1 cluster), strength C = ${fabric.C.toFixed(1)}`}>
+                    {isGirdle ? "Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below."
+                      : fabric.shape === "cluster" ? "Tight cluster — a single dominant orientation."
+                      : fabric.shape === "weak" ? "Weak / no preferred orientation — treat this mean with caution."
+                      : "Moderate clustering."}
+                  </span>
                 </div>
                 {/* TASKS.csv #279 — the girdle message above used to be the end of the road: it told the
                     user they were probably looking at a fold and then offered nothing to act on, even
@@ -420,8 +425,9 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                 {onUseAsTrend && (
                   <button
                     onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
-                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0" }}
-                    title="Copy this mean plane into the Modeling tab's anisotropy trend fields"
+                    disabled={isGirdle}
+                    style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
+                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Copy this mean plane into the Modeling tab's anisotropy trend fields"}
                   >Use as anisotropy trend</button>
                 )}
               </div>

@@ -60,7 +60,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import {
-  LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessTarget, num, replaceRowsByHole, getCol, EPSG_COL_ALIASES,
+  LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, getCol, EPSG_COL_ALIASES,
   diffCollarImport, // TASKS.csv #283
   colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
   rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
@@ -274,13 +274,25 @@ function normNumericInterval(r, mapping, customFields) {
     value: num(r[mapping.value]),
   }, r, customFields);
 }
-function normStructure(r, mapping, customFields) {
+function normStructure(r, mapping, customFields, dipConvention) {
+  // TASKS.csv #426 — dip must be 0-90 and dip direction 0-360; anything else is dropped to "unknown"
+  // (NaN) and counted by the caller, instead of a dip of -30 plotting as a horizontal plane. A negative
+  // dip is only accepted as a sign convention when the user said so (dipConvention "neg_down").
+  let dip = mapping.dip ? num(r[mapping.dip]) : undefined;
+  if (Number.isFinite(dip) && dip < 0 && dipConvention === "neg_down") dip = -dip;
+  if (Number.isFinite(dip) && (dip < 0 || dip > 90)) dip = NaN;
+  let azimuth = mapping.azimuth ? num(r[mapping.azimuth]) : undefined;
+  if (!Number.isFinite(azimuth) && mapping.strike) {
+    const strike = num(r[mapping.strike]);
+    if (Number.isFinite(strike)) azimuth = (((strike + 90) % 360) + 360) % 360; // right-hand rule
+  }
+  if (Number.isFinite(azimuth)) azimuth = azimuth === 360 ? 0 : (azimuth < 0 || azimuth > 360 ? NaN : azimuth);
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
     depth: num(r[mapping.depth]), // TASKS.csv #337
     value: String(r[mapping.value] ?? "").trim(),
-    dip: mapping.dip ? num(r[mapping.dip]) : undefined,
-    azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
+    dip,
+    azimuth,
   }, r, customFields);
 }
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
@@ -6672,8 +6684,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       const target = forceTarget || guessTarget(headers);
       const schema = TARGET_SCHEMAS[target];
-      const mapping = {};
-      schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
+      const mapping = guessMapping(target, headers); // #426
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
       setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
@@ -6721,8 +6732,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (looksLikeAssay(headers)) { setNotices((p) => [...p, `${sourceName} looks like assay data — import it from the Geochem module instead.`]); return; }
     const target = guessTarget(headers);
     const schema = TARGET_SCHEMAS[target];
-    const mapping = {};
-    schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
+    const mapping = guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
     setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
     setDbModalOpen(false);
@@ -6847,7 +6857,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
         + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")]);
     } else if (target === "structure") {
-      const rows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      const rows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
+      const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (dipConvention === "neg_down" ? Math.abs(d) > 90 : (d < 0 || d > 90)); }).length : 0;
+      if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown.`]);
       const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows).replacedHoles;
       setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, rows).rows })); // TASKS.csv #336
       if (replaced.length) setNotices((p) => [...p, `${fileName}: replaced the earlier structure picks of ${replaced.length} hole(s) — Ctrl+Z to undo.`]);
@@ -6934,8 +6947,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       const target = guessTarget(headers);
       const schema = TARGET_SCHEMAS[target];
-      const mapping = {};
-      schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
+      const mapping = guessMapping(target, headers); // #426
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]);
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.

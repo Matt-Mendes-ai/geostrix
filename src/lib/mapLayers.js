@@ -400,7 +400,7 @@ export function guessStructureColumns(headers) {
     }
     return null;
   };
-  const dipDir = take([(n) => n === "dipdirection" || n === "dipdir" || n === "ddir" || n === "dipazimuth" || n === "dipaz", (n) => n.startsWith("dipdir"), (n) => n === "azimuth" || n === "az"]);
+  const dipDir = take([(n) => n === "dipdirection" || n === "dipdir" || n === "ddir" || n === "dd" || n === "dipazimuth" || n === "dipaz", (n) => n.startsWith("dipdir"), (n) => n === "azimuth" || n === "az"]); // "dd": TASKS.csv #426
   const dip = take([(n) => n === "dip", (n) => n.startsWith("dip") && !n.startsWith("dipdir") && !n.startsWith("dipaz")], [dipDir]);
   const x = take([(n) => n === "x" || n === "easting" || n === "east", (n) => n.startsWith("easting") || n.startsWith("east"), (n) => n.includes("easting")]);
   const y = take([(n) => n === "y" || n === "northing" || n === "north", (n) => n.startsWith("northing") || n.startsWith("north"), (n) => n.includes("northing")]);
