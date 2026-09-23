@@ -379,6 +379,9 @@ function FitView({ last, method }) {
         <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>Forward model result</div>
         {runs.length === 1 && <div style={small}>RMS of the data about its mean {result.rmsObserved?.toFixed(2)} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {runs[0].baseLevel?.toFixed(2)} {unit}: {runs[0].rmsResidual?.toFixed(2)} {unit} ({runs[0].plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.</div>}
         {runs.length > 1 && <DipSweep runs={runs} unit={unit} />}
+        {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
+        {runs[0]?.thinnerThanCell && <div style={small}>The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {Math.round((runs[0].volumeRatio || 0) * 100)}% of the plate's true volume{runs.length > 1 ? ` at ${runs[0].dip}°` : ""}).</div>}
+        {runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100)}%) — those responses are for a smaller body than the one entered.</div>}
         {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={runs[0].predicted} unit={unit} />}
       </div>
     );

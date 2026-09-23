@@ -222,6 +222,55 @@ def plate_cells(mesh, plate, local):
     return (np.abs(a) <= plate["strikeLength"] / 2) & (np.abs(b) <= plate["dipExtent"] / 2) & (np.abs(n) <= plate["thickness"] / 2)
 
 
+def _plate_frame(plate, local):
+    c = np.array([plate["cx"], plate["cy"], plate["cz"]]) - local
+    dd = math.radians(plate["dipDirection"])
+    dip = math.radians(plate["dip"])
+    strike_v = np.array([math.sin(dd - math.pi / 2), math.cos(dd - math.pi / 2), 0.0])
+    downdip_v = np.array([math.sin(dd) * math.cos(dip), math.cos(dd) * math.cos(dip), -math.sin(dip)])
+    normal_v = np.cross(strike_v, downdip_v)
+    return c, strike_v, downdip_v, normal_v
+
+
+def plate_fraction(mesh, plate, local, sub=None):
+    """TASKS.csv #367 — fraction (0..1) of each mesh cell's volume inside the plate.
+
+    plate_cells() tests cell CENTRES only, so a plate thinner than a cell is all-or-nothing: a vertical
+    10 m plate on 25 m cells whose centre plane falls between cell centres gets ZERO cells (no response
+    at all), and at other dips the captured mass swings +-30% with how the plate happens to cut the grid
+    (48 / 36 / 36 ... / 48 / 0 cells across 10-90 deg for an ideal 38) — so a dip sweep partly measured
+    grid snapping instead of geology. Each candidate cell (any cell within half a cell diagonal of the
+    plate) is sampled at sub^3 points; the model value is contrast x fraction, i.e. the plate's real
+    volume is kept at every dip.
+    """
+    c, sv, dv, nv = _plate_frame(plate, local)
+    L2, W2, T2 = plate["strikeLength"] / 2, plate["dipExtent"] / 2, plate["thickness"] / 2
+    cc = mesh.cell_centers
+    h = mesh.h_gridded
+    if sub is None:
+        # Samples must be finer than the plate is thick or a thin slab aliases (4 per 25 m cell = 6.25 m
+        # spacing caught a 10 m vertical plate as 1.25x its volume). ~4 samples across the thickness, 4-16
+        # per axis; only cells near the plate are sampled, so this stays cheap.
+        core = float(np.min(h, axis=0).max())
+        sub = int(min(16, max(4, math.ceil(4 * core / max(float(plate["thickness"]), 1e-6)))))
+    r = 0.5 * np.linalg.norm(h, axis=1)  # half cell diagonal
+    d = cc - c
+    cand = (np.abs(d @ sv) <= L2 + r) & (np.abs(d @ dv) <= W2 + r) & (np.abs(d @ nv) <= T2 + r)
+    frac = np.zeros(mesh.n_cells)
+    idx = np.nonzero(cand)[0]
+    if not len(idx):
+        return frac
+    g = (np.arange(sub) + 0.5) / sub - 0.5
+    offs = np.stack(np.meshgrid(g, g, g, indexing="ij"), axis=-1).reshape(-1, 3)  # (sub^3, 3) in cell units
+    step = max(1, 2_000_000 // len(offs))  # bounded memory: at most ~2M sample points per chunk
+    for start in range(0, len(idx), step):
+        k = idx[start:start + step]
+        pts = cc[k, None, :] + offs[None, :, :] * h[k, None, :] - c  # (n, sub^3, 3)
+        inside = (np.abs(pts @ sv) <= L2) & (np.abs(pts @ dv) <= W2) & (np.abs(pts @ nv) <= T2)
+        frac[k] = inside.mean(axis=1)
+    return frac
+
+
 # ---------------------------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------------------------
@@ -261,12 +310,18 @@ def run_job(req, progress, ram_cap_bytes):
         obs = np.asarray(req.get("observed") or [], dtype=float)
         runs = []
         for k, plate in enumerate(plates):
-            full = np.zeros(mesh.n_cells)
-            mask = plate_cells(mesh, plate, local)
-            full[mask] = float(plate["contrast"])
+            # TASKS.csv #367 — fractional occupancy, not centre-in-plate (see plate_fraction).
+            frac = plate_fraction(mesh, plate, local)
+            full = float(plate["contrast"]) * frac
             progress({"stage": "forward", "message": f"Forward model {k + 1} of {len(plates)}", "iter": k + 1, "maxIter": len(plates)})
             pred = _to_user(method, sim.dpred(full[actv]))
-            run = {"predicted": pred.tolist(), "plateCells": int(mask[actv].sum()), "dip": plate.get("dip")}
+            vol = mesh.cell_volumes
+            ideal = float(plate["strikeLength"]) * float(plate["dipExtent"]) * float(plate["thickness"])
+            run = {"predicted": pred.tolist(), "plateCells": int((frac[actv] > 0).sum()), "dip": plate.get("dip"),
+                   # modelled plate volume / its true volume: ~1 means the mesh represents the body faithfully;
+                   # well below 1 means part of it is above ground (inactive) or outside the mesh.
+                   "volumeRatio": float((frac[actv] * vol[actv]).sum() / ideal) if ideal > 0 else None,
+                   "thinnerThanCell": float(plate["thickness"]) < float(req["mesh"]["coreCell"])}
             if len(obs) == len(pred):
                 # TASKS.csv #366 — fit the data's base level before scoring. IGRF-removed TMI and Bouguer
                 # gravity always carry an arbitrary constant level (and a plate's response dies to ~0 away

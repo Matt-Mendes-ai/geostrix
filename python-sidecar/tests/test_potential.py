@@ -168,6 +168,27 @@ def test_dip_sweep_ignores_base_level():
     assert spread > 0.5
 
 
+def test_thin_plate_keeps_its_volume():
+    """TASKS.csv #367 — a plate thinner than a cell must keep its real volume (and a response) at every dip:
+    centre-in-plate gave 0 cells for a vertical 10 m plate on 25 m cells and swung +-30% across dips."""
+    st = _grid_stations(9, 50.0, 1030.0)
+    topo = _grid_stations(24, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    plate = {"cx": 500000.0, "cy": 6250000.0, "cz": 850.0, "dipDirection": 90.0, "strikeLength": 300.0,
+             "dipExtent": 200.0, "thickness": 10.0, "contrast": 0.05}
+    dips = [10.0, 30.0, 50.0, 70.0, 90.0]
+    out = P.run_job({"kind": "forward", "method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+                     "mesh": {"coreCell": 25.0, "depth": 400.0, "padCells": 4}, "plates": [dict(plate, dip=d) for d in dips]},
+                    lambda e: None, ram_cap_bytes=int(1.5e9))
+    ratios = [r["volumeRatio"] for r in out["runs"]]
+    peaks = [float(np.max(np.abs(r["predicted"]))) for r in out["runs"]]
+    print(f"thin plate (10 m on 25 m cells): volume ratio by dip {dict(zip(dips, [round(x, 3) for x in ratios]))}; "
+          f"peak |TMI| {dict(zip(dips, [round(x, 2) for x in peaks]))} nT; thinnerThanCell={out['runs'][0]['thinnerThanCell']}")
+    assert all(abs(x - 1) < 0.08 for x in ratios)
+    assert min(peaks) > 0.5
+    assert out["runs"][0]["thinnerThanCell"] is True
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
