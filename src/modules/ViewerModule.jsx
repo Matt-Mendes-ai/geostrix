@@ -5481,10 +5481,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       (rowsByHole.structure?.get(c.hole_id) || []).filter((s) => isRowVisibleForBuild("structure", s)).forEach((s) => {
         const p = findOnTrace(pts, s.depth);
         if (!p) return;
-        const dip = s.dip != null && !isNaN(s.dip) ? s.dip : 45;
-        const az = s.azimuth != null && !isNaN(s.azimuth) ? s.azimuth : 0;
-        const geo = PROTO_CIRCLE_24; // TASKS.csv #312 — shared prototype + scale (was CircleGeometry(6, 24))
+        // TASKS.csv #394 — a pick without a recorded dip AND dip direction is drawn as a small sphere on the
+        // trace, NOT as a plane: it used to default to dip 45 / az 0 and the tooltip then presented
+        // "dip 45° / az 0°" as if measured, so alpha-only or unoriented picks looked like real
+        // north-dipping planes.
+        const oriented = s.dip != null && !isNaN(s.dip) && s.azimuth != null && !isNaN(s.azimuth);
         const color = baseColorForBuild("structure", s.value);
+        if (!oriented) {
+          const mark = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 }));
+          mark.scale.setScalar(2.2);
+          mark.position.set(p.x, p.y, p.z);
+          mark.userData = { tip: `${c.hole_id}\nStructure: ${effectiveLabel("structure", s.value)}\norientation not recorded (dip —)\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
+          groups.structure.add(mark);
+          return;
+        }
+        const dip = s.dip;
+        const az = s.azimuth;
+        const geo = PROTO_CIRCLE_24; // TASKS.csv #312 — shared prototype + scale (was CircleGeometry(6, 24))
         const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
         const disc = new THREE.Mesh(geo, mat);
         disc.scale.setScalar(6);
@@ -5493,7 +5506,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         disc.rotation.y = -toRad(az);
         disc.position.set(p.x, p.y, p.z);
         const lbl = effectiveLabel("structure", s.value);
-        disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${isNaN(dip) ? "?" : dip.toFixed(0)}° / az ${isNaN(az) ? "?" : az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
+        disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${dip.toFixed(0)}° / az ${az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
         groups.structure.add(disc);
       });
 

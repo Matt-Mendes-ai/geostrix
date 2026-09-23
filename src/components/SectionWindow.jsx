@@ -396,11 +396,18 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
         const p = interpTrace(trace, row.depth);
         if (!p) return null;
         const cx = sx(along(p.x, p.y)), cy = sz(p.z);
-        const angle = row.apparentDip != null ? row.apparentDip : 45;
-        const rad = (angle * Math.PI) / 180;
+        // TASKS.csv #394 — no orientation recorded: an open ring, not an invented 45 deg line.
+        if (row.apparentDip == null || !Number.isFinite(row.apparentDip)) {
+          return <circle key={i} cx={cx} cy={cy} r="5" fill="none" stroke={row.color} strokeWidth="2"><title>{`${row.label} — orientation not recorded`}</title></circle>;
+        }
+        // TASKS.csv #394 — draw the apparent dip at its ON-SCREEN angle: with vertical exaggeration (or any
+        // difference between the horizontal and vertical pixel scales) a 45 deg plane must display steeper
+        // (63 deg at 2x). tan(screen) = tan(apparent) x (px per vertical metre / px per horizontal metre).
+        const kx = Math.abs(sx(1) - sx(0)) || 1, kz = Math.abs(sz(1) - sz(0)) || 1;
+        const rad = Math.atan(Math.tan((row.apparentDip * Math.PI) / 180) * (kz / kx));
         const len2 = 12;
         const ddx = Math.cos(rad) * len2, ddy = Math.sin(rad) * len2;
-        return <line key={i} x1={cx - ddx} y1={cy - ddy} x2={cx + ddx} y2={cy + ddy} stroke={row.color} strokeWidth="2.5"><title>{row.label}</title></line>;
+        return <line key={i} x1={cx - ddx} y1={cy - ddy} x2={cx + ddx} y2={cy + ddy} stroke={row.color} strokeWidth="2.5"><title>{`${row.label} — apparent dip ${Math.abs(row.apparentDip).toFixed(0)}°${Math.abs(kz / kx - 1) > 0.01 ? ` (drawn at ${Math.abs((rad * 180) / Math.PI).toFixed(0)}° for the ${(kz / kx).toFixed(1)}x vertical exaggeration)` : ""}`}</title></line>;
       })}
 
       {/* User-drawn interpreted contacts (TASKS.csv) — rendered on top of everything else so they're
