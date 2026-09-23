@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { TARGET_SCHEMAS, guessMapping } from "../lib/layers.js";
+import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -184,6 +185,28 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                   <input type="radio" checked={modal.dipConvention === "pos_down"} onChange={() => onChange({ ...modal, dipConvention: "pos_down" })} /> Positive = down
                 </label>
+              </div>
+            </div>
+          )}
+
+          {/* TASKS.csv #396 — which north the file's azimuths are measured from. GeoStrix draws against the
+              project grid; magnetic azimuths at Harry are ~17-19 deg off grid north. */}
+          {["collars", "survey", "structure"].includes(modal.target) && (
+            <div style={{ marginTop: 14 }}>
+              <div style={label}>Azimuths in this file are measured from</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
+                {Object.entries(AZIMUTH_REFS).map(([k, text]) => (
+                  <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input type="radio" name="azref" checked={(modal.azimuthRef || "grid") === k} onChange={() => onChange({ ...modal, azimuthRef: k })} /> {text}
+                  </label>
+                ))}
+                {modal.azimuthRef === "magnetic" && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 22 }}>
+                    Survey date
+                    <input type="date" value={modal.azimuthDate || ""} onChange={(e) => onChange({ ...modal, azimuthDate: e.target.value })} style={{ ...sel, width: "auto" }} />
+                    <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>declination from IGRF-14 at each hole, plus grid convergence</span>
+                  </label>
+                )}
               </div>
             </div>
           )}

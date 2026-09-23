@@ -12,6 +12,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
+import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
@@ -6810,7 +6811,34 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate }) => {
+    // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
+    // location (declination and convergence vary across a property). Returns the rows plus a notice.
+    const applyAzimuthRef = (rows, locate) => {
+      if (!azimuthRef || azimuthRef === "grid") return { rows, note: "" };
+      const epsg = (importStateRef.current.project || project)?.epsg;
+      const cache = new Map();
+      let fixed = 0; const failed = new Set(); let example = null;
+      const out = rows.map((r) => {
+        if (!Number.isFinite(r.azimuth)) return r;
+        const loc = locate(r);
+        const key = loc ? `${Math.round(loc.x / 100)},${Math.round(loc.y / 100)}` : null; // 100 m cells: same offset to <0.01 deg
+        let o = key ? cache.get(key) : null;
+        if (key && o === undefined) { o = azimuthToGridOffset(azimuthRef, loc.x, loc.y, epsg, azimuthDate); cache.set(key, o); }
+        if (!o) { failed.add(r.hole_id); return r; }
+        fixed++; if (!example) example = o;
+        return { ...r, azimuth: wrap360(r.azimuth + o.offset) };
+      });
+      const what = azimuthRef === "magnetic" ? `magnetic north (IGRF-14 at ${azimuthDate}: declination ${example?.declination >= 0 ? "+" : ""}${example?.declination?.toFixed(2)}°, grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)` : `true north (grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)`;
+      const note = (fixed ? ` ${fixed} azimuth(s) converted from ${what} to grid north.` : "")
+        + (failed.size ? ` ${failed.size} hole(s) could not be converted (no collar location or project CRS) and were left as-is: ${[...failed].slice(0, 6).join(", ")}.` : "");
+      return { rows: out, note };
+    };
+    if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
+      setNotices((p) => [...p, `${fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.`]);
+      return false;
+    }
+    const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
     if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
@@ -6888,6 +6916,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // (processImportQueue, a useCallback created once), whose closure holds the FIRST render's `collars`
       // (usually []), so a multi-file drop merged against an empty list and REPLACED every existing collar
       // (the 37-hole sample became 2 holes after dropping a 2-hole collar file). Read the latest collars.
+      const azc = applyAzimuthRef(rows, (r) => r); // #396 — collar's own (project-CRS) location
+      rows = azc.rows;
       const liveCollars = importStateRef.current.collars || [];
       const diff = diffCollarImport(liveCollars, rows);
       let overwriteExisting = true;
@@ -6914,22 +6944,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
       if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
       if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
-      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}`]);
+      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);
     } else if (target === "survey") {
       const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
       // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
       // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
       const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
-      const rows = all.filter((r) => Number.isFinite(r.azimuth) && Number.isFinite(r.dip));
+      const azs = applyAzimuthRef(all.filter((r) => Number.isFinite(r.azimuth) && Number.isFinite(r.dip)), liveCollarAt); // #396
+      const rows = azs.rows;
       // TASKS.csv #336 — a hole's survey in this file REPLACES its earlier survey (with _src stamped so
       // the layer inspector can tell imports apart); undo restores the old one.
       const replaced = replaceRowsByHole(importStateRef.current.survey, rows).replacedHoles; // for the notice only
       setSurvey((prev) => replaceRowsByHole(prev, rows).rows);
       setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
         + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
-        + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")]);
+        + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
+        + azs.note]);
     } else if (target === "structure") {
-      const rows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      const azst = applyAzimuthRef(allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth)), liveCollarAt); // #396
+      const rows = azst.rows;
+      if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
       const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (dipConvention === "neg_down" ? Math.abs(d) > 90 : (d < 0 || d > 90)); }).length : 0;
       if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown.`]);

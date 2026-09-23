@@ -53,3 +53,15 @@ test("#416 reprojection still gives the same coordinates", () => {
   const p = reprojectXY(-130.1, 56.5, 4326, 3156);
   assert.ok(Math.abs(p.x - 432287.3539) < 0.01 && Math.abs(p.y - 6262271.5643) < 0.01);
 });
+
+import { azimuthToGridOffset } from "../src/lib/azimuthRef.js";
+test("#396 azimuth reference offsets at the Harry property", () => {
+  const x = 463333, y = 6178148;
+  assert.equal(azimuthToGridOffset("grid", x, y, 3156).offset, 0);
+  const t = azimuthToGridOffset("true", x, y, 3156);
+  assert.ok(Math.abs(t.offset - 0.483) < 0.01, `convergence ${t.offset}`); // textbook gamma = atan(tan(dlon) sin(lat)) -> 0.483
+  const m = azimuthToGridOffset("magnetic", x, y, 3156, "2026-09-01");
+  assert.ok(m.declination > 17 && m.declination < 18, `declination ${m.declination}`);
+  assert.equal(azimuthToGridOffset("magnetic", x, y, 3156, ""), null); // no date, no guess
+  assert.equal(azimuthToGridOffset("magnetic", x, y, 3156, "1850-01-01"), null); // outside IGRF
+});
