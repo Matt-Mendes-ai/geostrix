@@ -1,3 +1,4 @@
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 // TASKS.csv #52 (a) — "spread across N realisations": how far a GemPy surface moves when its inputs are
 // perturbed by the uncertainty the GEOLOGIST states. Pure, no React / three.js, checked in Node.
 //
@@ -161,7 +162,7 @@ export function pointsToMeshDistance(points, verts, faces, { maxDist = Infinity 
     const c = [Math.floor(p[0] / cell), Math.floor(p[1] / cell), Math.floor(p[2] / cell)];
     // Shells can start far from the grid if the point is outside it; jump straight to the first shell
     // that can intersect the grid's box.
-    const gap = Math.max(0, ...[0, 1, 2].map((ax) => Math.max(gmin[ax] - c[ax], c[ax] - gmax[ax])));
+    const gap = Math.max(0, arrMax([0, 1, 2].map((ax) => Math.max(gmin[ax] - c[ax], c[ax] - gmax[ax]))));
     let best = Infinity;
     const seen = new Set();
     for (let r = gap; r <= gap + maxShell; r++) {

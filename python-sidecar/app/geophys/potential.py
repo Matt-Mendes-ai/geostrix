@@ -268,8 +268,17 @@ def run_job(req, progress, ram_cap_bytes):
             pred = _to_user(method, sim.dpred(full[actv]))
             run = {"predicted": pred.tolist(), "plateCells": int(mask[actv].sum()), "dip": plate.get("dip")}
             if len(obs) == len(pred):
-                r = obs - pred
+                # TASKS.csv #366 — fit the data's base level before scoring. IGRF-removed TMI and Bouguer
+                # gravity always carry an arbitrary constant level (and a plate's response dies to ~0 away
+                # from it), so scoring raw obs - pred mostly measured that constant: with a 150 nT offset a
+                # dip whose anomaly misfit is twice as bad scored 151.3 vs 155.2 nT (2.5%) and the sweep
+                # said "these data cannot tell the dip". The best constant is mean(obs - pred); it is
+                # reported per run so the user sees what was removed, and rmsResidual is now comparable
+                # with rmsObserved (which was already mean-removed).
+                offset = float(np.mean(obs - pred))
+                r = obs - pred - offset
                 run["rmsResidual"] = float(np.sqrt(np.mean(r ** 2)))
+                run["baseLevel"] = offset
             runs.append(run)
         out = {"kind": "forward", "method": method, "runs": runs, "predicted": runs[0]["predicted"],
                "plateCells": runs[0]["plateCells"], "versions": versions, "seconds": time.time() - t0, "localOrigin": local.tolist(),
@@ -277,6 +286,7 @@ def run_job(req, progress, ram_cap_bytes):
         if len(obs) == len(stations):
             out["rmsObserved"] = float(np.sqrt(np.mean((obs - obs.mean()) ** 2)))
             out["rmsResidual"] = runs[0].get("rmsResidual")
+            out["baseLevel"] = runs[0].get("baseLevel")
         return out
 
     # ---------------- inversion ----------------

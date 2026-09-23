@@ -1,3 +1,4 @@
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 // TASKS.csv #129 — QGIS-specialist audit finding: "Raster/GeoTIFF import trusts embedded tags;
 // there's no way to georeference an ungeoreferenced scanned map (old assessment-report maps, scanned
 // claim sketches — a common field/legacy-data need) the way QGIS's Georeferencer does with manual
@@ -83,7 +84,7 @@ const OUT_GRID_MAX = 1024; // matches satelliteFetch.js's GRID_MAX — a scanned
 export function georeferenceImage(imageData, srcWidth, srcHeight, transform) {
   const corners = [[0, 0], [srcWidth, 0], [srcWidth, srcHeight], [0, srcHeight]].map(([px, py]) => forwardMap(transform, px, py));
   const xs = corners.map((c) => c.x), ys = corners.map((c) => c.y);
-  const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+  const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
   const aspect = (xmax - xmin) / Math.max(1e-9, ymax - ymin);
   const outW = aspect >= 1 ? OUT_GRID_MAX : Math.max(2, Math.round(OUT_GRID_MAX * aspect));
   const outH = aspect >= 1 ? Math.max(2, Math.round(OUT_GRID_MAX / aspect)) : OUT_GRID_MAX;

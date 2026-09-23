@@ -143,6 +143,31 @@ def test_inversion_recovers_block():
     assert abs(err[0]) <= 25 and abs(err[1]) <= 25 and abs(err[2]) <= 50
 
 
+def test_dip_sweep_ignores_base_level():
+    """TASKS.csv #366 — a constant base level in the data (IGRF-removed TMI always has one) must not hide the
+    dip: synthetic data from a plate dipping 60 deg plus a 150 nT offset; the sweep must pick 60 and report
+    the offset it removed."""
+    st = _grid_stations(15, 40.0, 1030.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    plate = {"cx": 500000.0, "cy": 6250000.0, "cz": 880.0, "dipDirection": 90.0, "strikeLength": 300.0,
+             "dipExtent": 200.0, "thickness": 40.0, "contrast": 0.05}
+    base = {"kind": "forward", "method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 20.0, "depth": 400.0, "padCells": 4}}
+    truth = P.run_job(dict(base, plates=[dict(plate, dip=60.0)]), lambda e: None, ram_cap_bytes=int(1.5e9))
+    observed = (np.array(truth["predicted"]) + 150.0).tolist()
+    dips = [20.0, 40.0, 60.0, 80.0]
+    out = P.run_job(dict(base, observed=observed, plates=[dict(plate, dip=d) for d in dips]), lambda e: None, ram_cap_bytes=int(1.5e9))
+    rms = [r["rmsResidual"] for r in out["runs"]]
+    best = dips[int(np.argmin(rms))]
+    spread = (max(rms) - min(rms)) / max(rms)
+    print(f"dip sweep with a 150 nT base level: residual RMS {[round(x, 2) for x in rms]} -> best {best} deg, "
+          f"spread {spread:.0%}, base level removed at 60 deg {out['runs'][2]['baseLevel']:.2f} nT")
+    assert best == 60.0
+    assert out["runs"][2]["rmsResidual"] < 1e-6 and abs(out["runs"][2]["baseLevel"] - 150.0) < 1e-6
+    assert spread > 0.5
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

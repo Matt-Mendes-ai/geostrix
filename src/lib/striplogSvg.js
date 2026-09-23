@@ -15,6 +15,7 @@
 // StripLog's interactive version needs a user-picked element for anyway, not meaningful to default
 // per-hole in an unattended batch run).
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, rqdColor } from "./layers.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
@@ -59,7 +60,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
   const alt = (layers.alt || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const vein = (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
-  const maxDepth = Math.max(collar?.length || 0, ...litho.map((r) => r.to), ...alt.map((r) => r.to), ...vein.map((r) => r.to), ...geotech.map((r) => r.to), 0);
+  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), 0);
   if (maxDepth <= 0) return null;
 
   const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));

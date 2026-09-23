@@ -1,3 +1,4 @@
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 // TASKS.csv #147 — experimental variogram / spatial-continuity analysis per domain.
 //
 // WHY THIS EXISTS. estimation.js's own header says, in as many words, that GeoStrix does NOT do
@@ -255,7 +256,7 @@ export function fitVariogramModel(bins, opts = {}) {
   const usable = (bins || []).filter((b) => b.gamma != null && b.nPairs > 0 && Number.isFinite(b.h));
   if (usable.length < 3) return null;
 
-  const hMax = Math.max(...usable.map((b) => b.h));
+  const hMax = arrMax(usable.map((b) => b.h));
   const solveAt = (a) => {
     // Weighted normal equations for gamma_i ~= c0 + c1 * g_i, with g_i = shape(h_i, a).
     let s11 = 0, s1g = 0, sgg = 0, s1y = 0, sgy = 0, sw = 0;

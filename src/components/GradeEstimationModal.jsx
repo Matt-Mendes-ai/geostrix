@@ -10,6 +10,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -63,7 +64,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     const zs = collars.map((c) => { const d = collarDepth(c); return d == null ? null : c.z - d; }).filter((z) => z != null);
     const zTops = collars.map((c) => c.z);
     if (!zs.length) return null; // no collar has a length or a survey — nothing defensible to bound depth with
-    return { xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys), zmin: Math.min(...zs), zmax: Math.max(...zTops) };
+    return { xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys), zmin: arrMin(zs), zmax: arrMax(zTops) };
   }, [collars, surveyMaxDepth]);
 
   const [padding, setPadding] = useState(25);

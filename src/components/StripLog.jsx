@@ -16,6 +16,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // own grade axis. Pure SVG, one long scrollable page — pxPerMeter controls how tall it renders (a deep
 // hole logged at high resolution needs to scroll, not squeeze onto one screen).
 const TRACK_W = 90;
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -37,15 +38,14 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const collar = collars.find((c) => c.hole_id === holeId);
   const maxDepth = Math.max(
     collar?.length || 0,
-    ...litho.map((r) => r.to), ...alt.map((r) => r.to), ...vein.map((r) => r.to), ...geotech.map((r) => r.to),
-    ...holeAssays.map((a) => a.to),
-    1
-  );
+    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)),
+    arrMax(holeAssays.map((a) => a.to)),
+    1);
 
   const assayMax = useMemo(() => {
     if (!assaySymbol) return 0;
     const vals = holeAssays.map((a) => valueIn(a, assaySymbol, elementUnits[assaySymbol] || "ppm", elementUnits)).filter((v) => v != null);
-    return vals.length ? Math.max(...vals) : 0;
+    return vals.length ? arrMax(vals) : 0;
   }, [holeAssays, assaySymbol, elementUnits]);
 
   const sy = (d) => PAD_TOP + d * pxPerMeter;

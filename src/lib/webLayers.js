@@ -16,6 +16,7 @@
 // returns.
 import { fetchWebLayerUrl } from "./desktop.js";
 import { reprojectXY } from "./reproject.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 function stripTrailingParams(url) {
   return url.split("?")[0];
@@ -120,7 +121,7 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
   const projected = corners.map(([lon, lat]) => reprojectXY(lon, lat, 4326, projectEpsg));
   if (projected.some((p) => !p)) throw new Error(`Can't reproject WGS84 into the project's EPSG:${projectEpsg} — unrecognized target CRS.`);
   const xs = projected.map((p) => p.x), ys = projected.map((p) => p.y);
-  const bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const bbox = [arrMin(xs), arrMin(ys), arrMax(xs), arrMax(ys)];
   return { name: layerName, bbox, dataUrl };
 }
 

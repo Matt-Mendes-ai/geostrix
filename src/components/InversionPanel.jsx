@@ -24,6 +24,7 @@ import {
 } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total-field ANOMALY in nT — the IGRF/regional field has already been removed (not RTP, not a derivative, not the raw total field).", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -111,7 +112,7 @@ export default function InversionPanel({ pBtn, numInput }) {
     const cell = num(mesh.coreCell);
     const padReach = cell * (1.3 + 1.69 + 2.197 + 2.856 + 3.713 + 4.827) + 3 * cell;
     const sx = stations.map((p) => p[0]), sy = stations.map((p) => p[1]);
-    const box = [Math.min(...sx) - padReach, Math.min(...sy) - padReach, Math.max(...sx) + padReach, Math.max(...sy) + padReach];
+    const box = [arrMin(sx) - padReach, arrMin(sy) - padReach, arrMax(sx) + padReach, arrMax(sy) + padReach];
     const topo = terrain ? terrainPoints(terrain, box, 40000) : null;
     const request = {
       method, kind, stations,
@@ -189,7 +190,7 @@ export default function InversionPanel({ pBtn, numInput }) {
         const verdict = fitVerdict(result);
         const model = resultToVoxelModel(result, meta);
         const vals = model.cells.map((c) => c.value);
-        const vmin = Math.min(...vals), vmax = Math.max(...vals);
+        const vmin = arrMin(vals), vmax = arrMax(vals);
         const absMax = Math.max(Math.abs(vmin), Math.abs(vmax));
         addVoxelModel({
           ...model,
@@ -376,7 +377,7 @@ function FitView({ last, method }) {
     return (
       <div style={{ marginTop: 10 }}>
         <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>Forward model result</div>
-        {runs.length === 1 && <div style={small}>RMS of the data {result.rmsObserved?.toFixed(2)} {unit}; RMS left over after subtracting the plate's response {runs[0].rmsResidual?.toFixed(2)} {unit} ({runs[0].plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.</div>}
+        {runs.length === 1 && <div style={small}>RMS of the data about its mean {result.rmsObserved?.toFixed(2)} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {runs[0].baseLevel?.toFixed(2)} {unit}: {runs[0].rmsResidual?.toFixed(2)} {unit} ({runs[0].plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.</div>}
         {runs.length > 1 && <DipSweep runs={runs} unit={unit} />}
         {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={runs[0].predicted} unit={unit} />}
       </div>
@@ -398,7 +399,7 @@ function MisfitChart({ history, target }) {
   if (!history?.length) return null;
   const W = 250, H = 90, P = 26;
   const vals = history.map((h) => h.phi_d).concat(target);
-  const lo = Math.log10(Math.min(...vals)) - 0.1, hi = Math.log10(Math.max(...vals)) + 0.1;
+  const lo = Math.log10(arrMin(vals)) - 0.1, hi = Math.log10(arrMax(vals)) + 0.1;
   const x = (i) => P + ((W - P - 6) * i) / Math.max(1, history.length - 1);
   const y = (v) => 6 + (H - 20) * (1 - (Math.log10(v) - lo) / (hi - lo || 1));
   const path = history.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.phi_d).toFixed(1)}`).join(" ");
@@ -417,7 +418,7 @@ function MisfitChart({ history, target }) {
 function DipSweep({ runs, unit }) {
   const W = 250, H = 90, P = 30;
   const r = runs.map((q) => q.rmsResidual);
-  const lo = Math.min(...r), hi = Math.max(...r);
+  const lo = arrMin(r), hi = arrMax(r);
   const best = runs[r.indexOf(lo)];
   const spread = hi > 0 ? (hi - lo) / hi : 0;
   const x = (i) => P + ((W - P - 6) * i) / Math.max(1, runs.length - 1);
@@ -429,7 +430,7 @@ function DipSweep({ runs, unit }) {
         {runs.map((q, i) => <g key={i}><circle cx={x(i)} cy={y(q.rmsResidual)} r={2.2} fill="var(--color-accent)" /><text x={x(i)} y={H - 4} textAnchor="middle" style={{ fontSize: 8, fill: "var(--color-text-muted)" }}>{q.dip}°</text></g>)}
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        Best fit at {best.dip}° (residual RMS {lo.toFixed(2)} {unit}). {spread < 0.05 ? "The curve is almost flat — these data cannot tell the dip of this body." : `Residual varies ${(spread * 100).toFixed(0)}% across dips.`}
+        Best fit at {best.dip}° (residual RMS {lo.toFixed(2)} {unit}, after removing a best-fit base level of {best.baseLevel?.toFixed(1)} {unit}). {spread < 0.05 ? "The curve is almost flat — these data cannot tell the dip of this body." : `Residual varies ${(spread * 100).toFixed(0)}% across dips.`}
       </div>
     </>
   );
@@ -442,10 +443,10 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
   const resid = observed.map((o, i) => (std ? (o - predicted[i]) / std[i] : o - predicted[i]));
   useEffect(() => {
     const xs = stations.map((p) => p[0]), ys = stations.map((p) => p[1]);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
     const S = 78, pad = 4;
     const sc = Math.min((S - 2 * pad) / (x1 - x0 || 1), (S - 2 * pad) / (y1 - y0 || 1));
-    const lo = Math.min(...observed, ...predicted), hi = Math.max(...observed, ...predicted);
+    const lo = Math.min(arrMin(observed), arrMin(predicted)), hi = Math.max(arrMax(observed), arrMax(predicted));
     const seq = sequentialStops(lo, hi, 9).map((s) => s.color);
     const div = divergingStops(3, 9).map((s) => s.color);
     const seqC = (v) => seq[Math.max(0, Math.min(8, Math.round(((v - lo) / (hi - lo || 1)) * 8)))];
@@ -463,7 +464,7 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" };
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-      {[["Observed", `${Math.min(...observed).toFixed(1)}–${Math.max(...observed).toFixed(1)} ${unit}`], ["Predicted", `${Math.min(...predicted).toFixed(1)}–${Math.max(...predicted).toFixed(1)} ${unit}`], [std ? "Residual / σ" : "Residual", std ? `RMS ${rms(resid).toFixed(2)}, ±3 scale` : `RMS ${rms(resid).toFixed(2)} ${unit}`]].map(([t, cap], k) => (
+      {[["Observed", `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], ["Predicted", `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? "Residual / σ" : "Residual", std ? `RMS ${rms(resid).toFixed(2)}, ±3 scale` : `RMS ${rms(resid).toFixed(2)} ${unit}`]].map(([t, cap], k) => (
         <figure key={t} style={{ margin: 0, textAlign: "center" }}>
           <canvas ref={refs[k]} width={78} height={78} role="img" aria-label={`${t} map: ${cap}`} style={{ border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }} />
           <figcaption style={small}>{t}<br />{cap}</figcaption>

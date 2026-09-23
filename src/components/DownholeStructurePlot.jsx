@@ -6,6 +6,7 @@ import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -108,7 +109,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
       ...holePicks.map((p) => p.depth),
       ...holeLitho.map((r) => Number(r.to)),
     ];
-    const m = Math.max(0, ...candidates);
+    const m = Math.max(0, arrMax(candidates));
     return m > 0 ? Math.ceil(m / 10) * 10 : 100;
   }, [holes, activeHole, holePicks, holeLitho]);
 

@@ -32,6 +32,19 @@
 // relevant CSRS zones (7N-11N, covering all of BC including the Golden Triangle) are included; an
 // unrecognized target EPSG falls back to the existing "no reprojection, here's why" warning message.
 import proj4 from "proj4";
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+
+// TASKS.csv #416 — proj4(fromDef, toDef, point) re-parses BOTH definition strings on every call: 31.5 us
+// per point vs 1.76 us with a converter built once (18x). The image/grid warps below call it once per
+// output pixel (a 1024x1024 reprojection took 30 s of frozen UI, ~2 min at the 2048 cap), and every
+// per-point import path pays it per row. Converters are cached per (from, to) definition pair.
+const converterCache = new Map();
+function converter(fromDef, toDef) {
+  const key = JSON.stringify([fromDef, toDef]);
+  let c = converterCache.get(key);
+  if (!c) { c = proj4(fromDef, toDef); converterCache.set(key, c); }
+  return c;
+}
 
 // TASKS.csv #299 — NAD27 datum shift approximation.
 //
@@ -216,7 +229,7 @@ export function reprojectXY(x, y, fromEpsg, toEpsg) {
   const fromDef = getProj4DefSync(fromEpsg);
   const toDef = getProj4DefSync(toEpsg);
   if (!fromDef || !toDef) return null;
-  const [tx, ty] = proj4(fromDef, toDef, [x, y]);
+  const [tx, ty] = converter(fromDef, toDef).forward([x, y]);
   return { x: tx, y: ty };
 }
 
@@ -229,7 +242,7 @@ export async function toLonLat(x, y, epsg) {
   const fromDef = await getProj4Def(epsg);
   const toDef = await getProj4Def(4326);
   if (!fromDef || !toDef) return null;
-  const [lon, lat] = proj4(fromDef, toDef, [x, y]);
+  const [lon, lat] = converter(fromDef, toDef).forward([x, y]);
   return { lon, lat };
 }
 
@@ -260,17 +273,18 @@ export function bilinearSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
 export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band }, fromDef, toDef, outW, outH) {
   const corners = [
     [xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax],
-  ].map(([x, y]) => proj4(fromDef, toDef, [x, y]));
+  ].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
   const txs = corners.map((c) => c[0]), tys = corners.map((c) => c[1]);
-  const txmin = Math.min(...txs), txmax = Math.max(...txs);
-  const tymin = Math.min(...tys), tymax = Math.max(...tys);
+  const txmin = arrMin(txs), txmax = arrMax(txs);
+  const tymin = arrMin(tys), tymax = arrMax(tys);
 
   const elevations = new Float32Array(outW * outH);
+  const inv = converter(toDef, fromDef); // #416 — once, not per pixel
   for (let row = 0; row < outH; row++) {
     const ty = tymax - (row / Math.max(1, outH - 1)) * (tymax - tymin); // row 0 = north
     for (let col = 0; col < outW; col++) {
       const tx = txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
-      const [lon, lat] = proj4(toDef, fromDef, [tx, ty]);
+      const [lon, lat] = inv.forward([tx, ty]);
       const v = bilinearSample(band, gridW, gridH, xmin, ymin, xmax, ymax, lon, lat);
       elevations[row * outW + col] = v === null ? NaN : v;
     }
@@ -297,17 +311,18 @@ export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band }, fr
 // fully transparent, so the reprojected drape shows the true skewed footprint rather than stretched
 // edge pixels.
 export function reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, outW, outH) {
-  const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]].map(([x, y]) => proj4(fromDef, toDef, [x, y]));
+  const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
   const txs = corners.map((c) => c[0]), tys = corners.map((c) => c[1]);
-  const txmin = Math.min(...txs), txmax = Math.max(...txs);
-  const tymin = Math.min(...tys), tymax = Math.max(...tys);
+  const txmin = arrMin(txs), txmax = arrMax(txs);
+  const tymin = arrMin(tys), tymax = arrMax(tys);
 
   const out = new Uint8ClampedArray(outW * outH * 4);
+  const inv = converter(toDef, fromDef); // #416 — once, not per pixel
   for (let row = 0; row < outH; row++) {
     const ty = tymax - (row / Math.max(1, outH - 1)) * (tymax - tymin); // row 0 = north, same top-down convention as raster.js
     for (let col = 0; col < outW; col++) {
       const tx = txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
-      const [sx, sy] = proj4(toDef, fromDef, [tx, ty]);
+      const [sx, sy] = inv.forward([tx, ty]);
       if (sx < xmin || sx > xmax || sy < ymin || sy > ymax) continue; // leaves alpha 0
       const px = Math.min(width - 1, Math.max(0, Math.round(((sx - xmin) / (xmax - xmin)) * (width - 1))));
       const py = Math.min(height - 1, Math.max(0, Math.round(((ymax - sy) / (ymax - ymin)) * (height - 1))));

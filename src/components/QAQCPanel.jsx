@@ -12,6 +12,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // geometric QC. See qaqc.js's header comment for the identification approach (hole_id naming
 // convention, no external CRM certificate database) and its accepted first-pass limitations.
 const TABS = ["standards", "blanks", "duplicates"];
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -176,8 +177,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 function ControlChart({ points, limits }) {
   const w = 640, h = 200, padL = 50, padR = 10, padT = 14, padB = 24;
   const plotW = w - padL - padR, plotH = h - padT - padB;
-  const vMin = Math.min(limits.lcl3, ...points.map((p) => p.value));
-  const vMax = Math.max(limits.ucl3, ...points.map((p) => p.value));
+  const vMin = Math.min(limits.lcl3, arrMin(points.map((p) => p.value)));
+  const vMax = Math.max(limits.ucl3, arrMax(points.map((p) => p.value)));
   const range = (vMax - vMin) || 1;
   const y = (v) => padT + plotH - ((v - vMin) / range) * plotH;
   const x = (i) => points.length > 1 ? padL + (i / (points.length - 1)) * plotW : padL + plotW / 2;

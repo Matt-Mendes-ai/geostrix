@@ -11,6 +11,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -50,7 +51,7 @@ export default function RasterModule() {
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
     const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
-    const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
     const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
     const corners = [
       [xmin - marginX, ymin - marginY], [xmax + marginX, ymin - marginY],
@@ -59,7 +60,7 @@ export default function RasterModule() {
     const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+    return [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)];
   };
 
   const buildSatAreaOptions = async () => {
@@ -73,7 +74,7 @@ export default function RasterModule() {
       const xs = [], ys = [];
       for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
       if (!xs.length) continue;
-      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys) });
+      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) });
     }
     for (const r of rasters) {
       if (!r.bbox) continue;
@@ -85,7 +86,7 @@ export default function RasterModule() {
       const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: j.label, bboxLonLat: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] };
+      return { id: j.id, label: j.label, bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] };
     }));
     return options.filter(Boolean);
   };

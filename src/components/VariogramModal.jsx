@@ -13,6 +13,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -140,11 +141,11 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
     const pts = vg.bins.filter((b) => b.gamma != null);
     if (!pts.length) return null;
     const W = 640, H = 300, ML = 62, MR = 14, MT = 12, MB = 40;
-    const xMax = Math.max(...pts.map((b) => b.h)) * 1.05;
-    const yMax = Math.max(Math.max(...pts.map((b) => b.gamma)), vg.variance, fit ? fit.sill : 0) * 1.12 || 1;
+    const xMax = arrMax(pts.map((b) => b.h)) * 1.05;
+    const yMax = Math.max(arrMax(pts.map((b) => b.gamma)), vg.variance, fit ? fit.sill : 0) * 1.12 || 1;
     const X = (h) => ML + (h / xMax) * (W - ML - MR);
     const Y = (g) => H - MB - (g / yMax) * (H - MT - MB);
-    const maxPairs = Math.max(...pts.map((b) => b.nPairs));
+    const maxPairs = arrMax(pts.map((b) => b.nPairs));
     const curve = fit
       ? Array.from({ length: 121 }, (_, i) => {
           const h = (xMax * i) / 120;

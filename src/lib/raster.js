@@ -17,6 +17,7 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample } from "./reproject.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
 // save. Raised from 1024 -> 2048 (TASKS.csv, user report of "imported in a really bad quality") —
@@ -239,10 +240,10 @@ export async function parseDEMFiles(files, targetEpsg) {
     }
   }
 
-  const xmin = Math.min(...tiles.map((t) => t.bbox[0]));
-  const ymin = Math.min(...tiles.map((t) => t.bbox[1]));
-  const xmax = Math.max(...tiles.map((t) => t.bbox[2]));
-  const ymax = Math.max(...tiles.map((t) => t.bbox[3]));
+  const xmin = arrMin(tiles.map((t) => t.bbox[0]));
+  const ymin = arrMin(tiles.map((t) => t.bbox[1]));
+  const xmax = arrMax(tiles.map((t) => t.bbox[2]));
+  const ymax = arrMax(tiles.map((t) => t.bbox[3]));
 
   // Grid resolution is capped at DEM_MAX_GRID on the longer world-space side (not source pixel count —
   // SRTM tiles at high latitude aren't square in pixels, e.g. 1801x3601 for a 1°x1° tile, since NASA
@@ -302,7 +303,7 @@ export async function parseDEMFiles(files, targetEpsg) {
     bbox: outBbox,
     gridW: outGridW, gridH: outGridH,
     elevations: Array.from(elevations), // plain array — easier to JSON-persist in the project file than a typed array
-    srcWidth: tiles.reduce((s, t) => s + t.srcW, 0), srcHeight: Math.max(...tiles.map((t) => t.srcH)),
+    srcWidth: tiles.reduce((s, t) => s + t.srcW, 0), srcHeight: arrMax(tiles.map((t) => t.srcH)),
     epsgTag,
     reprojectedTo,
     reprojectNote,

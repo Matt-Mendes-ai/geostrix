@@ -83,6 +83,7 @@ import PlannedHoleTargeting from "../components/PlannedHoleTargeting.jsx"; // TA
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -213,6 +214,48 @@ function applyCustomFields(row, r, customFields) {
   });
   return row;
 }
+// TASKS.csv #354 — a logged interval's FROM is only a real contact when the interval directly above it in
+// the same hole is a DIFFERENT unit. Logs are split at every sample/run break, so a unit logged as
+// 0-11.2, 11.2-25, 25-60 has ONE top (at 0), not three; feeding every split to the implicit model as a
+// "Top of X" point (33% of the Harry DACT tops were such splits, 3-20 m inside the unit) forced GemPy to
+// fold the surface through them (flat contact test: z range 50 m / sd 17.7 m instead of flat). Keyed by
+// hole + depth rounded to a millimetre, so float noise in from/to doesn't break the match.
+const depthKey = (hole, d) => `${hole}|${Number(d).toFixed(3)}`;
+function intervalEndIndex(rows) {
+  const m = new Map();
+  (rows || []).forEach((r) => {
+    if (r.hole_id == null || !Number.isFinite(Number(r.to))) return;
+    const k = depthKey(r.hole_id, r.to);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r.value);
+  });
+  return m;
+}
+// True when a row of one of `codes` ends exactly where `r` starts in the same hole, i.e. `r` continues
+// the same unit (or the same lithology group) rather than starting it.
+function continuesUnitAbove(endIndex, r, codes) {
+  const above = endIndex.get(depthKey(r.hole_id, r.from));
+  return !!above && above.some((v) => codes.has(v));
+}
+// TASKS.csv #354 — back-to-back rows of one code in one hole (a vein logged as 12.0-12.4 + 12.4-13.1)
+// are one intercept, not two thin ones.
+function mergeTouchingIntervals(rows) {
+  const byHole = new Map();
+  rows.forEach((r) => { if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []); byHole.get(r.hole_id).push(r); });
+  const out = [];
+  byHole.forEach((list) => {
+    list.sort((a, b) => Number(a.from) - Number(b.from));
+    let cur = null;
+    list.forEach((r) => {
+      if (cur && Math.abs(Number(r.from) - Number(cur.to)) < 1e-3) { cur = { ...cur, to: Number(r.to), merged: (cur.merged || 1) + 1 }; return; }
+      if (cur) out.push(cur);
+      cur = { ...r, from: Number(r.from), to: Number(r.to) };
+    });
+    if (cur) out.push(cur);
+  });
+  return out;
+}
+
 function normInterval(r, mapping, customFields) {
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
@@ -1375,6 +1418,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // The geometry-rebuild effect only needs map data for its no-collar camera anchor, so it depends on
   // this extent signature rather than the layers themselves (style edits change mapLayers constantly).
   const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
+  // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
+  // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
+  // objects themselves. updateTerrain({visible}) or a raster opacity change used to rebuild every interval.
+  const terrainElevRange = useMemo(() => (terrain?.elevations?.length ? minMax(terrain.elevations) : null), [terrain?.elevations]);
+  const anchorSourcesKey = useMemo(() => JSON.stringify([
+    terrain ? [terrain.bbox, terrainElevRange] : null,
+    rasters?.[0]?.bbox || null,
+    (boundaries || []).map((b) => [b.id, (b.polylines || []).length, (b.polylines || []).reduce((t, pl) => t + (pl?.length || 0), 0), b.polylines?.[0]?.[0] || null]),
+    (omfObjects || []).map((o) => [o.id, (o.vertices || []).length, o.origin || null]),
+  ]), [terrain?.bbox, terrainElevRange, rasters, boundaries, omfObjects]);
   const mapLayerGroupRef = useRef(null);
   const mapLayerMeshesRef = useRef({}); // id -> THREE.Mesh (one textured drape per layer)
   const surfStructGroupRef = useRef(null);
@@ -1666,12 +1719,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // needs to rebuild geometry — the post-hoc applyLegendOverrideColors pass below (which DOES call the
   // real effectiveColor) repaints matching meshes' material.color directly instead.
   const baseColorForBuild = useCallback((layerKey, value) => LAYER_META[layerKey].colorFn(value), []);
+  // TASKS.csv #431 — the label callback is keyed on the LABEL overrides only. legendOverride also holds
+  // colours, so depending on it directly made every legend COLOUR edit (and anything else that replaced
+  // legendOverride) re-run the full geometry rebuild, whose tooltips bake labels in. A label edit still
+  // rebuilds (tooltips need the new text); a colour edit is repainted by applyLegendOverrideColors.
+  const labelOverrideSig = useMemo(() => JSON.stringify(Object.entries(legendOverride || {}).map(([k, m]) => [k, Object.entries(m || {}).filter(([, o]) => o?.label).map(([v, o]) => [v, o.label])]).filter(([, e]) => e.length)), [legendOverride]);
+  const labelOverrides = useMemo(() => Object.fromEntries(JSON.parse(labelOverrideSig).map(([k, e]) => [k, Object.fromEntries(e)])), [labelOverrideSig]);
   const effectiveLabel = useCallback((layerKey, value) => {
-    const ov = legendOverride[layerKey]?.[value];
-    if (ov?.label) return ov.label;
+    const lbl = labelOverrides[layerKey]?.[value];
+    if (lbl) return lbl;
     const meta = LAYER_META[layerKey];
     return meta.nameFn ? (meta.nameFn(value) || value) : value;
-  }, [legendOverride]);
+  }, [labelOverrides]);
   const isRowVisible = useCallback((layerKey, row) => {
     const meta = LAYER_META[layerKey];
     if (meta.numeric) { const range = numericRange[layerKey]; if (range && (row.value < range.min || row.value > range.max)) return false; return true; }
@@ -1685,11 +1744,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // unchanged/unaffected — out of scope for this pass), just left for the small post-hoc visibility
   // pass below (applyCategoryVisibility) to hide via `.visible = false` instead of never existing —
   // so toggling a category chip becomes a cheap per-mesh flip instead of a full rebuild.
+  // TASKS.csv #431 — depends on numericRange ONLY. It used to delegate to isRowVisible, whose deps include
+  // categoryFilter, so every category chip toggle changed this callback and re-ran the full rebuild —
+  // undoing #227's "cheap toggle" (up to 2.6 s per click at 24k intervals, #209).
   const isRowVisibleForBuild = useCallback((groupKey, row) => {
     const meta = LAYER_META[groupKey];
-    if (meta.numeric) return isRowVisible(groupKey, row);
+    if (meta?.numeric) { const range = numericRange[groupKey]; if (range && (row.value < range.min || row.value > range.max)) return false; }
     return true;
-  }, [isRowVisible]);
+  }, [numericRange]);
   // TASKS.csv #227 (continuation) — the post-hoc half of the pair above: walks each category-
   // filterable layer's already-built children and hides the ones whose tagged catValue is in that
   // layer's categoryFilter set, using the exact same `hidden.has(String(value))` semantics
@@ -2159,8 +2221,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // the scale that matters here; measured render cost is unchanged (see this row's notes).
     // Deliberately NOT adding shadow maps or an ambient-occlusion pass: those are the usual answers to
     // "make the 3D look better" and both are a real per-frame cost on this project's target hardware.
-    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-    const dl = new THREE.DirectionalLight(0xffffff, 0.85); dl.position.set(200, 400, 200); scene.add(dl);
+    // TASKS.csv #376 — x PI. three r160 uses physical light units by default (renderer._useLegacyLights is
+    // false, so lights get scaleFactor 1) while Lambert divides by PI, so 0.45 + 0.85 (tuned above in
+    // legacy terms) lit a surface at most (0.45+0.85)/PI = 0.41 of its colour in linear light: the #306/#319
+    // grade classes rendered far darker than designed (pale L* ~39-62 against a target of 88.9, the high
+    // class near-black) and unlit MeshBasic drapes/collars looked much brighter than the tubes beside them.
+    // 0.35 + 0.65 (x PI) keeps #308's ~2.9:1 shading range and tops out at exactly 1.0 — a surface facing
+    // the headlight shows its designed colour, nothing clips. Same uniforms, zero extra cost.
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35 * Math.PI));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.65 * Math.PI); dl.position.set(200, 400, 200); scene.add(dl);
     headlightRef.current = dl;
     // The grid itself is now built/rebuilt by a dedicated effect below (see gridGroupRef), driven by
     // gridConfig — replaces this single hardcoded GridHelper so visibility/size/divisions/color/3D
@@ -2185,6 +2254,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         cs.target.z + cs.radius * Math.sin(cs.phi) * Math.cos(cs.theta)
       );
       camera.lookAt(cs.target);
+      // TASKS.csv #377 — near plane follows the orbit distance. With near fixed at 0.1 m and far 5,000 km a
+      // 24-bit depth buffer resolves only ~2.9 m at the 2,200 m overview (~15 m at 5 km), 10-20x coarser
+      // than the drape offset (0.15 m) and map-layer lifts (0.3 m+), so drapes and map layers z-fought the
+      // terrain. 1% of the orbit radius gives ~100x the precision at overview; only geometry closer to the
+      // camera than that is clipped, and zooming in brings near down with it. Not logarithmicDepthBuffer:
+      // that disables early-z, a real per-frame cost on an integrated GPU.
+      const wantNear = Math.max(0.1, cs.radius * 0.01);
+      if (Math.abs(camera.near - wantNear) > wantNear * 0.05) { camera.near = wantNear; camera.updateProjectionMatrix(); }
       // TASKS.csv #308 (2) — headlight: keep the single DirectionalLight with the camera so the model
       // is lit consistently from every azimuth instead of collapsing to flat ambient on the far side.
       // Raised half an orbit-radius above the camera rather than sitting exactly on it, because a light
@@ -2965,7 +3042,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
       const halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
       const halfW = halfH * aspect;
-      orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, camera.near, camera.far);
+      orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one
       orthoCamera.position.copy(camera.position);
       orthoCamera.quaternion.copy(camera.quaternion);
       orthoCamera.updateProjectionMatrix();
@@ -3692,8 +3769,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // litho and alteration, so a vein pick could be silently excluded by a filter with no UI to see it,
     // and (c)'s named sets could not have contained one at all. Listing it closes both gaps at once.
     [["litho", "Lithology"], ["alt", "Alteration"], ["vein", "Vein / dyke"]].forEach(([layerKey, layerLabel]) => {
+      const ends = intervalEndIndex(layers[layerKey]); // #354 — skip row splits inside one unit
       (layers[layerKey] || []).forEach((r) => {
         if (isNaN(r.from)) return;
+        if (continuesUnitAbove(ends, r, new Set([r.value]))) return;
         const t = traces.find((tr) => tr.hole_id === r.hole_id);
         if (!t) return;
         const p = findOnTrace(t.pts, r.from);
@@ -3721,8 +3800,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const codes = new Set(isGroup ? (target.codes || []) : [target]);
     const domain = domains.find((d) => d.id === modelDomainId);
     const points = [];
+    // TASKS.csv #354 — only real tops: a row whose interval above (same hole) is also one of `codes`
+    // continues the unit. For a lithology GROUP that also drops the internal AND/BAS boundaries between
+    // member codes, which are not contacts of the grouped unit either.
+    const litEnds = intervalEndIndex(layers.litho);
+    let splitsSkipped = 0;
     traces.forEach((t) => {
       (layers.litho || []).filter((r) => r.hole_id === t.hole_id && codes.has(r.value) && !isNaN(r.from)).forEach((r) => {
+        if (continuesUnitAbove(litEnds, r, codes)) { splitsSkipped++; return; }
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
         if (excludedIntercepts.includes(interceptId("litho", r))) return;
@@ -3756,6 +3841,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // contact tagged with the same unit name + "this is its upper contact" IS an interface point for
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
+    if (splitsSkipped && !silent) setNotices((p) => [...p, `${unitName}: ${splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same ${isGroup ? "group" : "unit"}) were not used as contacts.`]);
     let sectionContactCount = 0;
     if (includeSectionContacts) {
       const o = originRef.current;
@@ -4207,12 +4293,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           && !excludedIntercepts.includes(interceptId("vein", r)) // #84 — reviewed-out intercepts never model
           && interceptInActiveSet(interceptId("vein", r))); // #52 (c) — restricted to the active intercept set, if any
         if (!rows.length) throw new Error(`No "${veinValue}" intervals found — nothing to model.`);
+        // TASKS.csv #354 — back-to-back rows of this vein in one hole are one intercept (HW of the first,
+        // FW of the last), not several thin ones that the midplane/thickness fit would read as separate veins.
+        const mergedRows = mergeTouchingIntervals(rows);
+        if (mergedRows.length < rows.length) setNotices((q) => [...q, `Vein "${veinValue}": ${rows.length - mergedRows.length} back-to-back row split(s) merged into single intercepts.`]);
 
         // Both contacts of every intercept, in world ENU (east, north, elevation) — the frame vein.js,
         // trueWidth.js and stereonet.js all speak, so no conversion happens inside the maths.
         const intercepts = [];
         let unplaceable = 0;
-        rows.forEach((r) => {
+        mergedRows.forEach((r) => {
           const t = traceOf.get(r.hole_id);
           if (!t) { unplaceable++; return; }
           const a = findOnTraceWorld(t, Number(r.from));
@@ -5061,7 +5151,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           bbs.push([xr.min, yr.min, xr.max, yr.max]);
         });
         if (!bbs.length) return null;
-        return [Math.min(...bbs.map((b) => b[0])), Math.min(...bbs.map((b) => b[1])), Math.max(...bbs.map((b) => b[2])), Math.max(...bbs.map((b) => b[3]))];
+        return [arrMin(bbs.map((b) => b[0])), arrMin(bbs.map((b) => b[1])), arrMax(bbs.map((b) => b[2])), arrMax(bbs.map((b) => b[3]))];
       })();
       const anchorBbox = terrain?.bbox || rasters?.[0]?.bbox || boundaryBbox || omfBbox || geophysPtsBbox || surfaceSamplesBbox || mapLayersBbox || null;
       if (anchorBbox) {
@@ -5097,7 +5187,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // path below, just using this branch's own rox/roy/roz and a local buildErrors since the main
         // one isn't declared until after this early return). Without this, the anchor-bbox fit above
         // would correctly frame the camera on the right spot, but nothing would actually be drawn there.
-        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => isRowVisible("geophys_pts", r));
+        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => isRowVisibleForBuild("geophys_pts", r)); // #431
         if (geophysPtsRows.length) {
           const gBuildErrors = [];
           const vals = geophysPtsRows.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
@@ -5192,7 +5282,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // here across ALL holes/rows (still respecting the current visibility filter) so values compare
     // consistently across the whole project — same approach the geophysics point cloud already used.
     const numericRangeFor = (groupKey, rows) => {
-      const numeric = (rows || []).filter((r) => isRowVisible(groupKey, r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
+      const numeric = (rows || []).filter((r) => isRowVisibleForBuild(groupKey, r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
       return minMax(numeric); // not Math.min/max(...) — see layers.js's minMax comment
     };
     const globalPointRanges = {
@@ -5460,7 +5550,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // the same origin-recentering (ox/oy/oz) and axis convention as everything else in the scene
     // (scene x = world x - ox, scene y = world z - oz [elevation], scene z = -(world y - oy)
     // [-northing]) so they line up correctly with drillholes rather than needing their own transform.
-    const geophysPts = (layers.geophys_pts || []).filter((r) => isRowVisible("geophys_pts", r));
+    const geophysPts = (layers.geophys_pts || []).filter((r) => isRowVisibleForBuild("geophys_pts", r)); // #431
     if (geophysPts.length) {
       const vals = geophysPts.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
       const { min, max } = minMax(vals); // not Math.min/max(...) — a real airborne survey import can have far more points than the JS engine's argument-spread limit allows (see layers.js's minMax comment)
@@ -5552,7 +5642,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisible, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, terrain, rasters, boundaries, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, omfObjects, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //
@@ -6131,7 +6221,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   useEffect(() => {
     const group = surfStructGroupRef.current;
     if (!group) return;
-    Object.values(surfStructObjsRef.current).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); }); });
+    Object.values(surfStructObjsRef.current).forEach((g) => { group.remove(g); g.children.forEach((c) => { c.geometry?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); }); }); // #433 — InstancedMesh buffers
     surfStructObjsRef.current = {};
     const { x: ox, y: oy, z: oz } = originRef.current;
     const up = new THREE.Vector3(0, 1, 0);
@@ -6329,6 +6419,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         group.remove(mesh);
         mesh.geometry.dispose();
         mesh.material.dispose();
+        mesh.dispose?.(); // TASKS.csv #433 — an InstancedMesh's instance buffers are only freed by its own dispose()
         delete voxelMeshesRef.current[id];
       }
     });
@@ -6338,7 +6429,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     voxelModels.forEach((model) => {
       // Always rebuilt from scratch (see comment above) — dispose any previous instance of this model.
       const prev = voxelMeshesRef.current[model.id];
-      if (prev) { group.remove(prev); prev.geometry.dispose(); prev.material.dispose(); delete voxelMeshesRef.current[model.id]; }
+      // TASKS.csv #433 — prev.dispose() too: in three r160 the instanceMatrix/instanceColor GPU buffers are
+      // released only by InstancedMesh's own 'dispose' event, so every opacity drag, threshold change or
+      // visibility toggle (all rebuild this effect) leaked ~7.6 MB per 100k-cell model on the shared-RAM iGPU.
+      if (prev) { group.remove(prev); prev.geometry.dispose(); prev.material.dispose(); prev.dispose?.(); delete voxelMeshesRef.current[model.id]; }
 
       const threshold = Number.isFinite(model.threshold) ? model.threshold : -Infinity;
       // TASKS.csv #188 — drillhole targeting module: "an option in the voxels that will turn off

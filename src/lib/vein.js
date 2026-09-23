@@ -45,6 +45,7 @@
 // z = elevation (up) — the same frame desurveyHole and trueWidth.js/stereonet.js already speak, so no
 // conversion happens in here at all. Callers convert to scene coordinates themselves.
 import { trueWidthFactor } from "./trueWidth.js";
+import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const DEG = 180 / Math.PI;
 
@@ -251,8 +252,8 @@ export function buildVeinModel(intercepts, opts = {}) {
 
   // Grid extent in the plane.
   const us = local.map((l) => l.u), vs = local.map((l) => l.v);
-  const uMin0 = Math.min(...us), uMax0 = Math.max(...us);
-  const vMin0 = Math.min(...vs), vMax0 = Math.max(...vs);
+  const uMin0 = arrMin(us), uMax0 = arrMax(us);
+  const vMin0 = arrMin(vs), vMax0 = arrMax(vs);
   const span = Math.max(uMax0 - uMin0, vMax0 - vMin0, 1);
   // Median nearest-neighbour spacing between intercepts in the plane — the natural scale for both the
   // search radius and the cell size, exactly as autoHaloParams does for the halo tool.
@@ -475,7 +476,7 @@ export function buildVeinModel(intercepts, opts = {}) {
     solid: { positions: solidPos, faces: solidFaces },
     thickness: {
       sampled,
-      trueMin: Math.min(...sampled), trueMax: Math.max(...sampled),
+      trueMin: arrMin(sampled), trueMax: arrMax(sampled),
       trueMean: sampled.reduce((a, b) => a + b, 0) / sampled.length,
       downholeMean: downhole.reduce((a, b) => a + b, 0) / downhole.length,
       factors: thick.map((t) => t.factor),

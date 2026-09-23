@@ -16,6 +16,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // broken out by domain, not element-vs-element relationships.
 
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "magsusc", "structure"];
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -161,7 +162,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
     if (!overallStats) return null;
     const vals = logScale ? allValues.filter((v) => v > 0).map((v) => Math.log10(v)) : allValues;
     if (!vals.length) return null;
-    const min = Math.min(...vals), max = Math.max(...vals);
+    const min = arrMin(vals), max = arrMax(vals);
     const binCount = niceBinCount(vals.length);
     const width = (max - min) || 1;
     const binW = width / binCount;
@@ -172,7 +173,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       if (i < 0) i = 0;
       bins[i]++;
     });
-    return { bins, min, max, binW, maxCount: Math.max(...bins) };
+    return { bins, min, max, binW, maxCount: arrMax(bins) };
   }, [allValues, logScale, overallStats]);
 
   const exportCSV = () => {
@@ -347,8 +348,8 @@ function BoxPlots({ groups, domainLabel }) {
   if (!groups.length) return null;
   const w = 640, rowH = 34, padL = 90, padR = 20;
   const h = groups.length * rowH + 20;
-  const globalMin = Math.min(...groups.map((g) => g.stats.min));
-  const globalMax = Math.max(...groups.map((g) => g.stats.max));
+  const globalMin = arrMin(groups.map((g) => g.stats.min));
+  const globalMax = arrMax(groups.map((g) => g.stats.max));
   const range = (globalMax - globalMin) || 1;
   const x = (v) => padL + ((v - globalMin) / range) * (w - padL - padR);
   return (

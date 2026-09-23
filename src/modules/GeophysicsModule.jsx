@@ -27,6 +27,7 @@ import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -255,7 +256,7 @@ export default function GeophysicsModule() {
   const defaultSrtmBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
     const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
-    const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
     const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
     const corners = [
       [xmin - marginX, ymin - marginY], [xmax + marginX, ymin - marginY],
@@ -264,7 +265,7 @@ export default function GeophysicsModule() {
     const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+    return [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)];
   };
 
   // TASKS.csv #200 — "the option to select a polygon or a raster to use as boundary": reprojects
@@ -279,7 +280,7 @@ export default function GeophysicsModule() {
       const xs = [], ys = [];
       for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
       if (!xs.length) continue;
-      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys) });
+      jobs.push({ id: `boundary_${b.id}`, label: `Boundary: ${b.name}`, xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys) });
     }
     for (const r of rasters) {
       if (!r.bbox) continue;
@@ -291,7 +292,7 @@ export default function GeophysicsModule() {
       const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (lonLats.some((ll) => !ll)) return null;
       const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
-      return { id: j.id, label: j.label, bboxLonLat: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] };
+      return { id: j.id, label: j.label, bboxLonLat: [arrMin(lons), arrMin(lats), arrMax(lons), arrMax(lats)] };
     }));
     return options.filter(Boolean);
   };
@@ -889,7 +890,7 @@ export default function GeophysicsModule() {
                 <button
                   onClick={() => {
                     const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
-                    const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+                    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
                     const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, name: `geophys_pts_idw_${idwCellSize}m` });

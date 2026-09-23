@@ -26,6 +26,7 @@ import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #2
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 export default function GeochemModule() {
   const store = useStore();
@@ -66,7 +67,7 @@ export default function GeochemModule() {
       const v = valueIn(sample, colorElement, "ppm", elementUnits);
       if (v == null) return "#eef1f4";
       const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
-      const min = Math.min(...vals), max = Math.max(...vals);
+      const min = arrMin(vals), max = arrMax(vals);
       const t = max > min ? (v - min) / (max - min) : 0.5;
       const lo = [70, 110, 190], hi = [220, 70, 60];
       return `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`;

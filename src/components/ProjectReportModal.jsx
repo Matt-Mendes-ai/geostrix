@@ -17,6 +17,7 @@ import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 function elementStats(rows, elements) {
   const unitOf = Object.fromEntries(elements.map((e) => [e.symbol, e.unit]));
@@ -24,7 +25,7 @@ function elementStats(rows, elements) {
     const vals = rows.map((r) => valueIn(r, e.symbol, unitOf[e.symbol] || "ppm", unitOf)).filter((v) => v != null);
     if (!vals.length) return { symbol: e.symbol, unit: unitOf[e.symbol] || "ppm", n: 0, mean: "", min: "", max: "" };
     const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
-    return { symbol: e.symbol, unit: unitOf[e.symbol] || "ppm", n: vals.length, mean: mean.toFixed(3), min: Math.min(...vals).toFixed(3), max: Math.max(...vals).toFixed(3) };
+    return { symbol: e.symbol, unit: unitOf[e.symbol] || "ppm", n: vals.length, mean: mean.toFixed(3), min: arrMin(vals).toFixed(3), max: arrMax(vals).toFixed(3) };
   });
 }
 
@@ -38,7 +39,7 @@ export default function ProjectReportModal({ store, onClose }) {
     survey.forEach((s) => { if (!surveyByHole.has(s.hole_id)) surveyByHole.set(s.hole_id, []); surveyByHole.get(s.hole_id).push(s); });
     const totalMetres = collars.reduce((sum, c) => {
       const hs = surveyByHole.get(c.hole_id);
-      const maxDepth = hs?.length ? Math.max(...hs.map((s) => s.depth)) : (c.length || 0);
+      const maxDepth = hs?.length ? arrMax(hs.map((s) => s.depth)) : (c.length || 0);
       return sum + (Number.isFinite(maxDepth) ? maxDepth : 0);
     }, 0);
 

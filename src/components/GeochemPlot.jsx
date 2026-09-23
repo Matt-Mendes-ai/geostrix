@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from "react";
 import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochem.js";
 import { minMax } from "../lib/layers.js";
+import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const W = 620, H = 560, PAD = 60;
 
@@ -199,8 +200,8 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
   const hiddenCount = lines.length - shown.length;
 
   const allVals = shown.flatMap((l) => l.profile.map((p) => p.value).filter((v) => v != null));
-  const ymin = allVals.length ? Math.pow(10, Math.floor(Math.log10(Math.min(...allVals, 0.9)))) : 0.1;
-  const ymax = allVals.length ? Math.pow(10, Math.ceil(Math.log10(Math.max(...allVals, 1.1)))) : 100;
+  const ymin = allVals.length ? Math.pow(10, Math.floor(Math.log10(Math.min(arrMin(allVals), 0.9)))) : 0.1;
+  const ymax = allVals.length ? Math.pow(10, Math.ceil(Math.log10(Math.max(arrMax(allVals), 1.1)))) : 100;
   const sy = (v) => H - PAD - ((Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin))) * innerH;
   const yticks = logTicks(ymin, ymax);
 
