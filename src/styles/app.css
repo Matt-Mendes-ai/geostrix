@@ -21,9 +21,14 @@
   --color-text: #1a2028;
   --color-text-strong: #2a3340;
   --color-text-secondary: #55606e;
-  --color-text-muted: #94a1b0;
-  --color-text-faint: #6b7684;
-  --color-text-caption: #7b8794;
+  /* TASKS.csv #384 — muted/faint/caption collapsed to one grey that passes WCAG AA (4.5:1) on BOTH the
+     white panels (4.98:1) and the #f4f5f7 subtle panels (4.57:1). #94a1b0 was 2.63:1 on white across ~236
+     uses (section labels, explanations, notices) — hard to read on a budget laptop panel in daylight.
+     Still clearly lighter than text-secondary (#55606e, 6.39:1). Disabled stays light on purpose (WCAG
+     exempts disabled controls, and it must look disabled). */
+  --color-text-muted: #65717e;
+  --color-text-faint: #65717e;
+  --color-text-caption: #65717e;
   --color-text-disabled: #9aa5b3;
   --color-accent: #e2a63c;
   --color-accent-dark: #8a6a1f;
@@ -32,7 +37,11 @@
   --color-info: #4a9be0;
   --color-primary: #2f6fe0;
   --color-success-bg: #1e3629;
-  --color-success-text: #8fd9ab;
+  --color-success-text: #8fd9ab; /* for text ON the dark success background only — see success-fg */
+  /* TASKS.csv #384 — success/danger text for LIGHT backgrounds. success-text/danger-text are dark-theme
+     tokens (1.66:1 and 2.16:1 on white) that ~50 lines used as plain text on white. */
+  --color-success-fg: #2e7d4f;
+  --color-danger-fg: #b23a2e;
   --color-success-border: #3d6b52;
   --color-success-border-soft: #4a6b4a;
   --color-danger-bg: #2a1f1f;
@@ -162,7 +171,7 @@ input, select { font-family: inherit; }
 .ge-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
 .ge-tab-close { flex-shrink: 0; color: var(--color-text-muted); border-radius: 3px; }
-.ge-tab-close:hover { color: var(--color-danger-text); background: #fdeceb; }
+.ge-tab-close:hover { color: var(--color-danger-fg); background: #fdeceb; } /* #384 */
 .ge-tab-add {
   display: flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; margin-top: 4px; flex-shrink: 0;

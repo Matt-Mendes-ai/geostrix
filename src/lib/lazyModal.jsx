@@ -1,4 +1,6 @@
 import React, { Suspense } from "react";
+import ErrorBoundary from "../components/ErrorBoundary.jsx";
+import { useStore } from "./store.jsx";
 
 // TASKS.csv #301 — defer a modal's code until it is actually opened.
 //
@@ -23,10 +25,15 @@ export function lazyModal(loader) {
   // Called once per module at import time, so this component identity is stable across renders —
   // defining it per-render would remount the modal (and lose its state) on every parent update.
   return function LazyModal(props) {
+    // TASKS.csv #442 — each modal gets its own error boundary (inside the store), so one broken modal
+    // closes itself instead of unmounting the whole app and every piece of unsaved project state.
+    const { saveProject } = useStore() || {};
     return (
-      <Suspense fallback={null}>
-        <Inner {...props} />
-      </Suspense>
+      <ErrorBoundary scope="modal" onClose={props.onClose} onSave={saveProject}>
+        <Suspense fallback={null}>
+          <Inner {...props} />
+        </Suspense>
+      </ErrorBoundary>
     );
   };
 }

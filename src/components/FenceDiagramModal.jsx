@@ -159,7 +159,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
             Fence / panel diagram
-            {panel && <span style={{ fontWeight: 400, fontSize: 11, color: "#94a1b0" }}>
+            {panel && <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>
               {" "}— {panel.holes.length} hole{panel.holes.length === 1 ? "" : "s"}, section {panel.line.azimuth.toFixed(1)}°
               {ve !== 1 ? ` · ${ve}× vertical exaggeration` : " · true scale"}
             </span>}
@@ -195,7 +195,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                 <g>
                   <rect x={PAD_L} y={22} width={PLOT_W} height={RIBBON_H - 6} fill="#f7f8fa" stroke="#e6e8ec" strokeWidth={1} />
                   <line x1={PAD_L} y1={22 + (RIBBON_H - 6) / 2} x2={PAD_L + PLOT_W} y2={22 + (RIBBON_H - 6) / 2} stroke="#c7ccd3" strokeWidth={1} strokeDasharray="4 3" />
-                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#94a1b0">Offset from section plane (same scale as the section)</text>
+                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#65717e">Offset from section plane (same scale as the section)</text>
                   {panel.holes.map((h) => {
                     const cy = 22 + (RIBBON_H - 6) / 2;
                     const dy = Math.max(-(RIBBON_H - 8) / 2, Math.min((RIBBON_H - 8) / 2, h.offset / view.sPerPx));
@@ -247,7 +247,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                     <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028" />
                     <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
-                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#94a1b0"}>
+                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
                       {h.maxAbsOffset < 0.05 ? "on section" : `${h.maxAbsOffset.toFixed(0)} m off`}
                     </text>
                   </g>
@@ -316,7 +316,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                   <label key={id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.2, color: over ? "#a8741a" : "#1a2028", padding: "1px 0" }}>
                     <input type="checkbox" checked={selected.has(id)} onChange={() => toggle(id)} />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{id}</span>
-                    {h && <span style={{ color: over ? "#a8741a" : "#94a1b0", fontSize: 9 }}>{h.maxAbsOffset.toFixed(0)}m</span>}
+                    {h && <span style={{ color: over ? "#a8741a" : "#65717e", fontSize: 9 }}>{h.maxAbsOffset.toFixed(0)}m</span>}
                   </label>
                 );
               })}

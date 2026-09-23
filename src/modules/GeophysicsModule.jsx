@@ -859,7 +859,7 @@ export default function GeophysicsModule() {
               </button>
               <button
                 onClick={() => { if (window.confirm(`Clear all ${rows.length} geophysics point(s)?`)) replaceLayer("geophys_pts", []); }}
-                style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-text)" }}
+                style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-fg)" }}
               >
                 <Trash2 size={14} /> Clear
               </button>

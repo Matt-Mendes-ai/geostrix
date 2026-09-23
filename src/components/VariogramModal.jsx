@@ -327,20 +327,20 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
                   return (
                     <g key={f}>
                       <line x1={plot.ML} y1={plot.Y(g)} x2={plot.W - plot.MR} y2={plot.Y(g)} stroke="#eef0f3" />
-                      <text x={plot.ML - 6} y={plot.Y(g) + 3} textAnchor="end" fontSize="9" fill="#94a1b0">{plot.fmtY(g)}</text>
+                      <text x={plot.ML - 6} y={plot.Y(g) + 3} textAnchor="end" fontSize="9" fill="#65717e">{plot.fmtY(g)}</text>
                     </g>
                   );
                 })}
                 {[0, 0.25, 0.5, 0.75, 1].map((f) => {
                   const h = plot.xMax * f;
-                  return <text key={f} x={plot.X(h)} y={plot.H - plot.MB + 14} textAnchor="middle" fontSize="9" fill="#94a1b0">{h.toFixed(0)}</text>;
+                  return <text key={f} x={plot.X(h)} y={plot.H - plot.MB + 14} textAnchor="middle" fontSize="9" fill="#65717e">{h.toFixed(0)}</text>;
                 })}
                 <text x={(plot.ML + plot.W - plot.MR) / 2} y={plot.H - 6} textAnchor="middle" fontSize="10" fill="#55606e">Lag distance h (m)</text>
                 <text x={12} y={(plot.MT + plot.H - plot.MB) / 2} textAnchor="middle" fontSize="10" fill="#55606e" transform={`rotate(-90 12 ${(plot.MT + plot.H - plot.MB) / 2})`}>Semivariance γ(h)</text>
 
                 {/* population variance — the level a stationary variable's variogram should flatten at */}
                 <line x1={plot.ML} y1={plot.Y(result.vg.variance)} x2={plot.W - plot.MR} y2={plot.Y(result.vg.variance)} stroke="#94a1b0" strokeDasharray="4 3" />
-                <text x={plot.W - plot.MR - 4} y={plot.Y(result.vg.variance) - 4} textAnchor="end" fontSize="9" fill="#94a1b0">population variance</text>
+                <text x={plot.W - plot.MR - 4} y={plot.Y(result.vg.variance) - 4} textAnchor="end" fontSize="9" fill="#65717e">population variance</text>
 
                 {/* fitted model */}
                 {plot.curve && <path d={plot.curve} fill="none" stroke="#e2a63c" strokeWidth="2" />}

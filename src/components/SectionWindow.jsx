@@ -176,9 +176,9 @@ export default function SectionWindow() {
   return (
     <div style={{ height: "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
       <div className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <span>{data.title || "Cross-section"} <span style={{ color: "#94a1b0", fontSize: 11, marginLeft: 8 }}>azimuth {data.section?.azimuth?.toFixed(0)}° · buffer ±{data.section?.corridor}m</span></span>
+        <span>{data.title || "Cross-section"} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>azimuth {data.section?.azimuth?.toFixed(0)}° · buffer ±{data.section?.corridor}m</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#94a1b0", fontSize: 11 }}>{data.holes?.length || 0} holes · {data.intervals?.length || 0} intervals · {data.points?.length || 0} points · {data.planes?.length || 0} structures{data.elevationProfile?.length > 1 ? " · terrain profile" : ""}{data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : ""}</span>
+          <span style={{ color: "#65717e", fontSize: 11 }}>{data.holes?.length || 0} holes · {data.intervals?.length || 0} intervals · {data.points?.length || 0} points · {data.planes?.length || 0} structures{data.elevationProfile?.length > 1 ? " · terrain profile" : ""}{data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : ""}</span>
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
@@ -227,7 +227,7 @@ export default function SectionWindow() {
           {contacts.map((c) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
-              {c.unit} <span style={{ color: "#94a1b0" }}>(upper contact)</span>
+              {c.unit} <span style={{ color: "#65717e" }}>(upper contact)</span>
               <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
             </div>
           ))}
@@ -340,7 +340,7 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
       {elevTicks(minZ, maxZ).map((z, i) => (
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sz(z) + 3} fill="#94a1b0" fontSize="9.5" textAnchor="end">{z.toFixed(0)}</text>
+          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
 

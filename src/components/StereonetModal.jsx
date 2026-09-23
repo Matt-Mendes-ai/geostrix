@@ -353,7 +353,7 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                     <div style={{ color: "#55606e" }}>
                       Peak <b style={{ color: "#1a2028" }}>{contour.maxSigma.toFixed(1)}σ</b> · counting circle {contour.countingAngleDeg.toFixed(1)}° (n={contour.n})
                     </div>
-                    <div style={{ color: "#94a1b0", marginTop: 2 }}>
+                    <div style={{ color: "#65717e", marginTop: 2 }}>
                       Unshaded = no denser than a random spread. Higher σ = a tighter, more significant cluster.
                     </div>
                     {/* TASKS.csv #276 — small-n reliability caveat. Kamb's σ is a ratio against the
@@ -374,7 +374,7 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                     )}
                   </>
                 ) : (
-                  <div style={{ color: "#94a1b0" }}>Density contours need at least 3 picks with a valid dip and dip direction.</div>
+                  <div style={{ color: "#65717e" }}>Density contours need at least 3 picks with a valid dip and dip direction.</div>
                 )}
               </div>
             )}
@@ -387,8 +387,8 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
             {stats ? (
               <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
                 <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>Mean orientation (n={stats.n})</div>
-                <div>Plane: <b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#94a1b0" }}>(dip/dipdir)</span></div>
-                <div>Pole: {stats.meanPlunge.toFixed(1)}° → {stats.meanTrend.toFixed(1)}° <span style={{ color: "#94a1b0" }}>(plunge/trend)</span></div>
+                <div>Plane: <b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>(dip/dipdir)</span></div>
+                <div>Pole: {stats.meanPlunge.toFixed(1)}° → {stats.meanTrend.toFixed(1)}° <span style={{ color: "#65717e" }}>(plunge/trend)</span></div>
                 <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
                   <div title="Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.">k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
                   <div title="95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.">α95 = {stats.alpha95.toFixed(1)}°</div>
@@ -410,10 +410,10 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                   <div style={{ marginTop: 5, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
                     <div style={{ fontWeight: 600, color: "#7d3c98", marginBottom: 2 }}>Fold (β) axis</div>
                     <div title="The line the folding rotates about — the pole to the best-fit girdle. For a cylindrical fold this is the single most useful orientation to take away from this population; the mean plane above is not.">
-                      <b>{stats.betaPlunge.toFixed(1)}° → {stats.betaTrend.toFixed(1)}°</b> <span style={{ color: "#94a1b0" }}>(plunge/trend)</span>
+                      <b>{stats.betaPlunge.toFixed(1)}° → {stats.betaTrend.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>(plunge/trend)</span>
                     </div>
                     <div style={{ color: "#55606e" }} title="The great circle the poles spread along (the π-circle), given as a plane.">
-                      Girdle plane: {stats.girdleDip.toFixed(1)}° / {stats.girdleDipDir.toFixed(1)}° <span style={{ color: "#94a1b0" }}>(dip/dipdir)</span>
+                      Girdle plane: {stats.girdleDip.toFixed(1)}° / {stats.girdleDipDir.toFixed(1)}° <span style={{ color: "#65717e" }}>(dip/dipdir)</span>
                     </div>
                   </div>
                 )}
@@ -426,12 +426,12 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
                 )}
               </div>
             ) : (
-              <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.4 }}>
+              <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4 }}>
                 Mean orientation needs at least 2 picks with a valid dip and dip direction.
               </div>
             )}
 
-            <div style={{ fontSize: 10, color: "#94a1b0", lineHeight: 1.4, marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4, marginTop: 4 }}>
               {view === "rose" ? (
                 rose
                   ? <>Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0)}{terzaghi ? " (weighted)" : ""}, n = {rose.n}.</>
@@ -505,7 +505,7 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
       {/* Ring labels in COUNTS, not radius fractions — the radius is √-scaled, so a ring at half the
           radius is a quarter of the peak count and reading it as "half" would be wrong. */}
       {rose && [0.5, 1].map((f) => (
-        <text key={`rl_${f}`} x={CX + 3} y={CY - R * f - 2} fontSize={9} fill="#94a1b0">
+        <text key={`rl_${f}`} x={CX + 3} y={CY - R * f - 2} fontSize={9} fill="#65717e">
           {(rose.maxCount * f * f).toFixed(rose.maxCount * f * f % 1 ? 1 : 0)}
         </text>
       ))}
@@ -513,7 +513,7 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
       <text x={CX} y={CY + R + 14} textAnchor="middle" fontSize={11} fill="#55606e">S</text>
       <text x={CX + R + 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">E</text>
       <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">W</text>
-      {!rose && <text x={CX} y={CY} textAnchor="middle" fontSize={11} fill="#94a1b0">No picks with a valid dip / dip direction</text>}
+      {!rose && <text x={CX} y={CY} textAnchor="middle" fontSize={11} fill="#65717e">No picks with a valid dip / dip direction</text>}
     </svg>
   );
 }

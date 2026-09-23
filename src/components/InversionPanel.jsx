@@ -354,9 +354,9 @@ export default function InversionPanel({ pBtn, numInput }) {
                   <button onClick={() => cancelInversionJob()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}><Square size={12} /> Cancel</button>
                 </div>
               )}
-              {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-text)", marginTop: 6 }}>{job.error}</div>}
+              {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{job.error}</div>}
               {job && !running && job.status?.state === "cancelled" && <div style={{ ...small, marginTop: 6 }}>Cancelled — the worker process was stopped and its memory released.</div>}
-              {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{msg.text}</div>}
+              {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
               {lastResult && !running && <FitView last={lastResult} method={method} />}
             </>
           )}
@@ -387,7 +387,7 @@ function FitView({ last, method }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>Did it fit?</div>
-      <div role="status" style={{ ...small, color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-text)" }}>{verdict.text}</div>
+      <div role="status" style={{ ...small, color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{verdict.text}</div>
       <MisfitChart history={result.history} target={result.target} />
       <PointMaps stations={st} observed={obs} predicted={result.predicted} std={std} unit={unit} />
       <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>

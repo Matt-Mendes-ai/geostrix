@@ -123,7 +123,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     {blanks.map((b, i) => (
                       <tr key={i} style={b.flagged ? { background: "var(--color-danger-bg)" } : undefined}>
                         <td style={td}>{b.hole_id}</td><td style={td}>{b.from}</td><td style={td}>{b.to}</td>
-                        <td style={{ ...td, color: b.flagged ? "var(--color-danger-text)" : "var(--color-text)" }}>{b.value.toFixed(4)}</td>
+                        <td style={{ ...td, color: b.flagged ? "var(--color-danger-fg)" : "var(--color-text)" }}>{b.value.toFixed(4)}</td>
                         <td style={td}>{b.flagged ? "⚠ contaminated" : "ok"}</td>
                       </tr>
                     ))}
@@ -147,7 +147,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                         <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td>
                         <td style={td}>{d.from}–{d.to}</td>
                         <td style={td}>{d.v1.toFixed(4)}</td><td style={td}>{d.v2.toFixed(4)}</td>
-                        <td style={{ ...td, color: d.rpd > 20 ? "var(--color-danger-text)" : "var(--color-text)" }}>{d.rpd.toFixed(1)}{d.rpd > 20 ? " ⚠" : ""}</td>
+                        <td style={{ ...td, color: d.rpd > 20 ? "var(--color-danger-fg)" : "var(--color-text)" }}>{d.rpd.toFixed(1)}{d.rpd > 20 ? " ⚠" : ""}</td>
                       </tr>
                     ))}
                   </tbody>

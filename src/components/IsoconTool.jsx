@@ -101,7 +101,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            Check intervals into a <b style={{ color: "var(--color-success-text)" }}>precursor</b> group (least-altered equivalent of the protolith) and an <b style={{ color: "#e08a8a" }}>altered</b> group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.
+            Check intervals into a <b style={{ color: "var(--color-success-fg)" }}>precursor</b> group (least-altered equivalent of the protolith) and an <b style={{ color: "var(--color-danger-fg)" }}>altered</b> group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.
           </div>
 
           <input
@@ -136,8 +136,8 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
             <>
               <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: "var(--font-size-base)" }}>
                 <div><span style={{ color: "var(--color-text-muted)" }}>Isocon slope (Mo/M):</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>Bulk mass change:</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-text)" : "#e08a8a" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>Immobile-set agreement:</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-text)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}% CV</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>Bulk mass change:</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>Immobile-set agreement:</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}% CV</b></div>
               </div>
               {result.spread >= 0.1 && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.</div>
@@ -156,7 +156,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
                       <td style={td}>{r.precursor.toFixed(2)}</td>
                       <td style={td}>{r.altered.toFixed(2)}</td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
-                      <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-text)" : "#e08a8a" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
+                      <td style={{ ...td, color: r.pct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{r.pct >= 0 ? "+" : ""}{r.pct.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>

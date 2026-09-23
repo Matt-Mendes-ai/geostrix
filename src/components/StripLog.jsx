@@ -100,7 +100,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Strip log — {holeId}</div>
-            <div style={{ fontSize: 11, color: "#94a1b0", marginTop: 2 }}>{maxDepth.toFixed(0)} m total depth</div>
+            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{maxDepth.toFixed(0)} m total depth</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
@@ -163,14 +163,14 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill="#c9863d" opacity="0.85" />;
                   })}
                   {t.kind === "assaybar" && assaySymbol && (
-                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#94a1b0">max {assayMax.toFixed(2)}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">max {assayMax.toFixed(2)}</text>
                   )}
                 </g>
               );
             })}
           </svg>
           {tracks.every((t) => t.rows.length === 0) && (
-            <div style={{ fontSize: 12, color: "#94a1b0", marginTop: 12 }}>No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id "{holeId}".</div>
+            <div style={{ fontSize: 12, color: "#65717e", marginTop: 12 }}>No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id "{holeId}".</div>
           )}
         </div>
 

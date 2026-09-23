@@ -158,7 +158,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
-            Downhole structure (tadpole) — {activeHole || "no hole"} <span style={{ fontWeight: 400, fontSize: 11, color: "#94a1b0" }}>({holePicks.length} pick{holePicks.length === 1 ? "" : "s"})</span>
+            Downhole structure (tadpole) — {activeHole || "no hole"} <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>({holePicks.length} pick{holePicks.length === 1 ? "" : "s"})</span>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
@@ -246,7 +246,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                       </rect>
                     );
                   })}
-                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#94a1b0">max {freq.max}</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">max {freq.max}</text>
                 </>
               )}
             </svg>

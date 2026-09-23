@@ -109,9 +109,10 @@ export const colors = {
   text: "#1a2028", // primary text
   textStrong: "#2a3340", // a slightly softer near-black used for table body text
   textSecondary: "#55606e", // labels, secondary body text — the single most-used color in the app
-  textMuted: "#94a1b0", // placeholders, section-label uppercase captions, disabled text
-  textFaint: "#6b7684", // a third, slightly different muted tone (tab labels, some captions)
-  textCaption: "#7b8794", // small explanatory captions under controls
+  // TASKS.csv #384 — muted/faint/caption are one AA-passing grey now (4.98:1 on white, 4.57:1 on bgSubtle).
+  textMuted: "#65717e", // placeholders, section-label uppercase captions
+  textFaint: "#65717e", // tab labels, some captions
+  textCaption: "#65717e", // small explanatory captions under controls
   textDisabled: "#9aa5b3", // the "hidden"/off state of a visibility toggle
 
   // Accent (gold — this app's primary brand/highlight color, used for active states and emphasis)
@@ -126,13 +127,15 @@ export const colors = {
 
   // Success / positive / primary-action (green) — this app's "primary button" color pair
   successBg: "#1e3629",
-  successText: "#8fd9ab",
+  successText: "#8fd9ab", // on the dark success background only
+  successFg: "#2e7d4f", // TASKS.csv #384 — success text on light backgrounds (5.05:1 on white)
   successBorder: "#3d6b52",
   successBorderSoft: "#4a6b4a", // the softer green outline on the updater's own buttons
 
   // Danger / destructive / error (red)
   dangerBg: "#2a1f1f",
-  dangerText: "#e0a0a0",
+  dangerText: "#e0a0a0", // on the dark danger background only
+  dangerFg: "#b23a2e", // TASKS.csv #384 — danger text on light backgrounds (5.94:1 on white)
   dangerBorder: "#4a2f2f",
   dangerBorderStrong: "#5a2a2a", // an unmapped/invalid field's own border
   dangerIcon: "#8a5555",

@@ -385,17 +385,17 @@ export default function GeochemModule() {
         <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
         <button onClick={() => pxrfRef.current.click()} style={panelBtn}><Beaker size={14} /> Import pXRF</button>
         <input ref={pxrfRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
-        <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
 
-        <div style={{ fontSize: 11, color: "#94a1b0", margin: "10px 0 4px" }}>
+        <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? `${assays.length} intervals · ${assayElements.length} elements` : "No assays loaded"}
         </div>
 
         <div className="ge-section-label" style={{ marginTop: 18 }}>Surface samples</div>
         <button onClick={() => surfaceFileRef.current.click()} style={panelBtn}><Upload size={14} /> Import surface samples</button>
         <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
-        <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 2, lineHeight: 1.4 }}>Soil, rock-chip, stream-sediment, or talus-fines samples — no drillhole required.</div>
-        <div style={{ fontSize: 11, color: "#94a1b0", margin: "10px 0 4px" }}>
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Soil, rock-chip, stream-sediment, or talus-fines samples — no drillhole required.</div>
+        <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
         </div>
 
@@ -405,7 +405,7 @@ export default function GeochemModule() {
             <button onClick={() => runMethod("alteration_boxplot")} style={genBtn}><FlaskConical size={14} /> Alteration (AI/CCPI)</button>
             <button onClick={() => runMethod("litho_winchester")} style={genBtn}>Lithology (Winchester)</button>
             <button onClick={() => runMethod("litho_jensen")} style={genBtn}>Lithology (Jensen)</button>
-            <div style={{ fontSize: 10, color: "#94a1b0", marginTop: 6, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>
+            <div style={{ fontSize: 10, color: "#65717e", marginTop: 6, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
             <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={14} /> Isocon / mass-change calculator</button>
@@ -476,7 +476,7 @@ export default function GeochemModule() {
           </div>
         </div>
 
-        <div style={{ fontSize: 11, color: "#94a1b0", marginBottom: 10 }}>{diagram.caption}</div>
+        <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{diagram.caption}</div>
 
         {missingForDiagram.length > 0 && (
           <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>
@@ -509,7 +509,7 @@ export default function GeochemModule() {
         ) : (
           <div style={{ maxWidth: 680 }}>
             <GeochemPlot diagramId={diagramId} samples={assays} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} />
-            <div style={{ fontSize: 10.5, color: "#94a1b0", marginTop: 8 }}>
+            <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
               {diagram.spider
                 ? `${assays.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
                 : `${assays.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}

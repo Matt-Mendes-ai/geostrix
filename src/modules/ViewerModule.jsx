@@ -8551,7 +8551,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
           under-supported contact picks, which a closed envelope has none of.
         </div>
-        {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-text)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
+        {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
 
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
             and cannot do (paired by construction; thickness between holes is interpolated), because a
@@ -8599,7 +8599,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out
           or swell no hole intersected will not be in it.
         </div>
-        {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-text)", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
+        {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
 
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
             sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
@@ -9349,7 +9349,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             technique CompassRose uses), a real camera-synced N/E/Z arrow-triad drawn directly onto
             the canvas at this same bottom-left corner — no DOM element needed for it anymore. */}
         {sectionMode && sectionPreview && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-text)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Start point set — click the end point</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Start point set — click the end point</div>
         )}
         {/* TASKS.csv #298 — the toast is now a real ARIA live region, so setNotices() messages reach a
             screen-reader user instead of only sighted ones. Two details matter here:
@@ -9385,7 +9385,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         )}
         {rectZoomMode && !rectVisual && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-text)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Drag a rectangle to zoom in — right-click to cancel</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Drag a rectangle to zoom in — right-click to cancel</div>
         )}
         {rectVisual && (
           <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed var(--color-info)", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
@@ -9715,7 +9715,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       {dragOver && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)", textAlign: "center" }}>Drop CSV(s) to import<div style={{ fontSize: "var(--font-size-base)", color: "var(--color-success-text)", marginTop: 4, fontWeight: 400 }}>Drop several at once — each auto-detects its layer, or asks if unsure</div></div>
+          <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)", textAlign: "center" }}>Drop CSV(s) to import<div style={{ fontSize: "var(--font-size-base)", color: "var(--color-success-fg)", marginTop: 4, fontWeight: 400 }}>Drop several at once — each auto-detects its layer, or asks if unsure</div></div>
         </div>
       )}
 
@@ -9975,7 +9975,7 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
         title={`Strip log — ${hole_id}`}
         style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "#94a1b0")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
       >
         <FileBarChart2 size={12} />
       </span>
@@ -10521,7 +10521,7 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurve
           <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || "Planned hole"}</div>
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-text)" : "var(--color-text-caption)" }}>
+              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>
                 Nearest existing hole: {nearestReal.hole_id} — {nearestReal.distance.toFixed(1)} m{tooClose ? ` (within the ${minSpacing} m minimum)` : ""}
               </div>
             ) : (

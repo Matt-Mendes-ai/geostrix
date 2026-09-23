@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
@@ -351,13 +352,19 @@ export default function App() {
             via ViewerModule's own `visible` prop (display:none internally), not unmounted — see that
             file's own comments for the render-loop/pointer-handler/viewport-request guards this
             required. No `key` here — a key would defeat the whole point by forcing a fresh instance. */}
-        <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
-        <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
-          {active === "geochem" && <GeochemModule />}
-          {active === "geophysics" && <GeophysicsModule />}
-          {active === "raster" && <RasterModule />}
-          {active === "layout" && <LayoutModule />}
-        </Suspense>
+        {/* TASKS.csv #442 — per-module boundaries inside the store: a render error in one tab no longer
+            unmounts the project (the outer boundary in main.jsx is now only the last resort). */}
+        <ErrorBoundary scope="module" label="3D view" onSave={saveProject}>
+          <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
+        </ErrorBoundary>
+        <ErrorBoundary scope="module" key={active} label={active} onSave={saveProject}>
+          <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
+            {active === "geochem" && <GeochemModule />}
+            {active === "geophysics" && <GeophysicsModule />}
+            {active === "raster" && <RasterModule />}
+            {active === "layout" && <LayoutModule />}
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
@@ -456,7 +463,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : "off"}
       </span>
       {taskProgress && (
-        <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
+        <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           {/* TASKS.csv #321 — `indeterminate` stages (loading, building sensitivities) have no real fraction
               to show, so they get a moving stripe and no number rather than an invented percentage. */}
           <span role="progressbar" aria-label={taskProgress.label} aria-valuemin={0} aria-valuemax={100}
@@ -472,7 +479,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
           {taskProgress.onCancel && (
-            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-text)" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
+            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-fg)" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
           )}
         </span>
       )}
@@ -483,16 +490,16 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         <span style={{ color: "var(--color-text-muted)" }}>Checking for updates…</span>
       )}
       {updater.event === "not-available" && updater.manual && (
-        <span style={{ color: "var(--color-success-text)" }}>You're up to date (v{updater.currentVersion})</span>
+        <span style={{ color: "var(--color-success-fg)" }}>You're up to date (v{updater.currentVersion})</span>
       )}
       {updater.event === "available" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           Update available (v{updater.version})
-          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Download</button>
+          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Download</button>
         </span>
       )}
       {updater.event === "downloading" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           Downloading update…
           <span style={{ width: 60, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
             <span style={{ display: "block", height: "100%", width: `${updater.percent || 0}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />
@@ -501,13 +508,13 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         </span>
       )}
       {updater.event === "downloaded" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           Update v{updater.version} ready
-          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-text)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Restart &amp; install</button>
+          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Restart &amp; install</button>
         </span>
       )}
       {updater.event === "error" && (
-        <span title={updater.message} style={{ color: "var(--color-danger-text)" }}>Update check failed</span>
+        <span title={updater.message} style={{ color: "var(--color-danger-fg)" }}>Update check failed</span>
       )}
       <span className="spacer" />
       {epsgEditing ? (

@@ -1238,7 +1238,15 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   useLayoutEffect(() => {
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
-    if (JSON.stringify(current) === JSON.stringify(undoPrevSnapshot.current)) return; // no real change (e.g. a set-to-same-value call)
+    // TASKS.csv #432 — per-field REFERENCE comparison instead of JSON.stringify of the whole snapshot twice.
+    // Every tracked collection is replaced immutably by its setter, and this effect only fires when one
+    // of them changed identity, so a reference check finds the same "did anything change" answer without
+    // serialising the project: the stringify pair measured 67 ms per change on the Harry sample and
+    // 540-975 ms (plus ~33 MB of garbage) on large projects, inside a layout effect, and Layout drags set
+    // layoutElements on every mousemove. Only difference: a setter that writes a NEW but identical copy
+    // now counts as a change (marks the tab dirty / records an identical undo step) — harmless, and rare.
+    const prevSnap = undoPrevSnapshot.current;
+    if (Object.keys(current).every((k) => current[k] === prevSnap[k])) return; // no real change
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
     if (!undoBeforeBurst.current) undoBeforeBurst.current = undoPrevSnapshot.current;
     undoPrevSnapshot.current = current;

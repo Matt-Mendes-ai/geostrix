@@ -117,7 +117,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
           {!targetComplete ? (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Fill in all three coordinates to solve.</div>
           ) : !solved ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>The target is the collar itself — no direction is defined.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>The target is the collar itself — no direction is defined.</div>
           ) : (
             <div>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
@@ -126,7 +126,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
                   {solved.horizontal.toFixed(1)} m horizontal, {Math.abs(solved.vertical).toFixed(1)} m {solved.vertical >= 0 ? "below" : "above"} the collar
                 </div>
                 {solved.dip > 0 && (
-                  <div style={{ color: "var(--color-danger-text)" }}>This target is ABOVE the collar — the solved dip is an uphole.</div>
+                  <div style={{ color: "var(--color-danger-fg)" }}>This target is ABOVE the collar — the solved dip is an uphole.</div>
                 )}
               </div>
               {miss && (
@@ -160,7 +160,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
             {(collars || []).map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
           </select>
           {drilledId && !comparison && (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-text)" }}>Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.</div>
           )}
           {comparison && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", lineHeight: 1.6 }}>

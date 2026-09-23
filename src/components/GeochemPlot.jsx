@@ -97,13 +97,13 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
       {xticks.map((t, i) => (
         <g key={`x${i}`}>
           <line x1={sx(t)} y1={PAD} x2={sx(t)} y2={H - PAD} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={sx(t)} y={H - PAD + 16} fill="#94a1b0" fontSize="9.5" textAnchor="middle">{fmtTick(t)}</text>
+          <text x={sx(t)} y={H - PAD + 16} fill="#65717e" fontSize="9.5" textAnchor="middle">{fmtTick(t)}</text>
         </g>
       ))}
       {yticks.map((t, i) => (
         <g key={`y${i}`}>
           <line x1={PAD} y1={sy(t)} x2={W - PAD} y2={sy(t)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sy(t) + 3} fill="#94a1b0" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
+          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
         </g>
       ))}
 
@@ -221,7 +221,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       {yticks.map((t, i) => (
         <g key={`y${i}`}>
           <line x1={PAD} y1={sy(t)} x2={W - PAD} y2={sy(t)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sy(t) + 3} fill="#94a1b0" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
+          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
         </g>
       ))}
       {/* normalized value of 1 = same as the reference (chondrite/primitive mantle) */}
@@ -230,7 +230,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       {order.map((sym, i) => (
         <g key={sym}>
           <line x1={sx(i)} y1={PAD} x2={sx(i)} y2={H - PAD} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={sx(i)} y={H - PAD + 16} fill="#94a1b0" fontSize="9.5" textAnchor="middle">{sym}</text>
+          <text x={sx(i)} y={H - PAD + 16} fill="#65717e" fontSize="9.5" textAnchor="middle">{sym}</text>
         </g>
       ))}
 
