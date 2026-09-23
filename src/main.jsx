@@ -17,6 +17,12 @@ import "./styles/app.css";
 
 const route = window.location.hash.replace(/^#/, "").split("?")[0];
 
+// TASKS.csv #345 — a file dropped anywhere that isn't a drop zone must never navigate the window to it
+// (Chromium's default for an unhandled drop is to OPEN the file — in Electron that meant the app window
+// became file://<the dropped file>). Runs in the bubbling phase, after every module's own onDrop.
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => e.preventDefault());
+
 const root = createRoot(document.getElementById("root"));
 if (route === "/section") {
   // pop-out cross-section window: standalone, receives data via IPC

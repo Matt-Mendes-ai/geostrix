@@ -38,6 +38,51 @@ const childWindows = new Map(); // id -> BrowserWindow (cross-section pop-outs)
 let pySidecar = null; // Python FastAPI sidecar process (optional — see startPythonSidecar below)
 const PY_SIDECAR_PORT = 8765;
 
+// ---------- TASKS.csv #345 — only the app's own pages may navigate, open windows or call IPC ----------
+// Before this, nothing stopped a renderer from being navigated away from the app (a file dropped outside
+// a drop zone navigated the main window to file://... with the preload, and so window.desktop, still
+// attached), and no IPC handler checked WHO was calling. Any page that ended up in an app window could
+// therefore read files through fs-read-file. Now: navigation off the app URL is refused in every web
+// contents, every window gets the same "external links go to the OS browser" handler, and every
+// ipcMain.handle / ipcMain.on handler (wrapped once, here, before any is registered) rejects a call whose
+// sending frame isn't the app itself.
+const APP_INDEX_FILE = path.join(__dirname, "../dist/index.html");
+function isAppUrl(url) {
+  try {
+    const u = new URL(url);
+    if (isDev) return u.origin === "http://localhost:5173";
+    if (u.protocol !== "file:") return false;
+    return path.normalize(require("url").fileURLToPath(u)).toLowerCase() === path.normalize(APP_INDEX_FILE).toLowerCase();
+  } catch { return false; }
+}
+function isTrustedSender(e) {
+  const frame = e && e.senderFrame;
+  return !!frame && isAppUrl(frame.url);
+}
+{
+  const rawHandle = ipcMain.handle.bind(ipcMain);
+  ipcMain.handle = (channel, fn) => rawHandle(channel, (e, ...args) => {
+    if (!isTrustedSender(e)) throw new Error(`Blocked IPC "${channel}" from an untrusted page.`);
+    return fn(e, ...args);
+  });
+  const rawOn = ipcMain.on.bind(ipcMain);
+  ipcMain.on = (channel, fn) => rawOn(channel, (e, ...args) => { if (isTrustedSender(e)) fn(e, ...args); });
+}
+function openExternalOnly({ url }) {
+  try {
+    const proto = new URL(url).protocol;
+    if (proto === "https:" || proto === "http:") shell.openExternal(url);
+  } catch { /* unparseable URL — ignore */ }
+  return { action: "deny" };
+}
+app.on("web-contents-created", (_e, contents) => {
+  const guard = (ev, url) => { if (!isAppUrl(url)) ev.preventDefault(); };
+  contents.on("will-navigate", guard);
+  contents.on("will-redirect", guard);
+  contents.on("will-attach-webview", (ev) => ev.preventDefault());
+  contents.setWindowOpenHandler(openExternalOnly); // the section pop-out had no handler at all
+});
+
 // Optional local Python server for geoprocessing that's a better fit for Python's scientific stack
 // (scipy now; GemPy later for implicit modelling, see TASKS.csv) than reimplementing in JS. The
 // renderer talks to it directly over plain HTTP (fetch to 127.0.0.1, not IPC — see
@@ -228,13 +273,7 @@ function createMainWindow() {
   // in-app window unconditionally and hand http/https off to the OS; anything else (file:, and any
   // other scheme a future link or a compromised page might try) is dropped silently rather than
   // passed to shell.openExternal, which on Windows would happily launch a registered handler.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const proto = new URL(url).protocol;
-      if (proto === "https:" || proto === "http:") shell.openExternal(url);
-    } catch { /* unparseable URL — ignore */ }
-    return { action: "deny" };
-  });
+  mainWindow.webContents.setWindowOpenHandler(openExternalOnly); // #345 — shared with every window
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   buildMenu();
   // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
@@ -773,10 +812,22 @@ ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
 // openImportModal() path the existing file-input Import buttons already use, rather than duplicating
 // that parsing logic here. Deliberately a single whole-file read (no streaming) — import files here
 // are collar/survey/lithology CSVs or small vector packages, not multi-GB data.
+// TASKS.csv #346 — limited to the file types the app actually imports, and to a size an 8 GB laptop can
+// hold: this handler used to read ANY path the renderer named (whole-disk exfiltration for any script that
+// got into a window), whole, then base64 it (+33%) for the renderer to atob-loop back into bytes — a
+// 500 MB mis-click held ~1.5 GB at once. The Buffer is now returned as-is (IPC delivers a Uint8Array).
+const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".shp", ".shx", ".dbf", ".prj", ".cpg",
+  ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod"]);
+const READ_MAX_BYTES = 200 * 1024 * 1024;
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
+    const ext = path.extname(String(filePath || "")).toLowerCase();
+    if (!READABLE_EXT.has(ext)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` };
+    const st = await fs.promises.stat(filePath);
+    if (!st.isFile()) return { ok: false, error: "Not a file." };
+    if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
     const buf = await fs.promises.readFile(filePath);
-    return { ok: true, base64: buf.toString("base64"), name: path.basename(filePath) };
+    return { ok: true, data: buf, name: path.basename(filePath) };
   } catch (err) {
     return { ok: false, error: err.code === "EACCES" || err.code === "EPERM" ? `Permission denied: ${filePath}` : err.message };
   }

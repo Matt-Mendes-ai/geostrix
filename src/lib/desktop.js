@@ -200,6 +200,12 @@ export function base64ToFile(base64, name) {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new File([bytes], name);
 }
+// TASKS.csv #346 — fs-read-file now returns raw bytes (`data`, a Uint8Array over IPC) instead of base64;
+// accepts either so nothing breaks mid-upgrade.
+export function readResultToFile(res, name) {
+  if (res.data) return new File([res.data], name || res.name);
+  return base64ToFile(res.base64, name || res.name);
+}
 
 // ---------- bundled sample data (TASKS.csv #293) ----------
 // Returns real browser File objects for a list of files inside the shipped sample_data/ folder, so
@@ -222,7 +228,7 @@ export async function loadSampleFiles(subdir, names) {
     for (const n of names) {
       const r = await d.fsReadFile(`${res.path}${sep}${rel(n).split("/").join(sep)}`);
       if (!r.ok) throw new Error(`${n}: ${r.error || "couldn't be read"}`);
-      files.push(base64ToFile(r.base64, n));
+      files.push(readResultToFile(r, n)); // #346
     }
     return files;
   }

@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, X, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "lucide-react";
-import { fsListDir, fsListDrives, fsReadFile, base64ToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
+import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -61,7 +61,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows }) {
   const handleFilePick = useCallback(async (entry) => {
     const res = await fsReadFile(entry.path);
     if (!res.ok) return;
-    const file = base64ToFile(res.base64, res.name);
+    const file = readResultToFile(res, res.name); // #346
     noteRecentFolder(entry.path.slice(0, Math.max(0, entry.path.length - entry.name.length - 1)) || entry.path);
     onImportFile(file);
   }, [onImportFile, noteRecentFolder]);
