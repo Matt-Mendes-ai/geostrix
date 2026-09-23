@@ -11,40 +11,89 @@
 import { magColorRGB } from "./layers.js";
 
 // Grids `points` ({x,y,value}[]) onto a regular raster using inverse-distance weighting. `power`
-// controls how sharply influence falls off with distance (2 is the standard IDW default). `maxPoints`
-// caps how many of the nearest points feed each cell — full O(cells * points) with no spatial index is
-// fine at the point/cell counts this tool is meant for (a few thousand points, a few hundred cells per
-// side); a proper k-d tree would only start to matter at a scale beyond what a quick-look grid needs.
-// A cell farther than `maxDistance` from every point gets NaN (rendered transparent, not a wild
-// extrapolation) rather than being IDW'd from points that aren't actually nearby.
+// controls how sharply influence falls off with distance (2 is the standard IDW default); each cell uses
+// its `maxPoints` nearest points (ties broken as before), limited to `maxDistance` when one is given. A
+// cell farther than `maxDistance` from every point gets NaN (rendered transparent) rather than being
+// extrapolated.
+//
+// TASKS.csv #370 — exact k-nearest search over a bucket grid instead of comparing every cell with every
+// point (and, with maxDistance = Infinity, collecting and sorting ALL points per cell). Measured before:
+// 5,000 points on 100x100 = 31 s and 20,000 points on 200x200 = 397 s of frozen UI — a normal 5 km survey
+// at 25 m cells. The ring search visits buckets outward from the cell and stops once the next ring is
+// farther than the current k-th nearest point, so the result is the same set of points the brute-force
+// scan chose.
 export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, maxDistance = Infinity, maxPoints = 12 }) {
   const gridW = Math.max(1, Math.round((xmax - xmin) / cellSize));
   const gridH = Math.max(1, Math.round((ymax - ymin) / cellSize));
   const values = new Float32Array(gridW * gridH);
   const EPS = 1e-9;
+  const n = points.length;
+  if (!n) { values.fill(NaN); return { gridW, gridH, values }; }
 
+  // Bucket grid over the points: ~2 points per bucket on average.
+  let pxmin = Infinity, pymin = Infinity, pxmax = -Infinity, pymax = -Infinity;
+  for (let i = 0; i < n; i++) { const p = points[i]; if (p.x < pxmin) pxmin = p.x; if (p.x > pxmax) pxmax = p.x; if (p.y < pymin) pymin = p.y; if (p.y > pymax) pymax = p.y; }
+  const span = Math.max(pxmax - pxmin, pymax - pymin, 1e-6);
+  const bs = Math.max(span / Math.max(1, Math.ceil(Math.sqrt(n / 2))), 1e-6);
+  const bw = Math.max(1, Math.ceil((pxmax - pxmin) / bs) + 1), bh = Math.max(1, Math.ceil((pymax - pymin) / bs) + 1);
+  const counts = new Int32Array(bw * bh + 1);
+  const bx = new Int32Array(n), by = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    bx[i] = Math.min(bw - 1, Math.floor((points[i].x - pxmin) / bs));
+    by[i] = Math.min(bh - 1, Math.floor((points[i].y - pymin) / bs));
+    counts[by[i] * bw + bx[i] + 1]++;
+  }
+  for (let i = 1; i <= bw * bh; i++) counts[i] += counts[i - 1];
+  const order = new Int32Array(n);
+  const fill = counts.slice(0, bw * bh);
+  for (let i = 0; i < n; i++) order[fill[by[i] * bw + bx[i]]++] = i; // stable: preserves input order within a bucket
+
+  const k = Math.max(1, maxPoints);
+  const bestD = new Float64Array(k), bestI = new Int32Array(k);
   for (let row = 0; row < gridH; row++) {
     const cy = ymax - (row + 0.5) * cellSize; // row 0 = north, same convention as reproject.js/raster.js
     for (let col = 0; col < gridW; col++) {
       const cx = xmin + (col + 0.5) * cellSize;
-      // nearest `maxPoints` points within maxDistance, by squared distance (avoids a sqrt per point
-      // for the ones that get discarded before the final weighting pass).
-      let candidates = [];
-      for (const p of points) {
-        const dx = p.x - cx, dy = p.y - cy;
+      const cbx = Math.floor((cx - pxmin) / bs), cby = Math.floor((cy - pymin) / bs);
+      let found = 0, exact = -1;
+      const consider = (i) => {
+        const dx = points[i].x - cx, dy = points[i].y - cy;
         const d2 = dx * dx + dy * dy;
-        if (d2 <= EPS) { candidates = [{ d: 0, value: p.value }]; break; } // sitting exactly on a sample — use it exactly, skip weighting
+        if (d2 <= EPS) { if (exact < 0 || i < exact) exact = i; return; }
         const d = Math.sqrt(d2);
-        if (d <= maxDistance) candidates.push({ d, value: p.value });
+        if (d > maxDistance) return;
+        // insertion into the sorted top-k; ties keep the earlier input index first (as the stable sort did)
+        let pos = found < k ? found : k;
+        while (pos > 0 && (bestD[pos - 1] > d || (bestD[pos - 1] === d && bestI[pos - 1] > i))) pos--;
+        if (pos >= k) return;
+        const last = Math.min(found, k - 1);
+        for (let j = last; j > pos; j--) { bestD[j] = bestD[j - 1]; bestI[j] = bestI[j - 1]; }
+        bestD[pos] = d; bestI[pos] = i;
+        if (found < k) found++;
+      };
+      const visit = (gx, gy) => {
+        if (gx < 0 || gy < 0 || gx >= bw || gy >= bh) return;
+        const b = gy * bw + gx;
+        for (let q = counts[b]; q < counts[b + 1]; q++) consider(order[q]);
+      };
+      const maxRing = Math.max(bw, bh) + Math.max(Math.abs(cbx), Math.abs(cby)) + 2;
+      for (let r = 0; r <= maxRing; r++) {
+        // nearest possible distance of anything in ring r
+        const ringMin = Math.max(0, (r - 1) * bs);
+        if (ringMin > maxDistance) break;
+        if (found >= k && ringMin > bestD[k - 1]) break;
+        if (r === 0) visit(cbx, cby);
+        else {
+          for (let gx = cbx - r; gx <= cbx + r; gx++) { visit(gx, cby - r); visit(gx, cby + r); }
+          for (let gy = cby - r + 1; gy <= cby + r - 1; gy++) { visit(cbx - r, gy); visit(cbx + r, gy); }
+        }
       }
-      if (!candidates.length) { values[row * gridW + col] = NaN; continue; }
-      candidates.sort((a, b) => a.d - b.d);
-      if (candidates.length > maxPoints) candidates = candidates.slice(0, maxPoints);
-      if (candidates[0].d === 0) { values[row * gridW + col] = candidates[0].value; continue; }
+      if (exact >= 0) { values[row * gridW + col] = points[exact].value; continue; } // sitting exactly on a sample
+      if (!found) { values[row * gridW + col] = NaN; continue; }
       let wSum = 0, vSum = 0;
-      for (const c of candidates) {
-        const w = 1 / Math.pow(c.d, power);
-        wSum += w; vSum += w * c.value;
+      for (let j = 0; j < found; j++) {
+        const w = 1 / Math.pow(bestD[j], power);
+        wSum += w; vSum += w * points[bestI[j]].value;
       }
       values[row * gridW + col] = vSum / wSum;
     }
@@ -76,5 +125,8 @@ export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize,
   }
   ctx.putImageData(imgData, 0, 0);
 
-  return { name, bbox: [xmin, ymin, xmax, ymax], dataUrl: canvas.toDataURL("image/png"), gridMin: hasRange ? min : null, gridMax: hasRange ? max : null };
+  // TASKS.csv #370 — the raster covers exactly the whole cells that were gridded (cell centres are placed
+  // from xmin / ymax at cellSize steps). It used to be stretched over the raw data extent, so e.g. 130 m of
+  // data at 25 m cells (5 cells = 125 m) was drawn 4% too large and shifted.
+  return { name, bbox: [xmin, ymax - gridH * cellSize, xmin + gridW * cellSize, ymax], dataUrl: canvas.toDataURL("image/png"), gridMin: hasRange ? min : null, gridMax: hasRange ? max : null };
 }
