@@ -1073,7 +1073,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
-  importStateRef.current = { survey: store.survey, layers: store.layers };
+  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project };
   // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
   // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
   // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only
@@ -1429,6 +1429,29 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #316/#317 — draped GIS map layers and outcrop structure symbols, same own-group pattern.
   // The geometry-rebuild effect only needs map data for its no-collar camera anchor, so it depends on
   // this extent signature rather than the layers themselves (style edits change mapLayers constantly).
+  // TASKS.csv #407 — generated surfaces, imported solids and vein/structural meshes store SCENE vertices
+  // computed once against whatever origin was current when they were built. The origin is the mean of the
+  // collars, so importing or removing collars later moved every drillhole while these meshes stayed put:
+  // they drifted relative to the holes, and their OBJ/DXF exports (which add back the CURRENT origin)
+  // drifted by the same amount. meshOriginRef records the origin they were built against; whenever the
+  // rebuild effect sets a new origin, syncImplicitOrigin shifts their vertices by the difference, once.
+  const meshOriginRef = useRef({ x: 0, y: 0, z: 0 }); // same starting value as originRef: anything built before the first rebuild used it
+  const syncImplicitOrigin = () => {
+    const o = originRef.current;
+    const prev = meshOriginRef.current;
+    meshOriginRef.current = { x: o.x, y: o.y, z: o.z };
+    if (prev.x === o.x && prev.y === o.y && prev.z === o.z) return;
+    // scene = (E - ox, Z - oz, oy - N)  =>  moving from prev to o adds (prev.x - o.x, prev.z - o.z, o.y - prev.y)
+    const dx = prev.x - o.x, dy = prev.z - o.z, dz = o.y - prev.y;
+    Object.values(implicitMeshesRef.current || {}).forEach((m) => {
+      const pos = m?.geometry?.attributes?.position;
+      if (!pos) return;
+      const a = pos.array;
+      for (let i = 0; i < a.length; i += 3) { a[i] += dx; a[i + 1] += dy; a[i + 2] += dz; }
+      pos.needsUpdate = true;
+      m.geometry.computeBoundingBox(); m.geometry.computeBoundingSphere();
+    });
+  };
   const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -5189,6 +5212,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           ezMin = zr.min; ezMax = zr.max;
         }
         originRef.current = { x: ox, y: oy, z: (ezMin + ezMax) / 2 };
+        syncImplicitOrigin(); // #407
         const { x: rox, y: roy, z: roz } = originRef.current;
         const box = new THREE.Box3(
           new THREE.Vector3(bxmin - rox, ezMin - roz, -(bymax - roy)),
@@ -5249,6 +5273,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const oy = collars.reduce((s, c) => s + c.y, 0) / collars.length;
     const oz = collars.reduce((s, c) => s + c.z, 0) / collars.length;
     originRef.current = { x: ox, y: oy, z: oz };
+    syncImplicitOrigin(); // #407 — re-base surfaces/solids built against an earlier origin
 
     const allTraces = [];
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
@@ -6791,8 +6816,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // or unrecognized per-row value falls back to the single global `sourceEpsg` override exactly
       // like the pre-#205 behavior (and if that's also unset/unrecognized, its x/y is left as-is).
       let reprojectNote = "";
-      if (project?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(project.epsg)))) {
-        const toEpsg = project.epsg;
+      const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
+      if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
+        const toEpsg = liveProject.epsg;
         const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
         rows.forEach((r) => {
           const key = r._rowEpsg || "";
@@ -6829,7 +6855,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // computed FIRST (diffCollarImport, layers.js — pure and unit-verified) and the user is only
       // interrupted when it would actually change something: a re-import of the identical file, or one
       // that only adds new holes, still commits straight through with no extra click.
-      const diff = diffCollarImport(collars, rows);
+      // BUG FIX (found verifying #407, 2026-09-23): commitImportData is reached from the multi-file queue
+      // (processImportQueue, a useCallback created once), whose closure holds the FIRST render's `collars`
+      // (usually []), so a multi-file drop merged against an empty list and REPLACED every existing collar
+      // (the 37-hole sample became 2 holes after dropping a 2-hole collar file). Read the latest collars.
+      const liveCollars = importStateRef.current.collars || [];
+      const diff = diffCollarImport(liveCollars, rows);
       let overwriteExisting = true;
       if (diff.changed.length) {
         const preview = diff.changed.slice(0, 6).map((c) => {
@@ -6843,10 +6874,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           `Cancel — keep the existing collars and import only the ${diff.newHoles.length} new hole(s).`
         );
       }
-      const existingIds = new Set(collars.map((c) => c.hole_id));
+      const existingIds = new Set(liveCollars.map((c) => c.hole_id));
       const applied = overwriteExisting ? rows : rows.filter((r) => !existingIds.has(r.hole_id));
-      const map = new Map([...collars, ...applied].map((c) => [c.hole_id, c]));
-      setCollars(Array.from(map.values()));
+      setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
       // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
       // different coordinates and were updated") rather than a bare "Loaded N collars".
