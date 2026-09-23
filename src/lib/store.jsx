@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #321 — compact storage of SimPEG models
 import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod, DEFAULT_DESURVEY_METHOD } from "./desurvey.js";
 
@@ -41,6 +42,46 @@ export const useSetCursor = () => useContext(CursorSetterContext);
 // context, so every one of those ticks re-rendered every useStore() consumer including ViewerModule
 // itself — which, same as cursor, only ever calls the setter and never reads taskProgress's value in
 // its own render output (only App.jsx's status bar does). Identical split, same reasoning.
+// TASKS.csv #321 (database review) — a SimPEG model can hold tens of thousands of cells, and voxel models
+// are written into every save AND every 60 s autosave. As cell objects ({x,y,z,dx,dy,dz,value,support})
+// that is ~70-100 bytes of JSON per cell; as Float32 base64 columns it is ~4 bytes per value. Only models
+// with source "simpeg" are compacted (imported UBC/OMF models keep their existing shape, untouched). The
+// compact form is cached per model object, so the repeated snapshot/dirty-check calls re-encode nothing.
+const COMPACT_KEYS = ["x", "y", "z", "dx", "dy", "dz", "value", "support"];
+const compactCache = new WeakMap();
+export function compactVoxelModels(list) {
+  return (list || []).map((m) => {
+    if (m.source !== "simpeg" || !Array.isArray(m.cells)) return m;
+    let c = compactCache.get(m);
+    if (!c) {
+      const { cells, ...rest } = m;
+      const cols = {};
+      COMPACT_KEYS.forEach((k) => {
+        // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
+        const base = k === "x" || k === "y" || k === "z" ? cells[0]?.[k] ?? 0 : 0;
+        cols[k] = { base, b64: f32ToB64(cells.map((cell) => (cell[k] ?? NaN) - base)) };
+      });
+      c = { ...rest, compactCells: { n: cells.length, cols } };
+      compactCache.set(m, c);
+    }
+    return c;
+  });
+}
+export function expandVoxelModels(list) {
+  return (list || []).map((m) => {
+    if (!m.compactCells) return m;
+    const { compactCells, ...rest } = m;
+    const cols = {};
+    COMPACT_KEYS.forEach((k) => { const c = compactCells.cols[k]; const arr = b64ToF32(c.b64); cols[k] = (i) => arr[i] + c.base; });
+    const cells = Array.from({ length: compactCells.n }, (_, i) => {
+      const cell = {};
+      COMPACT_KEYS.forEach((k) => { cell[k] = cols[k](i); });
+      return cell;
+    });
+    return { ...rest, cells };
+  });
+}
+
 const TaskProgressValueContext = createContext(null);
 const TaskProgressSetterContext = createContext(() => {});
 export function TaskProgressProvider({ children }) {
@@ -791,7 +832,7 @@ export function StoreProvider({ children }) {
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => ({
     version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
-    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections,
+    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels: compactVoxelModels(voxelModels), layerGroups, layoutPages, activeLayoutPageId, dbConnections,
     excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
     generatedSurfaces, modelDomains, // TASKS.csv #52
   });
@@ -900,7 +941,7 @@ export function StoreProvider({ children }) {
     setGeophysPtsMin(data.geophysPtsMin ?? null);
     setGeophysPtsMax(data.geophysPtsMax ?? null);
     // Fallback for pre-#27/#28 files: no voxel models yet.
-    setVoxelModels(data.voxelModels || []);
+    setVoxelModels(expandVoxelModels(data.voxelModels || [])); // TASKS.csv #321 — SimPEG models are stored compact
     setLayerGroups(data.layerGroups || []);
     setDbConnections(data.dbConnections || []);
     setExcludedIntercepts(data.excludedIntercepts || []);
@@ -1034,7 +1075,7 @@ export function StoreProvider({ children }) {
       const snap = autosaveRef.current;
       if (!snap.hasWork) return; // nothing worth protecting yet — an empty new project autosaving itself would just be noise
       const { hasWork: _drop, ...payload } = snap;
-      autosaveWrite(JSON.stringify({ version: PROJECT_VERSION, ...payload, autosavedAt: Date.now() }));
+      autosaveWrite(JSON.stringify({ version: PROJECT_VERSION, ...payload, voxelModels: compactVoxelModels(payload.voxelModels), autosavedAt: Date.now() }));
     }, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);

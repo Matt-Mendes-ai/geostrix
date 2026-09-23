@@ -11,11 +11,17 @@ Run standalone for testing (see python-sidecar/README.md):
 """
 
 from typing import List, Literal
+import hmac
+import importlib.metadata
+import importlib.util
+import math
+import os
 import threading
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse  # TASKS.csv #314 — unhandled-exception handler below
 from pydantic import BaseModel, Field
 
@@ -31,6 +37,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# TASKS.csv #321 (security review) — hardening that matters now the sidecar can run jobs that hold
+# gigabytes of RAM for minutes. Binding to 127.0.0.1 keeps OTHER machines out, but not other things on
+# THIS machine: with permissive CORS, any web page the user has open could POST to 127.0.0.1:8765.
+#  * Per-launch token: electron/main.js generates a random secret each launch and passes it here in
+#    GEOSTRIX_SIDECAR_TOKEN; the renderer gets it over IPC and sends it as X-GeoStrix-Token. Every request
+#    except /health and CORS preflights must carry it. When the variable is unset (a developer running
+#    `uvicorn` by hand for the browser-only vite preview) no token is required — same as before.
+#  * Host check (TrustedHostMiddleware): defeats DNS-rebinding, where a hostile domain re-points itself at
+#    127.0.0.1 to make the browser treat the sidecar as same-origin.
+#  * Body-size cap: uvicorn has no request size limit of its own, and pydantic limits only apply after the
+#    whole body has been read and parsed.
+_TOKEN = os.environ.get("GEOSTRIX_SIDECAR_TOKEN") or None
+MAX_BODY_BYTES = 30 * 1024 * 1024
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+
+
+@app.middleware("http")
+async def _guard(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
+    cl = request.headers.get("content-length")
+    if request.method in ("POST", "PUT") and (cl is None or int(cl) > MAX_BODY_BYTES):
+        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."})
+    if _TOKEN and request.url.path != "/health":
+        sent = request.headers.get("x-geostrix-token", "")
+        if not hmac.compare_digest(sent, _TOKEN):
+            return JSONResponse(status_code=401, content={"detail": "Missing or wrong sidecar token."})
+    return await call_next(request)
 
 # TASKS.csv #62 — background gempy warm-up. Root cause of "why is modelling so slow / times out
 # the first time": /implicit-model's own `import gempy` (further down this file) used to be the
@@ -87,9 +122,145 @@ async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signat
     )
 
 
+# TASKS.csv #321 — api_version + capabilities so the renderer can tell "sidecar too old for this
+# feature" apart from "sidecar not reachable". Checked WITHOUT importing SimPEG (that costs 2.4-6.1 s,
+# measured, and is only ever done inside a job's own process — see app/jobs.py).
+API_VERSION = 2
+
+
+def _dist_version(name):
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "geostrix-sidecar", "version": "0.1.0"}
+    simpeg_v = _dist_version("simpeg")
+    # Availability is decided by whether the modules can be FOUND (no import), not by metadata alone — a
+    # frozen build without copied metadata once reported SimPEG missing while it ran jobs fine (#321).
+    available = bool(importlib.util.find_spec("simpeg") and importlib.util.find_spec("choclo"))
+    return {
+        "status": "ok", "service": "geostrix-sidecar", "version": "0.1.0", "api_version": API_VERSION,
+        "capabilities": {
+            "potentialFields": {"available": available,
+                                "simpeg": simpeg_v, "discretize": _dist_version("discretize"), "choclo": _dist_version("choclo")},
+        },
+    }
+
+
+# ---------------------------------------------------------------------------------------------
+# TASKS.csv #321 — SimPEG potential-field forward modelling and inversion (jobs run in their own process)
+# ---------------------------------------------------------------------------------------------
+MAX_STATIONS = 20_000
+MAX_TOPO = 60_000
+
+
+def _finite_rows(rows, width, name, limit):
+    if not isinstance(rows, list) or len(rows) > limit:
+        raise HTTPException(400, f"{name}: expected a list of at most {limit} rows.")
+    for r in rows:
+        if not isinstance(r, list) or len(r) != width or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in r):
+            raise HTTPException(400, f"{name}: every row must be {width} finite numbers.")
+
+
+def _validate_potential(req):
+    if req.get("method") not in ("mag", "grav"):
+        raise HTTPException(400, "method must be 'mag' or 'grav'.")
+    if req.get("kind") not in ("forward", "inversion"):
+        raise HTTPException(400, "kind must be 'forward' or 'inversion'.")
+    _finite_rows(req.get("stations"), 3, "stations", MAX_STATIONS)
+    if not req["stations"]:
+        raise HTTPException(400, "No stations.")
+    if req.get("topo") is not None:
+        _finite_rows(req["topo"], 3, "topo", MAX_TOPO)
+    m = req.get("mesh") or {}
+    try:
+        cell, depth = float(m["coreCell"]), float(m["depth"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "mesh.coreCell and mesh.depth are required numbers.")
+    if not (1.0 <= cell <= 1000.0) or not (cell <= depth <= 20_000.0):
+        raise HTTPException(400, "mesh.coreCell must be 1-1000 m and mesh.depth between the cell size and 20 km.")
+    # Refuse an absurd mesh BEFORE it is built: the cell count is known analytically.
+    xs = [r[0] for r in req["stations"]]; ys = [r[1] for r in req["stations"]]
+    n_core = ((max(xs) - min(xs)) / cell + 5) * ((max(ys) - min(ys)) / cell + 5) * (depth / cell + 5)
+    if n_core > 3_000_000:
+        raise HTTPException(400, f"That mesh would have ~{int(n_core):,} core cells — use a larger core cell.")
+    if req["method"] == "mag":
+        f = req.get("field") or {}
+        for k in ("strength", "inclination", "declination"):
+            if not isinstance(f.get(k), (int, float)) or not math.isfinite(f[k]):
+                raise HTTPException(400, f"field.{k} is required for magnetics — GeoStrix never assumes the inducing field.")
+    if req["kind"] == "inversion":
+        obs = req.get("observed")
+        if not isinstance(obs, list) or len(obs) != len(req["stations"]) or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in obs):
+            raise HTTPException(400, "observed must hold one finite value per station.")
+        u = req.get("uncertainty") or {}
+        if not isinstance(u.get("floor"), (int, float)) or not (u["floor"] > 0):
+            raise HTTPException(400, "uncertainty.floor is required and must be above zero — GeoStrix never assumes it.")
+        if not isinstance(req.get("reg"), dict):
+            req["reg"] = {}
+        req["reg"]["maxIter"] = int(min(40, max(1, int(req["reg"].get("maxIter", 15)))))
+    else:
+        plates = req.get("plates") or ([req["plate"]] if req.get("plate") else [])
+        if not plates or len(plates) > 40:
+            raise HTTPException(400, "A forward model needs 1-40 plates.")
+        for pl in plates:
+            for k in ("cx", "cy", "cz", "dip", "dipDirection", "strikeLength", "dipExtent", "thickness", "contrast"):
+                if not isinstance(pl.get(k), (int, float)) or not math.isfinite(pl[k]):
+                    raise HTTPException(400, f"plate.{k} is required.")
+
+
+@app.post("/v1/geophys/plan")
+def geophys_plan(req: dict = Body(...)):
+    _validate_potential(req)
+    from app.geophys.potential import plan  # numpy/scipy only — no SimPEG import in the parent
+    from app.jobs import sensitivity_cap_bytes
+    return plan(req, sensitivity_cap_bytes())
+
+
+@app.post("/v1/jobs")
+def start_job(req: dict = Body(...)):
+    if req.get("jobKind") != "potential":
+        raise HTTPException(400, "jobKind must be 'potential'.")
+    payload = req.get("request") or {}
+    _validate_potential(payload)
+    from app.geophys.potential import plan
+    from app.jobs import manager, sensitivity_cap_bytes
+    p = plan(payload, sensitivity_cap_bytes())
+    if not p["ok"]:
+        raise HTTPException(400, " ".join(p["reasons"]))
+    job_id = manager.start("potential", payload)
+    if job_id is None:
+        raise HTTPException(409, "Another inversion is already running — wait for it or cancel it first.")
+    return {"id": job_id, "plan": p}
+
+
+@app.get("/v1/jobs/{job_id}")
+def job_status(job_id: str):
+    from app.jobs import manager
+    st = manager.status(job_id)
+    if st is None:
+        raise HTTPException(404, "No such job.")
+    return st
+
+
+@app.get("/v1/jobs/{job_id}/result")
+def job_result(job_id: str):
+    from app.jobs import manager
+    r = manager.result(job_id)
+    if r is None:
+        raise HTTPException(404, "No finished result for that job.")
+    return r
+
+
+@app.post("/v1/jobs/{job_id}/cancel")
+def job_cancel(job_id: str):
+    from app.jobs import manager
+    if not manager.cancel(job_id):
+        raise HTTPException(404, "No such job.")
+    return {"cancelled": True}
 
 
 class Point3D(BaseModel):

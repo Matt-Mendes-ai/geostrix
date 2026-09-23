@@ -977,6 +977,14 @@ function spatialClusters(points, threshold) {
 // lines up with the terrain grid, so each raster-mesh vertex needs an interpolated height at an
 // arbitrary point, not just a nearest grid cell). Row 0 of `elevations` is the bbox's north/ymax edge
 // (matching parseDEM's own row order, which matches image row order for a north-up GeoTIFF).
+// TASKS.csv #321 — a SimPEG inversion model carries each cell's normalised sensitivity ("support": how
+// much the data can see that cell). Cells below the model's supportCutoff are hidden everywhere a voxel
+// model is drawn or sampled, because their value reflects the regularisation, not the rock. Imported
+// models have no `support` and are unaffected.
+function voxelCellSupported(model, c) {
+  return !(model.supportCutoff > 0 && c.support != null && c.support < model.supportCutoff);
+}
+
 function sampleTerrainElevation(terrain, x, y) {
   const [xmin, ymin, xmax, ymax] = terrain.bbox;
   const { gridW, gridH, elevations } = terrain;
@@ -6342,7 +6350,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // own Cutoff slider is untouched and keeps working exactly as before (rangeMax simply stays at
       // its unbounded default unless the Targeting tab's controls are used).
       const rangeMax = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
-      const cells = model.cells.filter((c) => c.value >= threshold && c.value <= rangeMax);
+      const cells = model.cells.filter((c) => c.value >= threshold && c.value <= rangeMax && voxelCellSupported(model, c));
       if (!cells.length) return;
 
       const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -7226,6 +7234,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       else if (model.visible === false) return;
       const rects = [];
       model.cells.forEach((c) => {
+        if (!voxelCellSupported(model, c)) return; // TASKS.csv #321
         if (distToSegment(c.x, c.y, a.x, a.y, b.x, b.y) > corridor) return;
         const l = along(c.x, c.y);
         const halfWidthL = Math.abs(secUx * (c.dx || 0)) / 2 + Math.abs(secUy * (c.dy || 0)) / 2;
@@ -10152,7 +10161,7 @@ function VoxelRangeRow({ model, onUpdate }) {
   const onMinInput = (v) => { setDispMin(v); push({ threshold: v }); };
   const onMaxInput = (v) => { setDispMax(v); push({ rangeMax: v }); };
   const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: model.min, rangeMax: model.max }); };
-  const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax).length;
+  const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax && voxelCellSupported(model, c)).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
   return (
     <div style={{ marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -10342,7 +10351,7 @@ function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels
     // currently-narrowed voxel model) within that model's own active threshold/rangeMax band —
     // straightforward axis-aligned box containment against the block model's own cell extents.
     const targetHits = targetModels.map((model) => {
-      const cells = model.cells.filter((c) => c.value >= model.threshold && c.value <= model.rangeMax);
+      const cells = model.cells.filter((c) => c.value >= model.threshold && c.value <= model.rangeMax && voxelCellSupported(model, c));
       let metres = 0;
       for (let i = 1; i < pts.length; i++) {
         const mid = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2, z: (pts[i].z + pts[i - 1].z) / 2 };

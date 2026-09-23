@@ -25,6 +25,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
+import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -1094,6 +1095,10 @@ export default function GeophysicsModule() {
             </div>
           </div>
         ))}
+
+        {/* TASKS.csv #321 — SimPEG magnetics/gravity forward modelling and inversion, fed by the survey
+            points and terrain above; results land in Voxel / block models below. */}
+        <InversionPanel pBtn={pBtn} numInput={numInput} />
 
         {/* TASKS.csv #316/#317 — GIS map layers draped on the terrain + outcrop structure measurements */}
         <SurfaceMappingPanel pBtn={pBtn} numInput={numInput} />

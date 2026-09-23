@@ -8,3 +8,14 @@ pydantic>=2.6
 # add — the engine's default backend is pure numpy (no pytensor/aesara compile step), verified by
 # actually installing + running an end-to-end model in the dev sandbox before wiring the endpoint.
 gempy>=2026.0.3
+
+# TASKS.csv #321 — SimPEG potential-field modelling (MIT). Pinned exactly: the inversion's numerical
+# behaviour and the gravity sign handling in app/geophys/potential.py were verified against these versions
+# (tests/test_potential.py), and the security review asked for exact pins on the new dependency tree.
+# choclo pulls in numba/llvmlite (fast potential-field kernels); tested frozen with PyInstaller --onedir.
+simpeg==0.25.2
+discretize==0.12.0
+geoana==0.8.1
+choclo==0.3.2
+pymatsolver==0.4.0
+libdlf==0.3.0

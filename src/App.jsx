@@ -450,11 +450,17 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       </span>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-text)" }}>
-          <span style={{ width: 80, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
-            <span style={{ display: "block", height: "100%", width: `${pct}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />
+          {/* TASKS.csv #321 — `indeterminate` stages (loading, building sensitivities) have no real fraction
+              to show, so they get a moving stripe and no number rather than an invented percentage. */}
+          <span role="progressbar" aria-label={taskProgress.label} aria-valuemin={0} aria-valuemax={100}
+            aria-valuenow={taskProgress.indeterminate ? undefined : pct} aria-valuetext={taskProgress.indeterminate ? "in progress" : `${pct}%`}
+            style={{ width: 80, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block", position: "relative" }}>
+            {taskProgress.indeterminate
+              ? <span className="ge-progress-indeterminate" style={{ position: "absolute", top: 0, bottom: 0, width: "35%", background: "var(--color-accent)" }} />
+              : <span style={{ display: "block", height: "100%", width: `${pct}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />}
           </span>
           <span style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskProgress.label}</span>
-          <span className="val">{pct}%</span>
+          {!taskProgress.indeterminate && <span className="val">{pct}%</span>}
           {/* TASKS.csv #231 — a real GemPy run can take 80s+ with no way to back out short of force-
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}

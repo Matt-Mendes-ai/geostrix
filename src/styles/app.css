@@ -213,3 +213,8 @@ input, select { font-family: inherit; }
 /* AttributeTableModal.jsx — editable cell focus ring, so it's clear a cell is being typed into */
 .ge-attr-cell:hover { border-color: var(--color-border) !important; }
 .ge-attr-cell:focus { border-color: var(--color-accent) !important; outline: none; background: #fdf7ea; }
+
+/* TASKS.csv #321 — status-bar progress with no real fraction to report (see App.jsx StatusBar). */
+@keyframes ge-progress-slide { from { left: -35%; } to { left: 100%; } }
+.ge-progress-indeterminate { animation: ge-progress-slide 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ge-progress-indeterminate { animation: none; left: 0; width: 100% !important; opacity: 0.45; } }

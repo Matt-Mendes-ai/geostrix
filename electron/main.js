@@ -59,7 +59,9 @@ const PY_SIDECAR_PORT = 8765;
 // worse than before this pass, not a new failure mode.
 function startPythonSidecar() {
   const frozenName = process.platform === "win32" ? "geostrix-sidecar.exe" : "geostrix-sidecar";
-  const frozenPath = path.join(process.resourcesPath || "", "python-sidecar", frozenName);
+  // TASKS.csv #321 — the sidecar is now a --onedir build (see python-sidecar/build_sidecar.js): its exe
+  // lives in its own folder beside _internal/.
+  const frozenPath = path.join(process.resourcesPath || "", "python-sidecar", "geostrix-sidecar", frozenName);
   const useFrozen = app.isPackaged && fs.existsSync(frozenPath);
 
   const cwd = path.join(__dirname, "../python-sidecar");
@@ -98,6 +100,11 @@ function startPythonSidecar() {
   try {
     pySidecar = spawn(cmd, args, {
       cwd: useFrozen ? path.dirname(frozenPath) : cwd,
+      // TASKS.csv #321 (security review) — the sidecar now runs jobs that can hold gigabytes of RAM for
+      // minutes, and 127.0.0.1 is reachable from anything on this machine, including web pages open in a
+      // browser. A random per-launch secret, required on every request except /health, means only this
+      // app's renderer (which fetches it over IPC below) can drive it.
+      env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN },
       // dev: inherit the terminal. packaged: both streams to the log file when we have one.
       stdio: isDev ? "inherit" : (sidecarLogFd !== null ? ["ignore", sidecarLogFd, sidecarLogFd] : "ignore"),
     });
@@ -154,6 +161,10 @@ function setupAutoUpdater() {
   autoUpdater.on("download-progress", (p) => send("downloading", { percent: Math.round(p.percent) }));
   autoUpdater.on("update-downloaded", (info) => send("downloaded", { version: info.version }));
 }
+
+// TASKS.csv #321 — see the spawn() env comment in startPythonSidecar.
+const SIDECAR_TOKEN = require("crypto").randomBytes(32).toString("hex");
+ipcMain.handle("sidecar-token", () => SIDECAR_TOKEN);
 
 ipcMain.handle("updater-check", async () => {
   if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };

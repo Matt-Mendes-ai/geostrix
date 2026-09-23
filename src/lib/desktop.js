@@ -310,9 +310,44 @@ export function onUpdaterEvent(cb) {
 // are always optional extras on top of an app that works fully without them.
 const PY_SIDECAR_BASE = "http://127.0.0.1:8765";
 
+// TASKS.csv #321 — the sidecar requires a per-launch token (electron/main.js). Fetched once over IPC and
+// sent on every request. In a plain-browser dev session there is no Electron, no token, and a hand-started
+// sidecar that doesn't require one — so the header is simply omitted there.
+let sidecarTokenPromise = null;
+async function sidecarHeaders(extra = {}) {
+  if (!sidecarTokenPromise) sidecarTokenPromise = d?.getSidecarToken ? d.getSidecarToken().catch(() => null) : Promise.resolve(null);
+  const token = await sidecarTokenPromise;
+  return token ? { ...extra, "X-GeoStrix-Token": token } : extra;
+}
+async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, signal } = {}) {
+  try {
+    const res = await fetch(`${PY_SIDECAR_BASE}${path}`, {
+      method,
+      headers: await sidecarHeaders(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
+    if (!res.ok) return { ok: false, status: res.status, error: formatSidecarErrorDetail(data?.detail) || `Sidecar returned HTTP ${res.status}` };
+    return { ok: true, status: res.status, data };
+  } catch (err) {
+    return { ok: false, status: 0, error: "Python sidecar not reachable (not started, still booting, or Python/deps not installed — see python-sidecar/README.md)." };
+  }
+}
+
+// TASKS.csv #321 — SimPEG potential-field jobs. plan() never allocates anything heavy; a job runs in its
+// own sidecar process, so cancel really frees its memory.
+export const sidecarPlanPotential = (request) => sidecarJson("/v1/geophys/plan", { method: "POST", body: request, timeoutMs: 60000 });
+export const sidecarStartPotentialJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "potential", request }, timeoutMs: 60000 });
+export const sidecarJobStatus = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });
+export const sidecarJobResult = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/result`, { timeoutMs: 120000 });
+export const sidecarCancelJob = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {}, timeoutMs: 10000 });
+
 export async function pythonHealth() {
   try {
-    const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000), headers: await sidecarHeaders() });
     if (!res.ok) return { ok: false, error: `Sidecar returned HTTP ${res.status}` };
     const data = await res.json();
     return { ok: true, ...data };
@@ -352,7 +387,7 @@ export async function pythonInterpolate(points, query, opts = {}) {
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/interpolate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await sidecarHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         points, query,
         method: opts.method || "rbf",
@@ -379,7 +414,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/implicit-model`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await sidecarHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         extent, surfaces,
         resolution: opts.resolution || [40, 40, 40],

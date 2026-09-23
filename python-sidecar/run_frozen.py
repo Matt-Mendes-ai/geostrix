@@ -13,8 +13,14 @@ Host/port are hardcoded to match electron/main.js's PY_SIDECAR_PORT (127.0.0.1:8
 already 127.0.0.1-only pre-freeze, see app/main.py's own CORS comment for why that's fine) rather than
 threaded through as CLI args — one fewer thing that can drift between the two sides of this spawn.
 """
+import multiprocessing
+
 import uvicorn
 
 if __name__ == "__main__":
+    # TASKS.csv #321 — inversion jobs run in a spawned child process (app/jobs.py). In a frozen exe the
+    # child is this same executable re-launched, and freeze_support() is what makes it run the child
+    # task instead of starting a second web server.
+    multiprocessing.freeze_support()
     from app.main import app
     uvicorn.run(app, host="127.0.0.1", port=8765, log_level="info")

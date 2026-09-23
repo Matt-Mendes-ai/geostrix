@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("desktop", {
   isDesktop: true,
+  getSidecarToken: () => ipcRenderer.invoke("sidecar-token"), // TASKS.csv #321
   openSectionWindow: (payload) => ipcRenderer.invoke("open-section-window", payload),
   updateSectionWindow: (payload) => ipcRenderer.invoke("update-section-window", payload),
   sendSectionSnapshot: (payload) => ipcRenderer.invoke("section-snapshot", payload),

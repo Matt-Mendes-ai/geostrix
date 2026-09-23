@@ -25,14 +25,33 @@ if (!fs.existsSync(venvPython)) {
   process.exit(1);
 }
 
+// TASKS.csv #321 — ONEDIR, not onefile. Adding SimPEG (plus numba/llvmlite, discretize, choclo, geoana)
+// grows the frozen sidecar from ~52 MB to ~130 MB, and a --onefile exe unpacks ALL of it into %TEMP% on
+// every single launch: measured ~10 s of pure extraction per start by the #321 performance review (16.5-17 s
+// to reach /health vs 6.5 s of actual Python work). A --onedir build is already unpacked — electron-builder
+// ships a folder either way — so that cost disappears. The old single-file exe is removed first so a stale
+// one can never be packaged by mistake.
+const oldOnefile = path.join(sidecarDir, "dist", isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar");
+if (fs.existsSync(oldOnefile) && fs.statSync(oldOnefile).isFile()) fs.rmSync(oldOnefile);
+
 const args = [
-  "-m", "PyInstaller", "--noconfirm", "--onefile", "--name", "geostrix-sidecar",
+  "-m", "PyInstaller", "--noconfirm", "--onedir", "--name", "geostrix-sidecar",
   // uvicorn/gempy both do a lot of dynamic/plugin-style importing that PyInstaller's static analysis
   // can't see on its own (confirmed by an initial build attempt without these flags silently omitting
   // uvicorn's asyncio loop implementation) — --collect-all pulls in every submodule of each package
   // rather than trying to hand-maintain a --hidden-import list that could drift as either package
   // updates its own internal module layout.
   "--collect-all", "uvicorn", "--collect-all", "gempy", "--collect-all", "gempy_engine",
+  // TASKS.csv #321 — SimPEG stack. Submodules only for the pure-Python packages (a --collect-all of simpeg
+  // would also bundle its tests/examples — security review); full collection for discretize (compiled
+  // extensions) and libdlf (ships digital-filter coefficient DATA files it loads at runtime).
+  "--collect-submodules", "simpeg", "--collect-submodules", "choclo", "--collect-submodules", "geoana",
+  "--collect-submodules", "numba", "--collect-all", "discretize", "--collect-all", "libdlf",
+  "--exclude-module", "tkinter",
+  // /health reports SimPEG's availability and versions from package METADATA (importlib.metadata), which
+  // --collect-submodules does not bundle — found when the first frozen build said "simpeg: null".
+  "--copy-metadata", "simpeg", "--copy-metadata", "choclo", "--copy-metadata", "discretize",
+  "--copy-metadata", "geoana", "--copy-metadata", "numba",
   "--collect-submodules", "app",
   "run_frozen.py",
 ];
@@ -45,10 +64,11 @@ if (result.status !== 0) {
 }
 
 const exeName = isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar";
-const builtPath = path.join(sidecarDir, "dist", exeName);
+const builtPath = path.join(sidecarDir, "dist", "geostrix-sidecar", exeName);
 if (!fs.existsSync(builtPath)) {
   console.error(`[build:sidecar] Build reported success but ${builtPath} doesn't exist — something's wrong.`);
   process.exit(1);
 }
-const sizeMb = (fs.statSync(builtPath).size / (1024 * 1024)).toFixed(1);
-console.log(`[build:sidecar] Built ${builtPath} (${sizeMb} MB).`);
+const dirSize = (d) => fs.readdirSync(d, { withFileTypes: true }).reduce((s, e) => s + (e.isDirectory() ? dirSize(path.join(d, e.name)) : fs.statSync(path.join(d, e.name)).size), 0);
+const sizeMb = (dirSize(path.dirname(builtPath)) / (1024 * 1024)).toFixed(1);
+console.log(`[build:sidecar] Built ${builtPath} (folder ${sizeMb} MB).`);
