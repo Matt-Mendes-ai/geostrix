@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText } from "lucide-react";
+import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "lucide-react";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
+import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 const SECTION_W = 1100, SECTION_H = 660;
@@ -33,6 +34,15 @@ export default function SectionWindow() {
   const [contacts, setContacts] = useState([]);
   const [drawing, setDrawing] = useState(false);
   const [drawPoints, setDrawPoints] = useState([]);
+  // TASKS.csv #395 — design a planned hole on the section: click the collar (snapped to the ground
+  // profile when the section has one), then the target. holePlanning's solver turns the two world
+  // points into azimuth / dip / length, and "Add planned hole" relays it to the main window's
+  // plannedHoles (Targeting) over the same channel drawn contacts use.
+  const [planning, setPlanning] = useState(false);
+  const [planPts, setPlanPts] = useState([]); // [collar, target], each { l, z, x, y }
+  const [planName, setPlanName] = useState("");
+  const [planPast, setPlanPast] = useState(0); // metres drilled past the target
+  const [planAdded, setPlanAdded] = useState([]); // drawn here at once; the main window has the real list
 
   // TASKS.csv #15 — vertical exaggeration. 1x means the vertical (elevation) scale matches the
   // horizontal (distance-along-section) scale exactly — true 1:1 — computed from the section's own
@@ -130,6 +140,43 @@ export default function SectionWindow() {
     setDrawing(false); setDrawPoints([]);
   };
   const removeContact = (id) => setContacts((p) => p.filter((c) => c.id !== id));
+
+  // TASKS.csv #395 — ground elevation at distance l along the section, from the terrain profile.
+  const groundAt = (l) => {
+    const prof = data?.elevationProfile;
+    if (!prof || prof.length < 2) return null;
+    if (l <= prof[0].d) return prof[0].z;
+    for (let i = 1; i < prof.length; i++) {
+      if (l <= prof[i].d) { const a = prof[i - 1], b = prof[i], t = (l - a.d) / ((b.d - a.d) || 1); return a.z + t * (b.z - a.z); }
+    }
+    return prof[prof.length - 1].z;
+  };
+  const addPlanPoint = (pt) => {
+    setPlanPts((p) => {
+      if (p.length >= 2) return p;
+      if (p.length === 0) { const g = groundAt(pt.l); return [g != null ? { ...pt, z: g, snapped: true } : pt]; }
+      return [...p, pt];
+    });
+  };
+  const planSolution = planPts.length === 2 ? solveOrientationToTarget(planPts[0], planPts[1]) : null;
+  const startPlanning = () => { setDrawing(false); setDrawPoints([]); setPlanning(true); setPlanPts([]); };
+  const cancelPlanning = () => { setPlanning(false); setPlanPts([]); };
+  const addPlannedHole = () => {
+    if (!planSolution || !data?.id) return;
+    const c = planPts[0];
+    const length = Math.round((planSolution.length + Math.max(0, Number(planPast) || 0)) * 10) / 10;
+    const hole = {
+      ...(planName.trim() ? { name: planName.trim() } : {}), // empty -> the store names it PLAN-n
+      x: Math.round(c.x * 100) / 100, y: Math.round(c.y * 100) / 100, z: Math.round(c.z * 100) / 100,
+      azimuth: Math.round(planSolution.azimuth * 10) / 10, dip: Math.round(planSolution.dip * 10) / 10, length,
+      notes: `Designed on section "${data.title || "section"}": target at ${Math.round(planPts[1].x)}E ${Math.round(planPts[1].y)}N ${Math.round(planPts[1].z)} m elev, ${Math.round(planSolution.length)} m down-hole${Number(planPast) > 0 ? `, +${Number(planPast)} m past it` : ""}.`,
+    };
+    sendSectionContacts({ id: data.id, plannedHole: hole });
+    const rad = Math.PI / 180, dirH = Math.cos(hole.dip * rad);
+    const end = { x: c.x + Math.sin(hole.azimuth * rad) * dirH * length, y: c.y + Math.cos(hole.azimuth * rad) * dirH * length, z: c.z + Math.sin(hole.dip * rad) * length };
+    setPlanAdded((p) => [...p, { name: hole.name || "new plan", trace: [{ x: c.x, y: c.y, z: c.z }, end] }]);
+    setPlanning(false); setPlanPts([]); setPlanName("");
+  };
 
   const saveContacts = () => {
     if (!data?.id) return;
@@ -232,6 +279,32 @@ export default function SectionWindow() {
         </span>
       </div>
 
+      {/* TASKS.csv #395 — planned-hole design bar */}
+      <div className="ge-section-chips" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 16px", borderBottom: "1px solid #e6e8eb", fontSize: 11 }}>
+        {!planning ? (
+          <button onClick={startPlanning} style={btnStyle(false)} title="Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole"><Crosshair size={14} /> Plan a hole</button>
+        ) : (
+          <>
+            <span style={{ color: "#b06a1f" }}>
+              {planPts.length === 0 ? `Click the collar position${data.elevationProfile?.length > 1 ? " (snaps to the ground surface)" : " (no terrain on this section: the click's elevation is used)"}…` : planPts.length === 1 ? "Click the target…" : null}
+            </span>
+            {planSolution && (
+              <>
+                <span style={{ color: "#1a2028" }}>
+                  Az <b>{planSolution.azimuth.toFixed(1)}°</b> · dip <b>{planSolution.dip.toFixed(1)}°</b> · <b>{Math.round(planSolution.length)} m</b> to target
+                </span>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>+ past target <input type="number" min="0" step="10" value={planPast} onChange={(e) => setPlanPast(e.target.value)} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label="Metres past target" /> m</label>
+                <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Name (optional)" style={{ ...selectStyle, width: 120 }} aria-label="Planned hole name" />
+                <button onClick={addPlannedHole} style={btnStyle(true)}><Check size={14} /> Add planned hole</button>
+              </>
+            )}
+            {planPts.length > 0 && <button onClick={() => setPlanPts((p) => p.slice(0, -1))} style={btnStyle(false)}><Undo2 size={14} /> Undo point</button>}
+            <button onClick={cancelPlanning} style={btnStyle(false)}><X size={14} /> Cancel</button>
+          </>
+        )}
+        {planAdded.length > 0 && !planning && <span style={{ color: "#2e7d4f" }}>Added {planAdded.length} planned hole{planAdded.length > 1 ? "s" : ""} to Targeting.</span>}
+      </div>
+
       {contacts.length > 0 && (
         <div className="ge-section-chips" style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 16px", borderBottom: "1px solid #e6e8eb" }}>
           {contacts.map((c) => (
@@ -245,7 +318,7 @@ export default function SectionWindow() {
       )}
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        <SectionSVG data={data} svgRef={svgRef} contacts={contacts} drawing={drawing} drawPoints={drawPoints} onAddPoint={(pt) => setDrawPoints((p) => [...p, pt])} vExag={vExag} geomRef={geomRef} />
+        <SectionSVG data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []} />
       </div>
     </div>
   );
@@ -256,7 +329,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef }) {
+function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [] }) {
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "" } = data;
   const W = SECTION_W, PAD = 60;
   if (!section) return null;
@@ -523,6 +596,14 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
           <text x={sx(c.points[0].l)} y={sz(c.points[0].z) - 8} fill={c.color} fontSize="10" fontWeight="600">{c.unit}</text>
         </g>
       ))}
+      {/* TASKS.csv #395 — the hole being designed */}
+      {planPts.length > 0 && (
+        <g>
+          {planPts.length === 2 && <line x1={sx(planPts[0].l)} y1={sz(planPts[0].z)} x2={sx(planPts[1].l)} y2={sz(planPts[1].z)} stroke="#b06a1f" strokeWidth="2" strokeDasharray="6 4" />}
+          <circle cx={sx(planPts[0].l)} cy={sz(planPts[0].z)} r="4" fill="#b06a1f" stroke="#ffffff" strokeWidth="1.2"><title>Collar</title></circle>
+          {planPts[1] && <g><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="6" fill="none" stroke="#b06a1f" strokeWidth="1.6" /><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="1.8" fill="#b06a1f" /><title>Target</title></g>}
+        </g>
+      )}
       {drawing && drawPoints.length > 0 && (
         <g>
           <polyline points={drawPoints.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke="#e2a63c" strokeWidth="2" strokeDasharray="4 3" />

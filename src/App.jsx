@@ -58,7 +58,7 @@ const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeti
 export default function App() {
   const store = useStore();
   const {
-    newProject, saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts,
+    newProject, saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave,
     undo, redo, canUndo, canRedo,
@@ -194,9 +194,10 @@ export default function App() {
   // store.jsx's sections state). Doesn't switch tabs — the user is drawing in the pop-out, not asking
   // to jump back to the main window.
   useEffect(() => {
-    const off = onSectionContacts(({ id, contacts }) => setSectionContacts(id, contacts));
+    // TASKS.csv #395 — the same relay also carries a planned hole designed on a section.
+    const off = onSectionContacts(({ id, contacts, plannedHole }) => { if (plannedHole) addPlannedHole(plannedHole); else setSectionContacts(id, contacts); });
     return off;
-  }, [setSectionContacts]);
+  }, [setSectionContacts, addPlannedHole]);
 
   // ViewerModule's "Snapshot to Layout" button calls store.goToModule("layout") after queuing the
   // image; this is the other half of that hop.
