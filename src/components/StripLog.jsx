@@ -20,13 +20,18 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, onClose }) {
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
   const [pxPerMeter, setPxPerMeter] = useState(6);
   const symbols = assayElements.map((e) => e.symbol);
   const [assaySymbol, setAssaySymbol] = useState(symbols[0] || "");
+  // TASKS.csv #402 — up to two more element tracks, and a log scale (default): one 30 g/t sample on a
+  // linear bar scaled to the hole maximum used to flatten every other sample to nothing.
+  const [extraSymbols, setExtraSymbols] = useState([]);
+  const [logScale, setLogScale] = useState(true);
+  const shownSymbols = [assaySymbol, ...extraSymbols].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).slice(0, 3);
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
 
   const litho = useMemo(() => (layers.litho || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.litho, holeId]);
@@ -42,21 +47,31 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     arrMax(holeAssays.map((a) => a.to)),
     1);
 
-  const assayMax = useMemo(() => {
-    if (!assaySymbol) return 0;
-    const vals = holeAssays.map((a) => valueIn(a, assaySymbol, elementUnits[assaySymbol] || "ppm", elementUnits)).filter((v) => v != null);
-    return vals.length ? arrMax(vals) : 0;
-  }, [holeAssays, assaySymbol, elementUnits]);
+  // Per element: min positive value and max, for the linear or log axis of its track.
+  const assayRange = useMemo(() => Object.fromEntries(shownSymbols.map((sym) => {
+    const vals = holeAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v));
+    const pos = vals.filter((v) => v > 0);
+    return [sym, { max: vals.length ? arrMax(vals) : 0, minPos: pos.length ? arrMin(pos) : 0 }];
+  })), [holeAssays, shownSymbols.join("|"), elementUnits]); // eslint-disable-line react-hooks/exhaustive-deps
+  const barFrac = (sym, v) => {
+    const r = assayRange[sym];
+    if (!r || !(r.max > 0) || v == null) return 0;
+    if (!logScale) return Math.max(0, Math.min(1, v / r.max));
+    if (!(v > 0)) return 0;
+    const lo = Math.log10(r.minPos), hi = Math.log10(r.max);
+    return hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - lo) / (hi - lo))) : 1; // 3% floor so the lowest value is still visible
+  };
+  const fill = (key, fallbackFn, v) => (colorFor ? colorFor(key, v) : fallbackFn(v)); // #402 — legend overrides
 
   const sy = (d) => PAD_TOP + d * pxPerMeter;
   const H = sy(maxDepth) + 30;
 
   const tracks = [
-    { key: "litho", label: "Litho", rows: litho, kind: "fill", colorFn: LAYER_META.litho.colorFn, nameFn: (v) => UNIT_NAMES[v] || v },
-    { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: colorForAlteration },
-    { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: colorForVein },
+    { key: "litho", label: "Litho", rows: litho, kind: "fill", colorFn: (v) => fill("litho", LAYER_META.litho.colorFn, v), nameFn: (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v) },
+    { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
+    { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v) },
     { key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 },
-    { key: "assay", label: assaySymbol || "Assay", rows: holeAssays, kind: "assaybar" },
+    ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
   ];
 
   const baseName = `striplog_${holeId}`.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
@@ -113,6 +128,15 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
             </select>
           </label>
+          {[0, 1].map((k) => (
+            <select key={k} value={extraSymbols[k] || ""} onChange={(e) => setExtraSymbols((p) => { const n = [...p]; n[k] = e.target.value; return n.filter(Boolean); })} style={selStyle} aria-label={`Additional assay track ${k + 1}`}>
+              <option value="">+ element</option>
+              {symbols.filter((s) => s !== assaySymbol).map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          ))}
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title="Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.">
+            <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log scale
+          </label>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>
             Vertical scale (px/m)
             <input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
@@ -156,14 +180,15 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     const w = t.max ? Math.max(0, Math.min(1, (r.value ?? 0) / t.max)) * (TRACK_W - 8) : 0;
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill="#4a9be0" opacity="0.75" />;
                   })}
-                  {t.kind === "assaybar" && assaySymbol && t.rows.map((r, i) => {
-                    const v = valueIn(r, assaySymbol, elementUnits[assaySymbol] || "ppm", elementUnits);
-                    if (v == null || assayMax <= 0) return null;
-                    const w = Math.max(0, Math.min(1, v / assayMax)) * (TRACK_W - 8);
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill="#c9863d" opacity="0.85" />;
+                  {t.kind === "assaybar" && t.sym && t.rows.map((r, i) => {
+                    const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
+                    if (v == null) return null;
+                    const w = barFrac(t.sym, v) * (TRACK_W - 8);
+                    if (!(w > 0)) return null;
+                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${elementUnits[t.sym] || "ppm"}`}</title></rect>;
                   })}
-                  {t.kind === "assaybar" && assaySymbol && (
-                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">max {assayMax.toFixed(2)}</text>
+                  {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (
+                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{logScale ? `log ${assayRange[t.sym].minPos.toPrecision(2)}–${assayRange[t.sym].max.toPrecision(3)}` : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>
                   )}
                 </g>
               );

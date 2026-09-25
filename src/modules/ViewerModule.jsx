@@ -10083,6 +10083,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           layers={layers}
           assays={assays}
           assayElements={assayElements}
+          colorFor={effectiveColor} labelFor={effectiveLabel} // TASKS.csv #402 — the user's legend colours/names
+          assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
           onClose={() => setStripLogHoleId(null)}
         />
       )}
