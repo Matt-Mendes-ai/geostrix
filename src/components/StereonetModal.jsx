@@ -30,7 +30,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // TASKS.csv #281 — `domains`/`domainFilter` add a SPATIAL filter alongside the existing type filter.
 // Both are optional props: the modal still works standalone with picks alone (domainFilter absent =
 // the domain control simply isn't offered), so nothing here depends on the caller having a scene.
-export default function StereonetModal({ picks, onClose, onUseAsTrend, domains = [], domainFilter = null }) {
+export default function StereonetModal({ picks: downholePicks, surfacePicks = [], onClose, onUseAsTrend, domains = [], domainFilter = null }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [view, setView] = useState("stereonet"); // TASKS.csv #278 — "stereonet" | "rose"
@@ -44,6 +44,10 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
   const [terzaghiOn, setTerzaghiOn] = useState(false); // TASKS.csv #280
   const [roseMode, setRoseMode] = useState("strike"); // TASKS.csv #278
   const [roseBin, setRoseBin] = useState(10); // TASKS.csv #278
+  // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) on the same net. Their
+  // type label carries "(outcrop)" so the two populations stay distinguishable in the type filter.
+  const [source, setSource] = useState(downholePicks.length ? "downhole" : "surface");
+  const picks = useMemo(() => (source === "downhole" ? downholePicks : source === "surface" ? surfacePicks : [...downholePicks, ...surfacePicks]), [source, downholePicks, surfacePicks]);
 
   const types = useMemo(() => {
     const set = new Set();
@@ -61,7 +65,9 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
   // Applied BEFORE the type filter so the count readouts below describe the same subset the plot draws.
   const domainScoped = useMemo(() => {
     if (!domainId || !domainFilter) return picks;
-    return domainFilter(picks, domainId);
+    // Domains are defined against drillhole traces; outcrop readings have no hole, so a domain filter
+    // keeps downhole picks only (stated next to the Source selector).
+    return domainFilter(picks.filter((p) => !p.outcrop), domainId);
   }, [picks, domainId, domainFilter]);
 
   const filtered = useMemo(() => {
@@ -253,6 +259,13 @@ export default function StereonetModal({ picks, onClose, onUseAsTrend, domains =
             </label>
             {view === "stereonet" && (
               <label style={rowLabel}>
+                Source
+                <select value={source} onChange={(e) => { setSource(e.target.value); setTypeFilter("all"); }} style={sel} aria-label="Measurement source">
+                  <option value="downhole" disabled={!downholePicks.length}>Downhole picks ({downholePicks.length})</option>
+                  <option value="surface" disabled={!surfacePicks.length}>Outcrop measurements ({surfacePicks.length})</option>
+                  <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>Both</option>
+                </select>
+                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>domain filter: downhole only</span>}
                 Projection
                 <select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
                   <option value="equalArea">Equal-area (Schmidt)</option>

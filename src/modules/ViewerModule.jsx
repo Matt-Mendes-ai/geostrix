@@ -9006,9 +9006,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             into the anisotropy or structural-surface tools above/below. */}
         <button
           onClick={() => setStereonetOpen(true)}
-          disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth))}
-          style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
-          title="Pole-plot / great-circle stereonet of the Structure layer's dip/azimuth picks"
+          disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth)) && !(surfaceStructures || []).some((st) => (st.rows || []).length)} // #428: outcrop data alone is enough
+          style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length || (surfaceStructures || []).length ? 1 : 0.5, cursor: (layers.structure || []).length || (surfaceStructures || []).length ? "pointer" : "default" }}
+          title="Pole-plot / great-circle stereonet of the Structure layer's downhole picks and/or outcrop measurements"
         ><Milestone size={14} /> Stereonet (QC picks)</button>
         {/* TASKS.csv #277 — the downhole (tadpole) view, sitting next to the Stereonet because the two
             are the pair a geologist works structural data with: this one answers "where in the hole,
@@ -10141,6 +10141,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {stereonetOpen && (
         <StereonetModal
           picks={structurePicksWithHoleAttitude}
+          surfacePicks={(surfaceStructures || []).flatMap((st) => st.rows || []).filter((r) => Number.isFinite(r.dip) && Number.isFinite(r.dipDir)).map((r) => ({ value: `${r.cls || "structure"} (outcrop)`, dip: r.dip, azimuth: r.dipDir, x: r.x, y: r.y, outcrop: true }))} // TASKS.csv #428
           domains={domains}
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
@@ -10212,6 +10213,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           collars={collars}
           survey={survey}
           fieldStructuralRefs={fieldStructuralRefs}
+          outcropMeasurements={(surfaceStructures || []).flatMap((st) => st.rows || [])} // TASKS.csv #428
           addFieldRef={addFieldRef}
           removeFieldRef={removeFieldRef}
           onSaveStructurePick={(row) => {

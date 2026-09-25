@@ -18,7 +18,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // measured on that run. All math lives in coreOrientation.js (derived + numerically verified there —
 // round-trip forward/inverse, degenerate cases, and a full simulated calibration workflow all pass);
 // this component is purely the form around it. Modeled on StereonetModal.jsx's own shape.
-export default function CoreOrientationCalculator({ collars, survey, fieldStructuralRefs, addFieldRef, removeFieldRef, onSaveStructurePick, onClose }) {
+export default function CoreOrientationCalculator({ collars, survey, fieldStructuralRefs, outcropMeasurements = [], addFieldRef, removeFieldRef, onSaveStructurePick, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
 
@@ -51,8 +51,22 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     if (r) { setAzimuth(String(r.azimuth.toFixed(1))); setDip(String(r.dip.toFixed(1))); }
   };
 
+  // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) near the chosen collar can
+  // be the calibration reference directly: the 10 nearest within 1 km, nearest first.
+  const nearbyOutcrop = useMemo(() => {
+    const c = collars.find((x) => x.hole_id === holeId);
+    if (!c) return [];
+    return outcropMeasurements.map((m) => ({ ...m, dist: Math.hypot(m.x - c.x, m.y - c.y) }))
+      .filter((m) => Number.isFinite(m.dist) && m.dist <= 1000 && Number.isFinite(m.dip) && Number.isFinite(m.dipDir))
+      .sort((a, b) => a.dist - b.dist).slice(0, 10);
+  }, [collars, holeId, outcropMeasurements]);
   const pickRef = (id) => {
     setSelectedRefId(id);
+    if (id.startsWith("oc:")) {
+      const m = nearbyOutcrop[Number(id.slice(3))];
+      if (m) { setKnownDipDir(String(m.dipDir)); setKnownDip(String(m.dip)); }
+      return;
+    }
     const ref = fieldStructuralRefs.find((r) => r.id === id);
     if (ref) { setKnownDipDir(String(ref.dipDirDeg)); setKnownDip(String(ref.dipDeg)); }
   };
@@ -123,7 +137,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div style={row}>
               <select value={selectedRefId} onChange={(e) => pickRef(e.target.value)} style={sel}>
                 <option value="">Ad hoc (enter below)</option>
-                {fieldStructuralRefs.map((r) => <option key={r.id} value={r.id}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°</option>)}
+                {fieldStructuralRefs.length > 0 && <optgroup label="Saved field references">{fieldStructuralRefs.map((r) => <option key={r.id} value={r.id}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°</option>)}</optgroup>}
+                {nearbyOutcrop.length > 0 && <optgroup label={`Outcrop measurements near ${holeId}`}>{nearbyOutcrop.map((m, i) => <option key={i} value={`oc:${i}`}>{m.cls || "structure"} — {Math.round(m.dipDir)}°/{Math.round(m.dip)}° ({Math.round(m.dist)} m away)</option>)}</optgroup>}
               </select>
             </div>
             <div style={row}>
