@@ -353,6 +353,7 @@ function normStructure(r, mapping, customFields, dipConvention) {
     azimuth,
     ...(Number.isFinite(alpha) ? { alpha } : {}),
     ...(Number.isFinite(beta) ? { beta } : {}),
+    ...(mapping.structure_id && String(r[mapping.structure_id] ?? "").trim() ? { structure_id: String(r[mapping.structure_id]).trim() } : {}), // #362
   }, r, customFields);
 }
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
@@ -4276,21 +4277,35 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
     if (!rows.length) { setNotices((p) => [...p, `All "${structType}" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]); return; }
 
-    const points = [];
-    rows.forEach((s) => {
-      const t = traces.find((tr) => tr.hole_id === s.hole_id);
-      if (!t) return;
-      const p = findOnTrace(t.pts, s.depth);
-      if (p) points.push(sceneToApi(p));
-    });
-    const orientations = structureRowsToOrientations(rows, traces);
-    if (!points.length || !orientations.length) { setNotices((p) => [...p, `Couldn't locate "${structType}" picks along the hole traces.`]); return; }
-
+    // TASKS.csv #362 — one surface per named structure. Picks carrying a structure_id are modelled per ID;
+    // picks without one form their own group. Without any IDs, all picks of the type are still one surface
+    // (the only thing possible), but the notice now says so instead of implying it is one fault.
+    const byId = new Map();
+    rows.forEach((s) => { const k = s.structure_id || ""; if (!byId.has(k)) byId.set(k, []); byId.get(k).push(s); });
+    const named = [...byId.keys()].filter(Boolean);
+    if (!named.length) {
+      const holes = new Set(rows.map((s) => s.hole_id)).size;
+      if (holes > 1) setNotices((p) => [...p, `All ${rows.length} "${structType}" picks (${holes} holes) are modelled as ONE surface. If they belong to different ${/flt|fault|shear/i.test(structType) ? "faults" : "structures"}, map a structure name/ID column when importing the structure file and each will be modelled on its own.`]);
+    } else {
+      setNotices((p) => [...p, `Modelling ${named.length} named "${structType}" structure(s) separately: ${named.join(", ")}${byId.has("") ? `, plus ${byId.get("").length} pick(s) with no name as one more surface` : ""}.`]);
+    }
     // TASKS.csv #83 — a "structure" layer covers contacts, faults, shear zones, foliation, veins all
     // under one layer type (see sample_data's structure.csv), so this tool's own picked structType
     // string is the best available signal for a starting-guess surface type — refined further by
     // guessSurfaceType's regex, overridable by the user afterward regardless.
-    await runSurfaceModel({ label: `Structure: ${structType}`, meshName: structType, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) });
+    for (const [id, group] of byId) {
+      const name = id ? `${structType} — ${id}` : named.length ? `${structType} — unnamed` : structType;
+      const points = [];
+      group.forEach((s) => {
+        const t = traces.find((tr) => tr.hole_id === s.hole_id);
+        if (!t) return;
+        const p = findOnTrace(t.pts, s.depth);
+        if (p) points.push(sceneToApi(p));
+      });
+      const orientations = structureRowsToOrientations(group, traces);
+      if (!points.length || !orientations.length) { setNotices((p) => [...p, `Couldn't locate "${name}" picks along the hole traces.`]); continue; }
+      await runSurfaceModel({ label: `Structure: ${name}`, meshName: name, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) });
+    }
   }, [layers.structure, runSurfaceModel, domains, modelDomainId, searchEllipsoid]);
 
   // Alteration modeling tool. TASKS.csv #272 — REWRITTEN (Leapfrog-specialist review).

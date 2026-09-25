@@ -71,3 +71,10 @@ test("#339 QC flags untraceable, assumed-length, upward and over-deep-survey hol
   assert.ok(has("warning", "D", /Points upward/));
   assert.ok(!issues.some((i) => i.holeId === "D" && /extends past/.test(i.message)), "interval below the last survey shot but within EOH must not be flagged");
 });
+
+test("#362 structure name/ID column is recognised only from explicit headers", () => {
+  const m = guessMapping("structure", ["hole_id", "depth_m", "structure_type", "dip", "dip_direction", "fault_name"]);
+  assert.equal(m.structure_id, "fault_name");
+  const harry = guessMapping("structure", ["hole_id", "depth_m", "structure_type", "inferred_dip_deg", "assumed_dip_azimuth"]);
+  assert.ok(!harry.structure_id);
+});

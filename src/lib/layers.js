@@ -573,6 +573,9 @@ export const TARGET_SCHEMAS = {
     // using the hole's survey (when the file has no dip/dip-direction of its own); alpha alone is kept.
     { key: "alpha", label: "Alpha (core angle, optional)", required: false, aliases: ["alpha", "alpha_deg", "alpha_angle"] },
     { key: "beta", label: "Beta (optional, clockwise looking down-hole)", required: false, aliases: ["beta", "beta_deg", "beta_angle"] },
+    // TASKS.csv #362 — which individual structure a pick belongs to (e.g. "Main Fault", "F2"). Without it,
+    // every pick of one type (all 'FLT') is modelled as ONE surface even when they are several faults.
+    { key: "structure_id", label: "Structure name / ID (optional — which fault/vein)", required: false, aliases: ["structure_id", "structure_name", "struct_id", "fault_id", "fault_name", "vein_id"] },
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
