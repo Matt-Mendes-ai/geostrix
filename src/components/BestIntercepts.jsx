@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
-import { computeBestIntercepts, avgGradeInRange, domainsForInterval } from "../lib/geochem.js";
+import { computeBestIntercepts, avgGradeInRange, domainsForInterval, attachIncluding } from "../lib/geochem.js"; // attachIncluding: #402
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
@@ -35,6 +35,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const [maxInternalDilution, setMaxInternalDilution] = useState(2);
   const [minLength, setMinLength] = useState(0);
   const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
+  const [includeCutoff, setIncludeCutoff] = useState(""); // TASKS.csv #402 — "" = off
   // TASKS.csv #230 — extra elements shown alongside the primary (compositing-anchor) element, e.g.
   // "what's the Ag and Cu over this Au intercept?" — the compositing/cutoff/dilution logic still only
   // ever runs against ONE element (`symbol`, below); these are just additional length-weighted
@@ -80,7 +81,14 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
 
   const results = useMemo(() => {
     if (!symbol) return [];
-    const rows = computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
+    let rows = computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
+    // TASKS.csv #402 — including sub-intercepts at the higher cutoff, same rules.
+    const incC = Number(includeCutoff);
+    if (includeCutoff !== "" && Number.isFinite(incC) && incC > cutoff) {
+      const stats = rows.stats;
+      rows = attachIncluding(rows, computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff: incC, maxInternalDilution, minLength }));
+      rows.stats = stats;
+    }
     const out = rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
       ...r,
       extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(reportAssays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
@@ -92,7 +100,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     }));
     out.stats = rows.stats; // TASKS.csv #331/#333 — duplicates skipped, overlapping rows, negative codes
     return out;
-  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows]);
+  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows, includeCutoff]);
+  const incOn = includeCutoff !== "" && Number(includeCutoff) > cutoff; // #402
+  const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${h.avgGrade.toFixed(3)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
 
   // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
   // that collapsed a contact-straddling intercept to just its dominant unit would hide exactly the
@@ -127,6 +137,14 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       grade_x_length: (r.avgGrade * r.length).toFixed(2),
       ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : r.extras[s].toFixed(3)])),
       assay_intervals: r.intervals,
+      // TASKS.csv #402 — including sub-intercepts: the best one in columns, all of them as text.
+      ...(incOn ? {
+        including_cutoff: includeCutoff,
+        including_from: r.including ? r.including[0].from : "", including_to: r.including ? r.including[0].to : "",
+        including_length_m: r.including ? r.including[0].length.toFixed(2) : "",
+        [`including_avg_${symbol}_${unit}`]: r.including ? r.including[0].avgGrade.toFixed(3) : "",
+        including_all: r.including ? r.including.map(incText).join("; ") : "",
+      } : {}),
     }));
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
@@ -136,6 +154,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       ASSAY_READING_RULES,
       twEnabled ? `True width: from a ${twDipDir}/${twDip} (dip direction/dip) structure against hole traces desurveyed by ${desurveyMethod || "minimum curvature"}` : "True width: not computed (lengths are downhole)",
       domainLayer ? `Host domain from layer: ${domainLayer}` : null,
+      incOn ? `Including sub-intercepts: cutoff ${includeCutoff} ${unit}, same dilution and minimum-length rules, attached to the containing intercept` : null,
       extraSymbols.length ? `Also averaged over each intercept: ${extraSymbols.join(", ")}` : null,
       `Intercepts: ${results.length}`,
     ] });
@@ -178,6 +197,10 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
             </label>
             <label style={fieldLabel}>Min length (m)
               <input type="number" step="any" min="0" value={minLength} onChange={(e) => setMinLength(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            </label>
+            <label style={fieldLabel} title="'Including' sub-intercepts: intercepts at this higher cutoff, built with the same dilution and minimum-length rules, reported inside the intercept that contains them (e.g. 42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.">
+              Including at ≥
+              <input type="number" step="any" min="0" value={includeCutoff} placeholder="off" onChange={(e) => setIncludeCutoff(e.target.value)} style={inp} aria-label="Including cutoff" />
             </label>
             <label style={fieldLabel} title="Screen out intercepts below this grade × length (e.g. gram-metres for Au in g/t) — leave at 0 to show every intercept meeting the length/cutoff criteria above.">
               Min grade × length
@@ -253,12 +276,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                     {domainLayer && <th style={th} title="Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.">Host</th>}
                     <th style={th}>Avg {symbol} ({unit})</th>
                     <th style={th}>Grade × length</th>
+                    {incOn && <th style={th}>Including (≥ {includeCutoff})</th>}
                     {extraSymbols.map((s) => <th key={s} style={th}>Avg {s} ({elementUnits[s] || "ppm"})</th>)}
                     <th style={th}>Assay intervals</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                   {results.slice(startIndex, endIndex).map((r, i) => (
                     <tr key={startIndex + i} style={{ borderBottom: "1px solid var(--color-hover-bg)", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
@@ -292,11 +316,12 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                         {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
+                      {incOn && <td style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>}
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
-                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>

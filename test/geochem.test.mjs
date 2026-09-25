@@ -103,3 +103,20 @@ test("#405 Spearman and log correlation resist a single extreme sample", () => {
   const lg = correlate([0, 1, 10, 100], [5, 1, 10, 100], "log");
   assert.equal(lg.n, 3); assert.ok(Math.abs(lg.r - 1) < 1e-12);
 });
+
+import { attachIncluding } from "../src/lib/geochem.js";
+test("#402 'including' sub-intercepts at a higher cutoff sit inside their parent intercept", () => {
+  // 20 m at 1 g/t with a 4 m core at 6 g/t (8-12 m)
+  const assays = Array.from({ length: 20 }, (_, i) => ({ hole_id: "H1", from: i, to: i + 1, values: { Au: i >= 8 && i < 12 ? 6 : 1 } }));
+  const units = { Au: "ppm" };
+  const parents = computeBestIntercepts(assays, "Au", "ppm", units, { cutoff: 0.5, maxInternalDilution: 2 });
+  const highs = computeBestIntercepts(assays, "Au", "ppm", units, { cutoff: 3, maxInternalDilution: 2 });
+  const [p] = attachIncluding(parents, highs);
+  assert.equal(p.length, 20);
+  assert.equal(p.including.length, 1);
+  assert.equal(p.including[0].from, 8); assert.equal(p.including[0].to, 12);
+  assert.ok(Math.abs(p.including[0].avgGrade - 6) < 1e-9);
+  assert.ok(Math.abs(p.avgGrade - 2) < 1e-9); // (16*1 + 4*6)/20
+  // an intercept identical to its parent is not reported as "including" itself
+  assert.equal(attachIncluding(parents, parents)[0].including, undefined);
+});

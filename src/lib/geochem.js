@@ -178,6 +178,20 @@ export function valueIn(sample, symbol, unit, elementUnits) {
 // The composite's reported grade is length-weighted across every sub-interval it contains, so a wide
 // intercept with a diluting low-grade patch inside it reports an honestly diluted grade, not just the
 // grade of the above-cutoff pieces alone.
+// TASKS.csv #402 — "including" sub-intercepts, the standard way a drill result is reported
+// ("42 m @ 1.2 g/t, including 6 m @ 5.1 g/t"). The high-grade intercepts are computed with exactly the
+// same rules at the higher cutoff (same dilution and minimum length, so they are real intercepts in their
+// own right, not hand-picked windows) and attached to the parent intercept that contains them, best
+// grade x length first. One that only partly overlaps a parent is not attached.
+export function attachIncluding(parents, highs) {
+  const EPS = 1e-6;
+  return parents.map((p) => {
+    const inc = highs.filter((h) => h.hole_id === p.hole_id && h.from >= p.from - EPS && h.to <= p.to + EPS && !(Math.abs(h.from - p.from) < EPS && Math.abs(h.to - p.to) < EPS))
+      .sort((a, b) => b.avgGrade * b.length - a.avgGrade * a.length);
+    return inc.length ? { ...p, including: inc } : p;
+  });
+}
+
 export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts = {}) {
   const cutoff = opts.cutoff ?? 0;
   const maxInternalDilution = opts.maxInternalDilution ?? 2;
