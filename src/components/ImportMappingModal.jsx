@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import { TARGET_SCHEMAS, guessMapping } from "../lib/layers.js";
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
+import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -203,6 +204,52 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               </div>
             </div>
           )}
+
+          {/* TASKS.csv #412 — units and local mine grid. Legacy BC data (pre-1990 ARIS logs, old mine
+              plans) is often in feet and/or on a local grid; both used to be imported as if metric UTM. */}
+          {(() => {
+            const keys = (TARGET_SCHEMAS[modal.target]?.fields || []).map((f) => f.key);
+            const hasLengths = keys.some((k) => ["depth", "from", "to", "length", "z"].includes(k));
+            if (!hasLengths && modal.target !== "collars") return null;
+            let fit = null, fitErr = null;
+            if (modal.target === "collars" && modal.localGridOn) {
+              try { fit = fitSimilarity(parseControlPoints(modal.localGridText)); } catch (e) { fitErr = e.message; }
+            }
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={label}>Units</div>
+                <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-base)" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input type="radio" name="units" checked={(modal.units || "m") === "m"} onChange={() => onChange({ ...modal, units: "m" })} /> Metres
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input type="radio" name="units" checked={modal.units === "ft"} onChange={() => onChange({ ...modal, units: "ft" })} /> Feet (depths, lengths{keys.includes("z") ? " and elevations" : ""} are converted to metres)
+                  </label>
+                </div>
+                {modal.target === "collars" && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: "var(--font-size-base)" }}>
+                      <input type="checkbox" checked={!!modal.localGridOn} onChange={(e) => onChange({ ...modal, localGridOn: e.target.checked })} /> X/Y are on a local mine grid
+                    </label>
+                    {modal.localGridOn && (
+                      <div style={{ marginTop: 6, marginLeft: 22 }}>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>
+                          Two or more control points, one per line: <code>local_x local_y project_x project_y</code> — the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{projectEpsg ?? "?"}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.
+                        </div>
+                        <textarea value={modal.localGridText || ""} onChange={(e) => onChange({ ...modal, localGridText: e.target.value })} rows={4} spellCheck={false} placeholder={"10000 5000 463000.0 6178000.0" + String.fromCharCode(10) + "12500 5200 463629.0 6178421.5"} style={{ ...sel, width: "100%", fontFamily: "monospace", resize: "vertical" }} aria-label="Local grid control points" />
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-base)" }}>
+                          Elevation shift <input type="number" value={modal.zShift ?? ""} onChange={(e) => onChange({ ...modal, zShift: e.target.value })} style={{ ...sel, width: 90 }} aria-label="Elevation shift in metres" /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>added to every collar elevation (e.g. -1000 for a mine datum)</span>
+                        </div>
+                        <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: fitErr ? "var(--color-danger-icon-strong)" : "var(--color-text-secondary)" }}>
+                          {fitErr || (fit && `Fitted from ${fit.n} points: scale ${fit.scale.toFixed(6)}, rotation ${fit.rotationDeg.toFixed(3)}°, RMS misfit ${fit.rmsM.toFixed(2)} m${fit.n === 2 ? " (two points fit exactly — add a third to check the fit)" : fit.rmsM > 2 ? " — large: check the control points" : ""}. Residuals: ${fit.residuals.map((r) => r.toFixed(2)).join(", ")} m.`)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* TASKS.csv #396 — which north the file's azimuths are measured from. GeoStrix draws against the
               project grid; magnetic azimuths at Harry are ~17-19 deg off grid north. */}

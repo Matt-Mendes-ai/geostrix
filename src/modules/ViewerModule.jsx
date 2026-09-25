@@ -18,6 +18,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
 import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
+import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -7305,7 +7306,26 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // let the multi-file queue (if there is one) move on to the next file.
   const commitImport = () => {
     if (!importModal) return;
-    commitImportData(importModal);
+    // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
+    let modalData = importModal;
+    const units = importModal.units || "m";
+    const gridOn = importModal.target === "collars" && importModal.localGridOn;
+    if (units === "ft" || gridOn || Number(importModal.zShift)) {
+      let grid = null;
+      if (gridOn) {
+        try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
+        catch (e) { setNotices((p) => [...p, `${importModal.fileName}: local grid — ${e.message} Nothing was imported.`]); return; }
+        if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
+          setNotices((p) => [...p, `${importModal.fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:${importModal.sourceEpsg}). Nothing was imported.`]);
+          return;
+        }
+      }
+      const zShift = importModal.target === "collars" ? Number(importModal.zShift) || 0 : 0;
+      const t = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift });
+      modalData = { ...importModal, allRows: t.rows };
+      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? " and elevations" : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? ` ${t.moved} collar(s) moved from the local grid to EPSG:${project?.epsg} (scale ${grid.scale.toFixed(6)}, rotation ${grid.rotationDeg.toFixed(3)}°, RMS ${grid.rmsM.toFixed(2)} m over ${grid.n} control points).` : ""}${zShift ? ` Elevations shifted by ${zShift} m.` : ""}`]);
+    }
+    commitImportData(modalData);
     setImportModal(null);
     processImportQueue();
   };
