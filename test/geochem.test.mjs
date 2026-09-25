@@ -135,3 +135,24 @@ test("#402 metal equivalent uses only entered prices and recoveries, with unit c
   assert.equal(metalEquivalent({ Au: 1, Ag: 80 }, [au, { ...ag, price: NaN }]), null);
   assert.equal(metalEquivalent({ Au: 1 }, [au, ag]), null); // missing Ag grade -> no number
 });
+
+import { addCalculatedElement, CALC_PRESETS } from "../src/lib/calcElement.js";
+test("#401 calculated element: presets, partial rows skipped, safe parser errors", () => {
+  const els = ["K", "Mg", "Na", "Ca", "Zn", "Pb"].map((s) => ({ symbol: s, unit: s === "Zn" || s === "Pb" ? "ppm" : "%" }));
+  const assays = [
+    { hole_id: "H", from: 0, to: 1, values: { K: 2, Mg: 1, Na: 0.5, Ca: 0.5, Zn: 900, Pb: 100 } },
+    { hole_id: "H", from: 1, to: 2, values: { K: 2, Mg: 1, Zn: 50 } }, // no Na/Ca/Pb
+  ];
+  const ai = CALC_PRESETS.find((p) => p.name === "AI");
+  const r = addCalculatedElement(assays, els, "AI", ai.expr);
+  const K2O = 2 * 1.2046, MgO = 1.6583, Na2O = 0.5 * 1.348, CaO = 0.5 * 1.3992;
+  assert.ok(Math.abs(r.assays[0].values.AI - (100 * (K2O + MgO)) / (K2O + MgO + Na2O + CaO)) < 1e-9);
+  assert.equal(r.assays[1].values.AI, undefined); // partial analysis: no value, not a made-up one
+  assert.equal(r.computed, 1); assert.equal(r.skipped, 1);
+  assert.equal(r.element.calculated.expr, ai.expr);
+  const zn = addCalculatedElement(assays, els, "ZnRatio", "100*Zn/(Zn+Pb)");
+  assert.equal(zn.assays[0].values.ZnRatio, 90);
+  assert.throws(() => addCalculatedElement(assays, els, "Bad", "Zn + Foo"), /Unknown name "Foo"/);
+  assert.throws(() => addCalculatedElement(assays, els, "Zn", "Zn"), /already exists/);
+  assert.throws(() => addCalculatedElement(assays, els, "1x", "Zn"), /start with a letter/);
+});

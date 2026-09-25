@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare } from "lucide-react";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
+import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import {
@@ -39,6 +40,8 @@ export default function GeochemModule() {
   const [assayModal, setAssayModal] = useState(null);
   const [surfaceModal, setSurfaceModal] = useState(null);
   const [isoconOpen, setIsoconOpen] = useState(false);
+  // TASKS.csv #401 — calculated element (vectoring index) panel
+  const [calc, setCalc] = useState(null); // null | { name, expr, msg }
   const [corrOpen, setCorrOpen] = useState(false);
   const [bestIntOpen, setBestIntOpen] = useState(false);
   const [compositingOpen, setCompositingOpen] = useState(false);
@@ -414,6 +417,36 @@ export default function GeochemModule() {
             <button onClick={() => runMethod("litho_winchester")} style={genBtn}>Lithology (Winchester)</button>
             <button onClick={() => runMethod("litho_jensen")} style={genBtn}>Lithology (Jensen)</button>
             <div style={{ fontSize: 10, color: "#65717e", marginTop: 6, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>
+
+            {/* TASKS.csv #401 — a calculated element is a real element: downhole, in 3D, on sections,
+                in intercepts/composites/estimation. */}
+            <div className="ge-section-label" style={{ marginTop: 18 }}>Calculated elements</div>
+            {!calc ? (
+              <button onClick={() => setCalc({ name: "", expr: "", msg: null })} style={genBtn}><Sigma size={14} /> Add calculated element…</button>
+            ) : (
+              <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc({ name: p.name, expr: p.expr, msg: { ok: true, text: `${p.label}. ${p.unitNote}.` } }); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label="Preset">
+                  <option value="">Preset… (or write your own below)</option>
+                  {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => assayElements.some((e) => e.symbol === s))}>{p.label}{p.needs.every((s) => assayElements.some((e) => e.symbol === s)) ? "" : ` — needs ${p.needs.join(", ")}`}</option>)}
+                </select>
+                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder="Name, e.g. AI" aria-label="Calculated element name" style={{ fontSize: "var(--font-size-sm)" }} />
+                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder="Formula over element symbols, e.g. 100*Zn/(Zn+Pb)" aria-label="Calculated element formula" style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
+                <div style={{ color: "var(--color-text-muted)" }}>Elements are read in their stored units ({assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", ")}{assayElements.length > 6 ? ", …" : ""}). Rows missing any element in the formula get no value.</div>
+                {calc.msg && <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button style={{ ...genBtn, flex: 1 }} onClick={() => {
+                    try {
+                      const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr);
+                      setAssays(r.assays);
+                      setAssayElements((prev) => [...prev, r.element]);
+                      setNotices((p) => [...p, `Added calculated element ${r.element.symbol} = ${r.element.calculated.expr} on ${r.computed.toLocaleString()} assay interval(s) (range ${r.min.toFixed(2)}–${r.max.toFixed(2)})${r.skipped ? `; ${r.skipped.toLocaleString()} interval(s) missing an element in the formula have no value` : ""}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.`]);
+                      setCalc(null);
+                    } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
+                  }}>Add</button>
+                  <button style={{ ...panelBtn, flex: 1 }} onClick={() => setCalc(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
 
             <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
             <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={14} /> Isocon / mass-change calculator</button>
