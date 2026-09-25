@@ -27,6 +27,22 @@ function claimNewDialog() {
   for (let i = all.length - 1; i >= 0; i--) if (!claimed.has(all[i])) { claimed.add(all[i]); return all[i]; }
   return null;
 }
+// TASKS.csv #388 — 34 of 36 dialogs had no accessible name, so a screen reader announced only "dialog".
+// Every dialog here puts its title first in its header, so an unnamed dialog is labelled by that element
+// (aria-labelledby, with a generated id) — or, failing that, by its first line of text.
+let titleSeq = 0;
+function nameDialog(dialog) {
+  if (!dialog || dialog.hasAttribute("aria-label") || dialog.hasAttribute("aria-labelledby")) return;
+  const walker = document.createTreeWalker(dialog, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+  const first = walker.nextNode();
+  const el = first?.parentElement;
+  if (el && el !== dialog && el.textContent.trim().length <= 120) {
+    if (!el.id) el.id = `gs-dialog-title-${++titleSeq}`;
+    dialog.setAttribute("aria-labelledby", el.id);
+  } else if (first) {
+    dialog.setAttribute("aria-label", first.nodeValue.trim().slice(0, 120));
+  }
+}
 function topDialog() {
   for (let i = trapStack.length - 1; i >= 0; i--) { const el = trapStack[i].el; if (el && document.contains(el)) return el; }
   const all = document.querySelectorAll('[role="dialog"]');
@@ -47,6 +63,7 @@ export function useFocusTrap(enabled = true) {
     trapStack.push(entry);
     const raf = requestAnimationFrame(() => {
       entry.el = claimNewDialog();
+      nameDialog(entry.el);
       const dialog = topDialog();
       if (!dialog) return;
       const focusables = visibleFocusables(dialog);

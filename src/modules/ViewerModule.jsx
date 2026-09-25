@@ -10070,7 +10070,7 @@ function ViewToolbar({
     <div className="ge-subtoolbar">
       <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
-          <button className={`ge-subtool-btn ${openPopover === "grid" ? "active" : ""}`} onClick={() => toggle("grid")}>
+          <button className={`ge-subtool-btn ${openPopover === "grid" ? "active" : ""}`} aria-pressed={!!(openPopover === "grid")} onClick={() => toggle("grid")}>
             <Grid3x3 size={14} />
           </button>
         </HoverToolInfo>
@@ -10107,7 +10107,7 @@ function ViewToolbar({
           scale bar has somewhere to be stated. */}
       <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
-          <button className={`ge-subtool-btn ${openPopover === "figure" ? "active" : ""}`} onClick={() => toggle("figure")}>
+          <button className={`ge-subtool-btn ${openPopover === "figure" ? "active" : ""}`} aria-pressed={!!(openPopover === "figure")} onClick={() => toggle("figure")}>
             <Ruler size={14} />
           </button>
         </HoverToolInfo>
@@ -10158,7 +10158,7 @@ function ViewToolbar({
 
       <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
-          <button className={`ge-subtool-btn ${openPopover === "themes" ? "active" : ""}`} onClick={() => toggle("themes")}>
+          <button className={`ge-subtool-btn ${openPopover === "themes" ? "active" : ""}`} aria-pressed={!!(openPopover === "themes")} onClick={() => toggle("themes")}>
             <Bookmark size={14} />
           </button>
         </HoverToolInfo>
@@ -10239,7 +10239,7 @@ function ViewToolbar({
       </div>
       <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Draw cross-section" text={sectionMode ? "Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included." : "Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included."}>
-          <button className={`ge-subtool-btn ${sectionMode ? "active" : ""}`} onClick={onToggleSection}>
+          <button className={`ge-subtool-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}>
             <Scissors size={14} />
           </button>
         </HoverToolInfo>
@@ -10254,7 +10254,7 @@ function ViewToolbar({
       <div className="ge-subtool-sep" />
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         <HoverToolInfo title="Measure" text={measureMode ? "Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout." : "Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on."}>
-          <button className={`ge-subtool-btn ${measureMode ? "active" : ""}`} onClick={onToggleMeasure}>
+          <button className={`ge-subtool-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}>
             <Ruler size={14} />
           </button>
         </HoverToolInfo>

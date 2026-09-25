@@ -123,6 +123,9 @@ input, select { font-family: inherit; }
 }
 .ge-tool-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
 .ge-tool-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); color: var(--color-text); }
+/* TASKS.csv #388 — the active fill/border alone measured 1.14:1 / 1.77:1 against white (WCAG 1.4.11 wants
+   3:1), so active state was effectively colour-only. A 2 px accent underline carries it for everyone. */
+.ge-tool-btn.active, .ge-subtool-btn.active, .ge-tab.active { box-shadow: inset 0 -2px 0 var(--color-accent-dark); }
 .ge-tool-sep { width: 1px; height: 22px; background: var(--color-border); margin: 0 6px; }
 /* TASKS.csv #449 — at 1024 px the toolbar measured 1,189 px wide: the page scrolled sideways and Export
    PDF sat off-screen (1024-1366 px is common on budget laptops). Below 1280 px: tighter buttons, and the

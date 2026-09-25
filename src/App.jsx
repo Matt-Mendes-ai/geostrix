@@ -317,6 +317,7 @@ export default function App() {
             <button
               key={m.id}
               className={`ge-tool-btn ${active === m.id ? "active" : ""}`}
+              aria-current={active === m.id ? "page" : undefined} // TASKS.csv #388
               onClick={() => !m.disabled && setActive(m.id)}
               disabled={m.disabled}
               title={m.disabled ? "Coming soon" : undefined}
@@ -406,6 +407,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
           <div role="button" tabIndex={0} onKeyDown={activateOnKey}
             key={t.id}
             className={`ge-tab ${isActive ? "active" : ""}`}
+            aria-current={isActive ? "true" : undefined} // TASKS.csv #388
             onClick={() => onSwitch(t.id)}
             title={label}
           >
