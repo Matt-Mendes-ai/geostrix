@@ -402,6 +402,31 @@ function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)"
 // Scale every fixed-size label under `group` so it is LABEL_PX tall on a viewport `viewportH` px high.
 // Perspective (sizeAttenuation off): screen fraction = scale * P[5] / 2. Orthographic: three.js keeps
 // the scale in world units, so it is px * world-height-per-pixel.
+// TASKS.csv #380 — render ONE frame at print resolution for a capture, then restore. A capture used to be
+// the live canvas: ~1,375 px across an A4 landscape page on a 1080p laptop (~118 dpi). The long side is
+// raised to ~3,000 px (A4 at ~300 dpi), capped by the GPU's renderbuffer/viewport limits and 4,096 px (an
+// Iris Xe-class budget). Nothing changes per frame; the canvas's CSS size never changes, so the page
+// doesn't reflow. `draw()` does the actual render(s); returns the PNG data URL and its pixel size.
+const CAPTURE_LONG_PX = 3000;
+function captureHiRes(renderer, cssW, cssH, draw) {
+  const gl = renderer.getContext();
+  const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
+  const maxVp = gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[0] || 4096;
+  const cap = Math.min(4096, maxRb, maxVp);
+  const oldPr = renderer.getPixelRatio();
+  const longCss = Math.max(cssW, cssH) || 1;
+  const pr = Math.max(oldPr, Math.min(CAPTURE_LONG_PX, cap) / longCss);
+  try {
+    if (pr !== oldPr) { renderer.setPixelRatio(pr); renderer.setSize(cssW, cssH, false); }
+    renderer.setViewport(0, 0, cssW, cssH);
+    renderer.setScissorTest(false);
+    draw();
+    const c = renderer.domElement;
+    return { dataUrl: c.toDataURL("image/png"), width: c.width, height: c.height };
+  } finally {
+    if (pr !== oldPr) { renderer.setPixelRatio(oldPr); renderer.setSize(cssW, cssH, false); }
+  }
+}
 function fitScreenLabels(group, camera, viewportH) {
   if (!group || !viewportH) return;
   const s = camera.isPerspectiveCamera
@@ -2983,13 +3008,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!renderer || !scene || !camera) return;
     // Force one fresh render right before capture (the compass overlay uses setScissor/setViewport
     // tricks each frame, so grabbing the canvas mid-frame could catch it half-drawn).
-    renderer.setViewport(0, 0, mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.setScissorTest(false);
-    renderer.render(scene, camera);
-    const canvas = renderer.domElement;
-    let dataUrl;
-    try { dataUrl = canvas.toDataURL("image/png"); } catch (err) { setNotices((p) => [...p, `Snapshot failed: ${err.message}`]); return; }
-    addLayoutImage({ label: "3D Viewport", src: dataUrl, naturalW: canvas.width, naturalH: canvas.height });
+    let shot;
+    try {
+      shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => renderer.render(scene, camera)); // #380
+    } catch (err) { setNotices((p) => [...p, `Snapshot failed: ${err.message}`]); return; }
+    addLayoutImage({ label: "3D Viewport", src: shot.dataUrl, naturalW: shot.width, naturalH: shot.height });
     goToModule("layout");
     setNotices((p) => [...p, "Viewport snapshot added to the Layout page."]);
   }, [addLayoutImage, goToModule]);
@@ -3211,13 +3234,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       orthoCamera.updateProjectionMatrix();
       renderCamera = orthoCamera;
     }
-    fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, renderer.domElement.height / renderer.getPixelRatio()); // #379
-    renderer.render(scene, renderCamera);
     // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
     // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
-    const canvas = renderer.domElement;
-    let dataUrl;
-    try { dataUrl = canvas.toDataURL("image/png"); } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
+    let dataUrl, shotW = 0, shotH = 0;
+    try {
+      const cssW = mountRef.current.clientWidth, cssH = mountRef.current.clientHeight;
+      const shot = captureHiRes(renderer, cssW, cssH, () => { // #380 — print resolution
+        fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, cssH); // #379
+        renderer.render(scene, renderCamera);
+      });
+      dataUrl = shot.dataUrl; shotW = shot.width; shotH = shot.height;
+    } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
     // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
     // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
@@ -3248,7 +3275,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const targetWorld = { x: cs.target.x + o.x, y: o.y - cs.target.z };
     const planView = cs.phi < 0.02; // within ~1 deg of looking straight down
     resolveViewportRender({
-      requestId: req.requestId, src: dataUrl, naturalW: canvas.width, naturalH: canvas.height,
+      requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView,
     });
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
