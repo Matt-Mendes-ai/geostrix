@@ -15,7 +15,7 @@ import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } fro
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { activateOnKey } from "../lib/a11y.js";
-import { pythonHealth, sidecarPlanPotential } from "../lib/desktop.js";
+import { pythonHealth, sidecarPlanPotential, ensureSidecarUp } from "../lib/desktop.js";
 import { toLonLat } from "../lib/reproject.js";
 import { igrfField, decimalYear } from "../lib/igrf.js";
 import {
@@ -71,7 +71,7 @@ export default function InversionPanel({ pBtn, numInput }) {
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    pythonHealth().then((h) => { if (alive) setEngine({ ok: h.ok, available: !!h.capabilities?.potentialFields?.available, simpeg: h.capabilities?.potentialFields?.simpeg, apiVersion: h.api_version }); });
+    ensureSidecarUp().then(pythonHealth).then((h) => { if (alive) setEngine({ ok: h.ok, available: !!h.capabilities?.potentialFields?.available, simpeg: h.capabilities?.potentialFields?.simpeg, apiVersion: h.api_version }); });
     return () => { alive = false; };
   }, [open]);
 
@@ -265,8 +265,8 @@ export default function InversionPanel({ pBtn, numInput }) {
       </div>
       {open && (
         <div style={{ fontSize: "var(--font-size-sm)" }}>
-          {engine === null && <div style={small}>Checking the Python engine…</div>}
-          {engine && !engine.ok && <div style={small}>Needs GeoStrix's Python engine, which isn't running (status bar: Py). It starts with the desktop app.</div>}
+          {engine === null && <div style={small}>Starting the Python engine…</div>}
+          {engine && !engine.ok && <div style={small}>Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; see python-sidecar/README.md if it never comes up.</div>}
           {engine && engine.ok && !engine.available && <div style={small}>The running Python engine has no SimPEG — update GeoStrix to a version that includes it.</div>}
           {engine?.available && !allRows.length && <div style={small}>Import a magnetic or gravity survey in Point cloud (CSV) above first — x, y, z and the measured value per station.</div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}

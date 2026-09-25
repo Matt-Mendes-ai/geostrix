@@ -6,7 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
@@ -73,7 +73,7 @@ export default function App() {
   if (VIEWER_MODES[active]) lastViewerModeRef.current = VIEWER_MODES[active];
   const [epsgEditing, setEpsgEditing] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
-  const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable"
+  const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "about"
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
@@ -106,8 +106,12 @@ export default function App() {
   // Python sidecar (python-sidecar/) is spawned by Electron's main process, which takes a moment
   // to boot — poll a few times close together right after launch, then settle into an occasional
   // background recheck (e.g. the user starts it manually after installing deps, or it crashes).
+  // TASKS.csv #440 — the desktop app now starts it on first use, so until then the status is "standby"
+  // and nothing polls a port no one is listening on; a first-use start re-checks at once.
   useEffect(() => {
     let cancelled = false;
+    const onStarted = () => { pythonHealth().then((res) => { if (!cancelled) setPyStatus(res.ok ? "connected" : "unavailable"); }); };
+    window.addEventListener("geostrix-sidecar-started", onStarted);
     let attempts = 0;
     let slowTimer = null;
     // TASKS.csv #236 (software-design-specialist audit finding) — the sidecar is optional and most
@@ -125,6 +129,7 @@ export default function App() {
     const scheduleSlow = () => {
       if (cancelled) return;
       slowTimer = setTimeout(async () => {
+        if (!(await isSidecarRunning())) { if (!cancelled) setPyStatus("standby"); slowDelay = SLOW_BASE_MS; scheduleSlow(); return; } // #440
         const res = await pythonHealth();
         if (cancelled) return;
         setPyStatus(res.ok ? "connected" : "unavailable");
@@ -133,6 +138,7 @@ export default function App() {
       }, slowDelay);
     };
     const check = async () => {
+      if (!(await isSidecarRunning())) { if (!cancelled) { setPyStatus("standby"); scheduleSlow(); } return; } // #440
       const res = await pythonHealth();
       if (cancelled) return;
       if (res.ok) { setPyStatus("connected"); scheduleSlow(); return; }
@@ -141,7 +147,7 @@ export default function App() {
       else { setPyStatus("unavailable"); scheduleSlow(); }
     };
     check();
-    return () => { cancelled = true; if (slowTimer) clearTimeout(slowTimer); };
+    return () => { cancelled = true; if (slowTimer) clearTimeout(slowTimer); window.removeEventListener("geostrix-sidecar-started", onStarted); };
   }, []);
 
   const doSave = useCallback(async () => {
@@ -434,8 +440,8 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
   const cursor = useCursorValue();
   const taskProgress = useTaskProgressValue();
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
-  const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" ? "#55606e" : "#94a1b0";
-  const pyLabel = pyStatus === "connected" ? "Python: connected" : pyStatus === "checking" ? "Python: checking…" : "Python: not available (optional — see python-sidecar/README.md)";
+  const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";
+  const pyLabel = pyStatus === "connected" ? "Python: connected" : pyStatus === "checking" ? "Python: checking…" : pyStatus === "standby" ? "Python: standby — starts when a feature needs it (implicit modelling, interpolation, magnetics/gravity)" : "Python: not available (optional — see python-sidecar/README.md)";
   const pct = taskProgress ? Math.max(0, Math.min(100, Math.round(taskProgress.pct ?? 0))) : 0;
   return (
     <div className="ge-status">
@@ -464,7 +470,7 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       </button>
       <span title={pyLabel} style={{ display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
-        Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : "off"}
+        Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : pyStatus === "standby" ? "idle" : "off"}
       </span>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>

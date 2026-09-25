@@ -326,7 +326,35 @@ async function sidecarHeaders(extra = {}) {
   const token = await sidecarTokenPromise;
   return token ? { ...extra, "X-GeoStrix-Token": token } : extra;
 }
+// TASKS.csv #440 — the desktop app starts the sidecar on first use instead of at launch. Every call that
+// needs Python goes through this first: it asks the main process to spawn it (a no-op when running) and,
+// when this call did the spawning, waits for /health so the request doesn't race the server's startup.
+// In a plain-browser session there is nothing to spawn and this returns at once.
+let sidecarStartPromise = null;
+export async function ensureSidecarUp() {
+  if (!d?.ensureSidecar) return;
+  if (sidecarStartPromise) return sidecarStartPromise;
+  sidecarStartPromise = (async () => {
+    const r = await d.ensureSidecar().catch(() => null);
+    if (r?.spawned) {
+      // A frozen build unpacks and imports numpy/scipy before listening; allow it ~45 s.
+      const until = Date.now() + 45000;
+      while (Date.now() < until) {
+        const h = await pythonHealth();
+        if (h.ok) break;
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      window.dispatchEvent(new Event("geostrix-sidecar-started"));
+    }
+  })().finally(() => { sidecarStartPromise = null; });
+  return sidecarStartPromise;
+}
+export async function isSidecarRunning() {
+  return d?.isSidecarRunning ? d.isSidecarRunning().catch(() => false) : true;
+}
+
 async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, signal } = {}) {
+  await ensureSidecarUp();
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}${path}`, {
       method,
@@ -391,6 +419,7 @@ function formatSidecarErrorDetail(detail, status) {
 
 // points: [{x,y,z,value}], query: [{x,y,z}], opts: {method:'rbf'|'idw', rbfFunction, smoothing, power}
 export async function pythonInterpolate(points, query, opts = {}) {
+  await ensureSidecarUp(); // #440
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/interpolate`, {
       method: "POST",
@@ -457,6 +486,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
 
 // The pre-#355 synchronous call, kept only as a fallback for an older sidecar.
 async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
+  await ensureSidecarUp(); // #440
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/implicit-model`, {
       method: "POST",

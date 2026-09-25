@@ -102,7 +102,13 @@ app.on("web-contents-created", (_e, contents) => {
 // forced into every `npm run build`), this falls through to the same from-source spawn attempt, which
 // will fail the same "Python not found" way it always has for someone without Python installed — no
 // worse than before this pass, not a new failure mode.
+// TASKS.csv #440 — no longer started at launch. It cost ~4 s of import CPU competing with first paint and
+// ~280 MB of committed memory (mostly OpenBLAS thread buffers) for every user, including the many who never
+// model or invert. The renderer now asks for it (the "sidecar-ensure" IPC below) the first time a feature
+// actually needs Python; the call is idempotent, so a running sidecar is left alone. Returns true when this
+// call spawned it (the caller then waits for /health), false when it was already running.
 function startPythonSidecar() {
+  if (pySidecar) return false;
   const frozenName = process.platform === "win32" ? "geostrix-sidecar.exe" : "geostrix-sidecar";
   // TASKS.csv #321 — the sidecar is now a --onedir build (see python-sidecar/build_sidecar.js): its exe
   // lives in its own folder beside _internal/.
@@ -149,7 +155,7 @@ function startPythonSidecar() {
       // minutes, and 127.0.0.1 is reachable from anything on this machine, including web pages open in a
       // browser. A random per-launch secret, required on every request except /health, means only this
       // app's renderer (which fetches it over IPC below) can drive it.
-      env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN },
+      env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN, ...blasThreadEnv() },
       // dev: inherit the terminal. packaged: both streams to the log file when we have one.
       stdio: isDev ? "inherit" : (sidecarLogFd !== null ? ["ignore", sidecarLogFd, sidecarLogFd] : "ignore"),
     });
@@ -165,6 +171,17 @@ function startPythonSidecar() {
     console.error("[python-sidecar] spawn failed:", err.message);
     pySidecar = null;
   }
+  return pySidecar !== null;
+}
+// TASKS.csv #440 — cap numpy's BLAS/OpenMP thread pools at half the cores (max 4). Measured on the dev venv,
+// idle after startup on an 8-core machine: 278 MB committed with the default 8 threads, 150 MB with 4, 85 MB
+// with 2. Half the cores also leaves the UI responsive during a long solve. A value the user has already set
+// in their environment wins.
+function blasThreadEnv() {
+  const n = String(Math.max(1, Math.min(4, Math.floor(require("os").cpus().length / 2))));
+  const env = {};
+  ["OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"].forEach((k) => { if (!process.env[k]) env[k] = n; });
+  return env;
 }
 function stopPythonSidecar() {
   if (pySidecar && !pySidecar.killed) {
@@ -210,6 +227,10 @@ function setupAutoUpdater() {
 // TASKS.csv #321 — see the spawn() env comment in startPythonSidecar.
 const SIDECAR_TOKEN = require("crypto").randomBytes(32).toString("hex");
 ipcMain.handle("sidecar-token", () => SIDECAR_TOKEN);
+// TASKS.csv #440 — start on first use; "sidecar-running" lets the status bar say "starts when needed"
+// without polling a port nobody is listening on.
+ipcMain.handle("sidecar-ensure", () => ({ spawned: startPythonSidecar(), running: pySidecar !== null }));
+ipcMain.handle("sidecar-running", () => pySidecar !== null);
 
 ipcMain.handle("updater-check", async () => {
   if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };
@@ -972,7 +993,7 @@ function setTileUserAgent() {
 app.whenReady().then(() => {
   setTileUserAgent(); // TASKS.csv #300 — before any window exists, so the first tile request carries it
   createMainWindow();
-  startPythonSidecar();
+  // TASKS.csv #440 — the Python sidecar is started on first use (see startPythonSidecar), not here.
   setupAutoUpdater();
   // A short delay so the startup update check doesn't compete with the app's own initial render/
   // autosave-recovery-prompt work for network priority on a slow connection — same reasoning as any
