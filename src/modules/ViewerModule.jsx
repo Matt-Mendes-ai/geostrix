@@ -1276,6 +1276,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const rendererRef = useRef(null);
+  // TASKS.csv #453 — interactive 3D slice (clipping). Planes are applied only while the MAIN scene renders
+  // (renderer.clippingPlanes), so the compass, the axis gizmo and helpers drawn afterwards are never cut.
+  // Planes live in scene coordinates: x = east - origin, y = elevation - origin, z = -(north - origin).
+  const [slice3d, setSlice3d] = useState({ on: false, mode: "vertical", azimuth: 0, pos: 0.5, thickness: 50 });
+  const slicePlanesRef = useRef([]);
   const layerGroupsRef = useRef({});
   const raycasterRef = useRef(new THREE.Raycaster());
   const headlightRef = useRef(null); // TASKS.csv #308 — the scene's DirectionalLight, repositioned to follow the camera in updateCamera()
@@ -2195,6 +2200,54 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return groups;
   }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
+  // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
+  // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
+  // its perpendicular; horizontal: an elevation. Thickness 0 = one half-space, else a slab (two planes).
+  const sliceExtent = useMemo(() => {
+    const ts = tracesRef.current || [];
+    const pts = ts.flatMap((t) => t.pts || []);
+    if (pts.length) {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
+      return { x0, x1, y0, y1, z0, z1 };
+    }
+    return null;
+  }, [slice3d.on, collars, survey, rebuildSeq]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sliceReadout = useMemo(() => {
+    if (!slice3d.on || !sliceExtent) return slice3d.on ? "Load drillholes to set the slice range." : "";
+    const o = originRef.current;
+    if (slice3d.mode === "horizontal") {
+      const elev = sliceExtent.y0 + slice3d.pos * (sliceExtent.y1 - sliceExtent.y0) + o.z;
+      return slice3d.thickness > 0 ? `Showing ${Math.round(elev - slice3d.thickness / 2)}–${Math.round(elev + slice3d.thickness / 2)} m elevation` : `Showing everything below ${Math.round(elev)} m elevation`;
+    }
+    return slice3d.thickness > 0 ? `Vertical slab ${slice3d.thickness} m thick, striking ${slice3d.azimuth}°` : `Everything on one side of a vertical cut striking ${slice3d.azimuth}°`;
+  }, [slice3d, sliceExtent]);
+  useEffect(() => {
+    lastActivityRef.current = Date.now(); // #441 — redraw now
+    if (!slice3d.on || !sliceExtent) { slicePlanesRef.current = []; return; }
+    const e = sliceExtent, t = slice3d.thickness;
+    let n, c; // plane through point c with normal n (scene coords)
+    if (slice3d.mode === "horizontal") {
+      n = new THREE.Vector3(0, 1, 0);
+      c = new THREE.Vector3(0, e.y0 + slice3d.pos * (e.y1 - e.y0), 0);
+    } else {
+      // Strike azimuth a (clockwise from north). World strike dir (sin a, cos a) -> scene (sin a, 0, -cos a);
+      // the slab normal is horizontal and perpendicular to it.
+      const a = (slice3d.azimuth * Math.PI) / 180;
+      n = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const corners = [[e.x0, e.z0], [e.x1, e.z0], [e.x0, e.z1], [e.x1, e.z1]].map(([x, z]) => x * n.x + z * n.z);
+      const lo = Math.min(...corners), hi = Math.max(...corners), d = lo + slice3d.pos * (hi - lo);
+      c = n.clone().multiplyScalar(d);
+    }
+    const plane = (normal, point) => new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point);
+    if (t > 0) {
+      // keep  |n.(p - c)| <= t/2 : two planes facing inward (three clips the NEGATIVE side of each)
+      slicePlanesRef.current = [plane(n.clone().negate(), c.clone().addScaledVector(n, t / 2)), plane(n.clone(), c.clone().addScaledVector(n, -t / 2))];
+    } else {
+      slicePlanesRef.current = [plane(n.clone().negate(), c)]; // keep everything on the negative-normal side (below / behind)
+    }
+  }, [slice3d, sliceExtent]);
+
   // TASKS.csv #311 — title provenance, kept as simple as the row asks for: the project name by
   // default, overridable with a free-text field in the Figure popover (a figure is often "Section
   // 4200N — Main zone", which the project name cannot supply). Blank override = fall back to the
@@ -2832,7 +2885,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) fitScreenLabels(hl, camera, mount.clientHeight); } // #379
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
+        renderer.clippingPlanes = slicePlanesRef.current; // #453 — main scene only
         renderer.render(scene, camera);
+        renderer.clippingPlanes = [];
         compass.renderEachFrame(renderer, mount);
         axisGizmo.renderEachFrame(renderer, mount);
         lastFrameAtRef.current = now;
@@ -3072,7 +3127,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // tricks each frame, so grabbing the canvas mid-frame could catch it half-drawn).
     let shot;
     try {
-      shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => renderer.render(scene, camera)); // #380
+      shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => { renderer.clippingPlanes = slicePlanesRef.current; renderer.render(scene, camera); renderer.clippingPlanes = []; }); // #380, #453
     } catch (err) { setNotices((p) => [...p, `Snapshot failed: ${err.message}`]); return; }
     addLayoutImage({ label: "3D Viewport", src: shot.dataUrl, naturalW: shot.width, naturalH: shot.height });
     goToModule("layout");
@@ -3303,7 +3358,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const cssW = mountRef.current.clientWidth, cssH = mountRef.current.clientHeight;
       const shot = captureHiRes(renderer, cssW, cssH, () => { // #380 — print resolution
         fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, cssH); // #379
+        renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         renderer.render(scene, renderCamera);
+        renderer.clippingPlanes = [];
       });
       dataUrl = shot.dataUrl; shotW = shot.width; shotH = shot.height;
     } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
@@ -8459,7 +8516,34 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             specified azi and width"). Generates N parallel sections tiling the visible voxel model(s)'
             and/or drilling's extent, added to the same saved-sections list below rather than opened all
             at once. */}
-        <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16 }}>Slice series (fence)</div>
+        {/* TASKS.csv #453 — live 3D slice through everything in the view */}
+        <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>3D slice</span>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
+            <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label="3D slice on" /> On
+          </label>
+        </div>
+        {slice3d.on && (
+          <div style={{ marginBottom: 12, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={slice3d.mode} onChange={(e) => setSlice3d((s) => ({ ...s, mode: e.target.value }))} style={{ flex: 1 }} aria-label="Slice orientation">
+                <option value="vertical">Vertical slab</option>
+                <option value="horizontal">Horizontal (level plan)</option>
+              </select>
+              {slice3d.mode === "vertical" && (
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>Az <input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label="Slice azimuth" />°</label>
+              )}
+            </div>
+            <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label="Slice position" />
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              Thickness <input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label="Slice thickness" /> m
+              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : "0 = everything beyond the cut"}</span>
+            </label>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
+          </div>
+        )}
+
+        <div className="ge-section-label" style={{ marginTop: 8 }}>Slice series (fence)</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth —
           each one added to the list below, ready to open individually. Includes the geophysics voxel
