@@ -1,3 +1,4 @@
+import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 // Minimal ESRI Shapefile (+ DBF attribute table, + PRJ projection file) writer, zipped, for the new
 // "Export Shapefile" right-click action on vector layers (collars, survey/drillhole traces, litho/alt/
 // vein/structure/geochem intervals, geophysics points). Hand-written rather than an npm dependency —
@@ -328,15 +329,15 @@ class ByteReader {
 // algorithm — easy to get subtly wrong — this uses the browser/Electron-Chromium's own native
 // DecompressionStream('deflate-raw'), available since Chromium 103 (this app ships Electron 28,
 // Chromium ~120), so DEFLATE entries decompress correctly with zero new code and zero new dependency.
-async function inflateRaw(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
+// TASKS.csv #351 — per-entry and whole-archive ceilings (see inflate.js), declared sizes checked BEFORE
+// inflating, every offset bounds-checked, and only the files a shapefile layer needs are decompressed.
+const ZIP_ENTRY_MAX = 512 * MB, ZIP_TOTAL_MAX = 1024 * MB;
+const ZIP_WANTED = /\.(shp|shx|dbf|prj|cpg|qml)$/i;
 // Reads the ZIP central directory (from the end, via the End-Of-Central-Directory record) rather
 // than scanning local file headers sequentially — the standard, robust way to enumerate a ZIP's
 // entries regardless of any padding/prepended data. Returns { name -> Uint8Array } of every entry's
 // decompressed bytes.
-export async function readZipEntries(zipBytes) {
+export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
   const bytes = zipBytes instanceof Uint8Array ? zipBytes : new Uint8Array(zipBytes);
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   // Find EOCD signature (0x06054b50) scanning backward — comment field (if any) makes its offset
@@ -353,28 +354,41 @@ export async function readZipEntries(zipBytes) {
 
   const entries = {};
   let off = centralStart;
+  const corrupt = () => new Error("Corrupt .zip (an entry points outside the file).");
   for (let i = 0; i < entryCount; i++) {
+    if (off + 46 > bytes.length) throw corrupt();
     if (dv.getUint32(off, true) !== 0x02014b50) throw new Error("Corrupt .zip central directory.");
     const method = dv.getUint16(off + 10, true);
     const compSize = dv.getUint32(off + 20, true);
+    const declaredSize = dv.getUint32(off + 24, true);
     const nameLen = dv.getUint16(off + 28, true);
     const extraLen = dv.getUint16(off + 30, true);
     const commentLen = dv.getUint16(off + 32, true);
     const localOff = dv.getUint32(off + 42, true);
+    if (off + 46 + nameLen > bytes.length) throw corrupt();
     const name = new TextDecoder().decode(bytes.subarray(off + 46, off + 46 + nameLen));
+    off += 46 + nameLen + extraLen + commentLen;
+    if (!wanted.test(name)) { entries[name] = null; continue; } // listed, never decompressed
+    if (declaredSize > ZIP_ENTRY_MAX) throw new Error(`"${name}" in this .zip says it is ${Math.round(declaredSize / MB)} MB uncompressed — over the ${ZIP_ENTRY_MAX / MB} MB limit.`);
+    if (localOff + 30 > bytes.length) throw corrupt();
     // Jump to the local file header to find where the actual (possibly differently-ordered/sized)
     // compressed data starts — its own name/extra field lengths can differ from the central record's.
     const lMethod = dv.getUint16(localOff + 8, true);
     const lNameLen = dv.getUint16(localOff + 26, true);
     const lExtraLen = dv.getUint16(localOff + 28, true);
     const dataStart = localOff + 30 + lNameLen + lExtraLen;
+    if (dataStart + compSize > bytes.length) throw corrupt();
     const raw = bytes.subarray(dataStart, dataStart + compSize);
     entries[name] = { method: lMethod ?? method, raw: new Uint8Array(raw) };
-    off += 46 + nameLen + extraLen + commentLen;
   }
   const out = {};
-  for (const [name, { method, raw }] of Object.entries(entries)) {
-    out[name] = method === 8 ? await inflateRaw(raw) : raw; // 0 = STORED, 8 = DEFLATE
+  let total = 0;
+  for (const [name, e] of Object.entries(entries)) {
+    if (!e) { out[name] = null; continue; }
+    const data = e.method === 8 ? await inflateCapped(e.raw, "deflate-raw", Math.min(ZIP_ENTRY_MAX, ZIP_TOTAL_MAX - total), `"${name}" in this .zip`) : e.raw; // 0 = STORED, 8 = DEFLATE
+    total += data.byteLength;
+    if (total > ZIP_TOTAL_MAX) throw new Error(`This .zip expands to more than ${ZIP_TOTAL_MAX / MB} MB — not imported.`);
+    out[name] = data;
   }
   return out;
 }

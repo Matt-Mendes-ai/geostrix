@@ -34,6 +34,7 @@
 // reuses that renderer rather than inventing a new one.
 
 import { MAX_CELLS, planCoarsenFactors } from "./voxel.js";
+import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 
 const MAGIC = [0x84, 0x83, 0x82, 0x81];
 const VERSION_PREFIX = "OMF-v0.9.0";
@@ -49,14 +50,11 @@ const DTYPE_CTORS = {
   "|u1": Uint8Array, "|i1": Int8Array, "|b1": Uint8Array,
 };
 
+// Native DecompressionStream — deliberately NOT adding pako or another npm dependency just for this.
+// TASKS.csv #351 — capped (inflate.js): one OMF array may expand to at most 512 MB.
+const OMF_ARRAY_MAX = 512 * MB;
 async function inflateZlib(bytes) {
-  // Native browser API (available in any Electron/Chromium recent enough to run this app at all —
-  // shipped since Chrome 80) — deliberately NOT adding pako or another npm dependency just for this,
-  // consistent with this project's existing from-scratch shapefile/geosoft parsers.
-  const ds = new DecompressionStream("deflate");
-  const stream = new Blob([bytes]).stream().pipeThrough(ds);
-  const buf = await new Response(stream).arrayBuffer();
-  return new Uint8Array(buf);
+  return inflateCapped(bytes, "deflate", OMF_ARRAY_MAX, "An array in this OMF file");
 }
 
 function readUint64LE(dv, offset) {
@@ -93,6 +91,7 @@ async function loadArray(fileBytes, project, arrayUuid) {
   const start = attr(base, "start"), length = attr(base, "length"), dtype = attr(base, "dtype");
   const Ctor = DTYPE_CTORS[dtype];
   if (!Ctor) throw new InvalidOMFFile(`Unsupported array dtype "${dtype}".`);
+  if (!(start >= 0 && length >= 0 && start + length <= fileBytes.length)) throw new InvalidOMFFile("An array points outside the file (corrupt OMF)."); // #351
   const compressed = fileBytes.subarray(start, start + length);
   const raw = await inflateZlib(compressed);
   // raw.byteOffset/length must align to the typed array's element size — copy into a fresh buffer
