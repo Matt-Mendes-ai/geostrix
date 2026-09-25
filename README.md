@@ -91,6 +91,12 @@ across app updates and keeps any single chunk well under Rollup's 500 kB warning
 3D viewer's `three` dependency is the largest chunk at ~485 kB, since it's the one genuinely heavy
 piece and nothing else in the app needs it.
 
+### Antivirus warnings
+
+Releases are not code-signed yet, so antivirus products (Bitdefender, Defender/SmartScreen) can block or
+quarantine the installer. What causes it, what the build does about it, how to install anyway (including
+the portable `.zip`), and how to add signing: [docs/antivirus.md](docs/antivirus.md).
+
 ## Architecture
 
 - `electron/main.js` — main process: windows, menus, PDF export, file dialogs, cross-section

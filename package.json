@@ -69,7 +69,7 @@
       "releaseType": "release"
     },
     "win": {
-      "target": "nsis",
+      "target": ["nsis", "zip"],
       "icon": "build/icon.ico"
     },
     "mac": {

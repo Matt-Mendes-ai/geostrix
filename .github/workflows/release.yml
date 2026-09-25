@@ -23,6 +23,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      HAS_SIGNING_CERT: ${{ secrets.WIN_CSC_LINK != '' }} # TASKS.csv #456
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -37,7 +39,16 @@ jobs:
         run: |
           python -m venv venv
           venv\Scripts\python.exe -m pip install --upgrade pip
-          venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller -c constraints.txt
+          venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
+      # TASKS.csv #456 — antivirus false positives. PyInstaller's PREBUILT bootloader (in the PyPI wheel) is
+      # byte-identical across countless malware samples and on many detection lists; compiling it from source
+      # (MSVC is on the runner) gives GeoStrix's Python engine its own launcher. build_sidecar.js refuses to
+      # build in CI if the prebuilt one is installed.
+      - name: Install PyInstaller with a bootloader compiled from source
+        working-directory: python-sidecar
+        env:
+          PYINSTALLER_COMPILE_BOOTLOADER: "1"
+        run: venv\Scripts\python.exe -m pip install --no-binary pyinstaller pyinstaller -c constraints.txt
       # TASKS.csv #443 — never ship a build whose maths tests fail: JS logic tests, then the SimPEG
       # potential-field acceptance tests against the exact venv that gets frozen.
       - name: JS logic tests
@@ -83,8 +94,41 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # TASKS.csv #456 — code signing is the one thing that reliably stops antivirus/SmartScreen false
+      # positives. It needs a certificate that only the project owner can obtain (see docs/antivirus.md).
+      # When the repository secrets WIN_CSC_LINK (base64 .pfx) and WIN_CSC_KEY_PASSWORD exist, the Python
+      # engine's executables are signed here and electron-builder signs GeoStrix.exe, the installer and the
+      # uninstaller; without them the build is unchanged (unsigned).
+      - name: Sign the Python engine (when a certificate is configured)
+        if: env.HAS_SIGNING_CERT == 'true'
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CSC_LINK))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
+          Get-ChildItem python-sidecar\dist\geostrix-sidecar -Recurse -Include *.exe | ForEach-Object {
+            & $signtool.FullName sign /f $pfx /p $env:WIN_CSC_KEY_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.FullName)" }
+          }
+          Remove-Item $pfx
+
       - name: Build and publish
         run: npx electron-builder --publish always --win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Publish SHA-256 checksums
+        # TASKS.csv #456 — lets anyone (and an antivirus false-positive report) confirm a download is the
+        # exact file GitHub built.
+        run: |
+          $lines = Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          $lines | Set-Content -Path SHA256SUMS.txt -Encoding ascii
+          Get-Content SHA256SUMS.txt
+          gh release upload "${{ github.ref_name }}" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

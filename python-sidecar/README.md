@@ -56,7 +56,10 @@ Setup for building the frozen executable (one-time, in addition to `pip install 
 above):
 
 ```bash
-pip install pyinstaller
+# TASKS.csv #456 — compile PyInstaller's bootloader from source (needs the MSVC C++ build tools);
+# the prebuilt one in the PyPI wheel triggers antivirus false positives. See docs/antivirus.md.
+$env:PYINSTALLER_COMPILE_BOOTLOADER = "1"   # PowerShell (bash: export PYINSTALLER_COMPILE_BOOTLOADER=1)
+pip install --no-binary pyinstaller pyinstaller -c constraints.txt
 ```
 
 Only built/verified on Windows so far — macOS/Linux need their own PyInstaller run on that platform

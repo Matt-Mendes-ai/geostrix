@@ -34,8 +34,61 @@ if (!fs.existsSync(venvPython)) {
 const oldOnefile = path.join(sidecarDir, "dist", isWin ? "geostrix-sidecar.exe" : "geostrix-sidecar");
 if (fs.existsSync(oldOnefile) && fs.statSync(oldOnefile).isFile()) fs.rmSync(oldOnefile);
 
+// TASKS.csv #456 — antivirus false positives (Bitdefender held the v0.1.20 installer). Heuristic scanners
+// score an executable up for looking like the thousands of malware samples that are PyInstaller builds
+// and down for looking like identifiable software. What is in our control without a certificate:
+//   * --version-file: the frozen exe used to carry NO version resource at all (no company, product,
+//     description, version) — a classic "anonymous dropper" trait. It now carries the same identity as
+//     GeoStrix.exe, generated from package.json so it can never drift.
+//   * --icon: the GeoStrix icon instead of PyInstaller's stock one (the stock icon is itself a signal).
+//   * --noupx: UPX-packed executables are a strong malware indicator; PyInstaller uses UPX whenever it is
+//     found on PATH, so it is refused explicitly rather than depending on the machine.
+//   * The bootloader (the small launcher inside every PyInstaller exe) must be compiled from source, not
+//     the prebuilt one shipped in the PyInstaller wheel, which is byte-identical across countless malware
+//     samples and therefore on many detection lists. The release workflow installs PyInstaller with
+//     PYINSTALLER_COMPILE_BOOTLOADER=1 --no-binary pyinstaller; locally, do the same (needs MSVC build
+//     tools): see python-sidecar/README.md. checkBootloaderCompiled() below warns if it isn't.
+const pkg = JSON.parse(fs.readFileSync(path.join(sidecarDir, "..", "package.json"), "utf8"));
+const verParts = (pkg.version.split(/[.-]/).map((n) => parseInt(n, 10)).filter(Number.isFinite).concat([0, 0, 0, 0])).slice(0, 4);
+const author = typeof pkg.author === "string" ? pkg.author.replace(/\s*<.*>/, "") : (pkg.author?.name || "GeoStrix");
+const versionFile = path.join(sidecarDir, "build", "version_info.txt");
+fs.mkdirSync(path.dirname(versionFile), { recursive: true });
+const q = (s) => JSON.stringify(String(s));
+fs.writeFileSync(versionFile, `VSVersionInfo(
+  ffi=FixedFileInfo(filevers=(${verParts.join(", ")}), prodvers=(${verParts.join(", ")}), mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+  kids=[
+    StringFileInfo([StringTable("040904B0", [
+      StringStruct("CompanyName", ${q(author)}),
+      StringStruct("FileDescription", "GeoStrix Python engine (implicit modelling, geophysics)"),
+      StringStruct("FileVersion", ${q(pkg.version)}),
+      StringStruct("InternalName", "geostrix-sidecar"),
+      StringStruct("LegalCopyright", ${q(`Copyright (c) ${new Date().getFullYear()} ${author}. MIT License.`)}),
+      StringStruct("OriginalFilename", "geostrix-sidecar.exe"),
+      StringStruct("ProductName", "GeoStrix"),
+      StringStruct("ProductVersion", ${q(pkg.version)})])]),
+    VarFileInfo([VarStruct("Translation", [1033, 1200])])
+  ]
+)
+`);
+function checkBootloaderCompiled() {
+  // json.dumps escapes non-ASCII, so a path like "Área de Trabalho" survives the console code page.
+  const r = spawnSync(venvPython, ["-c", "import PyInstaller, os, json; print(json.dumps(os.path.dirname(PyInstaller.__file__)))"], { encoding: "utf8" });
+  const dir = r.stdout ? JSON.parse(r.stdout.trim()) : "";
+  const distInfo = dir && fs.readdirSync(path.dirname(dir)).find((n) => /^pyinstaller-.*\.dist-info$/i.test(n));
+  const wheel = distInfo ? fs.readFileSync(path.join(path.dirname(dir), distInfo, "WHEEL"), "utf8") : "";
+  // The PyPI wheel carries a platform tag (e.g. "Tag: py3-none-win_amd64") because it contains prebuilt
+  // bootloaders; a build from the sdist is tagged "py3-none-any" and its bootloader was compiled here.
+  if (!/Tag: py3-none-any/.test(wheel)) {
+    console.warn("[build:sidecar] WARNING: PyInstaller's PREBUILT bootloader is installed — antivirus false positives are likely. See python-sidecar/README.md (PYINSTALLER_COMPILE_BOOTLOADER=1).");
+    if (process.env.CI) { console.error("[build:sidecar] Refusing to build a release with the prebuilt bootloader."); process.exit(1); }
+  }
+}
+checkBootloaderCompiled();
+
 const args = [
   "-m", "PyInstaller", "--noconfirm", "--onedir", "--name", "geostrix-sidecar",
+  "--noupx", "--version-file", versionFile, // #456
+  ...(fs.existsSync(path.join(sidecarDir, "..", "build", "icon.ico")) ? ["--icon", path.join(sidecarDir, "..", "build", "icon.ico")] : []), // #456
   // uvicorn/gempy both do a lot of dynamic/plugin-style importing that PyInstaller's static analysis
   // can't see on its own (confirmed by an initial build attempt without these flags silently omitting
   // uvicorn's asyncio loop implementation) — --collect-all pulls in every submodule of each package
