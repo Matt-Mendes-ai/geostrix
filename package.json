@@ -1,6 +1,6 @@
 {
   "name": "geostrix",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "3D drillhole & geochemistry explorer",
   "author": "Matt Mendes",
   "license": "MIT",
@@ -69,7 +69,10 @@
       "releaseType": "release"
     },
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "icon": "build/icon.ico"
     },
     "mac": {
