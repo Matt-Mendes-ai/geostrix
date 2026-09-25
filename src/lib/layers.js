@@ -555,6 +555,10 @@ export const TARGET_SCHEMAS = {
     // TASKS.csv #426 — strike (right-hand rule) is converted to dip direction = strike + 90 when there is
     // no dip-direction column; it used to be silently ignored.
     { key: "strike", label: "Strike, right-hand rule (optional — used when no dip direction)", required: false, aliases: ["strike", "strike_rhr"] },
+    // TASKS.csv #427 — oriented-core logging: alpha/beta are converted to dip / dip direction on import
+    // using the hole's survey (when the file has no dip/dip-direction of its own); alpha alone is kept.
+    { key: "alpha", label: "Alpha (core angle, optional)", required: false, aliases: ["alpha", "alpha_deg", "alpha_angle"] },
+    { key: "beta", label: "Beta (optional, clockwise looking down-hole)", required: false, aliases: ["beta", "beta_deg", "beta_angle"] },
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -664,6 +668,7 @@ export function guessTarget(headers) {
   // dip AND something only a structure table has — a type/struct column, a dip direction, strike or alpha.
   const structy = has("struct") || hasCol("type") || has("dipdir") || has("dip_dir") || has("dipdirection") || has("dip_direction") || hasCol("dd") || has("strike") || has("alpha");
   if (!has("from") && has("depth") && has("dip") && structy) return "structure";
+  if (!has("from") && has("depth") && has("alpha")) return "structure"; // #427 — oriented-core alpha/beta logging
   if (has("azimuth") && has("depth") && !has("from")) return "survey";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy

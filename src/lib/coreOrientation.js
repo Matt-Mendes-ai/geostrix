@@ -120,3 +120,18 @@ export function solveUnoriented({ holeDir, refLine, knownDipDirDeg, knownDipDeg,
   const { dipDeg, dipDirDeg } = dipDDFromPole(unkPole);
   return { ok: true, dipDeg, dipDirDeg, alphaDiscrepancyDeg, gammaDeg, refNearPerpendicular, unkNearPerpendicular };
 }
+
+// TASKS.csv #427 — bulk conversion of ORIENTED-core alpha/beta (Reflex ACT/ORI-style logging: beta
+// measured clockwise looking down-hole from the orientation line) to a true dip / dip direction, using the
+// hole's own surveyed direction at the pick's depth. holeDipDeg is below-horizontal, positive down (the
+// app's internal convention). Returns { dipDeg, dipDirDeg } or { error } — never a guess: a hole within
+// ~2.5 deg of vertical has no defined reference line (see referenceLine), and alpha/beta must be in range.
+export function orientFromAlphaBeta({ alphaDeg, betaDeg, holeAzDeg, holeDipDeg, useTop = false }) {
+  if (![alphaDeg, betaDeg, holeAzDeg, holeDipDeg].every(Number.isFinite)) return { error: "missing value" };
+  if (alphaDeg < 0 || alphaDeg > 90) return { error: "alpha outside 0-90" };
+  if (betaDeg < 0 || betaDeg > 360) return { error: "beta outside 0-360" };
+  const holeDir = holeDirection(holeAzDeg, holeDipDeg);
+  const refLine = referenceLine(holeDir, useTop);
+  if (!refLine) return { error: "hole too close to vertical for an orientation line" };
+  return dipDDFromPole(poleFromAlphaBeta(alphaDeg, betaDeg, holeDir, refLine));
+}

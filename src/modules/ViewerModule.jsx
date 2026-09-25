@@ -13,6 +13,7 @@ import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg } fro
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
+import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
@@ -337,12 +338,15 @@ function normStructure(r, mapping, customFields, dipConvention) {
     if (Number.isFinite(strike)) azimuth = (((strike + 90) % 360) + 360) % 360; // right-hand rule
   }
   if (Number.isFinite(azimuth)) azimuth = azimuth === 360 ? 0 : (azimuth < 0 || azimuth > 360 ? NaN : azimuth);
+  const alpha = mapping.alpha ? num(r[mapping.alpha]) : NaN, beta = mapping.beta ? num(r[mapping.beta]) : NaN; // #427
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
     depth: num(r[mapping.depth]), // TASKS.csv #337
     value: String(r[mapping.value] ?? "").trim(),
     dip,
     azimuth,
+    ...(Number.isFinite(alpha) ? { alpha } : {}),
+    ...(Number.isFinite(beta) ? { beta } : {}),
   }, r, customFields);
 }
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
@@ -6824,7 +6828,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine }) => {
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
@@ -6974,7 +6978,29 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
         + azs.note]);
     } else if (target === "structure") {
-      const azst = applyAzimuthRef(allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth)), liveCollarAt); // #396
+      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      // TASKS.csv #427 — oriented-core alpha/beta -> true dip / dip direction, per pick, from the hole's
+      // survey at that depth (desurvey.surveyAzimuthDipAt). Only for picks with no dip/dip direction of
+      // their own; raw alpha/beta stay on the pick. Converted results are already grid-referenced (they
+      // come from the hole's grid azimuths), so they skip the azimuth-reference step below.
+      let abDone = 0; const abFailed = [];
+      if (mapping.alpha && mapping.beta) {
+        const surveyByHole = new Map();
+        (importStateRef.current.survey || []).forEach((sv) => { if (!surveyByHole.has(sv.hole_id)) surveyByHole.set(sv.hole_id, []); surveyByHole.get(sv.hole_id).push(sv); });
+        structRows = structRows.map((r) => {
+          if (Number.isFinite(r.dip) && Number.isFinite(r.azimuth)) return r;
+          if (!Number.isFinite(r.alpha) || !Number.isFinite(r.beta)) return r; // alpha-only stays unoriented
+          const collar = liveCollarAt(r);
+          const att = collar ? surveyAzimuthDipAt(collar, surveyByHole.get(r.hole_id) || [], r.depth) : null;
+          const o = att ? orientFromAlphaBeta({ alphaDeg: r.alpha, betaDeg: r.beta, holeAzDeg: att.azimuth, holeDipDeg: att.dip, useTop: betaRefLine === "top" }) : { error: "no collar/survey for this hole" };
+          if (o.error) { abFailed.push(`${r.hole_id}@${r.depth} (${o.error})`); return r; }
+          abDone++;
+          return { ...r, dip: o.dipDeg, azimuth: o.dipDirDeg, orientedFrom: `alpha/beta, ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line`, _abGrid: true };
+        });
+      }
+      const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
+      const azst = { rows: [...azst0.rows, ...structRows.filter((r) => r._abGrid).map(({ _abGrid, ...r }) => r)], note: azst0.note };
+      if (abDone || abFailed.length) setNotices((p) => [...p, `${fileName}: ${abDone} pick(s) oriented from alpha/beta using each hole's survey.${abFailed.length ? ` ${abFailed.length} could not be oriented and are shown as unoriented: ${abFailed.slice(0, 5).join("; ")}${abFailed.length > 5 ? "; …" : ""}.` : ""}`]);
       const rows = azst.rows;
       if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).

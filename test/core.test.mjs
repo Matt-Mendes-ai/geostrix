@@ -65,3 +65,14 @@ test("#396 azimuth reference offsets at the Harry property", () => {
   assert.equal(azimuthToGridOffset("magnetic", x, y, 3156, ""), null); // no date, no guess
   assert.equal(azimuthToGridOffset("magnetic", x, y, 3156, "1850-01-01"), null); // outside IGRF
 });
+
+import { orientFromAlphaBeta, alphaBetaFromPole, poleFromDipDD, holeDirection, referenceLine } from "../src/lib/coreOrientation.js";
+test("#427 alpha/beta -> dip/dip direction round-trips through the forward model", () => {
+  for (const [hAz, hDip, dd, dip] of [[90, 60, 270, 45], [0, 55, 120, 70], [215, 75, 30, 20], [45, 50, 225, 85]]) {
+    const hd = holeDirection(hAz, hDip), rl = referenceLine(hd, false);
+    const { alphaDeg, betaDeg } = alphaBetaFromPole(poleFromDipDD(dd, dip), hd, rl);
+    const r = orientFromAlphaBeta({ alphaDeg, betaDeg, holeAzDeg: hAz, holeDipDeg: hDip });
+    assert.ok(Math.abs(r.dipDeg - dip) < 1e-6 && Math.abs(((r.dipDirDeg - dd + 540) % 360) - 180) < 1e-6, JSON.stringify({ hAz, hDip, dd, dip, r }));
+  }
+  assert.ok(orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 89.5 }).error); // near-vertical: refused
+});

@@ -189,6 +189,21 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             </div>
           )}
 
+          {/* TASKS.csv #427 — which scribed line beta is measured from (oriented core). */}
+          {modal.target === "structure" && modal.mapping.alpha && modal.mapping.beta && (
+            <div style={{ marginTop: 14 }}>
+              <div style={label}>Beta is measured clockwise (looking down-hole) from the</div>
+              <div style={{ display: "flex", gap: 14, fontSize: "var(--font-size-base)" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input type="radio" name="betaref" checked={(modal.betaRefLine || "bottom") === "bottom"} onChange={() => onChange({ ...modal, betaRefLine: "bottom" })} /> Bottom-of-hole line (usual)
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                  <input type="radio" name="betaref" checked={modal.betaRefLine === "top"} onChange={() => onChange({ ...modal, betaRefLine: "top" })} /> Top-of-hole line
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* TASKS.csv #396 — which north the file's azimuths are measured from. GeoStrix draws against the
               project grid; magnetic azimuths at Harry are ~17-19 deg off grid north. */}
           {["collars", "survey", "structure"].includes(modal.target) && (
