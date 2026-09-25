@@ -128,6 +128,7 @@ def plan(req, ram_cap_bytes):
     kind = req.get("kind", "inversion")
     sens = n_data * n_active * SENS_BYTES if kind == "inversion" else 0
     reasons = []
+    clearance_stats = None
     if not len(stations):
         reasons.append("No stations.")
     if kind == "inversion" and topo is None:
@@ -139,6 +140,12 @@ def plan(req, ram_cap_bytes):
         clearance = st[near, 2] - tz[near]
         low = int(np.sum(clearance < 1.0))
         outside = int(np.sum(~near))
+        # TASKS.csv #369 — what the sensor clearance actually is, so it can be compared with the contractor's
+        # nominal survey height. A datum mismatch (GPS ellipsoidal heights vs an EGM96 DEM: ~17 m in the
+        # Golden Triangle) shows up here as a clearance ~17 m off nominal, long before it biases depths.
+        if near.any():
+            clearance_stats = {"median": float(np.median(clearance)), "p5": float(np.percentile(clearance, 5)),
+                               "p95": float(np.percentile(clearance, 95)), "min": float(clearance.min()), "n": int(near.sum())}
         if low:
             reasons.append(f"{low} station(s) are less than 1 m above the terrain (or below it). The sensor elevation "
                            "must be above ground — check the height setting, or the station and terrain datums.")
@@ -153,7 +160,8 @@ def plan(req, ram_cap_bytes):
     return {"peakRamEstimateBytes": peak, "buildSecondsEstimate": round(10 * sens / 1e9, 1),
             "nData": n_data, "nCells": spec["nCells"], "nActiveEst": n_active, "meshShape": spec["n"],
             "coreCell": req["mesh"]["coreCell"], "sensitivityBytes": sens, "ramCapBytes": ram_cap_bytes,
-            "localOrigin": local.tolist(), "core": spec["core"], "ok": not reasons, "reasons": reasons}
+            "localOrigin": local.tolist(), "core": spec["core"], "ok": not reasons, "reasons": reasons,
+            "clearance": clearance_stats}
 
 
 def _local_origin(stations):
@@ -346,6 +354,25 @@ def run_job(req, progress, ram_cap_bytes):
 
     # ---------------- inversion ----------------
     dobs_user = np.asarray(req["observed"], dtype=float)
+    # TASKS.csv #368 — IGRF-removed TMI and Bouguer gravity carry an arbitrary base level. With the default
+    # positivity bound on susceptibility a positive offset can only be fitted by inventing susceptible
+    # material (usually in the padding and edges) and a negative one cannot be fitted at all. Optional
+    # removal of the mean or a least-squares plane (in local x, y) BEFORE inverting; what was removed is
+    # returned so it can be stated in the model's provenance, and the residual maps use the same data.
+    base_mode = (req.get("baseLevel") or "none").lower()
+    base_removed = {"mode": "none"}
+    if base_mode == "mean":
+        c0 = float(np.mean(dobs_user))
+        dobs_user = dobs_user - c0
+        base_removed = {"mode": "mean", "constant": c0}
+    elif base_mode == "plane":
+        A = np.c_[np.ones(len(st)), st[:, 0], st[:, 1]]
+        coef, *_ = np.linalg.lstsq(A, dobs_user, rcond=None)
+        dobs_user = dobs_user - A @ coef
+        base_removed = {"mode": "plane", "constant": float(coef[0]), "perMetreX": float(coef[1]), "perMetreY": float(coef[2]),
+                        "origin": local[:2].tolist(), "note": "value removed = constant + perMetreX*(x - originX) + perMetreY*(y - originY)"}
+    elif base_mode != "none":
+        raise ValueError(f"Unknown baseLevel '{base_mode}' (none, mean or plane).")
     dobs = _to_sim(method, dobs_user)
     unc = req["uncertainty"]
     std = float(unc["floor"]) + float(unc.get("percent", 0)) / 100.0 * np.abs(dobs)
@@ -435,4 +462,8 @@ def run_job(req, progress, ram_cap_bytes):
                  "padCells": req["mesh"].get("padCells", 6), "padFactor": req["mesh"].get("padFactor", 1.3), "depth": req["mesh"]["depth"]},
         "localOrigin": local.tolist(), "versions": versions,
         "seconds": time.time() - t0, "sensitivitySeconds": sens_seconds, "sensitivityBytes": int(G.nbytes),
+        # TASKS.csv #368 — the bounds actually applied (the default lower=0 for susceptibility used to be
+        # recorded as bounds: {}), and the data the model was fitted to after base-level removal.
+        "boundsApplied": {"lower": None if not np.isfinite(lower) else float(lower), "upper": None if not np.isfinite(upper) else float(upper)},
+        "baseLevelRemoved": base_removed, "observedUsed": dobs_user.tolist(),
     }

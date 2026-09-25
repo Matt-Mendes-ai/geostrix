@@ -51,6 +51,8 @@ export default function InversionPanel({ pBtn, numInput }) {
   const [confirmed, setConfirmed] = useState(false);
   const [zMode, setZMode] = useState(""); // "sensor" | "drape"
   const [sensorHeight, setSensorHeight] = useState("");
+  const [zDatum, setZDatum] = useState("same"); // TASKS.csv #369 — "same" (as the terrain) | "ellipsoidal" | "unknown"
+  const [baseLevel, setBaseLevel] = useState("mean"); // TASKS.csv #368 — "none" | "mean" | "plane"
   const [thin, setThin] = useState("");
   const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
   const [unc, setUnc] = useState({ floor: "", percent: "" });
@@ -134,6 +136,7 @@ export default function InversionPanel({ pBtn, numInput }) {
       request.reg = { maxIter: Number(adv.maxIter) || 15, lengthX: Number(adv.lx) || 1, lengthY: Number(adv.ly) || 1, lengthZ: Number(adv.lz) || 1 };
       const lo = num(adv.lower), up = num(adv.upper);
       request.bounds = { ...(Number.isFinite(lo) ? { lower: lo } : {}), ...(Number.isFinite(up) ? { upper: up } : {}) };
+      request.baseLevel = baseLevel; // #368
     } else {
       request.observed = observed;
     }
@@ -174,7 +177,7 @@ export default function InversionPanel({ pBtn, numInput }) {
     if (!r.ok) { setPlan(null); setMsg({ ok: false, text: r.error }); return null; }
     setPlan({ ...r.data, kind, notes: p.notes });
     setMsg(r.data.ok ? null : { ok: false, text: r.data.reasons.join(" ") });
-    return r.data.ok ? p : null;
+    return r.data.ok ? { ...p, clearance: r.data.clearance || null } : null; // clearance: #369
   };
 
   const runInversion = async () => {
@@ -185,11 +188,13 @@ export default function InversionPanel({ pBtn, numInput }) {
       tool: `${method === "mag" ? "magnetic" : "gravity"} inversion (SimPEG)`,
       interpretation: "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
       dataUnits: M.unit, dataStatement: M.confirm, stationZ: zMode === "sensor" ? "sensor elevation (z column)" : `terrain + ${num(sensorHeight)} m (draped — an assumption)`,
+      stationZDatum: zMode === "sensor" ? { same: "same vertical datum as the terrain (stated by user)", ellipsoidal: "GPS ellipsoidal heights (stated by user) — the terrain is geoid-based, so clearance is off by the local geoid height", unknown: "not known" }[zDatum] : "draped on the terrain", // #369
+      sensorClearanceM: p.clearance || null, // #369
       stationsUsed: p.meta.stationsUsed, stationsTotal: p.meta.stationsTotal, thinnedToM: p.meta.thinnedTo, droppedOutsideTerrain: p.meta.dropped,
       uncertainty: { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0, units: M.unit, source: "entered by user" },
       ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
       mesh: { type: "tensor", coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers },
-      regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, bounds: p.request.bounds },
+      regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
     };
     const res = await startInversionJob(p.request, meta, {
@@ -205,7 +210,9 @@ export default function InversionPanel({ pBtn, numInput }) {
           stops: method === "mag" ? sequentialStops(Math.max(0, vmin), vmax) : divergingStops(absMax),
           colorMode: "continuous",
           supportCutoff: Number(adv.supportCutoff) || 0,
-          params: { ...params, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
+          // TASKS.csv #368 — what was actually applied: the bounds (the susceptibility default lower = 0 was
+          // recorded as {}) and the base level removed from the data before inverting.
+          params: { ...params, boundsApplied: result.boundsApplied || null, baseLevelRemoved: result.baseLevelRemoved || null, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
           history: result.history,
         });
         setLastResult({ result, prepared: p, verdict });
@@ -301,6 +308,18 @@ export default function InversionPanel({ pBtn, numInput }) {
                   <label style={{ ...row, marginTop: 2, cursor: "pointer" }}><input type="radio" name="inv-z" checked={zMode === "sensor"} onChange={() => setZMode("sensor")} /> z column is the sensor elevation</label>
                   <label style={{ ...row, marginTop: 2, cursor: "pointer" }}><input type="radio" name="inv-z" checked={zMode === "drape"} onChange={() => setZMode("drape")} /> Sensor is a fixed height above terrain</label>
                   {zMode === "drape" && <div style={row}><span style={lbl}>Height above ground</span><input type="number" min={0} value={sensorHeight} onChange={(e) => setSensorHeight(e.target.value)} style={inp} /> m</div>}
+                  {/* TASKS.csv #369 — GPS heights are usually ellipsoidal; SRTM/most DEMs are geoid (EGM96) based. */}
+                  {zMode === "sensor" && (
+                    <div style={row} title="SRTM and most DEMs give heights above the geoid (EGM96). Raw GPS heights are above the ellipsoid, about 15-20 m different in northwest BC — 40-50% of a 30-40 m helicopter survey's clearance.">
+                      <span style={lbl}>z datum</span>
+                      <select value={zDatum} onChange={(e) => setZDatum(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Vertical datum of the station z values">
+                        <option value="same">Same as the terrain</option>
+                        <option value="ellipsoidal">GPS ellipsoidal</option>
+                        <option value="unknown">Not known</option>
+                      </select>
+                    </div>
+                  )}
+                  {zMode === "sensor" && zDatum !== "same" && <div style={{ ...small, color: "var(--color-danger-fg)" }}>Station heights on a different datum from the terrain shift every clearance by the geoid height (roughly 15-20 m here). Check the clearance figures from "Estimate size" against the contractor's nominal survey height before trusting depths.</div>}
                 </div>
                 <div style={row} title="Keep one station per cell of this size. Every station costs a row of the sensitivity matrix, and neighbouring readings along a line add little. Leave empty to use every station.">
                   <span style={lbl}>Thin to one per</span><input type="number" min={0} value={thin} onChange={(e) => setThin(e.target.value)} style={inp} /> m
@@ -325,6 +344,14 @@ export default function InversionPanel({ pBtn, numInput }) {
                   {spacing && !mesh.coreCell && <button onClick={() => setMesh((p) => ({ ...p, coreCell: String(Math.max(5, Math.round(spacing / 2 / 5) * 5)) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>≈ half spacing</button>}
                 </div>
                 <div style={row} title="How deep below the stations the model extends. Potential-field data lose resolution quickly with depth."><span style={lbl}>Model depth</span><input type="number" min={1} value={mesh.depth} onChange={(e) => setMesh((p) => ({ ...p, depth: e.target.value }))} style={inp} /> m</div>
+                <div style={row} title="Levelled TMI and Bouguer gravity carry an arbitrary base level. With susceptibility bounded at zero, an uncorrected positive level can only be fitted by inventing material near the edges. The value removed is stored with the model.">
+                  <span style={lbl}>Remove base level</span>
+                  <select value={baseLevel} onChange={(e) => setBaseLevel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Base level removed before inverting">
+                    <option value="mean">Mean of the data</option>
+                    <option value="plane">Best-fit plane (regional tilt)</option>
+                    <option value="none">None (data already levelled)</option>
+                  </select>
+                </div>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAdv((p) => ({ ...p, open: !p.open }))} aria-expanded={adv.open} style={{ ...row, cursor: "pointer" }}>
                   {adv.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Advanced
                 </div>
@@ -345,6 +372,7 @@ export default function InversionPanel({ pBtn, numInput }) {
                     ? <>Sensitivity matrix {formatBytes(plan.sensitivityBytes)} of the {formatBytes(plan.ramCapBytes)} this machine can spare right now; peak memory ≈ {formatBytes(plan.peakRamEstimateBytes)}, ~{Math.max(1, Math.round(plan.buildSecondsEstimate))} s to build it, then a few seconds per iteration.</>
                     : <>Forward only — no matrix is stored.</>}{" "}
                   {plan.ok ? "OK to run." : ""}
+                  {plan.clearance && <div style={{ marginTop: 3 }}>Sensor clearance above the terrain: median {plan.clearance.median.toFixed(1)} m, 5th percentile {plan.clearance.p5.toFixed(1)} m, lowest {plan.clearance.min.toFixed(1)} m ({plan.clearance.n.toLocaleString()} stations). Compare with the survey's nominal height — a consistent offset usually means the station heights and the terrain are on different vertical datums.</div>}
                   {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
                 </div>
               )}
@@ -388,7 +416,7 @@ export default function InversionPanel({ pBtn, numInput }) {
 function FitView({ last, method }) {
   const { result, prepared, verdict } = last;
   const unit = METHODS[result.method]?.unit || "";
-  const st = prepared.stations, obs = prepared.observed;
+  const st = prepared.stations, obs = result.observedUsed || prepared.observed; // #368 — after base-level removal
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   if (result.kind === "forward") {
     const runs = result.runs || [];
@@ -410,6 +438,9 @@ function FitView({ last, method }) {
       <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>Did it fit?</div>
       <div role="status" style={{ ...small, color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{verdict.text}</div>
       <MisfitChart history={result.history} target={result.target} />
+      {result.baseLevelRemoved && result.baseLevelRemoved.mode !== "none" && (
+        <div style={small}>Removed before inverting: {result.baseLevelRemoved.mode === "mean" ? `the data mean, ${result.baseLevelRemoved.constant.toFixed(2)} ${unit}` : `a best-fit plane (${result.baseLevelRemoved.constant.toFixed(2)} ${unit} at the survey centre, ${(result.baseLevelRemoved.perMetreX * 1000).toFixed(2)} / ${(result.baseLevelRemoved.perMetreY * 1000).toFixed(2)} ${unit} per km east / north)`}. The maps below show the data after that removal. Bounds applied: {result.boundsApplied ? `${result.boundsApplied.lower ?? "none"} to ${result.boundsApplied.upper ?? "none"}` : "—"}.</div>
+      )}
       <PointMaps stations={st} observed={obs} predicted={result.predicted} std={std} unit={unit} />
       <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>
     </div>

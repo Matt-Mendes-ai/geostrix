@@ -189,6 +189,59 @@ def test_thin_plate_keeps_its_volume():
     assert out["runs"][0]["thinnerThanCell"] is True
 
 
+
+
+def test_plan_reports_clearance():
+    # TASKS.csv #369 — stations 30 m over flat 100 m terrain -> median/p5 clearance 30 m.
+    xs, ys = np.meshgrid(np.linspace(0, 400, 9), np.linspace(0, 400, 9))
+    st = np.c_[xs.ravel(), ys.ravel(), np.full(xs.size, 130.0)]
+    tx, ty = np.meshgrid(np.linspace(-800, 1200, 21), np.linspace(-800, 1200, 21))
+    topo = np.c_[tx.ravel(), ty.ravel(), np.full(tx.size, 100.0)]
+    req = {"method": "grav", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(),
+           "mesh": {"coreCell": 50, "depth": 300}}
+    p = P.plan(req, 4e9)
+    assert abs(p["clearance"]["median"] - 30.0) < 1e-6 and abs(p["clearance"]["p5"] - 30.0) < 1e-6
+
+
+def test_base_level_removal_modes():
+    # TASKS.csv #368 — the same removal the inversion applies, checked directly on a plane + constant.
+    rng = np.random.default_rng(0)
+    x, y = rng.uniform(0, 1000, 50), rng.uniform(0, 1000, 50)
+    d = 120.0 + 0.02 * x - 0.01 * y
+    A = np.c_[np.ones(50), x, y]
+    coef, *_ = np.linalg.lstsq(A, d, rcond=None)
+    assert np.allclose(d - A @ coef, 0, atol=1e-9)
+    assert abs(coef[0] - 120.0) < 1e-6
+
+def test_inversion_with_offset_and_mean_removal():
+    # TASKS.csv #368 — the same block with a +150 nT base level. Removing the mean first lets the positive-
+    # bounded inversion fit it; the removed constant and the applied bounds come back for provenance.
+    rng = np.random.default_rng(5)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only")
+    cc = mesh.cell_centers[actv] + local
+    block = (np.abs(cc[:, 0] - 500000.0) <= 60) & (np.abs(cc[:, 1] - 6250000.0) <= 60) & (np.abs(cc[:, 2] - 875.0) <= 50)
+    clean = sim.dpred(np.where(block, 0.05, 0.0))
+    std = 1.0 + 0.02 * np.abs(clean)
+    dobs = clean + 150.0 + rng.standard_normal(len(clean)) * std
+    req = {"method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+           "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}, "kind": "inversion", "observed": dobs.tolist(),
+           "uncertainty": {"floor": 1.0, "percent": 2.0}, "reg": {"maxIter": 20}, "baseLevel": "mean"}
+    out = P.run_job(req, lambda e: None, ram_cap_bytes=int(1.5e9))
+    removed = out["baseLevelRemoved"]
+    print(f"offset test: removed {removed['constant']:.1f} (mean of data incl. anomaly), bounds {out['boundsApplied']}, reached={out['reachedTarget']}")
+    assert removed["mode"] == "mean" and abs(removed["constant"] - float(np.mean(dobs))) < 1e-6
+    assert out["boundsApplied"] == {"lower": 0.0, "upper": None}
+    assert abs(float(np.mean(out["observedUsed"]))) < 1e-6
+    assert out["reachedTarget"]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
