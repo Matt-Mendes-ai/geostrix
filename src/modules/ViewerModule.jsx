@@ -14,6 +14,7 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
+import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
@@ -3594,7 +3595,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       extent,
       sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
-      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal },
+      // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
+      // model space, where block coordinates no longer match hole positions directly.
+      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: !anisotropy.enabled },
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
@@ -3673,6 +3676,35 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
     if (missing.length) setNotices((p) => [...p, `GemPy returned no mesh for: ${missing.join(", ")} (try adding more points or a wider spread of orientations for those).`]);
+    // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a
+    // modelled unit (by its code / group codes) is sampled at its midpoint in the model; the report says
+    // what share of the logged metres the model puts in the same unit, per unit and the worst holes.
+    // Volumes are INSIDE the model extent only (a box around the data), so they are not unit sizes in the
+    // ground, and nothing here is a resource.
+    if (res.block) {
+      const codeToUnit = new Map();
+      specs.forEach((sp) => (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)));
+      const samples = [];
+      traces.forEach((t) => {
+        // latest store rows via the ref: this useCallback's closure can hold stale `layers`
+        (importStateRef.current.layers?.litho || []).forEach((r) => {
+          if (r.hole_id !== t.hole_id || !codeToUnit.has(r.value) || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
+          const p = findOnTrace(t.pts, (r.from + r.to) / 2);
+          if (!p) return;
+          const api = sceneToApi(p);
+          samples.push({ hole_id: t.hole_id, x: api.x, y: api.y, z: api.z, metres: r.to - r.from, logged: codeToUnit.get(r.value) });
+        });
+      });
+      const chk = checkAgainstLogs(res.block, samples);
+      const vols = unitVolumes(res.block).filter((v) => v.name);
+      const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
+      const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
+      const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
+      const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
+      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.`]);
+    } else if (anisotropy.enabled) {
+      setNotices((p) => [...p, "Model check vs logs isn't available with anisotropy on (the model is solved in a stretched space)."]);
+    }
     if (newMeshes.length) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
       // it, two runs of the same job that came back looking different had no visible reason why.
@@ -4065,7 +4097,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type };
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: [...codes] }; // codes: #356 model check
   };
 
   const runImplicitModel = useCallback(async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)

@@ -427,6 +427,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     resolution: opts.resolution || [40, 40, 40],
     relation: opts.relation || "erode",
     ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
+    ...(opts.returnBlock ? { return_block: true } : {}), // TASKS.csv #356
   };
   const start = await sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "implicit", request }, timeoutMs: 60000 });
   if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
@@ -451,7 +452,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   const r = await sidecarJobResult(id);
   if (!r.ok) return { ok: false, error: r.error };
   const data = r.data;
-  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o };
+  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null };
 }
 
 // The pre-#355 synchronous call, kept only as a fallback for an older sidecar.

@@ -399,6 +399,9 @@ class ImplicitModelRequest(BaseModel):
     surfaces: List[SurfaceInput] = Field(..., min_length=1, max_length=12)
     resolution: List[int] = Field(default=[40, 40, 40], min_length=3, max_length=3)
     relation: Literal["erode", "onlap"] = "erode"
+    # TASKS.csv #356 — also return the lithology block (unit id per regular-grid cell) for model-vs-log
+    # checks and unit volumes. Off by default: at 64^3 it is ~260k integers.
+    return_block: bool = False
     # TASKS.csv #274 — GemPy's potential-field RANGE, the actual curvature/"tightness" lever of the
     # co-kriging interpolation (gempy's own InterpolationOptions.kernel_options.range, expressed in its
     # INTERNAL rescaled space, default 1.7 — verified directly against the installed gempy 2026.0.3:
@@ -425,6 +428,9 @@ class ImplicitModelResponse(BaseModel):
     range_used: float | None = None
     range_default: float | None = None
     c_o: float | None = None
+    # TASKS.csv #356 — {resolution, extent, ids (z fastest, then y, then x), labels (unit name per id, id 1
+    # = above every modelled top -> None)} when return_block was set.
+    block: dict | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -546,7 +552,15 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         if el is None:
             continue  # GemPy produced no mesh for this surface (e.g. ill-posed / outside the resolved extent)
         out.append(MeshOut(name=surf.name, vertices=np.asarray(el.vertices).tolist(), faces=np.asarray(el.edges).tolist()))
-    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o)
+    block = None
+    if req.return_block:
+        # GemPy numbers lithologies by structural-element order (checked: request order, in both erode and
+        # onlap modes) and labels the volume ABOVE each surface with that surface's name. GeoStrix surfaces
+        # are unit TOPS, so id k is the unit whose top is surface k-1; id 1 lies above the first top.
+        ids = np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int).tolist()
+        labels = [None] + [sf.name for sf in req.surfaces]
+        block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
+    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block)
 
 
 def _rbf(pts: np.ndarray, vals: np.ndarray, query: np.ndarray, function: str, smoothing: float) -> np.ndarray:

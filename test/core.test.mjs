@@ -76,3 +76,18 @@ test("#427 alpha/beta -> dip/dip direction round-trips through the forward model
   }
   assert.ok(orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 89.5 }).error); // near-vertical: refused
 });
+
+import { unitAt, unitVolumes, checkAgainstLogs } from "../src/lib/modelCheck.js";
+test("#356 model check: block lookup (z fastest), volumes, logged-vs-modelled metres", () => {
+  // 2 x 1 x 4 block over x 0..200, y 0..100, z -400..0; ids per column (z fastest): 3,2,2,1 bottom->top
+  const block = { extent: [0, 200, 0, 100, -400, 0], resolution: [2, 1, 4], ids: [3, 2, 2, 1, 3, 3, 2, 1], labels: [null, "DACT", "VCL"] };
+  assert.equal(unitAt(block, 50, 50, -50), null);
+  assert.equal(unitAt(block, 50, 50, -150), "DACT");
+  assert.equal(unitAt(block, 150, 50, -250), "VCL");
+  assert.equal(unitAt(block, 250, 50, -50), undefined);
+  const v = Object.fromEntries(unitVolumes(block).map((u) => [u.name, u.volume]));
+  assert.equal(v.DACT, 3 * 100 * 100 * 100);
+  const r = checkAgainstLogs(block, [{ hole_id: "A", x: 50, y: 50, z: -150, metres: 10, logged: "DACT" }, { hole_id: "A", x: 150, y: 50, z: -250, metres: 5, logged: "DACT" }, { hole_id: "B", x: 999, y: 0, z: 0, metres: 2, logged: "VCL" }]);
+  assert.deepEqual([r.total, r.matched, r.outside], [15, 10, 2]);
+  assert.equal(r.units[0].mostOftenModelledAs, "VCL");
+});
