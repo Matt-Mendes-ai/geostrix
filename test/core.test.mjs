@@ -146,3 +146,23 @@ test("#397 planned holes for the rig: lat/lon, true and magnetic azimuth, KML/GP
   assert.match(kml, /<LineString>/);
   assert.match(rigGPX([r]), /<wpt lat="55\.\d+" lon="-129\.\d+">/);
 });
+
+import { reprojectXY as rxy419, guessEpsgFromPrjWkt } from "../src/lib/reproject.js";
+import proj4b from "proj4";
+test("#419 EPSG 4617 / 3979 / 3857 and WKT AUTHORITY detection", () => {
+  // 4617 -> 3156 (both NAD83(CSRS)) must be a pure projection: same as projecting on GRS80 with no datum shift.
+  const a = rxy419(-129.6, 55.73, 4617, 3156);
+  const [ex, ey] = proj4b("+proj=longlat +ellps=GRS80 +no_defs", "+proj=utm +zone=9 +ellps=GRS80 +units=m +no_defs", [-129.6, 55.73]);
+  assert.ok(Math.abs(a.x - ex) < 0.001 && Math.abs(a.y - ey) < 0.001, `${a.x - ex}, ${a.y - ey}`);
+  // 3857: x = R * lon, y = R * ln(tan(pi/4 + lat/2)) on the sphere R = 6378137
+  const m = rxy419(-129.6, 55.73, 4326, 3857), R = 6378137, rad = Math.PI / 180;
+  assert.ok(Math.abs(m.x - R * -129.6 * rad) < 0.01 && Math.abs(m.y - R * Math.log(Math.tan(Math.PI / 4 + (55.73 * rad) / 2))) < 0.01);
+  // 3979 round trip
+  const l = rxy419(-129.6, 55.73, 4617, 3979), back = rxy419(l.x, l.y, 3979, 4617);
+  assert.ok(Math.abs(back.x + 129.6) < 1e-8 && Math.abs(back.y - 55.73) < 1e-8);
+  assert.ok(l.x < -2000000 && l.x > -2500000, `${l.x}`); // west of the -95 central meridian
+  // WKT1: the outermost AUTHORITY (last) wins; WKT2 ID[]
+  assert.equal(guessEpsgFromPrjWkt('PROJCS["NAD83(CSRS) / UTM zone 9N",GEOGCS["NAD83(CSRS)",DATUM["x",AUTHORITY["EPSG","6140"]],AUTHORITY["EPSG","4617"]],AUTHORITY["EPSG","3156"]]'), 3156);
+  assert.equal(guessEpsgFromPrjWkt('GEOGCRS["NAD83(CSRS)",ID["EPSG",4617]]'), 4617);
+  assert.equal(guessEpsgFromPrjWkt('PROJCS["Weird",AUTHORITY["EPSG","99999"]]'), null);
+});

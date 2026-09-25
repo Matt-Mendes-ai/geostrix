@@ -92,6 +92,7 @@ export default function GeophysicsModule() {
   const [rasterBusy, setRasterBusy] = useState(false);
   const [terrainError, setTerrainError] = useState(null);
   const [terrainBusy, setTerrainBusy] = useState(false);
+  const [demSourceEpsg, setDemSourceEpsg] = useState(""); // TASKS.csv #419 — DEM source CRS override
   const [srtmProgress, setSrtmProgress] = useState(null); // { done, total } | null
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
@@ -214,7 +215,7 @@ export default function GeophysicsModule() {
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const parsed = await parseDEMFiles(files, project?.epsg);
+      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null); // override: #419
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(`Replace the current terrain ("${terrain.name}") with "${parsed.name}"? Only one terrain surface is supported at a time.`)) {
         setTerrainBusy(false);
@@ -223,7 +224,7 @@ export default function GeophysicsModule() {
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
       let msg = `Imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh (source ${parsed.srcWidth}×${parsed.srcHeight}px, ${(xmax - xmin).toFixed(0)}×${(ymax - ymin).toFixed(0)} world units)${parsed.tileCount > 1 ? ` from ${parsed.tileCount} merged tiles` : ""}.`;
       if (parsed.reprojectedTo) {
-        msg += ` Reprojected from its native EPSG:${parsed.epsgTag} to the project's EPSG:${parsed.reprojectedTo} on import.`;
+        msg += ` Reprojected from ${parsed.epsgOverridden ? "the Source CRS you set, " : "its native "}EPSG:${parsed.epsgTag} to the project's EPSG:${parsed.reprojectedTo} on import.`;
       } else if (parsed.reprojectNote) {
         msg += ` Note: ${parsed.reprojectNote}`;
       } else if (parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
@@ -943,6 +944,12 @@ export default function GeophysicsModule() {
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Terrain (SRTM/DEM)
           <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
+        </div>
+        {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="Leave blank to use the GeoTIFF's own CRS tag. Set it when the file has no tag or a wrong one (e.g. 3005 for a BC TRIM DEM, 4617 for NRCan CDEM).">
+          DEM source CRS
+          <input value={demSourceEpsg} onChange={(e) => setDemSourceEpsg(e.target.value.replace(/[^0-9]/g, ""))} placeholder="from file" style={{ ...numInput, width: 80, flex: "none" }} aria-label="DEM source EPSG" />
+          <span style={{ color: "var(--color-text-muted)" }}>EPSG (optional)</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>

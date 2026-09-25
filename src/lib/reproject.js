@@ -94,6 +94,16 @@ const GEOGRAPHIC = {
   // NAD27_TO_WGS84_BC below for the source and the accuracy this does and does not buy.
   4267: `+proj=longlat +ellps=clrk66 ${NAD27_TO_WGS84_BC} +no_defs`,
 };
+// TASKS.csv #419 — NAD83(CSRS) codes beyond the UTM zones. They carry the SAME 7-parameter shift to WGS84
+// as the NAD83(CSRS) UTM definitions below, so 4617 -> 3156 is a pure projection with no spurious datum
+// offset. 4617 is how NRCan's CDEM / HRDEM ship; 3979 is the Canada-wide Atlas Lambert; 3857 is web
+// Mercator (tile services, many web exports).
+const CSRS_TOWGS84 = "+towgs84=-0.991,1.9072,0.5129,-1.25033e-07,-4.6785e-08,-5.6529e-08,0";
+const EXTRA_DEFS = {
+  4617: `+proj=longlat +ellps=GRS80 ${CSRS_TOWGS84} +no_defs`,
+  3979: `+proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 ${CSRS_TOWGS84} +units=m +no_defs`,
+  3857: "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs",
+};
 
 // NAD83(CSRS) UTM zones covering BC (7N–11N) — individually verified against the real EPSG registry
 // (each zone's own definition record), not derived from a formula. See the header comment above.
@@ -124,6 +134,7 @@ export function getProj4DefSync(epsg) {
   const code = Number(epsg);
   if (!Number.isFinite(code)) return null;
   if (GEOGRAPHIC[code]) return GEOGRAPHIC[code];
+  if (EXTRA_DEFS[code]) return EXTRA_DEFS[code]; // #419
   if (code === 3005) return EPSG_3005_BC_ALBERS;
   if (NAD83_CSRS_UTM[code]) {
     return utmProj4(NAD83_CSRS_UTM[code], false, "+ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,-1.25033e-07,-4.6785e-08,-5.6529e-08,0");
@@ -174,6 +185,11 @@ export async function getProj4Def(epsg) {
 export function guessEpsgFromPrjWkt(wkt) {
   if (!wkt || typeof wkt !== "string") return null;
   const w = wkt.toUpperCase();
+  // TASKS.csv #419 — an explicit EPSG code wins over name-sniffing. In WKT1 the outermost CRS's
+  // AUTHORITY is the LAST one in the string (inner ones belong to the datum, ellipsoid, units...), and
+  // WKT2 writes ID["EPSG",n]. Only a code this module can actually use is returned.
+  const auth = [...w.matchAll(/(?:AUTHORITY|ID)\[\s*"EPSG"\s*,\s*"?(\d{4,5})"?\s*\]/g)].map((m) => Number(m[1]));
+  if (auth.length && getProj4DefSync(auth[auth.length - 1])) return auth[auth.length - 1];
   // BC Albers (EPSG:3005) — the ubiquitous BC provincial government open-data CRS this row's own
   // report was filed about. Checked before the more generic UTM/geographic patterns below since a
   // BC Albers .prj also mentions "NAD_1983"/"GRS_1980" incidentally.

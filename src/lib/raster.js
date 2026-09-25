@@ -228,7 +228,7 @@ async function readDemTile(file) {
 // it lines up with the rest of the project instead of landing at raw lon/lat coordinates. Returns
 // { name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH, elevations, srcWidth, srcHeight, epsgTag,
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
-export async function parseDEMFiles(files, targetEpsg) {
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null) {
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error("No file selected.");
   const tiles = [];
@@ -271,8 +271,8 @@ export async function parseDEMFiles(files, targetEpsg) {
     }
   }
 
-  const epsgTag = tiles[0].epsgTag;
-  const geographic = tiles[0].geographic;
+  // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
+  const epsgTag = sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag;
 
   let outBbox = [xmin, ymin, xmax, ymax];
   let outGridW = gridW, outGridH = gridH;
@@ -280,7 +280,9 @@ export async function parseDEMFiles(files, targetEpsg) {
   let reprojectedTo = null;
   let reprojectNote = null;
 
-  if (geographic && targetEpsg && Number(epsgTag) !== Number(targetEpsg)) {
+  // TASKS.csv #419 — any recognised pair is reprojected, not only geographic sources: a UTM 10 or BC
+  // Albers (TRIM) DEM used to get a note and land hundreds of km away in a UTM 9 project.
+  if (epsgTag && targetEpsg && Number(epsgTag) !== Number(targetEpsg)) {
     const [fromDef, toDef] = await Promise.all([getProj4Def(epsgTag), getProj4Def(targetEpsg)]);
     if (fromDef && toDef) {
       const r = reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band: raw }, fromDef, toDef, gridW, gridH);
@@ -301,7 +303,7 @@ export async function parseDEMFiles(files, targetEpsg) {
     elevations: fill.elevations, // plain array — easier to JSON-persist in the project file than a typed array
     noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     srcWidth: tiles.reduce((s, t) => s + t.srcW, 0), srcHeight: arrMax(tiles.map((t) => t.srcH)),
-    epsgTag,
+    epsgTag, epsgOverridden: !!sourceEpsgOverride,
     reprojectedTo,
     reprojectNote,
     tileCount: tiles.length,
