@@ -4,6 +4,27 @@ On 2026-09-25 Bitdefender silently held the GeoStrix v0.1.20 installer: the setu
 which looked like "it won't install". Releasing it from Bitdefender's quarantine fixed it. This page
 records why this happens, what the build now does about it, and what still has to be done by hand.
 
+## What actually blocks a fresh install (found 2026-09-25)
+
+**Nothing in the installer broke between v0.1.14 and later versions.** What differs is how the file
+reached the computer:
+
+- A file **downloaded by a browser** gets Windows' "Mark of the Web" (a hidden `Zone.Identifier` tag).
+  Windows **SmartScreen** then checks the publisher and reputation before letting it start. An unsigned
+  file whose exact version it has never seen (every new release is a new file) is held there — and the
+  antivirus (Bitdefender) scans it as an internet download at the same time. That is the "setup never
+  opens" symptom.
+- An **update installed from inside GeoStrix** is downloaded by the app itself, without the Mark of the
+  Web, so neither check stops it. That is why "install an old version, then update from within the app"
+  works.
+- An older release you already allowed once (v0.1.14 here) is remembered, so it installs.
+
+Proof, on this machine: the *same* installer file was blocked at launch when tagged as a download, and
+opened its setup window in 8 seconds after the tag was removed with `Unblock-File`.
+
+Code signing is the lasting fix (SmartScreen trusts a known publisher). Until then, remove the tag
+yourself — see "Installing on a machine where antivirus blocks it" below.
+
 ## Why GeoStrix gets flagged
 
 Antivirus products score an executable they have never seen before on how much it resembles malware.
@@ -58,9 +79,15 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` so a report can referen
 
 1. Download `GeoStrix-Setup-<version>.exe` from the GitHub release. Optional: check it against
    `SHA256SUMS.txt` (PowerShell: `Get-FileHash .\GeoStrix-Setup-<version>.exe`).
-2. If Windows shows "Windows protected your PC": **More info → Run anyway** (unsigned installer).
-3. If the installer does nothing, or disappears: open your antivirus (e.g. Bitdefender → Protection →
+2. **Remove the download mark before running it** — right-click the file → Properties → tick
+   **Unblock** at the bottom of the General tab → OK. (PowerShell alternative:
+   `Unblock-File .\GeoStrix-Setup-<version>.exe`.) This is the step that makes a stuck installer open.
+3. If Windows still shows "Windows protected your PC": **More info → Run anyway** (unsigned installer).
+4. If the installer does nothing, or disappears: open your antivirus (e.g. Bitdefender → Protection →
    Antivirus → Quarantine / Notifications), restore the file, and add an exception for it.
-4. Alternative with no installer: download `GeoStrix-<version>-win.zip`, extract it anywhere (e.g.
+5. Alternative with no installer: download `GeoStrix-<version>-win.zip`, **Unblock the .zip first** (same
+   Properties → Unblock; otherwise every extracted file inherits the download mark), extract it anywhere (e.g.
    `Documents\GeoStrix`), and run `GeoStrix.exe`. The first launch can take several seconds while the
    antivirus scans the new files. (The portable copy does not auto-update; use the installer for that.)
+6. Also works: install any version that runs, then use Help → Check for Updates — in-app updates are not
+   held by SmartScreen.
