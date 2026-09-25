@@ -125,7 +125,7 @@ jobs:
         # TASKS.csv #456 — lets anyone (and an antivirus false-positive report) confirm a download is the
         # exact file GitHub built.
         run: |
-          $lines = Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          $lines = Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name -replace ' ', '-')" } # GitHub stores spaces in asset names as dashes
           $lines | Set-Content -Path SHA256SUMS.txt -Encoding ascii
           Get-Content SHA256SUMS.txt
           gh release upload "${{ github.ref_name }}" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber
