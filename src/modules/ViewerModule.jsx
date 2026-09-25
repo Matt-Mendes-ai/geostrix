@@ -17,6 +17,7 @@ import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #4
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
 import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
+import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -475,6 +476,19 @@ function parseCSV(file, onDone) {
 // put a picker up instead of silently taking the first one (which is what it used to do).
 function parseVectorFile(file, onDone, chosenLayer = null) {
   const name = file.name.toLowerCase();
+  // TASKS.csv #424 — KML/KMZ waypoints and tracks: lon/lat rows with the source CRS set to EPSG:4326
+  // (KML is always WGS84), so the normal import step reprojects them to the project CRS.
+  if (name.endsWith(".kml") || name.endsWith(".kmz")) {
+    readKmlFile(file).then(({ features, skipped }) => {
+      if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
+      const { rows, headers } = kmlFeaturesToRows(features);
+      const nPts = features.filter((f) => f.geomType === "point").length;
+      let note = ` KML: ${nPts} point(s), ${features.length - nPts} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.`;
+      if (skipped) note += ` ${skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.`;
+      onDone(rows, null, { headers, note, detectedEpsg: 4326 });
+    }).catch((err) => onDone(null, err.message));
+    return;
+  }
   if (name.endsWith(".gpkg")) {
     let gpkgFeaturesToRows;
     Promise.all([file.arrayBuffer(), loadGpkg()]).then(([buf, g]) => { gpkgFeaturesToRows = g.gpkgFeaturesToRows; return g.parseGeoPackage(buf); }).then(({ layers }) => {
@@ -7364,9 +7378,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // tool's "export as zipped shapefile" option produces, is the primary supported path).
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(csv|zip|gpkg|shp)$/i.test(f.name));
+    const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz)$/i.test(f.name)); // kml/kmz: #424
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv, .zip (shapefile), .shp, or .gpkg files can be dropped in directly."]); return; }
+    if (!files.length) { setNotices((p) => [...p, "Only .csv, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
     if (files.length === 1) { openImportModal(files[0]); return; }
     // TASKS.csv #229 — ignore a second drop-queue start while one is still draining (see
@@ -7618,7 +7632,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
         onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu({ key, label: meta.label, x: e.clientX, y: e.clientY }); }}
         expanded={!!expandedLayers[key]} onToggleExpand={() => setExpandedLayers((p) => ({ ...p, [key]: !p[key] }))}
-        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
+        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
@@ -8080,12 +8094,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("collar")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
+        <input ref={setInputRef("collar")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Survey {survey.length ? `(${survey.length})` : ""}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("survey")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
+        <input ref={setInputRef("survey")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
         {/* TASKS.csv #131 — hole (collar) labels, QGIS-specialist audit finding: GeoStrix had no text
             labeling anywhere in the 3D scene at all. Scoped to a small fixed set of label contents
@@ -8197,7 +8211,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </select>
         )}
         {emptyLayerKeys.filter((key) => key !== "geophys_pts").map((key) => (
-          <input key={key} ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
+          <input key={key} ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
         ))}
 
         {/* User request: rasters/terrain show up as toggleable layer rows here too, not just inside
@@ -8414,7 +8428,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
-        <input ref={setInputRef("customCsv")} type="file" accept=".csv,.zip,.gpkg,.shp" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
+        <input ref={setInputRef("customCsv")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
             the toolbar above (Camera / Scissors icons) — same reasoning as Grid/Themes above. The

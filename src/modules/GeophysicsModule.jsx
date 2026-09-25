@@ -14,6 +14,7 @@ import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, parseBlockModelCSV, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
+import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput } from "../lib/idw.js";
@@ -373,6 +374,14 @@ export default function GeophysicsModule() {
   // as still open.
   async function shapeFileToPolylines(file) {
     const name = file.name.toLowerCase();
+    // TASKS.csv #424 — KML/KMZ (MTO claims, Google Earth, phone waypoints). Always WGS84, so it is
+    // reprojected to the project CRS here, unlike the other formats which are assumed to be in it.
+    if (name.endsWith(".kml") || name.endsWith(".kmz")) {
+      const { features } = await readKmlFile(file);
+      const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg);
+      if (!polylines.length) throw new Error(failed ? `KML coordinates could not be converted to EPSG:${project?.epsg}.` : "No lines or polygons found in this KML (points are imported through the 3D View importer).");
+      return polylines;
+    }
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
       const buf = await file.arrayBuffer();
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf) });
@@ -448,7 +457,7 @@ export default function GeophysicsModule() {
           const isDxf = /\.dxf$/i.test(file.name);
           ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -1075,15 +1084,15 @@ export default function GeophysicsModule() {
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Boundaries (.ply / DXF / shapefile / GeoPackage)
-          <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), or a GeoPackage (.gpkg) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
+          <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={14} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg)…
+          <Waypoints size={14} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…
         </button>
         <input
           ref={boundaryInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg"
+          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
@@ -1136,15 +1145,15 @@ export default function GeophysicsModule() {
 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Mineral claims / tenure
-          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), or GeoPackage (.gpkg), same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
+          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={14} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg)…
+          <Flag size={14} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…
         </button>
         <input
           ref={claimInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg"
+          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
