@@ -1780,6 +1780,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // a user actually moves this slider. GemPy cost scales with grid cells, so lower = faster/coarser,
   // higher = slower/finer — 64 matches the sidecar's own documented cap (python-sidecar/app/main.py).
   const [modelResolution, setModelResolution] = useState(36);
+  // TASKS.csv #361 — which structure-pick codes count as CONTACT orientations for the litho/alteration
+  // tools. Only exact 'CON' used to be preferred, and with none present EVERY pick type (faults, veins,
+  // joints, foliation) was used silently; real codes like 'Contact' or 'BED' never matched. null = the
+  // automatic choice (contact/bedding-like codes only); an array = the user's explicit selection.
+  const [orientTypesSel, setOrientTypesSel] = useState(null);
+  const structureTypes = useMemo(() => [...new Set((layers.structure || []).filter((s) => Number.isFinite(s.dip) && Number.isFinite(s.azimuth)).map((s) => String(s.value)).filter(Boolean))].sort(), [layers.structure]);
+  const orientTypes = useMemo(() => {
+    if (orientTypesSel) return orientTypesSel.filter((t) => structureTypes.includes(t));
+    return structureTypes.filter((t) => /^(con|cont|contact|contacts|bed|bedding|bdg|s0|so|lith.?contact|lc)$/i.test(t.trim()));
+  }, [orientTypesSel, structureTypes]);
   // TASKS.csv #274 — GemPy's potential-field range, as a multiplier of GemPy's own default (see the
   // sidecar's range_multiplier field). 0 = Auto, i.e. don't send the parameter at all and let GemPy do
   // exactly what it always did; the effective value comes back in the response either way and is
@@ -4136,8 +4146,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // (the default "Whole property" case) every CON-type pick anywhere on the property fed every single
     // surface's orientations regardless of distance. Same spatial-relevance filter the interface points
     // just above already get, now applied to orientations too.
-    let structRows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === "CON" && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    if (!structRows.length) structRows = (layers.structure || []).filter((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
+    // TASKS.csv #361 — only the chosen structure types (see orientTypes), never a silent fall-back to all.
+    const useTypes = new Set(orientTypes);
+    let structRows = (layers.structure || []).filter((s) => useTypes.has(String(s.value)) && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
+    if (!silent && structRows.length) setNotices((p) => [...p, `Orientations for "${unitName}" from structure type(s) ${[...useTypes].join(", ")} (${structRows.length} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.`]);
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
     const preSearchCount = structRows.length;
     structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
@@ -8442,6 +8454,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
           Clip result to domain boundary
         </label>
+
+        {/* TASKS.csv #361 — which structure types are contact orientations (litho + alteration tools). */}
+        {structureTypes.length > 0 && (<>
+          <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>Contact orientations</span>
+            <InfoButton title="Contact orientations" width={300} text={"Which structure-pick types are used as the dip/dip-direction of the contacts being modelled. Faults, veins, joints and foliation are not contacts and usually point the surface the wrong way. With none chosen, the orientation is estimated from the contact points' own shape (and the run says so)."} />
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+            {structureTypes.map((t) => {
+              const on = orientTypes.includes(t);
+              return (
+                <button key={t} aria-pressed={on} onClick={() => setOrientTypesSel(on ? orientTypes.filter((x) => x !== t) : [...orientTypes, t])}
+                  style={{ padding: "2px 8px", borderRadius: 10, fontSize: "var(--font-size-sm)", cursor: "pointer", border: `1px solid ${on ? "var(--color-accent-dark)" : "var(--color-border)"}`, background: on ? "var(--color-selected-bg)" : "transparent", color: on ? "var(--color-text)" : "var(--color-text-muted)", fontWeight: on ? 600 : 400 }}>
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>
+            {orientTypes.length ? `Using ${orientTypes.join(", ")}${orientTypesSel === null ? " (picked automatically as contact/bedding codes)" : ""}.` : "None chosen — orientations will be estimated from the contact points."}
+          </div>
+        </>)}
 
         {/* TASKS.csv #231 — resolution control for every GemPy run (Implicit Model, Stratigraphic
             Stack, Structural, Alteration all funnel through the same runSurfaceStack). Lower = faster/
