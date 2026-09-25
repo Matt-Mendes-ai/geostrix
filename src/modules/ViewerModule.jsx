@@ -1768,6 +1768,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // (post-processing the mesh, not a solver-level constraint — GemPy has no such concept). Off by
   // default and only has any effect when a domain is actually selected above.
   const [clipToDomainBoundary, setClipToDomainBoundary] = useState(false);
+  // TASKS.csv #358 — cut modelled surfaces off at the ground. On by default; only acts when terrain exists.
+  const [clipToTopo, setClipToTopo] = useState(true);
+  const terrainForClipRef = useRef(null);
+  terrainForClipRef.current = terrain || null;
   // TASKS.csv #85 — shared across all four modelling tools, same as modelDomainId above. Off by
   // default (matches pre-#85 behavior exactly: every gathered control point feeds the run). azimuth/dip
   // define the ellipsoid's long (major) axis — the structural trend — major/semiMajor/minor are ranges
@@ -3607,6 +3611,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     });
     if (!specs.length) { setNotices((p) => [...p, "Nothing left to model after removing invalid points/orientations — see notices above for which columns to check."]); return; }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
+    const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
     // Extent spans every hole trace (not just these surfaces' own points) so the modelled surface(s)
     // cover the whole property, with ~15% padding on each side. Computed in API (east/north/up)
     // space to match the points/orientations above.
@@ -3724,13 +3729,34 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         faces = faces.filter((f) => f.every((idx) => vertexIn[idx]));
         if (!faces.length) { missing.push(`${spec.label} (entirely clipped by domain "${clipDomain.name}")`); return; }
       }
+      // TASKS.csv #358 — the model extent's top is the highest control point plus padding, and GemPy
+      // extrapolates up to it, so dipping contacts used to stand up into the air above the ground (in 3D,
+      // in exports, in any volume). Drop every triangle whose centroid is above the terrain surface (only
+      // inside the terrain's footprint; outside it there is nothing to clip against).
+      let topoClipped = 0;
+      if (clipTerrain) {
+        const o = originRef.current;
+        const [txmin, tymin, txmax, tymax] = clipTerrain.bbox;
+        const before = faces.length;
+        faces = faces.filter((f) => {
+          const cx = (sceneVerts[f[0]].x + sceneVerts[f[1]].x + sceneVerts[f[2]].x) / 3;
+          const cy = (sceneVerts[f[0]].y + sceneVerts[f[1]].y + sceneVerts[f[2]].y) / 3;
+          const cz = (sceneVerts[f[0]].z + sceneVerts[f[1]].z + sceneVerts[f[2]].z) / 3;
+          const wx = cx + o.x, wy = -cz + o.y;
+          if (wx < txmin || wx > txmax || wy < tymin || wy > tymax) return true;
+          const ground = sampleTerrainElevation(clipTerrain, wx, wy);
+          return !Number.isFinite(ground) || cy + o.z <= ground;
+        });
+        topoClipped = before - faces.length;
+        if (!faces.length) { missing.push(`${spec.label} (lies entirely above the terrain surface)`); return; }
+      }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flatMap((v) => [v.x, v.y, v.z]), 3));
       geo.setIndex(faces.flat());
       geo.computeVertexNormals();
       const mat = new THREE.MeshLambertMaterial({ color: spec.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.userData = { tip: `${spec.label}\n${surf.vertices.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}` };
+      mesh.userData = { tip: `${spec.label}\n${surf.vertices.length} vertices${clipDomain ? ` (clipped to "${clipDomain.name}")` : ""}${topoClipped ? " (cut at topography)" : ""}` };
       implicitGroupRef.current?.add(mesh);
       const id = `impl_${Date.now()}_${spec.meshName}`;
       implicitMeshesRef.current[id] = mesh;
@@ -3754,6 +3780,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
         domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
         clippedToDomain: !!clipDomain,
+        clippedToTopography: clipTerrain ? { terrain: clipTerrain.name || "terrain", trianglesRemoved: topoClipped } : false, // #358
         // TASKS.csv #52 (c) — WHICH picks fed this surface, by name. Without it two surfaces modelled
         // from the same logged code (upper vs lower basalt) would carry identical provenance and be
         // indistinguishable a month later.
@@ -3941,7 +3968,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ]);
       setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
     }
-  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
+  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, clipToTopo, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = useCallback((spec, opts) => runSurfaceStack([spec], opts), [runSurfaceStack]);
@@ -8468,6 +8495,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: modelDomainId ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
           Clip result to domain boundary
+        </label>
+        {/* TASKS.csv #358 */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={terrain ? "Removes the parts of modelled surfaces that lie above the terrain surface." : "Load a terrain surface (Geophysics > Terrain) to cut surfaces at the ground."}>
+          <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />
+          Cut surfaces at topography
         </label>
 
         {/* TASKS.csv #361 — which structure types are contact orientations (litho + alteration tools). */}
