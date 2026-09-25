@@ -18,3 +18,18 @@ test("#420 terrain GeoTIFF: pixel centres are the grid nodes, and it re-imports 
   const band = (await img.readRasters())[0];
   assert.equal(band[0], 1000); assert.equal(band[gridW * gridH - 1], 1000 + gridW * gridH - 1);
 });
+
+import { fillNoData, decodeNoDataMask, isNoData, noDataNote } from "../src/lib/demFill.js";
+import { reprojectGrid, getProj4DefSync } from "../src/lib/reproject.js";
+test("#421 reprojection wedges are recorded as no-data, not silently flattened", () => {
+  const N = 200, band = new Float32Array(N * N).fill(1500);
+  const r = reprojectGrid({ xmin: -130.5, ymin: 56, xmax: -129.5, ymax: 57, gridW: N, gridH: N, band }, getProj4DefSync(4326), getProj4DefSync(32609), N, N);
+  const f = fillNoData(r.elevations);
+  assert.ok(f.filledPct > 0.5 && f.filledPct < 20, `filled ${f.filledPct}%`);
+  const mask = decodeNoDataMask(f.noDataMask);
+  let n = 0; for (let i = 0; i < N * N; i++) if (isNoData(mask, i)) { n++; assert.ok(Number.isNaN(r.elevations[i])); }
+  assert.equal(n, f.filledCount);
+  assert.ok(isNoData(mask, 0) || isNoData(mask, N - 1), "a corner is a wedge");
+  assert.match(noDataNote(f), /no source data/);
+  assert.equal(fillNoData([1, 2, 3]).noDataMask, null);
+});

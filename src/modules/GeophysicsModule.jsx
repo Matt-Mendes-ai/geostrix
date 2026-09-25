@@ -216,7 +216,7 @@ export default function GeophysicsModule() {
         setTerrainBusy(false);
         return;
       }
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations });
+      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
       let msg = `Imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh (source ${parsed.srcWidth}×${parsed.srcHeight}px, ${(xmax - xmin).toFixed(0)}×${(ymax - ymin).toFixed(0)} world units)${parsed.tileCount > 1 ? ` from ${parsed.tileCount} merged tiles` : ""}.`;
       if (parsed.reprojectedTo) {
         msg += ` Reprojected from its native EPSG:${parsed.epsgTag} to the project's EPSG:${parsed.reprojectedTo} on import.`;
@@ -225,6 +225,7 @@ export default function GeophysicsModule() {
       } else if (parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
         msg += ` Note: this file's own CRS tag (EPSG:${parsed.epsgTag}) doesn't match the project's EPSG:${project.epsg} — no reprojection happens on import.`;
       }
+      if (parsed.noDataNote) msg += parsed.noDataNote; // #421
       setTerrainError({ info: true, text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
@@ -334,12 +335,13 @@ export default function GeophysicsModule() {
         lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg,
         onProgress: (done, total) => setSrtmProgress({ done, total }),
       });
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations });
+      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = `Fetched and imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh covering ${(txmax - txmin).toFixed(0)}×${(tymax - tymin).toFixed(0)} world units for the area you drew.`;
       if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
       else if (parsed.reprojectNote) msg += ` Note: ${parsed.reprojectNote}`;
-      if (parsed.failedTiles) msg += ` (${parsed.failedTiles} tile(s) failed to download and were filled with the mean elevation of the rest — check your connection if this area looks patchy.)`;
+      if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to download — check your connection.`;
+      if (parsed.noDataNote) msg += parsed.noDataNote; // #421
       setTerrainError({ info: true, text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });

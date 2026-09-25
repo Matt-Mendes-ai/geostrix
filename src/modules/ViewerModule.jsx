@@ -15,6 +15,7 @@ import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
+import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -6575,9 +6576,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     const indices = [];
+    // TASKS.csv #421 — leave out every triangle touching a no-data node (filled only for sampling).
+    const mask = decodeNoDataMask(terrain.noDataMask);
     for (let j = 0; j < gridH - 1; j++) {
       for (let i = 0; i < gridW - 1; i++) {
         const a = j * gridW + i, b = a + 1, c = a + gridW, d = c + 1;
+        if (mask && (isNoData(mask, a) || isNoData(mask, b) || isNoData(mask, c) || isNoData(mask, d))) continue;
         indices.push(a, c, b, b, c, d);
       }
     }

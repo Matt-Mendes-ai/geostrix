@@ -18,6 +18,7 @@
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
 // save. Raised from 1024 -> 2048 (TASKS.csv, user report of "imported in a really bad quality") —
@@ -290,20 +291,15 @@ export async function parseDEMFiles(files, targetEpsg) {
     }
   }
 
-  // Fill any remaining nodata/no-coverage cells with the mean of valid cells (a flat "sea level"-ish
-  // patch reads better in a 3D mesh than a NaN-driven hole or a 0-elevation cliff) — same reasoning
-  // parseDEM always used, just applied after mosaicking/reprojection instead of before.
-  let sum = 0, count = 0;
-  for (let i = 0; i < outElevations.length; i++) if (Number.isFinite(outElevations[i])) { sum += outElevations[i]; count++; }
-  const fallback = count ? sum / count : 0;
-  const elevations = new Float32Array(outGridW * outGridH);
-  for (let i = 0; i < outElevations.length; i++) elevations[i] = Number.isFinite(outElevations[i]) ? outElevations[i] : fallback;
+  // TASKS.csv #421 — no-data cells are still filled (for sampling) but recorded and reported; see demFill.js.
+  const fill = fillNoData(outElevations);
 
   return {
     name: tiles.length > 1 ? `${tiles.length} tiles merged (${tiles[0].name}, …)` : tiles[0].name,
     bbox: outBbox,
     gridW: outGridW, gridH: outGridH,
-    elevations: Array.from(elevations), // plain array — easier to JSON-persist in the project file than a typed array
+    elevations: fill.elevations, // plain array — easier to JSON-persist in the project file than a typed array
+    noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     srcWidth: tiles.reduce((s, t) => s + t.srcW, 0), srcHeight: arrMax(tiles.map((t) => t.srcH)),
     epsgTag,
     reprojectedTo,

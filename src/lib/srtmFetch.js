@@ -19,6 +19,7 @@
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
 import { getProj4Def, reprojectGrid, bilinearSample } from "./reproject.js";
+import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
 const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requests/~1-2MB, not runaway
 const MIN_ZOOM = 4;
@@ -141,18 +142,15 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
     }
   }
 
-  // Fill any no-coverage cells (edges near a fetch failure, or a genuine data gap) with the mean of
-  // valid cells — same "flat patch reads better than a hole" reasoning parseDEMFiles uses.
-  let sum = 0, count = 0;
-  for (let i = 0; i < outElevations.length; i++) if (Number.isFinite(outElevations[i])) { sum += outElevations[i]; count++; }
-  const fallback = count ? sum / count : 0;
-  const elevations = new Array(outGridW * outGridH);
-  for (let i = 0; i < outElevations.length; i++) elevations[i] = Number.isFinite(outElevations[i]) ? outElevations[i] : fallback;
+  // TASKS.csv #421 — no-data cells are still filled (for sampling) but recorded and reported; see demFill.js.
+  const fill = fillNoData(outElevations);
+  const elevations = fill.elevations;
 
   return {
     name: `SRTM (auto-fetched, ${tiles.length} tile${tiles.length > 1 ? "s" : ""} @ z${zoom})`,
     bbox: outBbox, gridW: outGridW, gridH: outGridH, elevations,
     reprojectedTo, reprojectNote, tileCount: tiles.length, zoom,
+    noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     failedTiles: failed.length,
   };
 }
