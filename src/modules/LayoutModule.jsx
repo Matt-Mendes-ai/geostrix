@@ -14,6 +14,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
 import { PAGE_FORMATS, pageFormatOf, pagePx } from "../lib/pageFormats.js"; // TASKS.csv #398
+import { azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -53,7 +54,7 @@ export default function LayoutModule() {
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
-    layers, collars, sections,
+    layers, collars, sections, project,
     // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
     // every time Enter/Refresh switches away to the 3D View tab and back.
@@ -631,6 +632,30 @@ export default function LayoutModule() {
                 <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
               </label>
             )}
+            {/* TASKS.csv #399 — grid / true / magnetic north diagram. Assessment-report maps are expected to
+                declare which north they show; the plain arrow is GRID north. Convergence and IGRF-14
+                declination are computed for a date at the centre of the first top-down viewport capture on
+                this page (or the collars' centroid), and printed with the diagram. */}
+            {sel.type === "north" && (() => {
+              const vp = elements.find((e) => e.type === "viewport" && e.targetWorld);
+              const at = vp ? vp.targetWorld : collars.length ? { x: collars.reduce((t, c) => t + c.x, 0) / collars.length, y: collars.reduce((t, c) => t + c.y, 0) / collars.length } : null;
+              const date = sel.declDate || new Date().toISOString().slice(0, 10);
+              const compute = () => {
+                const o = at && project?.epsg ? azimuthToGridOffset("magnetic", at.x, at.y, project.epsg, date) : null;
+                if (!o) { updateSelected({ decl: null, declError: at ? "Couldn't compute it for this project's coordinate system or date." : "Needs a viewport capture or collars to know where the map is." }); return; }
+                updateSelected({ decl: { convergence: o.convergence, declination: o.declination, date, at }, declError: null });
+              };
+              return (
+                <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input type="date" value={date} onChange={(e) => updateSelected({ declDate: e.target.value })} aria-label="Declination date" style={{ ...inp, width: 130 }} />
+                    <button onClick={compute} style={{ ...pBtn, marginBottom: 0 }}>{sel.decl ? "Update GN/TN/MN" : "Show grid / true / magnetic north"}</button>
+                  </div>
+                  {sel.decl && <button onClick={() => updateSelected({ decl: null })} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>Back to a plain north arrow</button>}
+                  {sel.declError && <div style={{ color: "var(--color-danger-fg)", marginTop: 4 }}>{sel.declError}</div>}
+                </div>
+              );
+            })()}
             {/* Legend editing (TASKS.csv — "edit all elements", per the Castilla example the user
                 referenced: add/rename/recolor/remove/reorder rows). Previously el.items was a fixed
                 array set at creation with no way to touch it afterward. */}
@@ -1233,6 +1258,29 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
   }
   // TASKS.csv #67 — el.rotation (set manually, or via "Sync north arrow" on a bound viewport) rotates
   // the whole glyph around its own center rather than the page's drag-anchor corner.
+  // TASKS.csv #399 — GN/TN/MN declination diagram variant of the north element.
+  if (el.type === "north" && el.decl) {
+    const { convergence, declination, date } = el.decl;
+    const mn = convergence + declination; // magnetic north's bearing measured from grid north
+    const fmt = (a) => `${Math.abs(a).toFixed(1)}° ${a >= 0 ? "E" : "W"}`;
+    const ray = (deg, len) => { const r = (deg * Math.PI) / 180; return [60 + Math.sin(r) * len, 80 - Math.cos(r) * len]; };
+    const [tx, ty] = ray(convergence, 58), [mx, my] = ray(mn, 52);
+    return (
+      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown}>
+        <svg width="150" height="124" viewBox="0 0 150 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>
+          <line x1="60" y1="80" x2="60" y2="14" stroke="#1a2028" strokeWidth="1.6" />
+          <text x="60" y="10" fontSize="10" fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
+          <line x1="60" y1="80" x2={tx} y2={ty} stroke="#1a2028" strokeWidth="1.2" />
+          <text x={tx} y={ty - 4} fontSize="11" textAnchor="middle" fill="#1a2028">★</text>
+          <line x1="60" y1="80" x2={mx} y2={my} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
+          <text x={mx + 4} y={my - 2} fontSize="9" fontWeight="700" fill="#1a2028">MN</text>
+          <text x="4" y="98" fontSize="8.5" fill="#1a2028">True north {fmt(convergence)} of grid north</text>
+          <text x="4" y="109" fontSize="8.5" fill="#1a2028">Magnetic declination {fmt(declination)} ({date.slice(0, 4)})</text>
+          <text x="4" y="120" fontSize="8" fill="#55606e">IGRF-14; changes about 0.1-0.2°/yr</text>
+        </svg>
+      </div>
+    );
+  }
   if (el.type === "north") return (
     <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "27px 35px" }} onMouseDown={onDown}>
       <svg width="54" height="70" viewBox="0 0 54 70">
