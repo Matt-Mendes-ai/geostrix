@@ -13,21 +13,21 @@ integrated with geophysics and geochemical analysis," not a general CAD tool.
 
 ## How this project has been developed so far
 
-Almost all of it was built in a previous tool (Claude in Cowork mode — a cloud sandbox), working
-through a backlog tracked in `TASKS.csv` and new requests Matt made in chat, one at a time, with
-a specific delivery/verification discipline (below). That discipline is the main thing worth
-carrying forward — it's what's kept a large, single-session-context-defying codebase (the biggest
-file, `ViewerModule.jsx`, is ~380KB) coherent and low-regression despite near-continuous feature
-work. **This is the first session running in Claude Code, on Matt's own machine, instead of that
-cloud sandbox.** That's a real upgrade, not just a change of venue — see "What's newly possible"
-below.
+The early versions were built in Claude in Cowork mode (a cloud sandbox); since then it has been
+developed in Claude Code on Matt's own machine, as a git repository with CI and tagged releases,
+working through a backlog tracked in `TASKS.csv` and new requests Matt makes in chat, with a
+specific delivery/verification discipline (below). That discipline is the main thing worth carrying
+forward — it's what keeps a large codebase (the biggest file, `ViewerModule.jsx`, is ~860 KB /
+~11,000 lines as of 2026-09-24) coherent and low-regression despite near-continuous feature work.
 
 ## TASKS.csv — read this before starting anything
 
 `TASKS.csv` (repo root) is both the backlog AND the changelog. Columns:
 `id, module, feature, priority, status, Approved, notes`. Status is one of `Planned` / `Done`
-(occasionally `Blocked` or similar — check current values, don't assume). It currently has ~210
-rows spanning the whole project history.
+(occasionally `Blocked` or similar — check current values, don't assume). It has ~450 rows spanning
+the whole project history (rows #331-#453 came from the #330 full-app specialist review).
+**It is gitignored — local only, never committed.** Update it alongside each commit, but don't expect
+it in `git status` or in a fresh clone.
 
 **Before starting new work:**
 1. Read `TASKS.csv` (it's large — grep/filter rather than loading it all into context at once,
@@ -108,7 +108,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   collections: collars/survey/layers/themes/rasters/voxelModels/etc, save/load/autosave).
 - `src/modules/*.jsx` — one file per top-level tab (`ViewerModule` handles View/Modeling/Targeting
   via a `mode` prop — see its own header comments for why; `GeophysicsModule`, `RasterModule`,
-  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~380KB)** — use targeted
+  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~860 KB, ~11k lines)** — use targeted
   Read/Grep rather than reading it front-to-back, and lean on its extensive inline comments (many
   reference specific TASKS.csv ids) to orient before editing.
 - `src/components/*` — modals, panels, and small reusable pieces.
@@ -155,23 +155,43 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   logic errors — when something "resets" unexpectedly after a tab switch or an async operation,
   suspect this class of bug first and reproduce it with Playwright before theorizing further.
 
-## First actions in a brand-new Claude Code session on this repo
+## First actions in a new Claude Code session on this repo
 
-1. Check `git status`. If this isn't a git repo yet (it wasn't as of this handoff), run `git init`,
-   confirm `.gitignore` looks right (already committed — excludes `node_modules/`, build output,
-   Python `__pycache__`, etc), then `git add -A` and make an initial commit capturing the current
-   state as the baseline. Use small, real commits going forward instead of one giant history.
-2. Confirm `npm install` has been run (check `node_modules/` exists) and `npm run dev` actually
-   launches the Electron window.
+1. `git status` / `git log --oneline -5` — the repo is on `master` with a GitHub remote; commits are
+   small and end with the Co-Authored-By line. Don't push or tag a release unless Matt asks.
+2. Confirm `node_modules/` exists (`npm install` otherwise) and run `npm test` (Node's built-in test
+   runner over `test/*.test.mjs`, also run in CI) as a baseline.
 3. Read `TASKS.csv`'s current `Planned` rows before doing anything else Matt hasn't explicitly
    scoped in the current message.
 
+## Current facts worth knowing (2026-09-24)
+
+- **Tests:** `npm test` = `node --test test/*.test.mjs` (pure-logic tests: import/desurvey, geochem,
+  reprojection, DXF, rasters, network guard, ZIP caps…). Python sidecar tests: `python
+  tests/test_potential.py` (plain script) and `tests/test_jobs_api.py <port> <token>` against a
+  running server (see its header). There is no pytest in the venv.
+- **Python sidecar:** frozen with PyInstaller `--onedir` (`python-sidecar/dist/geostrix-sidecar/`,
+  exe beside `_internal/`); dependencies pinned in `requirements.txt` + the full-tree
+  `constraints.txt` (#363) — install with `-c constraints.txt`. The desktop app starts it on FIRST
+  USE (IPC `sidecar-ensure`, #440), not at launch; the status bar shows `Py: idle` until then.
+  BLAS threads are capped at half the cores (max 4).
+- **CSP** is injected at BUILD time only (vite.config.js `cspPlugin`, #347); the dev server has none
+  (Electron's "insecure CSP" warning in dev is expected).
+- **Local packaging inside OneDrive:** `npm run build:dir` into `release/` can fail with EPERM renaming
+  `win-unpacked.tmp` (OneDrive locks the folder); build with
+  `-c.directories.output=<a folder outside OneDrive>`. CI is unaffected.
+- **Verifying against the real Electron app:** start it with
+  `electron . --remote-debugging-port=9333` (NODE_ENV=development to load the Vite dev server, unset
+  to load `dist/`), then drive the page over the DevTools protocol (Runtime.evaluate,
+  Page.captureScreenshot). A hidden browser pane pauses requestAnimationFrame, so anything that waits
+  on rAF (focus trap, the render loop, the splash) must be checked in a visible window.
+- Vite occasionally caches an EMPTY module if it reads a big file mid-write (symptom: "does not provide
+  an export named 'default'"); `touch` the file and reload.
+
 ## Suggestions for getting the most out of Claude Code here (Matt asked for these)
 
-- **Git + GitHub.** TASKS.csv already has a backlog item (#39) for "Public repo (GitHub) + CI build
-  for installers" — worth doing early now that this lives locally. `gh repo create` once you're
-  ready, and a simple GitHub Actions workflow that runs `npm run build:dir` on push as a smoke test
-  is a natural first CI step.
+- **Git + GitHub.** Done: public repo, CI (`npm test` + build) and tagged releases via
+  `.github/workflows/release.yml` (TASKS.csv #39).
 - **A verification hook.** Ask Claude Code to set up a `PostToolUse` hook (via `.claude/settings.json`
   or the `/hooks` command — let Claude Code wire this up itself, since it knows its own current hook
   schema better than a stale doc would) that automatically runs the `esbuild --bundle=false` syntax
