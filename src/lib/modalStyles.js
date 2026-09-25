@@ -29,3 +29,21 @@ export const td = { padding: "4px 8px", color: colors.text, textAlign: "right" }
 export function btn(primary) {
   return { padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? `1px solid ${colors.successBorder}` : `1px solid ${colors.borderLight}`, background: primary ? colors.successBg : "transparent", color: primary ? colors.successText : colors.textSecondary };
 }
+
+// TASKS.csv #387 — backdrop-click-to-close without the accidental case: pressing inside a dialog
+// (selecting text, dragging a slider or a control point) and releasing over the backdrop fires a click
+// ON the backdrop, which used to close the dialog and throw away whatever was in it. It now closes only
+// when the press ALSO started on the backdrop. Dialogs that hold work in local state (import mapping,
+// georeferencing, SQL, estimation, database login, prompts) don't close from the backdrop at all —
+// pass null; they close with their own buttons or Escape.
+export function backdropProps(onClose) {
+  if (!onClose) return {};
+  return {
+    onPointerDown: (e) => { e.currentTarget.dataset.pressedOnBackdrop = e.target === e.currentTarget ? "1" : ""; },
+    onClick: (e) => {
+      const ok = e.target === e.currentTarget && e.currentTarget.dataset.pressedOnBackdrop === "1";
+      e.currentTarget.dataset.pressedOnBackdrop = "";
+      if (ok) onClose();
+    },
+  };
+}

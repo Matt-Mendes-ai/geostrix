@@ -6,6 +6,7 @@ import { buildLineages, compareSurfaceGeometry, diffParams, editDisclosure } fro
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #93 — COMPARE TWO VERSIONS OF A SURFACE.
@@ -138,7 +139,7 @@ export default function SurfaceCompareModal({
   const multiVersionLineages = lineages.filter((l) => l.length > 1);
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>

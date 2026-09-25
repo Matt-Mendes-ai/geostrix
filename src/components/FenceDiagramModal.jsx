@@ -5,6 +5,7 @@ import { buildFencePanel, panelPointAtDepth, correlationBands } from "../lib/fen
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
@@ -154,7 +155,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
   }, [view]);
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={modalPanel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>

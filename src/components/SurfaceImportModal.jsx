@@ -43,7 +43,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
   const required = [["x", "Easting (X)"], ["y", "Northing (Y)"], ["z", "Elevation (Z)"]];
 
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

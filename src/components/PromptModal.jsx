@@ -21,7 +21,7 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
     inputRef.current?.select();
   }, []);
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", marginBottom: 10, fontWeight: 600 }}>{title}</div>
         <input

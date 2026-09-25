@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { X, Keyboard, Info } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { version as APP_VERSION } from "../../package.json";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
@@ -81,7 +81,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
   useFocusTrap(); // TASKS.csv #238
   const [tab, setTab] = useState(initialTab);
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", gap: 4 }}>

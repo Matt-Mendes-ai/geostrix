@@ -47,7 +47,7 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

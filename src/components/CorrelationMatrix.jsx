@@ -5,7 +5,7 @@ import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
@@ -84,7 +84,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

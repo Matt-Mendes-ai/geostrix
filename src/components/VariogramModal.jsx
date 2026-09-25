@@ -10,7 +10,7 @@ import {
 } from "../lib/variogram.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -160,7 +160,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const fitWeak = result && result.fit && result.fit.rSquared != null && result.fit.rSquared < 0.5;
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panelStyle} role="dialog" aria-modal="true" aria-label="Variogram analysis" onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div>

@@ -51,7 +51,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
 
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

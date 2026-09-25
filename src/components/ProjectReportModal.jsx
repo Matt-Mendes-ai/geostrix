@@ -15,7 +15,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
@@ -118,7 +118,7 @@ export default function ProjectReportModal({ store, onClose }) {
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

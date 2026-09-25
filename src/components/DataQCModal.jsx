@@ -5,7 +5,7 @@ import { runDataQC } from "../lib/dataQC.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
@@ -41,7 +41,7 @@ export default function DataQCModal({ onCancel }) {
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(shown.length, ISSUE_ROW_H);
 
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay} {...backdropProps(onCancel)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

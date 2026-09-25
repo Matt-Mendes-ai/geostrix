@@ -201,7 +201,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

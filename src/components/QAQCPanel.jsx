@@ -5,7 +5,7 @@ import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #134 — lab QAQC dashboard (standards/blanks/duplicates), distinct from dataQC.js's
@@ -53,7 +53,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   };
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

@@ -13,14 +13,14 @@ import React from "react";
 import { X, Layers3 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
-import { overlay } from "../lib/modalStyles.js";
+import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 export default function LayerPickerModal({ fileName, options, onPick, onCancel }) {
   useEscapeKey(onCancel);
   useFocusTrap();
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay} {...backdropProps(onCancel)}>
       <div style={panel} role="dialog" aria-modal="true" aria-label={`Choose a layer from ${fileName}`} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>

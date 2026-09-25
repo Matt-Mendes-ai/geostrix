@@ -66,7 +66,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
   const emptyLoaded = useMemo(() => !collars.length && !assays.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays]);
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
