@@ -8,6 +8,7 @@ import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 —
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
+import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -65,6 +66,7 @@ export default function App() {
     layoutPages, activeLayoutPageId, // TASKS.csv #398 — PDF paper size
   } = store;
   const [active, setActive] = useState("viewer");
+  const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
   // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
   // so hopping to Geochem and back doesn't force a sidebar re-render for a `mode` swap that isn't
   // actually happening. Updated during render (not an effect) whenever the active tab IS a viewer
@@ -362,10 +364,12 @@ export default function App() {
           NOTE this sits ABOVE .ge-body, whereas ViewerModule's real one sits inside its own column
           INSIDE .ge-body — different position in the tree, identical resulting geometry, because
           .ge-app is a single vertical flex column either way. */}
-      {!VIEWER_MODES[active] || VIEWER_MODES[active] !== "view" ? (
-        <div className="ge-subtoolbar" aria-hidden="true" role="presentation" />
-      ) : null}
+      {/* TASKS.csv #458 — the Office-style ribbon band. ONE element for every tab (same height everywhere,
+          the #309 reason the placeholder above existed); each module portals its own buttons into it
+          (components/Ribbon.jsx). */}
+      <div className="ge-ribbon" ref={setRibbonEl} />
 
+      <RibbonSlotContext.Provider value={ribbonEl}>
       <div className="ge-body">
         {/* TASKS.csv #225 — ONE persistent ViewerModule instance instead of three separate conditional
             JSX expressions (each of which used to occupy its own position in the tree, forcing React
@@ -387,6 +391,7 @@ export default function App() {
           </Suspense>
         </ErrorBoundary>
       </div>
+      </RibbonSlotContext.Provider>
 
       <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
       {shortcutsTab && <ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} />}

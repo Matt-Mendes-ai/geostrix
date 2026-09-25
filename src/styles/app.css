@@ -142,6 +142,51 @@ input, select { font-family: inherit; }
    browser). Icon-only, square buttons, grouped with thin separators, same visual language as the
    module bar above it but visually distinct (a hair shorter, off-white background) so the two rows
    read as "app-level" vs "module-level" without needing a label. */
+/* TASKS.csv #458 — Office-style ribbon (components/Ribbon.jsx): one band under the module tabs, big
+   labelled buttons in named groups. Replaces the 38 px icon-only .ge-subtoolbar row. overflow is
+   visible so a button's popover can drop below the band. */
+.ge-ribbon {
+  display: flex; align-items: stretch; flex-shrink: 0;
+  height: 76px; padding: 3px 6px 0;
+  background: var(--color-bg-subtlest); border-bottom: 1px solid var(--color-border);
+  position: relative; z-index: 20;
+}
+.ge-ribbon-inner { display: flex; align-items: stretch; min-width: 0; }
+.ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--color-border); }
+.ge-ribbon-group:last-child { border-right: none; }
+.ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }
+.ge-ribbon-caption { font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; padding: 1px 0 3px; white-space: nowrap; }
+.ge-ribbon-cell { position: relative; display: flex; align-items: flex-start; gap: 4px; }
+.ge-ribbon-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px;
+  min-width: 50px; max-width: 78px; height: 54px; padding: 5px 5px 2px;
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  color: var(--color-text); font-size: var(--font-size-xs); line-height: 1.12; cursor: pointer; text-align: center;
+}
+.ge-ribbon-btn:hover { background: var(--color-hover-bg); border-color: var(--color-border); }
+.ge-ribbon-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); box-shadow: inset 0 -2px 0 var(--color-accent-dark); }
+.ge-ribbon-btn:disabled { opacity: 0.4; cursor: default; }
+.ge-ribbon-btn:disabled:hover { background: transparent; border-color: transparent; }
+.ge-ribbon-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
+.ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 54px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+/* Narrow windows (budget laptops, #449): tighter buttons; the band scrolls sideways if it still overflows. */
+@media (max-width: 1279px) {
+  .ge-ribbon { overflow-x: auto; overflow-y: visible; }
+  .ge-ribbon-btn { min-width: 44px; padding: 5px 3px 2px; }
+  .ge-ribbon-group { padding: 0 3px; }
+}
+/* A tool shown in the sidebar ("task pane"): its header, and the break before the tab's data. */
+.ge-pane-end { height: 0; border-top: 2px solid var(--color-border); margin: 14px -14px 14px; }
+.ge-pane-header {
+  display: flex; align-items: center; gap: 7px; margin: -4px 0 12px; padding: 7px 8px;
+  background: var(--color-bg-subtle); border: 1px solid var(--color-border); border-radius: 6px;
+}
+.ge-pane-title { flex: 1; font-size: var(--font-size-base); font-weight: 600; color: var(--color-text); }
+.ge-pane-close { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; background: transparent; border-radius: 4px; color: var(--color-text-secondary); cursor: pointer; }
+.ge-pane-close:hover { background: var(--color-hover-bg); color: var(--color-text); }
+
 .ge-subtoolbar {
   display: flex; align-items: center; gap: 2px;
   height: 38px; flex-shrink: 0;
@@ -217,7 +262,7 @@ input, select { font-family: inherit; }
    the printed output. The Layout page itself (.ge-layout-page) is sized/positioned for screen via
    inline styles, so it's reset here to print at its natural A4-landscape size, full bleed. */
 @media print {
-  .ge-toolbar, .ge-subtoolbar, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
+  .ge-toolbar, .ge-subtoolbar, .ge-ribbon, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
   html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; overflow: visible !important; background: var(--color-bg) !important; }
   .ge-layout-page { margin: 0 !important; box-shadow: none !important; }
 }

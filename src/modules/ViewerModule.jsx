@@ -23,6 +23,8 @@ import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.
 import { checkAgainstLogs, unitVolumes, blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
+import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, Scale, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "lucide-react"; // #458 ribbon icons
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 // TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
 // startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
@@ -1712,6 +1714,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
   // below (`sidebarTab === "home"` / `=== "modeling"`) didn't need a mechanical find/replace.
   const sidebarTab = mode === "modeling" ? "modeling" : mode === "targeting" ? "targeting" : "home";
+  // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
+  // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
+  const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
+  useEffect(() => { setToolPane(mode === "targeting" ? "plan" : null); }, [mode]);
+  const paneProps = (id) => ({ active: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) });
+  const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
   // TASKS.csv #155 — QGIS-style toolbar (view mode only, this pass): which of the Grid/Themes
   // popovers is open, if any. Null closes both. The Database/QC/Boundary-intercepts/Snapshot toolbar
   // buttons don't need this — they trigger the SAME existing modal-open booleans (dbModalOpen etc.)
@@ -8241,12 +8249,128 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
+          show={visible} paneProps={paneProps}
         />
+      )}
+      {/* TASKS.csv #458 — 3D Modeling ribbon: each modelling tool opens as a pane at the top of the sidebar
+          (the generated surfaces and domains stay below it); the analysis plots open directly. */}
+      {mode === "modeling" && (
+        <Ribbon show={visible} label="3D Modeling tools">
+          <RibbonGroup label="Setup">
+            <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
+            <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
+            <RibbonButton icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
+          </RibbonGroup>
+          <RibbonGroup label="Lithology">
+            <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
+            <RibbonButton icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+          </RibbonGroup>
+          <RibbonGroup label="Structure">
+            <RibbonButton icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
+            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" onClick={() => setStereonetOpen(true)} />
+            <RibbonButton icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
+            <RibbonButton icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Alteration & veins">
+            <RibbonButton icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
+            <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
+          </RibbonGroup>
+          <RibbonGroup label="Grade">
+            <RibbonButton icon={Gem} label="Grade shell" tone="model" title="Numeric implicit model (grade shell)" {...paneProps("shell")} />
+            <RibbonButton icon={Calculator} label="Estimation" tone="model" title="Grade estimation into block models" {...paneProps("gradeEst")} />
+            <RibbonButton icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Check">
+            <RibbonButton icon={Rows3} label="Fence diagram" tone="analyse" title="Fence / panel correlation diagram" onClick={() => setFenceOpen(true)} />
+            <RibbonButton icon={Ruler} label="Surface query" tone="analyse" title="Distance to surfaces / point-in-domain report" onClick={() => setSurfaceQueryOpen(true)} />
+          </RibbonGroup>
+        </Ribbon>
+      )}
+      {/* TASKS.csv #458 — Targeting ribbon */}
+      {mode === "targeting" && (
+        <Ribbon show={visible} label="Targeting tools">
+          <RibbonGroup label="Targets">
+            <RibbonButton icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
+            <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
+            <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
+          </RibbonGroup>
+          <RibbonGroup label="Export planned holes">
+            <RibbonButton icon={FileSpreadsheet} label="CSV" tone="output" disabled={!plannedHoles.length} title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north" onClick={() => exportPlannedHoles("csv")} />
+            <RibbonButton icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
+            <RibbonButton icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
+          </RibbonGroup>
+        </Ribbon>
       )}
       <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
       <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
       <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
+        {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
+        {toolPane === "sectionCoords" && (<>
+        {paneHeader("Section by coordinates", Crosshair, "section")}
+        {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre E<input value={typedSection.e} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre easting" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre N<input value={typedSection.n} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre northing" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Azimuth (°)<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label="Section azimuth" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Length (m)<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label="Section length" /></label>
+        </div>
+        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} /> Open section</button>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.</div>
+
+        </>)}
+        {toolPane === "slice3d" && (<>
+        {paneHeader("3D slice", SquareSplitVertical, "section")}
+        {/* TASKS.csv #453 — live 3D slice through everything in the view */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: "var(--font-size-base)" }}>
+          <span>Slice the view</span>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
+            <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label="3D slice on" /> On
+          </label>
+        </div>
+        {slice3d.on && (
+          <div style={{ marginBottom: 12, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select value={slice3d.mode} onChange={(e) => setSlice3d((s) => ({ ...s, mode: e.target.value }))} style={{ flex: 1 }} aria-label="Slice orientation">
+                <option value="vertical">Vertical slab</option>
+                <option value="horizontal">Horizontal (level plan)</option>
+              </select>
+              {slice3d.mode === "vertical" && (
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>Az <input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label="Slice azimuth" />°</label>
+              )}
+            </div>
+            <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label="Slice position" />
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              Thickness <input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label="Slice thickness" /> m
+              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : "0 = everything beyond the cut"}</span>
+            </label>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
+          </div>
+        )}
+
+        </>)}
+        {toolPane === "fence" && (<>
+        {paneHeader("Slice series (fence sections)", Rows3, "section")}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
+          Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth —
+          each one added to the list below, ready to open individually. Includes the geophysics voxel
+          slice automatically, same as any other section.
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <label style={{ ...miniField, flex: 1 }}>
+            Azimuth (°)
+            <input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          </label>
+          <label style={{ ...miniField, flex: 1 }}>
+            Width (m)
+            <input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          </label>
+          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title="Generate the slice series"><Scissors size={14} /> Generate</button>
+        </div>
+
+        <div style={{ marginBottom: 12 }} />
+        </>)}
+        {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <div className="ge-section-label">Geometry</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
@@ -8596,62 +8720,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             specified azi and width"). Generates N parallel sections tiling the visible voxel model(s)'
             and/or drilling's extent, added to the same saved-sections list below rather than opened all
             at once. */}
-        {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
-        <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16 }}>Section by coordinates</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre E<input value={typedSection.e} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre easting" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre N<input value={typedSection.n} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre northing" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Azimuth (°)<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label="Section azimuth" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Length (m)<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label="Section length" /></label>
-        </div>
-        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} /> Open section</button>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.</div>
-
-        {/* TASKS.csv #453 — live 3D slice through everything in the view */}
-        <div className="ge-section-label" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>3D slice</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
-            <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label="3D slice on" /> On
-          </label>
-        </div>
-        {slice3d.on && (
-          <div style={{ marginBottom: 12, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              <select value={slice3d.mode} onChange={(e) => setSlice3d((s) => ({ ...s, mode: e.target.value }))} style={{ flex: 1 }} aria-label="Slice orientation">
-                <option value="vertical">Vertical slab</option>
-                <option value="horizontal">Horizontal (level plan)</option>
-              </select>
-              {slice3d.mode === "vertical" && (
-                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>Az <input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label="Slice azimuth" />°</label>
-              )}
-            </div>
-            <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label="Slice position" />
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              Thickness <input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label="Slice thickness" /> m
-              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : "0 = everything beyond the cut"}</span>
-            </label>
-            <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
-          </div>
-        )}
-
-        <div className="ge-section-label" style={{ marginTop: 8 }}>Slice series (fence)</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth —
-          each one added to the list below, ready to open individually. Includes the geophysics voxel
-          slice automatically, same as any other section.
-        </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField, flex: 1 }}>
-            Azimuth (°)
-            <input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
-          </label>
-          <label style={{ ...miniField, flex: 1 }}>
-            Width (m)
-            <input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
-          </label>
-          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title="Generate the slice series"><Scissors size={14} /> Generate</button>
-        </div>
-
         {sections.length > 0 && (() => {
           // TASKS.csv #240 — user report: a single fence-series run against a large voxel model
           // produced 3144 individual sections with no easy way to manage or clear them as a unit.
@@ -8746,6 +8814,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </>)}
 
         {sidebarTab === "modeling" && (<>
+        {toolPane === "settings" && (<>
+        {paneHeader("Model settings", Settings, "model")}
         {/* TASKS.csv #309 — this block of explanatory prose used to render ALWAYS-ON directly under
             the section label, at the smallest font size in the app. The 3D Modeling sidebar had five
             of these (Domain / Intercept set / Resolution / Surface stiffness / Search ellipsoid),
@@ -8921,7 +8991,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Grade estimation</div>
+        </>)}
+        {toolPane === "gradeEst" && (<>
+        {paneHeader("Grade estimation", Calculator, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Populate a block model FROM composited assays — nearest-neighbour or inverse-
           distance weighting, not a surface — a separate workflow from the implicit surface tools below.
@@ -8941,6 +9013,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the
             Layers "+ Group" header above and CoreOrientationCalculator's field-reference library —
             a short, infrequently-edited list, not a modal workflow. */}
+        </>)}
+        {toolPane === "groups" && (<>
+        {paneHeader("Lithology groups", Group, "model")}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Lithology groups</span>
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
@@ -8999,7 +9074,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             modelling tools because it is the lighter-weight companion to them: three holes on a line
             cannot support a GemPy surface but can absolutely support a hand correlation, and that is
             the stage of a project this answers. */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Section correlation</div>
+        </>)}
+        {toolPane === "correlation" && (<>
+        {paneHeader("Section correlation", GitCompare, "model")}
         <button
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
@@ -9014,7 +9091,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           onProject={projectMapContact} mapConstraint={mapConstraint} setMapConstraint={setMapConstraint}
         />
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Implicit model (beta)</div>
+        </>)}
+        {toolPane === "implicit" && (<>
+        {paneHeader("Implicit surface", Mountain, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models the top contact of one unit from litho intervals, via GemPy in the Python sidecar.
           Uses structure dip/azimuth for orientation when available; if not, estimates one from the
@@ -9094,7 +9173,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Stratigraphic stack (beta)</div>
+        </>)}
+        {toolPane === "stack" && (<>
+        {paneHeader("Stratigraphic stack", Layers, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models several units' top contacts together in one run so they can't cross each other —
           add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a
@@ -9163,17 +9244,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
         ><Layers3 size={14} /> {implicitBusy ? "Running…" : `Run stack (${stackUnits.length} unit${stackUnits.length === 1 ? "" : "s"})`}</button>
 
-        {/* TASKS.csv #356 — the last run's lithology block, on request (not added automatically: every run
-            would otherwise leave another block model and layer behind). */}
-        {lastLithBlock && (
-          <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Last model ({lastLithBlock.title}, {lastLithBlock.when}){lastLithBlock.matchedPct != null ? ` reproduces ${lastLithBlock.matchedPct}% of the logged metres` : ""}.</div>
-            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title="The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out."><Box size={14} /> Add as block model</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title="An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections."><Layers3 size={14} /> Add "modelled unit" layer to holes</button>
-          </div>
-        )}
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Structural modeling (beta)</div>
+        </>)}
+        {toolPane === "structural" && (<>
+        {paneHeader("Structural modelling", Compass, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own
           position and dip/azimuth — no separate contact layer needed.
@@ -9218,7 +9292,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Alteration modeling (beta)</div>
+        </>)}
+        {toolPane === "alteration" && (<>
+        {paneHeader("Alteration modelling", Droplets, "model")}
         {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
@@ -9258,7 +9334,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
             and cannot do (paired by construction; thickness between holes is interpolated), because a
             vein drawn from a handful of intercepts looks far more certain on screen than it is. */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Vein / dyke modeling (beta)</div>
+        </>)}
+        {toolPane === "vein" && (<>
+        {paneHeader("Vein / dyke modelling", Waves, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are
           the two walls of one structure. A midplane is fitted through the intercept midpoints and a
@@ -9306,7 +9384,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
             sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
             Generated surfaces list below like any GemPy surface. */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Numeric implicit model (grade shell)</div>
+        </>)}
+        {toolPane === "shell" && (<>
+        {paneHeader("Grade shell", Gem, "model")}
         {/* TASKS.csv #269 — standing, unmissable framing. The QP review's explicit recommendation was
             NOT to add a Measured/Indicated/Inferred classifier (that is a QP's professional judgement,
             and deriving a regulatory label from a search radius would launder a parameter choice into
@@ -9447,6 +9527,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           );
         })()}
 
+        </>)}
+        {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
+        {/* TASKS.csv #356 — the last run's lithology block, on request (not added automatically: every run
+            would otherwise leave another block model and layer behind). */}
+        {lastLithBlock && (
+          <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
+            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Last model ({lastLithBlock.title}, {lastLithBlock.when}){lastLithBlock.matchedPct != null ? ` reproduces ${lastLithBlock.matchedPct}% of the logged metres` : ""}.</div>
+            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title="The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out."><Box size={14} /> Add as block model</button>
+            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title="An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections."><Layers3 size={14} /> Add "modelled unit" layer to holes</button>
+          </div>
+        )}
         <div className="ge-section-label" style={{ marginTop: 16 }}>Generated surfaces</div>
         {/* TASKS.csv #146 — query the generated surfaces rather than only look at them: how far is each
             hole from this surface, where does it pierce it, and how many downhole metres sit inside it.
@@ -9884,6 +9975,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </>)}
 
         {sidebarTab === "targeting" && (<>
+        {toolPane === "ranges" && (<>
+        {paneHeader("Voxel value ranges", Box, "view")}
         <div className="ge-section-label">Geophysical voxel ranges</div>
         {voxelModels.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>
@@ -9895,6 +9988,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         )}
 
+        </>)}
+        {toolPane === "plan" && (<>
+        {paneHeader("Planned drillholes", Target, "model")}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Planned drillholes ({plannedHoles.length})</span>
           {plannedHoles.length > 0 && (
@@ -9924,6 +10020,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {plannedHoles.length > 0 && (
           <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />
         )}
+        </>)}
+        {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         </>)}
 
         {collars.length > 0 && (
@@ -10459,203 +10557,196 @@ function ViewToolbar({
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
   onSnapshot, snapshotDisabled, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
+  show, paneProps, // TASKS.csv #458
 }) {
   const toggle = (name) => setOpenPopover((p) => (p === name ? null : name));
   return (
-    <div className="ge-subtoolbar">
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
-          <button className={`ge-subtool-btn ${openPopover === "grid" ? "active" : ""}`} aria-pressed={!!(openPopover === "grid")} onClick={() => toggle("grid")}>
-            <Grid3x3 size={14} />
-          </button>
-        </HoverToolInfo>
-        {openPopover === "grid" && (
-          <div style={popoverStyle}>
-            <div style={popoverHeader}>Grid<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
-                {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
-              </div>
-              <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>Show grid</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Add two vertical wall grids to the ground grid, forming a 3D reference box">
-                <input type="checkbox" checked={gridConfig.mode === "3d"} onChange={(e) => setGridConfig((g) => ({ ...g, mode: e.target.checked ? "3d" : "ground" }))} /> 3D
-              </label>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-              <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-              <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
-            </div>
-            {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
-                kind of reference-furniture decision as the grid. Off by default now (they sit at the
-                arbitrary project origin and are the most debug-view-looking thing in a screenshot);
-                switching them on still gives colours that agree with the corner gizmo, per #189. */}
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title="Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.">
-              <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} /> Origin axis lines
-            </label>
-          </div>
-        )}
-      </div>
-
-      {/* TASKS.csv #311 — Figure overlay. Lives next to Grid because both are "what furniture does
-          the view carry", and is a popover rather than a bare toggle so the honesty caveat on the
-          scale bar has somewhere to be stated. */}
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
-          <button className={`ge-subtool-btn ${openPopover === "figure" ? "active" : ""}`} aria-pressed={!!(openPopover === "figure")} onClick={() => toggle("figure")}>
-            <Ruler size={14} />
-          </button>
-        </HoverToolInfo>
-        {openPopover === "figure" && (
-          <div style={{ ...popoverStyle, width: 268 }}>
-            <div style={popoverHeader}>Figure overlay<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the figure overlay popover")} /></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
-                {figureOverlay.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
-              </div>
-              <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>Show overlay</div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} /> Title
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} /> Legend{legendCount ? ` (${legendCount} shown)` : " (nothing switched on)"}
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} /> Scale bar
-              </label>
-            </div>
-            <input
-              type="text" disabled={!figureOverlay.enabled}
-              placeholder={projectName || "Figure title…"}
-              value={figureOverlay.titleText || ""}
-              onChange={(e) => setFigureOverlay((f) => ({ ...f, titleText: e.target.value }))}
-              title="Overrides the project name in the overlay title. Leave blank to use the project name."
-              style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}
-            />
-            {/* The scale-bar honesty statement. A perspective camera has no single scale — the bar is
-                exact only in the plane through the point you are orbiting around. Saying so here (and
-                on the bar itself, "at view centre") is the whole reason this is a popover: an
-                authoritative-looking bar that is quietly wrong at the depth the reader cares about
-                would be worse than no bar at all. */}
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>
-              The scale bar is exact at the <b>view centre</b> — the point you orbit around. This is a
-              perspective view, so anything nearer the camera reads larger than the bar says and
-              anything farther reads smaller. For a figure where the scale must hold everywhere, add a
-              Viewport on the <b>Layout</b> tab and tick <b>True scale (orthographic)</b> there.
-              <br />The legend lists the categories currently switched on in this view — not everything
-              in the project, and not filtered by what happens to be on screen.
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
-          <button className={`ge-subtool-btn ${openPopover === "themes" ? "active" : ""}`} aria-pressed={!!(openPopover === "themes")} onClick={() => toggle("themes")}>
-            <Bookmark size={14} />
-          </button>
-        </HoverToolInfo>
-        {openPopover === "themes" && (
-          <div style={{ ...popoverStyle, width: 260 }}>
-            <div style={popoverHeader}>Themes<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-              <input
-                type="text" placeholder="Theme name…" value={themeNameDraft}
-                onChange={(e) => setThemeNameDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
-                style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
-              />
-              <button
-                onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
-                disabled={!themeNameDraft.trim()}
-                title="Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme"
-                style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "6px 9px", opacity: themeNameDraft.trim() ? 1 : 0.5, cursor: themeNameDraft.trim() ? "pointer" : "default" }}
-              ><BookmarkPlus size={14} /></button>
-            </div>
-            {themes.length === 0 && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
-                Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.
-              </div>
-            )}
-            <div style={{ maxHeight: 220, overflowY: "auto" }}>
-              {themes.map((t) => (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-                  {renamingThemeId === t.id ? (
-                    <input
-                      autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
-                      onBlur={() => { if (renameDraft.trim()) renameTheme(t.id, renameDraft.trim()); setRenamingThemeId(null); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setRenamingThemeId(null); }}
-                      style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
-                    />
-                  ) : (
-                    <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                      <Bookmark size={14} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
-                    </div>
-                  )}
-                  <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
-                  <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Delete theme "${t.name}"?`)) deleteTheme(t.id); }, `Delete theme "${t.name}"`)} />
+    <Ribbon show={show} label="3D View tools">
+      <RibbonGroup label="View">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
+            <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-pressed={!!(openPopover === "grid")} onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
+          </HoverToolInfo>
+          {openPopover === "grid" && (
+            <div style={popoverStyle}>
+              <div style={popoverHeader}>Grid<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
+                  {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
-              ))}
+                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>Show grid</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Add two vertical wall grids to the ground grid, forming a 3D reference box">
+                  <input type="checkbox" checked={gridConfig.mode === "3d"} onChange={(e) => setGridConfig((g) => ({ ...g, mode: e.target.checked ? "3d" : "ground" }))} /> 3D
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+              </div>
+              {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
+                  kind of reference-furniture decision as the grid. Off by default now (they sit at the
+                  arbitrary project origin and are the most debug-view-looking thing in a screenshot);
+                  switching them on still gives colours that agree with the corner gizmo, per #189. */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title="Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.">
+                <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} /> Origin axis lines
+              </label>
             </div>
-          </div>
+          )}
+        </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
+            <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-pressed={!!(openPopover === "figure")} onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Figure</span></button>
+          </HoverToolInfo>
+          {openPopover === "figure" && (
+            <div style={{ ...popoverStyle, width: 268 }}>
+              <div style={popoverHeader}>Figure overlay<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the figure overlay popover")} /></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
+                  {figureOverlay.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                </div>
+                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>Show overlay</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} /> Title
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} /> Legend{legendCount ? ` (${legendCount} shown)` : " (nothing switched on)"}
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} /> Scale bar
+                </label>
+              </div>
+              <input
+                type="text" disabled={!figureOverlay.enabled}
+                placeholder={projectName || "Figure title…"}
+                value={figureOverlay.titleText || ""}
+                onChange={(e) => setFigureOverlay((f) => ({ ...f, titleText: e.target.value }))}
+                title="Overrides the project name in the overlay title. Leave blank to use the project name."
+                style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}
+              />
+              {/* The scale-bar honesty statement. A perspective camera has no single scale — the bar is
+                  exact only in the plane through the point you are orbiting around. Saying so here (and
+                  on the bar itself, "at view centre") is the whole reason this is a popover: an
+                  authoritative-looking bar that is quietly wrong at the depth the reader cares about
+                  would be worse than no bar at all. */}
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>
+                The scale bar is exact at the <b>view centre</b> — the point you orbit around. This is a
+                perspective view, so anything nearer the camera reads larger than the bar says and
+                anything farther reads smaller. For a figure where the scale must hold everywhere, add a
+                Viewport on the <b>Layout</b> tab and tick <b>True scale (orthographic)</b> there.
+                <br />The legend lists the categories currently switched on in this view — not everything
+                in the project, and not filtered by what happens to be on screen.
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
+            <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-pressed={!!(openPopover === "themes")} onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Themes</span></button>
+          </HoverToolInfo>
+          {openPopover === "themes" && (
+            <div style={{ ...popoverStyle, width: 260 }}>
+              <div style={popoverHeader}>Themes<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <input
+                  type="text" placeholder="Theme name…" value={themeNameDraft}
+                  onChange={(e) => setThemeNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
+                  style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
+                />
+                <button
+                  onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
+                  disabled={!themeNameDraft.trim()}
+                  title="Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme"
+                  style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "6px 9px", opacity: themeNameDraft.trim() ? 1 : 0.5, cursor: themeNameDraft.trim() ? "pointer" : "default" }}
+                ><BookmarkPlus size={14} /></button>
+              </div>
+              {themes.length === 0 && (
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
+                  Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.
+                </div>
+              )}
+              <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                {themes.map((t) => (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                    {renamingThemeId === t.id ? (
+                      <input
+                        autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)}
+                        onBlur={() => { if (renameDraft.trim()) renameTheme(t.id, renameDraft.trim()); setRenamingThemeId(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setRenamingThemeId(null); }}
+                        style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
+                      />
+                    ) : (
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                        <Bookmark size={14} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                      </div>
+                    )}
+                    <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
+                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Delete theme "${t.name}"?`)) deleteTheme(t.id); }, `Delete theme "${t.name}"`)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <RibbonButton icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
+      </RibbonGroup>
+      <RibbonGroup label="Sections">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Draw cross-section" text={sectionMode ? "Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included." : "Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included."}>
+            <button className={`ge-ribbon-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}><Scissors size={22} strokeWidth={1.7} color={RIBBON_TONES.section} aria-hidden="true" /><span className="ge-ribbon-label">Draw section</span></button>
+          </HoverToolInfo>
+        </div>
+        {sectionMode && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title="Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section">
+            Buffer (m)
+            <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+          </label>
         )}
-      </div>
-
-      <div className="ge-subtool-sep" />
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
-          <button className="ge-subtool-btn" onClick={onDbConnect}><Database size={14} /></button>
-        </HoverToolInfo>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling."}>
-          <button className="ge-subtool-btn" onClick={onQc} disabled={qcDisabled}><ShieldAlert size={14} /></button>
-        </HoverToolInfo>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
-          <button className="ge-subtool-btn" onClick={onBoundaryIntercepts} disabled={boundaryDisabled}><Milestone size={14} /></button>
-        </HoverToolInfo>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="SQL workspace" text={sqlDisabled ? "Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar." : "Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar."}>
-          <button className="ge-subtool-btn" onClick={onSqlWorkspace} disabled={sqlDisabled}><TerminalSquare size={14} /></button>
-        </HoverToolInfo>
-      </div>
-
-      <div className="ge-subtool-sep" />
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Snapshot to Layout" text={snapshotDisabled ? "Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead." : "Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead."}>
-          <button className="ge-subtool-btn" onClick={onSnapshot} disabled={snapshotDisabled}><Camera size={14} /></button>
-        </HoverToolInfo>
-      </div>
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Draw cross-section" text={sectionMode ? "Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included." : "Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included."}>
-          <button className={`ge-subtool-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}>
-            <Scissors size={14} />
-          </button>
-        </HoverToolInfo>
-      </div>
-      {sectionMode && (
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title="Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section">
-          Buffer (m)
-          <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-        </label>
-      )}
-
-      <div className="ge-subtool-sep" />
-      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <HoverToolInfo title="Measure" text={measureMode ? "Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout." : "Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on."}>
-          <button className={`ge-subtool-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}>
-            <Ruler size={14} />
-          </button>
-        </HoverToolInfo>
-      </div>
-      {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
-    </div>
+        <RibbonButton icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
+        <RibbonButton icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
+      </RibbonGroup>
+      <RibbonGroup label="Measure & check">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Measure" text={measureMode ? "Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout." : "Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on."}>
+            <button className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><Ruler size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Measure</span></button>
+          </HoverToolInfo>
+        </div>
+        {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling."}>
+            <button className="ge-ribbon-btn" onClick={onQc} disabled={qcDisabled}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Data QC</span></button>
+          </HoverToolInfo>
+        </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
+            <button className="ge-ribbon-btn" onClick={onBoundaryIntercepts} disabled={boundaryDisabled}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Intercepts</span></button>
+          </HoverToolInfo>
+        </div>
+      </RibbonGroup>
+      <RibbonGroup label="Database">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
+            <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">Database</span></button>
+          </HoverToolInfo>
+        </div>
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="SQL workspace" text={sqlDisabled ? "Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar." : "Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar."}>
+            <button className="ge-ribbon-btn" onClick={onSqlWorkspace} disabled={sqlDisabled}><TerminalSquare size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">SQL</span></button>
+          </HoverToolInfo>
+        </div>
+      </RibbonGroup>
+      <RibbonGroup label="Output">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title="Snapshot to Layout" text={snapshotDisabled ? "Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead." : "Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead."}>
+            <button className="ge-ribbon-btn" onClick={onSnapshot} disabled={snapshotDisabled}><Camera size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">Snapshot</span></button>
+          </HoverToolInfo>
+        </div>
+      </RibbonGroup>
+    </Ribbon>
   );
 }
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
