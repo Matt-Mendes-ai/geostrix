@@ -11,6 +11,7 @@
 // heads-up with no implied problem (e.g. "N holes have no survey — using straight-hole fallback").
 
 import { pointInBoundary } from "./geoprocessing.js";
+import { arrMax } from "./arrayStats.js";
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
 
@@ -37,7 +38,7 @@ function validateCollars(collars) {
       pushIssue(issues, "warning", "Collars", id, `Collar azimuth ${c.azimuth}° is outside 0–360°.`);
     }
     if (c.dip != null && Number.isFinite(c.dip) && (c.dip < -90 || c.dip > 90)) {
-      pushIssue(issues, "warning", "Collars", id, `Collar dip ${c.dip}° is outside -90–90° (this app's convention: negative = down).`);
+      pushIssue(issues, "warning", "Collars", id, `Collar dip ${c.dip}° is outside -90–90°.`);
     }
     if (c.length != null && Number.isFinite(c.length) && c.length <= 0) {
       pushIssue(issues, "warning", "Collars", id, `Collar hole length ${c.length} is zero or negative.`);
@@ -97,9 +98,32 @@ function validateSurveyAndTrajectory(collars, survey) {
     }
   });
   const noSurvey = collars.filter((c) => !byHole.has(c.hole_id));
-  if (noSurvey.length) {
-    pushIssue(issues, "info", "Survey", null, `${noSurvey.length} hole(s) have no survey data — using the straight-hole fallback (collar azimuth/dip/length). Real deviation, if any, isn't captured for ${noSurvey.length === 1 ? "this hole" : "these holes"}.`);
+  // TASKS.csv #339 — the straight-hole fallback has two silent failure modes (desurvey.js
+  // stationsWithInclination): no collar azimuth/dip means the hole has NO trace at all (it and every
+  // interval on it vanish from 3D, sections and modelling), and no length means it is drawn 300 m long.
+  const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
+  untraceable.forEach((c) => pushIssue(issues, "error", "Survey", c.hole_id, "No survey rows and no collar azimuth/dip — this hole cannot be traced, so it and every interval, assay and pick on it are missing from the 3D view, sections and models."));
+  const traceable = noSurvey.filter((c) => !untraceable.includes(c));
+  traceable.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, "No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file."));
+  if (traceable.length) {
+    pushIssue(issues, "info", "Survey", null, `${traceable.length} hole(s) have no survey data — using the straight-hole fallback (collar azimuth/dip/length). Real deviation, if any, isn't captured for ${traceable.length === 1 ? "this hole" : "these holes"}.`);
   }
+  // TASKS.csv #339 — dips are stored as degrees BELOW horizontal (import flips a negative-down file), so a
+  // stored negative dip draws the hole upward. Right for an underground up-hole; for surface drilling it
+  // almost always means the file's sign convention was picked wrongly on import.
+  const collarById = new Map(collars.map((c) => [c.hole_id, c]));
+  const upward = new Set();
+  byHole.forEach((stations, holeId) => { if (stations.some((s) => Number.isFinite(s.dip) && s.dip < 0)) upward.add(holeId); });
+  traceable.forEach((c) => { if (c.dip < 0) upward.add(c.hole_id); });
+  upward.forEach((holeId) => pushIssue(issues, "warning", "Survey", holeId, "Points upward (a dip above horizontal). Correct for an underground up-hole; for surface drilling, re-import the survey/collars with the other dip sign convention."));
+  // TASKS.csv #339 — a survey deeper than the collar's end-of-hole depth: one of the two is wrong.
+  byHole.forEach((stations, holeId) => {
+    const c = collarById.get(holeId);
+    const maxDepth = arrMax(stations.map((s) => s.depth).filter(Number.isFinite));
+    if (c && Number.isFinite(c.length) && c.length > 0 && maxDepth > c.length + 0.5) {
+      pushIssue(issues, "warning", "Survey", holeId, `Survey goes to ${maxDepth} m but the collar's end-of-hole depth is ${c.length} m — one of them is wrong.`);
+    }
+  });
   return issues;
 }
 
@@ -350,7 +374,10 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     const cur = surveyMaxByHole.get(s.hole_id);
     if (cur === undefined || s.depth > cur) surveyMaxByHole.set(s.hole_id, s.depth);
   });
-  surveyMaxByHole.forEach((maxDepth, id) => holeLengths.set(id, maxDepth)); // survey extent wins over a stated collar length if both exist
+  // TASKS.csv #339 — end of hole = the DEEPER of the collar length and the last survey station. Letting the
+  // survey win outright flagged every interval below the last shot (surveys usually stop short of EOH) as
+  // "past the end of the hole". A survey deeper than the collar length is its own warning (Survey).
+  surveyMaxByHole.forEach((maxDepth, id) => holeLengths.set(id, Math.max(maxDepth, holeLengths.has(id) ? holeLengths.get(id) : -Infinity)));
 
   const issues = [
     ...validateProject(project),

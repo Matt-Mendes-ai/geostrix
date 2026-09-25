@@ -49,3 +49,25 @@ test("#338 traces run to end of hole, not the last survey station", () => {
   const t2 = desurveyHole({ ...c, length: undefined }, sv);
   assert.equal(t2[t2.length - 1].md, 150);
 });
+
+import { runDataQC } from "../src/lib/dataQC.js";
+test("#339 QC flags untraceable, assumed-length, upward and over-deep-survey holes; EOH = max(length, survey)", () => {
+  const collars = [
+    { hole_id: "A", x: 0, y: 0, z: 0 },                                  // no survey, no az/dip -> untraceable
+    { hole_id: "B", x: 10, y: 0, z: 0, azimuth: 90, dip: 60 },           // no survey, no length -> assumed 300 m
+    { hole_id: "C", x: 20, y: 0, z: 0, length: 100 },                    // survey to 120 > length 100
+    { hole_id: "D", x: 30, y: 0, z: 0, length: 200 },                    // upward survey; interval at 150-160 is within EOH
+  ];
+  const survey = [
+    { hole_id: "C", depth: 0, azimuth: 0, dip: 60 }, { hole_id: "C", depth: 120, azimuth: 0, dip: 60 },
+    { hole_id: "D", depth: 0, azimuth: 0, dip: -30 }, { hole_id: "D", depth: 100, azimuth: 0, dip: -30 },
+  ];
+  const layers = { litho: [{ hole_id: "D", from: 150, to: 160, value: "AND" }] };
+  const { issues } = runDataQC({ project: { epsg: 3156, name: "t" }, collars, survey, layers, boundaries: [], assays: [] });
+  const has = (sev, id, re) => issues.some((i) => i.severity === sev && i.holeId === id && re.test(i.message));
+  assert.ok(has("error", "A", /cannot be traced/));
+  assert.ok(has("warning", "B", /ASSUMED 300 m/));
+  assert.ok(has("warning", "C", /Survey goes to 120 m/));
+  assert.ok(has("warning", "D", /Points upward/));
+  assert.ok(!issues.some((i) => i.holeId === "D" && /extends past/.test(i.message)), "interval below the last survey shot but within EOH must not be flagged");
+});
