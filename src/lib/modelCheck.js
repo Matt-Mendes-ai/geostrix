@@ -62,3 +62,32 @@ export function checkAgainstLogs(block, samples) {
     holes: [...byHole.values()].sort((a, b) => a.matched / a.logged - b.matched / b.logged),
   };
 }
+
+// TASKS.csv #356 — the block as world-space voxel cells {x,y,z (centre), dx,dy,dz, value = unit id}. The
+// volume above every modelled top (null label) is left out: it is "not modelled", not a unit, and it is
+// usually the largest part of the box. `origin` converts the API frame back to world coordinates.
+export function blockToCells(block, origin = { x: 0, y: 0, z: 0 }) {
+  const [xmin, xmax, ymin, ymax, zmin, zmax] = block.extent;
+  const [nx, ny, nz] = block.resolution;
+  const dx = (xmax - xmin) / nx, dy = (ymax - ymin) / ny, dz = (zmax - zmin) / nz;
+  const cells = [];
+  for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++) {
+    const id = block.ids[ix * ny * nz + iy * nz + iz];
+    if ((block.labels[id - 1] ?? null) === null) continue;
+    cells.push({ x: origin.x + xmin + (ix + 0.5) * dx, y: origin.y + ymin + (iy + 0.5) * dy, z: origin.z + zmin + (iz + 0.5) * dz, dx, dy, dz, value: id });
+  }
+  return cells;
+}
+
+// The unit the model puts at each logged interval's midpoint: rows for an interval layer. `samples` =
+// [{hole_id, from, to, x, y, z (API frame), logged}]. Outside the model -> no row (nothing to say).
+export const ABOVE_TOPS = "above tops"; // short: it has to fit a strip-log column
+export function modelledIntervals(block, samples) {
+  const out = [];
+  samples.forEach((s) => {
+    const m = unitAt(block, s.x, s.y, s.z);
+    if (m === undefined) return;
+    out.push({ hole_id: s.hole_id, from: s.from, to: s.to, value: m ?? ABOVE_TOPS, logged: s.logged });
+  });
+  return out;
+}

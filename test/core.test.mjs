@@ -111,6 +111,21 @@ test("#356 model check: block lookup (z fastest), volumes, logged-vs-modelled me
   assert.equal(r.units[0].mostOftenModelledAs, "VCL");
 });
 
+import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../src/lib/modelCheck.js";
+test("#356 block -> world voxel cells (air left out) and modelled-unit intervals", () => {
+  const block = { extent: [0, 200, 0, 100, -400, 0], resolution: [2, 1, 4], ids: [3, 2, 2, 1, 3, 3, 2, 1], labels: [null, "DACT", "VCL"] };
+  const cells = blockToCells(block, { x: 1000, y: 5000, z: 500 });
+  assert.equal(cells.length, 6); // 2 null (above tops) cells dropped
+  const c0 = cells[0]; // ix 0, iz 0: centre x 50, z -350 -> world 1050 / 150; id 3 (VCL)
+  assert.deepEqual([c0.x, c0.y, c0.z, c0.dx, c0.dz, c0.value], [1050, 5050, 150, 100, 100, 3]);
+  const rows = modelledIntervals(block, [
+    { hole_id: "A", from: 0, to: 10, x: 50, y: 50, z: -50, logged: "DACT" },
+    { hole_id: "A", from: 10, to: 20, x: 50, y: 50, z: -150, logged: "DACT" },
+    { hole_id: "A", from: 20, to: 30, x: 999, y: 50, z: -150, logged: "VCL" },
+  ]);
+  assert.deepEqual(rows.map((r) => r.value), [ABOVE_TOPS, "DACT"]); // outside -> no row
+});
+
 import { magColorRGB } from "../src/lib/layers.js";
 test("#382 default ramp rises monotonically in lightness (CIE L*)", () => {
   const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };

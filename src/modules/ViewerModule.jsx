@@ -20,7 +20,7 @@ import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
 import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
-import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
+import { checkAgainstLogs, unitVolumes, blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -1665,6 +1665,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // this is the "source picker" the task note called for, kept as one explicit toggle rather than a
   // full per-source review UI (that's still a real follow-up if this turns out to need finer control).
   const [includeSectionContacts, setIncludeSectionContacts] = useState(false);
+  // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
+  // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
+  const [lastLithBlock, setLastLithBlock] = useState(null);
   // TASKS.csv #318 — a mapped surface contact (plus nearby outcrop measurements) to feed the next
   // single-unit implicit run: { layerId, contactKey, units, classes, radius, tolerance, ... } | null.
   // Session-only, like includeSectionContacts: it is a per-run modelling choice, not project data.
@@ -2189,6 +2192,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
       const lo = Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min;
       const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
+      // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
+      if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
       groups.push({ key: `voxel_${m.id}`, label: m.name, items: [], ramp: ramp(m, lo, hi) });
     });
     const gpts = layers?.geophys_pts || [];
@@ -3731,6 +3736,42 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // as erosional — the wrong default for a conformable volcanic pile, which is exactly the setting
   // GeoStrix targets (VMS/epithermal). Single-surface tools pass nothing and keep "erode", which is a
   // no-op for a one-element group.
+  // TASKS.csv #356 — see lastLithBlock.
+  const lithUnitColor = (lb, name) => lb.units.find((u) => u.name === name)?.color || colorForLithology(name);
+  const addLithBlockModel = () => {
+    const lb = lastLithBlock; if (!lb) return;
+    const cells = blockToCells(lb.block, lb.origin);
+    if (!cells.length) { setNotices((p) => [...p, "The last model has no cells below its modelled tops inside the model box — nothing to add."]); return; }
+    const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
+    const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
+    addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])) });
+    setNotices((p) => [...p, `Added the model's lithology block as a block model: ${cells.length.toLocaleString()} cells (${legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.`]);
+  };
+  const addModelledLayer = () => {
+    const lb = lastLithBlock; if (!lb) return;
+    const samples = [];
+    tracesRef.current.forEach((t) => {
+      (importStateRef.current.layers?.litho || []).forEach((r) => {
+        if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
+        const p = findOnTrace(t.pts, (r.from + r.to) / 2);
+        if (!p) return;
+        const api = sceneToApi(p);
+        samples.push({ hole_id: t.hole_id, from: r.from, to: r.to, x: api.x, y: api.y, z: api.z, logged: r.value });
+      });
+    });
+    const rows = modelledIntervals(lb.block, samples).map((r) => {
+      const unit = lb.units.find((u) => u.name === r.value);
+      return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };
+    });
+    if (!rows.length) { setNotices((p) => [...p, "No logged litho intervals fall inside the last model's box."]); return; }
+    const id = `custom_${Date.now()}`;
+    const group = new THREE.Group(); group.name = id;
+    layerGroupsRef.current[id] = group;
+    sceneRef.current.getObjectByName("root").add(group);
+    setCustomLayers((p) => [...p, { id, name: `Modelled: ${lb.title} (${lb.when})`, rows, group }]);
+    setNotices((p) => [...p, `Added "Modelled: ${lb.title}" — the model's unit at ${rows.length.toLocaleString()} logged litho intervals (their midpoints). Open a hole's strip log to see it beside the logged litho.`]);
+  };
+
   const runSurfaceStack = useCallback(async (rawSpecs, stackOpts = {}) => {
     const relation = stackOpts.relation === "onlap" ? "onlap" : "erode";
     const traces = tracesRef.current;
@@ -3970,6 +4011,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         });
       });
       const chk = checkAgainstLogs(res.block, samples);
+      setLastLithBlock({ block: res.block, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       const vols = unitVolumes(res.block).filter((v) => v.name);
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
@@ -9121,6 +9163,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
         ><Layers3 size={14} /> {implicitBusy ? "Running…" : `Run stack (${stackUnits.length} unit${stackUnits.length === 1 ? "" : "s"})`}</button>
 
+        {/* TASKS.csv #356 — the last run's lithology block, on request (not added automatically: every run
+            would otherwise leave another block model and layer behind). */}
+        {lastLithBlock && (
+          <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
+            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Last model ({lastLithBlock.title}, {lastLithBlock.when}){lastLithBlock.matchedPct != null ? ` reproduces ${lastLithBlock.matchedPct}% of the logged metres` : ""}.</div>
+            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title="The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out."><Box size={14} /> Add as block model</button>
+            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title="An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections."><Layers3 size={14} /> Add "modelled unit" layer to holes</button>
+          </div>
+        )}
+
         <div className="ge-section-label" style={{ marginTop: 16 }}>Structural modeling (beta)</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own
@@ -10227,6 +10279,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           assays={assays}
           assayElements={assayElements}
           colorFor={effectiveColor} labelFor={effectiveLabel} // TASKS.csv #402 — the user's legend colours/names
+          modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
           onClose={() => setStripLogHoleId(null)}
         />
