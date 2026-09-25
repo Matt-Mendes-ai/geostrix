@@ -17,12 +17,15 @@ import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #4
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
-import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
+// TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
+// startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
+const loadGpkg = () => import("../lib/gpkg.js");
 import { buildDXF, parseDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import SurfaceGeologyProjection from "../components/SurfaceGeologyProjection.jsx"; // TASKS.csv #318
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
-import { buildRasterImport } from "../lib/raster.js"; // TASKS.csv #289
+// TASKS.csv #289 / #439 — raster.js (and geotiff) loaded on first raster import, not at startup.
+const loadRaster = () => import("../lib/raster.js");
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
@@ -418,7 +421,8 @@ function parseCSV(file, onDone) {
 function parseVectorFile(file, onDone, chosenLayer = null) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".gpkg")) {
-    file.arrayBuffer().then((buf) => parseGeoPackage(buf)).then(({ layers }) => {
+    let gpkgFeaturesToRows;
+    Promise.all([file.arrayBuffer(), loadGpkg()]).then(([buf, g]) => { gpkgFeaturesToRows = g.gpkgFeaturesToRows; return g.parseGeoPackage(buf); }).then(({ layers }) => {
       const usable = layers.filter((l) => l.features.length);
       if (!usable.length) { onDone(null, "No usable point/line features found in this GeoPackage."); return; }
       if (usable.length > 1 && !chosenLayer) {
@@ -756,7 +760,11 @@ function buildLayerBatches(group) {
     // per-interval object and never to the batch (which could not answer "which interval?").
     inst.userData.pickIgnore = true;
     inst.userData.batchMembers = fam.members;
-    for (const m of fam.members) m.layers.set(PICK_ONLY_LAYER);
+    // TASKS.csv #436 — a pick-only member never moves after the build (syncBatchedInstances calls
+    // updateMatrix() itself on any change), so three.js need not re-compose its local matrix from
+    // position/quaternion/scale on every rendered frame: measured 10.5 -> 6.2 ms per frame of pure CPU
+    // at 60,000 intervals (~200 holes). World matrices keep updating (a parent transform stays correct).
+    for (const m of fam.members) { m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; }
     group.add(inst);
     syncBatchedInstances(inst);
   }
@@ -1345,7 +1353,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     });
     return out;
   }, [assays, assayElements]);
-  const [tooltip, setTooltip] = useState(null);
+  // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
+  // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
+  // 10k-line component (133 useState) each time. Same signature as before, so every caller is unchanged.
+  const tooltipElRef = useRef(null);
+  const setTooltip = useCallback((t) => {
+    const el = tooltipElRef.current;
+    if (!el) return;
+    if (!t) { if (el.style.display !== "none") el.style.display = "none"; return; }
+    if (el.textContent !== t.text) el.textContent = t.text;
+    el.style.left = `${t.x + 14}px`; el.style.top = `${t.y + 14}px`;
+    el.style.display = "block";
+  }, []);
   const [notices, setNotices] = useState([]);
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
   const [inspectLayer, setInspectLayer] = useState(null);
@@ -6821,7 +6840,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
     if (/\.(tiff?|gxf)$/.test(name)) {
       try {
-        const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
         addRaster(raster);
         setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Raster tab.`]);
       } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }
@@ -7356,7 +7375,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
-      const gpkgBytes = await buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]);
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]); // #439 lazy
       saveFile({
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
@@ -9621,9 +9640,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {rectVisual && (
           <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed var(--color-info)", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
         )}
-        {tooltip && (
-          <div style={{ position: "fixed", left: tooltip.x + 14, top: tooltip.y + 14, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-base)", whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 220 }}>{tooltip.text}</div>
-        )}
+        <div ref={tooltipElRef} style={{ display: "none", position: "fixed", left: 0, top: 0, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-base)", whiteSpace: "pre-line", pointerEvents: "none", zIndex: 10, maxWidth: 220 }} />
       </div>
 
       {contextMenu && (
