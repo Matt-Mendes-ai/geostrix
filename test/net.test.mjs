@@ -50,3 +50,26 @@ test("#348 database sessions verify certificates by default and are read-only wi
   assert.equal(mysqlConfig({ host: "db", ssl: true }).ssl.rejectUnauthorized, true);
   assert.equal(mysqlConfig({ host: "db" }).ssl, undefined);
 });
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+const { writeFileAtomic, backupBeforeOverwrite, quarantineUnreadable } = createRequire(import.meta.url)("../electron/fileSafety.js");
+test("#341 atomic write, .bak of the previous project, unreadable autosave kept aside", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gs341-"));
+  const proj = path.join(dir, "Harry.geostrix.json");
+  await writeFileAtomic(proj, '{"v":1}', "utf8");
+  assert.equal(await backupBeforeOverwrite(proj), `${proj}.bak`);
+  await writeFileAtomic(proj, '{"v":2}', "utf8");
+  assert.equal(fs.readFileSync(proj, "utf8"), '{"v":2}');
+  assert.equal(fs.readFileSync(`${proj}.bak`, "utf8"), '{"v":1}');
+  assert.equal(await backupBeforeOverwrite(path.join(dir, "export.csv")), null); // only project files
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith(".tmp")), []); // no temp files left
+  const auto = path.join(dir, "autosave.geostrix.json");
+  fs.writeFileSync(auto, '{"project": {"name": "x"'); // truncated
+  const kept = await quarantineUnreadable(auto, fs.readFileSync(auto, "utf8"));
+  assert.ok(kept && fs.existsSync(kept) && !fs.existsSync(auto));
+  fs.writeFileSync(auto, '{"ok":true}');
+  assert.equal(await quarantineUnreadable(auto, '{"ok":true}'), null);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

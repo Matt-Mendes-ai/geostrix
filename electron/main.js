@@ -13,6 +13,7 @@ const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
+const { writeFileAtomic, backupBeforeOverwrite, quarantineUnreadable } = require("./fileSafety.js"); // TASKS.csv #341
 const { autoUpdater } = require("electron-updater");
 
 // User-reported bug: connecting the database tool (Tools > Connect to database) to a local Postgres
@@ -410,19 +411,6 @@ ipcMain.handle("section-contacts", (_e, payload) => {
 // autosave (the old fs.writeFileSync wrote straight onto the target, and a corrupt autosave was then
 // silently treated as "no autosave" - losing exactly the work it existed to protect). Async, so a
 // multi-MB autosave no longer blocks the main process either.
-async function writeFileAtomic(filePath, data, encoding) {
-  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  await fs.promises.writeFile(tmp, data, encoding);
-  try {
-    await fs.promises.rename(tmp, filePath);
-  } catch (err) {
-    // Windows can refuse the rename when the target is locked (an open viewer, a sync client). The
-    // complete temp file still exists, so fall back to copying it over — not atomic, but never partial
-    // from our side — and always remove the temp file.
-    try { await fs.promises.copyFile(tmp, filePath); }
-    finally { await fs.promises.unlink(tmp).catch(() => {}); }
-  }
-}
 
 // ---------- PDF export ----------
 const PDF_PAGE_SIZES = new Set(["A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398
@@ -453,10 +441,12 @@ ipcMain.handle("save-file", async (_e, { suggestedName, filters, content, encodi
     filters: filters || [{ name: "All Files", extensions: ["*"] }],
   });
   if (canceled || !filePath) return { ok: false };
-  // #341 — atomic write (see writeFileAtomic)
+  // #341 — atomic write (see fileSafety.js); a project file's previous version is kept as .bak
+  let backup = null;
+  try { backup = await backupBeforeOverwrite(filePath); } catch (_) { backup = null; }
   if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
   else await writeFileAtomic(filePath, content, "utf8");
-  return { ok: true, filePath };
+  return { ok: true, filePath, backup };
 });
 
 // ---------- open file (for importers that want a native dialog) ----------
@@ -495,6 +485,9 @@ ipcMain.handle("autosave-read", async () => {
     if (!p) return { ok: false };
     const content = fs.readFileSync(p, "utf8");
     const stat = fs.statSync(p);
+    // #341 — an autosave that doesn't parse is moved aside (the next tick would otherwise overwrite it).
+    const kept = await quarantineUnreadable(p, content);
+    if (kept) return { ok: false, unreadable: kept };
     return { ok: true, content, mtime: stat.mtimeMs };
   } catch (err) { return { ok: false, error: err.message }; }
 });

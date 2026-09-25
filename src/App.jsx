@@ -289,7 +289,15 @@ export default function App() {
 
   return (
     <div className="ge-app">
-      {recovery && (
+      {/* TASKS.csv #341 — an autosave that could not be read was moved aside rather than overwritten. */}
+      {recovery?.unreadable && (
+        <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#2a1616", borderBottom: "1px solid #5a2a2a", fontSize: "var(--font-size-base)", color: "#e8b4b4" }}>
+          <RotateCcw size={14} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>The autosave from a previous session could not be read (damaged file). It was kept, not deleted, at: {recovery.unreadable}</span>
+          <button onClick={() => setRecovery(null)} style={recoveryBtn}>Dismiss</button>
+        </div>
+      )}
+      {recovery && !recovery.unreadable && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#241f14", borderBottom: "1px solid #4a3d1e", fontSize: "var(--font-size-base)", color: "#d8c080" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>

@@ -1151,6 +1151,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // user choose restore vs. discard rather than silently overwriting whatever's already open.
   const checkAutosave = useCallback(async () => {
     const res = await autosaveRead();
+    if (res.unreadable) return { unreadable: res.unreadable }; // #341 — kept aside, say so
     if (!res.ok) return null;
     try {
       const data = JSON.parse(res.content);
