@@ -269,3 +269,11 @@ export function pointOnTrace(pts, md) {
   const edge = md <= pts[0].md ? pts[0] : pts[pts.length - 1];
   return { x: edge.x, y: edge.y, z: edge.z };
 }
+
+// TASKS.csv #411 — from / to / mid-point coordinates of a downhole interval, for exports that feed
+// estimation software (which needs XYZ, not just hole + depth). null when the hole has no trace.
+export function intervalXYZ(pts, from, to) {
+  if (!pts || !pts.length) return null;
+  const a = pointOnTrace(pts, from), b = pointOnTrace(pts, to), m = pointOnTrace(pts, (from + to) / 2);
+  return a && b && m ? { from: a, to: b, mid: m } : null;
+}

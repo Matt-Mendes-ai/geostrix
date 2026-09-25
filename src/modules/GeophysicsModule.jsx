@@ -7,6 +7,8 @@ import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex } fro
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
+import { blockModelRows, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411
+import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY } from "../lib/reproject.js";
@@ -1367,6 +1369,12 @@ export default function GeophysicsModule() {
 // no further dragging) rather than updating the store on every native `input` event a range slider
 // fires continuously during a drag, which would otherwise rebuild the whole 3D mesh on every pixel of
 // movement.
+// TASKS.csv #411 — see blockModelExport.js
+function exportBlockModelCSV(model) {
+  const csv = Papa.unparse(blockModelRows(model));
+  const stamp = stampLines({ tool: "Block model export", params: blockModelParamLines(model) });
+  saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
+}
 function VoxelModelRow({ model, onUpdate, onRemove }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -1405,6 +1413,8 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model)} />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>

@@ -4,6 +4,8 @@ import Papa from "papaparse";
 import { compositeDownhole, countDuplicateAssayIntervals } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
+import { desurveyHole, intervalXYZ } from "../lib/desurvey.js"; // TASKS.csv #411
+import { useStore } from "../lib/store.jsx";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -26,6 +28,15 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can gen
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech"];
 
 export default function CompositingModal({ assays, assayElements, layers, onClose }) {
+  // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.
+  const { collars, survey, desurveyMethod, project } = useStore();
+  const tracesByHole = useMemo(() => {
+    const byHole = new Map();
+    (survey || []).forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
+    const m = new Map();
+    (collars || []).forEach((c) => { const t = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod); if (t.length) m.set(c.hole_id, t); });
+    return m;
+  }, [collars, survey, desurveyMethod]);
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -69,10 +80,16 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       hole_id: r.hole_id, from: r.from.toFixed(2), to: r.to.toFixed(2), length_m: r.length.toFixed(2),
       [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
       coverage_pct: (r.coverage * 100).toFixed(0),
+      ...(() => { // #411 — XYZ; blank when the hole has no collar/trace
+        const p = intervalXYZ(tracesByHole.get(r.hole_id), r.from, r.to);
+        const f = (v) => (p ? v.toFixed(2) : "");
+        return { x_mid: p ? f(p.mid.x) : "", y_mid: p ? f(p.mid.y) : "", z_mid: p ? f(p.mid.z) : "", x_from: p ? f(p.from.x) : "", y_from: p ? f(p.from.y) : "", z_from: p ? f(p.from.z) : "", x_to: p ? f(p.to.x) : "", y_to: p ? f(p.to.y) : "", z_to: p ? f(p.to.z) : "" };
+      })(),
       ...(domainKey ? { [domainMeta.label]: r.domain != null ? domainLabel(r.domain) : "" } : {}),
     }));
     // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
-    const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, params: [
+    const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
       `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capValue === "" ? "none" : `${capValue} ${unit} (applied to raw intervals before compositing)`}`,
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,

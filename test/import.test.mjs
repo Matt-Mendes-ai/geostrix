@@ -78,3 +78,17 @@ test("#362 structure name/ID column is recognised only from explicit headers", (
   const harry = guessMapping("structure", ["hole_id", "depth_m", "structure_type", "inferred_dip_deg", "assumed_dip_azimuth"]);
   assert.ok(!harry.structure_id);
 });
+
+import { intervalXYZ } from "../src/lib/desurvey.js";
+import { blockModelRows, blockModelParamLines } from "../src/lib/blockModelExport.js";
+test("#411 interval XYZ on a desurveyed trace; block model CSV rows", () => {
+  const trace = desurveyHole({ x: 1000, y: 2000, z: 500, azimuth: 0, dip: 90, length: 100 }, [], "minimumCurvature");
+  const p = intervalXYZ(trace, 10, 20);
+  assert.ok(Math.abs(p.from.z - 490) < 1e-6 && Math.abs(p.to.z - 480) < 1e-6 && Math.abs(p.mid.z - 485) < 1e-6);
+  assert.ok(Math.abs(p.mid.x - 1000) < 1e-6 && Math.abs(p.mid.y - 2000) < 1e-6);
+  assert.equal(intervalXYZ([], 0, 1), null);
+  const rows = blockModelRows({ name: "Au IDW", params: { element: "Au", cellSizeM: 25 }, cells: [{ x: 463000.1234, y: 6178000, z: 1000, dx: 25, dy: 25, dz: 10, value: 1.5, nSamples: 8, nHoles: 3 }] });
+  assert.deepEqual(Object.keys(rows[0]), ["XC", "YC", "ZC", "XINC", "YINC", "ZINC", "Au", "N_SAMPLES", "N_HOLES"]);
+  assert.equal(rows[0].XC, 463000.123);
+  assert.ok(blockModelParamLines({ name: "m", cells: [], params: { element: "Au", cellSizeM: 25 } }).includes("cellSizeM: 25"));
+});
