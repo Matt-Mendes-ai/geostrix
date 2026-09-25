@@ -7503,7 +7503,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
         const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
-        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}` });
+        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key }); // #392 — layer drives the ribbon offset
       });
     });
 
@@ -7529,7 +7529,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (!vals.length) return;
         vals.forEach((a) => {
           const mid = (a.from + a.to) / 2, v = a.values[sym];
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}` });
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to } }); // #392 — drawn as a grade bar
         });
       });
     }
@@ -7554,7 +7554,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
         const color = hashColor(row.value);
-        if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}` });
+        if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
         else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
       });
     });

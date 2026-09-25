@@ -297,6 +297,16 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
   const invSz = (screenY) => minZ + (H - PAD - screenY) / vScale;
 
   const traceByHole = Object.fromEntries(holes.map((h) => [h.hole_id, h.trace]));
+  // TASKS.csv #392 — ribbon offsets per interval layer (px): 0, +7, -7, +14, -14 ... in first-seen order.
+  const ribbonOffset = {};
+  intervals.forEach((r) => { const k = r.layer || "_"; if (!(k in ribbonOffset)) { const n = Object.keys(ribbonOffset).length; ribbonOffset[k] = n === 0 ? 0 : (n % 2 ? 1 : -1) * 7 * Math.ceil(n / 2); } });
+  const ribbonReach = Math.max(3, ...Object.values(ribbonOffset).map((o) => Math.abs(o) + 3));
+  const BAR_MAX = 36;
+  const assayMax = {};
+  points.forEach((r) => { if (r.assay && Number.isFinite(r.assay.value)) assayMax[r.assay.sym] = Math.max(assayMax[r.assay.sym] || 0, r.assay.value); });
+  // label the 8 highest values per element in this section, not every sample (unreadable at section scale)
+  const labelledAssays = new Set();
+  Object.keys(assayMax).forEach((sym) => points.filter((r) => r.assay?.sym === sym).sort((x, y) => y.assay.value - x.assay.value).slice(0, 8).forEach((r) => labelledAssays.add(r)));
 
   const handleClick = (e) => {
     if (!drawing) return;
@@ -409,20 +419,69 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
         );
       })}
 
+      {/* TASKS.csv #392 — one ribbon per interval layer, offset to alternate sides of the trace (the first
+          layer on the trace itself), instead of every layer as the same 4 px stroke on top of each other,
+          where whichever layer drew last (usually alteration) hid lithology. */}
       {intervals.map((row, i) => {
         const trace = traceByHole[row.hole_id];
         if (!trace) return null;
         const p1 = interpTrace(trace, row.from), p2 = interpTrace(trace, row.to);
         if (!p1 || !p2) return null;
-        return <line key={i} x1={sx(along(p1.x, p1.y))} y1={sz(p1.z)} x2={sx(along(p2.x, p2.y))} y2={sz(p2.z)} stroke={row.color} strokeWidth="4" strokeLinecap="butt"><title>{row.label}</title></line>;
+        const x1 = sx(along(p1.x, p1.y)), y1 = sz(p1.z), x2 = sx(along(p2.x, p2.y)), y2 = sz(p2.z);
+        const off = ribbonOffset[row.layer || "_"] || 0;
+        const [nx, ny] = screenNormal(x1, y1, x2, y2);
+        return <line key={i} x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth="5" strokeLinecap="butt"><title>{row.label}</title></line>;
       })}
 
+      {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length
+          proportional to grade (per element, to the highest value in this section); the highest values
+          are labelled. Non-assay point data stay dots. */}
       {points.map((row, i) => {
         const trace = traceByHole[row.hole_id];
         if (!trace) return null;
+        if (row.assay) {
+          const a = row.assay;
+          const q1 = interpTrace(trace, a.from), q2 = interpTrace(trace, a.to);
+          if (!q1 || !q2) return null;
+          const x1 = sx(along(q1.x, q1.y)), y1 = sz(q1.z), x2 = sx(along(q2.x, q2.y)), y2 = sz(q2.z);
+          const [nx, ny] = screenNormal(x1, y1, x2, y2);
+          const base = ribbonReach + 5 + a.idx * (BAR_MAX + 8);
+          const len = assayMax[a.sym] > 0 ? Math.max(1, (a.value / assayMax[a.sym]) * BAR_MAX) : 1;
+          const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+          const bx0 = mx + nx * base, by0 = my + ny * base, bx1 = mx + nx * (base + len), by1 = my + ny * (base + len);
+          const thick = Math.max(1.5, Math.hypot(x2 - x1, y2 - y1));
+          return (
+            <g key={i}>
+              <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
+              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize="9" textAnchor={nx >= 0 ? "start" : "end"}>{a.value}</text>}
+            </g>
+          );
+        }
         const p = interpTrace(trace, row.md);
         if (!p) return null;
         return <circle key={i} cx={sx(along(p.x, p.y))} cy={sz(p.z)} r="3.5" fill={row.color} stroke="#ffffff" strokeWidth="0.5"><title>{row.label}</title></circle>;
+      })}
+
+      {/* TASKS.csv #392 — downhole depth ticks (every 50 m, labelled every 100 m) and the end-of-hole depth. */}
+      {holes.map((h, hi) => {
+        const tr = h.trace;
+        if (!tr?.length) return null;
+        const eoh = tr[tr.length - 1].md;
+        const marks = [];
+        for (let md = 50; md < eoh - 5; md += 50) {
+          const p = interpTrace(tr, md), q = interpTrace(tr, Math.min(eoh, md + 1));
+          if (!p || !q) continue;
+          const x = sx(along(p.x, p.y)), y = sz(p.z);
+          const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
+          marks.push(<g key={md}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#65717e" fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+        }
+        const last = tr[tr.length - 1];
+        return (
+          <g key={`dt${hi}`}>
+            {marks}
+            <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{`EOH ${Math.round(eoh)} m`}</text>
+          </g>
+        );
       })}
 
       {planes.map((row, i) => {
@@ -476,6 +535,12 @@ function interpTrace(trace, md) {
   }
   return trace[trace.length - 1];
 }
+// Unit normal (in screen space) to the segment p1 -> p2, pointing to its right; (1, 0) for a degenerate one.
+function screenNormal(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy);
+  return L > 1e-6 ? [-dy / L, dx / L] : [1, 0];
+}
+
 // TASKS.csv #393 — round-number ticks (1, 2, 2.5 or 5 x 10^k) covering [min, max], about `count` of them.
 function niceTicks(min, max, count) {
   const span = max - min;
