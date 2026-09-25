@@ -190,7 +190,7 @@ async function readDemTile(file) {
     throw new Error(`"${file.name}" is not a readable GeoTIFF (${err.message}).`);
   }
   let bbox;
-  try { bbox = image.getBoundingBox(); } catch (err) { bbox = null; }
+  try { bbox = demNodeBbox(image); } catch (err) { bbox = null; }
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
     throw new Error(`"${file.name}" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.`);
   }
@@ -542,11 +542,25 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
 // a binary writer — it accepts a flat TypedArray + a small metadata object and produces a real,
 // spec-compliant single-band file, auto-inferring BitsPerSample/SampleFormat from the array's own
 // type (Float32Array here -> 32-bit IEEE float, correctly, with no need to set those by hand).
+// TASKS.csv #420 — the terrain grid is NODES: value k sits at xmin + k*(xmax-xmin)/(gridW-1), which is
+// how the mesh, bilinearSample and reprojectGrid all read it. The export wrote pixel size W/gridW with
+// the tiepoint on the bbox corner as PixelIsArea, i.e. pixel CENTRES at xmin + (k+0.5)*W/gridW — off by
+// up to half a cell (about 156 m at the edge of a merged 1-degree tile in QGIS). Now: pixel size
+// W/(gridW-1) and the tiepoint half a pixel outside the first node, so each pixel's centre is its node.
+// demNodeBbox is the inverse on import (it was treating a GeoTIFF's pixel-area bounds as node positions,
+// the same half-cell error the other way), so an export re-imports to exactly the same nodes.
+export function demNodeBbox(image) {
+  const [b0, b1, b2, b3] = image.getBoundingBox();
+  const [rx, ry] = image.getResolution();
+  const ax = Math.abs(rx), ay = Math.abs(ry);
+  if (image.getGeoKeys?.()?.GTRasterTypeGeoKey === 2) return [b0, b1 + ay, b2 - ax, b3]; // PixelIsPoint: the origin IS the first node
+  return [b0 + ax / 2, b1 + ay / 2, b2 - ax / 2, b3 - ay / 2]; // PixelIsArea (the default): nodes are pixel centres
+}
 export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
   const { bbox, gridW, gridH, elevations } = terrain;
   const [xmin, ymin, , ymax] = bbox;
-  const pixelW = (bbox[2] - bbox[0]) / gridW;
-  const pixelH = (ymax - ymin) / gridH; // positive — elevations is row-major with row 0 = north/ymax edge, the same top-down convention GeoTIFF's own ModelTiepoint anchor expects
+  const pixelW = (bbox[2] - bbox[0]) / Math.max(1, gridW - 1);
+  const pixelH = (ymax - ymin) / Math.max(1, gridH - 1); // positive — elevations is row-major with row 0 = north/ymax edge, the same top-down convention GeoTIFF's own ModelTiepoint anchor expects
   // A no-data sentinel is safer than a raw NaN here: NaN IS representable in an IEEE float32 band, but
   // not every GIS tool's no-data handling treats a NaN pixel consistently — GDAL_NODATA is the widely-
   // recognized tag (GDAL, QGIS, ArcGIS) for "this pixel has no data", so gaps in the merged terrain
@@ -556,7 +570,7 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
   const metadata = {
     width: gridW, height: gridH,
     ModelPixelScale: [pixelW, pixelH, 0],
-    ModelTiepoint: [0, 0, 0, xmin, ymax, 0], // pixel (0,0) (top-left) -> the bbox's north-west corner
+    ModelTiepoint: [0, 0, 0, xmin - pixelW / 2, ymax + pixelH / 2, 0], // #420: pixel (0,0)'s outer corner, so its centre is the first node
     GTModelTypeGeoKey: 1, // 1 = projected (every EPSG this app supports — reproject.js's own table — is a projected CRS, never bare geographic)
     GTRasterTypeGeoKey: 1, // 1 = PixelIsArea, the conventional default
     ProjectedCSTypeGeoKey: Number(projectEpsg),
