@@ -697,10 +697,14 @@ export function StoreProvider({ children }) {
   // trueScale above: true means ViewerModule should apply the theme and then let the user freely
   // orbit/pan/zoom (no auto-capture timer, no auto-restore) until they explicitly exit, instead of
   // the normal "apply, wait 400ms, capture, restore" one-shot round trip.
-  const requestViewportRender = useCallback((themeId, targetElementId, trueScale, interactive) => {
+  // TASKS.csv #398 — opts.fixedScale (N of 1:N) + opts.elementW (the frame's width in page px) make the
+  // orthographic capture frame exactly N x the printed width of world.
+  const requestViewportRender = useCallback((themeId, targetElementId, trueScale, interactive, opts = {}) => {
     const requestId = `vprend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive });
+    const fixedScale = trueScale && Number(opts.fixedScale) > 0 ? Number(opts.fixedScale) : null;
+    const elementW = Number(opts.elementW) > 0 ? Number(opts.elementW) : null;
+    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -746,7 +750,8 @@ export function StoreProvider({ children }) {
       setLayoutSelectRequest(id);
     } else {
       setLayoutElements((els) => els.map((el) => el.id === targetElementId
-        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, h: Math.round((el.w || 700) / aspect) }
+        // #398 — a fixed-scale capture keeps the unrounded height: rounding it would shift 1:1000 to 1:998.
+        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, h: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect), capturedFixedScale: res.fixedScale || null }
         : el));
       setLayoutSelectRequest(targetElementId);
     }

@@ -3346,10 +3346,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // this never touches the live interactive `camera`, which stays perspective for normal use.
     let renderCamera = camera;
     let orthoCamera = null;
+    let orthoHalfH = null; // #398
     if (req.trueScale) {
       const aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
-      const halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
+      let halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
+      // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
+      // N x its printed width of world, centred where the camera looks. The frame's height follows the
+      // capture's aspect (store.jsx), so the vertical scale is the same 1:N.
+      if (req.fixedScale > 0 && req.elementW > 0) halfH = (req.fixedScale * (req.elementW / 96) * 0.0254) / 2 / aspect;
       const halfW = halfH * aspect;
+      orthoHalfH = halfH;
       orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one
       orthoCamera.position.copy(camera.position);
       orthoCamera.quaternion.copy(camera.quaternion);
@@ -3373,7 +3379,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
     // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
     // Still exact (not approximate) when req.trueScale is set — see the orthographic branch above.
-    const worldHeightAtTarget = worldHeightAtTargetM(camera.fov, cs.radius);
+    const worldHeightAtTarget = orthoHalfH != null ? 2 * orthoHalfH : worldHeightAtTargetM(camera.fov, cs.radius); // #398: the ortho frustum's own height (identical unless a fixed scale set it)
     // TASKS.csv #67 — north-arrow sync. Worked out from first principles and checked numerically
     // (not just by analogy) rather than trusting a guess: CompassRose.js rotates its 3D ring by
     // -cs.theta about Y and views it through a straight-down navCamera with up=(0,0,-1), so N (ring
@@ -3397,10 +3403,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // can draw a labelled UTM grid over a top-down, true-scale capture. Scene -> world: E = x + ox, N = oy - z.
     const o = originRef.current;
     const targetWorld = { x: cs.target.x + o.x, y: o.y - cs.target.z };
-    const planView = cs.phi < 0.02; // within ~1 deg of looking straight down
+    const planView = cs.phi <= 0.0205; // within ~1.2 deg of straight down. #398: was "< 0.02", but the Top button sets exactly 0.02, so a Top view never counted as plan and the UTM grid stayed disabled
     resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
-      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView,
+      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,
     });
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/

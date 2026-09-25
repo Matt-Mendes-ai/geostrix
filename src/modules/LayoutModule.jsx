@@ -174,7 +174,7 @@ export default function LayoutModule() {
   // uses an orthographic camera instead of the live perspective one, which makes the computed
   // world-scale exact everywhere in the image rather than only approximately right at the camera's
   // target distance (see ViewportControls' scale readout below for the user-facing explanation).
-  const startViewportRender = (themeId, targetElementId, trueScale) => {
+  const startViewportRender = (themeId, targetElementId, trueScale, opts = {}) => {
     // A falsy themeId means "just capture the current live view, no theme involved" — see the new
     // "Add viewport from current view" button and ViewportControls' "— current view (no theme) —"
     // option above. Only a genuinely non-falsy-but-unresolvable themeId (a stale/deleted theme id) is
@@ -184,7 +184,7 @@ export default function LayoutModule() {
     if (targetElementId !== "new") {
       setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     }
-    requestViewportRender(themeId, targetElementId, trueScale);
+    requestViewportRender(themeId, targetElementId, trueScale, false, opts);
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -195,11 +195,11 @@ export default function LayoutModule() {
   // "Add viewport" theme picker. Same shape as startViewportRender, just with interactive:true —
   // ViewerModule's render effect (see its own long comment) does the rest: apply the theme, then
   // wait for the user to exit instead of auto-capturing after 400ms.
-  const startInteractiveViewportEdit = (themeId, targetElementId, trueScale) => {
+  const startInteractiveViewportEdit = (themeId, targetElementId, trueScale, opts = {}) => {
     const theme = themes.find((t) => t.id === themeId);
     if (!theme) return;
     setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
-    requestViewportRender(themeId, targetElementId, trueScale, true);
+    requestViewportRender(themeId, targetElementId, trueScale, true, opts);
     setThemePickerFor(null);
     goToModule("viewer");
   };
@@ -714,9 +714,9 @@ export default function LayoutModule() {
             {sel.type === "viewport" && (
               <ViewportControls
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
-                onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale)}
-                onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale)}
-                onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale)}
+                onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
+                onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
+                onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
@@ -1151,6 +1151,22 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />
         True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.
       </label>
+      {/* TASKS.csv #398 — a user-chosen plot scale. The capture is framed to it (centred where the camera
+          looks); the frame's width is kept and its height follows the view's shape. */}
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
+        title="Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.">
+        Fixed scale 1 :
+        <input type="number" min="1" step="any" placeholder="free" value={sel.fixedScale || ""} aria-label="Fixed plot scale denominator"
+          onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
+          style={{ width: 80, fontSize: "var(--font-size-sm)" }} />
+      </label>
+      {sel.fixedScale > 0 && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
+          {sel.capturedFixedScale === sel.fixedScale
+            ? `Captured at 1 : ${sel.fixedScale.toLocaleString()}: this frame shows ${Math.round(sel.fixedScale * (sel.w / 96) * 0.0254).toLocaleString()} m across.${""}`
+            : "Refresh to capture at this scale."} Keep the frame's width after capturing, or the scale changes with it.
+        </div>
+      )}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Rotation (°)
         <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
       </label>
