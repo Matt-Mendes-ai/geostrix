@@ -1,8 +1,48 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { createHash } from "node:crypto";
+
+// TASKS.csv #347 — Content-Security-Policy for the packaged renderer. Build-only: the dev server needs
+// Vite's inline React-refresh preamble and its HMR websocket, which a strict policy would block, and the
+// dev renderer is never shipped. Inline scripts left in the final HTML (the splash) are allowed by
+// sha256 hash, computed here from the exact bytes that ship, so editing the splash can't silently break it.
+//   script-src  'wasm-unsafe-eval' — sql.js compiles its WebAssembly (GeoPackage / SQL workspace). No
+//               'unsafe-eval': the field calculator no longer uses new Function (#344).
+//   style-src   'unsafe-inline' — the UI is built from React style={{}} attributes.
+//   connect-src the local Python sidecar and the three basemap tile hosts (tileCache.js fetches tiles
+//               into IndexedDB); WMS/WFS and SRTM go through the main process (IPC), not the renderer.
+//   img-src     data:/blob: for cached tiles, drapes and exports.
+const TILE_HOSTS = "https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://tile.tracestrack.com https://tiles.maps.eox.at";
+function cspPlugin() {
+  return {
+    name: "geostrix-csp",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        const hashes = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+          .map((m) => `'sha256-${createHash("sha256").update(m[1], "utf8").digest("base64")}'`);
+        const csp = [
+          "default-src 'self'",
+          `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(" ")}`,
+          "style-src 'self' 'unsafe-inline'",
+          `img-src 'self' data: blob: ${TILE_HOSTS}`,
+          "font-src 'self' data:",
+          `connect-src 'self' data: blob: http://127.0.0.1:8765 ${TILE_HOSTS}`,
+          "worker-src 'self' blob:",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'none'",
+        ].join("; ");
+        return html.replace("<head>", `<head>
+    <meta http-equiv="Content-Security-Policy" content="${csp}" />`);
+      },
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cspPlugin()],
   base: "./",
   server: { port: 5173, strictPort: true },
   build: {
