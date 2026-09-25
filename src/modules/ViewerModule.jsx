@@ -16,7 +16,7 @@ import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.cs
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 import { buildGeoPackage, parseGeoPackage, gpkgFeaturesToRows } from "../lib/gpkg.js";
-import { buildDXF, parseDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289
+import { buildDXF, parseDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 import SurfaceGeologyProjection from "../components/SurfaceGeologyProjection.jsx"; // TASKS.csv #318
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
@@ -6203,18 +6203,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const drapeOnTerrain = b.drapeMode === "terrain" && !!terrain;
       const elevation = b.elevation ?? oz;
       const material = new THREE.LineBasicMaterial({ color: b.color || "#e2a63c" });
-      (b.polylines || []).forEach((pts) => {
+      (b.polylines || []).forEach((pts, pi) => {
         if (pts.length < 2) return;
         const positions = new Float32Array(pts.length * 3);
         pts.forEach((p, i) => {
-          const el = drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) : elevation;
+          // TASKS.csv #408 — a 3D string (DXF with elevations) is drawn at its own vertex Z.
+          const el = drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) : (b.useVertexZ && Number.isFinite(p.z) ? p.z : elevation);
           positions[i * 3] = p.x - ox;
           positions[i * 3 + 1] = el - oz;
           positions[i * 3 + 2] = -(p.y - oy);
         });
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        g.add(new THREE.LineLoop(geometry, material));
+        // TASKS.csv #408 — open strings stay open; only polylines flagged closed (or boundaries without
+        // flags, i.e. every pre-#408 import) are drawn as loops.
+        const isClosed = Array.isArray(b.closedFlags) ? !!b.closedFlags[pi] : true;
+        g.add(isClosed ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material));
       });
       g.visible = b.visible !== false;
       group.add(g);
@@ -6789,11 +6793,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
     if (/\.dxf$/.test(name)) {
       try {
-        const { polylines } = parseDXF(await file.text());
-        if (!polylines?.length) { setNotices((p) => [...p, `${file.name}: no polylines/LWPOLYLINEs found — nothing to import.`]); return; }
-        addBoundary({ name: file.name.replace(/\.dxf$/i, ""), polylines, elevation: defaultElevation });
-        setNotices((p) => [...p, `Imported "${file.name}" as a boundary (${polylines.length} polyline(s)) — edit or remove it under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.`]);
-      } catch (err) { setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]); }
+        // TASKS.csv #408 — one boundary per DXF layer, keeping Z; a face-only DXF is a solid.
+        const specs = dxfToBoundaries(await file.text(), file.name.replace(/\.dxf$/i, ""));
+        specs.forEach((sp) => addBoundary({ ...sp, elevation: defaultElevation }));
+        const n3d = specs.filter((sp) => sp.useVertexZ).length;
+        setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.`]);
+      } catch (err) {
+        if (err.facesOnly) { importSolidFile(file); return; } // #408 — 3DFACE / polyface only: import as a solid
+        setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]);
+      }
       return;
     }
     openImportModal(file);

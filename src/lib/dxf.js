@@ -39,47 +39,72 @@ export function parseDXF(text) {
     if (pairs[i][0] === 0 && pairs[i][1] === "ENDSEC") { entEnd = i; break; }
   }
 
-  const polylines = [];
+  // TASKS.csv #408 — Z (group codes 30/31, and LWPOLYLINE's constant elevation 38) and the entity's
+  // LAYER (code 8) are now kept. Pit crests, section interpretations, development centrelines and drill
+  // traces from Vulcan/Datamine/Micromine are 3D strings; this used to flatten every one of them and merge
+  // all layers into one boundary at a default elevation. `closed` records a closed polyline (flag bit 1),
+  // so open strings are not drawn as loops.
+  const polylines = [], layers = [], closed = [];
+  let has3D = false, faces = 0;
+  const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  const push = (verts, layer, isClosed) => {
+    if (verts.some((q) => q.z != null)) has3D = true;
+    polylines.push(verts.map((q) => (q.z != null ? { x: q.x, y: q.y, z: q.z } : { x: q.x, y: q.y })));
+    layers.push(layer || "0"); closed.push(!!isClosed);
+  };
   let i = entStart;
   while (i < entEnd) {
     const [code, value] = pairs[i];
     if (code !== 0) { i++; continue; }
     const type = value;
     if (type === "LINE") {
-      const pt = { x: null, y: null }, pt2 = { x: null, y: null };
+      const pt = { x: null, y: null, z: null }, pt2 = { x: null, y: null, z: null };
+      let layer = "0";
       i++;
       while (i < entEnd && pairs[i][0] !== 0) {
         const [c, v] = pairs[i];
-        if (c === 10) pt.x = parseFloat(v); else if (c === 20) pt.y = parseFloat(v);
-        else if (c === 11) pt2.x = parseFloat(v); else if (c === 21) pt2.y = parseFloat(v);
+        if (c === 8) layer = v;
+        else if (c === 10) pt.x = num(v); else if (c === 20) pt.y = num(v); else if (c === 30) pt.z = num(v);
+        else if (c === 11) pt2.x = num(v); else if (c === 21) pt2.y = num(v); else if (c === 31) pt2.z = num(v);
         i++;
       }
-      if ([pt.x, pt.y, pt2.x, pt2.y].every(Number.isFinite)) polylines.push([pt, pt2]);
+      if ([pt.x, pt.y, pt2.x, pt2.y].every(Number.isFinite)) push([pt, pt2], layer, false);
     } else if (type === "LWPOLYLINE") {
       const verts = [];
-      let cur = null;
+      let cur = null, layer = "0", elev = null, flags = 0;
       i++;
       while (i < entEnd && pairs[i][0] !== 0) {
         const [c, v] = pairs[i];
-        if (c === 10) { if (cur) verts.push(cur); cur = { x: parseFloat(v), y: null }; }
-        else if (c === 20 && cur) cur.y = parseFloat(v);
+        if (c === 8) layer = v;
+        else if (c === 38) elev = num(v);
+        else if (c === 70) flags = parseInt(v, 10) || 0;
+        else if (c === 10) { if (cur) verts.push(cur); cur = { x: num(v), y: null, z: null }; }
+        else if (c === 20 && cur) cur.y = num(v);
         i++;
       }
       if (cur) verts.push(cur);
-      const usable = verts.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-      if (usable.length > 1) polylines.push(usable);
+      const usable = verts.filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y)).map((q) => ({ ...q, z: elev != null && elev !== 0 ? elev : null }));
+      if (usable.length > 1) push(usable, layer, flags & 1);
     } else if (type === "POLYLINE") {
       // Old-style polyline: the POLYLINE entity itself carries no vertices — each is a separate
-      // VERTEX entity immediately following, terminated by a SEQEND.
+      // VERTEX entity immediately following, terminated by a SEQEND. Flag 8 = 3D polyline, 1 = closed,
+      // 16/64 = polygon/polyface mesh (a SOLID — see parseDXFMesh), skipped here.
+      let layer = "0", flags = 0;
       i++;
+      while (i < entEnd && pairs[i][0] !== 0) {
+        if (pairs[i][0] === 8) layer = pairs[i][1];
+        else if (pairs[i][0] === 70) flags = parseInt(pairs[i][1], 10) || 0;
+        i++;
+      }
       const verts = [];
       while (i < entEnd && !(pairs[i][0] === 0 && pairs[i][1] === "SEQEND")) {
         if (pairs[i][0] === 0 && pairs[i][1] === "VERTEX") {
-          const v = { x: null, y: null };
+          const v = { x: null, y: null, z: null };
           i++;
           while (i < entEnd && pairs[i][0] !== 0) {
-            if (pairs[i][0] === 10) v.x = parseFloat(pairs[i][1]);
-            else if (pairs[i][0] === 20) v.y = parseFloat(pairs[i][1]);
+            if (pairs[i][0] === 10) v.x = num(pairs[i][1]);
+            else if (pairs[i][0] === 20) v.y = num(pairs[i][1]);
+            else if (pairs[i][0] === 30) v.z = num(pairs[i][1]);
             i++;
           }
           if (Number.isFinite(v.x) && Number.isFinite(v.y)) verts.push(v);
@@ -87,30 +112,56 @@ export function parseDXF(text) {
           i++;
         }
       }
-      if (verts.length > 1) polylines.push(verts);
+      if (!(flags & 16) && !(flags & 64) && verts.length > 1) push(flags & 8 ? verts : verts.map((q) => ({ ...q, z: q.z || null })), layer, flags & 1);
+      else if (flags & 64) faces++;
       i++; // past SEQEND
     } else if (type === "POINT") {
-      const pt = { x: null, y: null };
+      const pt = { x: null, y: null, z: null };
+      let layer = "0";
       i++;
       while (i < entEnd && pairs[i][0] !== 0) {
-        if (pairs[i][0] === 10) pt.x = parseFloat(pairs[i][1]);
-        else if (pairs[i][0] === 20) pt.y = parseFloat(pairs[i][1]);
+        if (pairs[i][0] === 8) layer = pairs[i][1];
+        else if (pairs[i][0] === 10) pt.x = num(pairs[i][1]);
+        else if (pairs[i][0] === 20) pt.y = num(pairs[i][1]);
+        else if (pairs[i][0] === 30) pt.z = num(pairs[i][1]);
         i++;
       }
       // A lone point has nothing to draw a line to — represented as a degenerate 1-vertex "loop" so
       // it still round-trips through the same polylines shape rather than needing a separate list;
       // callers that only draw >=2-point loops (e.g. ViewerModule's LineLoop renderer) simply won't
       // render it, same as any other too-short loop.
-      if (Number.isFinite(pt.x) && Number.isFinite(pt.y)) polylines.push([pt]);
+      if (Number.isFinite(pt.x) && Number.isFinite(pt.y)) push([pt], layer, false);
     } else {
+      if (type === "3DFACE") faces++;
       i++;
     }
   }
 
   if (!polylines.length) {
-    throw new Error("No usable LINE/LWPOLYLINE/POLYLINE/POINT entities found in this DXF's ENTITIES section.");
+    const err = new Error(faces ? "This DXF contains only faces (3DFACE / polyface mesh) — it is a solid, not strings." : "No usable LINE/LWPOLYLINE/POLYLINE/POINT entities found in this DXF's ENTITIES section.");
+    err.facesOnly = faces > 0;
+    throw err;
   }
-  return { polylines };
+  return { polylines, layers, closed, has3D };
+}
+
+// TASKS.csv #408 — one boundary spec per DXF layer (a CAD file's layers are its real grouping: pit crest,
+// toe, centreline...), each keeping its vertices' Z when the file has any.
+export function dxfToBoundaries(text, baseName) {
+  const { polylines, layers, closed, has3D } = parseDXF(text);
+  const byLayer = new Map();
+  polylines.forEach((pl, k) => {
+    if (!byLayer.has(layers[k])) byLayer.set(layers[k], { polylines: [], closedFlags: [] });
+    const g = byLayer.get(layers[k]);
+    g.polylines.push(pl); g.closedFlags.push(closed[k]);
+  });
+  const single = byLayer.size === 1;
+  return [...byLayer.entries()].map(([layer, g]) => ({
+    name: single ? baseName : `${baseName} — ${layer}`,
+    polylines: g.polylines, closedFlags: g.closedFlags,
+    useVertexZ: has3D && g.polylines.some((pl) => pl.some((q) => q.z != null)),
+    dxfLayer: layer,
+  }));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -281,16 +332,24 @@ export function buildDXF({ features, geomType }) {
 
   put(0, "SECTION"); put(2, "ENTITIES");
 
+  // TASKS.csv #408 — Z is written. Points carry their real elevation (they were all written at 0), and a
+  // multi-vertex geometry with elevations becomes a 3D POLYLINE (flag 8) + VERTEX 10/20/30 entities,
+  // which every package reading R12 DXF understands. A flat drill trace was useless to Vulcan/Datamine.
   features.forEach((f) => {
     const layer = sanitizeLayerName(f.attributes?.hole_id);
+    const z = (p) => (Number.isFinite(p[2]) ? p[2] : 0);
     if (geomType === "point" || f.geometry.length === 1) {
-      f.geometry.forEach(([x, y]) => {
-        put(0, "POINT"); put(8, layer); put(10, x.toFixed(4)); put(20, y.toFixed(4)); put(30, "0.0");
+      f.geometry.forEach((p) => {
+        put(0, "POINT"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4));
       });
       return;
     }
-    // LWPOLYLINE for every multi-vertex geometry (a plain 2-point "LINE" is just a 2-vertex
-    // LWPOLYLINE) — one entity type to write/verify instead of two.
+    if (f.geometry.some((p) => Number.isFinite(p[2]))) {
+      put(0, "POLYLINE"); put(8, layer); put(66, 1); put(70, 8); put(10, "0.0"); put(20, "0.0"); put(30, "0.0");
+      f.geometry.forEach((p) => { put(0, "VERTEX"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4)); put(70, 32); });
+      put(0, "SEQEND"); put(8, layer);
+      return;
+    }
     put(0, "LWPOLYLINE"); put(8, layer); put(90, f.geometry.length); put(70, 0);
     f.geometry.forEach(([x, y]) => { put(10, x.toFixed(4)); put(20, y.toFixed(4)); });
   });

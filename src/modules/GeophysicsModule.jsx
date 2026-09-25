@@ -13,7 +13,7 @@ import { toLonLat, reprojectXY } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, parseBlockModelCSV, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
-import { parseDXF } from "../lib/dxf.js";
+import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput } from "../lib/idw.js";
@@ -393,13 +393,17 @@ export default function GeophysicsModule() {
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
+        if (!shapePolylines && /\.dxf$/i.test(file.name)) {
+          // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
+          dxfToBoundaries(await file.text(), file.name).forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          continue;
+        }
         let polylines;
         if (shapePolylines) {
           polylines = shapePolylines;
         } else {
           const text = await file.text();
-          const isDxf = /\.dxf$/i.test(file.name);
-          ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
+          ({ polylines } = parsePLYBoundary(text));
         }
         addBoundary({ name: file.name, polylines, elevation: defaultElevation });
         imported++;
