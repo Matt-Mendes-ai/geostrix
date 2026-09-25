@@ -16,6 +16,7 @@ import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.cs
 import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
+import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -5300,21 +5301,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // in this app uses, e.g. exportImplicitSurface above), plus the design orientation/length and a
   // computed toe (bottom-of-hole) position so the CSV is immediately usable for staking/permitting
   // without anyone having to hand-calculate the endpoint from azimuth/dip/length themselves.
-  const exportPlannedHolesCSV = useCallback(async () => {
+  // TASKS.csv #397 — lat/lon, true and magnetic azimuths (declination at TODAY's date — the drilling is
+  // about to happen) and KML / GPX for phones and handheld GPS; see rigExport.js.
+  const exportPlannedHoles = useCallback(async (format = "csv") => {
     if (!plannedHoles.length) { setNotices((p) => [...p, "No planned drillholes to export yet."]); return; }
-    const rows = plannedHoles.map((h) => {
-      const raw = plannedHoleTrace(h);
-      const toe = raw.length ? raw[raw.length - 1] : null;
-      return {
-        name: h.name || "", x: h.x, y: h.y, z: h.z,
-        azimuth: h.azimuth, dip: h.dip, length: h.length,
-        toe_x: toe ? Number(toe.x.toFixed(2)) : "", toe_y: toe ? Number(toe.y.toFixed(2)) : "", toe_z: toe ? Number(toe.z.toFixed(2)) : "",
-        notes: h.notes || "",
-      };
-    });
-    const csv = Papa.unparse(rows);
-    const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv, encoding: "text" });
-    if (res.ok) setNotices((p) => [...p, `Exported ${plannedHoles.length} planned hole(s) to CSV.`]);
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = rigRows(plannedHoles, project.epsg, today, plannedHoleTrace);
+    const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
+    const noLatLon = rows.filter((r) => r.lat === "").length;
+    const noMag = rows.filter((r) => r.azimuth_magnetic === "").length;
+    let res;
+    if (format === "kml") res = await saveFile({ suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
+    else if (format === "gpx") res = await saveFile({ suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
+    else res = await saveFile({ suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
+    if (res.ok) setNotices((p) => [...p, `Exported ${plannedHoles.length} planned hole(s) to ${format.toUpperCase()}${rows[0]?.declination_deg !== "" ? ` — magnetic azimuths use the IGRF-14 declination for ${today} (${rows[0].declination_deg}° at the first collar); recheck it if drilling is months away` : ""}.${noLatLon ? ` ${noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.` : ""}${noMag && !noLatLon ? ` ${noMag} hole(s) have no magnetic azimuth.` : ""}`]);
   }, [plannedHoles, project]);
 
   // Bug fix (user report: "when I turn off one of the voxels, the view will reset to zoom all. It
@@ -9624,7 +9624,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>Planned drillholes ({plannedHoles.length})</span>
           {plannedHoles.length > 0 && (
-            <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(exportPlannedHolesCSV, "Export all planned holes to CSV")} />
+            <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), "Export all planned holes to CSV")} />
           )}
         </div>
         <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
@@ -9639,9 +9639,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             ))}
           </div>
         )}
-        {plannedHoles.length > 0 && (
-          <button onClick={exportPlannedHolesCSV} style={{ ...pBtn, marginTop: 8 }}><FileBarChart2 size={14} /> Export {plannedHoles.length} planned hole{plannedHoles.length === 1 ? "" : "s"} to CSV</button>
-        )}
+        {plannedHoles.length > 0 && (<>
+          <button onClick={() => exportPlannedHoles("csv")} style={{ ...pBtn, marginTop: 8 }} title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)"><FileBarChart2 size={14} /> Export {plannedHoles.length} planned hole{plannedHoles.length === 1 ? "" : "s"} to CSV</button>
+          {/* TASKS.csv #397 */}
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => exportPlannedHoles("kml")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title="Google Earth / phone maps: collars and collar-to-toe lines">KML</button>
+            <button onClick={() => exportPlannedHoles("gpx")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title="Handheld GPS: collar waypoints">GPX</button>
+          </div>
+        </>)}
         {plannedHoles.length > 0 && (
           <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />
         )}

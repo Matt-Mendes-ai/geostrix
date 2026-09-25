@@ -129,3 +129,20 @@ test("#372 colour stretch: percentile clip resists outliers, equalise is rank-un
   assert.ok(Math.abs(eq.t(50) - 0.5) < 0.02);
   assert.equal(makeStretch([NaN, NaN]).lo, null);
 });
+
+import { rigRows, rigKML, rigGPX } from "../src/lib/rigExport.js";
+test("#397 planned holes for the rig: lat/lon, true and magnetic azimuth, KML/GPX", () => {
+  const hole = { name: "PH-1 <A&B>", x: 463333, y: 6178148, z: 1160, azimuth: 90, dip: 60, length: 300 };
+  const trace = () => [{ x: 463333, y: 6178148, z: 1160 }, { x: 463483, y: 6178148, z: 900 }];
+  const [r] = rigRows([hole], 3156, "2026-09-25", trace);
+  assert.ok(r.lat > 55.5 && r.lat < 56 && r.lon > -130 && r.lon < -129.4, `${r.lat},${r.lon}`);
+  // grid = true + c  and  grid = magnetic + D + c
+  assert.ok(Math.abs(r.azimuth_true + r.convergence_deg - 90) < 0.02);
+  assert.ok(Math.abs(r.azimuth_magnetic + r.declination_deg + r.convergence_deg - 90) < 0.02);
+  assert.ok(r.declination_deg > 12 && r.declination_deg < 22, `declination ${r.declination_deg}`);
+  const kml = rigKML([r], "Test");
+  assert.match(kml, /<Point><coordinates>-129\.\d+,55\.\d+,0<\/coordinates>/);
+  assert.match(kml, /PH-1 &lt;A&amp;B&gt;/);
+  assert.match(kml, /<LineString>/);
+  assert.match(rigGPX([r]), /<wpt lat="55\.\d+" lon="-129\.\d+">/);
+});
