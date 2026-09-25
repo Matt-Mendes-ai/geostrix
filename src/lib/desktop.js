@@ -417,32 +417,7 @@ function formatSidecarErrorDetail(detail, status) {
   return `Sidecar returned HTTP ${status}`;
 }
 
-// points: [{x,y,z,value}], query: [{x,y,z}], opts: {method:'rbf'|'idw', rbfFunction, smoothing, power}
-export async function pythonInterpolate(points, query, opts = {}) {
-  await ensureSidecarUp(); // #440
-  try {
-    const res = await fetch(`${PY_SIDECAR_BASE}/interpolate`, {
-      method: "POST",
-      headers: await sidecarHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        points, query,
-        method: opts.method || "rbf",
-        rbf_function: opts.rbfFunction || "thin_plate_spline",
-        smoothing: opts.smoothing ?? 0,
-        power: opts.power ?? 2,
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      return { ok: false, error: formatSidecarErrorDetail(body?.detail, res.status) };
-    }
-    const data = await res.json();
-    return { ok: true, values: data.values };
-  } catch (err) {
-    return { ok: false, error: "Python sidecar not reachable (not started, still booting, or Python/deps not installed — see python-sidecar/README.md)." };
-  }
-}
+// TASKS.csv #406 — pythonInterpolate (and the sidecar's /interpolate) removed: no caller, unbounded RBF.
 
 // TASKS.csv #29 — implicit surface modelling (GemPy, via the sidecar's /implicit-model endpoint).
 // surfaces: [{ name, points: [{x,y,z}], orientations: [{x,y,z,dip,azimuth}] }]

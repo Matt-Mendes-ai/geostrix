@@ -282,77 +282,11 @@ def job_cancel(job_id: str):
     return {"cancelled": True}
 
 
-class Point3D(BaseModel):
-    x: float
-    y: float
-    z: float
+# TASKS.csv #406 — the general /interpolate endpoint (full RBF, up to 50,000 points with no neighbour
+# limit: a ~20 GB dense matrix, and an unclamped thin-plate spline could return negative grades) had no
+# caller in the app and was removed, together with pythonInterpolate in src/lib/desktop.js.
 
 
-class ValuedPoint3D(Point3D):
-    value: float
-
-
-# TASKS.csv #249 (security-specialist review) — /implicit-model already bounds its own inputs
-# (MAX_RESOLUTION_CELLS, surfaces max_length=12 below) but this endpoint had no upper bound on either
-# list's length. RBFInterpolator's factorization is roughly O(n^3) in sample-point count, so a very
-# large points/query list would do genuinely large synchronous work, blocking this single-process
-# server for other requests. Low severity — local-only, single-user, self-inflicted worst case (a
-# UI-triggered freeze against your own sidecar, not a security boundary crossed) — but a cheap guard.
-MAX_INTERPOLATE_POINTS = 50_000
-
-class InterpolateRequest(BaseModel):
-    points: List[ValuedPoint3D] = Field(
-        ..., min_length=1, max_length=MAX_INTERPOLATE_POINTS,
-        description="Known sample points with values — e.g. lithology-contact indicators (0/1), "
-                     "grade, or magnetic susceptibility.",
-    )
-    query: List[Point3D] = Field(..., min_length=1, max_length=MAX_INTERPOLATE_POINTS, description="Points to estimate a value at.")
-    method: Literal["rbf", "idw"] = "rbf"
-    rbf_function: Literal[
-        "linear", "thin_plate_spline", "cubic", "quintic",
-        "multiquadric", "inverse_multiquadric", "inverse_quadratic", "gaussian",
-    ] = "thin_plate_spline"
-    smoothing: float = 0.0
-    power: float = 2.0  # IDW only
-
-
-class InterpolateResponse(BaseModel):
-    values: List[float]
-
-
-@app.post("/interpolate", response_model=InterpolateResponse)
-def interpolate(req: InterpolateRequest) -> InterpolateResponse:
-    """General-purpose 3D scalar interpolation (RBF or IDW) between labelled sample points and
-    query points. A stepping stone toward implicit lithology modelling (TASKS.csv #29): feed it
-    contact points labelled inside/outside a unit, query a regular grid, and the returned scalar
-    field is isosurface-ready (client-side marching cubes is a separate, not-yet-built step). Also
-    directly useful today for contouring grade or magnetic susceptibility between drillholes.
-    """
-    pts = np.array([[p.x, p.y, p.z] for p in req.points], dtype=float)
-    vals = np.array([p.value for p in req.points], dtype=float)
-    query = np.array([[p.x, p.y, p.z] for p in req.query], dtype=float)
-
-    if req.method == "idw":
-        values = _idw(pts, vals, query, power=req.power)
-    else:
-        values = _rbf(pts, vals, query, function=req.rbf_function, smoothing=req.smoothing)
-    return InterpolateResponse(values=values.tolist())
-
-
-def _idw(pts: np.ndarray, vals: np.ndarray, query: np.ndarray, power: float) -> np.ndarray:
-    out = np.empty(len(query), dtype=float)
-    for i, q in enumerate(query):
-        d = np.linalg.norm(pts - q, axis=1)
-        coincident = d < 1e-9
-        if np.any(coincident):
-            out[i] = vals[coincident][0]  # query point lands exactly on a sample point
-            continue
-        w = 1.0 / (d ** power)
-        out[i] = float(np.sum(w * vals) / np.sum(w))
-    return out
-
-
-# ---------------------------------------------------------------------------------------------
 # TASKS.csv #29 — implicit surface generation via GemPy (gempy.org). First pass: a single
 # structural group (one erosion/onlap stack, no faults yet) of named surfaces, each built from
 # interface points (e.g. lithology contact picks along drillholes) and orientation data (e.g. the
@@ -561,18 +495,3 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
     return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block)
-
-
-def _rbf(pts: np.ndarray, vals: np.ndarray, query: np.ndarray, function: str, smoothing: float) -> np.ndarray:
-    from scipy.interpolate import RBFInterpolator
-
-    if len(pts) < 2:
-        raise HTTPException(status_code=400, detail="RBF interpolation needs at least 2 sample points.")
-    try:
-        rbf = RBFInterpolator(pts, vals, kernel=function, smoothing=smoothing)
-        return rbf(query)
-    except np.linalg.LinAlgError as err:
-        raise HTTPException(
-            status_code=400,
-            detail=f"RBF fit failed (often caused by duplicate/near-duplicate sample points): {err}",
-        )

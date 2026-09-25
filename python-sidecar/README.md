@@ -66,10 +66,6 @@ Only built/verified on Windows so far — macOS/Linux need their own PyInstaller
 ## Endpoints
 
 - `GET /health` — `{"status": "ok", ...}` when running.
-- `POST /interpolate` — general-purpose 3D scalar interpolation (RBF or IDW) between labelled
-  sample points and query points. See `app/main.py` for the exact request/response shape. A
-  stepping stone toward implicit lithology modelling, and directly useful today for contouring
-  grade or magnetic-susceptibility values between drillholes.
 - `POST /implicit-model` — implicit surface modelling via [GemPy](https://gempy.org) (TASKS.csv
   #29). Takes interface points + dip/azimuth orientation data for one or more named surfaces plus
   an extent/resolution, returns a triangle mesh (vertices + faces) per surface. Turned out to be a
