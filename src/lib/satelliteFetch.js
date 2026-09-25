@@ -134,12 +134,10 @@ export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, ta
     const [fromDef, toDef] = await Promise.all([getProj4Def(4326), getProj4Def(targetEpsg)]);
     if (fromDef && toDef) {
       const src = { xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, gridW, gridH };
-      const rR = reprojectGrid({ ...src, band: outR }, fromDef, toDef, gridW, gridH);
-      const rG = reprojectGrid({ ...src, band: outG }, fromDef, toDef, gridW, gridH);
-      const rB = reprojectGrid({ ...src, band: outB }, fromDef, toDef, gridW, gridH);
-      const rA = reprojectGrid({ ...src, band: outA }, fromDef, toDef, gridW, gridH);
-      outBbox = rR.bbox; outGridW = rR.gridW; outGridH = rR.gridH;
-      finalR = rR.elevations; finalG = rG.elevations; finalB = rB.elevations; finalA = rA.elevations;
+      // TASKS.csv #450 — one pass for all four channels (was four full reprojections, one per channel).
+      const rp = reprojectGrid({ ...src, bands: [outR, outG, outB, outA] }, fromDef, toDef, gridW, gridH);
+      outBbox = rp.bbox; outGridW = rp.gridW; outGridH = rp.gridH;
+      [finalR, finalG, finalB, finalA] = rp.bandsOut;
       reprojectedTo = Number(targetEpsg);
     } else {
       reprojectNote = `Fetched in WGS84 (lon/lat) — automatic reprojection to the project's EPSG:${targetEpsg} wasn't available (unrecognized EPSG code), so it's landing at raw lon/lat coordinates. Double-check it lines up with the rest of the project.`;

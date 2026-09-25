@@ -54,6 +54,25 @@ test("#416 reprojection still gives the same coordinates", () => {
   assert.ok(Math.abs(p.x - 432287.3539) < 0.01 && Math.abs(p.y - 6262271.5643) < 0.01);
 });
 
+import proj4 from "proj4";
+import { reprojectGrid, bilinearSample, getProj4DefSync } from "../src/lib/reproject.js";
+test("#450 approximate grid warp matches exact per-pixel projection", () => {
+  const N = 300, from = getProj4DefSync(4326), to = getProj4DefSync(32609);
+  const src = { xmin: -131, ymin: 56, xmax: -130, ymax: 57, gridW: N, gridH: N, band: new Float32Array(N * N).map((_, i) => Math.sin((i % N) / 7) * 100 + ((i / N) | 0)) };
+  const a = reprojectGrid(src, from, to, N, N);
+  const multi = reprojectGrid({ ...src, band: undefined, bands: [src.band] }, from, to, N, N);
+  const [txmin, tymin, txmax, tymax] = a.bbox, inv = proj4(to, from);
+  let maxd = 0;
+  for (let row = 0; row < N; row += 7) for (let col = 0; col < N; col++) {
+    const [lon, lat] = inv.forward([txmin + (col / (N - 1)) * (txmax - txmin), tymax - (row / (N - 1)) * (tymax - tymin)]);
+    const v = bilinearSample(src.band, N, N, src.xmin, src.ymin, src.xmax, src.ymax, lon, lat);
+    const got = a.elevations[row * N + col];
+    if (v !== null && !Number.isNaN(got)) maxd = Math.max(maxd, Math.abs(got - v));
+    assert.ok(Object.is(multi.bandsOut[0][row * N + col], got));
+  }
+  assert.ok(maxd < 0.05, `max diff ${maxd}`);
+});
+
 import { azimuthToGridOffset } from "../src/lib/azimuthRef.js";
 test("#396 azimuth reference offsets at the Harry property", () => {
   const x = 463333, y = 6178148;

@@ -270,7 +270,46 @@ export function bilinearSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
 // zone) the corner-bbox is a close approximation of the true (slightly non-rectangular) footprint —
 // same axis-aligned-grid tradeoff the rest of this app's raster/terrain model already makes (see
 // parseGXF's #ROTATION handling for the same reasoning applied to a different format).
-export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band }, fromDef, toDef, outW, outH) {
+// TASKS.csv #450 — GDAL-style approximate transformer for the per-pixel inverse projection. Along each
+// output row the source coordinates are projected exactly every APPROX_STEP pixels and linearly
+// interpolated in between; each span is checked at its midpoint against an exact projection, and a span
+// whose error exceeds the tolerance (source units; callers pass 1/8 of a source pixel), or that touches a
+// non-finite result, is projected exactly pixel by pixel instead. Over the few-km to one-degree extents
+// this app warps, UTM <-> geographic is smooth enough that nearly every span passes, which cuts the proj4
+// calls per row by ~8x. Returns a function(ty) that fills and returns that row's { sx, sy }.
+const APPROX_STEP = 16;
+function rowInverse(inv, txmin, txmax, outW, tolX, tolY) {
+  const sx = new Float64Array(outW), sy = new Float64Array(outW);
+  const txAt = (col) => txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
+  const exact = (col, ty) => { const p = inv.forward([txAt(col), ty]); sx[col] = p[0]; sy[col] = p[1]; };
+  return (ty) => {
+    if (outW <= APPROX_STEP * 2) { for (let c = 0; c < outW; c++) exact(c, ty); return { sx, sy }; }
+    exact(0, ty);
+    for (let c0 = 0; c0 < outW - 1;) {
+      const c1 = Math.min(outW - 1, c0 + APPROX_STEP);
+      exact(c1, ty);
+      const n = c1 - c0;
+      if (n > 1) {
+        const cm = (c0 + c1) >> 1, f = (cm - c0) / n;
+        const [mx, my] = inv.forward([txAt(cm), ty]);
+        const ok = Number.isFinite(sx[c0]) && Number.isFinite(sx[c1]) && Number.isFinite(mx) && Number.isFinite(my) &&
+          Math.abs(sx[c0] + (sx[c1] - sx[c0]) * f - mx) <= tolX && Math.abs(sy[c0] + (sy[c1] - sy[c0]) * f - my) <= tolY;
+        if (ok) {
+          const dx = (sx[c1] - sx[c0]) / n, dy = (sy[c1] - sy[c0]) / n;
+          for (let k = 1; k < n; k++) { sx[c0 + k] = sx[c0] + dx * k; sy[c0 + k] = sy[c0] + dy * k; }
+        } else {
+          for (let k = c0 + 1; k < c1; k++) exact(k, ty);
+        }
+      }
+      c0 = c1;
+    }
+    return { sx, sy };
+  };
+}
+
+// `band` (one array -> `elevations`) or `bands` (several same-shaped channels -> `bandsOut`; TASKS.csv
+// #450: satelliteFetch.js warps R, G, B and A in ONE pass instead of four).
+export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, bands }, fromDef, toDef, outW, outH) {
   const corners = [
     [xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax],
   ].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
@@ -278,18 +317,22 @@ export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band }, fr
   const txmin = arrMin(txs), txmax = arrMax(txs);
   const tymin = arrMin(tys), tymax = arrMax(tys);
 
-  const elevations = new Float32Array(outW * outH);
+  const srcBands = bands || [band];
+  const outs = srcBands.map(() => new Float32Array(outW * outH));
   const inv = converter(toDef, fromDef); // #416 — once, not per pixel
+  const row2src = rowInverse(inv, txmin, txmax, outW, (xmax - xmin) / Math.max(1, gridW - 1) / 8, (ymax - ymin) / Math.max(1, gridH - 1) / 8); // #450
   for (let row = 0; row < outH; row++) {
     const ty = tymax - (row / Math.max(1, outH - 1)) * (tymax - tymin); // row 0 = north
+    const { sx, sy } = row2src(ty);
     for (let col = 0; col < outW; col++) {
-      const tx = txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
-      const [lon, lat] = inv.forward([tx, ty]);
-      const v = bilinearSample(band, gridW, gridH, xmin, ymin, xmax, ymax, lon, lat);
-      elevations[row * outW + col] = v === null ? NaN : v;
+      for (let b = 0; b < srcBands.length; b++) {
+        const v = bilinearSample(srcBands[b], gridW, gridH, xmin, ymin, xmax, ymax, sx[col], sy[col]);
+        outs[b][row * outW + col] = v === null ? NaN : v;
+      }
     }
   }
-  return { bbox: [txmin, tymin, txmax, tymax], gridW: outW, gridH: outH, elevations };
+  const res = { bbox: [txmin, tymin, txmax, tymax], gridW: outW, gridH: outH };
+  return bands ? { ...res, bandsOut: outs } : { ...res, elevations: outs[0] };
 }
 
 // TASKS.csv #287 (QGIS-specialist review, headline finding) — the RGBA-image sibling of reprojectGrid
@@ -318,11 +361,12 @@ export function reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data
 
   const out = new Uint8ClampedArray(outW * outH * 4);
   const inv = converter(toDef, fromDef); // #416 — once, not per pixel
+  const row2src = rowInverse(inv, txmin, txmax, outW, (xmax - xmin) / Math.max(1, width - 1) / 8, (ymax - ymin) / Math.max(1, height - 1) / 8); // #450
   for (let row = 0; row < outH; row++) {
     const ty = tymax - (row / Math.max(1, outH - 1)) * (tymax - tymin); // row 0 = north, same top-down convention as raster.js
+    const rowSrc = row2src(ty);
     for (let col = 0; col < outW; col++) {
-      const tx = txmin + (col / Math.max(1, outW - 1)) * (txmax - txmin);
-      const [sx, sy] = inv.forward([tx, ty]);
+      const sx = rowSrc.sx[col], sy = rowSrc.sy[col];
       if (sx < xmin || sx > xmax || sy < ymin || sy > ymax) continue; // leaves alpha 0
       const px = Math.min(width - 1, Math.max(0, Math.round(((sx - xmin) / (xmax - xmin)) * (width - 1))));
       const py = Math.min(height - 1, Math.max(0, Math.round(((ymax - sy) / (ymax - ymin)) * (height - 1))));
