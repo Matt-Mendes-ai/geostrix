@@ -10,7 +10,7 @@ Electron spawns this automatically (`electron/main.js` `startPythonSidecar`) usi
 `python` on Windows) found on your PATH, on `127.0.0.1:8765`. Install dependencies once:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -c constraints.txt
 ```
 
 To run it standalone for testing (not through Electron):

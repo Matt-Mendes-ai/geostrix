@@ -46,7 +46,7 @@ echo.
 
 echo Installing dependencies ^(this pulls in gempy - may take a few minutes^)...
 "%~dp0venv\Scripts\python.exe" -m pip install --upgrade pip >nul
-"%~dp0venv\Scripts\python.exe" -m pip install -r "%~dp0requirements.txt"
+"%~dp0venv\Scripts\python.exe" -m pip install -r "%~dp0requirements.txt" -c "%~dp0constraints.txt"
 if errorlevel 1 (
     echo [X] pip install failed - see the error above.
     pause

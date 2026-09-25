@@ -37,7 +37,7 @@ jobs:
         run: |
           python -m venv venv
           venv\Scripts\python.exe -m pip install --upgrade pip
-          venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller
+          venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller -c constraints.txt
       # TASKS.csv #443 — never ship a build whose maths tests fail: JS logic tests, then the SimPEG
       # potential-field acceptance tests against the exact venv that gets frozen.
       - name: JS logic tests
