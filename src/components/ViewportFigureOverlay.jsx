@@ -114,10 +114,18 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   if (!config.enabled) return null;
 
   const items = [];
-  (legendGroups || []).forEach((g) => g.items.forEach(([label, color]) => items.push({ label, color, group: g.label })));
+  // TASKS.csv #381 — short groups (assay grade classes, a few-category layer) go first so a long
+  // lithology list cannot push them past the item cap; the sort is stable, so equal sizes keep order.
+  // With more than one group, each group's first row carries its heading.
+  const swatchGroups = (legendGroups || []).filter((g) => g.items.length).map((g, i) => ({ g, i })).sort((a, b) => (a.g.items.length - b.g.items.length) || (a.i - b.i)).map((x) => x.g);
+  const multi = swatchGroups.length > 1;
+  swatchGroups.forEach((g) => g.items.forEach(([label, color], k) => items.push({ label, color, group: g.label, head: multi && k === 0 })));
   const shown = items.slice(0, MAX_LEGEND_ITEMS);
   const hiddenCount = items.length - shown.length;
-  const showLegend = config.legend && items.length > 0;
+  // TASKS.csv #381 — continuous keys (block models, geophysics points): gradient bar + min/max.
+  const ramps = (legendGroups || []).filter((g) => g.ramp).slice(0, 4);
+  const showLegend = config.legend && (items.length > 0 || ramps.length > 0);
+  const fmtR = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
   const showTitle = config.title && !!title;
 
   return (
@@ -134,16 +142,28 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
         <div style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
           <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>Legend</div>
           {shown.map((it, i) => (
-            <div key={`${it.group}|${it.label}|${i}`} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
+            <React.Fragment key={`${it.group}|${it.label}|${i}`}>
+            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{it.group}</div>}
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 12, height: 12, flexShrink: 0, background: it.color, border: "1px solid var(--color-border-light)", borderRadius: 2 }} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${it.group}: ${it.label}`}>{it.label}</span>
             </div>
+            </React.Fragment>
           ))}
           {hiddenCount > 0 && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>
               + {hiddenCount} more not shown — filter categories, or build the figure in Layout
             </div>
           )}
+          {ramps.map((g) => (
+            <div key={g.key} style={{ marginTop: 6 }}>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}</div>
+              <div style={{ height: 9, width: 180, borderRadius: 2, border: "1px solid var(--color-border-light)", background: g.ramp.discrete ? `linear-gradient(to right, ${g.ramp.colors.map((c, i, a) => `${c} ${(100 * i) / a.length}% ${(100 * (i + 1)) / a.length}%`).join(", ")})` : `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }} />
+              <div style={{ display: "flex", justifyContent: "space-between", width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+                <span>{fmtR(g.ramp.min)}</span><span>{fmtR(g.ramp.max)}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
       {showScale && (

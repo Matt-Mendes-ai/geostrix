@@ -2131,8 +2131,53 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       if (items.length) groups.push({ key, label: LAYER_META[key].label, items: items.sort((a, b) => String(a[0]).localeCompare(String(b[0]))) });
     });
+    // TASKS.csv #381 — keys for what the list above left out. Assay grade classes are discrete, so they
+    // are swatch rows (one per class, with its grade range); an element with no classes gets one swatch
+    // saying size shows grade. Block models and geophysics points are continuous (or classed stops):
+    // a `ramp` group, drawn as a small gradient bar with its min and max, sampled through the same
+    // colorForVoxelValue the scene uses so the key cannot disagree with the colours on screen.
+    const fmt = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
+    if (assayVisible && assayDisplayElements.length && (assays || []).length) {
+      const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
+      assayDisplayElements.forEach((sym, idx) => {
+        const style = assayStyle[sym];
+        const unit = unitOf[sym] || "";
+        let items;
+        if (style?.breaks?.length) {
+          items = style.breaks.map((b, i) => {
+            const lo = i ? style.breaks[i - 1].max : null;
+            const last = i === style.breaks.length - 1;
+            const label = lo == null ? `≤ ${fmt(b.max)} ${unit}` : last ? `> ${fmt(lo)} ${unit}` : `${fmt(lo)}–${fmt(b.max)} ${unit}`;
+            return [label, b.color];
+          });
+        } else {
+          items = [[`${sym} (sphere size = grade)`, assayColorFor(0, idx, style)]];
+        }
+        if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
+        groups.push({ key: `assay_${sym}`, label: `${sym} (${unit})`, items });
+      });
+    }
+    const ramp = (model, lo, hi) => {
+      const n = 7;
+      return { min: lo, max: hi, discrete: model.colorMode === "discrete", colors: Array.from({ length: n }, (_, i) => colorForVoxelValue(model, lo + ((hi - lo) * i) / (n - 1))) };
+    };
+    (voxelModels || []).forEach((m) => {
+      if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
+      const lo = Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min;
+      const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
+      groups.push({ key: `voxel_${m.id}`, label: m.name, items: [], ramp: ramp(m, lo, hi) });
+    });
+    const gpts = layers?.geophys_pts || [];
+    if (layerVisible.geophys_pts && gpts.length) {
+      const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
+      if (vals.length) {
+        const mm = minMax(vals);
+        const model = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? mm.min, max: geophysPtsMax ?? mm.max };
+        groups.push({ key: "geophys_pts", label: LAYER_META.geophys_pts?.label || "Geophysics points", items: [], ramp: ramp(model, model.min, model.max) });
+      }
+    }
     return groups;
-  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor]);
+  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #311 — title provenance, kept as simple as the row asks for: the project name by
   // default, overridable with a free-text field in the Figure popover (a figure is often "Section
@@ -8009,7 +8054,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <ViewToolbar
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
-          figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length, 0)}
+          figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)}
           themes={themes} themeNameDraft={themeNameDraft} setThemeNameDraft={setThemeNameDraft}
           captureCurrentTheme={captureCurrentTheme} applyTheme={applyTheme}
           renamingThemeId={renamingThemeId} setRenamingThemeId={setRenamingThemeId}
