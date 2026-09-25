@@ -14,6 +14,7 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -5084,9 +5085,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, []);
   const renameDomain = useCallback((id, name) => setDomains((p) => p.map((d) => d.id === id ? { ...d, name } : d)), []);
   const deleteDomain = useCallback((id) => {
+    const dom = (modelDomains || []).find((d) => d.id === id); // TASKS.csv #386
+    if (!confirmDestructive(`Delete model domain "${dom?.name || "domain"}" and its fault-side constraints?`)) return;
     setDomains((p) => p.filter((d) => d.id !== id));
     if (modelDomainId === id) setModelDomainId("");
-  }, [modelDomainId]);
+  }, [modelDomainId, modelDomains]);
   const addDomainConstraint = useCallback((domainId, faultId, side) => {
     if (!faultId) return;
     setDomains((p) => p.map((d) => {
@@ -7290,7 +7293,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const clearLayer = (layerKey) => {
     const n = (layers[layerKey] || []).length;
     if (!n) return;
-    if (!window.confirm(`Remove all ${n} row(s) from "${LAYER_META[layerKey].label}"? This can't be undone.`)) return;
+    if (!confirmDestructive(`Remove all ${n} row(s) from "${LAYER_META[layerKey].label}"?`, { undoable: true })) return; // #386: layers are in Undo
     setLayers((p) => ({ ...p, [layerKey]: [] }));
     setNotices((p) => [...p, `Cleared ${n} row(s) from ${LAYER_META[layerKey].label}.`]);
   };
@@ -7457,13 +7460,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // like data loss even though it isn't — the warning says so explicitly.
   const clearCollars = () => {
     if (!collars.length) return;
-    if (!window.confirm(`Remove all ${collars.length} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against). This can't be undone.`)) return;
+    if (!confirmDestructive(`Remove all ${collars.length} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).`, { undoable: true })) return; // #386
     setCollars([]);
     setNotices((p) => [...p, `Cleared ${collars.length} collar(s).`]);
   };
   const clearSurvey = () => {
     if (!survey.length) return;
-    if (!window.confirm(`Remove all ${survey.length} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip. This can't be undone.`)) return;
+    if (!confirmDestructive(`Remove all ${survey.length} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.`, { undoable: true })) return; // #386
     setSurvey([]);
     setNotices((p) => [...p, `Cleared ${survey.length} survey station(s).`]);
   };
@@ -8125,7 +8128,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   style={{ width: 46, flexShrink: 0 }} title="Opacity"
                 />
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeVoxelModel(v.id), `Remove block/voxel model "${v.name}"`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); }, `Remove block/voxel model "${v.name}"`)} />
               </div>
             ))}
           </>
@@ -8298,7 +8301,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Cross-sections ({sections.length})</span>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
-                  onClick={() => { if (window.confirm(`Delete all ${sections.length} section(s) and any contacts drawn on them? This can't be undone from here.`)) deleteAllSections(); }}
+                  onClick={() => { if (confirmDestructive(`Delete all ${sections.length} section(s) and any contacts drawn on them?`, { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
                   title="Delete every section and section group"
                 >Delete all</span>
@@ -9083,7 +9086,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeImplicitSurface(s.id), `Remove surface "${s.name}"`)} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); }, `Remove surface "${s.name}"`)} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
@@ -10151,7 +10154,7 @@ function ViewToolbar({
                     </div>
                   )}
                   <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
-                  <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteTheme(t.id), `Delete theme "${t.name}"`)} />
+                  <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Delete theme "${t.name}"?`)) deleteTheme(t.id); }, `Delete theme "${t.name}"`)} />
                 </div>
               ))}
             </div>

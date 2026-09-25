@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "lucide-react";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
@@ -818,7 +819,7 @@ export default function LayoutModule() {
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{t.elements.length} el.</span>
-                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => deleteLayoutTemplate(t.id)} aria-label={`Delete template "${t.name}"`} title={`Delete template "${t.name}"`} />
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(`Delete template "${t.name}"?`)) deleteLayoutTemplate(t.id); }} aria-label={`Delete template "${t.name}"`} title={`Delete template "${t.name}"`} />
               </div>
             ))}
           </div>
