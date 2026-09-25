@@ -21,7 +21,11 @@ function cspPlugin() {
       order: "post",
       handler(html) {
         const hashes = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
-          .map((m) => `'sha256-${createHash("sha256").update(m[1], "utf8").digest("base64")}'`);
+          // v0.1.19 hotfix — hash the script with LF line endings. The browser hashes the inline script AFTER
+          // the HTML parser has normalised CRLF to LF. A Windows CI checkout (core.autocrlf) gives this hook
+          // CRLF text, so the hash never matched, the CSP blocked the splash script, and the installed app
+          // stayed on the splash screen forever (the app itself had loaded underneath it).
+          .map((m) => `'sha256-${createHash("sha256").update(m[1].replace(/\r\n?/g, "\n"), "utf8").digest("base64")}'`);
         const csp = [
           "default-src 'self'",
           `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(" ")}`,

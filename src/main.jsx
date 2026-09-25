@@ -47,4 +47,7 @@ if (route === "/section") {
 // index.html's own splash screen (see its header comment) — hidden once React has actually
 // committed a first render, not on a timer. __hideSplash itself waits two animation frames before
 // fading out, so this fires as soon as possible after render() without racing the first real paint.
-window.__hideSplash?.();
+// If the splash script never ran (e.g. blocked by the CSP — the v0.1.19 splash bug), remove the splash
+// directly so a working app is never hidden behind it.
+if (window.__hideSplash) window.__hideSplash();
+else document.getElementById("splash")?.remove();
