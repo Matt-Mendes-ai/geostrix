@@ -11,6 +11,8 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
+import { version as APP_VERSION } from "../../package.json";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
@@ -24,7 +26,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace
+  const { desurveyMethod, project } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -126,7 +128,18 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : r.extras[s].toFixed(3)])),
       assay_intervals: r.intervals,
     }));
-    saveFile({ suggestedName: `best_intercepts_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
+    // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
+    const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Element: ${symbol} (${unit}) | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,
+      `Grades: length-weighted over assayed metres; unsampled/unassayed metres inside an intercept are reported per row, not diluted in at zero.`,
+      `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
+      ASSAY_READING_RULES,
+      twEnabled ? `True width: from a ${twDipDir}/${twDip} (dip direction/dip) structure against hole traces desurveyed by ${desurveyMethod || "minimum curvature"}` : "True width: not computed (lengths are downhole)",
+      domainLayer ? `Host domain from layer: ${domainLayer}` : null,
+      extraSymbols.length ? `Also averaged over each intercept: ${extraSymbols.join(", ")}` : null,
+      `Intercepts: ${results.length}`,
+    ] });
+    saveFile({ suggestedName: `best_intercepts_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
   };
 
   return (

@@ -401,7 +401,7 @@ function normSurvey(r) {
 // deliberately did NOT do) — see src/lib/numberLocale.js for the heuristic and why it's shaped that way.
 function parseCSV(file, onDone) {
   Papa.parse(file, {
-    header: true, dynamicTyping: true, skipEmptyLines: true,
+    header: true, dynamicTyping: true, skipEmptyLines: true, comments: "#", // #404: skip GeoStrix's own parameter stamp
     complete: (res) => { const { rows, note } = normalizeCommaDecimals(res.data); onDone(rows, null, note); },
     error: (err) => onDone(null, err.message),
   });

@@ -158,7 +158,17 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
         });
-        setResult({ ...est, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
+        // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
+        // "Add to project"), and travel with the block model into the project file.
+        const params = {
+          tool: "Grade estimation", element: symbol, method, cellSizeM: cellSize, paddingM: padding,
+          searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
+          minSamples, maxSamples, minHoles,
+          composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
+          capValue: Number.isFinite(cap) ? cap : null, includeQAQC, domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
+          desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
+        };
+        setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); // a fresh run invalidates both "Added ✓" states
       } catch (e) {
         setError(e.message || "Estimation failed.");
@@ -179,13 +189,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
       name: `${base} — Data Support Index (geometric, not a confidence)`,
       source: `support-index-${method}`,
       cells: result.cells.map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.supportIndex, nSamples: c.nSamples, nHoles: c.nHoles, support: c.support })),
+      params: { ...result.params, value: "Data Support Index (geometric, 0-1)" }, // TASKS.csv #404
     });
     setAddedSupport(true);
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
-    onAddModel({ name, source: `estimate-${method}`, cells: result.cells });
+    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, params: result.params }); // params: TASKS.csv #404
     setAdded(true);
   };
 

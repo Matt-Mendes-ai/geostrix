@@ -82,7 +82,7 @@ export default function GeochemModule() {
 
   const handleFile = (file, isPxrf) => {
     Papa.parse(file, {
-      header: true, dynamicTyping: true, skipEmptyLines: true,
+      header: true, dynamicTyping: true, skipEmptyLines: true, comments: "#", // #404: skip GeoStrix's own parameter stamp
       complete: (res) => {
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval

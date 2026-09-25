@@ -3,6 +3,8 @@ import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { compositeDownhole, countDuplicateAssayIntervals } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
+import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
+import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -69,7 +71,16 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       coverage_pct: (r.coverage * 100).toFixed(0),
       ...(domainKey ? { [domainMeta.label]: r.domain != null ? domainLabel(r.domain) : "" } : {}),
     }));
-    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
+    // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
+    const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, params: [
+      `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capValue === "" ? "none" : `${capValue} ${unit} (applied to raw intervals before compositing)`}`,
+      `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
+      `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
+      dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
+      ASSAY_READING_RULES,
+      `Composites: ${results.length}`,
+    ] });
+    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
   };
 
   return (

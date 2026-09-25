@@ -1369,7 +1369,14 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
     opacityDebounceRef.current = setTimeout(() => onUpdate(model.id, { opacity: v }), 150);
   };
   const visibleCount = model.cells.filter((c) => c.value >= displayThreshold).length;
-  const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : "CSV";
+  // TASKS.csv #404 — estimated / support-index models were labelled "CSV"; they now say what they are,
+  // and hovering the label shows the parameters that produced them.
+  const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
+    : String(model.source || "").startsWith("estimate-") ? "Estimate" : String(model.source || "").startsWith("support-index-") ? "Support index" : "CSV";
+  const p = model.params;
+  const paramsTitle = p && p.tool === "Grade estimation"
+    ? `${p.tool}: ${p.element}, ${p.method}, ${p.cellSizeM} m cells, search ${p.searchRadiusM} m${p.searchRadiusWasUnlimited ? " (unlimited, capped at grid diagonal)" : ""}, ${p.minSamples}-${p.maxSamples} samples, min ${p.minHoles} holes, ${p.composited ? `${p.compositeLengthM} m composites (min coverage ${Math.round((p.minCoverage || 0) * 100)}%)` : "raw intervals"}, cap ${p.capValue ?? "none"}, QAQC ${p.includeQAQC ? "included" : "excluded"}${p.domain ? `, domain ${p.domain}${p.restrictToDomain ? " (restricted)" : ""}` : ""}, desurvey ${p.desurveyMethod}, ${p.samplePoints} sample points, ${p.generatedAt}${p.value ? `. Values: ${p.value}` : ""}. Not a Mineral Resource estimate.`
+    : undefined;
   return (
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -1377,7 +1384,7 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
-        <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
+        <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
