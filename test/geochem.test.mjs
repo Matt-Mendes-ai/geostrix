@@ -89,3 +89,17 @@ test("#403 whole-rock oxide headers are recognised and stored as element wt%", (
   assert.ok(Math.abs(toOxide(fromOxideHeader(10, "Fe2O3T"), "Fe") - 8.998) < 0.01);
   assert.equal(fromOxideHeader(5, "Cu_ppm"), 5);
 });
+
+import { correlate } from "../src/lib/correlation.js";
+test("#405 Spearman and log correlation resist a single extreme sample", () => {
+  // independent-ish noise plus one shared outlier (a multi-element standard left in)
+  const xs = [1, 3, 2, 5, 4, 2, 3, 1, 4, 5, 1000], ys = [4, 1, 5, 2, 3, 3, 1, 5, 2, 4, 1000];
+  const raw = correlate(xs, ys, "pearson").r, sp = correlate(xs, ys, "spearman").r;
+  assert.ok(raw > 0.99, `raw ${raw}`);        // the outlier alone makes raw Pearson ~1
+  assert.ok(Math.abs(sp) < 0.4, `spearman ${sp}`);
+  // Spearman equals Pearson on ranks with ties averaged; monotone transform -> 1
+  assert.ok(Math.abs(correlate([1, 2, 2, 3], [10, 20, 20, 1000], "spearman").r - 1) < 1e-12);
+  // log mode drops non-positive values and reports n
+  const lg = correlate([0, 1, 10, 100], [5, 1, 10, 100], "log");
+  assert.equal(lg.n, 3); assert.ok(Math.abs(lg.r - 1) < 1e-12);
+});

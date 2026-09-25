@@ -7,21 +7,16 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
+import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
 // toward THAT pair — it can still count toward other pairs where both values are present), which is
 // the standard approach for a correlation matrix over messy real assay data rather than dropping any
 // row missing ANY element (which would often gut the dataset down to almost nothing).
-function pearson(xs, ys) {
-  const n = xs.length;
-  if (n < 2) return null;
-  const mx = xs.reduce((s, v) => s + v, 0) / n, my = ys.reduce((s, v) => s + v, 0) / n;
-  let sxy = 0, sxx = 0, syy = 0;
-  for (let i = 0; i < n; i++) { const dx = xs[i] - mx, dy = ys[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
-  if (sxx === 0 || syy === 0) return null;
-  return sxy / Math.sqrt(sxx * syy);
-}
+const METHOD_LABEL = { spearman: "Spearman rank", log: "Pearson on log10 values (values ≤ 0 left out)", pearson: "Pearson on raw values" };
+const MIN_PAIRS = 10;
 
 // Diverging red(-1) - white(0) - blue(+1) scale, a common convention for correlation heatmaps.
 function cellColor(r) {
@@ -36,9 +31,14 @@ function cellColor(r) {
   return `rgb(${rr},${g},${Math.round(255 - at * 70)})`;
 }
 
-export default function CorrelationMatrix({ assays, assayElements, onClose }) {
+export default function CorrelationMatrix({ assays: allAssays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
+  // TASKS.csv #405 — QAQC inserts are never samples of the ground; Spearman by default.
+  const [includeQAQC, setIncludeQAQC] = useState(false);
+  const [method, setMethod] = useState("spearman");
+  const assays = useMemo(() => (includeQAQC ? allAssays : excludeQAQC(allAssays)), [allAssays, includeQAQC]);
+  const qaqcCount = useMemo(() => allAssays.length - excludeQAQC(allAssays).length, [allAssays]);
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
@@ -59,25 +59,28 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
     symbols.forEach((a) => {
       m[a] = {};
       symbols.forEach((b) => {
-        if (a === b) { m[a][b] = 1; return; }
         const xs = [], ys = [];
         const ca = columns[a], cb = columns[b];
         for (let i = 0; i < assays.length; i++) {
           if (ca[i] != null && cb[i] != null) { xs.push(ca[i]); ys.push(cb[i]); }
         }
-        m[a][b] = pearson(xs, ys);
+        const c = correlate(xs, ys, method);
+        m[a][b] = a === b ? { r: c.n >= 2 ? 1 : null, n: c.n } : c;
       });
     });
     return m;
-  }, [symbols, columns, assays.length]);
+  }, [symbols, columns, assays.length, method]);
 
   const exportCSV = () => {
     const rows = symbols.map((a) => {
       const row = { element: a };
-      symbols.forEach((b) => { row[b] = matrix[a][b] == null ? "" : matrix[a][b].toFixed(3); });
+      symbols.forEach((b) => { row[b] = matrix[a][b].r == null ? "" : matrix[a][b].r.toFixed(3); });
       return row;
     });
-    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
+    const nRows = symbols.map((a) => { const row = { element: `n: ${a}` }; symbols.forEach((b) => { row[b] = matrix[a][b].n; }); return row; });
+    // TASKS.csv #405 — the file says what it is: method, QAQC handling, pairwise n.
+    const basis = `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`;
+    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${Papa.unparse(rows)}\n\n${Papa.unparse(nRows)}` });
   };
 
   return (
@@ -86,12 +89,25 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Multi-element correlation matrix</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Pearson r, pairwise deletion for missing values — {assays.length} intervals loaded.</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{METHOD_LABEL[method]}, pairwise deletion — {assays.length} intervals{includeQAQC ? " (QAQC inserts included)" : qaqcCount ? `, ${qaqcCount} QAQC rows excluded` : ""}. Cells with fewer than {MIN_PAIRS} pairs are greyed.</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              Method
+              <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ fontSize: "var(--font-size-base)" }}>
+                <option value="spearman">Spearman rank (default)</option>
+                <option value="log">Pearson, log10 values</option>
+                <option value="pearson">Pearson, raw values</option>
+              </select>
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} /> Include QAQC inserts{qaqcCount ? ` (${qaqcCount})` : ""}
+            </label>
+          </div>
           <div>
             <div style={label}>Elements ({symbols.length} of {allSymbols.length} selected)</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -120,9 +136,10 @@ export default function CorrelationMatrix({ assays, assayElements, onClose }) {
                     <tr key={a}>
                       <th style={rowHead}>{a}</th>
                       {symbols.map((b) => {
-                        const r = matrix[a][b];
+                        const { r, n } = matrix[a][b];
+                        const thin = n < MIN_PAIRS;
                         return (
-                          <td key={b} title={`${a} vs ${b}: r = ${r == null ? "n/a" : r.toFixed(3)}`} style={{ ...cell, background: cellColor(r) }}>
+                          <td key={b} title={`${a} vs ${b}: r = ${r == null ? "n/a" : r.toFixed(3)} (n = ${n} pairs${thin ? ", too few to trust" : ""})`} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
                             {r == null ? "—" : r.toFixed(2)}
                           </td>
                         );
