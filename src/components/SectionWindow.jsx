@@ -247,7 +247,7 @@ function btnStyle(active) {
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
 function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef }) {
-  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [] } = data;
+  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "" } = data;
   const W = SECTION_W, PAD = 60;
   if (!section) return null;
 
@@ -269,6 +269,7 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
   // traces). Folded into the same min/max-elevation pass as everything else, so a voxel model that
   // extends above/below the visible collars doesn't get silently clipped off the page.
   voxelSlices.forEach((vs) => vs.rects.forEach((r) => { minZ = Math.min(minZ, r.z0); maxZ = Math.max(maxZ, r.z1); }));
+  plannedHoles.forEach((h) => h.trace.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); })); // #395
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
   const zPad = (maxZ - minZ) * 0.08 || 10;
   minZ -= zPad; maxZ += zPad;
@@ -337,12 +338,25 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
         </g>
       )}
 
-      {elevTicks(minZ, maxZ).map((z, i) => (
+      {/* TASKS.csv #393 — round-number elevation ticks (were 8 equal steps: 612 / 683 / 754 ...) and a
+          distance axis with ticks, plus the section's end coordinates and title/azimuth/VE drawn INSIDE
+          the figure, so an exported PNG/SVG/PDF still says where and what it is. */}
+      {niceTicks(minZ, maxZ, 8).map((z, i) => (
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{z.toFixed(0)}</text>
+          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize="10" textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
+      {niceTicks(0, maxL, 8).filter((l) => l >= 0 && l <= maxL).map((l, i) => (
+        <g key={`d${i}`}>
+          <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
+          <text x={sx(l)} y={H - PAD + 14} fill="#65717e" fontSize="10" textAnchor="middle">{l.toFixed(0)}</text>
+        </g>
+      ))}
+      <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
+      <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
+      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || "Cross-section"}</text>
+      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{`Azimuth ${Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0)}° · ${vExag && vExag !== 1 ? `${vExag}x vertical exaggeration` : "no vertical exaggeration"}${section.corridor ? ` · holes within ±${section.corridor} m` : ""} · elevation in m`}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -370,6 +384,27 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
           <g key={hi}>
             <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2" />
             <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}</text>
+          </g>
+        );
+      })}
+
+      {/* TASKS.csv #357 — model surfaces / imported solids cut by the section plane. */}
+      {surfaceTraces.length > 0 && (
+        <g clipPath="url(#sectionPlotArea)">
+          {surfaceTraces.map((st) => (
+            <g key={st.id}>
+              <path d={st.segs.map((sg) => `M${sx(sg[0]).toFixed(1)},${sz(sg[1]).toFixed(1)}L${sx(sg[2]).toFixed(1)},${sz(sg[3]).toFixed(1)}`).join("")} stroke={st.color} strokeWidth="2" fill="none" strokeLinecap="round"><title>{`Model surface: ${st.name}`}</title></path>
+            </g>
+          ))}
+        </g>
+      )}
+      {/* TASKS.csv #395 — planned holes, dashed. */}
+      {plannedHoles.map((ph, i) => {
+        const pts = ph.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
+        return (
+          <g key={`ph${i}`}>
+            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{`Planned hole: ${ph.name}`}</title></polyline>
+            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#b06a1f" fontSize="10" textAnchor="middle">{ph.name} (planned)</text>
           </g>
         );
       })}
@@ -441,4 +476,13 @@ function interpTrace(trace, md) {
   }
   return trace[trace.length - 1];
 }
-function elevTicks(min, max) { const n = 8, step = (max - min) / n; return Array.from({ length: n + 1 }, (_, i) => min + i * step); }
+// TASKS.csv #393 — round-number ticks (1, 2, 2.5 or 5 x 10^k) covering [min, max], about `count` of them.
+function niceTicks(min, max, count) {
+  const span = max - min;
+  if (!(span > 0)) return [min];
+  const raw = span / count, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v / step) * step);
+  return out;
+}

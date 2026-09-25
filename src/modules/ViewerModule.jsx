@@ -7608,7 +7608,49 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     });
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
 
-    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices };
+    // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
+    // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
+    // now see the surface they are correcting on the section they draw contacts on, the Leapfrog/Micromine
+    // edit loop. Segments come back in section coordinates (l along the line, z elevation), clipped to the
+    // drawn extent. Scene -> world: E = x + ox, N = oy - z, Z = y + oz.
+    const surfaceTraces = [];
+    {
+      const o = originRef.current;
+      const nx = -secUy, ny = secUx; // horizontal normal of the section plane
+      const nameOf = Object.fromEntries((implicitSurfaces || []).map((sf) => [sf.id, sf.name]));
+      Object.entries(implicitMeshesRef.current || {}).forEach(([id, mesh]) => {
+        if (!mesh?.visible || !mesh.geometry?.attributes?.position) return;
+        const pos = mesh.geometry.attributes.position.array;
+        const index = mesh.geometry.index ? mesh.geometry.index.array : null;
+        const triCount = index ? index.length / 3 : pos.length / 9;
+        const segs = [];
+        const P = (vi) => { const E = pos[vi * 3] + o.x, N = o.y - pos[vi * 3 + 2], Z = pos[vi * 3 + 1] + o.z; return { l: along(E, N), d: (E - a.x) * nx + (N - a.y) * ny, z: Z }; };
+        for (let t = 0; t < triCount; t++) {
+          const i0 = index ? index[t * 3] : t * 3, i1 = index ? index[t * 3 + 1] : t * 3 + 1, i2 = index ? index[t * 3 + 2] : t * 3 + 2;
+          const v = [P(i0), P(i1), P(i2)];
+          const cut = [];
+          for (let e = 0; e < 3; e++) {
+            const p = v[e], q = v[(e + 1) % 3];
+            if ((p.d <= 0 && q.d > 0) || (p.d > 0 && q.d <= 0)) {
+              const f = p.d / (p.d - q.d);
+              cut.push([p.l + (q.l - p.l) * f, p.z + (q.z - p.z) * f]);
+            }
+          }
+          if (cut.length === 2 && !(cut[0][0] < 0 && cut[1][0] < 0) && !(cut[0][0] > secLen && cut[1][0] > secLen)) segs.push([cut[0][0], cut[0][1], cut[1][0], cut[1][1]]);
+        }
+        if (segs.length) surfaceTraces.push({ id, name: nameOf[id] || String(mesh.userData?.tip || id).split("\n")[0], color: `#${(mesh.material?.color?.getHex?.() ?? 0xc8a24a).toString(16).padStart(6, "0")}`, segs });
+      });
+    }
+    // TASKS.csv #395 — planned holes within the corridor, drawn dashed on the section (targeting is done on
+    // sections: the next hole goes under the last intercept).
+    const plannedOnSection = [];
+    (plannedHoles || []).forEach((h) => {
+      const tr = plannedHoleTrace(h);
+      if (!tr?.length || !tr.some((p) => distToSegment(p.x, p.y, a.x, a.y, b.x, b.y) <= corridor)) return;
+      plannedOnSection.push({ name: h.name || h.id, trace: tr.map((p) => ({ x: p.x, y: p.y, z: p.z })) });
+    });
+
+    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection };
   };
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
@@ -7621,7 +7663,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const launchSection = () => {
     const [a, b] = sectionPts.current;
     const corridor = sectionCorridor;
-    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices } = buildSectionPayload(a, b, corridor);
+    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, corridor);
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const name = `Section ${azimuth.toFixed(0)}°`;
     upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor, contacts: [] });
@@ -7630,14 +7672,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // of a freeform typed name (see SectionWindow.jsx's finishContact comment for why: a contact tied
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
     // contacts into 3D surface generation as real interface points later).
-    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices });
+    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection });
   };
 
   const reopenSection = useCallback((s) => {
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices } = buildSectionPayload(a, b, s.corridor, s.scope || {});
-    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices });
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels]);
+    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, s.corridor, s.scope || {});
+    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection });
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles]);
 
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
   // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel
