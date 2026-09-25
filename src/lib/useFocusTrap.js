@@ -16,7 +16,19 @@ import { useEffect, useRef } from "react";
 // DOM" is exactly the topmost/most-recently-mounted dialog, the one that should own Tab focus).
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// TASKS.csv #387 follow-up — "last in the DOM" is not always the most recently opened dialog (a dialog
+// rendered earlier in the tree, e.g. Shortcuts from App's status bar, sits BEFORE one opened from a
+// module). Each trap now claims the dialog that appeared when it mounted and keeps it on a mount-order
+// stack; the top of that stack owns Tab. Falls back to the old DOM-order rule if nothing was claimed.
+const claimed = new WeakSet();
+const trapStack = [];
+function claimNewDialog() {
+  const all = Array.from(document.querySelectorAll('[role="dialog"]'));
+  for (let i = all.length - 1; i >= 0; i--) if (!claimed.has(all[i])) { claimed.add(all[i]); return all[i]; }
+  return null;
+}
 function topDialog() {
+  for (let i = trapStack.length - 1; i >= 0; i--) { const el = trapStack[i].el; if (el && document.contains(el)) return el; }
   const all = document.querySelectorAll('[role="dialog"]');
   return all.length ? all[all.length - 1] : null;
 }
@@ -31,7 +43,10 @@ export function useFocusTrap(enabled = true) {
     prevFocusRef.current = document.activeElement;
     // Move focus into the dialog on open — a small delay-free rAF so this runs after the dialog's own
     // first paint (its focusable children need to actually exist in the DOM to query for them).
+    const entry = { el: null };
+    trapStack.push(entry);
     const raf = requestAnimationFrame(() => {
+      entry.el = claimNewDialog();
       const dialog = topDialog();
       if (!dialog) return;
       const focusables = visibleFocusables(dialog);
@@ -51,6 +66,8 @@ export function useFocusTrap(enabled = true) {
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("keydown", handler);
+      const i = trapStack.indexOf(entry);
+      if (i >= 0) trapStack.splice(i, 1);
       // Return focus to whatever triggered the modal (a toolbar button, etc) instead of leaving it on
       // <body> — guarded by document.contains() since the trigger element can itself have been
       // removed while the modal was open (e.g. it closed as a side effect of deleting the thing the
