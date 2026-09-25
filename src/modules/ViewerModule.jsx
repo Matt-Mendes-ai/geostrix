@@ -9685,7 +9685,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       {/* TASKS.csv #145 — sculpt.handleViewClick joins the same click chain as the section/measure/
           pick-hole tools; it is a no-op unless sculpt mode is on for a specific surface. */}
-      <div role="button" tabIndex={0} onKeyDown={activateOnKey} className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
+      {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
+          pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
+          not a button: a labelled, focusable application region with no keyboard click. */}
+      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
