@@ -29,6 +29,8 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
+import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "lucide-react";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
@@ -70,6 +72,8 @@ function normGeophysRow(r) {
 }
 
 export default function GeophysicsModule() {
+  const [geoPane, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
+  const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const {
     layers, mergeLayer, replaceLayer, goToModule, collars, rasters, addRaster, project,
     terrain, addTerrain, updateTerrain, removeTerrain,
@@ -764,6 +768,27 @@ export default function GeophysicsModule() {
       }}
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
+        {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
+        <Ribbon label="Geophysics tools">
+          <RibbonGroup label="Surveys">
+            <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
+            <RibbonButton icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
+          </RibbonGroup>
+          <RibbonGroup label="Surface & maps">
+            <RibbonButton icon={RMountain} label="Terrain" tone="data" title="Terrain: fetch SRTM or import a DEM" {...geoBtn("terrain")} />
+            <RibbonButton icon={RMapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...geoBtn("maps")} />
+            <RibbonButton icon={RGlobe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...geoBtn("web")} />
+          </RibbonGroup>
+          <RibbonGroup label="Boundaries">
+            <RibbonButton icon={RShapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...geoBtn("boundaries")} />
+            <RibbonButton icon={RFlag} label="Claims" tone="data" title="Mineral claims / tenure" {...geoBtn("claims")} />
+          </RibbonGroup>
+          <RibbonGroup label="Models">
+            <RibbonButton icon={RBox} label="Block models" tone="data" title="Voxel / block models (UBC mesh, block model CSV), colours and cutoffs" {...geoBtn("voxel")} />
+            <RibbonButton icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
+            <RibbonButton icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
+          </RibbonGroup>
+        </Ribbon>
         {/* Raster import UI itself lives in the Raster tab now — this banner only ever shows up if a
             .tif/.gxf was dropped directly on THIS tab (still supported, see onDrop above), so the
             result is visible without needing the full raster list/controls here too. */}
@@ -772,6 +797,8 @@ export default function GeophysicsModule() {
             {rasterError.text}
           </div>
         )}
+        {geoPane === "points" && (<>
+        <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Point cloud (CSV)
           <InfoButton title="Point cloud (CSV)" text={'Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the "Geophysics points" layer on the Viewer’s Home tab).'} />
@@ -953,8 +980,14 @@ export default function GeophysicsModule() {
             points above (and the terrain below); results land in Voxel / block models.
             TASKS.csv #457 — moved up here, directly under the survey it works on: below Boundaries, as a
             collapsed grey caption, the user could not find it at all. */}
-        <InversionPanel pBtn={pBtn} numInput={numInput} />
+        </>)}
+        {geoPane === "inversion" && (<>
+        <TaskPaneHeader title="Mag / gravity inversion (SimPEG)" icon={RMagnet} tone="model" />
+        <InversionPanel pBtn={pBtn} numInput={numInput} inPane />
 
+        </>)}
+        {geoPane === "terrain" && (<>
+        <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Terrain (SRTM/DEM)
           <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
@@ -1111,6 +1144,9 @@ export default function GeophysicsModule() {
           </div>
         )}
 
+        </>)}
+        {geoPane === "boundaries" && (<>
+        <TaskPaneHeader title="Boundaries" icon={RShapes} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Boundaries (.ply / DXF / shapefile / GeoPackage)
           <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
@@ -1158,8 +1194,14 @@ export default function GeophysicsModule() {
         ))}
 
         {/* TASKS.csv #316/#317 — GIS map layers draped on the terrain + outcrop structure measurements */}
+        </>)}
+        {geoPane === "maps" && (<>
+        <TaskPaneHeader title="Map layers & outcrop structures" icon={RMapIcon} tone="data" />
         <SurfaceMappingPanel pBtn={pBtn} numInput={numInput} />
 
+        </>)}
+        {geoPane === "web" && (<>
+        <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Web layers (WMS / WFS)
           <InfoButton title="Web layers" text="Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer." />
@@ -1168,6 +1210,9 @@ export default function GeophysicsModule() {
           <Globe size={14} /> Add web layer (WMS / WFS)…
         </button>
 
+        </>)}
+        {geoPane === "claims" && (<>
+        <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Mineral claims / tenure
           <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
@@ -1247,6 +1292,9 @@ export default function GeophysicsModule() {
             it and see how his own hardware handles it, applies to both the OMF and UBC import sections
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
+        </>)}
+        {geoPane === "budget" && (<>
+        <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
           3D view cell budget
           <InfoButton title="3D view cell budget" text="A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) — it won't crash GeoStrix either way, just gets laggier. Only affects new imports, not models already in the project." />
@@ -1264,6 +1312,9 @@ export default function GeophysicsModule() {
           )}
         </div>
 
+        </>)}
+        {geoPane === "omf" && (<>
+        <TaskPaneHeader title="Open Mining Format (.omf)" icon={RPackage} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Open Mining Format (.omf)
           <InfoButton title="Open Mining Format (.omf)" text="Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet." />
@@ -1300,6 +1351,9 @@ export default function GeophysicsModule() {
           </div>
         ))}
 
+        </>)}
+        {geoPane === "voxel" && (<>
+        <TaskPaneHeader title="Voxel / block models" icon={RBox} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Voxel / block models (UBC mesh, block model CSV)
           <InfoButton title="Voxel / block models" text="Import a UBC-GIF tensor mesh (select the .msh mesh file together with its matching model file, e.g. .mod/.con/.den, in one dialog), or a block-model CSV export (x/y/z centroid, cell size, and a value column; the common exchange format from Datamine, Micromine, Surpac, Vulcan, Leapfrog and similar). Geosoft's own proprietary voxel format isn't supported — no public spec to implement against, same reasoning as .grd elsewhere — the CSV path covers the same underlying need. Rendered as coloured 3D blocks with an adjustable value cutoff." />
@@ -1339,6 +1393,7 @@ export default function GeophysicsModule() {
           <div>• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above</div>
           <div>• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)</div>
         </div>
+        </>)}
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />

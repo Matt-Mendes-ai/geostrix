@@ -70,7 +70,7 @@ export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral" })
     <div className="ge-pane-header">
       {Icon && <Icon size={16} strokeWidth={1.8} color={RIBBON_TONES[tone] || tone} aria-hidden="true" />}
       <span className="ge-pane-title">{title}</span>
-      <button type="button" className="ge-pane-close" onClick={onClose} aria-label={`Close ${title}`} title="Close — back to the data"><X size={14} /></button>
+      {onClose && <button type="button" className="ge-pane-close" onClick={onClose} aria-label={`Close ${title}`} title="Close — back to the data"><X size={14} /></button>}
     </div>
   );
 }

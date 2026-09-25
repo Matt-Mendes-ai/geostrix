@@ -1,3 +1,4 @@
+import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import React, { useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
@@ -169,6 +170,14 @@ export default function RasterModule() {
       }}
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
+        {/* TASKS.csv #458 — Raster ribbon: the import actions; the sidebar keeps the import CRS and the rasters. */}
+        <Ribbon label="Raster tools">
+          <RibbonGroup label="Import">
+            <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
+            <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 cloudless imagery (no account) — pick an area on a map, or match an existing terrain / boundary / raster extent" onClick={openSatPicker} />
+            <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates: click matching points and type their real X/Y" onClick={() => setGeorefOpen(true)} />
+          </RibbonGroup>
+        </Ribbon>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Raster drape (GeoTIFF / Geosoft GXF)
           <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
@@ -191,9 +200,6 @@ export default function RasterModule() {
             that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
           </div>
         )}
-        <button onClick={() => fileInput.current.click()} style={pBtn} disabled={busy}>
-          {busy ? <Loader2 size={14} className="spin" /> : <Image size={14} />} {busy ? "Reading…" : "Import GeoTIFF / GXF…"}
-        </button>
         <input
           ref={fileInput}
           type="file"
@@ -202,12 +208,6 @@ export default function RasterModule() {
           style={{ display: "none" }}
           onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}
         />
-        <button onClick={openSatPicker} style={pBtn} disabled={satBusy}>
-          {satProgress ? <Loader2 size={14} className="spin" /> : <Satellite size={14} />} {satProgress ? `Fetching ${satProgress.done}/${satProgress.total}…` : "Import satellite imagery…"}
-        </button>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
-          Free Sentinel-2 cloudless imagery (no account needed) — pick an area on a map, or match an existing terrain/boundary/raster's extent.
-        </div>
         {satPickerOpen && (
           <BasemapView
             mode="draw"
@@ -221,12 +221,6 @@ export default function RasterModule() {
             onConfirm={runSatFetch}
           />
         )}
-        <button onClick={() => setGeorefOpen(true)} style={pBtn}>
-          <MapPinned size={14} /> Georeference scan (manual tie points)…
-        </button>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8 }}>
-          For a scanned map or claim sketch with no embedded coordinates at all — click matching points and type their real-world X/Y.
-        </div>
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (
           <GeoreferencerModal

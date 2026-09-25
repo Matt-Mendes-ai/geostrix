@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "lucide-react";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
@@ -520,52 +521,35 @@ export default function LayoutModule() {
   return (
     <div className="ge-body" style={{ width: "100%" }}>
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
-        {/* TASKS.csv #65 — icon-first tool palette (QGIS print-composer style): icon only, full name
-            on hover via `title`, instead of every button pairing an icon with always-visible text.
-            Scoped to this "Add element" palette first — the app's most toolbar-like, most-frequently-
-            reused set of buttons, and the one the user's request most directly evokes ("the layout
-            could use a lot of the features QGIS has"). Other sidebar buttons (imports, destructive
-            actions like #63's clear buttons) deliberately keep visible text — see #65's TASKS.csv note
-            on why a blind global icon-only pass isn't the right call for those. */}
-        <div className="ge-section-label">Add element</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          <ToolIconBtn icon={<Type size={14} />} title="Add text" onClick={() => addElement("text")} />
-          <ToolIconBtn icon={<ImageIcon size={14} />} title="Add company logo" onClick={() => addElement("logo")} />
-          <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
-          <ToolIconBtn icon={<Compass size={14} />} title="Add north arrow" onClick={() => addElement("north")} />
-          <ToolIconBtn icon={<Ruler size={14} />} title="Add scale bar" onClick={() => addElement("scale")} />
-          <ToolIconBtn icon={<Plus size={14} />} title="Add legend" onClick={() => addElement("legend")} />
-          <ToolIconBtn
-            icon={<MonitorPlay size={14} />}
-            title={themes.length ? "Add a live-bound viewport of a saved 3D View theme" : "Add viewport (save a theme in the 3D View sidebar first)"}
-            onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")}
-            disabled={!themes.length}
-            active={themePickerFor === "new"}
-          />
-          {/* TASKS.csv — user request: "add a feature on the layout view that will let the user add a
-              viewport with the current view and not only when save a theme." Captures whatever's live
-              in the 3D View right now with no theme to save/pick first — startViewportRender(null, ...)
-              skips the theme-application branch entirely (see ViewerModule's viewportRenderRequestSeq
-              effect) and just snapshots the current state, same as it already does for "Refresh" on a
-              themeless viewport (see ViewportControls' Theme dropdown). */}
-          <ToolIconBtn
-            icon={<Camera size={14} />}
-            title="Add a viewport snapshot of the current 3D View (no theme needed)"
-            onClick={() => startViewportRender(null, "new")}
-          />
-        </div>
-        {/* TASKS.csv #19 — shapes/annotation tools */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          <ToolIconBtn icon={<Square size={14} />} title="Add rectangle" onClick={() => addElement("rect")} />
-          <ToolIconBtn icon={<ArrowUpRight size={14} />} title="Add arrow" onClick={() => addElement("arrow")} />
-          <ToolIconBtn icon={<MessageSquare size={14} />} title="Add callout" onClick={() => addElement("callout")} />
-          <ToolIconBtn
-            icon={<Pencil size={14} />}
-            title={freehandTool ? "Click and drag on the page to draw — click again to cancel" : "Freehand pen — click, then drag on the page"}
-            onClick={() => setFreehandTool((v) => !v)}
-            active={freehandTool}
-          />
-        </div>
+        {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
+        <Ribbon label="Layout tools">
+          <RibbonGroup label="Insert">
+            <RibbonButton icon={Type} label="Text" tone="output" title="Add text" onClick={() => addElement("text")} />
+            <RibbonButton icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
+            <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
+            <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
+            <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
+          </RibbonGroup>
+          <RibbonGroup label="Views">
+            <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
+            <RibbonButton icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
+          </RibbonGroup>
+          <RibbonGroup label="Draw">
+            <RibbonButton icon={Square} label="Rectangle" tone="neutral" title="Add rectangle" onClick={() => addElement("rect")} />
+            <RibbonButton icon={ArrowUpRight} label="Arrow" tone="neutral" title="Add arrow" onClick={() => addElement("arrow")} />
+            <RibbonButton icon={MessageSquare} label="Callout" tone="neutral" title="Add callout" onClick={() => addElement("callout")} />
+            <RibbonButton icon={Pencil} label="Freehand" tone="neutral" active={freehandTool} title={freehandTool ? "Click and drag on the page to draw — click again to cancel" : "Freehand pen — click, then drag on the page"} onClick={() => setFreehandTool((v) => !v)} />
+          </RibbonGroup>
+          <RibbonGroup label="Page">
+            <RibbonButton icon={Grid3x3} label="Grid + snap" tone="view" active={showGrid} title="Show the alignment grid and snap elements to it (spacing in the sidebar)" onClick={() => setShowGrid((v) => !v)} />
+            <RibbonButton icon={Save} label="Save template" tone="data" title="Save this page as a reusable template" onClick={saveAsTemplate} />
+            <RibbonButton icon={FolderOpen} label={`Templates (${layoutTemplates.length})`} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
+          </RibbonGroup>
+          <RibbonGroup label="Output">
+            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export this page as a PDF at its paper size" onClick={() => savePDF("layout.pdf")} />
+          </RibbonGroup>
+        </Ribbon>
+        <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
         {themePickerFor === "new" && (
           <div style={{ marginBottom: 8, padding: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>Pick a theme:</div>
@@ -807,11 +791,7 @@ export default function LayoutModule() {
         )}
 
         {/* TASKS.csv #18 — saved layout templates */}
-        <div className="ge-section-label" style={{ marginTop: 20 }}>Templates</div>
-        <button onClick={saveAsTemplate} style={pBtn}><Save size={14} /> Save page as template</button>
-        <button onClick={() => setTemplatesOpen((v) => !v)} style={{ ...pBtn, opacity: layoutTemplates.length ? 1 : 0.5 }} disabled={!layoutTemplates.length}>
-          <FolderOpen size={14} /> Load template ({layoutTemplates.length})
-        </button>
+        {templatesOpen && layoutTemplates.length > 0 && <div className="ge-section-label" style={{ marginTop: 20 }}>Templates</div>}
         {templatesOpen && (
           <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 180, overflowY: "auto" }}>
             {layoutTemplates.map((t) => (
@@ -869,8 +849,7 @@ export default function LayoutModule() {
           </div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 20 }}>Output</div>
-        <button onClick={() => savePDF("layout.pdf")} style={{ ...pBtn, background: "var(--color-success-bg)", border: "1px solid var(--color-success-border)", color: "var(--color-success-text)" }}><FileDown size={14} /> Export PDF</button>
+        <div className="ge-section-label" style={{ marginTop: 20 }}>Adding views</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>
           Use "Snapshot to Layout" in the 3D View toolbar, or in a cross-section pop-out, to drop a capture
           of that view onto the page below — drag to place it, and use the width field to resize (aspect

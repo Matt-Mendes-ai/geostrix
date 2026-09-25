@@ -1,4 +1,6 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
+import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "lucide-react";
 import Papa from "papaparse";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
@@ -391,39 +393,58 @@ export default function GeochemModule() {
     >
       {/* left panel */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
-        <div className="ge-section-label">Assays &amp; pXRF</div>
-        <button onClick={() => fileRef.current.click()} style={panelBtn}><Upload size={14} /> Import assays</button>
+        {/* TASKS.csv #458 — Geochem ribbon: every tool that used to be a button in this sidebar. */}
+        <Ribbon label="Geochem tools">
+          <RibbonGroup label="Import">
+            <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
+            <RibbonButton icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
+            <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
+          </RibbonGroup>
+          <RibbonGroup label="Classify">
+            <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
+            <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length} title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
+            <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
+          </RibbonGroup>
+          <RibbonGroup label="Calculate">
+            <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", msg: null }))} />
+            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Analyse">
+            <RibbonButton icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
+            <RibbonButton icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
+            <RibbonButton icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} title="SQL workspace" onClick={() => setSqlOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Report">
+            <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
+            <RibbonButton icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Export">
+            <RibbonButton icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} title="Assays → CSV" onClick={exportAssaysCSV} />
+            <RibbonButton icon={Download} label="Plot data" tone="output" disabled={!assayElements.length} title="Plot data → CSV" onClick={exportProjectedCSV} />
+            <RibbonButton icon={GImage} label="Plot PNG" tone="output" disabled={!assayElements.length} title="Plot → PNG" onClick={exportPlotPNG} />
+            <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} title="Plot → SVG" onClick={exportPlotSVG} />
+          </RibbonGroup>
+        </Ribbon>
         <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
-        <button onClick={() => pxrfRef.current.click()} style={panelBtn}><Beaker size={14} /> Import pXRF</button>
         <input ref={pxrfRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
+        <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
 
+        <div className="ge-section-label">Assays &amp; pXRF</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? `${assays.length} intervals · ${assayElements.length} elements` : "No assays loaded"}
         </div>
-
-        <div className="ge-section-label" style={{ marginTop: 18 }}>Surface samples</div>
-        <button onClick={() => surfaceFileRef.current.click()} style={panelBtn}><Upload size={14} /> Import surface samples</button>
-        <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Soil, rock-chip, stream-sediment, or talus-fines samples — no drillhole required.</div>
+        <div className="ge-section-label" style={{ marginTop: 14 }}>Surface samples</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
         </div>
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
+        {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>}
 
-        {assayElements.length > 0 && (
+        {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}
+        {calc && assayElements.length > 0 && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Generate from geochem</div>
-            <button onClick={() => runMethod("alteration_boxplot")} style={genBtn}><FlaskConical size={14} /> Alteration (AI/CCPI)</button>
-            <button onClick={() => runMethod("litho_winchester")} style={genBtn}>Lithology (Winchester)</button>
-            <button onClick={() => runMethod("litho_jensen")} style={genBtn}>Lithology (Jensen)</button>
-            <div style={{ fontSize: 10, color: "#65717e", marginTop: 6, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>
-
-            {/* TASKS.csv #401 — a calculated element is a real element: downhole, in 3D, on sections,
-                in intercepts/composites/estimation. */}
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Calculated elements</div>
-            {!calc ? (
-              <button onClick={() => setCalc({ name: "", expr: "", msg: null })} style={genBtn}><Sigma size={14} /> Add calculated element…</button>
-            ) : (
+            <div className="ge-section-label" style={{ marginTop: 18 }}>Calculated element</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
                 <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc({ name: p.name, expr: p.expr, msg: { ok: true, text: `${p.label}. ${p.unitNote}.` } }); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label="Preset">
                   <option value="">Preset… (or write your own below)</option>
@@ -446,35 +467,6 @@ export default function GeochemModule() {
                   <button style={{ ...panelBtn, flex: 1 }} onClick={() => setCalc(null)}>Cancel</button>
                 </div>
               </div>
-            )}
-
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>
-            <button onClick={() => setIsoconOpen(true)} style={genBtn}><Scale size={14} /> Isocon / mass-change calculator</button>
-            <button onClick={() => setCorrOpen(true)} style={genBtn}><Grid3x3 size={14} /> Correlation matrix</button>
-            <button onClick={() => setQaqcOpen(true)} style={genBtn}><ShieldCheck size={14} /> QAQC (standards/blanks/duplicates)</button>
-            <button onClick={() => setSqlOpen(true)} style={genBtn}><TerminalSquare size={14} /> SQL workspace</button>
-
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Reporting</div>
-            <button onClick={() => setBestIntOpen(true)} style={genBtn}><Ruler size={14} /> Best-intercept report</button>
-            <button onClick={() => setCompositingOpen(true)} style={genBtn}><Ruler size={14} /> Downhole compositing</button>
-
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Export</div>
-            <button onClick={exportAssaysCSV} style={panelBtn}><Download size={14} /> Assays → CSV</button>
-            <button onClick={exportProjectedCSV} style={panelBtn}><Download size={14} /> Plot data → CSV</button>
-            <button onClick={exportPlotPNG} style={panelBtn}><Download size={14} /> Plot → PNG</button>
-            <button onClick={exportPlotSVG} style={panelBtn}><Download size={14} /> Plot → SVG</button>
-          </>
-        )}
-
-        {/* TASKS.csv #228 — Grade statistics is the one tool here that's genuinely useful with EITHER
-            dataset (it just needs *some* element values to summarize), so it's reachable whenever
-            either assays or surface samples are loaded, not gated behind assayElements alone like the
-            downhole-specific tools above (isocon/best-intercepts/compositing all assume hole_id/from/to,
-            which surface samples don't have). */}
-        {(assayElements.length > 0 || surfaceElements.length > 0) && (
-          <>
-            {!assayElements.length && <div className="ge-section-label" style={{ marginTop: 18 }}>Mass balance</div>}
-            <button onClick={() => setGradeStatsOpen(true)} style={genBtn}><Beaker size={14} /> Grade statistics</button>
           </>
         )}
 

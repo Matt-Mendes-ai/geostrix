@@ -171,9 +171,10 @@ input, select { font-family: inherit; }
 .ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
 .ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 54px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
-/* Narrow windows (budget laptops, #449): tighter buttons; the band scrolls sideways if it still overflows. */
+/* Narrow windows (budget laptops, #449): tighter buttons. Measured at 1024 px: the widest ribbons (3D
+   Modeling, Geochem) are 1012 px, so nothing scrolls — and the band must NOT get overflow:auto, which would
+   clip the Grid / Figure / Themes popovers that drop below it. */
 @media (max-width: 1279px) {
-  .ge-ribbon { overflow-x: auto; overflow-y: visible; }
   .ge-ribbon-btn { min-width: 44px; padding: 5px 3px 2px; }
   .ge-ribbon-group { padding: 0 3px; }
 }

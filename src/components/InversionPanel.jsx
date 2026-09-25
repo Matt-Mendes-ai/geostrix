@@ -33,7 +33,7 @@ const METHODS = {
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
-export default function InversionPanel({ pBtn, numInput }) {
+export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
   const { layers, terrain, project, addVoxelModel, surfaceStructures } = useStore();
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -45,7 +45,7 @@ export default function InversionPanel({ pBtn, numInput }) {
   const activeSurvey = surveys.length === 1 ? surveys[0] : survey;
   const rows = useMemo(() => (activeSurvey ? allRows.filter((r) => (r._src || "(unnamed import)") === activeSurvey) : []), [allRows, activeSurvey]);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(inPane);
   const [engine, setEngine] = useState(null); // null = checking, {ok, available, simpeg} otherwise
   const [method, setMethod] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -264,6 +264,7 @@ export default function InversionPanel({ pBtn, numInput }) {
 
   return (
     <>
+      {!inPane && (<>
       {/* TASKS.csv #457 — a real, visibly clickable header card (was a grey uppercase caption that did not
           read as a control, and the user did not find the feature). */}
       <div style={{ marginTop: 18, marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 6, padding: "8px 10px", border: `1px solid ${open ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6, background: open ? "var(--color-selected-bg)" : "var(--color-bg-subtle)" }}>
@@ -276,6 +277,7 @@ export default function InversionPanel({ pBtn, numInput }) {
         </span>
         <InfoButton title="Magnetics / gravity modelling" width={420} text={"Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point cloud above.\n\nTest a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all.\n\nInvert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetisation (common in pyrrhotite-bearing Golden Triangle rocks) breaks the assumption behind a susceptibility inversion.\n\nNothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered."} />
       </div>
+      </>)}
       {open && (
         <div style={{ fontSize: "var(--font-size-sm)" }}>
           {engine === null && <div style={small}>Starting the Python engine…</div>}
