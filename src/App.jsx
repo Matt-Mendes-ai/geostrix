@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -327,15 +327,16 @@ export default function App() {
           );
         })}
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={doNew} title="New project"><FilePlus2 size={14} /> New</button>
-        <button className="ge-tool-btn" onClick={doOpen} title="Open project"><FolderOpen size={14} /> Open</button>
-        <button className="ge-tool-btn" onClick={doSave} title="Save project"><Save size={14} /> {savedFlash ? "Saved ✓" : "Save"}</button>
+        {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
+        <button className="ge-tool-btn" onClick={doNew} title="New project" aria-label="New project"><FilePlus2 size={14} /> <span className="ge-tool-label-opt">New</span></button>
+        <button className="ge-tool-btn" onClick={doOpen} title="Open project" aria-label="Open project"><FolderOpen size={14} /> <span className="ge-tool-label-opt">Open</span></button>
+        <button className="ge-tool-btn" onClick={doSave} title="Save project" aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
         <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={doExportPdf} title="Exports the Layout page (switches to it first if needed)">Export PDF</button>
-        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)"><FileBarChart2 size={14} /> Report</button>
+        <button className="ge-tool-btn" onClick={doExportPdf} title="Exports the Layout page (switches to it first if needed)" aria-label="Export PDF"><FileDown size={14} /> <span className="ge-tool-label-opt">Export PDF</span></button>
+        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)" aria-label="Project report"><FileBarChart2 size={14} /> <span className="ge-tool-label-opt">Report</span></button>
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by

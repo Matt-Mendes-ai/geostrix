@@ -124,6 +124,15 @@ input, select { font-family: inherit; }
 .ge-tool-btn:hover { background: var(--color-bg-subtle); color: var(--color-text); }
 .ge-tool-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); color: var(--color-text); }
 .ge-tool-sep { width: 1px; height: 22px; background: var(--color-border); margin: 0 6px; }
+/* TASKS.csv #449 — at 1024 px the toolbar measured 1,189 px wide: the page scrolled sideways and Export
+   PDF sat off-screen (1024-1366 px is common on budget laptops). Below 1280 px: tighter buttons, and the
+   project/export actions show icons only (their names stay in title + aria-label). */
+@media (max-width: 1279px) {
+  .ge-toolbar { gap: 2px; padding: 0 6px; }
+  .ge-tool-btn { padding: 0 8px; gap: 5px; }
+  .ge-tool-sep { margin: 0 3px; }
+  .ge-tool-label-opt { display: none; }
+}
 
 /* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
    module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data
