@@ -949,6 +949,12 @@ export default function GeophysicsModule() {
           </div>
         )}
 
+        {/* TASKS.csv #321 — SimPEG magnetics/gravity forward modelling and inversion, fed by the survey
+            points above (and the terrain below); results land in Voxel / block models.
+            TASKS.csv #454 — moved up here, directly under the survey it works on: below Boundaries, as a
+            collapsed grey caption, the user could not find it at all. */}
+        <InversionPanel pBtn={pBtn} numInput={numInput} />
+
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Terrain (SRTM/DEM)
           <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
@@ -1150,10 +1156,6 @@ export default function GeophysicsModule() {
             </div>
           </div>
         ))}
-
-        {/* TASKS.csv #321 — SimPEG magnetics/gravity forward modelling and inversion, fed by the survey
-            points and terrain above; results land in Voxel / block models below. */}
-        <InversionPanel pBtn={pBtn} numInput={numInput} />
 
         {/* TASKS.csv #316/#317 — GIS map layers draped on the terrain + outcrop structure measurements */}
         <SurfaceMappingPanel pBtn={pBtn} numInput={numInput} />
