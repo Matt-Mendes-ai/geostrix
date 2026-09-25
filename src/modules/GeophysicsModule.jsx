@@ -93,6 +93,8 @@ export default function GeophysicsModule() {
   const [terrainError, setTerrainError] = useState(null);
   const [terrainBusy, setTerrainBusy] = useState(false);
   const [demSourceEpsg, setDemSourceEpsg] = useState(""); // TASKS.csv #419 — DEM source CRS override
+  const [demCrop, setDemCrop] = useState(true); // TASKS.csv #422 — crop DEM imports to the drillholes
+  const [demCropBuffer, setDemCropBuffer] = useState("2000");
   const [srtmProgress, setSrtmProgress] = useState(null); // { done, total } | null
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
@@ -215,7 +217,10 @@ export default function GeophysicsModule() {
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null); // override: #419
+      // TASKS.csv #422 — crop to the drillholes (+ buffer) unless the user wants the whole tile.
+      const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+      const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
+      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo }); // override: #419
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(`Replace the current terrain ("${terrain.name}") with "${parsed.name}"? Only one terrain surface is supported at a time.`)) {
         setTerrainBusy(false);
@@ -225,6 +230,9 @@ export default function GeophysicsModule() {
       let msg = `Imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh (source ${parsed.srcWidth}×${parsed.srcHeight}px, ${(xmax - xmin).toFixed(0)}×${(ymax - ymin).toFixed(0)} world units)${parsed.tileCount > 1 ? ` from ${parsed.tileCount} merged tiles` : ""}.`;
       if (parsed.reprojectedTo) {
         msg += ` Reprojected from ${parsed.epsgOverridden ? "the Source CRS you set, " : "its native "}EPSG:${parsed.epsgTag} to the project's EPSG:${parsed.reprojectedTo} on import.`;
+      }
+      if (parsed.cropped) { // #422
+        msg += ` Cropped to the drillholes + ${Math.max(1000, Number(demCropBuffer) || 2000)} m: read ${parsed.readPixels.toLocaleString()} of ${parsed.fullPixels.toLocaleString()} source pixels, cell size ~${(((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0)} m.`;
       } else if (parsed.reprojectNote) {
         msg += ` Note: ${parsed.reprojectNote}`;
       } else if (parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
@@ -951,6 +959,12 @@ export default function GeophysicsModule() {
           <input value={demSourceEpsg} onChange={(e) => setDemSourceEpsg(e.target.value.replace(/[^0-9]/g, ""))} placeholder="from file" style={{ ...numInput, width: 80, flex: "none" }} aria-label="DEM source EPSG" />
           <span style={{ color: "var(--color-text-muted)" }}>EPSG (optional)</span>
         </div>
+        {(collars || []).length > 0 && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.">
+            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} /> Crop to the drillholes +
+            <input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label="Crop buffer in metres" /> m
+          </label>
+        )}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? "Reading…" : terrain ? "Replace terrain…" : "Import SRTM/DEM…"}

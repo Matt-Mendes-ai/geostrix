@@ -33,3 +33,24 @@ test("#421 reprojection wedges are recorded as no-data, not silently flattened",
   assert.match(noDataNote(f), /no source data/);
   assert.equal(fillNoData([1, 2, 3]).noDataMask, null);
 });
+
+import { writeArrayBuffer } from "geotiff";
+import { parseDEMFiles } from "../src/lib/raster.js";
+import { reprojectXY as rxy422 } from "../src/lib/reproject.js";
+test("#422 DEM crop reads a small window at a useful resolution and stays registered", async () => {
+  const N = 601, lon0 = -130, lat1 = 56.5, d = 1 / (N - 1);
+  const f = (lon, lat) => 1000 + 300 * Math.sin((lon + 130) * 20) * Math.cos((lat - 55.5) * 15);
+  const v = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) v[j * N + i] = f(lon0 + i * d, lat1 - j * d);
+  const buf = writeArrayBuffer(v, { width: N, height: N, ModelPixelScale: [d, d, 0], ModelTiepoint: [0, 0, 0, lon0 - d / 2, lat1 + d / 2, 0], GTModelTypeGeoKey: 2, GTRasterTypeGeoKey: 1, GeographicTypeGeoKey: 4326 });
+  const file = { name: "t.tif", arrayBuffer: async () => buf };
+  const cut = await parseDEMFiles([file], 3156, null, { cropTo: [460000, 6173000, 467000, 6180000] });
+  assert.ok(cut.readPixels < cut.fullPixels * 0.05, `${cut.readPixels} of ${cut.fullPixels}`);
+  const cell = (cut.bbox[2] - cut.bbox[0]) / (cut.gridW - 1);
+  assert.ok(cell < 60, `cell ${cell}`);
+  const [x, y] = [463500, 6176500], ll = rxy422(x, y, 3156, 4326);
+  const [bx0, by0, bx1, by1] = cut.bbox;
+  const i = Math.round(((x - bx0) / (bx1 - bx0)) * (cut.gridW - 1)), j = Math.round(((by1 - y) / (by1 - by0)) * (cut.gridH - 1));
+  assert.ok(Math.abs(cut.elevations[j * cut.gridW + i] - f(ll.x, ll.y)) < 5);
+  await assert.rejects(parseDEMFiles([file], 3156, null, { cropTo: [100000, 5000000, 101000, 5001000] }), /overlaps/);
+});

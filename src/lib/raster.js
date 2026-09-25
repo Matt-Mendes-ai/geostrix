@@ -16,7 +16,7 @@
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample } from "./reproject.js";
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
@@ -181,7 +181,15 @@ function isGeographicGeoKeys(geoKeys) {
   return !!geoKeys && !!geoKeys.GeographicTypeGeoKey && !geoKeys.ProjectedCSTypeGeoKey;
 }
 
-async function readDemTile(file) {
+// TASKS.csv #422 — DEM tiles were decoded at full native resolution plus a Float32 copy (~52 MB x2 per
+// 1-arc-second tile, ~400 MB for a 4-tile mosaic) only to be resampled to a 200 x 200 grid, and a whole
+// 1-degree tile then ended with ~300 m cells, useless at drillhole scale. Now only the part of the tile
+// inside `crop` (a bbox in the TILE's CRS; null = whole tile) is decoded, and at most DEM_READ_MAX pixels
+// a side (resampled by geotiff.js), which is still 4x the final grid. Node registration (#420) is kept:
+// when the window is resampled, the new nodes are the centres of the resampled pixels over the window's
+// area.
+const DEM_READ_MAX = 800;
+async function readDemTile(file, crop = null) {
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -195,12 +203,28 @@ async function readDemTile(file) {
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
     throw new Error(`"${file.name}" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.`);
   }
-  const srcW = image.getWidth(), srcH = image.getHeight();
-  // Full native resolution, not pre-downsampled here — needed so mosaicking/reprojection below (which
-  // resample onto a fresh grid anyway) start from real data rather than an already-lossy pre-shrink.
-  const rasters = await image.readRasters();
+  const fullW = image.getWidth(), fullH = image.getHeight();
+  const rx = (bbox[2] - bbox[0]) / Math.max(1, fullW - 1), ry = (bbox[3] - bbox[1]) / Math.max(1, fullH - 1); // node spacing
+  let c0 = 0, c1 = fullW - 1, r0 = 0, r1 = fullH - 1;
+  if (crop) {
+    c0 = Math.max(0, Math.floor((crop[0] - bbox[0]) / rx)); c1 = Math.min(fullW - 1, Math.ceil((crop[2] - bbox[0]) / rx));
+    r0 = Math.max(0, Math.floor((bbox[3] - crop[3]) / ry)); r1 = Math.min(fullH - 1, Math.ceil((bbox[3] - crop[1]) / ry));
+    if (c1 <= c0 || r1 <= r0) return null; // this tile doesn't reach the crop area
+  }
+  const winW = c1 - c0 + 1, winH = r1 - r0 + 1;
+  const scale = Math.min(1, DEM_READ_MAX / Math.max(winW, winH));
+  const srcW = Math.max(2, Math.round(winW * scale)), srcH = Math.max(2, Math.round(winH * scale));
+  const resampled = srcW !== winW || srcH !== winH;
+  const rasters = await image.readRasters({ window: [c0, r0, c1 + 1, r1 + 1], ...(resampled ? { width: srcW, height: srcH, resampleMethod: "bilinear" } : {}) });
   if (!rasters.length) throw new Error(`"${file.name}" has no readable elevation band.`);
   const rawBand = rasters[0]; // DEMs are single-band; if given a multi-band file, just take the first
+  // Node bbox of what was read: the window's nodes, or — resampled — the centres of srcW x srcH pixels
+  // spread over the window's pixel AREA (half a source pixel beyond its outer nodes).
+  const ax0 = bbox[0] + c0 * rx - rx / 2, ax1 = bbox[0] + c1 * rx + rx / 2;
+  const ay1 = bbox[3] - r0 * ry + ry / 2, ay0 = bbox[3] - r1 * ry - ry / 2;
+  bbox = resampled
+    ? [ax0 + (ax1 - ax0) / srcW / 2, ay0 + (ay1 - ay0) / srcH / 2, ax1 - (ax1 - ax0) / srcW / 2, ay1 - (ay1 - ay0) / srcH / 2]
+    : [bbox[0] + c0 * rx, bbox[3] - r1 * ry, bbox[0] + c1 * rx, bbox[3] - r0 * ry];
 
   let noData = null;
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData = nd; } catch (_) { /* not all files have it */ }
@@ -219,7 +243,16 @@ async function readDemTile(file) {
     geographic = isGeographicGeoKeys(geoKeys);
   } catch (_) { /* optional, best-effort */ }
 
-  return { name: file.name, bbox, srcW, srcH, band, epsgTag, geographic };
+  return { name: file.name, bbox, srcW, srcH, band, epsgTag, geographic, fullW, fullH, cropped: !!crop, resampled };
+}
+// Just the georeferencing + CRS of a tile, without decoding pixels (#422: needed to express the crop area
+// in the tile's own CRS before reading).
+async function peekDemTile(file) {
+  const tiff = await fromArrayBuffer(await file.arrayBuffer());
+  const image = await tiff.getImage();
+  let epsgTag = null;
+  try { const k = image.getGeoKeys(); epsgTag = k?.ProjectedCSTypeGeoKey || k?.GeographicTypeGeoKey || null; } catch (_) { /* optional */ }
+  return { epsgTag, bbox: demNodeBbox(image) };
 }
 
 // files: one or more browser Files (GeoTIFFs) — pass several adjacent tiles (e.g. two neighboring
@@ -228,11 +261,30 @@ async function readDemTile(file) {
 // it lines up with the rest of the project instead of landing at raw lon/lat coordinates. Returns
 // { name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH, elevations, srcWidth, srcHeight, epsgTag,
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
-export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null) {
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null } = {}) {
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error("No file selected.");
   const tiles = [];
-  for (const file of list) tiles.push(await readDemTile(file));
+  // TASKS.csv #422 — cropTo: [xmin, ymin, xmax, ymax] in the PROJECT CRS. Converted into each tile's CRS
+  // (corners + edge midpoints, then their bbox, padded 2%) before reading.
+  for (const file of list) {
+    let crop = null;
+    if (cropTo) {
+      const head = await peekDemTile(file);
+      const tileEpsg = sourceEpsgOverride ? Number(sourceEpsgOverride) : head.epsgTag;
+      const [x0, y0, x1, y1] = cropTo;
+      const probe = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [(x0 + x1) / 2, y0], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2], [x1, (y0 + y1) / 2]];
+      const pts = tileEpsg && targetEpsg && Number(tileEpsg) !== Number(targetEpsg) ? probe.map(([x, y]) => reprojectXY(x, y, targetEpsg, tileEpsg)) : probe.map(([x, y]) => ({ x, y }));
+      if (pts.every(Boolean)) {
+        const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+        const padX = (arrMax(xs) - arrMin(xs)) * 0.02, padY = (arrMax(ys) - arrMin(ys)) * 0.02;
+        crop = [arrMin(xs) - padX, arrMin(ys) - padY, arrMax(xs) + padX, arrMax(ys) + padY];
+      }
+    }
+    const t = await readDemTile(file, crop);
+    if (t) tiles.push(t);
+  }
+  if (!tiles.length) throw new Error("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS.");
 
   if (tiles.length > 1) {
     const first = tiles[0].epsgTag;
@@ -303,7 +355,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
     elevations: fill.elevations, // plain array — easier to JSON-persist in the project file than a typed array
     noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     srcWidth: tiles.reduce((s, t) => s + t.srcW, 0), srcHeight: arrMax(tiles.map((t) => t.srcH)),
-    epsgTag, epsgOverridden: !!sourceEpsgOverride,
+    epsgTag, epsgOverridden: !!sourceEpsgOverride, cropped: !!cropTo, readPixels: tiles.reduce((t, x) => t + x.srcW * x.srcH, 0), fullPixels: tiles.reduce((t, x) => t + x.fullW * x.fullH, 0),
     reprojectedTo,
     reprojectNote,
     tileCount: tiles.length,
