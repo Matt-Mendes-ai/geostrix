@@ -12,6 +12,7 @@ const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
+const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
 const { autoUpdater } = require("electron-updater");
 
 // User-reported bug: connecting the database tool (Tools > Connect to database) to a local Postgres
@@ -606,16 +607,14 @@ ipcMain.handle("db-list-tables", async (_e, config) => {
 // no API key, no account. Not literally usgs.gov (their EarthExplorer/M2M API requires a personal
 // login, which doesn't fit a zero-config open-source desktop app — see src/lib/srtmFetch.js's header
 // comment for the full reasoning), but the same SRTM-heritage public elevation data.
-ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y }) => {
+ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y } = {}) => {
+  // TASKS.csv #350 — z/x/y were interpolated into the URL unchecked; now integers in the slippy-map range,
+  // with a timeout and a size cap (a Terrarium tile is ~100 KB).
+  if (!validTileIndex(z, x, y)) return { ok: false, status: 0, message: "Invalid elevation tile index." };
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return { ok: false, status: res.status, message: `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` };
-    const buf = Buffer.from(await res.arrayBuffer());
-    return { ok: true, base64: buf.toString("base64") };
-  } catch (err) {
-    return { ok: false, status: 0, message: `Network error fetching elevation tile: ${err.message}` };
-  }
+  const res = await guardedFetch(url, { timeoutMs: 30000, maxBytes: 5 * 1024 * 1024 });
+  if (!res.ok) return { ok: false, status: res.status, message: res.message || `Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.` };
+  return { ok: true, base64: res.buffer.toString("base64") };
 });
 
 // TASKS.csv #127 — generic WMS/WMTS/WFS layer consumption. A user-supplied government/company OGC
@@ -636,41 +635,19 @@ ipcMain.handle("fetch-srtm-tile", async (_e, { z, x, y }) => {
 // worth having regardless. Blocks non-http(s) schemes and the obvious loopback/link-local/private-IP
 // ranges — not a DNS-rebinding-proof allowlist, just closing the direct cases a user-pasted URL could
 // plausibly hit (e.g. a cloud metadata endpoint or another local service).
-function isBlockedWebLayerHost(hostname) {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h === "::1") return true;
-  // IPv4 loopback/link-local/private ranges
-  if (/^127\./.test(h)) return true;
-  if (/^169\.254\./.test(h)) return true;
-  if (/^10\./.test(h)) return true;
-  if (/^192\.168\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
-  return false;
-}
-ipcMain.handle("fetch-web-layer", async (_e, { url }) => {
-  try {
-    let parsed;
-    try { parsed = new URL(url); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return { ok: false, status: 0, message: `Unsupported URL scheme "${parsed.protocol}" — only http/https are allowed.` };
-    }
-    if (isBlockedWebLayerHost(parsed.hostname)) {
-      return { ok: false, status: 0, message: "This URL points at a local/private address, which isn't allowed here." };
-    }
-    const res = await fetch(url);
-    const contentType = res.headers.get("content-type") || "";
-    if (!res.ok) {
-      // Servers often return a 200 with an XML ServiceExceptionReport instead of a real HTTP error —
-      // that's handled renderer-side by inspecting the body — but a genuine non-2xx still deserves
-      // its own message rather than being decoded as if it were valid content.
-      const bodyText = contentType.includes("xml") || contentType.includes("text") ? await res.text() : "";
-      return { ok: false, status: res.status, message: `Request failed (HTTP ${res.status})${bodyText ? `: ${bodyText.slice(0, 300)}` : "."}` };
-    }
-    const buf = Buffer.from(await res.arrayBuffer());
-    return { ok: true, status: res.status, contentType, base64: buf.toString("base64") };
-  } catch (err) {
-    return { ok: false, status: 0, message: `Network error: ${err.message}` };
+// TASKS.csv #350 — the hostname-pattern check (isBlockedWebLayerHost) is replaced by electron/netGuard.js:
+// every hop resolved and range-checked, redirects followed manually, timeout, byte cap.
+ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
+  const res = await guardedFetch(String(url || ""), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024 });
+  if (res.message) return { ok: false, status: res.status, message: res.message };
+  if (!res.ok) {
+    // Servers often return a 200 with an XML ServiceExceptionReport instead of a real HTTP error —
+    // that's handled renderer-side by inspecting the body — but a genuine non-2xx still deserves
+    // its own message rather than being decoded as if it were valid content.
+    const bodyText = /xml|text/.test(res.contentType) ? res.buffer.toString("utf8") : "";
+    return { ok: false, status: res.status, message: `Request failed (HTTP ${res.status})${bodyText ? `: ${bodyText.slice(0, 300)}` : "."}` };
   }
+  return { ok: true, status: res.status, contentType: res.contentType, base64: res.buffer.toString("base64") };
 });
 
 function pgConfig(config) {
