@@ -528,6 +528,15 @@ const DEFAULT_FIGURE_OVERLAY = { enabled: true, title: true, legend: true, scale
 // CSS-vs-JS boundary header. Same "default only" caveat as DEFAULT_GRID above (bgColor is persisted
 // per project and has its own picker in the viewport right-click menu).
 const DEFAULT_BG_COLOR = "#f4f5f7";
+// TASKS.csv #378 — collar markers were a fixed cream (0xf2e9d8): 1.10:1 against this default background,
+// i.e. invisible in plan view, where a vertical hole IS its collar. They now take the dark text colour
+// on a light background and the old cream on a dark one (relative luminance threshold 0.35).
+function collarColorFor(bg) {
+  const c = new THREE.Color(bg);
+  const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const Y = 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  return Y > 0.35 ? 0x1a2028 : 0xf2e9d8;
+}
 // Multi-element assay display — a fixed, distinct-hue-per-slot palette (not a value-driven gradient
 // like magColor) so simultaneously-shown elements stay visually distinguishable from each other; each
 // element's OWN value still modulates marker size within its own min/max range (see the marker-
@@ -1996,8 +2005,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
   // down), not just to persist the value.
+  const collarMaterialRef = useRef(null); // TASKS.csv #378 — one material shared by every collar marker
+  const bgColorRef = useRef(bgColor);
+  bgColorRef.current = bgColor;
   useEffect(() => {
     if (sceneRef.current) sceneRef.current.background = new THREE.Color(bgColor);
+    if (collarMaterialRef.current) collarMaterialRef.current.color.setHex(collarColorFor(bgColor));
+    lastActivityRef.current = Date.now(); // #441 wake the render loop
   }, [bgColor]);
 
   // TASKS.csv #311 — world-origin axis lines on/off (see axisLinesRef). A plain .visible flip on
@@ -5468,7 +5482,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);
       tracesRef.current.push({ hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
 
-      const marker = new THREE.Mesh(PROTO_SPHERE_12, new THREE.MeshBasicMaterial({ color: 0xf2e9d8 })); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
+      if (!collarMaterialRef.current) collarMaterialRef.current = new THREE.MeshBasicMaterial({ color: collarColorFor(bgColorRef.current) }); // #378
+      const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
       marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);
       marker.userData = { tip: `${c.hole_id}\ncollar` };
