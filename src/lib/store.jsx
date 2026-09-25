@@ -740,13 +740,13 @@ export function StoreProvider({ children }) {
       setLayoutElements((els) => [...els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
         x: 90, y: 90, w, h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg,
-        trueScale: !!res.trueScale,
+        trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         rotation: 0, frameWidth: 1, frameColor: "#1a1a1a", frameStyle: "solid", refreshing: false,
       }]);
       setLayoutSelectRequest(id);
     } else {
       setLayoutElements((els) => els.map((el) => el.id === targetElementId
-        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, refreshing: false, h: Math.round((el.w || 700) / aspect) }
+        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, h: Math.round((el.w || 700) / aspect) }
         : el));
       setLayoutSelectRequest(targetElementId);
     }
@@ -1322,6 +1322,9 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     return id;
   }, [clearUndoHistory]);
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
+  // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
+  // with the page; a page without one is A4 landscape, exactly as before.
+  const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
   // TASKS.csv #130 — Atlas (batch page generation, one page per drillhole/section). Deliberately a
   // separate bulk method rather than N calls to addLayoutPage(): that always seeds DEFAULT_LAYOUT_
   // ELEMENTS (wrong — atlas pages carry their own generated `elements`) and switches the active page +
@@ -1392,7 +1395,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat,
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,

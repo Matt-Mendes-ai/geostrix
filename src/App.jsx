@@ -3,6 +3,7 @@ import { Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCc
 import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
+import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
@@ -61,6 +62,7 @@ export default function App() {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave,
     undo, redo, canUndo, canRedo,
+    layoutPages, activeLayoutPageId, // TASKS.csv #398 — PDF paper size
   } = store;
   const [active, setActive] = useState("viewer");
   // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
@@ -165,8 +167,10 @@ export default function App() {
   // Electron's printToPDF grabs the page.
   const doExportPdf = useCallback(() => {
     setActive("layout");
-    requestAnimationFrame(() => requestAnimationFrame(() => savePDF("layout.pdf")));
-  }, []);
+    // TASKS.csv #398 — export at the active layout page's own paper size / orientation.
+    const pg = layoutPages.find((p) => p.id === activeLayoutPageId);
+    requestAnimationFrame(() => requestAnimationFrame(() => savePDF("layout.pdf", pdfOptions(pg?.format))));
+  }, [layoutPages, activeLayoutPageId]);
 
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.

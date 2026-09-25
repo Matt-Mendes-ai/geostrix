@@ -3,8 +3,9 @@ const d = typeof window !== "undefined" ? window.desktop : null;
 
 export const isDesktop = !!(d && d.isDesktop);
 
-export async function savePDF(suggestedName) {
-  if (d) return d.exportPDF({ suggestedName });
+// TASKS.csv #398 — pdf = { pageSize, landscape } from lib/pageFormats.js pdfOptions(); omitted = A4 landscape.
+export async function savePDF(suggestedName, pdf = {}) {
+  if (d) return d.exportPDF({ suggestedName, ...pdf });
   // browser fallback: trigger the print dialog
   window.print();
   return { ok: false, fallback: true };

@@ -403,7 +403,8 @@ async function writeFileAtomic(filePath, data, encoding) {
 }
 
 // ---------- PDF export ----------
-ipcMain.handle("export-pdf", async (_e, { suggestedName }) => {
+const PDF_PAGE_SIZES = new Set(["A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398
+ipcMain.handle("export-pdf", async (_e, { suggestedName, pageSize, landscape }) => {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: "Export PDF",
@@ -411,7 +412,12 @@ ipcMain.handle("export-pdf", async (_e, { suggestedName }) => {
     filters: [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (canceled || !filePath) return { ok: false };
-  const data = await win.webContents.printToPDF({ printBackground: true, landscape: true, pageSize: "A4" });
+  const data = await win.webContents.printToPDF({
+    printBackground: true,
+    landscape: landscape !== false,
+    pageSize: PDF_PAGE_SIZES.has(pageSize) ? pageSize : "A4",
+    margins: { marginType: "none" }, // the layout page is already drawn at exactly the paper size
+  });
   await writeFileAtomic(filePath, data); // #341
   return { ok: true, filePath };
 });

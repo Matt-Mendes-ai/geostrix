@@ -13,7 +13,9 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // A simple drag-and-drop page-layout canvas. Elements are absolutely positioned on an A4-landscape
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
-const A4 = { w: 1123, h: 794 }; // px at ~96dpi landscape
+import { PAGE_FORMATS, pageFormatOf, pagePx } from "../lib/pageFormats.js"; // TASKS.csv #398
+// (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
+// `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
@@ -47,7 +49,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat,
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -58,6 +60,10 @@ export default function LayoutModule() {
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
   } = useStore();
   const [selected, setSelected] = useState(null);
+  // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
+  const activePage = layoutPages.find((pg) => pg.id === activeLayoutPageId);
+  const pageFormat = pageFormatOf(activePage);
+  const A4 = pagePx(pageFormat);
   const [atlasModalOpen, setAtlasModalOpen] = useState(false); // TASKS.csv #130
   // User request: "let's make some keyboard shortcuts. Like on layout we could have delete key to
   // delete the selected item, and ctrl + click to select multiple items." `selected` stays the single
@@ -890,6 +896,24 @@ export default function LayoutModule() {
           >
             <Plus size={14} />
           </button>
+          {/* TASKS.csv #398 — paper size / orientation of this page (also used for its PDF export). */}
+          <select
+            value={pageFormat.size}
+            onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, size: e.target.value })}
+            aria-label="Paper size" title="Paper size of this page (also used for its PDF export)"
+            style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
+          >
+            {Object.entries(PAGE_FORMATS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+          </select>
+          <select
+            value={pageFormat.orientation}
+            onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, orientation: e.target.value })}
+            aria-label="Orientation" title="Page orientation"
+            style={{ height: 22, marginBottom: 2, marginLeft: 4, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
+          >
+            <option value="landscape">Landscape</option>
+            <option value="portrait">Portrait</option>
+          </select>
           <button
             onClick={() => setAtlasModalOpen(true)}
             title="Generate atlas — batch-create one page per drillhole/section from the current page as a template"
@@ -995,6 +1019,62 @@ function Ruler2D({ axis, length, mmStep }) {
 // Sidebar controls for a selected "viewport" element (TASKS.csv #46): rebind to a different theme,
 // refresh (re-render the same theme — picks up any data/view changes made since it was last
 // captured), rotate, customize the frame (QGIS-style border), and see/apply the approximate scale.
+// TASKS.csv #399 — labelled UTM coordinate grid over a viewport. Only offered for a TOP-DOWN, TRUE-SCALE
+// (orthographic) capture: then every pixel is the same size on the ground, so easting/northing lines
+// can be placed exactly. A perspective or oblique capture has no single metres-per-pixel, and a grid on
+// it would be a confident-looking fiction. Lines follow the capture's camera azimuth (a rotated map gets
+// rotated grid lines); labels sit where each line meets the frame.
+function utmGridReady(el) {
+  return !!(el.planView && el.trueScale && el.targetWorld && el.worldHeightAtTarget && el.h && el.w);
+}
+function niceGridStep(span) {
+  const raw = span / 5, mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
+}
+function UtmGridOverlay({ el }) {
+  const W = el.w, H = el.h, m = el.worldHeightAtTarget / H; // metres per page px
+  // screen-up points at bearing beta = -azimuth (see ViewerModule's cameraAzimuthDeg comment)
+  const beta = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(beta), sb = Math.sin(beta);
+  const E0 = el.targetWorld.x, N0 = el.targetWorld.y;
+  // world of a page point (u right, v down, from the centre): E = E0 + m(u cb - v sb), N = N0 - m(u sb + v cb)
+  const corners = [[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]].map(([u, v]) => [E0 + m * (u * cb - v * sb), N0 - m * (u * sb + v * cb)]);
+  const eMin = Math.min(...corners.map((c) => c[0])), eMax = Math.max(...corners.map((c) => c[0]));
+  const nMin = Math.min(...corners.map((c) => c[1])), nMax = Math.max(...corners.map((c) => c[1]));
+  const step = el.utmGridStep > 0 ? el.utmGridStep : niceGridStep(Math.max(eMax - eMin, nMax - nMin));
+  // A line {p : n . p = c} (page px, centred) clipped to the frame; returns its two end points.
+  const clip = (nx, ny, c) => {
+    const pts = [];
+    const tryPt = (u, v) => { if (u >= -W / 2 - 1e-6 && u <= W / 2 + 1e-6 && v >= -H / 2 - 1e-6 && v <= H / 2 + 1e-6) pts.push([u, v]); };
+    if (Math.abs(ny) > 1e-9) { tryPt(-W / 2, (c + nx * W / 2) / ny); tryPt(W / 2, (c - nx * W / 2) / ny); }
+    if (Math.abs(nx) > 1e-9) { tryPt((c + ny * H / 2) / nx, -H / 2); tryPt((c - ny * H / 2) / nx, H / 2); }
+    return pts.length >= 2 ? [pts[0], pts[pts.length - 1]] : null;
+  };
+  const lines = [];
+  for (let e = Math.ceil(eMin / step) * step; e <= eMax; e += step) {
+    const seg = clip(cb, -sb, (e - E0) / m); // E = e  <=>  u cb - v sb = (e - E0)/m
+    if (seg) lines.push({ key: `e${e}`, seg, label: `${Math.round(e).toLocaleString()} E` });
+  }
+  for (let n = Math.ceil(nMin / step) * step; n <= nMax; n += step) {
+    const seg = clip(-sb, -cb, (n - N0) / m); // N = n  <=>  -(u sb + v cb) = (n - N0)/m
+    if (seg) lines.push({ key: `n${n}`, seg, label: `${Math.round(n).toLocaleString()} N` });
+  }
+  const toPx = ([u, v]) => [u + W / 2, v + H / 2];
+  return (
+    <svg width={W} height={H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      {lines.map((l) => {
+        const [a, b] = l.seg.map(toPx);
+        const lab = a[1] <= b[1] ? a : b; // label at the end nearer the top (or left) edge
+        return (
+          <g key={l.key}>
+            <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#1a2028" strokeOpacity="0.45" strokeWidth="0.6" />
+            <text x={Math.min(W - 2, Math.max(2, lab[0] + 2))} y={Math.min(H - 3, Math.max(9, lab[1] + 9))} fontSize="8" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onSyncScaleBar, onSyncNorth, syncNotice }) {
   // TASKS.csv #69 — the "~" prefix and hedge text below only apply to a perspective capture (the
   // ordinary, pre-#69 default) — sel.trueScale means the LAST capture was rendered with an
@@ -1006,8 +1086,19 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
     const ratio = sel.worldHeightAtTarget / printedHeightM;
     return `${sel.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
   })();
+  const gridOk = utmGridReady(sel); // TASKS.csv #399
   return (
     <div style={{ marginTop: 4 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
+        title={gridOk ? "Draw labelled easting/northing lines over this view" : "Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport."}>
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />
+        UTM grid (labelled)
+        {gridOk && sel.utmGrid && (
+          <input type="number" min="1" step="any" placeholder="auto" value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
+            aria-label="Grid spacing (m)" title="Grid spacing in metres (blank = automatic)" style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
+        )}
+      </label>
+      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>A UTM grid needs a top-down, true-scale capture.</div>}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Theme
         <select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
           {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
@@ -1130,6 +1221,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
       >
         <div style={{ width: "100%", height: "100%", border: frameW ? `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}` : "none", background: "#fff", position: "relative", boxSizing: "border-box" }}>
           {el.src && <img src={el.src} alt="viewport" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} draggable={false} />}
+          {el.utmGrid && utmGridReady(el) && <UtmGridOverlay el={el} />}
           {el.refreshing && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>
               Rendering…

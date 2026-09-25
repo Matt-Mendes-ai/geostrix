@@ -3143,9 +3143,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applied for this capture was left in place, silently showing up as "my toggled-off layers
     // are back on" whenever the user next looked at the 3D View tab.
     restoreLiveView(liveViewBeforeRender);
+    // TASKS.csv #399 — where the view is centred (world E/N) and whether it looks straight down, so Layout
+    // can draw a labelled UTM grid over a top-down, true-scale capture. Scene -> world: E = x + ox, N = oy - z.
+    const o = originRef.current;
+    const targetWorld = { x: cs.target.x + o.x, y: o.y - cs.target.z };
+    const planView = cs.phi < 0.02; // within ~1 deg of looking straight down
     resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: canvas.width, naturalH: canvas.height,
-      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale,
+      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView,
     });
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/
