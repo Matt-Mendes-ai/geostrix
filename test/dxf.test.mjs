@@ -30,3 +30,24 @@ test("#408 export writes a 3D POLYLINE that re-imports with the same Z", () => {
   assert.deepEqual(r.polylines[0].map((p) => p.z), [1200.5, 1190.25]);
   assert.equal(r.layers[0], "DH-1");
 });
+
+import { sectionStringsToRows, sectionStringsToDXF, kindOf } from "../src/lib/sectionExport.js";
+import { parseDXF as parseDXF409 } from "../src/lib/dxf.js";
+test("#409 section contacts/faults/strings export as vertex CSV rows and 3D DXF polylines", () => {
+  const sections = [{ name: "4200N", contacts: [
+    { id: "c1", unit: "DACT", isUpperContact: true, points: [{ l: 0, x: 463000, y: 6178000, z: 1100 }, { l: 50, x: 463050, y: 6178000, z: 1080 }] },
+    { id: "f1", unit: "Main Fault", kind: "fault", isUpperContact: false, points: [{ l: 10, x: 463010, y: 6178000, z: 1150 }, { l: 20, x: 463020, y: 6178000, z: 900 }] },
+  ] }];
+  const rows = sectionStringsToRows(sections);
+  assert.equal(rows.length, 4);
+  assert.deepEqual(rows.map((r) => r.kind), ["contact", "contact", "fault", "fault"]);
+  assert.equal(rows[3].z, 900);
+  const { dxf, count } = sectionStringsToDXF(sections);
+  assert.equal(count, 2);
+  const back = parseDXF409(dxf);
+  assert.equal(back.polylines.length, 2);
+  assert.ok(back.has3D);
+  assert.deepEqual(back.polylines[1].map((p) => p.z), [1150, 900]);
+  assert.match(back.layers.join(" "), /4200N_contact_DACT/);
+  assert.equal(kindOf({ isUpperContact: true }), "contact");
+});

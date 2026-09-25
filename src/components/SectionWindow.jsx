@@ -116,6 +116,9 @@ export default function SectionWindow() {
   // litho interval tops, so a drawn contact tagged with the SAME unit name + "this is the upper
   // contact" slots in as an extra interface point for that exact surface, no separate matching step.
   const [unitPick, setUnitPick] = useState("");
+  // TASKS.csv #409 — what is being drawn: a unit's upper contact (feeds modelling), a fault, or a free
+  // interpretation string. Faults and strings take a typed name.
+  const [kindPick, setKindPick] = useState("contact");
   const lithoUnits = data?.lithoUnits || [];
   const startDrawing = () => { if (!unitPick) return; setDrawing(true); setDrawPoints([]); };
   const cancelDrawing = () => { setDrawing(false); setDrawPoints([]); };
@@ -123,7 +126,7 @@ export default function SectionWindow() {
   const finishContact = () => {
     if (drawPoints.length < 2 || !unitPick) { cancelDrawing(); return; }
     const id = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setContacts((p) => [...p, { id, unit: unitPick, isUpperContact: true, color: hashColor(unitPick), points: drawPoints }]);
+    setContacts((p) => [...p, { id, unit: unitPick, kind: kindPick, isUpperContact: kindPick === "contact", color: kindPick === "fault" ? "#d9534f" : hashColor(unitPick), points: drawPoints }]);
     setDrawing(false); setDrawPoints([]);
   };
   const removeContact = (id) => setContacts((p) => p.filter((c) => c.id !== id));
@@ -185,7 +188,14 @@ export default function SectionWindow() {
                   contact, not a freeform name (see finishContact's comment). Falls back to a text box
                   if this property has no litho data loaded yet (data.lithoUnits empty) rather than
                   blocking the tool entirely. */}
-              {lithoUnits.length > 0 ? (
+              <select value={kindPick} onChange={(e) => { setKindPick(e.target.value); setUnitPick(""); }} style={selectStyle} aria-label="What to draw">
+                <option value="contact">Upper contact</option>
+                <option value="fault">Fault</option>
+                <option value="string">String</option>
+              </select>
+              {kindPick !== "contact" ? (
+                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? "Fault name" : "String name"} style={{ ...selectStyle, width: 140 }} />
+              ) : lithoUnits.length > 0 ? (
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
                   <option value="">Unit…</option>
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -194,7 +204,7 @@ export default function SectionWindow() {
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder="Unit name (no litho data loaded)" style={{ ...selectStyle, width: 170 }} />
               )}
               <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? `Draw ${unitPick}'s upper contact` : "Pick a unit first"}>
-                <Pencil size={14} /> Draw upper contact
+                <Pencil size={14} /> {kindPick === "contact" ? "Draw upper contact" : kindPick === "fault" ? "Draw fault" : "Draw string"}
               </button>
             </>
           ) : (

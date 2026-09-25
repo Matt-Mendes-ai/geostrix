@@ -19,6 +19,7 @@ import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #42
 import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
+import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
@@ -8507,6 +8508,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Cross-sections ({sections.length})</span>
+                {/* TASKS.csv #409 — digitised contacts/faults/strings out as 3D CSV and DXF */}
+                {sections.some((s) => (s.contacts || []).length) && (
+                  <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
+                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string: one row per vertex with real x, y, z"
+                      onClick={async () => { const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>Strings CSV</span>
+                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS"
+                      onClick={async () => { const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>DXF</span>
+                  </span>
+                )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                   onClick={() => { if (confirmDestructive(`Delete all ${sections.length} section(s) and any contacts drawn on them?`, { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
