@@ -360,29 +360,55 @@ function normStructure(r, mapping, customFields, dipConvention) {
 // units via sprite.scale — legible at a normal drillhole-scale zoom without turning into a giant
 // screen-filling label right on top of a collar (three.js Sprites don't have a native "distance-
 // independent" screen-space size mode without a custom shader, which felt like real overkill here).
+//
+// TASKS.csv #379 — labels are now a FIXED ON-SCREEN SIZE (SpriteMaterial.sizeAttenuation = false, which
+// three.js does support; the note above was wrong). At 0.09 world units per canvas pixel a label was
+// ~4 m tall: ~1.7 px at the 2,200 m overview and shimmering. fitScreenLabels() below sets each label's
+// scale from the camera and the viewport height so it is LABEL_PX tall on screen, for the live
+// perspective view and for orthographic captures alike. The text is also redrawn once the app font has
+// loaded: measureText used to run before 'Exo 2' was ready and bake in a fallback font and width.
+const LABEL_PX = 16;
+const LABEL_FONT = "600 32px 'Exo 2', system-ui, sans-serif";
 function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  const fontSize = 32;
-  ctx.font = `600 ${fontSize}px 'Exo 2', system-ui, sans-serif`;
-  const padX = 10, padY = 6;
-  const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
-  const h = fontSize + padY * 2;
-  canvas.width = w; canvas.height = h;
-  ctx.font = `600 ${fontSize}px 'Exo 2', system-ui, sans-serif`;
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = color;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, padX, h / 2);
+  const fontSize = 32, padX = 10, padY = 6;
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
-  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+  texture.generateMipmaps = false;
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, sizeAttenuation: false });
+  const draw = () => {
+    ctx.font = LABEL_FONT;
+    const w = Math.ceil(ctx.measureText(text).width) + padX * 2, h = fontSize + padY * 2;
+    canvas.width = w; canvas.height = h;
+    ctx.font = LABEL_FONT;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = color;
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, padX, h / 2);
+    material.userData.labelAspect = w / h;
+    texture.needsUpdate = true;
+  };
+  draw();
+  if (document.fonts && !document.fonts.check(LABEL_FONT)) document.fonts.load(LABEL_FONT).then(() => { if (material.map) draw(); }).catch(() => {});
   const sprite = new THREE.Sprite(material);
-  const scale = 0.09; // world-units-per-canvas-pixel — tuned to read clearly at a typical drillhole-project zoom
-  sprite.scale.set(w * scale, h * scale, 1);
+  sprite.center.set(0.5, -0.35); // #379 — sit just above the collar on screen at any zoom, not on top of it
   sprite.renderOrder = 999; // draw after (on top of) opaque geometry — depthTest:false already ignores occlusion, this just keeps draw order consistent across sprites
   return sprite;
+}
+// Scale every fixed-size label under `group` so it is LABEL_PX tall on a viewport `viewportH` px high.
+// Perspective (sizeAttenuation off): screen fraction = scale * P[5] / 2. Orthographic: three.js keeps
+// the scale in world units, so it is px * world-height-per-pixel.
+function fitScreenLabels(group, camera, viewportH) {
+  if (!group || !viewportH) return;
+  const s = camera.isPerspectiveCamera
+    ? (2 * LABEL_PX) / (viewportH * camera.projectionMatrix.elements[5])
+    : (LABEL_PX * (camera.top - camera.bottom)) / (camera.zoom * viewportH);
+  for (const sp of group.children) {
+    const a = sp.material?.userData?.labelAspect;
+    if (a) sp.scale.set(s * a, s, 1);
+  }
 }
 function normCollar(r) {
   return {
@@ -2700,6 +2726,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const interval = quietFor > DEEP_IDLE_AFTER_MS ? DEEP_IDLE_FRAME_INTERVAL_MS : quietFor > IDLE_AFTER_MS ? IDLE_FRAME_INTERVAL_MS : 0;
       if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
+        { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) fitScreenLabels(hl, camera, mount.clientHeight); } // #379
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
         renderer.render(scene, camera);
@@ -3168,6 +3195,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       orthoCamera.updateProjectionMatrix();
       renderCamera = orthoCamera;
     }
+    fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, renderer.domElement.height / renderer.getPixelRatio()); // #379
     renderer.render(scene, renderCamera);
     // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
     // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
