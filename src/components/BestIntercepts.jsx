@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
-import { computeBestIntercepts, avgGradeInRange, domainsForInterval, attachIncluding } from "../lib/geochem.js"; // attachIncluding: #402
+import { computeBestIntercepts, avgGradeInRange, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
@@ -36,6 +36,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const [minLength, setMinLength] = useState(0);
   const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
   const [includeCutoff, setIncludeCutoff] = useState(""); // TASKS.csv #402 — "" = off
+  // TASKS.csv #402 — metal equivalent: prices/recoveries are ENTERED, never defaulted.
+  const [meqOn, setMeqOn] = useState(false);
+  const [meqInputs, setMeqInputs] = useState({}); // symbol -> { price, recovery (%) }
   // TASKS.csv #230 — extra elements shown alongside the primary (compositing-anchor) element, e.g.
   // "what's the Ag and Cu over this Au intercept?" — the compositing/cutoff/dilution logic still only
   // ever runs against ONE element (`symbol`, below); these are just additional length-weighted
@@ -102,6 +105,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     return out;
   }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows, includeCutoff]);
   const incOn = includeCutoff !== "" && Number(includeCutoff) > cutoff; // #402
+  const meqMetals = meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100 })) : [];
+  const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
+  const meqFor = (r) => (meqReady ? metalEquivalent({ [symbol]: r.avgGrade, ...r.extras }, meqMetals) : null);
   const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${h.avgGrade.toFixed(3)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
 
   // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
@@ -145,6 +151,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
         [`including_avg_${symbol}_${unit}`]: r.including ? r.including[0].avgGrade.toFixed(3) : "",
         including_all: r.including ? r.including.map(incText).join("; ") : "",
       } : {}),
+      ...(meqReady ? { [`${symbol}Eq_${unit}`]: (() => { const v = meqFor(r); return v == null ? "" : v.toFixed(3); })() } : {}),
     }));
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
@@ -155,6 +162,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       twEnabled ? `True width: from a ${twDipDir}/${twDip} (dip direction/dip) structure against hole traces desurveyed by ${desurveyMethod || "minimum curvature"}` : "True width: not computed (lengths are downhole)",
       domainLayer ? `Host domain from layer: ${domainLayer}` : null,
       incOn ? `Including sub-intercepts: cutoff ${includeCutoff} ${unit}, same dilution and minimum-length rules, attached to the containing intercept` : null,
+      meqReady ? `Metal equivalent (prices and recoveries entered by the user, ${new Date().toISOString().slice(0, 10)}): ${metalEquivalentFormula(meqMetals)}. Intercepts are cut on ${symbol} alone, not on the equivalent.` : null,
       extraSymbols.length ? `Also averaged over each intercept: ${extraSymbols.join(", ")}` : null,
       `Intercepts: ${results.length}`,
     ] });
@@ -207,6 +215,29 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
               <input type="number" step="any" min="0" value={minGradeLen} onChange={(e) => setMinGradeLen(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
           </div>
+
+          {/* TASKS.csv #402 — metal equivalent from the element + the 'Also show' elements below. */}
+          {symbols.length > 1 && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} /> Metal equivalent ({symbol}Eq) from {symbol} and the "Also show" elements
+              </label>
+              {meqOn && (
+                <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {[symbol, ...extraSymbols].map((s) => (
+                    <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 34 }}>{s}</span>
+                      price <input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={`${s} price`} /> {PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb"}
+                      recovery <input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={`${s} recovery %`} /> %
+                    </div>
+                  ))}
+                  <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>
+                    {extraSymbols.length === 0 ? "Pick at least one other element under \"Also show\"." : meqReady ? metalEquivalentFormula(meqMetals) : "Enter a price and recovery for every element — no equivalent is shown until all are entered."}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {symbols.length > 1 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title="Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.">
@@ -277,12 +308,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                     <th style={th}>Avg {symbol} ({unit})</th>
                     <th style={th}>Grade × length</th>
                     {incOn && <th style={th}>Including (≥ {includeCutoff})</th>}
+                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{symbol}Eq ({unit})</th>}
                     {extraSymbols.map((s) => <th key={s} style={th}>Avg {s} ({elementUnits[s] || "ppm"})</th>)}
                     <th style={th}>Assay intervals</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {topPad > 0 && <tr style={{ height: topPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0) + (meqReady ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                   {results.slice(startIndex, endIndex).map((r, i) => (
                     <tr key={startIndex + i} style={{ borderBottom: "1px solid var(--color-hover-bg)", height: RESULT_ROW_H, boxSizing: "border-box" }}>
                       <td style={td}>{r.hole_id}</td>
@@ -316,12 +348,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                         {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
+                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${v.toFixed(3)}`; })()}</td>}
                       {incOn && <td style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>}
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}
-                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
+                  {bottomPad > 0 && <tr style={{ height: bottomPad }}><td colSpan={7 + extraSymbols.length + (twEnabled ? 2 : 0) + (domainLayer ? 1 : 0) + (incOn ? 1 : 0) + (meqReady ? 1 : 0)} style={{ padding: 0, border: "none" }} /></tr>}
                 </tbody>
               </table>
             </div>

@@ -120,3 +120,18 @@ test("#402 'including' sub-intercepts at a higher cutoff sit inside their parent
   // an intercept identical to its parent is not reported as "including" itself
   assert.equal(attachIncluding(parents, parents)[0].including, undefined);
 });
+
+import { metalEquivalent, pricePerGram } from "../src/lib/geochem.js";
+test("#402 metal equivalent uses only entered prices and recoveries, with unit conversion", () => {
+  const au = { symbol: "Au", unit: "ppm", price: 2000, recovery: 0.9 };
+  const ag = { symbol: "Ag", unit: "ppm", price: 25, recovery: 0.8 };
+  const cu = { symbol: "Cu", unit: "%", price: 4, recovery: 0.85 };
+  // Ag: 80 g/t * 25/2000 * 0.8/0.9 = 0.8889 g/t AuEq
+  assert.ok(Math.abs(metalEquivalent({ Au: 1, Ag: 80 }, [au, ag]) - (1 + 80 * (25 / 2000) * (0.8 / 0.9))) < 1e-9);
+  // Cu 0.5 %: 5000 g/t * ($4/lb per gram) * 0.85 / ($2000/oz per gram * 0.9)
+  const expect = 1 + (5000 * pricePerGram("Cu", 4) * 0.85) / (pricePerGram("Au", 2000) * 0.9);
+  assert.ok(Math.abs(metalEquivalent({ Au: 1, Cu: 0.5 }, [au, cu]) - expect) < 1e-9);
+  assert.ok(expect > 1.6 && expect < 1.7, `${expect}`); // 0.5% Cu at $4/lb, 85% rec. = $37.5/t = 0.65 g/t Au at $2000/oz, 90% rec.
+  assert.equal(metalEquivalent({ Au: 1, Ag: 80 }, [au, { ...ag, price: NaN }]), null);
+  assert.equal(metalEquivalent({ Au: 1 }, [au, ag]), null); // missing Ag grade -> no number
+});

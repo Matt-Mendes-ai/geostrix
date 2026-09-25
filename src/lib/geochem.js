@@ -927,3 +927,34 @@ export const CLASS_COLORS = {
   "ALK-BAS": "#743e65", TRACHY: "#d884c5", "SUB-ALK": "#327378", FONO: "#5d78df",
 };
 export function classColor(code) { return CLASS_COLORS[code] || "#8a95a5"; }
+
+// TASKS.csv #402 — metal equivalent grade, ONLY from prices and recoveries the user enters (never
+// defaults: an equivalent grade is only as meaningful as its assumptions, and they must be stated).
+// Precious metals (Au, Ag, Pt, Pd) are priced per troy ounce, everything else per pound. Grades are read
+// in g/t (ppm); % is converted (1 % = 10,000 g/t); ppb divided by 1,000.
+//   value per tonne = sum_i( grade_i[g/t] * price_i[$/g] * recovery_i )
+//   equivalent grade (in the base element's own unit) = value per tonne / (price_base[$/g] * recovery_base)
+// `metals`: [{ symbol, unit, price, recovery (0-1) }], the base element first. Returns null if any input is
+// missing, so a partial set can never print a number.
+const G_PER_OZT = 31.1034768, G_PER_LB = 453.59237;
+export function pricePerGram(symbol, price) {
+  return PRECIOUS_METALS.has(symbol) ? price / G_PER_OZT : price / G_PER_LB;
+}
+function toGt(value, unit) { return unit === "%" ? value * 10000 : unit === "ppb" ? value / 1000 : value; }
+export function metalEquivalent(grades, metals) {
+  if (!metals?.length) return null;
+  let value = 0;
+  for (const m of metals) {
+    const g = grades[m.symbol];
+    if (!(Number.isFinite(g) && Number.isFinite(m.price) && m.price > 0 && Number.isFinite(m.recovery) && m.recovery > 0 && m.recovery <= 1)) return null;
+    value += toGt(g, m.unit) * pricePerGram(m.symbol, m.price) * m.recovery;
+  }
+  const base = metals[0];
+  const eqGt = value / (pricePerGram(base.symbol, base.price) * base.recovery);
+  return base.unit === "%" ? eqGt / 10000 : base.unit === "ppb" ? eqGt * 1000 : eqGt;
+}
+export function metalEquivalentFormula(metals) {
+  const b = metals[0];
+  const per = (s) => (PRECIOUS_METALS.has(s) ? "/oz" : "/lb");
+  return `${b.symbol}Eq = ${metals.map((m) => `${m.symbol} x ${m.symbol === b.symbol ? "1" : `(${m.price}${per(m.symbol)} x ${Math.round(m.recovery * 100)}%) / (${b.price}${per(b.symbol)} x ${Math.round(b.recovery * 100)}%)${m.unit !== b.unit ? ` [${m.unit} -> ${b.unit}]` : ""}`}`).join(" + ")}`;
+}
