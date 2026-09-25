@@ -2659,6 +2659,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
     const IDLE_AFTER_MS = 400;
     const IDLE_FRAME_INTERVAL_MS = 120; // ~8fps while idle vs. ~60fps (uncapped) while active
+    // TASKS.csv #441 — after a longer quiet spell, drop to 1 fps. The ~8 fps idle cap ran forever (~40-60 ms
+    // CPU/s plus GPU on the Harry sample, all of it drawing identical frames). What wakes it: every camera
+    // move and resize (as before), every ViewerModule commit (the no-deps effect just before the JSX return
+    // — nearly every scene change is a React effect), every pointer move over the canvas (drawing and
+    // measuring previews), and three's default loading manager finishing a texture. Anything that changes
+    // the scene outside all of those still reaches the screen within 1 s, so this stays a throttle and can
+    // never leave a stale frame up for good.
+    const DEEP_IDLE_AFTER_MS = 3000;
+    const DEEP_IDLE_FRAME_INTERVAL_MS = 1000;
+    const prevLoadHandler = THREE.DefaultLoadingManager.onLoad;
+    THREE.DefaultLoadingManager.onLoad = (...args) => { lastActivityRef.current = Date.now(); prevLoadHandler?.(...args); };
+    const wakeOnPointer = () => { lastActivityRef.current = Date.now(); };
+    dom.addEventListener("pointermove", wakeOnPointer, { passive: true });
     let raf;
     const animate = () => {
       // TASKS.csv #225 — while hidden (another tab showing), skip the render entirely rather than
@@ -2668,8 +2681,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // reveal effect below for why a resize is still needed when this bail lifts.
       if (!visibleRef.current) { raf = requestAnimationFrame(animate); return; }
       const now = Date.now();
-      const idle = now - lastActivityRef.current > IDLE_AFTER_MS;
-      if (!idle || now - lastFrameAtRef.current >= IDLE_FRAME_INTERVAL_MS) {
+      const quietFor = now - lastActivityRef.current;
+      const interval = quietFor > DEEP_IDLE_AFTER_MS ? DEEP_IDLE_FRAME_INTERVAL_MS : quietFor > IDLE_AFTER_MS ? IDLE_FRAME_INTERVAL_MS : 0;
+      if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
@@ -2684,6 +2698,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
     return () => {
       cancelAnimationFrame(raf); ro.disconnect();
+      dom.removeEventListener("pointermove", wakeOnPointer); // #441
+      if (THREE.DefaultLoadingManager.onLoad !== prevLoadHandler) THREE.DefaultLoadingManager.onLoad = prevLoadHandler;
       dom.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointermove", onPointerMove);
@@ -7851,6 +7867,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
     setNotices((p) => [...p, `Generated ${created} section${created === 1 ? "" : "s"} spaced ${width}m apart at azimuth ${sliceSeriesAzimuth.toFixed(0)}° — grouped together in the Cross-sections list.`]);
   }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
+
+  // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
+  // wake the render loop from deep idle. Deliberately no dependency array.
+  useEffect(() => { lastActivityRef.current = Date.now(); });
 
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
