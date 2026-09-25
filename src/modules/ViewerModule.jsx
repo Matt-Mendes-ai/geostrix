@@ -22,6 +22,7 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/l
 import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
 import { checkAgainstLogs, unitVolumes } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
+import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 // TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
 // startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
@@ -1491,6 +1492,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const sectionPts = useRef([]);
   const [sectionPreview, setSectionPreview] = useState(null);
   const [sectionCorridor, setSectionCorridor] = useState(100);
+  // TASKS.csv #393 — a section typed by centre / azimuth / length (blank centre = the data's centre).
+  const [typedSection, setTypedSection] = useState({ e: "", n: "", azimuth: 0, length: 500 });
 
   // TASKS.csv #121 (QGIS-specialist audit finding, approved) — distance/bearing/area measurement
   // tools in the 3D view. `measureMode` null = off; "distance" = click to chain a polyline ruler
@@ -8055,6 +8058,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection });
   }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles]);
 
+  // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
+  // (same shape as a drawn one) and opened at once.
+  const openDefinedSection = (geom, name) => {
+    const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: sectionCorridor, contacts: [] };
+    upsertSection(s);
+    reopenSection(s);
+    return s;
+  };
+  const openTypedSection = () => {
+    let e = Number(typedSection.e), n = Number(typedSection.n);
+    if (typedSection.e === "" || typedSection.n === "" || !Number.isFinite(e) || !Number.isFinite(n)) {
+      const ts = tracesRef.current;
+      if (!ts.length) { setNotices((p) => [...p, "Enter a centre easting and northing — there are no drillholes to centre the section on."]); return; }
+      const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy);
+      e = (arrMin(xs) + arrMax(xs)) / 2; n = (arrMin(ys) + arrMax(ys)) / 2;
+    }
+    const g = sectionFromCentre({ e, n, azimuth: Number(typedSection.azimuth) || 0, length: Number(typedSection.length) || 500 });
+    openDefinedSection(g, `Section ${Math.round(e)}E ${Math.round(n)}N az ${g.azimuth.toFixed(0)}°`);
+  };
+  const openHoleSection = useCallback((holeId) => {
+    const t = tracesRef.current.find((x) => x.hole_id === holeId);
+    const g = t && sectionThroughHole(t.wx, t.wy, { fallbackAzimuth: Number(typedSection.azimuth) || 0 });
+    if (!g) { setNotices((p) => [...p, `${holeId} has no desurveyed trace to cut a section through.`]); return; }
+    openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`);
+    if (g.vertical) setNotices((p) => [...p, `${holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, ${g.azimuth.toFixed(0)}°.`]);
+  }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
   // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel
   // section lines, all running at the given azimuth, spaced exactly `width` meters apart so together
@@ -8113,10 +8143,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const alongPad = Math.max(5, (sMax - sMin) * 0.02);
     sMin -= alongPad; sMax += alongPad;
 
-    const spanT = tMax - tMin;
-    const n = Math.max(1, Math.ceil(spanT / width));
-    const usedT = n * width;
-    const tStart = tMin - (usedT - spanT) / 2; // center the tiling on the actual data span rather than always starting flush at tMin
+    // TASKS.csv #393 — lines sit on ROUND multiples of the spacing (and are named by that grid line,
+    // e.g. "412500E"), as sections on a paper plan are, instead of wherever the data happened to start.
+    const lines = fenceLines(tMin, tMax, width, sliceSeriesAzimuth);
+    const n = lines.length;
 
     // TASKS.csv #240 — user report: a single run against a large voxel model produced 3144
     // individual sections with no group to manage them as a unit. Every section this run creates is
@@ -8125,11 +8155,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const groupId = addSectionGroup(`Fence series (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`);
     let created = 0;
     for (let i = 0; i < n; i++) {
-      const tCenter = tStart + width * (i + 0.5);
+      const tCenter = lines[i].t;
       const a = { x: sMin * dirX + tCenter * perpX, y: sMin * dirY + tCenter * perpY };
       const b = { x: sMax * dirX + tCenter * perpX, y: sMax * dirY + tCenter * perpY };
       const id = `sect_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`;
-      const name = `Fence ${i + 1}/${n} (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`;
+      const name = `Fence ${i + 1}/${n} ${lines[i].name} (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`;
       upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth: sliceSeriesAzimuth, corridor: width / 2, contacts: [], groupId });
       created++;
     }
@@ -8516,8 +8546,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             specified azi and width"). Generates N parallel sections tiling the visible voxel model(s)'
             and/or drilling's extent, added to the same saved-sections list below rather than opened all
             at once. */}
+        {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
+        <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16 }}>Section by coordinates</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre E<input value={typedSection.e} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre easting" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre N<input value={typedSection.n} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre northing" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Azimuth (°)<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label="Section azimuth" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Length (m)<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label="Section length" /></label>
+        </div>
+        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} /> Open section</button>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.</div>
+
         {/* TASKS.csv #453 — live 3D slice through everything in the view */}
-        <div className="ge-section-label" style={{ marginTop: sections.length ? 0 : 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="ge-section-label" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>3D slice</span>
           <label style={{ display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
             <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label="3D slice on" /> On
@@ -9835,7 +9876,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 4 }} />
             )}
             {collars.filter((c) => !holeFilter || c.hole_id.toLowerCase().includes(holeFilter.toLowerCase())).map((c) => (
-              <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} />
+              <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} />
             ))}
           </>
         )}
@@ -10576,11 +10617,23 @@ function ContextItem({ label, onClick, disabled, title }) {
 // notices all together), and windowing a sub-range of a larger shared scroll needs real layout
 // restructuring this pass didn't attempt; memoization fixes the actual measured symptom (the toggle
 // cost) without that risk.
-const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog }) {
+const typedSectionInput = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }; // #393
+const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection }) {
   return (
     <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
+      {onSection && ( /* TASKS.csv #393 — section in the plane of this hole */
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Section through ${hole_id}`}
+          onClick={(e) => { e.stopPropagation(); onSection(hole_id); }}
+          title={`Section through ${hole_id} — along the hole's own bearing, Buffer from the section tool`}
+          style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
+        >
+          <Scissors size={12} />
+        </span>
+      )}
       <span role="button" tabIndex={0} onKeyDown={activateOnKey}
         onClick={(e) => { e.stopPropagation(); onOpenStripLog(hole_id); }}
         title={`Strip log — ${hole_id}`}
