@@ -6,6 +6,7 @@ import { saveFile } from "../lib/desktop.js";
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, GEOCHEM_LABELS, classColor,
   isElementColumn, inferUnit, parseAssayValue, assayQualifier, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
+  oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
@@ -149,12 +150,17 @@ export default function GeochemModule() {
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0;
-    const read = (raw, sym) => {
+    const oxideNotes = new Set(); // #403
+    const read = (raw, sym, header) => {
       const c = readAssayCell(raw, negativeMode);
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
       const e = chosenBySymbol.get(sym);
-      return { v: e ? convertUnit(c.value, e.unit, existingUnit[sym] || e.unit) : c.value, q: c.qualifier };
+      // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%.
+      const ox = oxideOfHeader(header);
+      if (ox && c.value != null) oxideNotes.add(`${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
+      const elemPct = fromOxideHeader(c.value, header);
+      return { v: e ? convertUnit(elemPct, ox ? "%" : e.unit, existingUnit[sym] || (ox ? "%" : e.unit)) : elemPct, q: c.qualifier };
     };
     let rows = [];
     if (format === "wide") {
@@ -165,7 +171,7 @@ export default function GeochemModule() {
         // over-range rows; nothing else has to care).
         const quals = {};
         chosen.forEach((e) => {
-          const { v, q } = read(r[e.header], e.symbol);
+          const { v, q } = read(r[e.header], e.symbol, e.header);
           if (v != null) {
             values[e.symbol] = v;
             if (q) quals[e.symbol] = q;
@@ -183,7 +189,7 @@ export default function GeochemModule() {
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = Number(r[mapping.from]), to = Number(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, { hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" });
-        const { v, q } = read(r[mapping.value], sym); // TASKS.csv #261 qualifiers, #333 negatives, #334 units
+        const { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
         if (v != null) {
           const target = byInterval.get(key);
           target.values[sym] = v;
@@ -196,13 +202,14 @@ export default function GeochemModule() {
     const mergedCount = mergeAssayRows(assays, rows).merged; // for the notice only
     setAssays((prev) => mergeAssayRows(prev, rows).rows);
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, e); }); return Array.from(merged.values()); });
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const extra = [
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, `Loaded ${rows.length} ${modal.isPxrf ? "pXRF" : "assay"} intervals (${chosen.length} elements).${extra ? " " + extra : ""}`]);
     setAssayModal(null);
@@ -267,7 +274,8 @@ export default function GeochemModule() {
       chosen.forEach((e) => {
         const c = readAssayCell(r[e.header]);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
-        const v = convertUnit(c.value, e.unit, existingUnit[e.symbol] || e.unit);
+        const ox = oxideOfHeader(e.header); // TASKS.csv #403
+        const v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
         if (v != null) values[e.symbol] = v;
       });
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
@@ -279,7 +287,7 @@ export default function GeochemModule() {
       };
     }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
     setSurfaceSamples((prev) => [...prev, ...rows]);
-    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, e); }); return Array.from(merged.values()); });
+    setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,

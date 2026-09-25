@@ -70,3 +70,22 @@ test("#336 mergeAssayRows updates in place, keeps other elements, appends new in
   assert.deepEqual(r.rows[0].values, { Au: 2, Cu: 5 });
   assert.equal(r.rows[0].qualifiers, undefined);
 });
+
+import { isElementColumn, oxideOfHeader, fromOxideHeader, toOxide } from "../src/lib/geochem.js";
+test("#403 whole-rock oxide headers are recognised and stored as element wt%", () => {
+  assert.equal(isElementColumn("SiO2"), "Si");
+  assert.equal(isElementColumn("Al2O3 (%)"), "Al");
+  assert.equal(isElementColumn("Fe2O3T_pct"), "Fe");
+  assert.equal(isElementColumn("TiO2"), "Ti");
+  assert.equal(isElementColumn("TFe2O3"), "Fe");
+  assert.equal(isElementColumn("LOI"), false);
+  assert.equal(isElementColumn("Ti_ppm"), "Ti");
+  assert.equal(oxideOfHeader("Ti_ppm"), null);
+  assert.equal(oxideOfHeader("Si_pct"), null);
+  // 65 % SiO2 must come back as 65 % SiO2 on a diagram (toOxide), not 139 %
+  const si = fromOxideHeader(65, "SiO2");
+  assert.ok(Math.abs(toOxide(si, "Si") - 65) < 1e-9);
+  // Fe2O3 total -> Fe -> FeO total (diagrams use FeO): 10 % Fe2O3 = 8.998 % FeO
+  assert.ok(Math.abs(toOxide(fromOxideHeader(10, "Fe2O3T"), "Fe") - 8.998) < 0.01);
+  assert.equal(fromOxideHeader(5, "Cu_ppm"), 5);
+});

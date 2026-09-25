@@ -18,9 +18,40 @@ const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","P","S","Ti","Si","Mn","
 // comes after it, unit token present or not, method code or not.
 export function isElementColumn(header) {
   if (!header) return false;
+  const ox = oxideOfHeader(header); // TASKS.csv #403 — "SiO2", "Al2O3 (%)", "Fe2O3T_pct" -> Si / Al / Fe
+  if (ox) return ox.symbol;
   const cleaned = String(header).replace(/\(.*?\)/g, " "); // drop parenthetical units, e.g. "Au (ppm)"
   const first = cleaned.split(/[\s_-]+/)[0].trim();
   return ELEMENT_SYMBOLS.find((s) => s.toLowerCase() === first.toLowerCase()) || false;
+}
+
+// TASKS.csv #403 — whole-rock oxide columns. Values are stored as ELEMENT wt% (everything downstream —
+// TAS, AFM, Jensen, the alteration box — calls toOxide() on the element value), so an oxide column is
+// divided by its oxide/element mass ratio at import. It used to be unrecognised; mapping "SiO2" to Si by
+// hand then stored 65 (% SiO2) as if it were % Si, and toOxide multiplied it by 2.139 again (139% SiO2 on
+// TAS). The conversion is keyed on the HEADER, so a hand-mapped oxide column converts too, and a column
+// that is already element % ("Si_pct") never does. Total-iron forms (Fe2O3T, FeOT, TFe2O3) are total iron
+// expressed as that oxide. LOI is not an element and is not imported as one.
+const OXIDE_HEADERS = {
+  SiO2: ["Si", 2.1392], TiO2: ["Ti", 1.6681], Al2O3: ["Al", 1.8895], Fe2O3: ["Fe", 1.4297], FeO: ["Fe", 1.2865],
+  MnO: ["Mn", 1.2912], MgO: ["Mg", 1.6583], CaO: ["Ca", 1.3992], Na2O: ["Na", 1.3480], K2O: ["K", 1.2046],
+  P2O5: ["P", 2.2914], Cr2O3: ["Cr", 1.4615], BaO: ["Ba", 1.1165], SrO: ["Sr", 1.1826], ZrO2: ["Zr", 1.3508],
+};
+export function oxideOfHeader(header) {
+  if (!header) return null;
+  const first = String(header).replace(/\(.*?\)/g, " ").split(/[\s_-]+/)[0].trim();
+  // As written, then without a total-iron suffix ("Fe2O3T", "FeOtot"), then without a "T" prefix ("TFe2O3").
+  const candidates = [first, first.replace(/(tot|total|T|t)$/, ""), first.replace(/^T/, "")];
+  const key = candidates.map((c) => Object.keys(OXIDE_HEADERS).find((k) => k.toLowerCase() === c.toLowerCase())).find(Boolean);
+  if (!key) return null;
+  const [symbol, factor] = OXIDE_HEADERS[key];
+  return { oxide: key, symbol, factor };
+}
+// Element wt% from a value read under `header` (unchanged when the header is not an oxide).
+export function fromOxideHeader(value, header) {
+  if (value == null) return value;
+  const ox = oxideOfHeader(header);
+  return ox ? value / ox.factor : value;
 }
 export function inferUnit(header, symbol) {
   const h = String(header).toLowerCase();
