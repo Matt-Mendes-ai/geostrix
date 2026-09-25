@@ -106,6 +106,7 @@ export default function GeophysicsModule() {
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
   const [idwCellSize, setIdwCellSize] = useState(25);
   const [idwPower, setIdwPower] = useState(2);
+  const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
   const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
   // TASKS.csv #237 sub-item (2) — terrain contours. 50 m default interval: a sensible starting point
   // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
@@ -884,9 +885,7 @@ export default function GeophysicsModule() {
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
               <Triangle size={14} /> Spatial analysis (Voronoi / declustering)…
             </button>
-            {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), a
-                lightweight pure-JS alternative to the Python sidecar's own (fully built but unreachable
-                from any UI) /interpolate endpoint — see idw.js's own header comment for why. */}
+            {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
               <Box size={14} /> Grid to raster (IDW)…
             </button>
@@ -901,13 +900,22 @@ export default function GeophysicsModule() {
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
+                {/* TASKS.csv #372 — colour stretch */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalise: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Colours</span>
+                  <select value={idwStretch} onChange={(e) => setIdwStretch(e.target.value)} style={{ ...numInput, flex: 1 }} aria-label="Colour stretch">
+                    <option value="p2-98">2-98% percentile clip</option>
+                    <option value="equalise">Histogram equalised</option>
+                    <option value="linear">Linear min-max</option>
+                  </select>
+                </div>
                 <button
                   onClick={() => {
                     const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
-                    const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, name: `geophys_pts_idw_${idwCellSize}m` });
+                    const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, name: `geophys_pts_idw_${idwCellSize}m_${idwStretch}` });
                     addRaster({ ...raster, elevation: defaultElevation });
                     setError(null);
                     setIdwOpen(false);

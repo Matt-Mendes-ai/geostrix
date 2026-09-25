@@ -107,11 +107,33 @@ export function idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power = 2, m
 // opacity, removal, etc.) with no new rendering code needed downstream. Colour-mapped the same way
 // raster.js's own single-band GeoTIFF import already is (magColorRGB, NaN cells fully transparent so
 // gaps show whatever's underneath rather than a false-color block).
-export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name }) {
+// TASKS.csv #372 — colour stretch. A plain min-max ramp lets a few intrusive highs (or a culture spike)
+// squeeze every other value into one colour. "p2-98" (default) maps the 2nd-98th percentiles across the
+// ramp and saturates the tails; "equalise" spreads colours by rank (each colour covers the same share of
+// cells — best for seeing texture, but colour no longer scales with value); "linear" is the old min-max.
+export function makeStretch(values, mode = "p2-98") {
+  const v = [];
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) v.push(values[i]);
+  if (!v.length) return { t: () => 0, lo: null, hi: null, mode };
+  v.sort((a, b) => a - b);
+  const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
+  if (mode === "equalise") {
+    return { mode, lo: v[0], hi: v[v.length - 1], t: (x) => {
+      let a = 0, b = v.length - 1;
+      while (a < b) { const m = (a + b) >> 1; if (v[m] < x) a = m + 1; else b = m; }
+      return v.length > 1 ? a / (v.length - 1) : 0;
+    } };
+  }
+  const lo = mode === "linear" ? v[0] : q(0.02), hi = mode === "linear" ? v[v.length - 1] : q(0.98);
+  return { mode, lo, hi, t: (x) => (hi > lo ? Math.min(1, Math.max(0, (x - lo) / (hi - lo))) : 0) };
+}
+
+export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98" }) {
   const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power });
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+  const st = makeStretch(values, stretch); // #372
 
   const canvas = document.createElement("canvas");
   canvas.width = gridW; canvas.height = gridH;
@@ -120,7 +142,7 @@ export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize,
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
     if (!Number.isFinite(v)) { imgData.data[i * 4 + 3] = 0; continue; }
-    const [r, g, b] = magColorRGB(v, hasRange ? min : v - 1, hasRange ? max : v + 1);
+    const [r, g, b] = magColorRGB(hasRange ? st.t(v) : 0, 0, 1);
     imgData.data[i * 4] = r; imgData.data[i * 4 + 1] = g; imgData.data[i * 4 + 2] = b; imgData.data[i * 4 + 3] = 255;
   }
   ctx.putImageData(imgData, 0, 0);
@@ -128,5 +150,6 @@ export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize,
   // TASKS.csv #370 — the raster covers exactly the whole cells that were gridded (cell centres are placed
   // from xmin / ymax at cellSize steps). It used to be stretched over the raw data extent, so e.g. 130 m of
   // data at 25 m cells (5 cells = 125 m) was drawn 4% too large and shifted.
-  return { name, bbox: [xmin, ymax - gridH * cellSize, xmin + gridW * cellSize, ymax], dataUrl: canvas.toDataURL("image/png"), gridMin: hasRange ? min : null, gridMax: hasRange ? max : null };
+  return { name, bbox: [xmin, ymax - gridH * cellSize, xmin + gridW * cellSize, ymax], dataUrl: canvas.toDataURL("image/png"), gridMin: hasRange ? min : null, gridMax: hasRange ? max : null,
+    stretch: { mode: st.mode, lo: st.lo, hi: st.hi } }; // #372 — what the colours mean
 }

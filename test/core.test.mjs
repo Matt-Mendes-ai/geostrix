@@ -119,3 +119,13 @@ test("#382 default ramp rises monotonically in lightness (CIE L*)", () => {
   for (let i = 0; i <= 50; i++) { const L = Lstar(magColorRGB(i, 0, 50)); assert.ok(L >= prev - 0.5, `L* dropped at ${i}: ${prev} -> ${L}`); prev = L; }
   assert.ok(Lstar(magColorRGB(50, 0, 50)) - Lstar(magColorRGB(0, 0, 50)) > 60);
 });
+
+import { makeStretch } from "../src/lib/idw.js";
+test("#372 colour stretch: percentile clip resists outliers, equalise is rank-uniform", () => {
+  const vals = Array.from({ length: 1000 }, (_, i) => i % 100).concat([100000]); // one intrusive high
+  const lin = makeStretch(vals, "linear"), p = makeStretch(vals, "p2-98"), eq = makeStretch(vals, "equalise");
+  assert.ok(lin.t(99) < 0.001, "linear squeezes the real range into ~0");
+  assert.ok(p.t(50) > 0.4 && p.t(50) < 0.6 && p.t(100000) === 1);
+  assert.ok(Math.abs(eq.t(50) - 0.5) < 0.02);
+  assert.equal(makeStretch([NaN, NaN]).lo, null);
+});
