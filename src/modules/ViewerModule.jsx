@@ -3074,6 +3074,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [fitBox]);
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   const zoomToFitAll = () => fitView(lastTracesRef.current);
+  // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
+  const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (t?.pts?.length) fitView([t.pts]); }, [fitView]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
   const resetView = () => { camState.current.theta = Math.PI / 4; camState.current.phi = Math.PI / 3; cameraRef.current?.__update?.(); };
 
@@ -9876,7 +9878,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 4 }} />
             )}
             {collars.filter((c) => !holeFilter || c.hole_id.toLowerCase().includes(holeFilter.toLowerCase())).map((c) => (
-              <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} />
+              <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />
             ))}
           </>
         )}
@@ -10618,11 +10620,22 @@ function ContextItem({ label, onClick, disabled, title }) {
 // restructuring this pass didn't attempt; memoization fixes the actual measured symptom (the toggle
 // cost) without that risk.
 const typedSectionInput = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }; // #393
-const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection }) {
+const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom }) {
   return (
     <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
+      {onZoom && ( /* TASKS.csv #393 — zoom the 3D view to this hole */
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Zoom to ${hole_id}`}
+          onClick={(e) => { e.stopPropagation(); onZoom(hole_id); }}
+          title={`Zoom to ${hole_id}`}
+          style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
+        >
+          <Maximize2 size={12} />
+        </span>
+      )}
       {onSection && ( /* TASKS.csv #393 — section in the plane of this hole */
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Section through ${hole_id}`}
           onClick={(e) => { e.stopPropagation(); onSection(hole_id); }}
