@@ -247,7 +247,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     // A cursor needs a transaction. Everything below is read-only, so the transaction is opened
     // explicitly and always rolled back (never committed) — nothing this panel does should ever be
     // able to write to the user's database.
-    const begin = await dbLiveQuery(live.id, "BEGIN;");
+    const begin = await dbLiveQuery(live.id, "BEGIN READ ONLY;"); // TASKS.csv #348 (the session is read-only too)
     if (!begin.ok) { setBusyTable(null); setTaskProgress?.(null); setError(begin.error); return; }
     try {
       const decl = await dbLiveQuery(live.id, `DECLARE ${IMPORT_CURSOR} NO SCROLL CURSOR FOR SELECT * FROM ${qualified};`);

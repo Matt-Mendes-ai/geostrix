@@ -39,3 +39,14 @@ test("#350 SRTM tile indices", () => {
   assert.equal(validTileIndex(10, 150, 300), true);
   for (const t of [[10, 1024, 0], [-1, 0, 0], [16, 0, 0], [10, 1.5, 2], ["10/../..", 0, 0], [10, 0, "1?x"]]) assert.equal(validTileIndex(...t), false, JSON.stringify(t));
 });
+
+const { pgConfig, mysqlConfig } = createRequire(import.meta.url)("../electron/dbConfig.js");
+test("#348 database sessions verify certificates by default and are read-only with a timeout", () => {
+  assert.equal(pgConfig({ host: "db", ssl: true }).ssl.rejectUnauthorized, true);
+  assert.equal(pgConfig({ host: "db", ssl: true, sslInsecure: true }).ssl.rejectUnauthorized, false);
+  assert.equal(pgConfig({ host: "db", ssl: false }).ssl, false);
+  assert.match(pgConfig({ host: "db" }).options, /default_transaction_read_only=on/);
+  assert.match(pgConfig({ host: "db" }).options, /statement_timeout=120000/);
+  assert.equal(mysqlConfig({ host: "db", ssl: true }).ssl.rejectUnauthorized, true);
+  assert.equal(mysqlConfig({ host: "db" }).ssl, undefined);
+});

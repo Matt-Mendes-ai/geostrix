@@ -650,22 +650,7 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
   return { ok: true, status: res.status, contentType: res.contentType, base64: res.buffer.toString("base64") };
 });
 
-function pgConfig(config) {
-  return {
-    host: config.host, port: Number(config.port) || 5432, database: config.database,
-    user: config.user, password: config.password,
-    ssl: config.ssl ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: 8000,
-  };
-}
-function mysqlConfig(config) {
-  return {
-    host: config.host, port: Number(config.port) || 3306, database: config.database,
-    user: config.user, password: config.password,
-    ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
-    connectTimeout: 8000,
-  };
-}
+const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348
 function testConnectionQuery(config) {
   return config.engine === "mysql"
     ? "SELECT DATABASE() as db, CURRENT_USER() as usr, VERSION() as ver"
@@ -687,6 +672,10 @@ async function makeDbClient(config) {
   if (config.engine === "mysql") {
     const mysql = require("mysql2/promise");
     const conn = await mysql.createConnection(mysqlConfig(config));
+    // TASKS.csv #348 — read-only session + statement timeout. MySQL 5.7.8+ names it max_execution_time
+    // (ms, SELECT only); MariaDB uses max_statement_time (seconds). Read-only must succeed or we refuse.
+    await conn.query("SET SESSION TRANSACTION READ ONLY");
+    await conn.query(`SET SESSION max_execution_time = ${DB_STATEMENT_TIMEOUT_MS}`).catch(() => conn.query(`SET SESSION max_statement_time = ${DB_STATEMENT_TIMEOUT_MS / 1000}`).catch(() => {}));
     return {
       raw: conn,
       query: async (sql) => {

@@ -127,8 +127,18 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             </Field>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginTop: 6, marginBottom: 10 }}>
-            <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} /> Use SSL
+            <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} /> Use SSL (server certificate is verified)
           </label>
+          {/* TASKS.csv #348 — verification is the default; skipping it is an explicit, labelled choice. */}
+          {config.ssl && (
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: config.sslInsecure ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)", marginTop: -4, marginBottom: 10 }}>
+              <input type="checkbox" checked={!!config.sslInsecure} onChange={(e) => set("sslInsecure", e.target.checked)} style={{ marginTop: 2 }} />
+              <span>Trust a self-signed / unverified certificate (insecure: on a shared network, someone else could pose as this server and capture the password)</span>
+            </label>
+          )}
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
+            GeoStrix opens the database read-only, and any single query is stopped after 2 minutes.
+          </div>
 
           <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>
             {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? "Reconnect" : "Test connection"}
