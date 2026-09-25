@@ -27,11 +27,12 @@ import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.
 // there's no more real data to show — that's the source data's resolution, not this constant.
 const MAX_TEXTURE_SIZE = 2048;
 
-// A perceptually reasonable default single-band ramp (deep blue -> teal -> yellow -> red), similar
-// spirit to magColor() in layers.js but with more stops since raster drapes usually want more visual
-// range than a handful of point markers.
+// TASKS.csv #382 — default single-band ramp for draped grids. The previous blue -> teal -> yellow -> red
+// ramp was described here as "perceptually reasonable" but measured L* 15 up to 81 and back down to 57, so
+// the highest values were DARKER than mid values. Now viridis (monotonic lightness), the same default as
+// the 3D point/voxel colouring (layers.js magColorRGB).
 const RAMP = [
-  [30, 30, 90], [40, 90, 160], [60, 160, 150], [140, 190, 90], [230, 200, 60], [220, 100, 40],
+  [68, 1, 84], [65, 68, 135], [42, 120, 142], [34, 168, 132], [122, 209, 81], [253, 231, 37],
 ];
 function rampColor(t) {
   const n = RAMP.length - 1;

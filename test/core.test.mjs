@@ -110,3 +110,12 @@ test("#356 model check: block lookup (z fastest), volumes, logged-vs-modelled me
   assert.deepEqual([r.total, r.matched, r.outside], [15, 10, 2]);
   assert.equal(r.units[0].mostOftenModelledAs, "VCL");
 });
+
+import { magColorRGB } from "../src/lib/layers.js";
+test("#382 default ramp rises monotonically in lightness (CIE L*)", () => {
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const Lstar = ([r, g, b]) => { const Y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); return Y > 0.008856 ? 116 * Math.cbrt(Y) - 16 : 903.3 * Y; };
+  let prev = -1;
+  for (let i = 0; i <= 50; i++) { const L = Lstar(magColorRGB(i, 0, 50)); assert.ok(L >= prev - 0.5, `L* dropped at ${i}: ${prev} -> ${L}`); prev = L; }
+  assert.ok(Lstar(magColorRGB(50, 0, 50)) - Lstar(magColorRGB(0, 0, 50)) > 60);
+});

@@ -1425,7 +1425,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
   // picker drives both the Classify action below (colors its generated stops) and the standalone
   // "Recolor with this palette" button (re-themes the model's EXISTING stop values/positions, e.g. an
   // OMF-imported legend, without re-running classification).
-  const [palette, setPalette] = useState("default");
+  const [palette, setPalette] = useState("viridis"); // TASKS.csv #382 — was the isoluminant blue-red
   const stops = model.stops || [];
 
   const setStops = (next, extra = {}) => onUpdate(model.id, { stops: next, ...extra });

@@ -187,10 +187,23 @@ export function rqdColor(pct) {
 // it via regex — a real, profiled cost at multi-hundred-thousand-cell scale (see that call site's own
 // comment for the measured before/after). magColor itself is unchanged for every other caller that
 // actually wants a CSS color string (legend swatches, etc).
+// TASKS.csv #382 — the default continuous ramp is now viridis. The old blue -> red RGB lerp measured
+// L* 44-52 from end to end with a muddy grey-purple middle: under 3D shading there was no lightness cue
+// at all for "high" vs "low", and it is hard for red-green colour-blind users. Viridis rises
+// monotonically in lightness (dark purple = low, yellow = high). A 256-entry table is built once because
+// this runs per voxel cell / per grid node.
+const VIRIDIS_ANCHORS = [[68, 1, 84], [65, 68, 135], [42, 120, 142], [34, 168, 132], [122, 209, 81], [253, 231, 37]];
+const DEFAULT_LUT = (() => {
+  const out = new Array(256);
+  for (let i = 0; i < 256; i++) {
+    const s = (i / 255) * (VIRIDIS_ANCHORS.length - 1), k = Math.min(VIRIDIS_ANCHORS.length - 2, Math.floor(s)), f = s - k;
+    out[i] = VIRIDIS_ANCHORS[k].map((x, j) => Math.round(x + (VIRIDIS_ANCHORS[k + 1][j] - x) * f));
+  }
+  return out;
+})();
 export function magColorRGB(v, min, max) {
   const t = max <= min ? 0 : Math.min(1, Math.max(0, (v - min) / (max - min)));
-  const lo = [70, 110, 190], hi = [220, 70, 60];
-  return lo.map((x, i) => Math.round(x + (hi[i] - x) * t));
+  return DEFAULT_LUT[Math.round(t * 255)];
 }
 export function magColor(v, min, max) {
   const c = magColorRGB(v, min, max);
@@ -239,7 +252,8 @@ export function rampColorsHex(n) {
 // Oasis montaj/EM/resistivity software a geophysicist may already expect, but labeled so the tradeoff
 // is visible in the picker instead of silent.
 export const PALETTES = {
-  default:     { label: "Blue → Red (default)",            colors: ["#4669be", "#dc463c"] },
+  // TASKS.csv #382 — kept by name for saved models that use it, but no longer the default (see magColorRGB).
+  default:     { label: "Blue → Red (legacy; no lightness change, avoid)", colors: ["#4669be", "#dc463c"] },
   geosoft:     { label: "Spectrum — magnetics / gravity (classic Oasis montaj default; not colorblind-safe)", colors: ["#1c1c8c", "#0050c8", "#00b4dc", "#28c878", "#c8e600", "#ffaa00", "#ff3200", "#c80028"] },
   // User request: "we need a colour palette that includes magenta" — Oasis montaj's default
   // chargeability/IP spectrum wraps the full hue wheel and ends in magenta/pink at the high end,
