@@ -264,7 +264,7 @@ export default function InversionPanel({ pBtn, numInput }) {
 
   return (
     <>
-      {/* TASKS.csv #454 — a real, visibly clickable header card (was a grey uppercase caption that did not
+      {/* TASKS.csv #457 — a real, visibly clickable header card (was a grey uppercase caption that did not
           read as a control, and the user did not find the feature). */}
       <div style={{ marginTop: 18, marginBottom: 6, display: "flex", alignItems: "flex-start", gap: 6, padding: "8px 10px", border: `1px solid ${open ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6, background: open ? "var(--color-selected-bg)" : "var(--color-bg-subtle)" }}>
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setOpen((v) => !v)} aria-expanded={open} style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer", flex: 1, minWidth: 0 }}>

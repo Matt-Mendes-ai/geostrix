@@ -951,7 +951,7 @@ export default function GeophysicsModule() {
 
         {/* TASKS.csv #321 — SimPEG magnetics/gravity forward modelling and inversion, fed by the survey
             points above (and the terrain below); results land in Voxel / block models.
-            TASKS.csv #454 — moved up here, directly under the survey it works on: below Boundaries, as a
+            TASKS.csv #457 — moved up here, directly under the survey it works on: below Boundaries, as a
             collapsed grey caption, the user could not find it at all. */}
         <InversionPanel pBtn={pBtn} numInput={numInput} />
 
