@@ -20,7 +20,7 @@ import { toLonLat } from "../lib/reproject.js";
 import { igrfField, decimalYear } from "../lib/igrf.js";
 import {
   gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
-  fitVerdict, resultToVoxelModel, sequentialStops, divergingStops,
+  fitVerdict, resultToVoxelModel, sequentialStops, divergingStops, f32ToB64,
 } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
@@ -240,6 +240,13 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
           // recorded as {}) and the base level removed from the data before inverting.
           params: { ...params, constraintsApplied: result.constraintsApplied || null, boundsApplied: result.boundsApplied || null, baseLevelRemoved: result.baseLevelRemoved || null, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
           history: result.history,
+          // TASKS.csv #328 — the stations and data this model was fitted to, so it can be exported as UBC
+          // .obs later (float32, x/y as offsets from the first station: ~4 bytes per number in the project)
+          stationData: (() => {
+            const st = p.stations, b = [st[0][0], st[0][1]];
+            return { base: b, x: f32ToB64(st.map((s) => s[0] - b[0])), y: f32ToB64(st.map((s) => s[1] - b[1])), z: f32ToB64(st.map((s) => s[2])),
+              observed: f32ToB64(result.observedUsed || p.observed), predicted: f32ToB64(result.predicted), std: f32ToB64(result.standardDeviation) };
+          })(),
         });
         // #466 — say where it went when that is not the open project
         if (where === "tab") setMsg({ ok: true, text: `The inversion finished and was added to the project tab it was started from (marked unsaved) — switch back to that tab to see it.` });

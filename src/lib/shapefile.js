@@ -242,7 +242,7 @@ function u16le(v) { const b = new DataView(new ArrayBuffer(2)); b.setUint16(0, v
 function u32le(v) { const b = new DataView(new ArrayBuffer(4)); b.setUint32(0, v >>> 0, true); return new Uint8Array(b.buffer); }
 function strBytes(s) { return new TextEncoder().encode(s); }
 
-function buildZip(files) {
+export function buildZip(files) { // exported for TASKS.csv #328 (model export package)
   // files: [{ name, data: Uint8Array }]
   const localParts = [];
   const centralParts = [];

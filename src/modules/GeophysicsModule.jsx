@@ -3,7 +3,7 @@ import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; /
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -91,6 +91,14 @@ export default function GeophysicsModule() {
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
+  // TASKS.csv #328 — the export package (module loaded on first use: it brings the GeoTIFF writer)
+  const exportModelPackage = async (model) => {
+    const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
+    const r = buildModelExportZip(model, project.epsg);
+    if (r.error) { setVoxelError({ text: `Could not export "${model.name}": ${r.error}` }); return; }
+    const res = await saveFile({ suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
+    if (res?.ok) setVoxelError({ info: true, text: `Exported "${model.name}": ${r.files.length} files (${r.files.filter((f) => f.endsWith(".tif")).length} depth slices).${r.warnings.length ? " " + r.warnings.join(" ") : ""}` });
+  };
   const evaluateOnHoles = (model) => {
     const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
     if (!rows.length) { setVoxelError({ text: `No drillhole passes through "${model.name}".` }); return; }
@@ -1404,7 +1412,7 @@ export default function GeophysicsModule() {
           </div>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} />
+          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1476,7 +1484,7 @@ function exportBlockModelCSV(model) {
   const stamp = stampLines({ tool: "Block model export", params: blockModelParamLines(model) });
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1516,6 +1524,8 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate }) {
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
         {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Evaluate block model "${model.name}" onto the drillholes`} title="Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log" onClick={() => onEvaluate(model)} />}
+        {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
+        {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" for other software`} title="Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt" onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model)} />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
