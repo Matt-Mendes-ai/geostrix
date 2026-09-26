@@ -1209,7 +1209,11 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // existing exclusions: importing/removing/editing a raster or terrain surface is no longer undoable
   // and no longer flips the tab's unsaved-changes indicator — it IS still fully included in save/open
   // and autosave (autosaveRef below), so nothing is lost on disk, only from the in-session undo stack.
-  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements });
+  // TASKS.csv #463 — layoutPages, not the active page's layoutElements: applySnapshot (a [] useCallback) used
+  // the first render's setLayoutElements bound to "page_initial", so undo did nothing on other pages or wrote
+  // one page's elements over another's; and a page SWITCH changed layoutElements' identity and recorded a
+  // spurious undo step. The pages list is unchanged by switching and restores exactly.
+  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutPages, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements });
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // are `useCallback(fn, [applySnapshot])`, and `applySnapshot` never changes identity, so `undo`/
@@ -1270,13 +1274,15 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collars, survey, layers, assays, assayElements, customLayers, layoutElements, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements]);
+  }, [collars, survey, layers, assays, assayElements, customLayers, layoutPages, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements]); // #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
     setCollars(snap.collars); setSurvey(snap.survey); setLayers(snap.layers);
     setAssays(snap.assays); setAssayElements(snap.assayElements); setCustomLayers(snap.customLayers);
-    setLayoutElements(snap.layoutElements); setSections(snap.sections); setSectionGroups(snap.sectionGroups || []); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
+    // #463 — whole pages list; keep the active page if it still exists, else the first one.
+    if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
+    setSections(snap.sections); setSectionGroups(snap.sectionGroups || []); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
     setLayerGroups(snap.layerGroups);
     setExcludedIntercepts(snap.excludedIntercepts); setSoftIntercepts(snap.softIntercepts); setInterceptSets(snap.interceptSets);
     setPlannedHoles(snap.plannedHoles || []);
