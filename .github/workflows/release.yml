@@ -10,23 +10,34 @@ name: Release
 # sidecar (#49) is frozen via PyInstaller, which freezes for whatever OS it runs ON — only a Windows
 # runner produces the Windows .exe this project's `win.extraResources` config expects.
 #
-# GITHUB_TOKEN is the default per-workflow token GitHub provides automatically (not a manually-managed
-# secret) — `permissions: contents: write` below is what lets electron-builder's --publish step use it
-# to create the release and upload assets, scoped to just this repo for just this workflow run.
+# TASKS.csv #472 — two jobs. `build` runs every third-party install script (npm ci, pip, PyInstaller
+# compiled from source, electron-builder) with a READ-ONLY token that is not even left in .git/config
+# (persist-credentials: false), and publishes nothing. `publish` holds the only write-capable token; it
+# checks out no code and installs nothing, and only uploads the files `build` produced. Before this, the
+# whole job had contents: write and checkout left the token readable, so a compromised dependency could
+# push commits/tags or swap release assets — and latest.yml is the updater's only integrity check while
+# the installer is unsigned (#36).
 on:
   push:
     tags: ["v*"]
+  # #472 — a dry run: Actions > Release > Run workflow builds and collects the files (downloadable as the
+  # run's artifact) without publishing; `publish` only runs for a pushed v* tag.
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    permissions:
+      contents: read
     env:
       HAS_SIGNING_CERT: ${{ secrets.WIN_CSC_LINK != '' }} # TASKS.csv #456
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false # #472 — no token in .git/config for install scripts to find
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -67,6 +78,76 @@ jobs:
         # matching files, and the shipped app's index.html was simply missing — a genuinely blank
         # window forever, not a slow load. Caught via a real install (not just a build success check).
         run: npm run build:web
+      # TASKS.csv #456 — code signing is the one thing that reliably stops antivirus/SmartScreen false
+      # positives. It needs a certificate that only the project owner can obtain (see docs/antivirus.md).
+      # When the repository secrets WIN_CSC_LINK (base64 .pfx) and WIN_CSC_KEY_PASSWORD exist, the Python
+      # engine's executables are signed here and electron-builder signs GeoStrix.exe, the installer and the
+      # uninstaller; without them the build is unchanged (unsigned).
+      - name: Sign the Python engine (when a certificate is configured)
+        if: env.HAS_SIGNING_CERT == 'true'
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CSC_LINK))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
+          Get-ChildItem python-sidecar\dist\geostrix-sidecar -Recurse -Include *.exe | ForEach-Object {
+            & $signtool.FullName sign /f $pfx /p $env:WIN_CSC_KEY_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.FullName)" }
+          }
+          Remove-Item $pfx
+
+      - name: "Build the installer (not published from here: #472)"
+        # electron-builder still writes latest.yml with --publish never (updateInfoBuilder runs whether
+        # or not it uploads). No GH_TOKEN in this job.
+        run: npx electron-builder --publish never --win
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Collect the release files and their SHA-256 checksums
+        # The asset names electron-builder used when it uploaded itself: spaces become dashes, which is
+        # also the name latest.yml points the updater at ("GeoStrix-Setup-X.exe"). #456 — SHA256SUMS lets
+        # anyone (and an antivirus false-positive report) confirm a download is the exact file built here.
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          $files = Get-ChildItem release -File | Where-Object { ($_.Name -like 'GeoStrix*' -and $_.Name -match '\.(exe|zip|blockmap)$') -or $_.Name -eq 'latest.yml' } # not builder-debug.yml / unpacked dirs
+          foreach ($f in $files) { Copy-Item $f.FullName (Join-Path out ($f.Name -replace ' ', '-')) }
+          foreach ($required in @('GeoStrix-Setup-*.exe', 'GeoStrix-Setup-*.exe.blockmap', 'latest.yml')) {
+            if (-not (Get-ChildItem out -Filter $required)) { Write-Error "Build produced no file matching '$required'"; exit 1 }
+          }
+          $lines = Get-ChildItem out -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" }
+          $lines | Set-Content -Path out\SHA256SUMS.txt -Encoding ascii
+          Get-ChildItem out | ForEach-Object { Write-Host "$($_.Length)`t$($_.Name)" }
+          Get-Content out\SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-files
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    # #472 — the only job with write access. No checkout, no npm/pip: nothing here runs third-party code
+    # except the GitHub CLI preinstalled on the runner.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-files
+          path: out
+
       - name: Create the GitHub release before publishing
         # TASKS.csv #36 follow-up — electron-builder starts ONE PUBLISHER PER ARTIFACT (the installer
         # and its .blockmap), and when the release doesn't exist yet both publishers independently
@@ -91,46 +172,15 @@ jobs:
           } else {
             Write-Host "Release ${{ github.ref_name }} already exists - uploading into it."
           }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # TASKS.csv #456 — code signing is the one thing that reliably stops antivirus/SmartScreen false
-      # positives. It needs a certificate that only the project owner can obtain (see docs/antivirus.md).
-      # When the repository secrets WIN_CSC_LINK (base64 .pfx) and WIN_CSC_KEY_PASSWORD exist, the Python
-      # engine's executables are signed here and electron-builder signs GeoStrix.exe, the installer and the
-      # uninstaller; without them the build is unchanged (unsigned).
-      - name: Sign the Python engine (when a certificate is configured)
-        if: env.HAS_SIGNING_CERT == 'true'
-        env:
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      - name: Upload the installer, zip, blockmap, latest.yml and checksums
+        # latest.yml goes LAST: an updater that reads it must find the installer it names already there.
         run: |
-          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CSC_LINK))
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
-          Get-ChildItem python-sidecar\dist\geostrix-sidecar -Recurse -Include *.exe | ForEach-Object {
-            & $signtool.FullName sign /f $pfx /p $env:WIN_CSC_KEY_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
-            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.FullName)" }
-          }
-          Remove-Item $pfx
-
-      - name: Build and publish
-        run: npx electron-builder --publish always --win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-
-      - name: Publish SHA-256 checksums
-        # TASKS.csv #456 — lets anyone (and an antivirus false-positive report) confirm a download is the
-        # exact file GitHub built.
-        run: |
-          $lines = Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|zip)$' } | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name -replace ' ', '-')" } # GitHub stores spaces in asset names as dashes
-          $lines | Set-Content -Path SHA256SUMS.txt -Encoding ascii
-          Get-Content SHA256SUMS.txt
-          gh release upload "${{ github.ref_name }}" SHA256SUMS.txt --repo "${{ github.repository }}" --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          $files = Get-ChildItem out -File | Where-Object { $_.Name -ne 'latest.yml' } | ForEach-Object { $_.FullName }
+          gh release upload "${{ github.ref_name }}" $files --repo "${{ github.repository }}" --clobber
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          gh release upload "${{ github.ref_name }}" out/latest.yml --repo "${{ github.repository }}" --clobber
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Publish the release
         # electron-builder can leave the release as a DRAFT (and a draft left behind by an earlier
@@ -139,8 +189,6 @@ jobs:
         # serving the PREVIOUS version's latest.yml — the release looks published in the Actions log
         # while users see nothing. Hit exactly this on v0.1.9. Force it published and flagged latest.
         run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify the release is actually complete
         # The failure above was invisible because electron-builder exits 0 even when an asset upload is
@@ -174,5 +222,3 @@ jobs:
             exit 1
           }
           Write-Host "Release verified: installer, blockmap and latest.yml all present and consistent."
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
