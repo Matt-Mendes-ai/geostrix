@@ -399,3 +399,26 @@ test("#328 UBC export re-imports to the same cells; air cells are no-data; ragge
   assert.deepEqual(r.files.filter((f) => !f.startsWith("depth_slices/")), ["Test_model.msh", "Test_model.mod", "Test_model_support.mod", "provenance.txt"]);
   assert.equal(r.files.filter((f) => f.endsWith(".tif")).length, 5);
 });
+
+import { makeValueGrid, gridToSurveyRows } from "../src/lib/raster.js";
+import { f32ToB64 } from "../src/lib/inversion.js";
+test("#326 grid values: block averaging keeps positions and skips no-data; grid -> survey rows", () => {
+  // 3 x 2 nodes, row 0 = north (y 100), dx 10; one no-data node
+  const g1 = makeValueGrid([1, 2, 3, 4, -9999, 6], 3, 2, 0, 100, 10, 10, (v) => v === -9999);
+  assert.equal(g1.averagedBy, 1);
+  assert.ok(Number.isNaN(g1.values[4]));
+  // 1030 x 2 forces a factor 3 average: block (0,0) = nodes 0..2 of both rows
+  const n = 1030, vals = new Float64Array(n * 2).map((_, k) => k % n);
+  const g = makeValueGrid(vals, n, 2, 500000, 6250000, 1, 1, () => false);
+  assert.equal(g.averagedBy, 3);
+  assert.deepEqual([g.nx, g.ny, g.dx], [344, 1, 3]);
+  assert.equal(g.values[0], 1); // mean of 0,1,2 (both rows)
+  assert.equal(g.x0, 500001); // centre of nodes 0..2
+  assert.equal(g.yTop, 6249999.5); // centre of rows 0 and 1
+  assert.equal(g.values[343], 1029); // last block has one column (1029)
+  const raster = { name: "tmi.tif", grid: { nx: 3, ny: 2, x0: 0, yTop: 100, dx: 10, dy: 10, values: f32ToB64(g1.values), valid: 5 } };
+  const r = gridToSurveyRows(raster);
+  assert.equal(r.rows.length, 5);
+  assert.deepEqual(r.rows[3], { x: 0, y: 90, value: 4, _src: "tmi.tif (grid)" });
+  assert.equal(gridToSurveyRows(raster, 2).stride, 2);
+});

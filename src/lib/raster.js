@@ -16,6 +16,7 @@
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
+import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
@@ -27,6 +28,33 @@ import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 // grid (e.g. a hand-digitized or low-station-density survey) will still look blocky at any cap, since
 // there's no more real data to show — that's the source data's resolution, not this constant.
 const MAX_TEXTURE_SIZE = 2048;
+
+// TASKS.csv #326 — single-band grids keep their VALUES (not just the colour-mapped picture), so they can
+// feed an inversion as survey points and the potential-field filters (#373). Stored node-based, row 0 =
+// north: value (i, j) sits at x0 + i*dx, yTop - j*dy. Block-averaged down to at most GRID_MAX nodes on the
+// longest side (every autosave writes the project file; a full-resolution airborne grid would add tens of
+// MB to each one). No-data nodes are NaN.
+export const GRID_MAX = 512;
+export function makeValueGrid(values, nx, ny, x0, yTop, dx, dy, isNoData) {
+  const f = Math.max(1, Math.ceil(Math.max(nx, ny) / GRID_MAX));
+  const gx = Math.ceil(nx / f), gy = Math.ceil(ny / f);
+  const out = new Float32Array(gx * gy);
+  for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) {
+    let s = 0, n = 0;
+    for (let b = 0; b < f; b++) for (let a = 0; a < f; a++) {
+      const ii = i * f + a, jj = j * f + b;
+      if (ii >= nx || jj >= ny) continue;
+      const v = values[jj * nx + ii];
+      if (!isNoData(v)) { s += v; n++; }
+    }
+    out[j * gx + i] = n ? s / n : NaN;
+  }
+  // a block's centre: the mean of the node positions it averages
+  const cx = (i) => x0 + dx * (i * f + (Math.min(f, nx - i * f) - 1) / 2);
+  const cy = (j) => yTop - dy * (j * f + (Math.min(f, ny - j * f) - 1) / 2);
+  return { nx: gx, ny: gy, x0: cx(0), yTop: cy(0), dx: dx * f, dy: dy * f, values: out, averagedBy: f, sourceSize: [nx, ny] };
+}
+
 
 // TASKS.csv #382 — default single-band ramp for draped grids. The previous blue -> teal -> yellow -> red
 // ramp was described here as "perceptually reasonable" but measured L* 15 up to 81 and back down to 57, so
@@ -122,6 +150,20 @@ export async function parseGeoTIFF(file) {
   }
   ctx.putImageData(imgData, 0, 0);
 
+  // #326 — the single band's values at up to GRID_MAX (a separate read at that size, not the texture size)
+  let grid = null;
+  if (bandCount === 1) {
+    // Full resolution when it fits in ~64 MB of float32 (then BLOCK-AVERAGED by makeValueGrid); a larger
+    // file is first read at 4096 on its longest side by geotiff's own resampling (nearest), then averaged.
+    const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
+    const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
+    const [band] = rw === outW && rh === outH ? rasters : await image.readRasters({ width: rw, height: rh });
+    const pw = (bbox[2] - bbox[0]) / rw, ph = (bbox[3] - bbox[1]) / rh; // pixel-area file: values sit at pixel centres
+    grid = makeValueGrid(band, rw, rh, bbox[0] + pw / 2, bbox[3] - ph / 2, pw, ph, (v) => !Number.isFinite(v) || (noData !== null && v === noData));
+    grid.sourceSize = [srcW, srcH];
+    grid.averagedBy = Math.round(grid.averagedBy * pre);
+  }
+
   let epsgTag = null;
   try {
     const geoKeys = image.getGeoKeys();
@@ -140,6 +182,7 @@ export async function parseGeoTIFF(file) {
     // buildRasterImport can reproject them directly (reprojectImageRGBA) without decoding the PNG it
     // just encoded. Only the importer reads this; nothing persists it to the project file.
     pixels: { width: outW, height: outH, data: imgData.data },
+    grid, // #326
   };
 }
 
@@ -497,7 +540,18 @@ export async function parseGXF(file) {
   ctx.putImageData(imgData, 0, 0);
 
   const bbox = [x0, y0, x0 + dx * (ncols - 1), y0 + dy * (nrows - 1)];
+  // #326 — the values, north row first (GXF SENSE=1 lists rows south->north, each west->east)
+  let grid = null;
+  if (sense === 1 || sense === -1) {
+    const northFirst = new Float64Array(total);
+    for (let r = 0; r < nrows; r++) for (let c = 0; c < ncols; c++) {
+      const src = values[r * ncols + (mirrored ? ncols - 1 - c : c)];
+      northFirst[(nrows - 1 - r) * ncols + c] = src;
+    }
+    grid = makeValueGrid(northFirst, ncols, nrows, x0, y0 + dy * (nrows - 1), dx, dy, (v) => v === dummy || !Number.isFinite(v));
+  }
   return {
+    grid, // #326
     name: file.name,
     bbox,
     width: ncols,
@@ -576,11 +630,24 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       : " This file has no readable CRS tag and no Source CRS was set, so its own coordinates are assumed to already be in the project's EPSG — if they're not, set \"Source CRS\" and import it again.";
   }
 
+  // #326 — keep the values only when the grid sits where the file says (no reprojection): reprojecting a
+  // DATA grid needs a proper re-gridding step, which the colour drape above does not do for values.
+  let grid = null, gridNote = "";
+  if (parsed.grid) {
+    if (bbox === parsed.bbox) {
+      const g = parsed.grid;
+      let n = 0; for (let i = 0; i < g.values.length; i++) if (Number.isFinite(g.values[i])) n++;
+      grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: n, averagedBy: g.averagedBy, sourceSize: g.sourceSize };
+      gridNote = ` Values kept for analysis (${g.nx}×${g.ny} nodes at ${+g.dx.toFixed(2)} m${g.averagedBy > 1 ? `, block-averaged ${g.averagedBy}×${g.averagedBy} from ${g.sourceSize[0]}×${g.sourceSize[1]}` : ""}) — the raster's menu can turn them into survey points for an inversion.`;
+    } else gridNote = " The grid's values were NOT kept (it was reprojected, and values need re-gridding, not a picture resample) — re-grid it in the project CRS elsewhere to use it as data.";
+  }
+
   const [bx0, by0, bx1, by1] = bbox;
   let msg = `Imported "${parsed.name}" (${parsed.width}×${parsed.height}px, ${(bx1 - bx0).toFixed(0)}×${(by1 - by0).toFixed(0)} world units).`;
   msg += crsNote;
   if (parsed.note) msg += parsed.note;
-  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation }, msg };
+  msg += gridNote;
+  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}) }, msg };
 }
 
 // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a
@@ -646,4 +713,21 @@ function arrayBufferToBase64(buf) {
 
 export function terrainToGeoTIFFBase64(terrain, projectEpsg) {
   return arrayBufferToBase64(terrainToGeoTIFFArrayBuffer(terrain, projectEpsg));
+}
+
+// TASKS.csv #326 — a raster's kept values as survey points ({x, y, value, _src}) for the SimPEG panel.
+// Every `stride`-th node each way; stride chosen so the count stays within the sidecar's station cap.
+// No z: the points are grid NODES, not flight positions — the inversion drapes them at a stated sensor
+// height above the terrain (and they are not drawn in 3D without an elevation, #365).
+export function gridToSurveyRows(raster, maxPoints = 20000) {
+  const g = raster.grid;
+  if (!g) return { rows: [], stride: 0 };
+  const vals = b64ToF32(g.values);
+  const stride = Math.max(1, Math.ceil(Math.sqrt((g.valid || g.nx * g.ny) / maxPoints)));
+  const rows = [];
+  for (let j = 0; j < g.ny; j += stride) for (let i = 0; i < g.nx; i += stride) {
+    const v = vals[j * g.nx + i];
+    if (Number.isFinite(v)) rows.push({ x: +(g.x0 + i * g.dx).toFixed(3), y: +(g.yTop - j * g.dy).toFixed(3), value: v, _src: `${raster.name} (grid)` });
+  }
+  return { rows, stride, spacing: [g.dx * stride, g.dy * stride] };
 }

@@ -1,8 +1,8 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned } from "lucide-react";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport } from "../lib/raster.js";
+import { buildRasterImport, gridToSurveyRows } from "../lib/raster.js";
 import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
 import { toLonLat } from "../lib/reproject.js";
 import InfoButton from "../components/InfoButton.jsx";
@@ -24,7 +24,16 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
 export default function RasterModule() {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries } = useStore();
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers } = useStore();
+  // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
+  // any earlier points made from the same grid, so doing it twice does not double the survey.
+  const gridAsSurvey = (r) => {
+    const { rows, stride, spacing } = gridToSurveyRows(r);
+    if (!rows.length) { setError({ info: false, text: `"${r.name}" has no valid grid values.` }); return; }
+    const src = rows[0]._src;
+    setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((p) => p._src !== src), ...rows] }));
+    setError({ info: true, text: `Added ${rows.length.toLocaleString()} survey points from "${r.name}"${stride > 1 ? ` (one node in ${stride} each way, ${+spacing[0].toFixed(1)} m apart, to stay within the inversion's 20,000-station limit)` : ""} as the survey "${src}". They have no elevation (grid nodes, not flight positions): in Geophysics → Inversion choose "Sensor is a fixed height above terrain" and enter the survey's nominal height. Not drawn in 3D without an elevation — the raster itself shows the data.` });
+  };
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -249,6 +258,7 @@ export default function RasterModule() {
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+              {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Use the values of "${r.name}" as survey points`} title={`Use as survey points (${r.grid.nx}×${r.grid.ny} grid values, ${+r.grid.dx.toFixed(1)} m) — for the Geophysics inversion`} onClick={() => gridAsSurvey(r)} />}
               <Trash2 aria-label={`Remove raster "${r.name}"`} title={`Remove raster "${r.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
