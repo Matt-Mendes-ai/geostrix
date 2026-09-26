@@ -1,8 +1,9 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart } from "lucide-react";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows } from "../lib/raster.js";
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid } from "../lib/raster.js";
+import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
 import { toLonLat } from "../lib/reproject.js";
 import InfoButton from "../components/InfoButton.jsx";
@@ -27,6 +28,44 @@ export default function RasterModule() {
   const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers } = useStore();
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
+  // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
+  const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
+  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "" });
+  const [filtering, setFiltering] = useState(false);
+  const runFilter = async (r) => {
+    const { applyGridFilter, FILTERS } = await import("../lib/gridFilters.js"); // loaded on first use
+    const g = r.grid;
+    const params = {};
+    let declGrid = null;
+    if (filt.kind === "rtp") {
+      const I = Number(filt.inclination), D = Number(filt.declination);
+      if (filt.inclination === "" || filt.declination === "" || !(Math.abs(I) <= 90) || !(Math.abs(D) <= 180)) { setError({ info: false, text: "RTP needs the field inclination and declination (true north) for the survey date and place — IGRF gives both." }); return; }
+      const cx = g.x0 + (g.dx * (g.nx - 1)) / 2, cy = g.yTop - (g.dy * (g.ny - 1)) / 2;
+      const d = gridDeclination(D, cx, cy, project?.epsg);
+      if (!d) { setError({ info: false, text: "Could not compute grid convergence for this project CRS." }); return; }
+      declGrid = d.grid;
+      Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3) });
+    }
+    if (filt.kind === "upward") {
+      if (!(Number(filt.height) > 0)) { setError({ info: false, text: "Enter how many metres to continue upward." }); return; }
+      params.height = Number(filt.height);
+    }
+    setFiltering(true);
+    await new Promise((res) => setTimeout(res, 30)); // let the busy state paint before the FFTs block
+    try {
+      const values = b64ToF32(g.values);
+      const out = applyGridFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
+      const label = FILTERS[filt.kind].label;
+      const suffix = filt.kind === "rtp" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
+      const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, elevation: r.elevation,
+        extra: { filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
+      addRaster(nr);
+      setError({ info: !out.warning, text: `Added "${nr.name}" (colours span the 2nd–98th percentile: ${nr.colourRange.map((v) => v.toPrecision(3)).join(" to ")}).${out.warning ? " " + out.warning : ""}` });
+      setFilterFor(null);
+    } catch (err) {
+      setError({ info: false, text: `Filter failed: ${err.message}` });
+    } finally { setFiltering(false); }
+  };
   const gridAsSurvey = (r) => {
     const { rows, stride, spacing } = gridToSurveyRows(r);
     if (!rows.length) { setError({ info: false, text: `"${r.name}" has no valid grid values.` }); return; }
@@ -258,9 +297,40 @@ export default function RasterModule() {
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+              {r.grid && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Filter the values of "${r.name}"`} title="Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal" onClick={() => setFilterFor(filterFor === r.id ? null : r.id)} />}
               {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Use the values of "${r.name}" as survey points`} title={`Use as survey points (${r.grid.nx}×${r.grid.ny} grid values, ${+r.grid.dx.toFixed(1)} m) — for the Geophysics inversion`} onClick={() => gridAsSurvey(r)} />}
               <Trash2 aria-label={`Remove raster "${r.name}"`} title={`Remove raster "${r.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
             </div>
+            {filterFor === r.id && r.grid && (
+              <div style={{ marginTop: 7, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label="Grid filter">
+                    <option value="rtp">Reduction to the pole (RTP)</option>
+                    <option value="vd1">First vertical derivative (1VD)</option>
+                    <option value="tilt">Tilt derivative</option>
+                    <option value="as">Analytic signal (3D)</option>
+                    <option value="upward">Upward continuation</option>
+                  </select>
+                </div>
+                {filt.kind === "rtp" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <input type="number" placeholder="Inclination °" value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value }))} style={numInput} aria-label="Field inclination" />
+                    <input type="number" placeholder="Declination ° (true)" value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value }))} style={numInput} aria-label="Field declination, true north" />
+                  </div>
+                )}
+                {filt.kind === "upward" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <input type="number" min={1} placeholder="Height (m)" value={filt.height} onChange={(e) => setFilt((p) => ({ ...p, height: e.target.value }))} style={numInput} aria-label="Upward continuation height" />
+                  </div>
+                )}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
+                  {{ rtp: "For total-field magnetics, assuming induced magnetisation (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there.", vd1: "Sharpens shallow sources; also amplifies noise.", tilt: "Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude.", as: "Peaks over source edges regardless of magnetisation direction — the honest choice where remanence breaks RTP.", upward: "Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level." }[filt.kind]}
+                </div>
+                <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
+                  {filtering ? "Filtering…" : "Apply — adds a new raster"}
+                </button>
+              </div>
+            )}
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />

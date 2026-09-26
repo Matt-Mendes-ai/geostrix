@@ -422,3 +422,44 @@ test("#326 grid values: block averaging keeps positions and skips no-data; grid 
   assert.deepEqual(r.rows[3], { x: 0, y: 90, value: 4, _src: "tmi.tif (grid)" });
   assert.equal(gridToSurveyRows(raster, 2).stride, 2);
 });
+
+import { applyGridFilter } from "../src/lib/gridFilters.js";
+// Closed-form total-field anomaly of an induced point dipole (x east, y north, z up), used to check the
+// Fourier filters against physics computed in SPACE. Grid row 0 = north, as raster.grid stores it.
+function dipoleTMI({ n = 128, d = 20, depth = 150, h = 0, I, D }) {
+  const r2d = Math.PI / 180, f = [Math.cos(I * r2d) * Math.sin(D * r2d), Math.cos(I * r2d) * Math.cos(D * r2d), -Math.sin(I * r2d)];
+  const out = new Float64Array(n * n), c = (n / 2) * d;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const r = [i * d - c, (n - 1 - j) * d - c, h + depth], rr = Math.hypot(...r);
+    const md = f[0] * r[0] + f[1] * r[1] + f[2] * r[2];
+    const B = r.map((ri, k) => (3 * md * ri) / rr ** 5 - f[k] / rr ** 3);
+    out[j * n + i] = 1e9 * (B[0] * f[0] + B[1] * f[1] + B[2] * f[2]);
+  }
+  return out;
+}
+const compareCentral = (a, b, n) => { // RMS difference relative to b's range, inner half of the grid
+  let s = 0, c = 0, lo = Infinity, hi = -Infinity;
+  for (let j = n / 4; j < (3 * n) / 4; j++) for (let i = n / 4; i < (3 * n) / 4; i++) { const k = j * n + i; s += (a[k] - b[k]) ** 2; c++; lo = Math.min(lo, b[k]); hi = Math.max(hi, b[k]); }
+  return Math.sqrt(s / c) / (hi - lo);
+};
+test("#373 grid filters match a dipole's closed-form field: RTP, upward continuation, 1VD, tilt/AS sanity", () => {
+  const n = 128, grid = (values) => ({ nx: n, ny: n, dx: 20, dy: 20, values });
+  const t60 = dipoleTMI({ I: 60, D: 20 }), pole = dipoleTMI({ I: 90, D: 0 });
+  const rtp = applyGridFilter(grid(t60), "rtp", { inclination: 60, declination: 20 });
+  assert.ok(compareCentral(rtp.values, pole, n) < 0.02, `RTP error ${compareCentral(rtp.values, pole, n)}`);
+  assert.equal(rtp.warning, null);
+  assert.ok(applyGridFilter(grid(t60), "rtp", { inclination: 10, declination: 0 }).warning);
+  const up = applyGridFilter(grid(pole), "upward", { height: 50 });
+  assert.ok(compareCentral(up.values, dipoleTMI({ I: 90, D: 0, h: 50 }), n) < 0.01, "upward continuation");
+  const vd = applyGridFilter(grid(pole), "vd1");
+  const a = dipoleTMI({ I: 90, D: 0, h: -0.5 }), b = dipoleTMI({ I: 90, D: 0, h: 0.5 });
+  const fd = a.map((v, k) => v - b[k]); // -dT/dz_up by a 1 m central difference
+  assert.ok(compareCentral(vd.values, fd, n) < 0.02, `1VD error ${compareCentral(vd.values, fd, n)}`);
+  const tilt = applyGridFilter(grid(pole), "tilt").values, as = applyGridFilter(grid(pole), "as").values;
+  const centre = (n / 2 - 1) * n + n / 2; // the node straight above the dipole (row 0 = north, so y = c is row n/2 - 1)
+  assert.ok(tilt[centre] > 80, `tilt over the pole-reduced source ~ +90°, got ${tilt[centre]}`);
+  let peak = 0, at = -1; as.forEach((v, k) => { if (v > peak) { peak = v; at = k; } });
+  assert.equal(at, centre, "analytic signal peaks straight over the source");
+  const holes = t60.slice(); holes[5] = NaN;
+  assert.ok(Number.isNaN(applyGridFilter(grid(holes), "vd1").values[5])); // no-data stays no-data
+});

@@ -731,3 +731,32 @@ export function gridToSurveyRows(raster, maxPoints = 20000) {
   }
   return { rows, stride, spacing: [g.dx * stride, g.dy * stride] };
 }
+
+// TASKS.csv #373 — a filtered grid (values north-first, NaN = no data) as a new raster: a drape image
+// coloured between the 2nd and 98th percentiles (derivatives have long tails that would otherwise wash
+// the ramp out) plus the grid itself, so it can be filtered again or used as survey points.
+export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {} }) {
+  const finite = [];
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
+  if (!finite.length) throw new Error("The filter produced no values.");
+  finite.sort((a, b) => a - b);
+  const lo = finite[Math.floor(0.02 * (finite.length - 1))], hi = finite[Math.floor(0.98 * (finite.length - 1))];
+  const canvas = document.createElement("canvas");
+  canvas.width = nx; canvas.height = ny;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(nx, ny);
+  for (let k = 0; k < nx * ny; k++) {
+    const v = values[k];
+    if (!Number.isFinite(v)) { img.data[k * 4 + 3] = 0; continue; }
+    const t = hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5;
+    const [r, g, b] = rampColor(t);
+    img.data[k * 4] = r; img.data[k * 4 + 1] = g; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const bbox = [x0 - dx / 2, yTop - dy * (ny - 1) - dy / 2, x0 + dx * (nx - 1) + dx / 2, yTop + dy / 2];
+  return {
+    name, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
+    grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy: 1, sourceSize: [nx, ny] },
+    colourRange: [lo, hi], ...extra,
+  };
+}
