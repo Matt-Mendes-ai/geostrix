@@ -137,7 +137,8 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
             </label>
           )}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
-            GeoStrix opens the database read-only, and any single query is stopped after 2 minutes.
+            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}
+            GeoStrix opens the database in read-only mode, one statement at a time, and stops any query after 2 minutes. That guards against accidental changes, but it is not a security boundary: for a real guarantee, connect as a database user that only has read permission.
           </div>
 
           <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>

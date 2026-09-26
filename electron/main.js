@@ -705,9 +705,12 @@ async function makeDbClient(config) {
   await client.connect();
   return {
     raw: client,
+    // TASKS.csv #477 — the extended protocol takes ONE statement per call, so "SELECT ...; SET ... READ WRITE;
+    // DELETE ..." typed into the SQL box is refused instead of run as a batch (the simple protocol that a bare
+    // client.query(sql) uses runs every statement). mysql2 already refuses multiple statements by default.
     query: async (sql) => {
-      const res = await client.query(sql);
-      return { rows: res.rows, fields: res.fields.map((f) => f.name), rowCount: res.rowCount };
+      const res = await client.query({ text: sql, queryMode: "extended" });
+      return { rows: res.rows, fields: (res.fields || []).map((f) => f.name), rowCount: res.rowCount };
     },
     end: () => client.end(),
   };
