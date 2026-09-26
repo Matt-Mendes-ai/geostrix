@@ -3,7 +3,8 @@ import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
 import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
-import AssayStyleModal, { seedBreaks } from "../components/AssayStyleModal.jsx";
+const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
+import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
 const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx")); // TASKS.csv #147  // TASKS.csv #301
 import LocatorMap from "../components/LocatorMap.jsx";
@@ -16,7 +17,6 @@ import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.cs
 import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
 import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
@@ -32,13 +32,12 @@ import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFea
 const loadGpkg = () => import("../lib/gpkg.js");
 import { buildDXF, parseDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
-import SurfaceGeologyProjection from "../components/SurfaceGeologyProjection.jsx"; // TASKS.csv #318
+const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 // TASKS.csv #289 / #439 — raster.js (and geotiff) loaded on first raster import, not at startup.
 const loadRaster = () => import("../lib/raster.js");
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
-import { buildVeinModel } from "../lib/vein.js"; // TASKS.csv #144 — paired hangingwall/footwall vein modelling
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
@@ -55,9 +54,9 @@ import PanelSplitHandle from "../components/PanelSplitHandle.jsx";
 import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
 import DbBrowserPanel from "../components/DbBrowserPanel.jsx";
 const ImportMappingModal = lazyModal(() => import("../components/ImportMappingModal.jsx"));  // TASKS.csv #301
-import LayerPickerModal from "../components/LayerPickerModal.jsx"; // TASKS.csv #288
+const LayerPickerModal = lazyModal(() => import("../components/LayerPickerModal.jsx")); // TASKS.csv #476 // TASKS.csv #288
 const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConnectModal.jsx"));  // TASKS.csv #301
-import SectionEditModal from "../components/SectionEditModal.jsx";
+const SectionEditModal = lazyModal(() => import("../components/SectionEditModal.jsx")); // TASKS.csv #476
 const LayerInspector = lazyModal(() => import("../components/LayerInspector.jsx"));  // TASKS.csv #301
 const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  // TASKS.csv #301
 // TASKS.csv #224 (software-design-specialist audit finding: sql.js's 658KB wasm was the single
@@ -86,16 +85,13 @@ import {
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
-import { checkTopology } from "../lib/topology.js"; // TASKS.csv #90
-import { truncateAgainstSolid, splitAcrossSurface } from "../lib/crosscut.js"; // TASKS.csv #52 (d) — cross-cutting
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
-import SculptPanel from "../components/SculptPanel.jsx"; // TASKS.csv #145
+const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS, SUPPORT_COLORS, summarizeSupport, ESTIMATION_METHODS } from "../lib/estimation.js"; // SUPPORT_*: TASKS.csv #91/#92
-import { marchingCubes } from "../lib/marchingCubes.js";
 import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
-import PlannedHoleTargeting from "../components/PlannedHoleTargeting.jsx"; // TASKS.csv #119 - target solver + planned-vs-as-drilled
+const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
@@ -4600,8 +4596,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
     // synchronous grid pass — a timer, not rAF, because rAF never fires in a hidden window.
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { marchingCubes } = await import("../lib/marchingCubes.js"); // #476 — loaded on first use
         const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
@@ -4752,8 +4749,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const label = `Vein: ${veinValue}`;
     setVeinBusy(true);
     setTaskProgress?.({ label, pct: 20 });
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { buildVeinModel } = await import("../lib/vein.js"); // #144; loaded on first use (#476)
         const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
         const rows = (layers.vein || []).filter((r) => r.value === veinValue && r.hole_id != null
           && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
@@ -4899,8 +4897,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const label = `${symbol} > ${numericCutoff} ${unit} shell`;
     setNumericBusy(true);
     setTaskProgress?.({ label, pct: 20 });
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { marchingCubes } = await import("../lib/marchingCubes.js"); // #476 — loaded on first use
         // TASKS.csv #266 — QC inserts (standards/blanks/duplicates) are excluded by default here, the
         // same as Best Intercepts / Compositing / Grade Statistics already do. They used to reach the
         // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has
@@ -5505,6 +5504,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // about to happen) and KML / GPX for phones and handheld GPS; see rigExport.js.
   const exportPlannedHoles = useCallback(async (format = "csv") => {
     if (!plannedHoles.length) { setNotices((p) => [...p, "No planned drillholes to export yet."]); return; }
+    const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
     const today = new Date().toISOString().slice(0, 10);
     const rows = rigRows(plannedHoles, project.epsg, today, plannedHoleTrace);
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
@@ -6311,8 +6311,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setTopologyBusy(true);
     // Deferred a tick so the "Checking..." state actually paints before a multi-second check on large
     // meshes blocks the main thread — same pattern the modelling tools use for their own busy state.
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { checkTopology } = await import("../lib/topology.js"); // #90; loaded on first use (#476)
         const input = implicitSurfaces.map((s) => {
           const geo = implicitMeshesRef.current[s.id]?.geometry;
           const pos = geo?.attributes?.position?.array;
@@ -6368,8 +6369,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!hostMesh || !cutMesh) { setNotices((p) => [...p, "Cross-cut failed: one of the two surfaces has no mesh in the scene."]); return; }
     const geoOf = (m) => ({ positions: m.geometry?.attributes?.position?.array || [], indices: m.geometry?.index?.array || [] });
     setCrossCutBusy(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        const { truncateAgainstSolid, splitAcrossSurface } = await import("../lib/crosscut.js"); // #52 (d); loaded on first use (#476)
         const h = geoOf(hostMesh), c = geoOf(cutMesh);
         const mkGeo = (positions, indices) => {
           const g = new THREE.BufferGeometry();

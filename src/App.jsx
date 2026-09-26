@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
-import ShortcutsModal from "./components/ShortcutsModal.jsx";
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
@@ -22,6 +21,7 @@ const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
 // TASKS.csv #138 — project report is opened rarely (not every session), so lazy-load it the same way
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
+const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx")); // TASKS.csv #476
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
@@ -416,7 +416,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       </RibbonSlotContext.Provider>
 
       <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
-      {shortcutsTab && <ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} />}
+      {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {reportOpen && (
         <Suspense fallback={null}>
           <ProjectReportModal store={store} onClose={() => setReportOpen(false)} />

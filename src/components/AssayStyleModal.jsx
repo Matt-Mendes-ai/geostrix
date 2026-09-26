@@ -3,86 +3,10 @@ import { X, Plus, Trash2, RotateCcw } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { lightnessRamp } from "../lib/colorRamp.js"; // TASKS.csv #319
+import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
-// User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,
-// ignore values lower than (what the user specifies)". Per-element styling for the 3D View / cross-
-// section assay markers — previously each toggled-on element got a hardcoded fixed hue and a
-// continuous 1.2-3.8 size range with no way to touch either, and every sample rendered regardless of
-// grade. This modal edits one element's entry in ViewerModule's `assayStyle` state:
-//   { color: "#rrggbb" | null, sizeMult: number, minCutoff: number | null, breaks: [{max,color,label}] }
-// `onChange` is called with the full next style object on every edit (ViewerModule owns the actual
-// state and re-renders the 3D scene from it); this component is otherwise stateless about what's
-// already been applied, just a plain controlled editor over the `style` prop.
-// TASKS.csv #247 — the same "nice 3-class split of the element's real data range" this modal's own
-// "Add break" button already seeded with (below), pulled out so ViewerModule can also use it to give a
-// newly-toggled-on element a grade-based ramp by default instead of a flat color — a 0.01 g/t and a
-// 50 g/t intercept looking identical until a user finds this modal's gear icon was a real first-look
-// gap for a tool whose whole point is spotting where the high-grade intercepts sit in 3D.
-//
-// TASKS.csv #306 — #247's seeding was RIGHT in principle and degenerate in practice, and the numbers
-// are the whole argument. The class boundaries were EQUAL-INTERVAL (min + span/3, min + 2·span/3),
-// which is the wrong classifier for geochemical assay data: it is lognormal, a large background
-// population plus a long anomalous tail spanning three to five orders of magnitude. Measured over the
-// bundled 37-hole harry_property assay_wide.csv (6,297 intervals, 14 elements), equal-interval put
-// 99.8-100.0% of every ore/pathfinder element into class 1 — Au 99.9/0.1/0.1, Cu 99.9/0.0/0.0,
-// Pb 100.0/0.0/0.0, Zn 99.9/0.0/0.0, Ag 99.8/0.2/0.0, As 99.8/0.1/0.0. So the ramp existed but every
-// sphere in the view was the same grey; on screen a whole 37-hole Au view showed exactly ONE
-// non-grey marker. Two alternatives were measured and rejected before landing on percentiles:
-//   • jenks (classifyBreaks' 'jenks', suggested by this row and already implemented for #291) —
-//     minimises within-class variance in LINEAR space, so on this data it just fences off the
-//     outliers: still 99.2/0.8/0.0 for Au, 99.5/0.5/0.0 for Cu. Barely better than equal-interval.
-//   • geometric/log spacing from min·(max/min)^(k/3) — excellent for the trace elements
-//     (Au 77.2/21.8/1.0) but it inverts on the near-normally-distributed major oxides in the same
-//     file, where the minimum is a tiny outlier: K 0.0/0.7/99.2, Al 0.0/0.0/99.9. A default has to
-//     work for both, and this dataset contains both.
-// PERCENTILE (p50/p90) boundaries are used instead: robust to distribution shape by construction,
-// they give ~50/40/10 for anything — lognormal trace element or near-normal major oxide alike — which
-// is also the geologically conventional read (background / anomalous / strongly anomalous). They need
-// the element's actual distribution rather than just its range, so ViewerModule's globalAssayRanges
-// now carries p50/p90 alongside min/max; if a caller passes a range without them (an older saved
-// project's shape, or any future caller) this falls back to the original equal-interval split rather
-// than throwing.
-// The class COLOURS changed too. The old grey #5a6472 -> amber #e2a63c -> red #e05a4a ramp is not
-// monotonic in lightness (L* 42.0 -> 72.1 -> 55.7), i.e. the "High" class read as LESS extreme than
-// "Medium" in greyscale and under simulated deuteranopia. These markers sit on a light background, so
-// salience against that background is the channel that has to increase with grade: this ramp runs
-// pale-and-low-chroma -> saturated -> near-black-red, L* 88.9 -> 65.2 -> 33.4, strictly DECREASING, so
-// low grade recedes into the scene and high grade advances out of it (contrast against the viewport
-// background #f4f5f7: 1.22 -> 2.45 -> 7.57, i.e. salience rises monotonically with grade, which the old
-// ramp's 5.50 -> 1.97 -> 3.36 did not). Adjacent-class separation under a Vienot-1999 deuteranopia
-// simulation is 142.3 and 123.0 units of simulated-sRGB distance (protanopia 150.5 / 126.3), against
-// 139.6 / 57.1 for the old ramp — so the weak step is gone as well. Not a rainbow/jet ramp,
-// deliberately: those manufacture false class boundaries in continuous data.
-// TASKS.csv #319 — `baseColor` (an element's own identity hue) turns this into a PER-ELEMENT ramp:
-// same three lightness classes, built around that hue, so a multi-element view carries identity in hue
-// and grade in lightness at once instead of painting every element with the same three colours. Callers
-// that pass nothing keep the original shared ramp exactly, so nothing that does not know about element
-// colours changes behaviour. Seeded breaks are tagged `seeded: true`; editing one in this modal drops
-// the tag (see updateBreak), which is what lets a future re-seed tell "GeoStrix chose this" from "the
-// user chose this" — the distinction #319 recorded as missing.
-export function seedBreaks(range, baseColor) {
-  const { min, max, p50, p90 } = range || {};
-  const span = max - min;
-  const C = lightnessRamp(baseColor) || ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
-  if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All", seeded: true }];
-  // Percentile boundaries when the caller supplied a distribution; equal-interval otherwise.
-  const usable = Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max;
-  const b1 = usable ? p50 : min + span / 3;
-  const b2 = usable ? p90 : min + (2 * span) / 3;
-  // toFixed(3) is the original rounding, kept so the numbers in the break editor stay readable — but a
-  // trace-element percentile can legitimately be smaller than 0.001 (Au p50 on this dataset is 0.033,
-  // and a lower-grade property would go below 0.001), and rounding those to 0.000 would collapse the
-  // low class back to nothing. Below that scale, keep three SIGNIFICANT figures instead of three
-  // decimal places.
-  const round = (v) => (Math.abs(v) >= 0.001 ? +v.toFixed(3) : +v.toPrecision(3));
-  return [
-    { max: round(b1), color: C[0], label: "Low", seeded: true },
-    { max: round(b2), color: C[1], label: "Medium", seeded: true },
-    { max: round(max), color: C[2], label: "High", seeded: true },
-  ];
-}
+// seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
 export default function AssayStyleModal({ symbol, unit, defaultColor, range, style, onChange, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238

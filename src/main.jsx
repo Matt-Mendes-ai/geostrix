@@ -1,7 +1,8 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import SectionWindow from "./components/SectionWindow.jsx";
+// TASKS.csv #476 — the pop-out section window is its own chunk: the main window never renders it.
+const SectionWindow = React.lazy(() => import("./components/SectionWindow.jsx"));
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { StoreProvider, CursorProvider, TaskProgressProvider } from "./lib/store.jsx";
 // TASKS.csv #185 — "Let's use Exo 2 for all fonts." Bundled via @fontsource/exo-2 (not a Google
@@ -28,7 +29,7 @@ if (route === "/section") {
   // pop-out cross-section window: standalone, receives data via IPC
   root.render(
     <ErrorBoundary>
-      <SectionWindow />
+      <Suspense fallback={null}><SectionWindow /></Suspense>
     </ErrorBoundary>
   );
 } else {
