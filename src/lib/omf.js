@@ -33,12 +33,14 @@
 // cell shape the existing UBC-mesh/block-model-CSV importers already produce (see voxel.js), so it
 // reuses that renderer rather than inventing a new one.
 
-import { MAX_CELLS, planCoarsenFactors } from "./voxel.js";
+import { MAX_CELLS, planCoarsenFactors, maskAirCells } from "./voxel.js";
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 
 const MAGIC = [0x84, 0x83, 0x82, 0x81];
 const VERSION_PREFIX = "OMF-v0.9.0";
-const NODATA_MAX = -1e10; // same convention voxel.js uses for UBC no-data sentinels
+// Same convention voxel.js uses for UBC no-data sentinels (TASKS.csv #480: -99999, the commonest one,
+// used to slip through a -1e10 threshold and render as a real value).
+const NODATA_MAX = -99999;
 
 // numpy dtype string -> TypedArray constructor. OMF always writes little-endian ("<" prefix) on the
 // platforms that produce real files; "|u1"/"|i1" (byte order irrelevant for 1-byte types) are also
@@ -360,7 +362,10 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
   const attrObj = attributeName ? numericAttrs.find((a) => a.name === attributeName) : numericAttrs[0];
   if (!attrObj) return { cells: [], attrName: null, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote: null };
 
-  let values = attrObj.values;
+  // TASKS.csv #482 — SimPEG / UBC air (conductivity 1e-8) is no-data, as in the UBC importer (#481). On a
+  // copy: the parsed attribute stays as read, so choosing it again starts from the file's own values.
+  let values = Float64Array.from(attrObj.values);
+  const air = maskAirCells(values);
   let coarsenNote = null;
   const rawTotal = tensor_u.length * tensor_v.length * tensor_w.length;
   if (rawTotal > maxCells) {
@@ -393,7 +398,7 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
       }
     }
   }
-  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, colormap: attrObj.colormap || null };
+  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, colormap: attrObj.colormap || null, air };
 }
 
 export async function parseOMF(arrayBuffer) {

@@ -366,6 +366,7 @@ export function cellValueRange(cells) {
 // TASKS.csv #481 — "air" in a conductivity model. SimPEG and UBC-GIF write the cells above the topography as
 // a tiny conductivity (1e-8 S/m), not as a no-data code: a real ZTEM inversion (Woodjam, 330x348x63) had
 // half of its displayed cells at exactly 1e-8, drawn as real rock and averaged into the near-surface cells
+// (#482: its OMF copy uses Float32's smallest normal number, 1.18e-38, instead — the rule catches both)
 // when the mesh was reduced for the 3D view. When the SMALLEST value is <= 1e-8 and at least `minShare` of
 // the cells hold exactly it, those cells are marked no-data (in place). Returns { count, value } (count 0 =
 // nothing changed). A model that genuinely contains many cells of one tiny value is rare; the import

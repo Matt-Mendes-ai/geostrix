@@ -569,7 +569,7 @@ export default function GeophysicsModule() {
           // over 12x MAX_CELLS): omfVolumeToCells now coarsens internally, same block-averaging
           // approach as the UBC importer's #158 fix, so this can never hang/crash the 3D view on a
           // large real-world block model the way it did before this fix.
-          const { cells, attrName, availableAttrs, coarsenNote, colormap } = omfVolumeToCells(el, null, effectiveMaxCells);
+          const { cells, attrName, availableAttrs, coarsenNote, colormap, air } = omfVolumeToCells(el, null, effectiveMaxCells);
           if (!cells.length) {
             skipped.push(`${el.name} (volume has no numeric cell attribute to render${availableAttrs?.length ? ` — found: ${availableAttrs.join(", ")}, none usable` : ""})`);
             continue;
@@ -587,7 +587,10 @@ export default function GeophysicsModule() {
             const [lo, hi] = Array.isArray(colormap.limits) && colormap.limits.length === 2 ? colormap.limits : [min, max];
             const stops = g.map((color, i) => ({ value: lo + (g.length > 1 ? (i / (g.length - 1)) * (hi - lo) : 0), color }));
             colorInit = { colorMode: "continuous", stops };
+          } else if (min > 0 && max / min >= 100) {
+            colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
           }
+          if (air?.count) coarsenNotes.push(`${el.name}: ${air.count.toLocaleString()} cells at ${Number(air.value).toPrecision(3)} (the tiny value this model uses for air above the ground) treated as air (no data).`);
           addVoxelModel({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit });
           volumesCount++;
           if (coarsenNote) coarsenNotes.push(`${el.name}: ${coarsenNote}`);
@@ -723,7 +726,7 @@ export default function GeophysicsModule() {
       addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
       setVoxelError({
         info: true,
-        text: `Imported "${meshFile.name}" — ${mesh.nx}×${mesh.ny}×${mesh.nz} mesh, ${cells.length.toLocaleString()} cell(s) with data.${air.count ? ` ${air.count.toLocaleString()} cells at ${air.value} (the SimPEG / UBC air value) were treated as air (no data).` : ""}${logColours ? ` Values span ${min.toPrecision(2)} to ${max.toPrecision(2)} (${Math.round(Math.log10(max / min))} decades), so colours are log-spaced.` : ""}${coarsenNote}`,
+        text: `Imported "${meshFile.name}" — ${mesh.nx}×${mesh.ny}×${mesh.nz} mesh, ${cells.length.toLocaleString()} cell(s) with data.${air.count ? ` ${air.count.toLocaleString()} cells at ${Number(air.value).toPrecision(3)} (the tiny value this model uses for air above the ground) were treated as air (no data).` : ""}${logColours ? ` Values span ${min.toPrecision(2)} to ${max.toPrecision(2)} (${Math.round(Math.log10(max / min))} decades), so colours are log-spaced.` : ""}${coarsenNote}`,
       });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });
@@ -747,6 +750,12 @@ export default function GeophysicsModule() {
   const importBlockModelCSV = (file) => {
     if (!file) return;
     setVoxelError(null);
+    // TASKS.csv #482 — this reader holds the whole file (and every row as an object) in memory; a 320 MB
+    // inversion-mesh CSV would freeze the app the way #481's point import did. Large models have streamed routes.
+    if (file.size > 150e6) {
+      setVoxelError({ info: false, text: `"${file.name}" is ${(file.size / 1e6).toFixed(0)} MB — too large for the block-model CSV reader. Import the same model as UBC (.msh + .mod) or OMF, which are streamed and reduced to fit the 3D view.` });
+      return;
+    }
     parseTableFile(file) // TASKS.csv #444 — comma decimals (Datamine/Micromine exports on a European locale) + encoding fallback
       .then((t) => {
         // TASKS.csv #410 — confirm the columns first (BlockModelMappingModal) instead of fixed synonyms.

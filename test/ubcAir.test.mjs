@@ -2,6 +2,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { maskAirCells, ubcMeshToCells, coarsenUBCModel } from "../src/lib/voxel.js";
+import { writeOMF } from "../src/lib/omfWriter.js";
+import { parseOMF, omfVolumeToCells } from "../src/lib/omf.js";
+
+test("#482 OMF volumes: air (1.18e-38 as the real Woodjam OMF writes it) is no-data too", async () => {
+  // 1 x 1 x 4, w fastest from the bottom: two ground cells, then two air cells on top
+  const tiny = 1.17549435e-38;
+  const bytes = await writeOMF({ elements: [{ type: "volume", name: "ztem", origin: [0, 0, 0], tensor: { u: [10], v: [10], w: [10, 10, 10, 10] }, data: [{ name: "sigma", values: [0.03, 0.01, tiny, tiny] }] }] });
+  const vol = (await parseOMF(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))).elements[0];
+  const r = omfVolumeToCells(vol, "sigma");
+  assert.equal(r.air.count, 2);
+  assert.deepEqual(r.cells.map((c) => [c.z, c.value]), [[5, 0.03], [15, 0.01]]);
+});
 
 test("#481 air at 1e-8 is masked before reducing; models without air are untouched", () => {
   // 1 x 1 x 4 column, top two cells air (canonical order: x fastest, then z top-down, then y)
