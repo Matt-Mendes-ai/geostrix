@@ -5,6 +5,7 @@ import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
+import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -19,7 +20,7 @@ import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
-import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
+import { parseUBCMesh, parseUBCModel, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
@@ -187,9 +188,23 @@ export default function GeophysicsModule() {
     setError(`"${key}": ${done.toLocaleString()} point(s) now at terrain + their height above ground${outside ? `; ${outside} outside the terrain have no elevation (not drawn)` : ""}. The original heights are kept on each point.`);
   };
 
-  const importFile = (file) => {
+  const importFile = async (file) => {
     if (!file) return;
     setError(null);
+    // TASKS.csv #481 — check the header BEFORE parsing: a 320 MB ZTEM inversion mesh CSV (7.2 M cells with
+    // I, J, K and centroid columns) was read whole as "survey points" and froze the app.
+    const head = await file.slice(0, 64 * 1024).text().catch(() => "");
+    const firstLine = (head.split(/\r?\n/)[0] || "").toLowerCase();
+    const cols = firstLine.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+    const blocky = (cols.includes("i") && cols.includes("j") && cols.includes("k")) || /centroid|xinc|yinc|zinc|\bdx\b|block/.test(firstLine);
+    if (blocky) {
+      setError(`"${file.name}" looks like a BLOCK MODEL (cell indices / cell-centre columns${file.size > 50e6 ? `, ${(file.size / 1e6).toFixed(0)} MB` : ""}), not a point survey. Import it under Geophysics → Block models: the UBC mesh + model files (.msh + .mod) or OMF if you have them (streamed and reduced to fit the 3D view), or "Block model CSV" for smaller files.`);
+      return;
+    }
+    if (file.size > 150e6) {
+      setError(`"${file.name}" is ${(file.size / 1e6).toFixed(0)} MB — too large to import as a point survey in one go (it would freeze GeoStrix). Thin it first (every n-th reading, or grid it), or import it as a grid (GeoTIFF / GXF) if it is gridded data.`);
+      return;
+    }
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const parsed = res.data.map(normGeophysRow);
@@ -684,6 +699,8 @@ export default function GeophysicsModule() {
       // parseUBCModelStream header comment for the OneDrive-placeholder investigation this came out of.
       let values = await parseUBCModelStream(modelFile, mesh, (n) => setVoxelProgress(n));
       setVoxelProgress(null);
+      // TASKS.csv #481 — SimPEG / UBC air cells (1e-8) are no-data, before any block-averaging
+      const air = maskAirCells(values);
       // User report: a real UBC-GIF inversion mesh (41,841,072 cells) used to hard-fail the import
       // outright. Instead of rejecting it, block-average it down to GeoStrix's MAX_CELLS budget (see
       // voxel.js's coarsenUBCModel) — the mesh still imports and renders, just at reduced resolution,
@@ -700,10 +717,13 @@ export default function GeophysicsModule() {
       const cells = ubcMeshToCells(mesh, values);
       if (!cells.length) throw new Error("Every cell in this model is no-data — nothing to render.");
       const { min, max } = cellValueRange(cells);
-      addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max });
+      // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
+      // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
+      const logColours = min > 0 && max / min >= 100;
+      addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
       setVoxelError({
         info: true,
-        text: `Imported "${meshFile.name}" — ${mesh.nx}×${mesh.ny}×${mesh.nz} mesh, ${cells.length.toLocaleString()} cell(s) with data.${coarsenNote}`,
+        text: `Imported "${meshFile.name}" — ${mesh.nx}×${mesh.ny}×${mesh.nz} mesh, ${cells.length.toLocaleString()} cell(s) with data.${air.count ? ` ${air.count.toLocaleString()} cells at ${air.value} (the SimPEG / UBC air value) were treated as air (no data).` : ""}${logColours ? ` Values span ${min.toPrecision(2)} to ${max.toPrecision(2)} (${Math.round(Math.log10(max / min))} decades), so colours are log-spaced.` : ""}${coarsenNote}`,
       });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });

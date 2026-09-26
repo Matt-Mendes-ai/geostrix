@@ -362,3 +362,21 @@ export function cellValueRange(cells) {
   if (min === Infinity) return { min: 0, max: 1 };
   return { min, max };
 }
+
+// TASKS.csv #481 — "air" in a conductivity model. SimPEG and UBC-GIF write the cells above the topography as
+// a tiny conductivity (1e-8 S/m), not as a no-data code: a real ZTEM inversion (Woodjam, 330x348x63) had
+// half of its displayed cells at exactly 1e-8, drawn as real rock and averaged into the near-surface cells
+// when the mesh was reduced for the 3D view. When the SMALLEST value is <= 1e-8 and at least `minShare` of
+// the cells hold exactly it, those cells are marked no-data (in place). Returns { count, value } (count 0 =
+// nothing changed). A model that genuinely contains many cells of one tiny value is rare; the import
+// message states what was done either way.
+export function maskAirCells(values, minShare = 0.05) {
+  let min = Infinity;
+  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX && v < min) min = v; }
+  if (!(min > 0 && min <= 1e-8)) return { count: 0, value: null };
+  let count = 0;
+  for (let i = 0; i < values.length; i++) if (values[i] === min) count++;
+  if (count < minShare * values.length) return { count: 0, value: null };
+  for (let i = 0; i < values.length; i++) if (values[i] === min) values[i] = COARSEN_NODATA_SENTINEL;
+  return { count, value: min };
+}

@@ -158,6 +158,9 @@ function startPythonSidecar() {
       // browser. A random per-launch secret, required on every request except /health, means only this
       // app's renderer (which fetches it over IPC below) can drive it.
       env: { ...process.env, GEOSTRIX_SIDECAR_TOKEN: SIDECAR_TOKEN, ...blasThreadEnv() },
+      // TASKS.csv #481 — the frozen sidecar is a console executable; without this Windows opened a black
+      // command-prompt window beside GeoStrix whenever the engine started (user report, 2026-09-26).
+      windowsHide: true,
       // dev: inherit the terminal. packaged: both streams to the log file when we have one.
       stdio: isDev ? "inherit" : (sidecarLogFd !== null ? ["ignore", sidecarLogFd, sidecarLogFd] : "ignore"),
     });
