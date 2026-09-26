@@ -99,6 +99,7 @@ import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -1249,6 +1250,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
+    geophysSurveys, // TASKS.csv #451
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     project,
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
@@ -2210,13 +2212,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (layerVisible.geophys_pts && gpts.length) {
       const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
       if (vals.length) {
-        const mm = minMax(vals);
-        const model = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? mm.min, max: geophysPtsMax ?? mm.max };
-        groups.push({ key: "geophys_pts", label: LAYER_META.geophys_pts?.label || "Geophysics points", items: [], ramp: ramp(model, model.min, model.max) });
+        // TASKS.csv #451 — one ramp per survey when several are loaded (each is coloured on its own range)
+        const colorer = makeSurveyColorer(gpts.filter((r) => Number.isFinite(r.value)), { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax });
+        for (const [key, model] of colorer.models) {
+          const units = geophysSurveys?.[key]?.units;
+          groups.push({ key: `geophys_pts_${key}`, label: colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${LAYER_META.geophys_pts?.label || "Geophysics points"}${units ? ` (${units})` : ""}`, items: [], ramp: ramp(model, model.min, model.max) });
+        }
       }
     }
     return groups;
-  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -5667,17 +5672,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const geophysPtsRows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
         if (geophysPtsRows.length) {
           const gBuildErrors = [];
-          const vals = geophysPtsRows.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
-          const { min: gmin, max: gmax } = minMax(vals);
-          const geophysPtsModel = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? gmin, max: geophysPtsMax ?? gmax };
+          const colorer = makeSurveyColorer(geophysPtsRows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several
           geophysPtsRows.forEach((row) => {
             try {
               const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const size = 1.4 + 2.8 * (gmax > gmin ? (row.value - gmin) / (gmax - gmin) : 0.3);
-              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) })); // TASKS.csv #312 — shared prototype + scale
+              const { color, t } = colorer.colorOf(row);
+              const size = 1.4 + 2.8 * t;
+              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
               mesh.scale.setScalar(size);
               mesh.position.set(x, y, z);
-              mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+              mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
               groups.geophys_pts.add(mesh);
             } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
           });
@@ -6044,22 +6048,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // [-northing]) so they line up correctly with drillholes rather than needing their own transform.
     const geophysPts = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365
     if (geophysPts.length) {
-      const vals = geophysPts.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
-      const { min, max } = minMax(vals); // not Math.min/max(...) — a real airborne survey import can have far more points than the JS engine's argument-spread limit allows (see layers.js's minMax comment)
+      const colorer = makeSurveyColorer(geophysPts, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // TASKS.csv #451 — per survey when several
       // TASKS.csv #122 — graduated/classed symbology: honor the user-defined class breaks/palette set
       // via GeophysicsModule's VoxelLegendEditor (geophysPtsStops/geophysPtsColorMode/geophysPtsMin/
       // geophysPtsMax), falling back to the original 2-color magColor gradient when no stops have been
       // set yet — same "model" shape colorForVoxelValue already expects, just built from these flat
       // store fields instead of a real voxel model object.
-      const geophysPtsModel = { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin ?? min, max: geophysPtsMax ?? max };
       geophysPts.forEach((row) => {
         try {
           const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const size = 1.4 + 2.8 * (max > min ? (row.value - min) / (max - min) : 0.3);
-          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForVoxelValue(geophysPtsModel, row.value) })); // TASKS.csv #312 — shared prototype + scale
+          const { color, t } = colorer.colorOf(row);
+          const size = 1.4 + 2.8 * t;
+          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
           mesh.scale.setScalar(size);
           mesh.position.set(x, y, z);
-          mesh.userData = { tip: `Geophysics point\n${row.label || "value"}: ${row.value}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+          mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
           groups.geophys_pts.add(mesh);
         } catch (err) { buildErrors.push(`geophys_pts point: ${err.message}`); }
       });
@@ -6134,7 +6137,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //

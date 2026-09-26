@@ -482,3 +482,24 @@ test("#375 ternary channels stretch independently and sample across different gr
   assert.ok(s.stations <= 20000 && s.stations === thinStationIndices(xs, ys, s.spacing).length, JSON.stringify(s));
   assert.equal(suggestThinSpacing(xs.slice(0, 100), ys.slice(0, 100)), null);
 });
+
+import { surveyStats, makeSurveyColorer, aglToElevation } from "../src/lib/geophysSurveys.js";
+test("#451 surveys: stats per survey, colours on each survey's own range, radar-altimeter heights -> elevations", () => {
+  const rows = [
+    { _src: "mag.csv", x: 0, y: 0, z: 100, value: 50000, line: "10" }, { _src: "mag.csv", x: 1, y: 0, z: 100, value: 50100, line: "20" },
+    { _src: "grav.csv", x: 0, y: 1, z: null, value: -2 }, { _src: "grav.csv", x: 1, y: 1, z: null, value: 3 },
+  ];
+  const st = Object.fromEntries(surveyStats(rows).map((s) => [s.key, s]));
+  assert.deepEqual([st["mag.csv"].count, st["mag.csv"].lines, st["mag.csv"].withZ, st["grav.csv"].withZ], [2, 2, 2, 0]);
+  const c = makeSurveyColorer(rows);
+  assert.equal(c.perSurvey, true);
+  // the top of each survey's own range maps to t = 1, the bottom to 0, whatever the units
+  assert.deepEqual(rows.map((r) => c.colorOf(r).t), [0, 1, 0, 1]);
+  assert.equal(c.colorOf(rows[1]).color, c.colorOf(rows[3]).color);
+  assert.equal(makeSurveyColorer(rows.slice(0, 2)).perSurvey, false);
+  const agl = aglToElevation([{ _src: "heli", x: 5, y: 5, z: 30 }, { _src: "heli", x: 999, y: 5, z: 30 }, { _src: "other", x: 5, y: 5, z: 7 }], "heli", (x) => (x < 100 ? 1000 : NaN));
+  assert.deepEqual(agl.rows.map((r) => [r.z, r.zAgl]), [[1030, 30], [null, 30], [7, undefined]]);
+  assert.deepEqual([agl.done, agl.outside], [1, 1]);
+  // converting again starts from the kept height, not the already-converted elevation
+  assert.equal(aglToElevation(agl.rows, "heli", () => 1200).rows[0].z, 1230);
+});

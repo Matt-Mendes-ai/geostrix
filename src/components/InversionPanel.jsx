@@ -35,7 +35,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, addVoxelModel, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod } = useStore();
+  const { layers, terrain, project, addVoxelModel, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys } = useStore();
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
@@ -58,6 +58,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
   const [unc, setUnc] = useState({ floor: "", percent: "" });
   const [mesh, setMesh] = useState({ coreCell: "", depth: "" });
+  // TASKS.csv #451 — a survey already labelled magnetics / gravity pre-selects the method (still confirmed below)
+  useEffect(() => {
+    const m = geophysSurveys?.[activeSurvey]?.method;
+    if (!method && (m === "mag" || m === "grav")) setMethod(m);
+  }, [activeSurvey, geophysSurveys]); // eslint-disable-line react-hooks/exhaustive-deps
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
   const [dh, setDh] = useState({ on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useState({ open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });

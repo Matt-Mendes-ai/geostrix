@@ -1,10 +1,12 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
+import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } from "../lib/geophysSurveys.js"; // TASKS.csv #451
+import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
 import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
@@ -72,7 +74,11 @@ function normGeophysRow(r) {
   const z = Number.isFinite(zRaw) ? zRaw : null;
   const value = cellNum(getCol(r, ["value", "val", "reading", "mag", "response"]));
   const label = getCol(r, ["label", "channel", "field", "survey"]);
-  return { x, y, z, value, label: label !== undefined ? String(label) : undefined };
+  // TASKS.csv #327 — line and fiducial travel with each point (line-based QC, levelling, provenance)
+  const line = getCol(r, ["line", "line_no", "lineno", "line_number", "flight_line", "flightline"]);
+  const fid = getCol(r, ["fid", "fiducial", "fiducial_no"]);
+  return { x, y, z, value, label: label !== undefined ? String(label) : undefined,
+    ...(line !== undefined && line !== "" ? { line: String(line) } : {}), ...(fid !== undefined && fid !== "" ? { fid: Number.isFinite(Number(fid)) ? Number(fid) : String(fid) } : {}) };
 }
 
 export default function GeophysicsModule() {
@@ -86,6 +92,7 @@ export default function GeophysicsModule() {
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
     survey, desurveyMethod, setCustomLayers, // TASKS.csv #323 — evaluate a model onto the drillholes
+    geophysSurveys, updateGeophysSurvey, setLayers, // TASKS.csv #451
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
   } = useStore();
@@ -170,6 +177,14 @@ export default function GeophysicsModule() {
   const claimInput = useRef(null);
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
+  const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // #451 — radar-altimeter heights -> elevations on the loaded terrain
+  const convertAgl = (key) => {
+    if (!terrain) return;
+    const { rows: out, done, outside } = aglToElevation(layers.geophys_pts || [], key, (x, y) => terrainElevationAt(terrain, x, y));
+    setLayers((l) => ({ ...l, geophys_pts: out }));
+    setError(`"${key}": ${done.toLocaleString()} point(s) now at terrain + their height above ground${outside ? `; ${outside} outside the terrain have no elevation (not drawn)` : ""}. The original heights are kept on each point.`);
+  };
 
   const importFile = (file) => {
     if (!file) return;
@@ -618,6 +633,7 @@ export default function GeophysicsModule() {
         // TASKS.csv #365 — no z column means "elevation not recorded" (null), not the mean collar elevation.
         x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol],
         label: r._line !== null && r._line !== undefined ? `Line ${r._line}` : undefined,
+        ...(r._line !== null && r._line !== undefined ? { line: String(r._line) } : {}), // #327
         _src: fileName,
       }))
       .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value));
@@ -877,6 +893,45 @@ export default function GeophysicsModule() {
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; importXYZFile(f); e.target.value = ""; }}
         />
+        {/* TASKS.csv #451 / #327 — the loaded surveys, each with what it is */}
+        {surveyList.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="ge-section-label" style={{ marginBottom: 6 }}>Surveys loaded</div>
+            {surveyList.map((sv) => {
+              const meta = geophysSurveys[sv.key] || {};
+              return (
+                <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>
+                    <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={`Remove survey "${sv.key}"`} title={`Remove survey "${sv.key}"`} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}
+                      onClick={() => { if (window.confirm(`Remove the ${sv.count.toLocaleString()} points of "${sv.key}"?`)) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
+                  </div>
+                  <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
+                    {sv.count.toLocaleString()} points{sv.lines ? `, ${sv.lines} line(s)` : ""}, {sv.withZ.toLocaleString()} with elevation · values {Number.isFinite(sv.min) ? `${sv.min.toPrecision(4)} to ${sv.max.toPrecision(4)}` : "—"}{meta.units ? ` ${meta.units}` : ""}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
+                    <select value={meta.method || ""} aria-label={`Method of "${sv.key}"`} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
+                      onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...(e.target.value && !meta.units ? { units: SURVEY_METHODS[e.target.value].units } : {}) })}>
+                      <option value="">Method…</option>
+                      {Object.entries(SURVEY_METHODS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                    </select>
+                    <input value={meta.units || ""} placeholder="units" aria-label={`Units of "${sv.key}"`} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
+                  </div>
+                  <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={`What z means in "${sv.key}"`} style={{ ...numInput, width: "100%", marginTop: 5 }}
+                    onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
+                    {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                  </select>
+                  {(meta.zMeaning === "agl") && (
+                    <button type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)} style={{ ...pBtn, marginTop: 5, opacity: terrain ? 1 : 0.5 }}
+                      title={terrain ? "elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)" : "Load a terrain first"}>
+                      {sv.withAgl ? "Recompute elevations from the terrain" : "Convert heights to elevations (terrain + height)"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         {xyzPending && (
           <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 8 }}>

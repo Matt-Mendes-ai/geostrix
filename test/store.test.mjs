@@ -108,6 +108,7 @@ test("save -> open round-trips the project and leaves it clean", { timeout: 1500
     m.s.setLayers((l) => ({ ...l, litho: [{ hole_id: "DD-1", from: 0, to: 10, value: "AND" }] }));
     m.s.addVoxelModel({ name: "bm", cells: [{ x: 1, y: 2, z: 3, dx: 5, dy: 5, dz: 5, value: 0.7 }] });
     m.s.setEpsg(32609);
+    m.s.updateGeophysSurvey("tmi.csv", { method: "mag", units: "nT", zMeaning: "agl" }); // #451
   });
   let res;
   await act(async () => { res = await m.s.saveProject(); await wait(20); });
@@ -122,6 +123,7 @@ test("save -> open round-trips the project and leaves it clean", { timeout: 1500
   assert.equal(m.s.voxelModels.length, 1);
   assert.equal(m.s.voxelModels[0].cells[0].value, 0.7);
   assert.equal(m.s.project.epsg, 32609);
+  assert.deepEqual(m.s.geophysSurveys, { "tmi.csv": { method: "mag", units: "nT", zMeaning: "agl" } }); // #451
   assert.equal(m.s.activeTabDirty, false, "an opened project is clean");
   await m.unmount();
 });
