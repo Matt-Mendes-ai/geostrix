@@ -434,8 +434,8 @@ ipcMain.handle("section-contacts", (_e, payload) => {
 
 // ---------- PDF export ----------
 const PDF_PAGE_SIZES = new Set(["A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398
-ipcMain.handle("export-pdf", async (_e, { suggestedName, pageSize, landscape }) => {
-  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape }) => {
+  const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: "Export PDF",
     defaultPath: suggestedName || "layout.pdf",
@@ -453,8 +453,8 @@ ipcMain.handle("export-pdf", async (_e, { suggestedName, pageSize, landscape }) 
 });
 
 // ---------- generic file save (csv / png / svg) ----------
-ipcMain.handle("save-file", async (_e, { suggestedName, filters, content, encoding }) => {
-  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+ipcMain.handle("save-file", async (ev, { suggestedName, filters, content, encoding }) => {
+  const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: "Save",
     defaultPath: suggestedName,
@@ -470,8 +470,8 @@ ipcMain.handle("save-file", async (_e, { suggestedName, filters, content, encodi
 });
 
 // ---------- open file (for importers that want a native dialog) ----------
-ipcMain.handle("open-file", async (_e, { filters }) => {
-  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+ipcMain.handle("open-file", async (ev, { filters }) => {
+  const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     properties: ["openFile"],
     filters: filters || [{ name: "CSV", extensions: ["csv"] }],
