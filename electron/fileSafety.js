@@ -3,8 +3,7 @@
 // writeFileAtomic: write a temp file next to the target, then rename it over the target, so a crash or a
 // sync client touching the file mid-write can never leave a half-written project. Windows can refuse
 // the rename when the target is locked (an open viewer, a sync client); the complete temp file then gets
-// copied over instead — not atomic, but never partial from our side — and the temp file is always
-// removed.
+// copied over instead — not atomic — and the temp file is removed once that copy succeeded (#469).
 //
 // backupBeforeOverwrite: before a PROJECT file is overwritten, the previous version is kept as
 // "<name>.bak" (one generation), so a bad save — wrong project in the wrong tab, a bug — is recoverable.
@@ -15,15 +14,23 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-async function writeFileAtomic(filePath, data, encoding) {
+// TASKS.csv #469 — the fallback used to delete the temp file in a `finally`, i.e. even when the copy
+// FAILED (disk full half-way through): the target was left truncated and the only complete copy was gone.
+// Now the temp file is removed only after a successful copy; on a failed copy it is kept and its path is
+// in the error (err.keptAt), so the message the user sees says where the complete copy is. A failed first
+// write no longer leaves a stray temp file behind. `fsp` is injectable for tests.
+async function writeFileAtomic(filePath, data, encoding, fsp = fs.promises) {
   const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  await fs.promises.writeFile(tmp, data, encoding);
-  try {
-    await fs.promises.rename(tmp, filePath);
-  } catch (err) {
-    try { await fs.promises.copyFile(tmp, filePath); }
-    finally { await fs.promises.unlink(tmp).catch(() => {}); }
+  try { await fsp.writeFile(tmp, data, encoding); }
+  catch (err) { await fsp.unlink(tmp).catch(() => {}); throw err; }
+  try { await fsp.rename(tmp, filePath); return; } catch (_) { /* target locked (viewer, sync client): copy instead */ }
+  try { await fsp.copyFile(tmp, filePath); }
+  catch (err) {
+    const e = new Error(`${err.message} — the complete copy was kept at ${tmp}`);
+    e.code = err.code; e.keptAt = tmp;
+    throw e;
   }
+  await fsp.unlink(tmp).catch(() => {});
 }
 
 const PROJECT_FILE = /\.geostrix(\.json)?$/i;

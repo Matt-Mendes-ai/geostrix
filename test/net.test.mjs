@@ -73,3 +73,27 @@ test("#341 atomic write, .bak of the previous project, unreadable autosave kept 
   assert.equal(await quarantineUnreadable(auto, '{"ok":true}'), null);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("#469 writeFileAtomic keeps the complete temp copy when the fallback copy fails, and cleans up a failed first write", async () => {
+  const os = await import("node:os"); const fsx = await import("node:fs"); const pth = await import("node:path");
+  const dir = fsx.mkdtempSync(pth.join(os.tmpdir(), "gs469-"));
+  const target = pth.join(dir, "p.geostrix.json");
+  const real = fsx.promises;
+  // rename refused (locked target) + copy fails half-way (writes a truncated target, then throws)
+  const failingCopy = { ...real, writeFile: real.writeFile, unlink: real.unlink, rename: async () => { throw Object.assign(new Error("EPERM rename"), { code: "EPERM" }); },
+    copyFile: async (src, dst) => { await real.writeFile(dst, "{\"trunc"); throw Object.assign(new Error("ENOSPC: no space left"), { code: "ENOSPC" }); } };
+  let err = null;
+  try { await writeFileAtomic(target, "{\"complete\":true}", "utf8", failingCopy); } catch (e) { err = e; }
+  assert.ok(err && err.code === "ENOSPC" && err.keptAt, "error carries where the complete copy is");
+  assert.equal(fsx.readFileSync(err.keptAt, "utf8"), "{\"complete\":true}"); // the complete copy survived
+  assert.ok(/kept at/.test(err.message));
+  // a failed first write leaves no temp file
+  const failingWrite = { ...real, writeFile: async (f) => { await real.writeFile(f, "par"); throw new Error("EIO write"); } };
+  await assert.rejects(writeFileAtomic(pth.join(dir, "q.json"), "x", "utf8", failingWrite));
+  assert.deepEqual(fsx.readdirSync(dir).filter((f) => f.startsWith("q.json") && f.endsWith(".tmp")), []);
+  // normal path still atomic and clean
+  await writeFileAtomic(pth.join(dir, "r.json"), "ok", "utf8");
+  assert.equal(fsx.readFileSync(pth.join(dir, "r.json"), "utf8"), "ok");
+  assert.deepEqual(fsx.readdirSync(dir).filter((f) => f.startsWith("r.json.")), []);
+  fsx.rmSync(dir, { recursive: true, force: true });
+});
