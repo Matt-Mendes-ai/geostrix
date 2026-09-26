@@ -1,4 +1,6 @@
 import React, { useRef, useState } from "react";
+import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
+import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe } from "lucide-react";
@@ -14,7 +16,7 @@ import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
-import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, parseBlockModelCSV, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
+import { parseUBCMesh, parseUBCModel, parseUBCModelStream, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
@@ -108,6 +110,7 @@ export default function GeophysicsModule() {
   const [webLayerModalOpen, setWebLayerModalOpen] = useState(false);
   const [webLayerDefaultBbox, setWebLayerDefaultBbox] = useState(null); // [lonMin,latMin,lonMax,latMax] | null — TASKS.csv #127
   const [voxelError, setVoxelError] = useState(null);
+  const [bmPending, setBmPending] = useState(null); // TASKS.csv #410 — a parsed block-model CSV awaiting column confirmation
   const [voxelBusy, setVoxelBusy] = useState(false);
   const [voxelProgress, setVoxelProgress] = useState(null);
   const [boundaryError, setBoundaryError] = useState(null);
@@ -679,32 +682,39 @@ export default function GeophysicsModule() {
   // GeoPackage rows) — removed again per user feedback ("I don't think there's a voxel in shp or
   // gpkg so we can delete those 2 buttons"): real block-model exports in practice are CSV or a UBC
   // mesh, not a point shapefile/GeoPackage, so the two extra import paths were more confusing (an
-  // unlikely-to-be-used option next to the two that are) than useful. finishBlockModelImport itself
+  // unlikely-to-be-used option next to the two that are) than useful. (#410: the CSV path now goes through
+  // BlockModelMappingModal + lib/blockModelCsv.js; finishBlockModelImport / parseBlockModelCSV are no longer used here.)
   // stays — the plain CSV path (importBlockModelCSV, below) still uses it, unchanged.
-  const finishBlockModelImport = (fileName, rows, headerCount, note) => {
-    try {
-      const { cells, badRows, inferredSize } = parseBlockModelCSV(rows);
-      if (!cells.length) {
-        setVoxelError({ info: false, text: `No usable rows — looked for x/y/z (or easting/northing/elevation) and a value column. Got ${headerCount} column(s).` });
-        return;
-      }
-      const { min, max } = cellValueRange(cells);
-      addVoxelModel({ name: fileName.replace(/\.(csv|zip|gpkg|shp)$/i, ""), source: "csv", cells, min, max });
-      let msg = `Imported "${fileName}" — ${cells.length.toLocaleString()} block(s).`;
-      if (badRows) msg += ` Skipped ${badRows} row(s) missing x/y/z or a value.`;
-      if (inferredSize) msg += " Cell size wasn't given for every row, so it was inferred per axis from the smallest gap between distinct centroid coordinates — double-check this matches your model's real block size if cells look mis-sized.";
-      if (note) msg += note;
-      setVoxelError({ info: true, text: msg });
-    } catch (err) {
-      setVoxelError({ info: false, text: err.message });
-    }
-  };
   const importBlockModelCSV = (file) => {
     if (!file) return;
     setVoxelError(null);
     parseTableFile(file) // TASKS.csv #444 — comma decimals (Datamine/Micromine exports on a European locale) + encoding fallback
-      .then((t) => finishBlockModelImport(file.name, t.rows, t.headers.length))
+      .then((t) => {
+        // TASKS.csv #410 — confirm the columns first (BlockModelMappingModal) instead of fixed synonyms.
+        if (!t.rows.length) { setVoxelError({ info: false, text: `${file.name}: no rows.` }); return; }
+        setBmPending({ fileName: file.name, rows: t.rows, headers: t.headers, numeric: numericColumns(t.headers, t.rows), guess: guessBlockModelMapping(t.headers, t.rows), note: t.note });
+      })
       .catch((err) => setVoxelError({ info: false, text: `Could not parse ${file.name}: ${err.message}` }));
+  };
+  // TASKS.csv #410 — one block model per chosen attribute; over the cell budget, volume-weighted merge.
+  const importMappedBlockModel = (mapping, attrs) => {
+    const p = bmPending; setBmPending(null);
+    if (!p) return;
+    const base = p.fileName.replace(/\.csv$/i, "");
+    const msgs = [];
+    attrs.forEach((attr) => {
+      const { cells: raw, badRows, inferred } = blockModelCellsFromRows(p.rows, mapping, attr);
+      if (!raw.length) { msgs.push(`${attr}: no usable rows (x/y/z and ${attr} all need numbers).`); return; }
+      const { cells, factors } = coarsenBlockCells(raw, effectiveMaxCells);
+      const { min, max } = cellValueRange(cells);
+      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max });
+      let m = `${attr}: ${cells.length.toLocaleString()} block(s)`;
+      if (factors) m += ` (${raw.length.toLocaleString()} merged ${factors.fx}×${factors.fy}×${factors.fz} to fit the ${effectiveMaxCells.toLocaleString()}-cell budget — volume-weighted means)`;
+      if (badRows) m += `, ${badRows.toLocaleString()} row(s) without numbers skipped`;
+      msgs.push(m + ".");
+      if (inferred && msgs.length === 1) msgs.push(`Block size inferred from centroid spacing: ${["dx", "dy", "dz"].map((k) => (inferred[k] != null ? `${k} ${+inferred[k].toFixed(3)}` : null)).filter(Boolean).join(", ")} — check it matches the model.`);
+    });
+    setVoxelError({ info: true, text: `Imported "${p.fileName}": ${msgs.join(" ")}${p.note ? ` ${p.note.trim()}` : ""}` });
   };
   // Plain loop, not Math.min(...vals)/Math.max(...vals) — a large geophysics point cloud (real
   // airborne survey exports easily run into hundreds of thousands of points) can exceed the JS
@@ -1391,6 +1401,10 @@ export default function GeophysicsModule() {
         </>)}
       </div>
 
+      {bmPending && (
+        <BlockModelMappingModal fileName={bmPending.fileName} headers={bmPending.headers} numeric={bmPending.numeric} rowCount={bmPending.rows.length}
+          guess={bmPending.guess} maxCells={effectiveMaxCells} onImport={importMappedBlockModel} onClose={() => setBmPending(null)} />
+      )}
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
       <div

@@ -223,3 +223,28 @@ test("#444 shared CSV reader/writer: Windows-1252 fallback, comma decimals, # st
   assert.ok(/comma decimals/i.test(t.note), t.note);
   assert.equal(toCsv([{ unit: 'Andesite, "upper"', hole: "A-1" }]), 'unit,hole\r\n"Andesite, ""upper""",A-1');
 });
+
+import { guessBlockModelMapping, blockModelCellsFromRows, coarsenBlockCells } from "../src/lib/blockModelCsv.js";
+test("#410 block-model CSV: Micromine / Datamine / Vulcan headers map; several attributes; volume-weighted coarsening", () => {
+  const mm = guessBlockModelMapping(["EAST", "NORTH", "RL", "_EAST", "AU", "CU", "ROCK"], [{ EAST: 1, NORTH: 2, RL: 3, _EAST: 5, AU: 0.5, CU: 0.1, ROCK: "AND" }]);
+  assert.deepEqual([mm.mapping.x, mm.mapping.y, mm.mapping.z], ["EAST", "NORTH", "RL"]);
+  assert.ok(mm.attributes.includes("AU") && mm.attributes.includes("CU") && !mm.attributes.includes("ROCK"));
+  assert.deepEqual(mm.defaultAttributes, ["AU"]);
+  const dm = guessBlockModelMapping(["XC", "YC", "ZC", "XINC", "YINC", "ZINC", "IJK", "AU_PPM"], [{ XC: 1, YC: 1, ZC: 1, XINC: 5, YINC: 5, ZINC: 5, IJK: 7, AU_PPM: 2 }]);
+  assert.deepEqual(dm.mapping, { x: "XC", y: "YC", z: "ZC", dx: "XINC", dy: "YINC", dz: "ZINC" });
+  assert.deepEqual(dm.attributes, ["AU_PPM"]); // IJK is never an attribute
+  const vu = guessBlockModelMapping(["xcentre", "ycentre", "zcentre", "dim_x", "dim_y", "dim_z", "density"], [{ xcentre: 0, ycentre: 0, zcentre: 0, dim_x: 2, dim_y: 2, dim_z: 2, density: 2.7 }]);
+  assert.equal(vu.mapping.dx, "dim_x"); assert.deepEqual(vu.defaultAttributes, ["density"]);
+  // cells + inferred size
+  const rows = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) rows.push({ E: 5 + 10 * i, N: 5 + 10 * j, RL: 5, AU: i < 2 ? 1 : 3 });
+  const { cells, inferred } = blockModelCellsFromRows(rows, { x: "E", y: "N", z: "RL", dx: "", dy: "", dz: "" }, "AU");
+  assert.equal(cells.length, 16); assert.equal(inferred.dx, 10);
+  // coarsen 16 -> <= 4: 2x2 merges; the left half averages 1, the right half 3
+  const c = coarsenBlockCells(cells, 4);
+  assert.equal(c.cells.length, 4); assert.deepEqual(c.factors, { fx: 2, fy: 2, fz: 1 });
+  const left = c.cells.filter((k) => k.x < 20).map((k) => k.value), right = c.cells.filter((k) => k.x > 20).map((k) => k.value);
+  assert.ok(left.every((v) => Math.abs(v - 1) < 1e-9) && right.every((v) => Math.abs(v - 3) < 1e-9));
+  assert.equal(c.cells[0].dx, 20);
+  assert.equal(coarsenBlockCells(cells, 100).factors, null);
+});
