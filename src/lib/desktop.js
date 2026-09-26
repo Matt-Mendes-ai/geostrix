@@ -438,6 +438,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     relation: opts.relation || "erode",
     ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
     ...(opts.returnBlock ? { return_block: true } : {}), // TASKS.csv #356
+    ...(opts.faults?.length ? { faults: opts.faults } : {}), // TASKS.csv #360 — faults that offset the stack
   };
   const start = await sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "implicit", request }, timeoutMs: 60000 });
   if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
@@ -476,6 +477,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
         extent, surfaces,
         resolution: opts.resolution || [40, 40, 40],
         relation: opts.relation || "erode",
+        ...(opts.faults?.length ? { faults: opts.faults } : {}), // TASKS.csv #360
         // TASKS.csv #274 — omitted entirely (not sent as 1) when the user leaves it on Auto, so the
         // request the sidecar sees is identical to a pre-#274 one in that case.
         ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),

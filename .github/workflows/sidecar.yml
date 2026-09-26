@@ -32,3 +32,6 @@ jobs:
       - name: Physics tests
         working-directory: python-sidecar
         run: python tests/test_potential.py
+      - name: Fault tests (GemPy, #360)
+        working-directory: python-sidecar
+        run: python tests/test_implicit_faults.py

@@ -346,6 +346,10 @@ class ImplicitModelRequest(BaseModel):
     surfaces: List[SurfaceInput] = Field(..., min_length=1, max_length=12)
     resolution: List[int] = Field(default=[40, 40, 40], min_length=3, max_length=3)
     relation: Literal["erode", "onlap"] = "erode"
+    # TASKS.csv #360 — fault surfaces that OFFSET the stack, solved in the same model: each is its own GemPy
+    # group with StackRelationType.FAULT placed ahead of the stratigraphy (gp.set_is_fault, OFFSET_FORMATIONS),
+    # so contacts either side are fitted as offset blocks instead of one surface ramped across the fault.
+    faults: List[SurfaceInput] = Field(default_factory=list, max_length=6)
     # TASKS.csv #356 — also return the lithology block (unit id per regular-grid cell) for model-vs-log
     # checks and unit volumes. Off by default: at 64^3 it is ~260k integers.
     return_block: bool = False
@@ -413,7 +417,8 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         )
 
     elements = []
-    for i, surf in enumerate(req.surfaces):
+    fault_elements = []  # TASKS.csv #360
+    for i, surf in enumerate(list(req.faults) + list(req.surfaces)):
         sx = np.array([p.x for p in surf.points])
         sy = np.array([p.y for p in surf.points])
         sz = np.array([p.z for p in surf.points])
@@ -442,7 +447,8 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
             names=surf.name,
         )
         color = _SURFACE_PALETTE[i % len(_SURFACE_PALETTE)]
-        elements.append(StructuralElement(name=surf.name, surface_points=sp, orientations=ot, id=i + 1, color=color))
+        el = StructuralElement(name=surf.name, surface_points=sp, orientations=ot, id=i + 1, color=color)
+        (fault_elements if i < len(req.faults) else elements).append(el)
 
     # TASKS.csv #271 — HOW the relation is applied, which is not obvious and was originally wrong here.
     # Verified directly against the installed gempy 2026.0.3 (see that row's notes for the experiment):
@@ -463,10 +469,18 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         ]
     else:
         groups = [StructuralGroup(name="stack", elements=elements, structural_relation=StackRelationType.ONLAP)]
+    # TASKS.csv #360 — faults first (a fault group offsets every group AFTER it). Verified on the installed
+    # gempy 2026.0.3 with a synthetic 100 m throw: without the fault the contact ramps smoothly across it
+    # (z 598 -> 567 -> 557 -> 526 -> 503 m); with it the east block is flat at 500.0 m right up to the fault
+    # and the west side near 600 m, a step at the fault plane.
+    fault_group_names = [f"fault_{i}_{el.name}" for i, el in enumerate(fault_elements)]
+    groups = [StructuralGroup(name=n, elements=[el], structural_relation=StackRelationType.FAULT) for n, el in zip(fault_group_names, fault_elements)] + groups
     frame = StructuralFrame(structural_groups=groups, color_gen=gp.data.ColorsGenerator())
 
     try:
         model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
+        if fault_group_names:
+            gp.set_is_fault(model, fault_group_names)  # #360
         # TASKS.csv #274 — capture GemPy's own default range BEFORE any override, so the response can
         # report both what GemPy would have used and what was actually used.
         kernel = model.interpolation_options.kernel_options
@@ -494,7 +508,7 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     # the caller's names directly instead of assuming a specific reversal always holds.
     by_name = {el.name: el for el in model.structural_frame.structural_elements if el.vertices is not None}
     out = []
-    for surf in req.surfaces:
+    for surf in list(req.faults) + list(req.surfaces):  # #360: fault meshes come back too
         el = by_name.get(surf.name)
         if el is None:
             continue  # GemPy produced no mesh for this surface (e.g. ill-posed / outside the resolved extent)
@@ -504,7 +518,9 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         # GemPy numbers lithologies by structural-element order (checked: request order, in both erode and
         # onlap modes) and labels the volume ABOVE each surface with that surface's name. GeoStrix surfaces
         # are unit TOPS, so id k is the unit whose top is surface k-1; id 1 lies above the first top.
-        ids = np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int).tolist()
+        # #360 — fault elements take the first ids (checked: with one fault the units come back as 2 and 3
+        # instead of 1 and 2), so shift them back to the unit numbering the labels below describe.
+        ids = (np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int) - len(fault_elements)).tolist()
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
     return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block)

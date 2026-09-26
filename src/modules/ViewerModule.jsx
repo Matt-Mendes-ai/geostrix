@@ -1703,6 +1703,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [veinSearchRadius, setVeinSearchRadius] = useState(0);
   const [veinBusy, setVeinBusy] = useState(false);
   const [stackUnits, setStackUnits] = useState([]); // ordered youngest -> oldest, for the stratigraphic stack tool
+  const [stackFaults, setStackFaults] = useState([]); // TASKS.csv #360 — "<structure type>|<structure_id>" keys of faults that offset the stack
   // TASKS.csv #271 — GemPy StackRelationType. Defaults to ONLAP (conformable) for two reasons: it's the
   // right model for the volcanic-hosted stratigraphy this app targets, and it is also exactly the
   // geometry every stack run produced before #271 (a single shared-scalar-field group — see the
@@ -3907,11 +3908,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const projectToken = getProjectToken(); // #466
     const res = await pythonImplicitModel(
       extent,
-      sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
+      sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
-      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: !anisotropy.enabled },
+      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: !anisotropy.enabled,
+        faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })) }, // #360
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
@@ -4496,10 +4498,43 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     });
     if (skipped.length) setNotices((p) => [...p, `Skipping from the stack (no lithology intervals found): ${skipped.join(", ")}.`]);
     if (specs.length < 2) { setNotices((p) => [...p, "Need at least 2 units with data to model a stack — add more units or check your lithology import."]); return; }
+    // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
+    const faultSpecs = [];
+    stackFaults.forEach((key) => {
+      const f = gatherFaultSpec(key, traces);
+      if (f.spec) faultSpecs.push(f.spec); else setNotices((p) => [...p, `Fault "${key.replace("|", " — ")}" left out: ${f.why}`]);
+    });
+    if (faultSpecs.length) setNotices((p) => [...p, `The stack is offset by ${faultSpecs.length} fault(s) solved in the same model: ${faultSpecs.map((f) => f.meshName).join(", ")}.`]);
 
-    await runSurfaceStack(specs, { relation: stackRelation }); // TASKS.csv #271
-  }, [layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
+  }, [stackFaults /* #360 */, layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
 
+  // TASKS.csv #360 — structure picks usable as faults in the stack: one entry per structure type + name
+  // (#362 structure_id), each needing a position along a hole and a dip / dip direction.
+  const faultCandidates = useMemo(() => {
+    const m = new Map();
+    (layers.structure || []).forEach((s) => {
+      if (!Number.isFinite(s.dip) || !Number.isFinite(s.azimuth)) return;
+      const key = `${s.value}|${s.structure_id || ""}`;
+      const e = m.get(key) || { key, type: s.value, id: s.structure_id || "", n: 0, faultLike: /flt|fault|shear|shz/i.test(`${s.value} ${s.structure_id || ""}`) };
+      e.n++; m.set(key, e);
+    });
+    return [...m.values()].sort((a, b) => (b.faultLike - a.faultLike) || a.key.localeCompare(b.key));
+  }, [layers.structure]);
+  const gatherFaultSpec = (key, traces) => {
+    const [type, id] = key.split("|");
+    const rows = (layers.structure || []).filter((s) => String(s.value) === type && (s.structure_id || "") === id && Number.isFinite(s.dip) && Number.isFinite(s.azimuth));
+    const points = [];
+    rows.forEach((s) => {
+      const t = traces.find((tr) => tr.hole_id === s.hole_id);
+      const p = t ? findOnTrace(t.pts, s.depth) : null;
+      if (p) points.push(sceneToApi(p));
+    });
+    const orientations = structureRowsToOrientations(rows, traces);
+    if (!points.length || !orientations.length) return { why: "its picks could not be placed on the hole traces." };
+    const name = id ? `${type} — ${id}` : type;
+    return { spec: { label: `Fault: ${name}`, meshName: `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } };
+  };
   const addStackUnit = useCallback((u) => {
     if (!u || stackUnits.includes(u)) return;
     // Matches the sidecar's own surfaces[] cap (python-sidecar/app/main.py, max_length=12) — capping
@@ -9265,6 +9300,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
           );
         })}
+        {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title="Each fault is its own GemPy group ahead of the stack (a FAULT relation): the contacts either side are fitted as offset blocks in one run, instead of one surface ramped across the fault. Faults come from the Structure planes layer (picks with dip and dip direction), one per structure type and name.">
+          Faults that offset the stack
+        </div>
+        <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label="Add a fault that offsets the stack">
+          <option value="">{faultCandidates.length ? "Add a fault…" : "No structure picks with dip / dip direction"}</option>
+          {faultCandidates.filter((c) => !stackFaults.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : `${c.type} (all picks)`} · {c.n} pick{c.n === 1 ? "" : "s"}{c.faultLike ? "" : " (not named as a fault)"}</option>)}
+        </select>
+        {stackFaults.map((k) => (
+          <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.replace(/\|$/, " (all picks)").replace("|", " — ")}</span>
+            <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
+          </div>
+        ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
         <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title="Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).">
           Unit relationship
