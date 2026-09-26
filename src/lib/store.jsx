@@ -143,6 +143,9 @@ const DEFAULT_LAYOUT_ELEMENTS = [
 
 export function StoreProvider({ children }) {
   const [project, setProject] = useState({ name: "Untitled project", epsg: 3156 }); // 3156 = NAD83 UTM 9N (Golden Triangle)
+  // TASKS.csv #462 — baseline for the "saved but not undo-tracked" dirty watcher (see it near the undo
+  // watcher below). null = take a fresh baseline on the next render (after a load / new project).
+  const extraDirtyBaseline = useRef(null);
   const [collars, setCollars] = useState([]);
   const [survey, setSurvey] = useState([]);
   const [layers, setLayers] = useState({ ...EMPTY_LAYERS });
@@ -857,6 +860,7 @@ export function StoreProvider({ children }) {
     // TASKS.csv #31 — undoing "back into" a project that no longer exists would be nonsensical, so a
     // fresh project starts with a clean undo history rather than one that could restore the old one.
     clearUndoHistory();
+    extraDirtyBaseline.current = null; // #462
     setActiveTabDirty(false);
   }, []);
 
@@ -1004,6 +1008,7 @@ export function StoreProvider({ children }) {
     // field here, so PROJECT_VERSION doesn't need bumping.
     setGeneratedSurfaces(data.generatedSurfaces || []);
     setModelDomains(data.modelDomains || []);
+    extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
     setActiveTabDirty(false);
   }, []);
 
@@ -1249,6 +1254,21 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // undoApplying needs this watcher to have already run and seen the flag first, and a layout effect
   // is guaranteed to fire synchronously after the DOM commit, strictly before any macrotask (a plain
   // useEffect's passive-effect timing is close enough in practice but not guaranteed the same way).
+  // TASKS.csv #462 (engineering review) — the dirty flag came ONLY from the undo watcher below, which
+  // deliberately skips large / expensive fields; so a GemPy model, a SimPEG inversion, a terrain fetch or a
+  // map import after the last save left the project "clean": no quit prompt, and the autosave tick
+  // (activeWorth = hasWork && activeDirty) did not save it — the result was lost on close. These fields are
+  // not undoable (still true) but they ARE changes: reference-compared here, cheaply (setters replace them
+  // immutably). View-only state (camera / viewerUiState) is deliberately left out so orbiting never prompts.
+  const extraDirtyFields = [generatedSurfaces, modelDomains, voxelModels, rasters, terrain, mapLayers, surfaceStructures, lithoGroups, themes, fieldStructuralRefs, layoutTemplates, project.epsg, desurveyMethod];
+  useEffect(() => {
+    const prev = extraDirtyBaseline.current;
+    extraDirtyBaseline.current = extraDirtyFields;
+    if (!prev) return; // just loaded / new project: this is the baseline
+    if (extraDirtyFields.some((v, i) => v !== prev[i])) setActiveTabDirty(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, extraDirtyFields);
+
   useLayoutEffect(() => {
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
