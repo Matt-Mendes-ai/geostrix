@@ -166,6 +166,12 @@ export default function GeochemModule() {
       const elemPct = fromOxideHeader(c.value, header);
       return { v: e ? convertUnit(elemPct, ox ? "%" : e.unit, existingUnit[sym] || (ox ? "%" : e.unit)) : elemPct, q: c.qualifier };
     };
+    // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
+    // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
+    const findCol = (names) => (modal.headers || []).find((h) => names.includes(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"))) || null;
+    const typeCol = findCol(["sample_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"]);
+    const idCol = findCol(["sample_id", "sampleid", "sample_no", "sample_number", "sample"]);
+    const tagQC = (out, r) => { if (typeCol && r[typeCol] != null && r[typeCol] !== "") out.sample_type = String(r[typeCol]).trim(); if (idCol && r[idCol] != null && r[idCol] !== "") out.sample_id = String(r[idCol]).trim(); return out; };
     let rows = [];
     if (format === "wide") {
       rows = allRows.map((r) => {
@@ -183,7 +189,7 @@ export default function GeochemModule() {
         });
         const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: Number(r[mapping.from]), to: Number(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
         if (Object.keys(quals).length) out.qualifiers = quals;
-        return out;
+        return tagQC(out, r);
       }).filter((r) => r.hole_id && !isNaN(r.from));
     } else {
       const byInterval = new Map();
@@ -192,7 +198,7 @@ export default function GeochemModule() {
         if (!sym || !chosen.find((c) => c.symbol === sym)) return;
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = Number(r[mapping.from]), to = Number(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
-        if (!byInterval.has(key)) byInterval.set(key, { hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" });
+        if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" }, r));
         const { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
         if (v != null) {
           const target = byInterval.get(key);

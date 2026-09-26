@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
-import { classifyQAQCRow, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -25,11 +25,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
   const counts = useMemo(() => {
     const c = { standard: 0, blank: 0, duplicate: 0, regular: 0 };
-    assays.forEach((a) => { c[classifyQAQCRow(a.hole_id)]++; });
+    assays.forEach((a) => { c[classifyQAQCRow(a)]++; }); // #400: the row (sample_type), not just the name
     return c;
   }, [assays]);
 
   const groups = useMemo(() => standardGroups(assays), [assays]);
+  const excludedIds = useMemo(() => excludedQAQCIds(assays), [assays]); // TASKS.csv #400
   const activeGroup = groups.find((g) => g.id === selectedStdId) || groups[0] || null;
   const series = useMemo(() => (activeGroup ? standardSeries(activeGroup.rows, symbol, elementUnits) : { points: [], limits: null }), [activeGroup, symbol, elementUnits]);
 
@@ -59,7 +60,17 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>QAQC — lab quality control</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Detected by hole_id naming: {counts.standard} standard{counts.standard === 1 ? "" : "s"}, {counts.blank} blank{counts.blank === 1 ? "" : "s"}, {counts.duplicate} duplicate{counts.duplicate === 1 ? "" : "s"} (of {assays.length} total intervals).
+              Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars): {counts.standard} standard{counts.standard === 1 ? "" : "s"}, {counts.blank} blank{counts.blank === 1 ? "" : "s"}, {counts.duplicate} duplicate{counts.duplicate === 1 ? "" : "s"} (of {assays.length} total intervals).
+              {/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
+              {(counts.standard + counts.blank + counts.duplicate) > 0 && (
+                <details style={{ marginTop: 4 }}>
+                  <summary style={{ cursor: "pointer" }}>Excluded from intercepts, compositing, estimation and statistics — list the ids</summary>
+                  {["standard", "blank", "duplicate"].map((c) => excludedIds[c].length > 0 && (
+                    <div key={c} style={{ marginTop: 3 }}><b>{c}s:</b> {excludedIds[c].map((e) => `${e.id} (${e.rows}${e.why === "name" ? ", by name" : ""})`).join(", ")}</div>
+                  ))}
+                  <div style={{ marginTop: 3 }}>If a real hole is listed "by name", import its collar: holes in the collar table are never treated as QC.</div>
+                </details>
+              )}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />

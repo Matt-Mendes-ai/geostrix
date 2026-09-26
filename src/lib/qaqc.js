@@ -27,11 +27,38 @@ export const DEFAULT_QAQC_PATTERNS = {
   duplicate: ["dup", "-d2", "fdup", "duplicate"],
 };
 
+// TASKS.csv #400 — name matching alone silently dropped real holes: "BLK-22-01" (a Block-22 hole) or
+// "STD-..." read as QC and vanished from intercepts, compositing, estimation. Now, in order:
+//   1. a sample_type / QC-type column on the row (acQuire / MX exports keep QC under the real hole_id and
+//      mark it there) decides, when it holds a recognisable value;
+//   2. a hole that exists in the COLLAR table is a drillhole, never a QC insert, whatever its name
+//      (the store registers collar ids here — setKnownHoleIds);
+//   3. only then the hole_id substring patterns.
+let registeredHoles = null;
+export function setKnownHoleIds(ids) { registeredHoles = ids && ids.size !== 0 ? new Set(ids) : null; }
+const TYPE_RULES = [
+  ["blank", /^(blk|blank|bl)\b|^(field_?blank|coarse_?blank|pulp_?blank)/],
+  ["duplicate", /^(dup|duplicate|fd|cd|pd|rep|repeat|field_?dup|coarse_?dup|pulp_?dup|twin)/],
+  ["standard", /^(std|standard|crm|srm|ref|reference|oreas|cert)/],
+  ["regular", /^(sample|samp|core|rc|dd|reg|regular|primary|prim|original|orig|routine|drill|norm|normal|assay)/],
+];
+export function sampleTypeClass(t) {
+  const s = String(t ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!s) return null;
+  for (const [cls, re] of TYPE_RULES) if (re.test(s)) return cls;
+  return null; // unrecognised label -> fall back to the other rules
+}
+
 // Order matters: blank and duplicate markers are checked before standard, since they're the more
 // specific/unambiguous signals — a hole_id can't simultaneously BE a blank and a standard, but
 // nothing stops an unlucky standard name from containing a duplicate-like substring by coincidence.
-export function classifyQAQCRow(hole_id, patterns = DEFAULT_QAQC_PATTERNS) {
-  const id = (hole_id || "").toLowerCase();
+// Accepts an assay ROW (preferred: sample_type is used) or a bare hole_id string (older callers).
+export function classifyQAQCRow(rowOrId, patterns = DEFAULT_QAQC_PATTERNS, knownHoles = registeredHoles) {
+  const row = rowOrId && typeof rowOrId === "object" ? rowOrId : { hole_id: rowOrId };
+  const byType = sampleTypeClass(row.sample_type);
+  if (byType) return byType;
+  if (knownHoles && knownHoles.has(row.hole_id)) return "regular";
+  const id = (row.hole_id || "").toLowerCase();
   if (patterns.blank.some((p) => id.includes(p))) return "blank";
   if (patterns.duplicate.some((p) => id.includes(p))) return "duplicate";
   if (patterns.standard.some((p) => id.includes(p))) return "standard";
@@ -54,7 +81,21 @@ export function controlLimits(values) {
 // standard could turn up as a "best intercept" alongside real drillhole intervals. Every report that
 // shouldn't be diluted/skewed by a QC insert can call this once instead of re-deriving the same filter.
 export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
-  return assays.filter((a) => classifyQAQCRow(a.hole_id, patterns) === "regular");
+  return assays.filter((a) => classifyQAQCRow(a, patterns) === "regular");
+}
+
+// TASKS.csv #400 — what is being left out, and why, so an exclusion is never silent: distinct ids per class.
+export function excludedQAQCIds(assays, patterns = DEFAULT_QAQC_PATTERNS) {
+  const out = { standard: new Map(), blank: new Map(), duplicate: new Map() };
+  assays.forEach((a) => {
+    const c = classifyQAQCRow(a, patterns);
+    if (c === "regular") return;
+    const why = sampleTypeClass(a.sample_type) ? "sample type" : "name";
+    const k = a.hole_id || "(no id)";
+    const e = out[c].get(k) || { id: k, rows: 0, why };
+    e.rows++; out[c].set(k, e);
+  });
+  return Object.fromEntries(Object.entries(out).map(([c, m]) => [c, [...m.values()]]));
 }
 
 // Groups every "standard"-classified assay row by its own exact hole_id (real labs commonly reuse
@@ -63,7 +104,7 @@ export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
 export function standardGroups(assays, patterns = DEFAULT_QAQC_PATTERNS) {
   const byId = new Map();
   assays.forEach((a) => {
-    if (classifyQAQCRow(a.hole_id, patterns) !== "standard") return;
+    if (classifyQAQCRow(a, patterns) !== "standard") return;
     if (!byId.has(a.hole_id)) byId.set(a.hole_id, []);
     byId.get(a.hole_id).push(a);
   });

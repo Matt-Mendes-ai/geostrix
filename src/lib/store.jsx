@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #321 — compact storage of SimPEG models
 import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod, DEFAULT_DESURVEY_METHOD } from "./desurvey.js";
@@ -526,6 +527,9 @@ export function StoreProvider({ children }) {
   // project like everything else; they just don't participate in Ctrl+Z or the tab "unsaved changes"
   // dot, the same documented tradeoff themes/dbConnections/layoutTemplates already accept.
   const [voxelModels, setVoxelModels] = useState([]);
+  // TASKS.csv #400 — collar hole ids are real drillholes: the QAQC classifier must never read one as a QC
+  // insert because of its name ("BLK-22-01").
+  useEffect(() => { setKnownHoleIds(new Set((collars || []).map((c) => c.hole_id))); }, [collars]);
   // Perf fix (user report: importing a real ~200,000-cell OMF block model froze the 3D view for a long
   // time). A 0.85 default opacity forces THREE's `transparent: true` blending path on the whole
   // InstancedMesh — every semi-transparent instance needs depth-sorted alpha blending instead of the

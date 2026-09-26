@@ -248,3 +248,26 @@ test("#410 block-model CSV: Micromine / Datamine / Vulcan headers map; several a
   assert.equal(c.cells[0].dx, 20);
   assert.equal(coarsenBlockCells(cells, 100).factors, null);
 });
+
+import { classifyQAQCRow, excludeQAQC, excludedQAQCIds, setKnownHoleIds, sampleTypeClass } from "../src/lib/qaqc.js";
+test("#400 QAQC: sample_type decides; collar holes are never QC by name; excluded ids listed", () => {
+  const rows = [
+    { hole_id: "BLK-22-01", from: 0, to: 1 },           // real hole whose name looks like a blank
+    { hole_id: "OREAS622", from: 0, to: 0 },            // standard by name
+    { hole_id: "DD-7", from: 5, to: 6, sample_type: "STD" },       // acQuire-style: QC under the real hole id
+    { hole_id: "DD-7", from: 6, to: 7, sample_type: "Field Dup" },
+    { hole_id: "DD-7", from: 7, to: 8, sample_type: "Sample" },
+    { hole_id: "DUP-HOLE", from: 0, to: 1, sample_type: "Core" },  // type says regular even though the name says dup
+  ];
+  setKnownHoleIds(null);
+  assert.equal(classifyQAQCRow(rows[0]), "blank"); // old behaviour without collars: the bug
+  setKnownHoleIds(new Set(["BLK-22-01", "DD-7"]));
+  assert.equal(classifyQAQCRow(rows[0]), "regular");
+  assert.equal(classifyQAQCRow("BLK-22-01"), "regular"); // bare-id callers too
+  assert.deepEqual(rows.map((r) => classifyQAQCRow(r)), ["regular", "standard", "standard", "duplicate", "regular", "regular"]);
+  assert.equal(excludeQAQC(rows).length, 3);
+  const ex = excludedQAQCIds(rows);
+  assert.deepEqual(ex.standard.map((e) => `${e.id}:${e.rows}:${e.why}`).sort(), ["DD-7:1:sample type", "OREAS622:1:name"]);
+  assert.equal(sampleTypeClass("blank"), "blank"); assert.equal(sampleTypeClass("weird"), null); assert.equal(sampleTypeClass(""), null);
+  setKnownHoleIds(null);
+});
