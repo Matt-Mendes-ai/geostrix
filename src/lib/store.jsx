@@ -899,8 +899,13 @@ export function StoreProvider({ children }) {
   const saveProject = useCallback(async () => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
     if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?")) return { ok: false, cancelled: true };
+    // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
+    // serialise) used to be an unhandled rejection whose only sign was a missing "Saved". It now returns
+    // {ok:false, error} for the caller to show; nothing about the open project changes.
+    let res;
+    try {
     const payload = snapshotCurrentPayload();
-    const res = await saveFile({
+    res = await saveFile({
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
       // in the filter list so old .geox.json project files the user already has on disk still show up
       // and open fine (JSON.parse doesn't care about the filename, and both extensions end in "json").
@@ -908,6 +913,10 @@ export function StoreProvider({ children }) {
       filters: [{ name: "GeoStrix Project", extensions: ["geostrix.json", "geox.json", "json"] }],
       content: JSON.stringify(payload),
     });
+    } catch (err) {
+      // strip Electron's IPC wrapper ("Error invoking remote method 'save-file': Error: ...") so the user sees the OS message
+      return { ok: false, error: String(err?.message || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, "") };
+    }
     // A real save just happened — the crash-recovery snapshot's whole job was to protect work that
     // hadn't reached a real save yet, so it's redundant now (and stale-recovery-prompt bait later).
     if (res.ok) {

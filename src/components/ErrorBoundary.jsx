@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 12, wordBreak: "break-word" }}>{String(this.state.error?.message || this.state.error)}</div>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 14 }}>Your project is still open and nothing has been lost. Saving now is a good idea.</div>
           {this.props.onSave && (
-            <button onClick={() => this.props.onSave()} style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>Save project…</button>
+            <button onClick={async () => { const r = await this.props.onSave(); if (r && !r.ok && r.error) window.alert(`The project could not be saved: ${r.error}`); /* #467 */ }} style={{ marginRight: 10, padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>Save project…</button>
           )}
           <button onClick={() => { this.setState({ error: null }); this.props.onClose?.(); }} style={{ padding: "8px 14px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" }}>
             {this.props.scope === "modal" ? "Close" : "Try again"}

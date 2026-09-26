@@ -785,7 +785,11 @@ ipcMain.handle("db-live-list-tables", async (_e, { id }) => {
 });
 
 // Close every live connection cleanly on quit rather than letting the OS kill the sockets.
-app.on("before-quit", () => {
+// TASKS.csv #468 — will-quit, not before-quit: before-quit fires BEFORE the windows close, and the
+// "Unsaved changes" dialog can still cancel the quit — File > Exit then "Cancel" used to have already
+// dropped every DB connection (the renderer kept showing them live). will-quit fires only once every
+// window has actually closed, i.e. the quit is really happening.
+app.on("will-quit", () => {
   for (const { client } of liveDbConnections.values()) { try { client.end(); } catch (_) {} }
   liveDbConnections.clear();
 });
@@ -913,9 +917,11 @@ function buildMenu() {
         { label: "Geophysics", accelerator: "CmdOrCtrl+3", click: () => mainWindow?.webContents.send("menu", "module-geophysics") },
         { label: "Layout", accelerator: "CmdOrCtrl+4", click: () => mainWindow?.webContents.send("menu", "module-layout") },
         { type: "separator" },
-        { role: "reload" },
-        { role: "toggledevtools" },
-        { type: "separator" },
+        // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with
+        // no prompt (a reload never fires the window close guard): every open workspace tab was thrown
+        // away, and a running SimPEG job was orphaned in the sidecar (its poller lived in the page) while
+        // new jobs got 409. Nothing a user needs, so they are simply not in the packaged menu.
+        ...(app.isPackaged ? [] : [{ role: "reload" }, { role: "toggledevtools" }, { type: "separator" }]),
         { role: "resetzoom" }, { role: "zoomin" }, { role: "zoomout" },
       ],
     },
@@ -983,4 +989,4 @@ app.whenReady().then(() => {
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });
-app.on("before-quit", stopPythonSidecar);
+app.on("will-quit", stopPythonSidecar); // #468 — was before-quit: a cancelled quit had already killed a running GemPy / SimPEG job

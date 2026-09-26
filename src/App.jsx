@@ -155,6 +155,12 @@ export default function App() {
   const doSave = useCallback(async () => {
     const res = await saveProject();
     if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
+    // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
+    else if (res.error) window.alert(`The project could not be saved:
+
+${res.error}
+
+Your work is still open. Try saving to a different folder (a full disk, a read-only or synced folder, or antivirus can block the write).`);
   }, [saveProject]);
   const doOpen = useCallback(async () => {
     const res = await openProject();
