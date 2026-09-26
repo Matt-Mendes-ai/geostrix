@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
+import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
@@ -98,6 +98,7 @@ import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #2
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -3147,7 +3148,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     let shot;
     try {
       shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => { renderer.clippingPlanes = slicePlanesRef.current; renderer.render(scene, camera); renderer.clippingPlanes = []; }); // #380, #453
-    } catch (err) { setNotices((p) => [...p, `Snapshot failed: ${err.message}`]); return; }
+    } catch (err) { setNotices((p) => [...p, errorNotice(`Snapshot failed: ${err.message}`)]); return; }
     addLayoutImage({ label: "3D Viewport", src: shot.dataUrl, naturalW: shot.width, naturalH: shot.height });
     goToModule("layout");
     setNotices((p) => [...p, "Viewport snapshot added to the Layout page."]);
@@ -3543,9 +3544,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // viewport itself, which is always visible regardless of sidebar scroll position.
   useEffect(() => {
     if (!notices.length) return;
-    const text = notices[notices.length - 1];
+    const last = notices[notices.length - 1];
     const key = notices.length;
-    setToast({ text, key });
+    const level = noticeLevel(last);
+    setToast({ text: noticeText(last), level, key });
+    // TASKS.csv #390 — an error stays until dismissed (a failed save/export that vanished after 5 s was
+    // easy to miss); everything else still fades after 5 s.
+    if (level === "error") return;
     const t = setTimeout(() => setToast((cur) => (cur && cur.key === key ? null : cur)), 5000);
     return () => clearTimeout(t);
   }, [notices]);
@@ -3909,7 +3914,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     modelAbortControllerRef.current = null;
     if (!res.ok) {
       setTaskProgress?.(null);
-      if (!res.cancelled) setNotices((p) => [...p, `${label} failed: ${res.error}`]);
+      if (!res.cancelled) setNotices((p) => [...p, errorNotice(`${label} failed: ${res.error}`)]);
       return;
     }
     // TASKS.csv #466 — the model came back after a switch to another project (tab change, Open, New). Its
@@ -4720,7 +4725,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the ${Math.round(radius)} m search radius, not the data.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, `Alteration halo failed: ${e.message || e}`]);
+        setNotices((p) => [...p, errorNotice(`Alteration halo failed: ${e.message || e}`)]);
       }
       setTaskProgress?.(null);
       setAlterationBusy(false);
@@ -4867,7 +4872,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const meshes = Object.values(implicitMeshesRef.current);
         if (meshes.length) fitBox(new THREE.Box3().setFromObject(meshes[meshes.length - 1]));
       } catch (e) {
-        setNotices((p) => [...p, `Vein model failed: ${e.message || e}`]);
+        setNotices((p) => [...p, errorNotice(`Vein model failed: ${e.message || e}`)]);
       }
       setTaskProgress?.(null);
       setVeinBusy(false);
@@ -5082,7 +5087,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, `Numeric model failed: ${e.message || e}`]);
+        setNotices((p) => [...p, errorNotice(`Numeric model failed: ${e.message || e}`)]);
       }
       setTaskProgress?.(null);
       setNumericBusy(false);
@@ -5494,7 +5499,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       setNotices((p) => [...p, `Exported "${surf.name}" as ${format.toUpperCase()} (real-world coordinates).`]);
     } catch (err) {
-      setNotices((p) => [...p, `Export failed for "${surf.name}": ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`Export failed for "${surf.name}": ${err.message}`)]);
     }
   }, [implicitSurfaces, project?.epsg]);
 
@@ -5676,7 +5681,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               groups.geophys_pts.add(mesh);
             } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
           });
-          if (gBuildErrors.length) setNotices((p) => [...p, `${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`]);
+          if (gBuildErrors.length) setNotices((p) => [...p, errorNotice(`${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`)]);
         }
         // TASKS.csv #228 — surface geochemistry samples, same zero-collar-anchor reasoning as the
         // geophys_pts block right above: a surface-geochem-only project (no drillholes at all — the
@@ -5693,7 +5698,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               groups.surface_samples.add(mesh);
             } catch (err) { sBuildErrors.push(`surface sample: ${err.message}`); }
           });
-          if (sBuildErrors.length) setNotices((p) => [...p, `${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`]);
+          if (sBuildErrors.length) setNotices((p) => [...p, errorNotice(`${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`)]);
         }
       }
       // TASKS.csv #312 — this no-collars branch builds geophys_pts/surface_samples itself and then
@@ -6105,7 +6110,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
 
     lastTracesRef.current = allTraces;
-    if (buildErrors.length) setNotices((p) => [...p, `${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`]);
+    if (buildErrors.length) setNotices((p) => [...p, errorNotice(`${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`)]);
     if (allTraces.length) {
       if (!hasAutoFitRef.current) { autoFitInitial(allTraces); hasAutoFitRef.current = true; } // TASKS.csv #313 — fitView + a legibility clamp; see autoFitInitial
       setDataLoaded(true);
@@ -6336,7 +6341,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           setNotices((p) => [...p, `Topology check found ${res.violations.length} violation(s) in ${res.checked} check(s):`, ...res.violations.map((v) => `  • ${v.message}`)]);
         }
       } catch (err) {
-        setNotices((p) => [...p, `Topology check failed: ${err.message}`]);
+        setNotices((p) => [...p, errorNotice(`Topology check failed: ${err.message}`)]);
       } finally {
         setTopologyBusy(false);
       }
@@ -6423,7 +6428,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           }
           return;
         }
-        if (!res.ok) { setNotices((p) => [...p, `Cross-cut failed (${res.reason}).`]); return; }
+        if (!res.ok) { setNotices((p) => [...p, errorNotice(`Cross-cut failed (${res.reason}).`)]); return; }
         if (!res.changed) {
           setNotices((p) => [...p, `"${cutter.name}" does not cut "${host.name}" — ${res.reason === "no-overlap" ? "the two bodies do not even overlap in space" : "no part of the surface falls inside it"}. Nothing was changed, which is the correct result: a dyke that stops short of a contact does not truncate it.`]);
           return;
@@ -6463,7 +6468,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         setNotices((p) => [...p, `Truncated "${host.name}" against "${cutter.name}": ${fmt(st.trianglesDropped)} triangle(s) removed and ${fmt(st.trianglesClipped)} cut at the contact, leaving ${fmt(faceCount)}. ${st.componentsAfter > st.componentsBefore ? `The body cuts right through it — the surface is now ${st.componentsAfter} separate pieces (was ${st.componentsBefore}).` : `The surface is still ${st.componentsAfter} connected piece(s), so the cut is a notch rather than a full severance.`} Its open edge went from ${fmt(st.boundaryLengthBeforeM)} m to ${fmt(st.boundaryLengthAfterM)} m.`]);
         setNotices((p) => [...p, `The truncation is not re-run automatically: regenerating either surface produces a fresh, untruncated mesh, and the cut has to be applied again. What was cut is recorded in "${host.name}"'s Parameters used.`]);
       } catch (err) {
-        setNotices((p) => [...p, `Cross-cut failed: ${err.message}`]);
+        setNotices((p) => [...p, errorNotice(`Cross-cut failed: ${err.message}`)]);
       } finally {
         setCrossCutBusy(false);
       }
@@ -7735,7 +7740,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
       setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a shapefile (.zip — .shp/.shx/.dbf${project?.epsg ? "/.prj" : ""}).`]);
     } catch (err) {
-      setNotices((p) => [...p, `Shapefile export failed: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`Shapefile export failed: ${err.message}`)]);
     }
   };
 
@@ -7754,7 +7759,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
       setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a GeoPackage (.gpkg).`]);
     } catch (err) {
-      setNotices((p) => [...p, `GeoPackage export failed: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`GeoPackage export failed: ${err.message}`)]);
     }
   };
 
@@ -7773,7 +7778,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       });
       setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a DXF (.dxf, plan-view — elevation dropped).`]);
     } catch (err) {
-      setNotices((p) => [...p, `DXF export failed: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`DXF export failed: ${err.message}`)]);
     }
   };
   // TASKS.csv #184 — a layer key "has data" once its rows array is non-empty (geophys_pts uses the
@@ -10071,7 +10076,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             gets a name so it can be found by landmark/region navigation. */}
         {notices.length > 0 && (
           <div role="region" aria-label="Recent messages" style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
-            {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
+            {notices.slice(-6).map((n, i) => (noticeLevel(n) === "error"
+              ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start" }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{noticeText(n)}</span></div>
+              : <div key={i} style={{ marginBottom: 4 }}>{noticeText(n)}</div>))}
           </div>
         )}
       </div>
@@ -10196,11 +10203,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                possible combination for this audience — the messages themselves are specific and
                actionable, they were just silent. */}
         <div
-          aria-live={toast && /couldn'?t|can'?t|cannot|failed|error|unable|invalid|unsupported|only \./i.test(toast.text) ? "assertive" : "polite"}
+          aria-live={toast?.level === "error" ? "assertive" : "polite"}
           aria-atomic="true"
           style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", maxWidth: "70%", pointerEvents: "none" }}
         >
-          {toast && (
+          {toast && toast.level === "error" && (
+            // #390 — errors: danger colours, an icon, and a close button (pointer events back on for it)
+            <div key={toast.key} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", padding: "8px 10px 8px 12px", borderRadius: 7, border: "1px solid var(--color-danger-border-strong)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
+              <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
+              <span style={{ flex: 1 }}>{toast.text}</span>
+              <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
+            </div>
+          )}
+          {toast && toast.level !== "error" && (
             <div key={toast.key} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
               {toast.text}
             </div>

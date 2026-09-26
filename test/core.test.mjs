@@ -322,3 +322,14 @@ test("#413 glTF: vertices written relative to a whole-metre origin keep centimet
   assert.deepEqual(offset, [463123, 6298450, 1101]);
   for (let i = 0; i < v.length; i++) for (let k = 0; k < 3; k++) assert.ok(Math.abs(Math.fround(local[i][k]) + offset[k] - v[i][k]) < 0.001);
 });
+
+import { noticeText, noticeLevel, errorNotice } from "../src/lib/notices.js";
+test("#390 notice severity: explicit level wins; plain strings keep the wording test", () => {
+  assert.equal(noticeLevel(errorNotice("Saved OK")), "error");
+  assert.equal(noticeLevel({ text: "Export failed", level: "info" }), "info");
+  assert.equal(noticeLevel("DXF export failed: disk full"), "error");
+  assert.equal(noticeLevel("Loaded 37 holes."), "info");
+  assert.equal(noticeText(errorNotice("x")), "x");
+  assert.equal(noticeText("y"), "y");
+  assert.equal(noticeText(null), "");
+});
