@@ -1,4 +1,4 @@
-import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 // TASKS.csv #147 — experimental variogram / spatial-continuity analysis per domain.
 //
 // WHY THIS EXISTS. estimation.js's own header says, in as many words, that GeoStrix does NOT do

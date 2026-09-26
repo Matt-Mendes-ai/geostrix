@@ -140,10 +140,10 @@ export function f32ToB64(arr) {
   const bytes = new Uint8Array(new Float32Array(arr).buffer);
   let s = "";
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return typeof btoa === "function" ? btoa(s) : Buffer.from(s, "binary").toString("base64");
+  return typeof btoa === "function" ? btoa(s) : globalThis.Buffer.from(s, "binary").toString("base64"); // Node fallback (tests)
 }
 export function b64ToF32(b64) {
-  const s = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+  const s = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary"); // Node fallback (tests)
   const bytes = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
   return new Float32Array(bytes.buffer);

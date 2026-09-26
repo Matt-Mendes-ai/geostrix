@@ -52,7 +52,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const vals = holeAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v));
     const pos = vals.filter((v) => v > 0);
     return [sym, { max: vals.length ? arrMax(vals) : 0, minPos: pos.length ? arrMin(pos) : 0 }];
-  })), [holeAssays, shownSymbols.join("|"), elementUnits]); // eslint-disable-line react-hooks/exhaustive-deps
+  })), [holeAssays, shownSymbols.join("|"), elementUnits]);
   const barFrac = (sym, v) => {
     const r = assayRange[sym];
     if (!r || !(r.max > 0) || v == null) return 0;

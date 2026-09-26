@@ -10,7 +10,7 @@ import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } fr
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
-import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
+import { getCol, classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
@@ -20,7 +20,7 @@ import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
-import { parseUBCMesh, parseUBCModel, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
+import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
 import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424

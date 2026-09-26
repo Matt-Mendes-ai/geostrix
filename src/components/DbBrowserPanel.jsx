@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import { selectSql, countSql, chunkedReadPlan } from "../lib/dbSql.js"; // TASKS.csv #349
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, X, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "lucide-react";
 import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";

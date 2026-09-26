@@ -412,12 +412,6 @@ ipcMain.handle("open-section-window", (_e, payload) => {
 });
 
 // push updated section data to an existing pop-out (live sync from main window)
-ipcMain.handle("update-section-window", (_e, { id, ...payload }) => {
-  const win = childWindows.get(id);
-  if (win && !win.isDestroyed()) { win.webContents.send("section-data", { id, ...payload }); return { ok: true }; }
-  return { ok: false };
-});
-
 // A section pop-out window is a separate renderer with its own JS heap — it doesn't share the main
 // window's React store. When the user clicks "Snapshot to Layout" in a section window, it can't call
 // store.addLayoutImage() directly; instead it sends the snapshot here and we relay it to the main
@@ -587,51 +581,6 @@ function friendlyDbError(err, config) {
   return raw;
 }
 
-ipcMain.handle("db-test", async (_e, config) => {
-  let db;
-  try {
-    db = await makeDbClient(config);
-    const res = await db.query(testConnectionQuery(config));
-    return { ok: true, info: res.rows[0] };
-  } catch (err) {
-    return { ok: false, error: friendlyDbError(err, config) };
-  } finally {
-    if (db) try { await db.end(); } catch (_) {}
-  }
-});
-
-ipcMain.handle("db-query", async (_e, { config, sql }) => {
-  let db;
-  try {
-    db = await makeDbClient(config);
-    const res = await db.query(sql);
-    return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
-  } catch (err) {
-    return { ok: false, error: friendlyDbError(err, config) };
-  } finally {
-    if (db) try { await db.end(); } catch (_) {}
-  }
-});
-
-ipcMain.handle("db-list-tables", async (_e, config) => {
-  let db;
-  try {
-    db = await makeDbClient(config);
-    // TASKS.csv #177 — surface VIEWS alongside base tables, not just tables. A DBeaver-managed
-    // company database is exactly the case where the useful thing to import from is often a
-    // pre-built view (pre-joined/pre-cleaned), not a raw base table — information_schema.tables
-    // already includes both table_type='BASE TABLE' and table_type='VIEW' rows by default (true for
-    // both Postgres and MySQL — this table is part of the SQL standard's own information_schema,
-    // not a Postgres-specific extension), this was just never filtered TO views specifically.
-    const res = await db.query(listTablesQuery(config));
-    return { ok: true, tables: res.rows };
-  } catch (err) {
-    return { ok: false, error: friendlyDbError(err, config) };
-  } finally {
-    if (db) try { await db.end(); } catch (_) {}
-  }
-});
-
 // SRTM auto-fetch (TASKS.csv — "fetch SRTM directly instead of manual USGS download+import").
 // Proxied through the main process rather than fetched directly from the renderer for two reasons:
 // (1) sidesteps any browser CORS policy question entirely — Node's fetch here isn't subject to it —
@@ -782,13 +731,6 @@ ipcMain.handle("db-disconnect", async (_e, { id }) => {
   return { ok: true };
 });
 
-ipcMain.handle("db-live-list", async () => {
-  return {
-    ok: true,
-    connections: Array.from(liveDbConnections.entries()).map(([id, { safeConfig, connectedAt }]) => ({ id, config: safeConfig, connectedAt })),
-  };
-});
-
 ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
@@ -800,6 +742,8 @@ ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
   }
 });
 
+// TASKS.csv #446 — db-test / db-query / db-list-tables (full credentials on every call) and db-live-list /
+// update-section-window had no caller anywhere in the renderer: removed (unused attack surface).
 ipcMain.handle("db-live-list-tables", async (_e, { id }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };

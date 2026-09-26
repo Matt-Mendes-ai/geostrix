@@ -1,4 +1,4 @@
-import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 // TASKS.csv #52 (a) — "spread across N realisations": how far a GemPy surface moves when its inputs are
 // perturbed by the uncertainty the GEOLOGIST states. Pure, no React / three.js, checked in Node.
 //

@@ -37,7 +37,6 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
   const contactsResult = useMemo(() => {
     if (!layer) return null;
     return extractMapContacts(layer, layer.styleField, { tolerance, spacing: 5 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer?.id, layer?.features, layer?.styleField, tolerance]);
   const contacts = contactsResult?.contacts || [];
   const contact = contacts.find((c) => c.key === contactKey) || contacts[0] || null;
@@ -57,7 +56,6 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
   // ticked box that silently kept the measurement types/radius from when it was ticked would be a trap.
   useEffect(() => {
     if (constraintOn) setMapConstraint(settings());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [constraintOn, classes, radius, tolerance, manualDip, manualDipDir]);
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };

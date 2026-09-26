@@ -144,7 +144,7 @@ function clipMesh(host, classify, crossing) {
   const edgeMap = new Map();  // "a_b" (a<b) -> new index of the boundary point on that edge
   let unresolvedEdges = 0;
 
-  const useOrig = (v) => {
+  const keepOrigVertex = (v) => {
     let n = origMap.get(v);
     if (n === undefined) {
       n = outPos.length / 3;
@@ -156,7 +156,7 @@ function clipMesh(host, classify, crossing) {
   // vKeep is the endpoint being kept, vDrop the one being removed. Direction matters: the crossing is
   // found by walking OUT of the kept region, so the first boundary hit is the right one even when a
   // wiggly cutter is pierced several times along one long edge.
-  const useEdge = (vKeep, vDrop) => {
+  const edgeCutVertex = (vKeep, vDrop) => {
     const a = Math.min(vKeep, vDrop), b = Math.max(vKeep, vDrop);
     const key = `${a}_${b}`;
     let n = edgeMap.get(key);
@@ -176,7 +176,7 @@ function clipMesh(host, classify, crossing) {
     tri[0] = hi[t]; tri[1] = hi[t + 1]; tri[2] = hi[t + 2];
     const r = removed[tri[0]] + removed[tri[1]] + removed[tri[2]];
     if (r === 0) {
-      outIdx.push(useOrig(tri[0]), useOrig(tri[1]), useOrig(tri[2]));
+      outIdx.push(keepOrigVertex(tri[0]), keepOrigVertex(tri[1]), keepOrigVertex(tri[2]));
       kept++;
       continue;
     }
@@ -188,16 +188,16 @@ function clipMesh(host, classify, crossing) {
     const v0 = tri[s], v1 = tri[(s + 1) % 3], v2 = tri[(s + 2) % 3];
     if (r === 1) {
       // v0 removed; v1, v2 kept. Quad (p01, v1, v2, p20) in the original cyclic order.
-      const p01 = useEdge(v1, v0), p20 = useEdge(v2, v0);
-      if (p01 < 0 || p20 < 0) { unresolvedTris++; outIdx.push(useOrig(tri[0]), useOrig(tri[1]), useOrig(tri[2])); kept++; continue; }
-      const a = useOrig(v1), b = useOrig(v2);
+      const p01 = edgeCutVertex(v1, v0), p20 = edgeCutVertex(v2, v0);
+      if (p01 < 0 || p20 < 0) { unresolvedTris++; outIdx.push(keepOrigVertex(tri[0]), keepOrigVertex(tri[1]), keepOrigVertex(tri[2])); kept++; continue; }
+      const a = keepOrigVertex(v1), b = keepOrigVertex(v2);
       outIdx.push(p01, a, b, p01, b, p20);
       clipped++;
     } else {
       // v0, v1 removed; v2 kept. Triangle (p12, v2, p20).
-      const p12 = useEdge(v2, v1), p20 = useEdge(v2, v0);
+      const p12 = edgeCutVertex(v2, v1), p20 = edgeCutVertex(v2, v0);
       if (p12 < 0 || p20 < 0) { unresolvedTris++; dropped++; continue; }
-      outIdx.push(p12, useOrig(v2), p20);
+      outIdx.push(p12, keepOrigVertex(v2), p20);
       clipped++;
     }
   }

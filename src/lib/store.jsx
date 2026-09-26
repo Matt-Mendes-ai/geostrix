@@ -582,7 +582,7 @@ export function StoreProvider({ children }) {
     if (!exists || tok.tabId === activeTabIdRef.current) return "gone"; // same tab but a different project now
     setWorkspaceTabs((prev) => prev.map((t) => (t.id === tok.tabId && t.payload ? { ...t, dirty: true, payload: { ...t.payload, voxelModels: [...(t.payload.voxelModels || []), prepareVoxelModel(model)] } } : t)));
     return "tab";
-  }, [addVoxelModel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [addVoxelModel]);
   const updateVoxelModel = useCallback((id, patch) => setVoxelModels((p) => p.map((v) => (v.id === id ? { ...v, ...patch } : v))), []);
   const removeVoxelModel = useCallback((id) => setVoxelModels((p) => p.filter((v) => v.id !== id)), []);
 
@@ -792,7 +792,6 @@ export function StoreProvider({ children }) {
       setLayoutSelectRequest(targetElementId);
     }
     goToModule("layout");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewportRenderResultSeq]);
 
   // ---- Layout snapshots (TASKS.csv #16/#17): a small queue of images (3D viewport PNGs, or
@@ -1364,7 +1363,6 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     extraDirtyBaseline.current = extraDirtyFields;
     if (!prev) return; // just loaded / new project: this is the baseline
     if (extraDirtyFields.some((v, i) => v !== prev[i])) setActiveTabDirty(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, extraDirtyFields);
 
   useLayoutEffect(() => {
@@ -1392,7 +1390,6 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       setUndoCount(undoPast.current.length);
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collars, survey, layers, assays, assayElements, customLayers, layoutPages, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements]); // #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {

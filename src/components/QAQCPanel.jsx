@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary } from "../lib/qaqc.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";

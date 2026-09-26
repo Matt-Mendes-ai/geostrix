@@ -3,13 +3,13 @@ import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "lucide-react";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, Ruler, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile } from "../lib/desktop.js";
 import {
-  DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, GEOCHEM_LABELS, classColor,
-  isElementColumn, inferUnit, parseAssayValue, assayQualifier, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
+  DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
+  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -27,7 +27,6 @@ import QAQCPanel from "../components/QAQCPanel.jsx";
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };

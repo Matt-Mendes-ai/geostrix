@@ -30,6 +30,8 @@ jobs:
       - run: npm ci
       # TASKS.csv #443 — pure-logic regression tests (intercepts, import detection, desurvey, calculator...)
       - run: npm test
+      # TASKS.csv #446 — lint: errors (undefined names, hooks misuse, duplicate keys) fail the build
+      - run: npm run lint
       - run: npm run build:dir
       # TASKS.csv #476 — startup JavaScript must stay within its budget (it drifted 653 -> 757 kB unnoticed)
       - run: node scripts/check-bundle-size.mjs

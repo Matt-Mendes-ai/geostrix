@@ -15,7 +15,7 @@
 // StripLog's interactive version needs a user-picked element for anyway, not meaningful to default
 // per-hole in an unattended batch run).
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, rqdColor } from "./layers.js";
-import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;

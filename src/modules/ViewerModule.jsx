@@ -25,12 +25,12 @@ import { checkAgainstLogs, unitVolumes, blockToCells, modelledIntervals, ABOVE_T
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, Scale, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "lucide-react"; // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "lucide-react"; // #458 ribbon icons
 import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
 // TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
 // startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
 const loadGpkg = () => import("../lib/gpkg.js");
-import { buildDXF, parseDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
+import { buildDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
@@ -77,8 +77,8 @@ const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrie
 import {
   LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, getCol, EPSG_COL_ALIASES,
   diffCollarImport, // TASKS.csv #283
-  colorForLithology, colorForAlteration, colorForVein, colorForMineral, colorForStructure,
-  rqdColor, magColor, hashColor, UNIT_NAMES, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
+  colorForLithology, colorForAlteration, colorForStructure,
+  rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
   roleForLithology, isCrossCuttingRole,
   colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
   CATEGORICAL_SAFE_COLORS, // TASKS.csv #306
@@ -94,14 +94,13 @@ import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
-import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
-import { depthKey, intervalEndIndex, continuesUnitAbove, mergeTouchingIntervals } from "../lib/viewer/intervals.js"; // TASKS.csv #445
+import { intervalEndIndex, continuesUnitAbove, mergeTouchingIntervals } from "../lib/viewer/intervals.js"; // TASKS.csv #445
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -1028,7 +1027,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const cs = camState.current;
       setLastCamState({ theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // unmount-only — see the comment above camState's declaration
   const dragRef = useRef({ dragging: false, panning: false, lastX: 0, lastY: 0 });
   const originRef = useRef({ x: 0, y: 0, z: 0 });
@@ -1511,7 +1509,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const mesh = implicitMeshesRef.current[expandedSurfaceId];
     if (!mesh?.geometry) return null;
     return computeMeshVolume(mesh.geometry);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedSurfaceId, implicitSurfaces]);
   // TASKS.csv #89 — domains: named partitions of the modelling space, each an AND of fault-side
   // constraints ({id, name, constraints: [{faultId, side}]}). Not persisted yet, same as
@@ -1957,7 +1954,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       return { x0, x1, y0, y1, z0, z1 };
     }
     return null;
-  }, [slice3d.on, collars, survey, rebuildSeq]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [slice3d.on, collars, survey, rebuildSeq]);
   const sliceReadout = useMemo(() => {
     if (!slice3d.on || !sliceExtent) return slice3d.on ? "Load drillholes to set the slice range." : "";
     const o = originRef.current;
@@ -5894,7 +5891,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // overrides reapplied here too, or they'd flash back to default colors until legendOverride itself
     // next changes.
     applyLegendOverrideColors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- voxelGeomSignature intentionally replaces
     // voxelModels here (see the comment above this effect): a mere visibility/opacity/legend toggle
     // must NOT re-trigger this effect's unconditional fitView() call and wipe out the user's pan/zoom.
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
@@ -6045,7 +6041,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // copy is empty, so the NEXT save silently drops them. With deps of [implicitSurfaces] alone this
     // effect can only ever run after hydration has already replaced that array, where the identity
     // guard above catches it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [implicitSurfaces]);
 
   // ---------- TASKS.csv #145 — MANUAL SURFACE EDITING / SCULPTING ----------
@@ -7938,7 +7933,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!g) { setNotices((p) => [...p, `${holeId} has no desurveyed trace to cut a section through.`]); return; }
     openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`);
     if (g.vertical) setNotices((p) => [...p, `${holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, ${g.azimuth.toFixed(0)}°.`]);
-  }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection]);
 
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
   // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel

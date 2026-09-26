@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Play } from "lucide-react";
 import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, samplePointsFromAssays, estimateBlockModel, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { samplePointsFromIntervals, estimateBlockModel, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

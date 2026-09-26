@@ -53,10 +53,6 @@ export async function openSectionWindow(payload) {
   return { id, fallback: true };
 }
 
-export async function updateSectionWindow(payload) {
-  if (d) return d.updateSectionWindow(payload);
-  return { ok: false, fallback: true };
-}
 
 // A section pop-out relays its "snapshot to Layout" click back to the main window. In Electron this
 // goes through the main process (see electron/main.js "section-snapshot"); in the plain-browser dev
@@ -149,18 +145,6 @@ export function onSectionData(cb) {
   return () => {};
 }
 
-export async function dbTest(config) {
-  if (!d) return { ok: false, error: "Database connections require the desktop app (not available in the browser preview)." };
-  return d.dbTest(config);
-}
-export async function dbQuery(config, sql) {
-  if (!d) return { ok: false, error: "Database connections require the desktop app." };
-  return d.dbQuery(config, sql);
-}
-export async function dbListTables(config) {
-  if (!d) return { ok: false, error: "Database connections require the desktop app." };
-  return d.dbListTables(config);
-}
 
 // TASKS.csv #206 — persistent DB connections + filesystem browsing for the Browser panel. See
 // electron/main.js's liveDbConnections Map for what "persistent" means here: held in the main
@@ -173,10 +157,6 @@ export async function dbConnect(config) {
 export async function dbDisconnect(id) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
   return d.dbDisconnect(id);
-}
-export async function dbLiveList() {
-  if (!d) return { ok: true, connections: [] };
-  return d.dbLiveList();
 }
 export async function dbLiveQuery(id, sql) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };

@@ -40,7 +40,6 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
       })
       .catch((err) => { if (!cancelled) setState({ status: "error", message: err.message }); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const run = () => {

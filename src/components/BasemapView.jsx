@@ -83,7 +83,6 @@ export default function BasemapView({
     });
     ro.observe(el);
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Centers/zooms the view to fit a given lon/lat bbox — shared by the initial seed-bbox placement
@@ -110,7 +109,6 @@ export default function BasemapView({
     if (!Number.isFinite(clon) || !Number.isFinite(clat)) { clon = 0; clat = 20; }
     setZoom(11);
     setCenter(lonLatToWorldPx(clon, clat, 11));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center]);
 
   // TASKS.csv #200 — "the option to select a polygon or a raster to use as boundary": picking an

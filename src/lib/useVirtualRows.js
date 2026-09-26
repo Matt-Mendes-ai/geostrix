@@ -30,7 +30,6 @@ export function useVirtualRows(count, rowHeight, { overscan = 8, containerHeight
     });
     ro.observe(el);
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onScroll = useCallback((e) => setScrollTop(e.target.scrollTop), []);

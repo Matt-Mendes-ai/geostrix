@@ -6,7 +6,7 @@
 // as-is from geochem.js) and this same left-column-mapping/right-element-checklist layout.
 import React, { useState } from "react";
 import { X } from "lucide-react";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
+import { inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";

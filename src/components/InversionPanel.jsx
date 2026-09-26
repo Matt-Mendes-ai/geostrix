@@ -62,7 +62,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   useEffect(() => {
     const m = geophysSurveys?.[activeSurvey]?.method;
     if (!method && (m === "mag" || m === "grav")) setMethod(m);
-  }, [activeSurvey, geophysSurveys]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSurvey, geophysSurveys]);
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
   const [dh, setDh] = useState({ on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useState({ open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
@@ -88,9 +88,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const M = METHODS[method];
   const running = job?.status?.state === "running";
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
-  const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]);
   const crsIssue = crsProblem(project?.epsg);
-  const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]); // eslint-disable-line react-hooks/exhaustive-deps -- #375
+  const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
 
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
   const dhLayer = method === "grav" ? "sg" : "magsusc";
@@ -592,7 +592,7 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
       const r = Math.max(1, Math.min(3, 200 / Math.sqrt(stations.length)));
       stations.forEach((p, i) => { ctx.fillStyle = col(vals[i]); ctx.beginPath(); ctx.arc(pad + (p[0] - x0) * sc, S - pad - (p[1] - y0) * sc, r, 0, Math.PI * 2); ctx.fill(); });
     });
-  }, [stations, observed, predicted]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stations, observed, predicted]);
   const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" };
   return (

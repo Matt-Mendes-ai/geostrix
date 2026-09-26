@@ -6,7 +6,6 @@ contextBridge.exposeInMainWorld("desktop", {
   ensureSidecar: () => ipcRenderer.invoke("sidecar-ensure"), // TASKS.csv #440
   isSidecarRunning: () => ipcRenderer.invoke("sidecar-running"), // TASKS.csv #440
   openSectionWindow: (payload) => ipcRenderer.invoke("open-section-window", payload),
-  updateSectionWindow: (payload) => ipcRenderer.invoke("update-section-window", payload),
   sendSectionSnapshot: (payload) => ipcRenderer.invoke("section-snapshot", payload),
   onSectionSnapshot: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-snapshot", h); return () => ipcRenderer.removeListener("section-snapshot", h); },
   sendSectionContacts: (payload) => ipcRenderer.invoke("section-contacts", payload),
@@ -20,12 +19,8 @@ contextBridge.exposeInMainWorld("desktop", {
   updaterDownload: () => ipcRenderer.invoke("updater-download"),
   updaterInstall: () => ipcRenderer.invoke("updater-install"),
   onUpdaterEvent: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("updater-event", h); return () => ipcRenderer.removeListener("updater-event", h); },
-  dbTest: (config) => ipcRenderer.invoke("db-test", config),
-  dbQuery: (config, sql) => ipcRenderer.invoke("db-query", { config, sql }),
-  dbListTables: (config) => ipcRenderer.invoke("db-list-tables", config),
   dbConnect: (config) => ipcRenderer.invoke("db-connect", config),
   dbDisconnect: (id) => ipcRenderer.invoke("db-disconnect", { id }),
-  dbLiveList: () => ipcRenderer.invoke("db-live-list"),
   dbLiveQuery: (id, sql) => ipcRenderer.invoke("db-live-query", { id, sql }),
   dbLiveListTables: (id) => ipcRenderer.invoke("db-live-list-tables", { id }),
   fsListDir: (dirPath) => ipcRenderer.invoke("fs-list-dir", { dirPath }),
