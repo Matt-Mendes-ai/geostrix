@@ -521,7 +521,9 @@ function intervalFields(valueAliases, extraAliases, numeric, descriptionAliases)
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "from", label: "From", required: true, aliases: ["from", "from_m", "depth_from"] },
     { key: "to", label: "To", required: true, aliases: ["to", "to_m", "depth_to"] },
-    { key: "value", label: numeric ? "Value (numeric)" : "Value", required: true, aliases: valueAliases },
+    // TASKS.csv #320 — "value"/"val" as LAST-resort aliases: a hand-built hole_id,from,to,value file left
+    // Value unmapped. Appended, so every layer's own names (litho, rock_type...) still win.
+    { key: "value", label: numeric ? "Value (numeric)" : "Value", required: true, aliases: [...valueAliases, ...["value", "val"].filter((a) => !valueAliases.includes(a))] },
   ];
   if (extraAliases) fields.push({ key: "extra", label: "Extra (optional, e.g. %)", required: false, aliases: extraAliases });
   // TASKS.csv #208 — real source data (esp. lithology logs) very often carries a free-text

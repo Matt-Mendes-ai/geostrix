@@ -104,6 +104,11 @@ body {
   overflow: hidden;
 }
 button { font-family: inherit; }
+/* TASKS.csv #383 — Exo 2's digits are proportional (measured at 40 px: ten 1s = 159 px, ten 8s = 243 px),
+   so right-aligned grade columns did not line up and status-bar coordinates jittered as the cursor moved.
+   Exo 2 ships tabular figures (both measure 248 px with tnum), used where numbers are compared or change:
+   tables, number inputs, the status bar. Body text keeps proportional digits, which read better in prose. */
+table, input[type="number"], .ge-status { font-variant-numeric: tabular-nums; }
 input, select { font-family: inherit; }
 
 .ge-app { display: flex; flex-direction: column; height: 100vh; width: 100vw; }

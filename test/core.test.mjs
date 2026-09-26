@@ -271,3 +271,11 @@ test("#400 QAQC: sample_type decides; collar holes are never QC by name; exclude
   assert.equal(sampleTypeClass("blank"), "blank"); assert.equal(sampleTypeClass("weird"), null); assert.equal(sampleTypeClass(""), null);
   setKnownHoleIds(null);
 });
+
+import { guessMapping, TARGET_SCHEMAS } from "../src/lib/layers.js";
+test("#320 interval import maps a column literally named 'value'; real names still win", () => {
+  const intervalTargets = Object.keys(TARGET_SCHEMAS).filter((k) => TARGET_SCHEMAS[k].fields.some((f) => f.key === "from") && TARGET_SCHEMAS[k].fields.some((f) => f.key === "value"));
+  assert.ok(intervalTargets.includes("litho"));
+  for (const t of intervalTargets) assert.equal(guessMapping(t, ["hole_id", "from", "to", "value"]).value, "value", t);
+  assert.equal(guessMapping("litho", ["hole_id", "from", "to", "value", "litho"]).value, "litho");
+});
