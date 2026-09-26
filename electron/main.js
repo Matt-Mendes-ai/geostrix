@@ -13,7 +13,7 @@ const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
-const { writeFileAtomic, backupBeforeOverwrite, quarantineUnreadable } = require("./fileSafety.js"); // TASKS.csv #341
+const { writeFileAtomic, backupBeforeOverwrite } = require("./fileSafety.js"); // TASKS.csv #341 (quarantine now in autosave-quarantine, #475)
 const { autoUpdater } = require("electron-updater");
 
 // User-reported bug: connecting the database tool (Tools > Connect to database) to a local Postgres
@@ -483,7 +483,12 @@ ipcMain.handle("open-file", async (ev, { filters }) => {
     filters: filters || [{ name: "CSV", extensions: ["csv"] }],
   });
   if (canceled || !filePaths.length) return { ok: false };
-  const content = fs.readFileSync(filePaths[0], "utf8");
+  // TASKS.csv #475 — non-blocking read, with a size cap: a multi-GB file read synchronously froze every window
+  // and could exhaust memory (the renderer then parses it again).
+  const MAX_OPEN_BYTES = 512 * 1024 * 1024;
+  const { size } = await fs.promises.stat(filePaths[0]);
+  if (size > MAX_OPEN_BYTES) return { ok: false, error: `That file is ${Math.round(size / 1048576)} MB — larger than GeoStrix opens (512 MB).` };
+  const content = await fs.promises.readFile(filePaths[0], "utf8");
   return { ok: true, filePath: filePaths[0], content, name: path.basename(filePaths[0]) };
 });
 
@@ -509,12 +514,22 @@ ipcMain.handle("autosave-read", async () => {
   try {
     const p = fs.existsSync(AUTOSAVE_PATH()) ? AUTOSAVE_PATH() : (fs.existsSync(OLD_AUTOSAVE_PATH()) ? OLD_AUTOSAVE_PATH() : null);
     if (!p) return { ok: false };
-    const content = fs.readFileSync(p, "utf8");
-    const stat = fs.statSync(p);
-    // #341 — an autosave that doesn't parse is moved aside (the next tick would otherwise overwrite it).
-    const kept = await quarantineUnreadable(p, content);
-    if (kept) return { ok: false, unreadable: kept };
+    // TASKS.csv #475 — read without blocking and WITHOUT parsing here: a 200 MB autosave used to be parsed in
+    // the main process (freezing every window at launch) and then parsed again by the renderer. The renderer
+    // parses once; if that fails it calls autosave-quarantine (below), which moves the file aside (#341).
+    const [content, stat] = await Promise.all([fs.promises.readFile(p, "utf8"), fs.promises.stat(p)]);
     return { ok: true, content, mtime: stat.mtimeMs };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+// TASKS.csv #475 / #341 — the renderer found the autosave unreadable: move it aside (never overwrite it), say where.
+ipcMain.handle("autosave-quarantine", async () => {
+  try {
+    const p = fs.existsSync(AUTOSAVE_PATH()) ? AUTOSAVE_PATH() : (fs.existsSync(OLD_AUTOSAVE_PATH()) ? OLD_AUTOSAVE_PATH() : null);
+    if (!p) return { ok: false };
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const dest = path.join(path.dirname(p), `${path.basename(p).replace(/\.json$/i, "")}.unreadable-${stamp}.json`);
+    await fs.promises.rename(p, dest);
+    return { ok: true, unreadable: dest };
   } catch (err) { return { ok: false, error: err.message }; }
 });
 ipcMain.handle("autosave-clear", async () => {

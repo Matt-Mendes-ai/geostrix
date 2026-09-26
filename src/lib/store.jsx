@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #321 — compact storage of SimPEG models
-import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
+import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod, DEFAULT_DESURVEY_METHOD } from "./desurvey.js";
 
 const StoreContext = createContext(null);
@@ -544,6 +544,14 @@ export function StoreProvider({ children }) {
   // Defaulting new models to fully opaque (1) keeps them on the fast path out of the box; a user who
   // specifically wants to see through the model can still lower the opacity slider themselves and
   // accept that cost intentionally, rather than it being silently on for every import.
+  // #466 — the defaults a new voxel model gets, shared by addVoxelModel and addVoxelModelToTab.
+  const prepareVoxelModel = (model) => {
+    const id = `voxel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const { min, max } = model.cells.length
+      ? model.cells.reduce((acc, c) => ({ min: Math.min(acc.min, c.value), max: Math.max(acc.max, c.value) }), { min: Infinity, max: -Infinity })
+      : { min: 0, max: 1 };
+    return { visible: true, opacity: 1, threshold: min, rangeMax: max, min, max, ...model, id };
+  };
   const addVoxelModel = useCallback((model) => {
     const id = `voxel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const { min, max } = model.cells.length
@@ -557,6 +565,17 @@ export function StoreProvider({ children }) {
     setVoxelModels((p) => [...p, { visible: true, opacity: 1, threshold: min, rangeMax: max, min, max, ...model, id }]);
     return id;
   }, []);
+  // TASKS.csv #466 — a finished job's block model goes to the project that STARTED it: live if that project
+  // is still open, into its stored payload (marked unsaved) if it is a background tab. Returns where it
+  // went: "active" | "tab" | "gone" (that tab was closed or its project replaced — the caller says so).
+  const addVoxelModelToTab = useCallback((tok, model) => {
+    // refs read at CALL time (declared further down the provider; a deps-array reference would hit the TDZ)
+    if (tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current) { addVoxelModel(model); return "active"; }
+    const exists = autosaveTabsRef.current.workspaceTabs.some((t) => t.id === tok?.tabId && t.payload);
+    if (!exists || tok.tabId === activeTabIdRef.current) return "gone"; // same tab but a different project now
+    setWorkspaceTabs((prev) => prev.map((t) => (t.id === tok.tabId && t.payload ? { ...t, dirty: true, payload: { ...t.payload, voxelModels: [...(t.payload.voxelModels || []), prepareVoxelModel(model)] } } : t)));
+    return "tab";
+  }, [addVoxelModel]); // eslint-disable-line react-hooks/exhaustive-deps
   const updateVoxelModel = useCallback((id, patch) => setVoxelModels((p) => p.map((v) => (v.id === id ? { ...v, ...patch } : v))), []);
   const removeVoxelModel = useCallback((id) => setVoxelModels((p) => p.filter((v) => v.id !== id)), []);
 
@@ -865,6 +884,7 @@ export function StoreProvider({ children }) {
     clearUndoHistory();
     extraDirtyBaseline.current = null; // #462
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
+    projectSeqRef.current++; // #466 — a different project now lives in this tab
     setActiveTabDirty(false);
   }, []);
 
@@ -889,6 +909,13 @@ export function StoreProvider({ children }) {
   // zone ReferenceError. See each function's own comment further down for what these are for.
   const [workspaceTabs, setWorkspaceTabs] = useState([{ id: "tab_initial", name: "Untitled project", payload: null, dirty: false }]);
   const [activeTabId, setActiveTabId] = useState("tab_initial");
+  // TASKS.csv #466 — which project a long job (GemPy 80-120 s, SimPEG minutes) belongs to. The tab id alone
+  // is not enough: File > Open / New replace the project INSIDE the same tab, so a counter bumps too.
+  const activeTabIdRef = useRef(activeTabId);
+  activeTabIdRef.current = activeTabId;
+  const projectSeqRef = useRef(0);
+  const getProjectToken = useCallback(() => ({ tabId: activeTabIdRef.current, seq: projectSeqRef.current }), []);
+  const isSameProject = useCallback((tok) => !!tok && tok.tabId === activeTabIdRef.current && tok.seq === projectSeqRef.current, []);
   const newerFormatTabsRef = useRef(new Set()); // TASKS.csv #342 — tabs opened from a newer file format
   // Whether the active tab has changed since it was last loaded/created/saved. Piggybacks on the
   // undo-tracking effect further down (which already detects "a real tracked change happened" on
@@ -1023,6 +1050,7 @@ export function StoreProvider({ children }) {
     setModelDomains(data.modelDomains || []);
     extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
+    projectSeqRef.current++; // #466 — a different project now lives in this tab
     setActiveTabDirty(false);
   }, []);
 
@@ -1212,8 +1240,14 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     const res = await autosaveRead();
     if (res.unreadable) return { unreadable: res.unreadable }; // #341 — kept aside, say so
     if (!res.ok) return null;
+    let data;
+    try { data = JSON.parse(res.content); }
+    catch (_) {
+      // TASKS.csv #475 — parsed only here now (not also in the main process); unreadable -> moved aside, say where
+      const q = await autosaveQuarantine();
+      return q.ok ? { unreadable: q.unreadable } : null;
+    }
     try {
-      const data = JSON.parse(res.content);
       if (!checkProjectFile(data).ok) return null; // #342
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
       heldAutosaveRef.current = data; // #465
@@ -1493,6 +1527,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     newProject, saveProject, openProject,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
+    getProjectToken, isSameProject, addVoxelModelToTab, // #466
     undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0,
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

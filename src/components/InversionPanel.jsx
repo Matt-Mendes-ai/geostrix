@@ -34,7 +34,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, addVoxelModel, surfaceStructures } = useStore();
+  const { layers, terrain, project, addVoxelModel, surfaceStructures, getProjectToken, addVoxelModelToTab } = useStore();
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
@@ -197,6 +197,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
     };
+    const projectToken = getProjectToken(); // #466 — the result belongs to the project that started the run
     const res = await startInversionJob(p.request, meta, {
       setTaskProgress,
       onDone: (result) => {
@@ -205,7 +206,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
         const vals = model.cells.map((c) => c.value);
         const vmin = arrMin(vals), vmax = arrMax(vals);
         const absMax = Math.max(Math.abs(vmin), Math.abs(vmax));
-        addVoxelModel({
+        const where = addVoxelModelToTab(projectToken, {
           ...model,
           stops: method === "mag" ? sequentialStops(Math.max(0, vmin), vmax) : divergingStops(absMax),
           colorMode: "continuous",
@@ -215,6 +216,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
           params: { ...params, boundsApplied: result.boundsApplied || null, baseLevelRemoved: result.baseLevelRemoved || null, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
           history: result.history,
         });
+        // #466 — say where it went when that is not the open project
+        if (where === "tab") setMsg({ ok: true, text: `The inversion finished and was added to the project tab it was started from (marked unsaved) — switch back to that tab to see it.` });
+        else if (where === "gone") setMsg({ ok: false, text: `The inversion finished, but the project it was started from is no longer open (its tab was closed or another project was opened in it), so the result was not added anywhere. Run it again in that project.` });
         setLastResult({ result, prepared: p, verdict });
       },
     });

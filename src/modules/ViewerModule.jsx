@@ -1235,6 +1235,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     surfaceSamples, surfaceElements,
     plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
+    getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     lastCamState, setLastCamState,
@@ -3894,6 +3895,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setTaskProgress?.((cur) => (cur && cur.label === label ? { ...cur, pct: Math.min(90, cur.pct + 6 + Math.random() * 8) } : cur));
     }, 500);
     const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
+    const projectToken = getProjectToken(); // #466
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
@@ -3909,6 +3911,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!res.ok) {
       setTaskProgress?.(null);
       if (!res.cancelled) setNotices((p) => [...p, `${label} failed: ${res.error}`]);
+      return;
+    }
+    // TASKS.csv #466 — the model came back after a switch to another project (tab change, Open, New). Its
+    // surfaces are in the ORIGINAL project's local frame and belong to it; adding them here would put them
+    // in the wrong project, at the wrong place. Not added; said plainly.
+    if (!isSameProject(projectToken)) {
+      setTaskProgress?.(null);
+      setNotices((p) => [...p, `${label} finished after you switched to another project, so its result was NOT added here (it belongs to the project it was started from, in another frame). Switch back and run it again there.`]);
       return;
     }
     setTaskProgress?.({ label, pct: 100 });

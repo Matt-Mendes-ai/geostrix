@@ -109,6 +109,12 @@ export async function autosaveWrite(content) {
   try { localStorage.setItem(AUTOSAVE_KEY, content); return { ok: true, fallback: true }; }
   catch (err) { return { ok: false, error: err.message }; }
 }
+// TASKS.csv #475 — move an unreadable autosave aside (desktop); the browser fallback just drops it.
+export async function autosaveQuarantine() {
+  if (d && d.autosaveQuarantine) return d.autosaveQuarantine();
+  try { localStorage.removeItem(AUTOSAVE_KEY); } catch (_) { /* ignore */ }
+  return { ok: false };
+}
 export async function autosaveRead() {
   if (d) return d.autosaveRead();
   try {
