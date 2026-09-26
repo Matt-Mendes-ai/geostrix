@@ -214,12 +214,17 @@ function stopPythonSidecar() {
 // "you're up to date" confirmation only for a check the user actually asked for, not the routine
 // background one on launch.
 let manualCheckInFlight = false;
+// TASKS.csv #473 — the portable zip carries app-update.yml too (electron-builder writes it whenever an NSIS
+// target exists), so a zip copy offered "Download / Restart & install": that ran the NSIS INSTALLER into the
+// default install folder, left the zip copy on the old version (offering the update forever) and created a
+// second install. A zip copy has no NSIS uninstaller beside the exe; there, updates only point to the zip.
+const IS_PORTABLE = app.isPackaged && process.platform === "win32" && !fs.existsSync(path.join(path.dirname(process.execPath), "Uninstall GeoStrix.exe"));
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   const send = (event, payload) => mainWindow?.webContents.send("updater-event", { event, ...payload });
   autoUpdater.on("checking-for-update", () => send("checking", { manual: manualCheckInFlight }));
-  autoUpdater.on("update-available", (info) => { send("available", { version: info.version, manual: manualCheckInFlight }); manualCheckInFlight = false; });
+  autoUpdater.on("update-available", (info) => { send("available", { version: info.version, manual: manualCheckInFlight, portable: IS_PORTABLE }); manualCheckInFlight = false; }); // #473
   autoUpdater.on("update-not-available", () => { send("not-available", { manual: manualCheckInFlight, currentVersion: app.getVersion() }); manualCheckInFlight = false; });
   autoUpdater.on("error", (err) => { send("error", { message: err.message, manual: manualCheckInFlight }); manualCheckInFlight = false; });
   autoUpdater.on("download-progress", (p) => send("downloading", { percent: Math.round(p.percent) }));
@@ -246,6 +251,7 @@ ipcMain.handle("updater-check", async () => {
   }
 });
 ipcMain.handle("updater-download", async () => {
+  if (IS_PORTABLE) return { ok: false, portable: true, message: "Portable copy: download the new zip from GitHub Releases." }; // #473
   try {
     await autoUpdater.downloadUpdate();
     return { ok: true };

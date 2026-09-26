@@ -546,7 +546,11 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
       {updater.event === "available" && (
         <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           Update available (v{updater.version})
+          {updater.portable ? ( /* TASKS.csv #473 — a zip copy updates by downloading the new zip, never the installer */
+            <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest" target="_blank" rel="noreferrer" title="This is the portable (zip) copy: download the new zip and replace this folder" style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>Get the new zip</a>
+          ) : (
           <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Download</button>
+          )}
         </span>
       )}
       {updater.event === "downloading" && (
