@@ -283,6 +283,57 @@ def plate_fraction(mesh, plate, local, sub=None):
 # Jobs
 # ---------------------------------------------------------------------------------------------
 
+def drillhole_constraints(mesh, actv, points_local, tolerance, lower, upper):
+    """TASKS.csv #323 — logged susceptibility / density contrast along drillholes pinned onto the mesh.
+
+    Every [x, y, z, value] sample (local coordinates, model units) falls in one cell; a cell holding
+    samples gets their MEAN as its reference value, and per-cell bounds of mean +/- tolerance (clipped to
+    the global bounds). Cells without samples keep the global bounds and a zero reference, i.e. exactly the
+    unconstrained inversion. Bounds rather than a large smallness weight: the projected Gauss-Newton solver
+    honours them exactly, so "the model agrees with the logs where there are logs" is a guarantee, not a
+    tuning outcome. Returns (lower_arr, upper_arr, mref, m_start_values, report) over ACTIVE cells.
+    """
+    n_act = int(actv.sum())
+    act_index = np.full(mesh.n_cells, -1, dtype=np.int64)
+    act_index[np.flatnonzero(actv)] = np.arange(n_act)
+    nodes = [mesh.nodes_x, mesh.nodes_y, mesh.nodes_z]
+    pts = np.asarray(points_local, dtype=float)
+    inside = np.ones(len(pts), dtype=bool)
+    ijk = []
+    for a in range(3):
+        n = nodes[a]
+        inside &= (pts[:, a] >= n[0]) & (pts[:, a] <= n[-1])
+        ijk.append(np.clip(np.searchsorted(n, pts[:, a], side="right") - 1, 0, len(n) - 2))
+    shape = (len(mesh.h[0]), len(mesh.h[1]), len(mesh.h[2]))
+    cell = np.ravel_multi_index((ijk[0], ijk[1], ijk[2]), shape, order="F")
+    a_idx = np.where(inside, act_index[cell], -1)
+    used = a_idx >= 0
+    lo = np.full(n_act, lower, dtype=float)
+    up = np.full(n_act, upper, dtype=float)
+    mref = np.zeros(n_act)
+    report = {"points": int(len(pts)), "pointsUsed": int(used.sum()), "outsideMesh": int((~inside).sum()),
+              "inAirOrInactive": int((inside & ~used).sum()), "cells": 0, "tolerance": float(tolerance)}
+    if not used.any():
+        return lo, up, mref, None, report
+    sums = np.bincount(a_idx[used], weights=pts[used, 3], minlength=n_act)
+    counts = np.bincount(a_idx[used], minlength=n_act)
+    hit = counts > 0
+    mean = sums[hit] / counts[hit]
+    lo[hit] = np.maximum(lower, mean - tolerance)
+    up[hit] = np.minimum(upper, mean + tolerance)
+    # a logged value outside the global bounds (e.g. a negative susceptibility with lower=0): keep the
+    # cell feasible at the nearest bound and say how many were clipped
+    clipped = lo[hit] > up[hit]
+    lo_h, up_h = lo[hit], up[hit]
+    edge = np.clip(mean, lower, upper)
+    lo_h[clipped] = edge[clipped]; up_h[clipped] = edge[clipped]
+    lo[hit], up[hit] = lo_h, up_h
+    mref[hit] = np.clip(mean, lower, upper)
+    report.update({"cells": int(hit.sum()), "clippedToBounds": int(clipped.sum()),
+                   "loggedRange": [float(mean.min()), float(mean.max())]})
+    return lo, up, mref, hit, report
+
+
 def run_job(req, progress, ram_cap_bytes):
     """Runs a forward or inversion job. `progress(dict)` is called with stage/iteration updates.
     Returns a JSON-serialisable result dict."""
@@ -397,7 +448,16 @@ def run_job(req, progress, ram_cap_bytes):
     if b.get("upper") is not None:
         upper = float(b["upper"])
     max_iter = int(req["reg"].get("maxIter", 15))
-    opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=lower, upper=upper, cg_maxiter=10, cg_rtol=1e-3)
+    # TASKS.csv #323 — drillhole logs as a reference model + per-cell bounds (see drillhole_constraints).
+    lo_opt, up_opt, constraint_report, hit = lower, upper, None, None
+    con = req.get("constraints")
+    if con:
+        pts = np.asarray(con["points"], dtype=float)
+        pts_local = np.c_[pts[:, :3] - local, pts[:, 3]]
+        lo_opt, up_opt, mref, hit, constraint_report = drillhole_constraints(mesh, actv, pts_local, float(con["tolerance"]), lower, upper)
+        reg.reference_model = mref
+        progress({"stage": "mesh", "message": f"Drillhole constraints: {constraint_report['cells']} cells from {constraint_report['pointsUsed']} of {constraint_report['points']} log samples"})
+    opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
     inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, print_version=False)
     history = []
 
@@ -419,6 +479,9 @@ def run_job(req, progress, ram_cap_bytes):
     ]
     inv = inversion.BaseInversion(inv_prob, directiveList=dir_list)
     m0 = np.full(n_act, 1e-4 if method == "mag" else 0.0)
+    if hit is not None:
+        m0[hit] = reg.reference_model[hit]  # start where the logs are
+    m0 = np.clip(m0, lo_opt, up_opt)
     progress({"stage": "iterating", "iter": 0, "maxIter": max_iter, "message": "Estimating the starting trade-off"})
     rec = inv.run(m0)
     pred_sim = sim.dpred(rec)
@@ -466,4 +529,5 @@ def run_job(req, progress, ram_cap_bytes):
         # recorded as bounds: {}), and the data the model was fitted to after base-level removal.
         "boundsApplied": {"lower": None if not np.isfinite(lower) else float(lower), "upper": None if not np.isfinite(upper) else float(upper)},
         "baseLevelRemoved": base_removed, "observedUsed": dobs_user.tolist(),
+        "constraintsApplied": constraint_report,
     }

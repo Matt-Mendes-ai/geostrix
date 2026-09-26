@@ -155,6 +155,7 @@ def health():
 # ---------------------------------------------------------------------------------------------
 MAX_STATIONS = 20_000
 MAX_TOPO = 60_000
+MAX_CONSTRAINTS = 200_000  # TASKS.csv #323 — drillhole log samples
 
 
 def _finite_rows(rows, width, name, limit):
@@ -202,6 +203,18 @@ def _validate_potential(req):
         if not isinstance(req.get("reg"), dict):
             req["reg"] = {}
         req["reg"]["maxIter"] = int(min(40, max(1, int(req["reg"].get("maxIter", 15)))))
+        # TASKS.csv #323 — optional drillhole constraints: [x, y, z, value] in project CRS / model units,
+        # and the +/- tolerance the model may depart from them (entered by the user, never assumed).
+        c = req.get("constraints")
+        if c is not None:
+            if not isinstance(c, dict):
+                raise HTTPException(400, "constraints must be an object.")
+            _finite_rows(c.get("points"), 4, "constraints.points", MAX_CONSTRAINTS)
+            if not c["points"]:
+                raise HTTPException(400, "constraints.points is empty.")
+            t = c.get("tolerance")
+            if not isinstance(t, (int, float)) or not math.isfinite(t) or t < 0:
+                raise HTTPException(400, "constraints.tolerance is required (0 or more, in model units).")
     else:
         plates = req.get("plates") or ([req["plate"]] if req.get("plate") else [])
         if not plates or len(plates) > 40:

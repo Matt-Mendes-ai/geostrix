@@ -333,3 +333,18 @@ test("#390 notice severity: explicit level wins; plain strings keep the wording 
   assert.equal(noticeText("y"), "y");
   assert.equal(noticeText(null), "");
 });
+
+import { constraintSamples } from "../src/lib/drillholeConstraints.js";
+test("#323 drillhole constraint samples: positions, unit conversion, background density, skips", () => {
+  const collars = [{ hole_id: "V", x: 1000, y: 2000, z: 500 }];
+  const survey = [{ hole_id: "V", depth: 0, azimuth: 0, dip: 90 }, { hole_id: "V", depth: 100, azimuth: 0, dip: 90 }]; // vertical, 100 m
+  const mag = constraintSamples({ collars, survey, method: "mag", units: "e3", desurveyMethod: "minimumCurvature",
+    rows: [{ hole_id: "V", depth: 10, value: 25 }, { hole_id: "V", from: 20, to: 30, value: 4 }, { hole_id: "X", depth: 5, value: 1 }, { hole_id: "V", depth: 150, value: 1 }, { hole_id: "V", depth: 12, value: "" }], step: 5 });
+  assert.deepEqual(mag.points[0].map((v) => +v.toFixed(6)), [1000, 2000, 490, 0.025]); // 25 x10^-3 SI at 10 m down
+  assert.equal(mag.points.length, 3); // point + interval sampled twice (every 5 m)
+  assert.deepEqual(mag.points.slice(1).map((p) => +p[2].toFixed(3)), [477.5, 472.5]);
+  assert.deepEqual(mag.skipped, { noTrace: 1, badValue: 1, beyondTrace: 1 });
+  assert.equal(mag.holes, 1);
+  const grav = constraintSamples({ collars, survey, method: "grav", background: 2.67, desurveyMethod: "minimumCurvature", rows: [{ hole_id: "V", from: 0, to: 2, value: 2.95 }] });
+  assert.equal(+grav.points[0][3].toFixed(6), 0.28);
+});

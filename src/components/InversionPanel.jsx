@@ -25,6 +25,7 @@ import {
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { constraintSamples, SUSC_UNITS } from "../lib/drillholeConstraints.js"; // TASKS.csv #323
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total-field ANOMALY in nT — the IGRF/regional field has already been removed (not RTP, not a derivative, not the raw total field).", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -34,7 +35,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, addVoxelModel, surfaceStructures, getProjectToken, addVoxelModelToTab } = useStore();
+  const { layers, terrain, project, addVoxelModel, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod } = useStore();
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
@@ -57,6 +58,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
   const [unc, setUnc] = useState({ floor: "", percent: "" });
   const [mesh, setMesh] = useState({ coreCell: "", depth: "" });
+  // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
+  const [dh, setDh] = useState({ on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useState({ open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
   // supportCutoff default 0.005, MEASURED not guessed (TASKS.csv #321): normalised sensitivity falls off
   // steeply with depth (0.97 beside the stations, ~0.017 at 200 m, ~0.005 at 400 m on the synthetic plate
@@ -82,6 +85,19 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
   const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const crsIssue = crsProblem(project?.epsg);
+
+  // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
+  const dhLayer = method === "grav" ? "sg" : "magsusc";
+  const dhRows = layers[dhLayer] || [];
+  const dhConstraintPoints = () => {
+    if (!dhRows.length) return { problem: `Drillhole constraints need a ${method === "grav" ? "Specific gravity" : "Mag. susceptibility"} log layer — import one, or untick the constraints.` };
+    if (method === "mag" && !SUSC_UNITS[dh.units]) return { problem: "Say what units the susceptibility log is in." };
+    if (method === "grav" && !(num(dh.background) >= 1 && num(dh.background) <= 5)) return { problem: "Enter the background density (g/cc) the density contrast is measured from — usually the one used for the Bouguer correction." };
+    if (!(num(dh.tolerance) >= 0)) return { problem: `Enter how far the model may depart from the logs (${method === "grav" ? "g/cc" : "SI"}).` };
+    const r = constraintSamples({ collars, survey: drillSurvey, rows: dhRows, method, units: dh.units, background: num(dh.background), desurveyMethod, step: Math.max(1, num(mesh.coreCell) / 2 || 5) });
+    if (!r.points.length) return { problem: "None of the log rows could be placed on a drillhole trace (check collars and hole IDs)." };
+    return { points: r.points, meta: { layer: dhLayer, units: method === "mag" ? SUSC_UNITS[dh.units].label : null, backgroundDensity: method === "grav" ? num(dh.background) : null, tolerance: num(dh.tolerance), samples: r.points.length, holes: r.holes, skipped: r.skipped } };
+  };
 
   // ---------- data preparation (all in the renderer; the sidecar only ever sees clean numbers) ----------
   const prepare = (kind) => {
@@ -124,6 +140,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     const sx = stations.map((p) => p[0]), sy = stations.map((p) => p[1]);
     const box = [arrMin(sx) - padReach, arrMin(sy) - padReach, arrMax(sx) + padReach, arrMax(sy) + padReach];
     const topo = terrain ? terrainPoints(terrain, box, 40000) : null;
+    let dhMeta = null; // #323
     const request = {
       method, kind, stations,
       ...(topo ? { topo: topo.points } : {}),
@@ -137,14 +154,21 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       const lo = num(adv.lower), up = num(adv.upper);
       request.bounds = { ...(Number.isFinite(lo) ? { lower: lo } : {}), ...(Number.isFinite(up) ? { upper: up } : {}) };
       request.baseLevel = baseLevel; // #368
+      if (dh.on) { // #323
+        const cp = dhConstraintPoints();
+        if (cp.problem) return { problems: [cp.problem] };
+        request.constraints = { points: cp.points, tolerance: num(dh.tolerance) };
+        dhMeta = cp.meta;
+      }
     } else {
       request.observed = observed;
     }
     const notes = [];
+    if (dhMeta && (dhMeta.skipped.noTrace || dhMeta.skipped.badValue || dhMeta.skipped.beyondTrace)) notes.push(`Drillhole constraints: ${dhMeta.samples} samples from ${dhMeta.holes} hole(s); left out ${dhMeta.skipped.noTrace} log row(s) with no collar/trace, ${dhMeta.skipped.badValue} with no value, ${dhMeta.skipped.beyondTrace} sample(s) beyond the surveyed hole length.`);
     if (dropped) notes.push(`${dropped} station(s) fell outside the terrain and were left out.`);
     if (topo && !topo.covers) notes.push("The terrain does not cover the whole model mesh (padding included); cells beyond it follow the nearest terrain edge — load a larger terrain for an honest result near the edges.");
     if (topo && topo.spacing > cell) notes.push(`The terrain grid (${Math.round(topo.spacing)} m) is coarser than the core cell (${cell} m), so ground level between terrain samples is interpolated.`);
-    return { request, meta: { stationsUsed: stations.length, stationsTotal: rows.length, thinnedTo: num(thin) > 0 ? num(thin) : null, dropped, convergence: decl?.convergence ?? null, gridDeclination: decl?.grid ?? null, centre: [cx, cy], topoSpacing: topo?.spacing ?? null, terrainCovers: topo?.covers ?? null }, notes, stations, observed };
+    return { request, meta: { drillholeConstraints: dhMeta, stationsUsed: stations.length, stationsTotal: rows.length, thinnedTo: num(thin) > 0 ? num(thin) : null, dropped, convergence: decl?.convergence ?? null, gridDeclination: decl?.grid ?? null, centre: [cx, cy], topoSpacing: topo?.spacing ?? null, terrainCovers: topo?.covers ?? null }, notes, stations, observed };
   };
 
   const computeIgrf = async () => {
@@ -196,6 +220,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       mesh: { type: "tensor", coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers },
       regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
+      drillholeConstraints: p.meta.drillholeConstraints ? { ...p.meta.drillholeConstraints, how: "each cell a hole passes through: reference = mean of the log samples in it, bounds = that mean ± tolerance" } : null, // #323
     };
     const projectToken = getProjectToken(); // #466 — the result belongs to the project that started the run
     const res = await startInversionJob(p.request, meta, {
@@ -213,7 +238,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
           supportCutoff: Number(adv.supportCutoff) || 0,
           // TASKS.csv #368 — what was actually applied: the bounds (the susceptibility default lower = 0 was
           // recorded as {}) and the base level removed from the data before inverting.
-          params: { ...params, boundsApplied: result.boundsApplied || null, baseLevelRemoved: result.baseLevelRemoved || null, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
+          params: { ...params, constraintsApplied: result.constraintsApplied || null, boundsApplied: result.boundsApplied || null, baseLevelRemoved: result.baseLevelRemoved || null, versions: result.versions, fit: { phiD: result.phi_d, target: result.target, chiFactor: verdict.chi, reachedTarget: result.reachedTarget, iterations: result.iterations, verdict: verdict.text }, localOrigin: result.localOrigin, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) },
           history: result.history,
         });
         // #466 — say where it went when that is not the open project
@@ -364,6 +389,25 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                     <option value="none">None (data already levelled)</option>
                   </select>
                 </div>
+                {/* TASKS.csv #323 — drillhole logs as constraints */}
+                <label style={{ ...row, cursor: "pointer" }} title="Where a drillhole passes through a model cell, hold that cell close to what the hole logged. Cells no hole touches are inverted exactly as before.">
+                  <input type="checkbox" checked={dh.on} onChange={(e) => setDh((p) => ({ ...p, on: e.target.checked }))} />
+                  Constrain with drillhole {method === "grav" ? "specific gravity" : "susceptibility"} logs ({dhRows.length.toLocaleString()} rows)
+                </label>
+                {dh.on && <>
+                  {method === "mag" && (
+                    <div style={row}><span style={lbl}>Log units</span>
+                      <select value={dh.units} onChange={(e) => setDh((p) => ({ ...p, units: e.target.value }))} style={{ ...inp, width: "auto" }} aria-label="Susceptibility log units">
+                        <option value="">Choose…</option>
+                        {Object.entries(SUSC_UNITS).map(([k, u]) => <option key={k} value={k}>{u.label}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {method === "grav" && (
+                    <div style={row} title="The logged SG minus this is the density contrast the inversion models."><span style={lbl}>Background density</span><input type="number" step={0.01} value={dh.background} onChange={(e) => setDh((p) => ({ ...p, background: e.target.value }))} style={inp} aria-label="Background density" /> g/cc</div>
+                  )}
+                  <div style={row} title="How far the model may depart from the logged value in cells a hole passes through. 0 = exactly the log; larger allows for the log sampling only part of a cell."><span style={lbl}>Allowed departure ±</span><input type="number" min={0} step={method === "grav" ? 0.01 : 0.001} value={dh.tolerance} onChange={(e) => setDh((p) => ({ ...p, tolerance: e.target.value }))} style={inp} aria-label="Allowed departure from the logs" /> {method === "grav" ? "g/cc" : "SI"}</div>
+                </>}
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAdv((p) => ({ ...p, open: !p.open }))} aria-expanded={adv.open} style={{ ...row, cursor: "pointer" }}>
                   {adv.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Advanced
                 </div>
@@ -454,6 +498,9 @@ function FitView({ last, method }) {
         <div style={small}>Removed before inverting: {result.baseLevelRemoved.mode === "mean" ? `the data mean, ${result.baseLevelRemoved.constant.toFixed(2)} ${unit}` : `a best-fit plane (${result.baseLevelRemoved.constant.toFixed(2)} ${unit} at the survey centre, ${(result.baseLevelRemoved.perMetreX * 1000).toFixed(2)} / ${(result.baseLevelRemoved.perMetreY * 1000).toFixed(2)} ${unit} per km east / north)`}. The maps below show the data after that removal. Bounds applied: {result.boundsApplied ? `${result.boundsApplied.lower ?? "none"} to ${result.boundsApplied.upper ?? "none"}` : "—"}.</div>
       )}
       <PointMaps stations={st} observed={obs} predicted={result.predicted} std={std} unit={unit} />
+      {result.constraintsApplied && (
+        <div style={small}>Drillhole constraints: {result.constraintsApplied.cells} cell(s) held within ±{result.constraintsApplied.tolerance} of the logs ({result.constraintsApplied.pointsUsed} of {result.constraintsApplied.points} samples used{result.constraintsApplied.inAirOrInactive ? `, ${result.constraintsApplied.inAirOrInactive} above the terrain` : ""}{result.constraintsApplied.outsideMesh ? `, ${result.constraintsApplied.outsideMesh} outside the model` : ""}{result.constraintsApplied.clippedToBounds ? `, ${result.constraintsApplied.clippedToBounds} cell(s) with a logged value outside the bounds held at the bound` : ""}).</div>
+      )}
       <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>
     </div>
   );

@@ -242,6 +242,73 @@ def test_inversion_with_offset_and_mean_removal():
     assert out["reachedTarget"]
 
 
+def test_drillhole_constraints_pin_cells():
+    """TASKS.csv #323 — samples map to the right cells; air / outside samples are counted, not used."""
+    import discretize
+    mesh = discretize.TensorMesh([np.full(4, 10.0), np.full(4, 10.0), np.full(4, 10.0)], origin=[0, 0, 0])
+    actv = mesh.cell_centers[:, 2] < 30  # top layer is "air"
+    pts = [[5, 5, 5, 0.02], [6, 6, 6, 0.04],   # same cell -> mean 0.03
+           [35, 35, 15, 0.01],                  # another cell
+           [5, 5, 35, 0.5],                     # in the air layer
+           [500, 5, 5, 0.1],                    # outside the mesh
+           [15, 5, 5, -0.01]]                   # negative susceptibility, clipped at lower = 0
+    lo, up, mref, hit, rep = P.drillhole_constraints(mesh, actv, np.array(pts, float), 0.005, 0.0, np.inf)
+    assert rep["points"] == 6 and rep["outsideMesh"] == 1 and rep["inAirOrInactive"] == 1 and rep["pointsUsed"] == 4
+    assert rep["cells"] == 3 and rep["clippedToBounds"] == 1
+    act_idx = np.full(mesh.n_cells, -1); act_idx[np.flatnonzero(actv)] = np.arange(actv.sum())
+    c0 = act_idx[mesh.point2index([5, 5, 5])]
+    assert abs(mref[c0] - 0.03) < 1e-12 and abs(lo[c0] - 0.025) < 1e-12 and abs(up[c0] - 0.035) < 1e-12
+    cneg = act_idx[mesh.point2index([15, 5, 5])]
+    assert lo[cneg] == 0.0 and up[cneg] == 0.0
+    free = ~hit
+    assert np.all(lo[free] == 0.0) and np.all(np.isinf(up[free])) and np.all(mref[free] == 0.0)
+
+
+def test_inversion_with_drillhole_constraints():
+    """TASKS.csv #323 — a vertical hole through a buried block, logged with the true susceptibility: the
+    model must honour the log (within tolerance) where the hole is, still fit the data, and recover more
+    of the true amplitude than the unconstrained smooth model (which underestimates it)."""
+    rng = np.random.default_rng(3)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    base = {"method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only")
+    cc = mesh.cell_centers[actv] + local
+    c = np.array([500000.0, 6250000.0, 875.0])
+    inb = lambda x, y, z: (abs(x - c[0]) <= 60) & (abs(y - c[1]) <= 60) & (abs(z - c[2]) <= 50)
+    m_true = np.where(inb(cc[:, 0], cc[:, 1], cc[:, 2]), 0.05, 0.0)
+    clean = sim.dpred(m_true)
+    std = 1.0 + 0.02 * np.abs(clean)
+    dobs = clean + rng.standard_normal(len(clean)) * std
+    hx, hy = c[0] + 10.0, c[1] - 10.0
+    hole = [[hx, hy, z, 0.05 if inb(hx, hy, z) else 0.0] for z in np.arange(998.0, 720.0, -4.0)]
+    req = dict(base, kind="inversion", observed=dobs.tolist(), uncertainty={"floor": 1.0, "percent": 2.0},
+               reg={"maxIter": 20}, constraints={"points": hole, "tolerance": 0.005})
+    out = P.run_job(req, lambda e: None, ram_cap_bytes=int(1.5e9))
+    rep = out["constraintsApplied"]
+    v = np.array(out["cells"]["value"])
+    xyz = np.c_[out["cells"]["x"], out["cells"]["y"], out["cells"]["z"]]
+    near = (np.abs(xyz[:, 0] - hx) <= 12.5) & (np.abs(xyz[:, 1] - hy) <= 12.5) & (xyz[:, 2] > 720) & (xyz[:, 2] < 998)
+    truth_near = np.where(inb(xyz[near, 0], xyz[near, 1], xyz[near, 2]), 0.05, 0.0)
+    worst = float(np.max(np.abs(v[near] - truth_near)))
+    free = P.run_job(dict(req, constraints=None), lambda e: None, ram_cap_bytes=int(1.5e9))
+    vf = np.array(free["cells"]["value"])
+    body = inb(xyz[:, 0], xyz[:, 1], xyz[:, 2])
+    print(f"constrained: {rep['cells']} cells from {rep['pointsUsed']} samples, worst departure along the hole "
+          f"{worst:.4f} (tol 0.005), mean chi in the block {v[body].mean():.4f} vs unconstrained {vf[body].mean():.4f} "
+          f"(true 0.05), phi_d {out['phi_d']:.0f}/{out['target']:.0f} reached={out['reachedTarget']}")
+    assert rep["cells"] >= 10 and rep["outsideMesh"] == 0
+    assert worst <= 0.005 + 1e-6
+    assert out["reachedTarget"]
+    assert abs(v[body].mean() - 0.05) < abs(vf[body].mean() - 0.05)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
