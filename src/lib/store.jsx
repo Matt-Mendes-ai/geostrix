@@ -1044,6 +1044,10 @@ export function StoreProvider({ children }) {
     const current = snapshotCurrentPayload();
     setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)));
     loadProjectPayload(target.payload, target.name);
+    // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
+    // ITS OWN unsaved state: switching used to clear it, so an unsaved tab could be closed with no prompt and
+    // dropped out of autosave. (Called after loadProjectPayload: the later setState in the batch wins.)
+    setActiveTabDirty(!!target.dirty);
     setActiveTabId(tabId);
     // TASKS.csv #340 — switching tabs used to autosaveClear() here, deleting the only crash-recovery copy
     // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
@@ -1122,6 +1126,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     }
     const next = remaining[0];
     loadProjectPayload(next.payload, next.name);
+    setActiveTabDirty(!!next.dirty); // #479 — see switchToTab
     setActiveTabId(next.id);
     clearUndoHistory(); // #340 — no autosaveClear(): other tabs may still hold unsaved work
     setWorkspaceTabs(remaining);
@@ -1143,13 +1148,39 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // TASKS.csv #340 — while a recovery banner is waiting for Restore/Discard, autosave must not run: the
   // first tick after the user started working would otherwise overwrite the very file being offered.
   const autosaveHoldRef = useRef(false);
+  // TASKS.csv #465 — the crash-recovery data being held (see checkAutosave), and a notice for App when it
+  // was moved into tabs automatically.
+  const heldAutosaveRef = useRef(null);
+  const [recoveryStashed, setRecoveryStashed] = useState(null);
+  // The recovered project (and its background tabs) as workspace tabs, marked unsaved.
+  const recoveredTabs = (data) => {
+    const { version: _v, activeDirty: _a, backgroundTabs, autosavedAt: _t, ...payload } = data;
+    const stamp = Date.now();
+    return [
+      { id: `tab_${stamp}_rec`, name: `Recovered: ${data.project?.name || "Untitled project"}`, payload, dirty: true },
+      ...(backgroundTabs || []).filter((t) => t && t.payload).map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true })),
+    ];
+  };
   // TASKS.csv #341 — references of what was last written; an unchanged project is not re-serialised
   // every 60 s (the old tick stringified rasters/terrain/surfaces every minute regardless).
   const lastAutosaveSigRef = useRef(null);
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
-      if (autosaveHoldRef.current) return;
+      // TASKS.csv #465 — while the recovery banner is unanswered, the old autosave is kept intact (#340). But
+      // the banner does not block work, and skipping every tick meant hours of NEW work had no crash copy.
+      // As soon as there is new unsaved work, the recovered project moves into its own tab(s) — marked
+      // unsaved, so the normal autosave below carries it too — and saving resumes. Nothing is lost either way.
+      if (autosaveHoldRef.current) {
+        const t = autosaveTabsRef.current;
+        const held = heldAutosaveRef.current;
+        const newWork = (autosaveRef.current.hasWork && t.activeTabDirty) || t.workspaceTabs.some((x) => x.id !== t.activeTabId && x.dirty && x.payload);
+        if (!held || !newWork) return;
+        autosaveHoldRef.current = false; heldAutosaveRef.current = null;
+        setWorkspaceTabs((prev) => [...prev, ...recoveredTabs(held)]);
+        setRecoveryStashed(held.project?.name || "Untitled project");
+        return; // the next tick writes everything, the recovered tab included
+      }
       const snap = autosaveRef.current;
       const { workspaceTabs: tabs, activeTabId: activeId, activeTabDirty: activeDirty } = autosaveTabsRef.current;
       const background = tabs.filter((t) => t.id !== activeId && t.dirty && t.payload);
@@ -1185,6 +1216,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       const data = JSON.parse(res.content);
       if (!checkProjectFile(data).ok) return null; // #342
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
+      heldAutosaveRef.current = data; // #465
       const bgNames = (data.backgroundTabs || []).map((t) => t.name);
       return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null };
     } catch (_) {
@@ -1192,6 +1224,13 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     }
   }, []);
   const restoreAutosave = useCallback((data) => {
+    autosaveHoldRef.current = false; heldAutosaveRef.current = null;
+    // TASKS.csv #465 — never replace a project the user has opened or started since launch: the recovered
+    // work comes back as new tab(s) beside it (marked unsaved) instead.
+    if (autosaveRef.current.hasWork) {
+      setWorkspaceTabs((prev) => [...prev, ...recoveredTabs(data)]);
+      return { intoNewTab: true };
+    }
     loadProjectPayload(data);
     // TASKS.csv #340 — unsaved background tabs come back as tabs, still marked unsaved.
     const bg = (data.backgroundTabs || []).filter((t) => t && t.payload);
@@ -1200,9 +1239,9 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     }
     setActiveTabDirty(data.activeDirty !== false);
     clearUndoHistory();
-    autosaveHoldRef.current = false;
+    return { intoNewTab: false };
   }, [loadProjectPayload]);
-  const discardAutosave = useCallback(() => { autosaveHoldRef.current = false; lastAutosaveSigRef.current = null; autosaveClear(); }, []);
+  const discardAutosave = useCallback(() => { autosaveHoldRef.current = false; heldAutosaveRef.current = null; lastAutosaveSigRef.current = null; autosaveClear(); }, []);
 
   // TASKS.csv #31 — undo/redo. Snapshot-based rather than instrumenting every individual setter call
   // site across every module (collars/survey/layers/assays/customLayers/layoutElements/sections/
@@ -1453,7 +1492,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     layoutSelectRequest, setLayoutSelectRequest,
     newProject, saveProject, openProject,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
-    checkAutosave, restoreAutosave, discardAutosave,
+    checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     undo, redo, canUndo: undoCount > 0, canRedo: redoCount > 0,
   };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

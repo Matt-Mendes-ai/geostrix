@@ -61,7 +61,7 @@ export default function App() {
   const {
     newProject, saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
-    checkAutosave, restoreAutosave, discardAutosave,
+    checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     undo, redo, canUndo, canRedo,
     layoutPages, activeLayoutPageId, // TASKS.csv #398 — PDF paper size
   } = store;
@@ -77,6 +77,7 @@ export default function App() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
+  const [recoveryNote, setRecoveryNote] = useState(null); // TASKS.csv #465 — where the recovered work went
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "about"
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
   // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
@@ -282,10 +283,18 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   }, [anyDirty]);
 
   const doRestore = useCallback(() => {
-    restoreAutosave(recovery.data);
+    const r = restoreAutosave(recovery.data);
+    if (r?.intoNewTab) setRecoveryNote(`"${recovery.projectName}" was restored into a new tab (marked unsaved), next to what you have open.`);
     setRecovery(null);
     setActive("viewer");
   }, [recovery, restoreAutosave]);
+  // TASKS.csv #465 — the store moved the recovered work into tab(s) because new work started while the
+  // banner was unanswered; replace the banner with a note saying where it is.
+  useEffect(() => {
+    if (!recoveryStashed) return;
+    setRecovery((r) => (r && !r.unreadable ? null : r));
+    setRecoveryNote(`Your recovered work ("${recoveryStashed}") was moved into its own tab, marked unsaved, so autosave could protect your new work too.`);
+  }, [recoveryStashed]);
   // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
   // first (the button also no longer carries an X icon, which read as "close this banner").
   const doDiscardRecovery = useCallback(() => {
@@ -316,6 +325,13 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
           </span>
           <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>Restore</button>
           <button onClick={doDiscardRecovery} style={recoveryBtn}>Discard…</button>
+        </div>
+      )}
+      {recoveryNote && (
+        <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
+          <RotateCcw size={14} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{recoveryNote}</span>
+          <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label="Dismiss">OK</button>
         </div>
       )}
       <WorkspaceTabBar
