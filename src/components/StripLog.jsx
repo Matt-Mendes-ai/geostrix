@@ -69,7 +69,10 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const tracks = [
     { key: "litho", label: "Litho", rows: litho, kind: "fill", colorFn: (v) => fill("litho", LAYER_META.litho.colorFn, v), nameFn: (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v) },
     // TASKS.csv #356 — the implicit model's unit at each logged interval, right beside the logged litho.
-    ...modelledLayers.map((ml, i) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: modelledLayers.length > 1 ? `Model ${i + 1}` : "Modelled", rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
+    ...modelledLayers.filter((ml) => !ml.rows?.[0]?.numeric).map((ml, i, arr) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: arr.length > 1 ? `Model ${i + 1}` : "Modelled", title: ml.name, rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
+    // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
+    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true }; }).filter((t) => t.rows.length),
+    ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
     { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
     { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v) },
     { key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 },
@@ -163,7 +166,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               const x0 = DEPTH_COL_W + ti * TRACK_W;
               return (
                 <g key={t.key}>
-                  <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize="10.5" fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}</text>
+                  <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize="10.5" fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}{t.title ? <title>{t.title}</title> : null}</text>
                   <rect x={x0} y={sy(0)} width={TRACK_W - 6} height={sy(maxDepth) - sy(0)} fill="none" stroke="#dde1e6" />
                   {t.kind === "fill" && t.rows.map((r, i) => (
                     <g key={i}>
@@ -179,9 +182,12 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     <rect key={i} x={x0} y={sy(r.from)} width={TRACK_W - 6} height={Math.max(1.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} opacity="0.85" />
                   ))}
                   {t.kind === "bar" && t.rows.map((r, i) => {
-                    const w = t.max ? Math.max(0, Math.min(1, (r.value ?? 0) / t.max)) * (TRACK_W - 8) : 0;
-                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill="#4a9be0" opacity="0.75" />;
+                    const w = t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) * (TRACK_W - 8) : 0;
+                    return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${Number(r.value).toPrecision(3)}`}</title></rect>;
                   })}
+                  {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
+                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`0–${t.max.toPrecision(3)}`}</text>
+                  )}
                   {t.kind === "assaybar" && t.sym && t.rows.map((r, i) => {
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null) return null;

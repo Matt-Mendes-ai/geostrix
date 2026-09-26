@@ -6018,7 +6018,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           if (row.to != null && !isNaN(row.to)) {
             const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
             const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(p1.x, p1.y, p1.z), new THREE.Vector3(p2.x, p2.y, p2.z)]);
-            const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6, 6, false), new THREE.MeshLambertMaterial({ color: hashColor(row.value) }));
+            const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6, 6, false), new THREE.MeshLambertMaterial({ color: row.modelColor || hashColor(row.value) })); // #323: a model's own colour
             mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {

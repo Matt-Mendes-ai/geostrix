@@ -348,3 +348,18 @@ test("#323 drillhole constraint samples: positions, unit conversion, background 
   const grav = constraintSamples({ collars, survey, method: "grav", background: 2.67, desurveyMethod: "minimumCurvature", rows: [{ hole_id: "V", from: 0, to: 2, value: 2.95 }] });
   assert.equal(+grav.points[0][3].toFixed(6), 0.28);
 });
+
+import { buildVoxelLookup, sampleModelOnHoles } from "../src/lib/voxelSample.js";
+test("#323 evaluate a block model onto drillholes: one interval per cell crossed, gaps outside the model", () => {
+  // a 1 x 1 x 4 column of 10 m cells, z 400..440, values 1..4 bottom to top
+  const cells = [0, 1, 2, 3].map((k) => ({ x: 5, y: 5, z: 405 + 10 * k, dx: 10, dy: 10, dz: 10, value: k + 1 }));
+  const { find } = buildVoxelLookup(cells);
+  assert.equal(find(5, 5, 410).value, 2); // shared face -> the upper cell (half-open boxes)
+  assert.equal(find(5, 5, 450), null);
+  const collars = [{ hole_id: "A", x: 5, y: 5, z: 460 }, { hole_id: "MISS", x: 500, y: 5, z: 460 }];
+  const survey = [{ hole_id: "A", depth: 0, azimuth: 0, dip: 90 }, { hole_id: "A", depth: 100, azimuth: 0, dip: 90 }];
+  const { rows, holes } = sampleModelOnHoles({ model: { cells }, collars, survey, desurveyMethod: "minimumCurvature", step: 1 });
+  assert.equal(holes, 1);
+  // collar at 460: 20 m of air above the model, then cells 4,3,2,1 at depths 20-30, 30-40, 40-50, 50-60
+  assert.deepEqual(rows.map((r) => [r.from, r.to, r.value]), [[20, 30, 4], [30, 40, 3], [40, 50, 2], [50, 60, 1]]);
+});

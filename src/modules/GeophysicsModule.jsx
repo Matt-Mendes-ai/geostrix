@@ -3,10 +3,11 @@ import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; /
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine } from "lucide-react";
+import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
-import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex } from "../lib/layers.js";
+import { getCol, classifyBreaks, rampColorsHex, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
@@ -84,9 +85,22 @@ export default function GeophysicsModule() {
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
     voxelCellBudget, setVoxelCellBudget,
+    survey, desurveyMethod, setCustomLayers, // TASKS.csv #323 — evaluate a model onto the drillholes
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
   } = useStore();
+  // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
+  // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
+  const evaluateOnHoles = (model) => {
+    const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
+    if (!rows.length) { setVoxelError({ text: `No drillhole passes through "${model.name}".` }); return; }
+    const discrete = model.colorMode === "discrete";
+    const labelOf = (v) => (model.valueLabels && model.valueLabels[v]) || v;
+    const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
+    const id = `custom_${Date.now()}`;
+    setCustomLayers((p) => [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]);
+    setVoxelError({ info: true, text: `Added "On holes: ${model.name}" — the model's value in ${rows.length.toLocaleString()} cell crossing(s) along ${holes} hole(s). Open a hole's strip log to compare it with the logs.` });
+  };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
   // sandbox, which has no real GPU — see voxel.js's MAX_CELLS comment): "do you think we can increase
   // the 100,000 3d budget? Is it gonna make GeoStrix crash?" Rather than hand-picking a new number for
@@ -1390,7 +1404,7 @@ export default function GeophysicsModule() {
           </div>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} />
+          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1462,7 +1476,7 @@ function exportBlockModelCSV(model) {
   const stamp = stampLines({ tool: "Block model export", params: blockModelParamLines(model) });
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }
-function VoxelModelRow({ model, onUpdate, onRemove }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1500,6 +1514,8 @@ function VoxelModelRow({ model, onUpdate, onRemove }) {
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
+        {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Evaluate block model "${model.name}" onto the drillholes`} title="Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log" onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model)} />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
