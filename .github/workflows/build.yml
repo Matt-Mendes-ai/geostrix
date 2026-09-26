@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false # #472 — install scripts never see a token
+          fetch-depth: 0 # #471 — the tags, for the version check
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -32,3 +33,25 @@ jobs:
       - run: npm run build:dir
       # TASKS.csv #476 — startup JavaScript must stay within its budget (it drifted 653 -> 757 kB unnoticed)
       - run: node scripts/check-bundle-size.mjs
+      # TASKS.csv #471 / #460 — package.json never behind the newest release tag
+      - run: node scripts/check-version.mjs
+
+  # TASKS.csv #471 — the packaged WINDOWS app, launched and checked, on every push and PR. Until now the first
+  # Windows build happened in release.yml on a tag, and three releases shipped broken for reasons only that
+  # build shows (v0.1.1/v0.1.2 blank window, v0.1.19 stuck on the splash).
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build:web
+      # the Python engine is not built here (release.yml does that); an empty folder satisfies extraResources
+      - run: New-Item -ItemType Directory -Force python-sidecar\dist\geostrix-sidecar | Out-Null
+        shell: pwsh
+      - run: npx electron-builder --dir --win --publish never
+      - run: node scripts/smoke-electron.mjs "release/win-unpacked/GeoStrix.exe"
