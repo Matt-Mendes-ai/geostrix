@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -22,6 +23,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const [tab, setTab] = useState("standards");
   const [blankThreshold, setBlankThreshold] = useState(0.1);
   const [selectedStdId, setSelectedStdId] = useState(null);
+  const { crmCertificates = {}, setCrmCertificate } = useStore() || {}; // #400
+  const [dupMin, setDupMin] = useState(""); // #400 — ignore pairs whose mean is below this (~10x detection limit)
 
   const counts = useMemo(() => {
     const c = { standard: 0, blank: 0, duplicate: 0, regular: 0 };
@@ -32,10 +35,12 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const groups = useMemo(() => standardGroups(assays), [assays]);
   const excludedIds = useMemo(() => excludedQAQCIds(assays), [assays]); // TASKS.csv #400
   const activeGroup = groups.find((g) => g.id === selectedStdId) || groups[0] || null;
-  const series = useMemo(() => (activeGroup ? standardSeries(activeGroup.rows, symbol, elementUnits) : { points: [], limits: null }), [activeGroup, symbol, elementUnits]);
+  const cert = activeGroup ? crmCertificates[activeGroup.id]?.[symbol] : null;
+  const series = useMemo(() => (activeGroup ? standardSeries(activeGroup.rows, symbol, elementUnits, cert) : { points: [], limits: null }), [activeGroup, symbol, elementUnits, cert]);
 
   const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankThreshold), [assays, symbol, elementUnits, blankThreshold]);
-  const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits), [assays, symbol, elementUnits]);
+  const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits, undefined, { minMean: Number(dupMin) || 0 }), [assays, symbol, elementUnits, dupMin]);
+  const dupSummary = useMemo(() => duplicateSummary(dups, 20), [dups]);
 
   const exportCSV = () => {
     let rows, name;
@@ -107,11 +112,15 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                 ) : (
                   <>
                     <div style={label}>
-                      Control chart — {symbol} ({elementUnits[symbol] || "ppm"}), self-referencing mean ± 2SD/3SD (no certified CRM value loaded — see info).
+                      Control chart — {symbol} ({elementUnits[symbol] || "ppm"}), {series.limits.certified ? "CERTIFIED mean ± 2SD/3SD (from the certificate)" : "self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)"}
                     </div>
+                    {/* TASKS.csv #400 — certificate values, saved with the project */}
+                    <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={elementUnits[symbol] || "ppm"} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                      Mean {series.limits.mean.toFixed(3)} · SD {series.limits.sd.toFixed(3)} · n={series.limits.n}
+                      {series.limits.certified
+                        ? <>Certified {series.limits.mean} ± {series.limits.sd} · observed mean {series.observed.mean.toFixed(3)} (SD {series.observed.sd.toFixed(3)}, n={series.observed.n}) · <b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>bias {series.biasPct >= 0 ? "+" : ""}{series.biasPct.toFixed(1)}%</b>{Math.abs(series.biasPct) > 5 ? " (over ±5%)" : ""}</>
+                        : <>Mean {series.limits.mean.toFixed(3)} · SD {series.limits.sd.toFixed(3)} · n={series.limits.n}</>}
                       {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length} point(s) outside 2SD</span>}
                     </div>
                   </>
@@ -150,11 +159,17 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             ) : (
               <>
                 <div style={label}>Relative % difference (RPD) — {symbol}, {dups.length} pair{dups.length === 1 ? "" : "s"}</div>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="RPD near the detection limit is meaningless: set this to about 10 x the detection limit. Pairs below it are greyed and not counted.">Ignore pairs with a mean below ({elementUnits[symbol] || "ppm"}, e.g. 10× detection limit)
+                  <input type="number" min={0} step="any" value={dupMin} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Minimum pair mean" />
+                </label>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
+                  {dupSummary.used ? `${dupSummary.within} of ${dupSummary.used} counted pairs (${dupSummary.pctWithin.toFixed(0)}%) within 20% RPD` : "No pairs above the limit"}{dupSummary.below ? ` · ${dupSummary.below} below the limit, not counted` : ""}.
+                </div>
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead><tr><th style={th}>Original</th><th style={th}>Duplicate</th><th style={th}>Interval</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>RPD %</th></tr></thead>
                   <tbody>
                     {dups.map((d, i) => (
-                      <tr key={i} style={d.rpd > 20 ? { background: "var(--color-danger-bg)" } : undefined}>
+                      <tr key={i} style={d.belowLimit ? { opacity: 0.45 } : d.rpd > 20 ? { background: "var(--color-danger-bg)" } : undefined} title={`paired by ${d.how}${d.belowLimit ? "; below the limit, not counted" : ""}`}>
                         <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td>
                         <td style={td}>{d.from}–{d.to}</td>
                         <td style={td}>{d.v1.toFixed(4)}</td><td style={td}>{d.v2.toFixed(4)}</td>
@@ -169,7 +184,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
-            QC samples are detected purely from hole_id naming (no dedicated "sample type" field exists yet) — defaults: standards contain "std"/"crm"/"oreas"/etc., blanks contain "blank"/"blk", duplicates contain "dup". A project using different lab conventions won't be auto-detected.
+            QC samples are recognised from a sample-type column when the assay file has one (standards grouped by a CRM / standard-name column if present), otherwise from the hole_id (standards "std"/"crm"/"oreas"…, blanks "blank"/"blk", duplicates "dup"); a hole in the collar table is never QC. Duplicates pair by parent sample id, else the same hole and interval, else the name. Certified limits come from the values you enter from each CRM's certificate.
           </div>
 
           <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
@@ -181,6 +196,21 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// TASKS.csv #400 — the certificate's mean and 1 SD for this standard + element
+function CertInputs({ cert, unit, onSave }) {
+  const [mean, setMean] = useState(cert?.mean ?? "");
+  const [sd, setSd] = useState(cert?.sd ?? "");
+  const ok = mean !== "" && Number.isFinite(Number(mean)) && Number(sd) > 0;
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+      <label>Certified mean ({unit})<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Certified mean" /></label>
+      <label>Certified 1 SD<input type="number" step="any" min={0} value={sd} onChange={(e) => setSd(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Certified standard deviation" /></label>
+      <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>Use certificate</button>
+      {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>Clear</button>}
     </div>
   );
 }

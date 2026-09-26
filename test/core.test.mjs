@@ -522,3 +522,29 @@ test("#411 OMF v1 writer: a block model and a surface round-trip through GeoStri
   assert.equal(got.length, cells.length); // the 4 empty (NaN) cells are not re-imported
   for (const c of got) assert.equal(c.value, Math.round((c.x - 500012.5) / 25) * 100 + Math.round((c.y - 6250012.5) / 25) * 10 + Math.round((c.z - 805) / 10));
 });
+
+import { standardSeries, duplicatePairs, duplicateSummary, standardGroups, blankRows } from "../src/lib/qaqc.js";
+test("#400 certified CRM limits and bias; duplicates pair by parent id / same interval; detection-limit filter; sample_type blanks", () => {
+  const units = { Au: "ppm" };
+  const std = [1.05, 1.07, 1.06, 1.08].map((v, i) => ({ hole_id: "DH1", from: i, to: i + 1, sample_type: "STD", qc_code: "OREAS 239", values: { Au: v } }));
+  const other = [{ hole_id: "DH1", from: 9, to: 10, sample_type: "STD", qc_code: "OREAS 250", values: { Au: 0.3 } }, { hole_id: "DH1", from: 11, to: 12, sample_type: "STD", qc_code: "OREAS 250", values: { Au: 0.31 } }];
+  assert.deepEqual(standardGroups([...std, ...other]).map((g) => [g.id, g.rows.length]), [["OREAS 239", 4], ["OREAS 250", 2]]); // grouped by CRM, not the shared hole_id
+  const self = standardSeries(std, "Au", units);
+  assert.equal(self.limits.certified, false);
+  assert.ok(self.points.every((p) => !p.outside2sd)); // tight around its OWN mean: looks in control
+  const cert = standardSeries(std, "Au", units, { mean: 1.0, sd: 0.02 });
+  assert.equal(cert.limits.certified, true);
+  assert.ok(Math.abs(cert.biasPct - 6.5) < 1e-9); // 6.5% high against the certificate
+  assert.equal(cert.points.filter((p) => p.outside3sd).length, 2); // 1.07 and 1.08 beyond 1.06
+  const rows = [
+    { hole_id: "DH2", from: 0, to: 1, sample_id: "S100", values: { Au: 2.0 } },
+    { hole_id: "DH2", from: 1, to: 2, sample_id: "S101", values: { Au: 0.004 } },
+    { hole_id: "DH2", from: 0, to: 1, sample_type: "Field Dup", parent_id: "S100", values: { Au: 2.2 } },     // by parent id
+    { hole_id: "DH2", from: 1, to: 2, sample_type: "DUP", values: { Au: 0.008 } },                            // by same interval
+    { hole_id: "DH2", from: 5, to: 6, sample_type: "BLK", values: { Au: 0.02 } },
+  ];
+  const pairs = duplicatePairs(rows, "Au", units, undefined, { minMean: 0.05 });
+  assert.deepEqual(pairs.map((p) => [p.how, +p.rpd.toFixed(1), p.belowLimit]), [["parent id", 9.5, false], ["same interval", 66.7, true]]);
+  assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100 });
+  assert.equal(blankRows(rows, "Au", units, 0.01)[0].flagged, true); // a sample_type blank under a real hole id
+});

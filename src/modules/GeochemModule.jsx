@@ -171,7 +171,16 @@ export default function GeochemModule() {
     const findCol = (names) => (modal.headers || []).find((h) => names.includes(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"))) || null;
     const typeCol = findCol(["sample_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"]);
     const idCol = findCol(["sample_id", "sampleid", "sample_no", "sample_number", "sample"]);
-    const tagQC = (out, r) => { if (typeCol && r[typeCol] != null && r[typeCol] !== "") out.sample_type = String(r[typeCol]).trim(); if (idCol && r[idCol] != null && r[idCol] !== "") out.sample_id = String(r[idCol]).trim(); return out; };
+    // #400 — the original a duplicate was split from, and which CRM a standard is
+    const parentCol = findCol(["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "orig_sample_id", "primary_id", "original_sample"]);
+    const codeCol = findCol(["standard_id", "std_id", "crm", "crm_id", "crm_name", "standard_name", "qc_code", "qc_id", "qc_name", "reference_material"]);
+    const tagQC = (out, r) => {
+      if (typeCol && r[typeCol] != null && r[typeCol] !== "") out.sample_type = String(r[typeCol]).trim();
+      if (idCol && r[idCol] != null && r[idCol] !== "") out.sample_id = String(r[idCol]).trim();
+      if (parentCol && r[parentCol] != null && r[parentCol] !== "") out.parent_id = String(r[parentCol]).trim();
+      if (codeCol && r[codeCol] != null && r[codeCol] !== "") out.qc_code = String(r[codeCol]).trim();
+      return out;
+    };
     let rows = [];
     if (format === "wide") {
       rows = allRows.map((r) => {

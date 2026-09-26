@@ -105,8 +105,11 @@ export function standardGroups(assays, patterns = DEFAULT_QAQC_PATTERNS) {
   const byId = new Map();
   assays.forEach((a) => {
     if (classifyQAQCRow(a, patterns) !== "standard") return;
-    if (!byId.has(a.hole_id)) byId.set(a.hole_id, []);
-    byId.get(a.hole_id).push(a);
+    // TASKS.csv #400 — lab exports keep a standard under the REAL hole_id and name the CRM in its own
+    // column (qc_code); grouping by hole_id there would mix different CRMs into one chart.
+    const k = a.qc_code || a.hole_id;
+    if (!byId.has(k)) byId.set(k, []);
+    byId.get(k).push(a);
   });
   return Array.from(byId.entries()).filter(([, rows]) => rows.length >= 2).map(([id, rows]) => ({ id, rows }));
 }
@@ -114,20 +117,29 @@ export function standardGroups(assays, patterns = DEFAULT_QAQC_PATTERNS) {
 // One standard group's measurements for a given element, in insertion order, with control limits
 // computed from that same series (self-referencing, see header comment) and each point flagged
 // against the 2SD/3SD bands.
-export function standardSeries(rows, symbol, elementUnits) {
+// TASKS.csv #400 — `certified` {mean, sd} (from the CRM's certificate, entered by the user) replaces the
+// self-referencing limits: a standard that reads consistently 8% high is IN control against its own
+// scatter but badly biased against its certified value — only the certificate shows that. The observed
+// mean / SD and the bias (%) are returned either way.
+export function standardSeries(rows, symbol, elementUnits, certified = null) {
   const points = rows.map((r, i) => ({ i, hole_id: r.hole_id, from: r.from, to: r.to, value: valueIn(r, symbol, elementUnits[symbol] || "ppm", elementUnits) })).filter((p) => p.value != null);
   const values = points.map((p) => p.value);
-  const limits = controlLimits(values);
-  if (!limits) return { points: [], limits: null };
+  const observed = controlLimits(values);
+  if (!observed) return { points: [], limits: null };
+  const cert = certified && Number.isFinite(certified.mean) && Number.isFinite(certified.sd) && certified.sd > 0 ? certified : null;
+  const limits = cert
+    ? { n: observed.n, mean: cert.mean, sd: cert.sd, ucl2: cert.mean + 2 * cert.sd, lcl2: cert.mean - 2 * cert.sd, ucl3: cert.mean + 3 * cert.sd, lcl3: cert.mean - 3 * cert.sd, certified: true }
+    : { ...observed, certified: false };
   const flagged = points.map((p) => ({ ...p, outside2sd: p.value > limits.ucl2 || p.value < limits.lcl2, outside3sd: p.value > limits.ucl3 || p.value < limits.lcl3 }));
-  return { points: flagged, limits };
+  const biasPct = cert && cert.mean !== 0 ? ((observed.mean - cert.mean) / cert.mean) * 100 : null;
+  return { points: flagged, limits, observed, biasPct };
 }
 
 // Blank rows for a given element, flagged against `threshold` (an absolute value in the element's
 // display unit — e.g. 0.05 ppm Au — since there's no universal "5x detection limit" GeoStrix can
 // derive automatically without a detection-limit field in the assay schema, which it doesn't have).
 export function blankRows(assays, symbol, elementUnits, threshold, patterns = DEFAULT_QAQC_PATTERNS) {
-  return assays.filter((a) => classifyQAQCRow(a.hole_id, patterns) === "blank")
+  return assays.filter((a) => classifyQAQCRow(a, patterns) === "blank") // #400: the row (sample_type), not just the name
     .map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, value: valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits) }))
     .filter((r) => r.value != null)
     .map((r) => ({ ...r, flagged: threshold != null && r.value > threshold }));
@@ -152,24 +164,39 @@ function stripDuplicateMarker(hole_id, patterns) {
 // field duplicate taken as a genuinely separate sample at a slightly different depth won't match this
 // way; that's an accepted first-pass limitation (see TASKS.csv #134's own notes), not a silent bug —
 // it simply won't appear as a pair rather than being force-matched to the wrong interval.
-export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_QAQC_PATTERNS) {
-  const originals = new Map();
+// TASKS.csv #400 — pairing, in order: (1) the duplicate's parent_id = an original's sample_id (acQuire / MX
+// exports); (2) a regular row at the same hole_id + interval (a duplicate marked by sample_type under the
+// real hole_id); (3) the old name convention (strip "DUP" from the id). `minMean` drops pairs whose mean
+// is below it (RPD near the detection limit is noise — typically set to ~10x the detection limit): they
+// are returned with belowLimit: true so the table can show them greyed, and are left out of `summary`.
+export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_QAQC_PATTERNS, { minMean = 0 } = {}) {
+  const originals = new Map(), bySampleId = new Map();
   assays.forEach((a) => {
-    if (classifyQAQCRow(a.hole_id, patterns) !== "regular") return;
+    if (classifyQAQCRow(a, patterns) !== "regular") return;
     originals.set(`${a.hole_id}|${a.from}|${a.to}`, a);
+    if (a.sample_id) bySampleId.set(String(a.sample_id), a);
   });
   const pairs = [];
   assays.forEach((a) => {
-    if (classifyQAQCRow(a.hole_id, patterns) !== "duplicate") return;
-    const base = stripDuplicateMarker(a.hole_id, patterns);
-    const orig = originals.get(`${base}|${a.from}|${a.to}`);
+    if (classifyQAQCRow(a, patterns) !== "duplicate") return;
+    let orig = null, how = "";
+    if (a.parent_id && bySampleId.has(String(a.parent_id))) { orig = bySampleId.get(String(a.parent_id)); how = "parent id"; }
+    else if (originals.has(`${a.hole_id}|${a.from}|${a.to}`)) { orig = originals.get(`${a.hole_id}|${a.from}|${a.to}`); how = "same interval"; }
+    else { orig = originals.get(`${stripDuplicateMarker(a.hole_id, patterns)}|${a.from}|${a.to}`) || null; how = "name"; }
     if (!orig) return;
     const v1 = valueIn(orig, symbol, elementUnits[symbol] || "ppm", elementUnits);
     const v2 = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
     if (v1 == null || v2 == null) return;
     const mean = (v1 + v2) / 2;
     const rpd = mean !== 0 ? (Math.abs(v1 - v2) / mean) * 100 : 0;
-    pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd });
+    pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd, how, belowLimit: minMean > 0 && mean < minMean });
   });
   return pairs;
+}
+
+// share of the counted pairs (not below the limit) within `threshold` % RPD
+export function duplicateSummary(pairs, threshold = 20) {
+  const used = pairs.filter((p) => !p.belowLimit);
+  const within = used.filter((p) => p.rpd <= threshold).length;
+  return { used: used.length, below: pairs.length - used.length, within, pctWithin: used.length ? (100 * within) / used.length : null };
 }

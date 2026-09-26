@@ -468,6 +468,9 @@ export function StoreProvider({ children }) {
   // TASKS.csv #451 — per-survey metadata for geophys_pts, keyed by the survey's _src: { method, units, zMeaning }
   const [geophysSurveys, setGeophysSurveys] = useState({});
   const updateGeophysSurvey = useCallback((key, patch) => setGeophysSurveys((p) => ({ ...p, [key]: { ...(p[key] || {}), ...patch } })), []);
+  // TASKS.csv #400 — certified values per standard (CRM) and element, from its certificate: {[std]: {[symbol]: {mean, sd}}}
+  const [crmCertificates, setCrmCertificates] = useState({});
+  const setCrmCertificate = useCallback((std, symbol, cert) => setCrmCertificates((p) => ({ ...p, [std]: { ...(p[std] || {}), [symbol]: cert } })), []);
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
@@ -850,6 +853,7 @@ export function StoreProvider({ children }) {
     setLayerGroups([]);
     setLithoGroups([]); // TASKS.csv #176 — a grouping belongs to the project it was built for
     setGeophysSurveys({}); // TASKS.csv #451
+    setCrmCertificates({}); // TASKS.csv #400
     // TASKS.csv #69 — reset to a single fresh page rather than just clearing the active page's
     // elements (setLayoutElements(DEFAULT_LAYOUT_ELEMENTS) would leave any OTHER pages behind as
     // orphaned leftovers from the previous project).
@@ -901,7 +905,7 @@ export function StoreProvider({ children }) {
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => ({
     version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
-    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels: compactVoxelModels(voxelModels), layerGroups, layoutPages, activeLayoutPageId, dbConnections,
+    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels: compactVoxelModels(voxelModels), layerGroups, layoutPages, activeLayoutPageId, dbConnections,
     excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
     generatedSurfaces, modelDomains, // TASKS.csv #52
   });
@@ -973,7 +977,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [workspaceTabs, activeTabId, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
+  }, [workspaceTabs, activeTabId, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -1010,6 +1014,7 @@ export function StoreProvider({ children }) {
     setFieldStructuralRefs(data.fieldStructuralRefs || []);
     setLithoGroups(data.lithoGroups || []); // TASKS.csv #176 — pre-#176 files just lack the key
     setGeophysSurveys(data.geophysSurveys || {}); // TASKS.csv #451 — older files: every survey unlabelled
+    setCrmCertificates(data.crmCertificates || {}); // TASKS.csv #400
     setOmfObjects(data.omfObjects || []);
     // TASKS.csv #69 — multi-page layout. Files saved before #69 (or with no persisted layout at all)
     // only ever had a single flat `layoutElements` array — wrap it as "Page 1" rather than losing it.
@@ -1086,7 +1091,7 @@ export function StoreProvider({ children }) {
     // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
     // autosave now carries every dirty background tab, so nothing is cleared on a switch.
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
@@ -1097,7 +1102,7 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
@@ -1137,7 +1142,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
@@ -1172,8 +1177,8 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
   const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0 || mapLayers.length > 0 || surfaceStructures.length > 0; // #316/#317 — a map-only project is still work worth autosaving
-  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
-  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
+  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
+  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
   // TASKS.csv #340 — the tabs themselves ride along so the autosave can include every DIRTY background
   // tab (a stashed payload lives only in memory otherwise).
   const autosaveTabsRef = useRef({ workspaceTabs, activeTabId, activeTabDirty });
@@ -1352,7 +1357,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // (activeWorth = hasWork && activeDirty) did not save it — the result was lost on close. These fields are
   // not undoable (still true) but they ARE changes: reference-compared here, cheaply (setters replace them
   // immutably). View-only state (camera / viewerUiState) is deliberately left out so orbiting never prompts.
-  const extraDirtyFields = [generatedSurfaces, modelDomains, voxelModels, rasters, terrain, mapLayers, surfaceStructures, lithoGroups, geophysSurveys, themes, fieldStructuralRefs, layoutTemplates, project.epsg, desurveyMethod];
+  const extraDirtyFields = [generatedSurfaces, modelDomains, voxelModels, rasters, terrain, mapLayers, surfaceStructures, lithoGroups, geophysSurveys, crmCertificates, themes, fieldStructuralRefs, layoutTemplates, project.epsg, desurveyMethod];
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;
@@ -1515,6 +1520,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     geophysSurveys, setGeophysSurveys, updateGeophysSurvey, // TASKS.csv #451
+    crmCertificates, setCrmCertificate, // TASKS.csv #400
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
