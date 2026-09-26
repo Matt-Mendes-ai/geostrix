@@ -146,6 +146,9 @@ export function StoreProvider({ children }) {
   // TASKS.csv #462 — baseline for the "saved but not undo-tracked" dirty watcher (see it near the undo
   // watcher below). null = take a fresh baseline on the next render (after a load / new project).
   const extraDirtyBaseline = useRef(null);
+  // TASKS.csv #478 — same idea for the undo watcher: New / Open replace every tracked field in one go, and the
+  // watcher used to read that as an edit and mark a brand-new (or just-opened) project unsaved.
+  const undoRebaseline = useRef(true); // true: the first run at startup is a baseline too
   const [collars, setCollars] = useState([]);
   const [survey, setSurvey] = useState([]);
   const [layers, setLayers] = useState({ ...EMPTY_LAYERS });
@@ -861,6 +864,7 @@ export function StoreProvider({ children }) {
     // fresh project starts with a clean undo history rather than one that could restore the old one.
     clearUndoHistory();
     extraDirtyBaseline.current = null; // #462
+    undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     setActiveTabDirty(false);
   }, []);
 
@@ -1018,6 +1022,7 @@ export function StoreProvider({ children }) {
     setGeneratedSurfaces(data.generatedSurfaces || []);
     setModelDomains(data.modelDomains || []);
     extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
+    undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     setActiveTabDirty(false);
   }, []);
 
@@ -1281,6 +1286,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   useLayoutEffect(() => {
     if (undoApplying.current) { undoPrevSnapshot.current = undoSnapshot(); setActiveTabDirty(true); return; }
     const current = undoSnapshot();
+    if (undoRebaseline.current) { undoRebaseline.current = false; undoPrevSnapshot.current = current; return; } // #478 — a load / new is not an edit
     // TASKS.csv #432 — per-field REFERENCE comparison instead of JSON.stringify of the whole snapshot twice.
     // Every tracked collection is replaced immutably by its setter, and this effect only fires when one
     // of them changed identity, so a reference check finds the same "did anything change" answer without

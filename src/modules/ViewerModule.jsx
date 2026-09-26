@@ -2024,7 +2024,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
   useEffect(() => {
-    setStoreCustomLayers(customLayers.map(({ id, name, rows }) => ({ id, name, rows })));
+    // #478 — skip an empty-over-empty write: at startup it replaced [] with a new [] and the undo watcher
+    // read that as an edit, marking an untouched project unsaved.
+    setStoreCustomLayers((prev) => (!customLayers.length && !(prev || []).length ? prev : customLayers.map(({ id, name, rows }) => ({ id, name, rows }))));
   }, [customLayers, setStoreCustomLayers]);
 
   // ---------- viewer UI state persistence (TASKS.csv #10) ----------
@@ -6249,7 +6251,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // world-coordinate copy of every mesh the user ever deleted.
     const live = new Set(implicitSurfaces.map((s) => s.id));
     Object.keys(surfaceGeomCacheRef.current).forEach((id) => { if (!live.has(id)) delete surfaceGeomCacheRef.current[id]; });
-    setGeneratedSurfaces(payload);
+    setGeneratedSurfaces((prev) => (!payload.length && !(prev || []).length ? prev : payload)); // #478 — no [] over [] at startup
     // DEPS ARE [implicitSurfaces] ONLY, AND THAT IS load-bearing — verified live, not reasoned about.
     // Adding viewerUiStateSeq here (which looks harmless, since the guard above reads it) breaks the
     // restore path: opening a project bumps the seq, so this effect fires in the SAME commit as the
