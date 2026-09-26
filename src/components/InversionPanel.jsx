@@ -20,7 +20,7 @@ import { toLonLat } from "../lib/reproject.js";
 import { igrfField, decimalYear } from "../lib/igrf.js";
 import {
   gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
-  fitVerdict, resultToVoxelModel, sequentialStops, divergingStops, f32ToB64,
+  fitVerdict, resultToVoxelModel, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
 } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
@@ -85,6 +85,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
   const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const crsIssue = crsProblem(project?.epsg);
+  const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]); // eslint-disable-line react-hooks/exhaustive-deps -- #375
 
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
   const dhLayer = method === "grav" ? "sg" : "magsusc";
@@ -122,6 +123,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
 
     let idx = rows.map((_, i) => i);
     if (num(thin) > 0) idx = thinStationIndices(xs, ys, num(thin));
+    // TASKS.csv #375 — say it here, with a spacing that fits, instead of the engine's bare 400
+    if (idx.length > MAX_STATIONS) {
+      const sug = suggestThinSpacing(xs, ys);
+      return { problems: [`${idx.length.toLocaleString()} stations is more than the ${MAX_STATIONS.toLocaleString()} an inversion can take (each one is a row of the sensitivity matrix).${sug ? ` Thin to one per ${sug.spacing} m (→ ${sug.stations.toLocaleString()} stations) — use the button beside "Thin to one per".` : ""}`] };
+    }
     let dropped = 0;
     const stations = [], observed = [];
     idx.forEach((i) => {
@@ -368,6 +374,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 <div style={row} title="Keep one station per cell of this size. Every station costs a row of the sensitivity matrix, and neighbouring readings along a line add little. Leave empty to use every station.">
                   <span style={lbl}>Thin to one per</span><input type="number" min={0} value={thin} onChange={(e) => setThin(e.target.value)} style={inp} /> m
                   {num(thin) > 0 && <span style={small}>→ {thinStationIndices(xs, ys, num(thin)).length.toLocaleString()} stations</span>}
+                  {thinSuggestion && !(num(thin) >= thinSuggestion.spacing) && (
+                    <button type="button" onClick={() => setThin(String(thinSuggestion.spacing))} style={{ ...small, marginLeft: 6, padding: "1px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}
+                      title={`${rows.length.toLocaleString()} stations is over the ${MAX_STATIONS.toLocaleString()} an inversion takes`}>Thin to {thinSuggestion.spacing} m</button>
+                  )}
                 </div>
               </>)}
               {method === "mag" && step(2, "Inducing field", <>

@@ -2,7 +2,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import React, { useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows, rasterFromGrid } from "../lib/raster.js";
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
 import { toLonLat } from "../lib/reproject.js";
@@ -65,6 +65,21 @@ export default function RasterModule() {
     } catch (err) {
       setError({ info: false, text: `Filter failed: ${err.message}` });
     } finally { setFiltering(false); }
+  };
+  // TASKS.csv #375 — radiometric ternary image from three grids with kept values
+  const [tern, setTern] = useState({ open: false, k: "", th: "", u: "" });
+  const gridRasters = rasters.filter((r) => r.grid);
+  const makeTernary = () => {
+    const pick = (id) => rasters.find((r) => r.id === id);
+    const kR = pick(tern.k), thR = pick(tern.th), uR = pick(tern.u);
+    if (!kR || !thR || !uR) { setError({ info: false, text: "Choose the K, eTh and eU grids." }); return; }
+    try {
+      const { raster, covered, ranges } = ternaryRaster({ kRaster: kR, thRaster: thR, uRaster: uR, elevation: kR.elevation });
+      addRaster(raster);
+      const f = (r) => `${r[0].toPrecision(3)}–${r[1].toPrecision(3)}`;
+      setError({ info: true, text: `Added the ternary image (${covered.toLocaleString()} nodes). Stretches (2nd–98th percentile): K ${f(ranges[0])}, eTh ${f(ranges[1])}, eU ${f(ranges[2])}. Red = K, green = eTh, blue = eU; white = high in all three.` });
+      setTern((p) => ({ ...p, open: false }));
+    } catch (err) { setError({ info: false, text: `Ternary image failed: ${err.message}` }); }
   };
   const gridAsSurvey = (r) => {
     const { rows, stride, spacing } = gridToSurveyRows(r);
@@ -287,6 +302,27 @@ export default function RasterModule() {
           </div>
         )}
 
+        {gridRasters.length >= 3 && (
+          <div style={{ marginTop: 10 }}>
+            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left" }}>
+              Radiometric ternary image (K-eTh-eU)…
+            </button>
+            {tern.open && (
+              <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
+                {[["k", "K (red)"], ["th", "eTh (green)"], ["u", "eU (blue)"]].map(([key, label]) => (
+                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+                    <span style={{ width: 74, flexShrink: 0, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{label}</span>
+                    <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={`${label} grid`}>
+                      <option value="">Choose a grid…</option>
+                      {gridRasters.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <button type="button" onClick={makeTernary} style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" }}>Build — adds a new raster</button>
+              </div>
+            )}
+          </div>
+        )}
         {rasters.length === 0 && (
           <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>No rasters imported yet.</div>
         )}

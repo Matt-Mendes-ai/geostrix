@@ -760,3 +760,49 @@ export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevati
     colourRange: [lo, hi], ...extra,
   };
 }
+
+// TASKS.csv #375 — radiometric ternary image: K -> red, eTh -> green, eU -> blue, each linearly stretched
+// between its own 2nd and 98th percentile (the standard presentation; white = high in all three, dark = low
+// in all three). Built on the K grid's nodes; eTh / eU are sampled at the nearest node of their own grids,
+// so the three need not share a grid, only overlap. A node missing any of the three is transparent.
+export function ternaryValues(kG, thG, uG) {
+  const sample = (g, vals, x, y) => {
+    const fi = (x - g.x0) / g.dx, fj = (g.yTop - y) / g.dy; // inside the grid's cell footprint = up to half a cell past the end nodes
+    if (fi < -0.5 || fj < -0.5 || fi > g.nx - 0.5 || fj > g.ny - 0.5) return NaN;
+    return vals[Math.min(g.ny - 1, Math.max(0, Math.round(fj))) * g.nx + Math.min(g.nx - 1, Math.max(0, Math.round(fi)))];
+  };
+  const kv = b64ToF32(kG.values), tv = b64ToF32(thG.values), uv = b64ToF32(uG.values);
+  const n = kG.nx * kG.ny, ch = [new Float64Array(n), new Float64Array(n), new Float64Array(n)];
+  for (let j = 0; j < kG.ny; j++) for (let i = 0; i < kG.nx; i++) {
+    const k = j * kG.nx + i, x = kG.x0 + i * kG.dx, y = kG.yTop - j * kG.dy;
+    ch[0][k] = kv[k]; ch[1][k] = sample(thG, tv, x, y); ch[2][k] = sample(uG, uv, x, y);
+  }
+  const stretch = (a) => {
+    const f = Array.from(a).filter(Number.isFinite).sort((p, q) => p - q);
+    if (!f.length) return null;
+    const lo = f[Math.floor(0.02 * (f.length - 1))], hi = f[Math.floor(0.98 * (f.length - 1))];
+    return { lo, hi, t: (v) => (hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5) };
+  };
+  const s = ch.map(stretch);
+  if (s.some((x) => !x)) throw new Error("One of the three grids has no values where the K grid is.");
+  const rgba = new Uint8ClampedArray(n * 4);
+  let covered = 0;
+  for (let k = 0; k < n; k++) {
+    if (!ch.every((c) => Number.isFinite(c[k]))) continue;
+    covered++;
+    for (let c = 0; c < 3; c++) rgba[k * 4 + c] = Math.round(255 * s[c].t(ch[c][k]));
+    rgba[k * 4 + 3] = 255;
+  }
+  return { rgba, covered, ranges: s.map((x) => [x.lo, x.hi]) };
+}
+export function ternaryRaster({ kRaster, thRaster, uRaster, elevation }) {
+  const g = kRaster.grid;
+  const { rgba, covered, ranges } = ternaryValues(g, thRaster.grid, uRaster.grid);
+  if (!covered) throw new Error("The three grids do not overlap.");
+  const canvas = document.createElement("canvas");
+  canvas.width = g.nx; canvas.height = g.ny;
+  canvas.getContext("2d").putImageData(new ImageData(rgba, g.nx, g.ny), 0, 0);
+  const bbox = [g.x0 - g.dx / 2, g.yTop - g.dy * (g.ny - 1) - g.dy / 2, g.x0 + g.dx * (g.nx - 1) + g.dx / 2, g.yTop + g.dy / 2];
+  return { raster: { name: `Ternary K-eTh-eU (${kRaster.name} / ${thRaster.name} / ${uRaster.name})`, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
+    ternary: { red: kRaster.name, green: thRaster.name, blue: uRaster.name, stretch: "linear, 2nd-98th percentile per channel", ranges } }, covered, ranges };
+}

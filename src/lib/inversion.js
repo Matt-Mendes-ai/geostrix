@@ -80,6 +80,17 @@ export function thinStationIndices(xs, ys, spacing) {
   return Array.from(best.values(), (v) => v.i).sort((a, b) => a - b);
 }
 
+// TASKS.csv #375 — the station cap the sidecar enforces (main.py MAX_STATIONS), and the smallest thinning
+// spacing (rounded up to a friendly 1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 step) that brings a survey under it.
+export const MAX_STATIONS = 20000;
+export function suggestThinSpacing(xs, ys, cap = MAX_STATIONS) {
+  if (xs.length <= cap) return null;
+  let s = Math.max(0.1, medianNearestSpacing(xs, ys) || 1);
+  for (let k = 0; k < 60 && thinStationIndices(xs, ys, s).length > cap; k++) s *= 1.15;
+  const mag = 10 ** Math.floor(Math.log10(s)), nice = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * mag).find((v) => v >= s) || s;
+  return { spacing: nice, stations: thinStationIndices(xs, ys, nice).length };
+}
+
 export function medianNearestSpacing(xs, ys, sample = 400) {
   const n = xs.length;
   if (n < 2) return null;

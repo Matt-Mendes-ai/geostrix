@@ -463,3 +463,22 @@ test("#373 grid filters match a dipole's closed-form field: RTP, upward continua
   const holes = t60.slice(); holes[5] = NaN;
   assert.ok(Number.isNaN(applyGridFilter(grid(holes), "vd1").values[5])); // no-data stays no-data
 });
+
+import { ternaryValues } from "../src/lib/raster.js";
+import { suggestThinSpacing, thinStationIndices } from "../src/lib/inversion.js";
+test("#375 ternary channels stretch independently and sample across different grids; thinning suggestion fits the cap", () => {
+  const g = (vals, nx, dx = 10, x0 = 0) => ({ nx, ny: 1, x0, yTop: 0, dx, dy: dx, values: f32ToB64(Float32Array.from(vals)) });
+  const K = g([0, 1, 2, 3, NaN], 5), Th = g([100, 300], 2, 20, 0), U = g([5, 5, 5, 5, 9], 5);
+  const t = ternaryValues(K, Th, U);
+  assert.equal(t.covered, 4);                        // K node 4 is no-data
+  assert.deepEqual(Array.from(t.rgba.slice(0, 4)), [0, 0, 128, 255]); // lowest K and eTh (x=0 -> 100); eU flat across its 2-98% range -> mid-level
+  assert.equal(t.rgba[3 * 4], 255);                  // highest K -> full red
+  assert.equal(t.rgba[2 * 4 + 1], 255);              // x=20 samples the eTh node at 20 (300 = max)
+  assert.equal(t.rgba[16 + 3], 0);                   // missing node transparent
+  // 30,000 stations on a 10 m grid -> a spacing that brings it under 20,000
+  const xs = [], ys = [];
+  for (let i = 0; i < 200; i++) for (let j = 0; j < 150; j++) { xs.push(i * 10); ys.push(j * 10); }
+  const s = suggestThinSpacing(xs, ys);
+  assert.ok(s.stations <= 20000 && s.stations === thinStationIndices(xs, ys, s.spacing).length, JSON.stringify(s));
+  assert.equal(suggestThinSpacing(xs.slice(0, 100), ys.slice(0, 100)), null);
+});
