@@ -543,7 +543,19 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         </span>
       )}
       {updater.event === "error" && (
-        <span title={updater.message} style={{ color: "var(--color-danger-fg)" }}>Update check failed</span>
+        // TASKS.csv #459 — say WHY when the reason is known. ERR_NETWORK_ACCESS_DENIED / EACCES is the
+        // operating system refusing the connection: a firewall or antivirus rule on GeoStrix (seen with
+        // Bitdefender's firewall), not GitHub and not the app. The raw message stays in the tooltip.
+        (() => {
+          const m = String(updater.message || "");
+          const blocked = /ERR_NETWORK_ACCESS_DENIED|EACCES/i.test(m);
+          const offline = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ENOTFOUND|ETIMEDOUT|ERR_CONNECTION_TIMED_OUT/i.test(m);
+          const text = blocked ? "Update blocked by firewall/antivirus" : offline ? "Update check: offline" : "Update check failed";
+          const tip = blocked
+            ? `Windows refused GeoStrix's connection (${m}). A firewall or antivirus is blocking GeoStrix: allow it in your security software's firewall (e.g. Bitdefender > Protection > Firewall > Rules), or download the new version from GitHub Releases.`
+            : offline ? `No internet connection (${m}). GeoStrix works offline; it will check again next time.` : m;
+          return <span title={tip} style={{ color: offline ? "var(--color-text-muted)" : "var(--color-danger-fg)" }}>{text}</span>;
+        })()
       )}
       <span className="spacer" />
       {epsgEditing ? (
