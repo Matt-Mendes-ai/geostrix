@@ -253,8 +253,28 @@ ipcMain.handle("updater-download", async () => {
     return { ok: false, message: err.message };
   }
 });
-ipcMain.handle("updater-install", () => {
-  autoUpdater.quitAndInstall();
+// TASKS.csv #461 — quitAndInstall starts the NSIS installer FIRST, and in update mode NSIS kills every
+// GeoStrix process after ~1.3 s; the window "close" guard below would show its blocking "Unsaved changes"
+// dialog at that moment, and the process was killed whatever the user clicked — losing unsaved work.
+// So the question is asked HERE, before anything is started, while the app is fully alive; only after an
+// explicit "install without saving" (or with nothing unsaved) does the install run, with the close guard
+// disarmed (rendererDirty cleared) and the Python engine stopped first so no job is cut mid-write.
+ipcMain.handle("updater-install", async () => {
+  if (rendererDirty && mainWindow && !mainWindow.isDestroyed()) {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      buttons: ["Cancel — I'll save first", "Install without saving"],
+      defaultId: 0,
+      cancelId: 0,
+      title: "Unsaved changes",
+      message: "Save your project before installing the update.",
+      detail: "Installing closes GeoStrix straight away. Unsaved changes since the last save would be lost (autosave may not have them). Save with Ctrl+S, then click \"Restart & install\" again.",
+    });
+    if (response !== 1) return { ok: false, cancelled: true };
+  }
+  rendererDirty = false; // the close guard must not re-ask while the installer is closing the app
+  try { stopPythonSidecar(); } catch (_) { /* best effort */ }
+  setImmediate(() => autoUpdater.quitAndInstall());
   return { ok: true };
 });
 
