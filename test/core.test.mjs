@@ -363,3 +363,39 @@ test("#323 evaluate a block model onto drillholes: one interval per cell crossed
   // collar at 460: 20 m of air above the model, then cells 4,3,2,1 at depths 20-30, 30-40, 40-50, 50-60
   assert.deepEqual(rows.map((r) => [r.from, r.to, r.value]), [[20, 30, 4], [30, 40, 3], [40, 50, 2], [50, 60, 1]]);
 });
+
+import { parseUBCMesh, parseUBCModel, ubcMeshToCells } from "../src/lib/voxel.js";
+// Written by discretize.TensorMesh([[10,10],[10,10,10],[5,5,5,5]], origin=[0,0,0]).write_UBC with
+// value = z*1000 + x + y/100 of each cell centre, so every value says where it belongs.
+const DISCRETIZE_MSH = "2 3 4\n0.000000 0.000000 20.000000\n10.000000 10.000000 \n10.000000 10.000000 10.000000 \n5.000000 5.000000 5.000000 5.000000 \n";
+const DISCRETIZE_MOD = "17505.05 12505.05 7505.05 2505.05 17515.05 12515.05 7515.05 2515.05 17505.15 12505.15 7505.15 2505.15 17515.15 12515.15 7515.15 2515.15 17505.25 12505.25 7505.25 2505.25 17515.25 12515.25 7515.25 2515.25".split(" ").join("\n");
+test("#480 UBC import puts every value in its own cell (file z runs top-down, as discretize writes it)", () => {
+  const mesh = parseUBCMesh(DISCRETIZE_MSH);
+  const cells = ubcMeshToCells(mesh, parseUBCModel(DISCRETIZE_MOD, mesh));
+  assert.equal(cells.length, 24);
+  for (const c of cells) assert.ok(Math.abs(c.value - (c.z * 1000 + c.x + c.y / 100)) < 1e-6, JSON.stringify(c));
+  const withNoData = parseUBCModel(DISCRETIZE_MOD.replace("17505.05", "-99999"), mesh);
+  assert.equal(ubcMeshToCells(mesh, withNoData).length, 23); // -99999 is no-data
+});
+
+import { tensorFromCells, ubcMeshText, ubcModelText, buildModelExportZip } from "../src/lib/modelExport.js";
+test("#328 UBC export re-imports to the same cells; air cells are no-data; ragged grids refused", () => {
+  const cells = [];
+  for (let ix = 0; ix < 4; ix++) for (let iy = 0; iy < 3; iy++) for (let iz = 0; iz < 5; iz++) {
+    if (iz === 4 && ix === 0) continue; // "air" above the terrain in one column
+    cells.push({ x: 500000 + 12.5 + 25 * ix, y: 6250000 + 12.5 + 25 * iy, z: 800 + 12.5 + 25 * iz, dx: 25, dy: 25, dz: 25, value: ix + 10 * iy + 100 * iz + 0.5, support: 0.1 });
+  }
+  const t = tensorFromCells(cells);
+  assert.deepEqual([t.nx, t.ny, t.nz], [4, 3, 5]);
+  const mesh = parseUBCMesh(ubcMeshText(t));
+  assert.deepEqual([mesh.x0, mesh.y0, mesh.z0], [500000, 6250000, 925]);
+  const back = ubcMeshToCells(mesh, parseUBCModel(ubcModelText(cells, t), mesh));
+  assert.equal(back.length, cells.length);
+  const byPos = new Map(back.map((c) => [`${c.x},${c.y},${c.z}`, c.value]));
+  for (const c of cells) assert.equal(byPos.get(`${c.x},${c.y},${c.z}`), c.value);
+  assert.ok(tensorFromCells([...cells, { x: 500013, y: 6250012.5, z: 812.5, dx: 25, dy: 25, dz: 25, value: 1 }]).error);
+  const r = buildModelExportZip({ name: "Test model", cells, source: "estimate" }, 3156);
+  assert.ok(!r.error);
+  assert.deepEqual(r.files.filter((f) => !f.startsWith("depth_slices/")), ["Test_model.msh", "Test_model.mod", "Test_model_support.mod", "provenance.txt"]);
+  assert.equal(r.files.filter((f) => f.endsWith(".tif")).length, 5);
+});

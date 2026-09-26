@@ -38,7 +38,9 @@ import { getCol } from "./layers.js";
 // visual inspection of overall structure — re-import a coarser mesh from the source tool for full
 // original detail.
 export const MAX_CELLS = 100000; // guards the 3D view from an accidental multi-million-cell import hanging the renderer
-const NODATA_MAX = -1e10; // UBC-GIF codes use various no-data sentinels (-99999, -999, -1e30…) — anything this extreme is treated as no-data
+// UBC-GIF codes use various no-data sentinels (-99999, -1e30…). TASKS.csv #480: this was -1e10, which let the most
+// common one, -99999, through as real data; no physical property GeoStrix models reaches -99999.
+const NODATA_MAX = -99999;
 const COARSEN_NODATA_SENTINEL = -1e30; // below NODATA_MAX, so a coarse cell with zero contributing fine cells reads as no-data too
 
 export function parseUBCMesh(text) {
@@ -111,7 +113,12 @@ function reorderUBCValues(values, nx, ny, nz) {
   for (let iy = 0; iy < ny; iy++) {
     for (let ix = 0; ix < nx; ix++) {
       for (let zf = 0; zf < nz; zf++) {
-        const iz = nz - 1 - zf; // file's fastest z index counts from the bottom — flip to top-down
+        // TASKS.csv #480 — the file's fastest z index counts from the TOP (UBC-GIF: "z changing fastest,
+        // from top to bottom"). The #170 fix read discretize's read_UBC `model[::-1]` as "the file starts at
+        // the bottom", but that reversal converts FROM the file's top-down order TO discretize's own
+        // bottom-up z index. Checked against a model written by discretize.write_UBC (test/core.test.mjs):
+        // with the flip, all 24 cells of a 2x3x4 model landed in the wrong layer (every model upside down).
+        const iz = zf;
         out[ix + iz * nx + iy * nx * nz] = values[idx++];
       }
     }
