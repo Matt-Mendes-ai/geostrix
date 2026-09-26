@@ -194,3 +194,19 @@ test("#314 NaN/null vertices from GemPy: triangles touching them dropped, indice
   assert.deepEqual(sanitizeMesh([[null, 0, 0]], [[0, 0, 0]]).vertices, []);
   const good = sanitizeMesh([[0, 0, 0]], []); assert.equal(good.badVertices, 0);
 });
+
+import { quoteIdent as dbQuote, countSql, selectSql, chunkedReadPlan } from "../src/lib/dbSql.js";
+test("#349 DB browser SQL per engine: MySQL backticks + snapshot/LIMIT-OFFSET pages; Postgres unchanged", () => {
+  assert.equal(dbQuote("mysql", "we`ird"), "`we``ird`");
+  assert.equal(dbQuote("postgres", 'we"ird'), '"we""ird"');
+  assert.equal(countSql("mysql", "geo", "litho"), "SELECT COUNT(*) AS n FROM `geo`.`litho`;");
+  assert.equal(countSql(undefined, "public", "Litho"), 'SELECT COUNT(*) AS n FROM "public"."Litho";');
+  assert.equal(selectSql("mysql", "geo", "t", 10), "SELECT * FROM `geo`.`t` LIMIT 10;");
+  const m = chunkedReadPlan("mysql", "geo", "t");
+  assert.equal(m.begin, "START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;");
+  assert.equal(m.open, null); assert.equal(m.page(20000, 40000), "SELECT * FROM `geo`.`t` LIMIT 20000 OFFSET 40000;");
+  const p = chunkedReadPlan("postgres", "public", "t");
+  assert.equal(p.open, 'DECLARE geostrix_import_cursor NO SCROLL CURSOR FOR SELECT * FROM "public"."t";');
+  assert.equal(p.page(500), "FETCH FORWARD 500 FROM geostrix_import_cursor;");
+  assert.equal(p.begin, "BEGIN READ ONLY;");
+});

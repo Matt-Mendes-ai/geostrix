@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import { selectSql, countSql, chunkedReadPlan } from "../lib/dbSql.js"; // TASKS.csv #349
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, X, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "lucide-react";
 import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
@@ -36,13 +37,11 @@ const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf"
 //      underneath us), driving the status bar's existing taskProgress bar with a working Cancel.
 const ROW_WARN_THRESHOLD = 50000;
 const CHUNK_ROWS = 20000;
-const IMPORT_CURSOR = "geostrix_import_cursor";
 
-// Postgres identifiers are quoted rather than interpolated bare: a table/schema whose name is mixed
-// case, contains a space, or collides with a reserved word broke the old bare-interpolated SQL, and
-// quoting also means a hostile-looking name out of information_schema can't terminate the identifier
-// and inject a second statement.
-const quoteIdent = (s) => `"${String(s).replace(/"/g, '""')}"`;
+// Identifiers are quoted rather than interpolated bare: a table/schema whose name is mixed case, contains
+// a space, or collides with a reserved word broke the old bare-interpolated SQL, and quoting also means a
+// hostile-looking name out of information_schema can't terminate the identifier and inject a second
+// statement. TASKS.csv #349 — quoting and chunked reads are per engine (lib/dbSql.js).
 
 export default function DbBrowserPanel({ onImportFile, onImportRows }) {
   const { dbConnections, liveDbConnections, connectDb, disconnectDb } = useStore();
@@ -215,7 +214,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
   // once the pull is bigger than one chunk, so a genuinely huge table degrades into a progress bar
   // instead of a frozen window, and stays cancellable the whole way.
   const fetchTable = useCallback(async (t, total, limit) => {
-    const qualified = `${quoteIdent(t.table_schema)}.${quoteIdent(t.table_name)}`;
+    const engine = profile.engine || "postgres"; // #349 — old saved profiles have no engine: Postgres
     const label = `Importing ${t.table_schema}.${t.table_name}`;
     const target = limit == null ? total : Math.min(limit, total);
     setPending(null);
@@ -234,7 +233,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
 
     // Small enough to be one round trip — no cursor, no transaction, no progress bar needed.
     if (target <= CHUNK_ROWS) {
-      const res = await dbLiveQuery(live.id, `SELECT * FROM ${qualified}${limit == null ? "" : ` LIMIT ${Math.floor(limit)}`};`);
+      const res = await dbLiveQuery(live.id, selectSql(engine, t.table_schema, t.table_name, limit));
       setBusyTable(null);
       if (!res.ok) { setError(res.error); return; }
       finish(res.rows, res.fields, limit != null && total > limit);
@@ -247,15 +246,18 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     // A cursor needs a transaction. Everything below is read-only, so the transaction is opened
     // explicitly and always rolled back (never committed) — nothing this panel does should ever be
     // able to write to the user's database.
-    const begin = await dbLiveQuery(live.id, "BEGIN READ ONLY;"); // TASKS.csv #348 (the session is read-only too)
+    const plan = chunkedReadPlan(engine, t.table_schema, t.table_name); // #349
+    const begin = await dbLiveQuery(live.id, plan.begin); // TASKS.csv #348 (the session is read-only too)
     if (!begin.ok) { setBusyTable(null); setTaskProgress?.(null); setError(begin.error); return; }
     try {
-      const decl = await dbLiveQuery(live.id, `DECLARE ${IMPORT_CURSOR} NO SCROLL CURSOR FOR SELECT * FROM ${qualified};`);
-      if (!decl.ok) { setError(decl.error); return; }
+      if (plan.open) {
+        const decl = await dbLiveQuery(live.id, plan.open);
+        if (!decl.ok) { setError(decl.error); return; }
+      }
       while (rows.length < target) {
         if (cancelRef.current) { setError(`Import cancelled — ${rows.length.toLocaleString()} row(s) fetched, nothing imported.`); return; }
         const want = Math.min(CHUNK_ROWS, target - rows.length);
-        const res = await dbLiveQuery(live.id, `FETCH FORWARD ${want} FROM ${IMPORT_CURSOR};`);
+        const res = await dbLiveQuery(live.id, plan.page(want, rows.length));
         if (!res.ok) { setError(res.error); return; }
         if (!fields) fields = res.fields;
         rows.push(...res.rows);
@@ -264,19 +266,19 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
       }
       finish(rows, fields || [], limit != null && total > limit);
     } finally {
-      await dbLiveQuery(live.id, `CLOSE ${IMPORT_CURSOR};`).catch(() => {});
-      await dbLiveQuery(live.id, "ROLLBACK;").catch(() => {});
+      if (plan.close) await dbLiveQuery(live.id, plan.close).catch(() => {});
+      await dbLiveQuery(live.id, plan.end).catch(() => {});
       setBusyTable(null);
       setTaskProgress?.(null);
     }
-  }, [live, onImportRows, profile.database, setTaskProgress]);
+  }, [live, onImportRows, profile.database, profile.engine, setTaskProgress]);
 
   // Clicking a table now COUNTS first and never pulls anything until the size is known.
   const pickTable = useCallback(async (t) => {
     setError(null);
     setPending(null);
     setBusyTable(`${t.table_schema}.${t.table_name}`);
-    const res = await dbLiveQuery(live.id, `SELECT COUNT(*) AS n FROM ${quoteIdent(t.table_schema)}.${quoteIdent(t.table_name)};`);
+    const res = await dbLiveQuery(live.id, countSql(profile.engine || "postgres", t.table_schema, t.table_name)); // #349
     setBusyTable(null);
     if (!res.ok) { setError(res.error); return; }
     // COUNT(*) comes back as a bigint, which node-postgres hands over as a STRING (bigints don't fit
@@ -286,7 +288,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     if (total === 0) { setError("That table is empty — nothing to import."); return; }
     if (total > ROW_WARN_THRESHOLD) { setPending({ t, total }); return; }
     fetchTable(t, total, null);
-  }, [live, fetchTable]);
+  }, [live, fetchTable, profile.engine]);
 
   return (
     <div style={{ marginBottom: 2 }}>

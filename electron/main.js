@@ -651,7 +651,9 @@ function testConnectionQuery(config) {
 }
 function listTablesQuery(config) {
   return config.engine === "mysql"
-    ? "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('information_schema','mysql','performance_schema','sys') ORDER BY table_schema, table_name"
+    // TASKS.csv #349 — aliased: MySQL 8 returns information_schema column labels in UPPER case
+    // (TABLE_SCHEMA...), so row.table_schema was undefined and the browser listed nameless tables.
+    ? "SELECT table_schema AS table_schema, table_name AS table_name, table_type AS table_type FROM information_schema.tables WHERE table_schema NOT IN ('information_schema','mysql','performance_schema','sys') ORDER BY table_schema, table_name"
     : "SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name";
 }
 // Normalizes pg's Client and mysql2's Connection — very different native shapes (pg's query()
