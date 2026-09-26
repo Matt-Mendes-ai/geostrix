@@ -105,7 +105,9 @@ test("save -> open round-trips the project and leaves it clean", { timeout: 1500
   await step(() => m.s.newProject());
   await step(() => {
     m.s.setCollars([{ hole_id: "DD-1", x: 463000.5, y: 6178000.25, z: 1100, azimuth: 190, dip: 70, length: 300 }]);
-    m.s.setLayers((l) => ({ ...l, litho: [{ hole_id: "DD-1", from: 0, to: 10, value: "AND" }] }));
+    m.s.setLayers((l) => ({ ...l, litho: [{ hole_id: "DD-1", from: 0, to: 10, value: "AND" }],
+      // #374 — big enough to be stored compact
+      geophys_pts: Array.from({ length: 2500 }, (_, i) => ({ x: 463000 + i, y: 6178000.5, z: i % 2 ? null : 1100, value: 56000.25 + i, _src: "mag.csv" })) }));
     m.s.addVoxelModel({ name: "bm", cells: [{ x: 1, y: 2, z: 3, dx: 5, dy: 5, dz: 5, value: 0.7 }] });
     m.s.setEpsg(32609);
     m.s.updateGeophysSurvey("tmi.csv", { method: "mag", units: "nT", zMeaning: "agl" }); // #451
@@ -120,6 +122,9 @@ test("save -> open round-trips the project and leaves it clean", { timeout: 1500
   assert.equal(res.ok, true);
   assert.equal(m.s.collars[0].x, 463000.5);
   assert.equal(m.s.layers.litho[0].value, "AND");
+  assert.ok(JSON.parse(savedContent).layers.geophys_pts.__compactRows, "saved compact"); // #374
+  assert.equal(m.s.layers.geophys_pts.length, 2500);
+  assert.deepEqual(m.s.layers.geophys_pts[1], { x: 463001, y: 6178000.5, z: null, value: 56001.25, _src: "mag.csv" });
   assert.equal(m.s.voxelModels.length, 1);
   assert.equal(m.s.voxelModels[0].cells[0].value, 0.7);
   assert.equal(m.s.project.epsg, 32609);

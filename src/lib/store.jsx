@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #321 — compact storage of SimPEG models
+import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
 import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod, DEFAULT_DESURVEY_METHOD } from "./desurvey.js";
 
@@ -904,7 +905,7 @@ export function StoreProvider({ children }) {
   // Shared field list for save / tab-stash / dirty-comparison, so these can't drift apart the way
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => ({
-    version: PROJECT_VERSION, project, collars, survey, layers, assays, assayElements, customLayers,
+    version: PROJECT_VERSION, project, collars, survey, layers: compactLayers(layers) /* #374 */, assays, assayElements, customLayers,
     viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels: compactVoxelModels(voxelModels), layerGroups, layoutPages, activeLayoutPageId, dbConnections,
     excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
     generatedSurfaces, modelDomains, // TASKS.csv #52
@@ -992,7 +993,7 @@ export function StoreProvider({ children }) {
     setProject({ ...(data.project || { epsg: 3156 }), name: fallbackName || data.project?.name || "Untitled project" });
     setCollars(data.collars || []);
     setSurvey(data.survey || []);
-    setLayers({ ...EMPTY_LAYERS, ...(data.layers || {}) });
+    setLayers({ ...EMPTY_LAYERS, ...(expandLayers(data.layers) || {}) }); // #374 — point surveys stored compact
     setAssays(data.assays || []);
     setAssayElements(data.assayElements || []);
     setCustomLayers(data.customLayers || []);
@@ -1234,9 +1235,9 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       if (last && last.length === sig.length && last.every((v, i) => v === sig[i])) return; // unchanged since the last write
       lastAutosaveSigRef.current = sig;
       autosaveWrite(JSON.stringify({
-        version: PROJECT_VERSION, ...payload, voxelModels: compactVoxelModels(payload.voxelModels),
+        version: PROJECT_VERSION, ...payload, layers: compactLayers(payload.layers) /* #374 */, voxelModels: compactVoxelModels(payload.voxelModels),
         activeDirty: activeWorth,
-        backgroundTabs: background.map((t) => ({ name: t.name, payload: { ...t.payload, voxelModels: compactVoxelModels(t.payload.voxelModels) } })),
+        backgroundTabs: background.map((t) => ({ name: t.name, payload: { ...t.payload, layers: compactLayers(t.payload.layers), voxelModels: compactVoxelModels(t.payload.voxelModels) } })),
         autosavedAt: Date.now(),
       }));
     }, AUTOSAVE_INTERVAL_MS);
