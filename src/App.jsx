@@ -481,9 +481,11 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         onClick={() => onHelp?.()}
         title="Help — keyboard shortcuts & about GeoStrix"
         aria-label="Help — keyboard shortcuts and about GeoStrix"
-        style={{ background: "none", border: "1px solid var(--color-border-light)", color: "inherit", borderRadius: "50%", width: 16, height: 16, lineHeight: "13px", padding: 0, fontSize: "var(--font-size-sm)", fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
+        // TASKS.csv #386 — a 24 px target (WCAG 2.5.8) around the same 16 px circle: the bare circle sat
+        // within 12 px of the sidebar's last row and failed the target-spacing rule.
+        style={{ background: "none", border: "none", color: "inherit", width: 24, height: 24, padding: 0, margin: "-4px 0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
       >
-        ?
+        <span aria-hidden="true" style={{ border: "1px solid var(--color-border-light)", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", textAlign: "center", fontSize: "var(--font-size-sm)" }}>?</span>
       </button>
       <span title={pyLabel} style={{ display: "flex", alignItems: "center", gap: 5 }}>
         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />

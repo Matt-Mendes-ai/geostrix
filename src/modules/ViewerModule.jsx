@@ -10823,7 +10823,8 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
 function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom, onClear, onContextMenu, input, expanded, onToggleExpand, children }) {
   return (
     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }} onContextMenu={onContextMenu}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px" }}>
+      {/* #386 — gap 9 (was 6): the zoom / filter / clear icons sat exactly on the WCAG 2.5.8 24 px spacing limit */}
+      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 10px" }}>
         {/* TASKS.csv #66 — inline expand (category chips + sources) without opening the full
             LayerInspector modal. Only offered once there's something to expand. */}
         {count > 0 && onToggleExpand ? (
