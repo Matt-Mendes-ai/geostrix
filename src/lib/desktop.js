@@ -382,6 +382,8 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
 // own sidecar process, so cancel really frees its memory.
 export const sidecarPlanPotential = (request) => sidecarJson("/v1/geophys/plan", { method: "POST", body: request, timeoutMs: 60000 });
 export const sidecarStartPotentialJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "potential", request }, timeoutMs: 60000 });
+// TASKS.csv #322 — 2D DC resistivity / IP inversion job
+export const sidecarStartDcipJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "dcip2d", request }, timeoutMs: 60000 });
 export const sidecarJobStatus = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });
 export const sidecarJobResult = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/result`, { timeoutMs: 120000 });
 export const sidecarCancelJob = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {}, timeoutMs: 10000 });

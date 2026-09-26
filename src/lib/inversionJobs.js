@@ -3,7 +3,7 @@
 // unmounts or hides the panel) would orphan the job — still computing in the sidecar, with nobody left to
 // collect the result or offer Cancel (software-design review, #321). Here it survives any UI change, and it
 // drives the status bar's progress chip through the store's stable setter.
-import { sidecarStartPotentialJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob } from "./desktop.js";
+import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob } from "./desktop.js";
 
 let current = null; // { id, request, meta, status, result, error, onDone }
 const listeners = new Set();
@@ -18,9 +18,10 @@ export const currentInversionJob = () => current;
 
 // meta: { label, surveyName, ... } — carried to onDone so the caller can build provenance.
 // setTaskProgress: the store's stable status-bar setter. onDone(result, job) runs once on success.
-export async function startInversionJob(request, meta, { setTaskProgress, onDone }) {
+// kind: "potential" (mag/grav, #321) or "dcip2d" (2D DC resistivity / IP, #322) — one job at a time either way.
+export async function startInversionJob(request, meta, { setTaskProgress, onDone, kind = "potential" }) {
   if (current && current.status?.state === "running") return { ok: false, error: "An inversion is already running." };
-  const res = await sidecarStartPotentialJob(request);
+  const res = await (kind === "dcip2d" ? sidecarStartDcipJob(request) : sidecarStartPotentialJob(request));
   if (!res.ok) return res;
   current = { id: res.data.id, request, meta, plan: res.data.plan, status: { state: "running", progress: { stage: "starting" }, history: [] }, result: null, error: null, startedAt: Date.now() };
   emit();
@@ -35,7 +36,7 @@ export async function cancelInversionJob() {
 
 const STAGE_TEXT = {
   starting: "Starting", loading: "Loading SimPEG", mesh: "Building the mesh", sensitivities: "Computing sensitivities",
-  iterating: "Iterating", forward: "Forward modelling",
+  iterating: "Iterating", forward: "Forward modelling", dc: "Resistivity", ip: "Chargeability",
 };
 
 async function poll(job, setTaskProgress, onDone) {
@@ -51,8 +52,9 @@ async function poll(job, setTaskProgress, onDone) {
       const p = st.data.progress || {};
       // Real progress only (UX review): an iteration count and misfit, never an invented percentage.
       const stage = STAGE_TEXT[p.stage] || "Working";
-      const label = p.stage === "iterating" && p.iter
-        ? `${job.meta.label}: iteration ${p.iter}/${p.maxIter}${p.phi_d ? ` — misfit ${(p.phi_d / p.target).toFixed(2)}x target` : ""}`
+      const iterating = (p.stage === "iterating" || p.stage === "dc" || p.stage === "ip") && p.iter; // #322: dc / ip stages
+      const label = iterating
+        ? `${job.meta.label}: ${p.stage === "dc" ? "resistivity " : p.stage === "ip" ? "chargeability " : ""}iteration ${p.iter}/${p.maxIter}${p.phi_d ? ` — misfit ${(p.phi_d / p.target).toFixed(2)}x target` : ""}`
         : p.stage === "forward" && p.iter ? `${job.meta.label}: model ${p.iter}/${p.maxIter}` : `${job.meta.label}: ${stage}…`;
       const pct = p.iter && p.maxIter ? Math.min(99, Math.round((100 * p.iter) / p.maxIter)) : null;
       setTaskProgress?.({ label, pct: pct ?? 5, indeterminate: pct == null, onCancel: () => cancelInversionJob() });

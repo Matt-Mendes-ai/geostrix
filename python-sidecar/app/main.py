@@ -146,6 +146,8 @@ def health():
         "capabilities": {
             "potentialFields": {"available": available,
                                 "simpeg": simpeg_v, "discretize": _dist_version("discretize"), "choclo": _dist_version("choclo")},
+            # TASKS.csv #322 — 2D DC resistivity / IP (SimPEG static; no choclo needed)
+            "dcip2d": {"available": bool(importlib.util.find_spec("simpeg")), "simpeg": simpeg_v},
         },
     }
 
@@ -225,6 +227,45 @@ def _validate_potential(req):
                     raise HTTPException(400, f"plate.{k} is required.")
 
 
+MAX_DC_READINGS = 5000
+
+
+def _validate_dcip2d(req):
+    """TASKS.csv #322 — a 2D DC/IP request: readings [a, b|null, m, n|null] (metres along the line),
+    rho (apparent resistivity, ohm.m, > 0), optional chargeability (mV/V), optional topo [[s, z]], mesh
+    {cell, depth}, uncertainty {percent, floor} — nothing physical is defaulted here."""
+    r = req.get("readings")
+    if not isinstance(r, list) or not r or len(r) > MAX_DC_READINGS:
+        raise HTTPException(400, f"readings: 1-{MAX_DC_READINGS} rows expected.")
+    for row in r:
+        if not isinstance(row, list) or len(row) != 4 or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v)) for v in row) \
+                or row[0] is None or row[2] is None:
+            raise HTTPException(400, "readings: every row is [a, b, m, n] in metres; only b or n may be empty (a pole).")
+    rho = req.get("rho")
+    if not isinstance(rho, list) or len(rho) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in rho):
+        raise HTTPException(400, "rho must hold one positive apparent resistivity (ohm.m) per reading.")
+    ch = req.get("chargeability")
+    if ch is not None and (not isinstance(ch, list) or len(ch) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in ch)):
+        raise HTTPException(400, "chargeability must hold one value (mV/V) per reading, or be left out.")
+    if req.get("topo") is not None:
+        _finite_rows(req["topo"], 2, "topo", 20000)
+    m = req.get("mesh") or {}
+    try:
+        cell, depth = float(m["cell"]), float(m["depth"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "mesh.cell and mesh.depth are required numbers.")
+    if not (0.25 <= cell <= 200) or not (cell <= depth <= 5000):
+        raise HTTPException(400, "mesh.cell must be 0.25-200 m and mesh.depth between the cell and 5 km.")
+    pos = [v for row in r for v in row if v is not None]
+    n_core = ((max(pos) - min(pos)) / cell + 4) * (depth / (cell / 2) + 1)
+    if n_core > 200_000:
+        raise HTTPException(400, f"That section would have ~{int(n_core):,} core cells — use a larger cell.")
+    u = req.get("uncertainty") or {}
+    if not ((isinstance(u.get("percent"), (int, float)) and u["percent"] > 0) or (isinstance(u.get("floor"), (int, float)) and u["floor"] > 0)):
+        raise HTTPException(400, "uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+    req["maxIter"] = int(min(40, max(1, int(req.get("maxIter", 20)))))
+
+
 @app.post("/v1/geophys/plan")
 def geophys_plan(req: dict = Body(...)):
     _validate_potential(req)
@@ -254,8 +295,16 @@ def start_job(req: dict = Body(...)):
         if job_id is None:
             raise HTTPException(409, "Another modelling or inversion job is already running — wait for it or cancel it first.")
         return {"id": job_id}
+    if req.get("jobKind") == "dcip2d":  # TASKS.csv #322
+        payload = req.get("request") or {}
+        _validate_dcip2d(payload)
+        from app.jobs import manager
+        job_id = manager.start("dcip2d", payload)
+        if job_id is None:
+            raise HTTPException(409, "Another modelling or inversion job is already running — wait for it or cancel it first.")
+        return {"id": job_id}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential' or 'implicit'.")
+        raise HTTPException(400, "jobKind must be 'potential', 'implicit' or 'dcip2d'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan

@@ -91,6 +91,9 @@ def _child(kind, req, q, cap):
         if kind == "potential":
             from app.geophys.potential import run_job
             out = run_job(req, lambda ev: q.put(("progress", ev)), cap)
+        elif kind == "dcip2d":  # TASKS.csv #322
+            from app.geophys.dcip2d import run_job as run_dcip
+            out = run_dcip(req, lambda ev: q.put(("progress", ev)))
         elif kind == "implicit":
             # TASKS.csv #355 — the same implicit_model() the synchronous endpoint runs, in this process.
             from fastapi import HTTPException

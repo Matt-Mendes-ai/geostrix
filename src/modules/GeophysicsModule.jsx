@@ -35,8 +35,9 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
+import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "lucide-react";
+import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "lucide-react";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
@@ -816,6 +817,7 @@ export default function GeophysicsModule() {
           <RibbonGroup label="Surveys">
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
             <RibbonButton icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
+            <RibbonButton icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
           </RibbonGroup>
           <RibbonGroup label="Surface & maps">
             <RibbonButton icon={RMountain} label="Terrain" tone="data" title="Terrain: fetch SRTM or import a DEM" {...geoBtn("terrain")} />
@@ -1067,6 +1069,10 @@ export default function GeophysicsModule() {
         <TaskPaneHeader title="Mag / gravity inversion (SimPEG)" icon={RMagnet} tone="model" />
         <InversionPanel pBtn={pBtn} numInput={numInput} inPane />
 
+        </>)}
+        {geoPane === "dcip" && (<>
+        <TaskPaneHeader title="DC resistivity / IP line (2D, SimPEG)" icon={RZap} tone="model" />
+        <DcipPanel pBtn={pBtn} numInput={numInput} />
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />

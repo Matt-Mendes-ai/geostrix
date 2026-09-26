@@ -164,6 +164,13 @@ function labStops(anchors, values) {
 }
 // Susceptibility (and other positive properties): pale -> saturated -> dark. Lightness FALLS with value so
 // the strongest cells are the most salient on GeoStrix's light viewport, same logic as #306's grade ramp.
+// TASKS.csv #322 — resistivity: log-spaced stops (it spans decades), conductive = warm / dark red, resistive =
+// blue, the convention DC/IP sections are read in.
+export const RESISTIVITY_ANCHORS = ["#8a1d1d", "#e0885c", "#f4f4f2", "#5b8fc9", "#1d3f7a"];
+export function logStops(min, max, anchors = RESISTIVITY_ANCHORS, n = 17) {
+  const lo = Math.log10(min > 0 ? min : 1), hi = Math.log10(max > min ? max : (min > 0 ? min : 1) * 10);
+  return labStops(anchors, Array.from({ length: n }, (_, i) => 10 ** (lo + ((hi - lo) * i) / (n - 1))));
+}
 export const SEQUENTIAL_ANCHORS = ["#fff7cc", "#f5b247", "#d9601a", "#8f1f3d", "#3d0d3a"];
 export function sequentialStops(min, max, n = 17) {
   const lo = Number.isFinite(min) ? min : 0, hi = Number.isFinite(max) && max > lo ? max : lo + 1;

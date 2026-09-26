@@ -35,3 +35,6 @@ jobs:
       - name: Fault tests (GemPy, #360)
         working-directory: python-sidecar
         run: python tests/test_implicit_faults.py
+      - name: DC/IP 2D tests (#322)
+        working-directory: python-sidecar
+        run: python tests/test_dcip2d.py
