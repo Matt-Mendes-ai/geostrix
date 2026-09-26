@@ -185,17 +185,28 @@ export function exportSurfaceDXF(name, geometry, origin, provenance = null, extr
 // (not via mesh.position/matrix, which would just relocate the object without changing what's actually
 // written to the exported vertex buffer the way we need) so the same real-world-coordinate convention
 // as the OBJ/DXF exporters applies here too.
+// TASKS.csv #413 — glTF vertex buffers are 32-bit floats: a UTM northing written directly loses its
+// decimals (Math.fround(6298450.37) = 6298450.5, errors up to +-0.5 m). The vertices are written relative
+// to a local origin (the bounding-box minimum, rounded to whole metres so it is exact) and that origin goes
+// into the node's `translation`, which glTF stores as a full-precision JSON number — any viewer applies
+// it, so the surface still lands at its real coordinates, now to float32 precision of LOCAL values (mm).
+export function localizeVertices(vertices) {
+  const off = [0, 1, 2].map((k) => { let m = Infinity; for (const v of vertices) if (v[k] < m) m = v[k]; return Number.isFinite(m) ? Math.floor(m) : 0; });
+  return { offset: off, local: vertices.map((v) => [v[0] - off[0], v[1] - off[1], v[2] - off[2]]) };
+}
 export function exportSurfaceGLTF(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
+  const { offset, local } = localizeVertices(vertices); // #413
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices.flat(), 3));
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(local.flat(), 3));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ name: sanitizeName(name) }));
   mesh.name = sanitizeName(name);
   // TASKS.csv #269 — glTF has no comment syntax, but GLTFExporter copies a node's userData into that
   // node's `extras` object, which is exactly what extras is for and what every glTF inspector shows.
-  mesh.userData = { GeoStrix: provenanceLines(name, provenance, extra) };
+  mesh.userData = { GeoStrix: provenanceLines(name, provenance, extra), localOrigin: offset }; // #413: also stated in extras
+  mesh.position.set(offset[0], offset[1], offset[2]); // written as node.translation (JSON doubles)
   const exporter = new GLTFExporter();
   return new Promise((resolve, reject) => {
     exporter.parse(
@@ -206,7 +217,7 @@ export function exportSurfaceGLTF(name, geometry, origin, provenance = null, ext
         resolve(result);
       },
       (err) => { geo.dispose(); reject(err); },
-      { binary: true },
+      { binary: true, trs: true }, // #413: trs -> node.translation (not a matrix), the readable form
     );
   });
 }

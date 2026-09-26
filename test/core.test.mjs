@@ -279,3 +279,12 @@ test("#320 interval import maps a column literally named 'value'; real names sti
   for (const t of intervalTargets) assert.equal(guessMapping(t, ["hole_id", "from", "to", "value"]).value, "value", t);
   assert.equal(guessMapping("litho", ["hole_id", "from", "to", "value", "litho"]).value, "litho");
 });
+
+import { localizeVertices } from "../src/lib/meshExport.js";
+test("#413 glTF: vertices written relative to a whole-metre origin keep centimetres in float32", () => {
+  const v = [[463123.37, 6298450.37, 1150.12], [463223.91, 6298550.83, 1101.55]];
+  assert.equal(Math.fround(6298450.37), 6298450.5); // the bug: direct world coordinates
+  const { offset, local } = localizeVertices(v);
+  assert.deepEqual(offset, [463123, 6298450, 1101]);
+  for (let i = 0; i < v.length; i++) for (let k = 0; k < 3; k++) assert.ok(Math.abs(Math.fround(local[i][k]) + offset[k] - v[i][k]) < 0.001);
+});
