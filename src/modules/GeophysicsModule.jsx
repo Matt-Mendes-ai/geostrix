@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe } from "lucide-react";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -148,11 +149,8 @@ export default function GeophysicsModule() {
   const importFile = (file) => {
     if (!file) return;
     setError(null);
-    Papa.parse(file, {
-      header: true,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-      complete: (res) => {
+    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+        const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const parsed = res.data.map(normGeophysRow);
         const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.value));
         let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
@@ -175,11 +173,10 @@ export default function GeophysicsModule() {
         }
         mergeLayer("geophys_pts", good);
         const zNote = noZ ? ` ${noZ} point(s) have no elevation: they are kept for modelling with "sensor at a fixed height above terrain", and are not drawn in 3D.` : ""; // #365
-        if (bad.length) setError(`Imported ${good.length} point(s); skipped ${bad.length} row(s) missing x/y or a value.${zNote}${reprojectNote}`);
-        else if (reprojectNote || zNote) setError(`Imported ${good.length} point(s).${zNote}${reprojectNote}`);
-      },
-      error: (err) => setError(`Could not parse ${file.name}: ${err.message}`),
-    });
+        const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
+        if (bad.length) setError(`Imported ${good.length} point(s); skipped ${bad.length} row(s) missing x/y or a value.${zNote}${reprojectNote}${readNote}`);
+        else if (reprojectNote || zNote || readNote) setError(`Imported ${good.length} point(s).${zNote}${reprojectNote}${readNote}`);
+    }).catch((err) => setError(`Could not parse ${file.name}: ${err.message}`));
   };
 
   // Default drape elevation: average collar elevation if holes are loaded (drapes usually make most
@@ -705,11 +702,9 @@ export default function GeophysicsModule() {
   const importBlockModelCSV = (file) => {
     if (!file) return;
     setVoxelError(null);
-    Papa.parse(file, {
-      header: true, dynamicTyping: true, skipEmptyLines: true,
-      complete: (res) => finishBlockModelImport(file.name, res.data, res.meta.fields?.length || 0),
-      error: (err) => setVoxelError({ info: false, text: `Could not parse ${file.name}: ${err.message}` }),
-    });
+    parseTableFile(file) // TASKS.csv #444 — comma decimals (Datamine/Micromine exports on a European locale) + encoding fallback
+      .then((t) => finishBlockModelImport(file.name, t.rows, t.headers.length))
+      .catch((err) => setVoxelError({ info: false, text: `Could not parse ${file.name}: ${err.message}` }));
   };
   // Plain loop, not Math.min(...vals)/Math.max(...vals) — a large geophysics point cloud (real
   // airborne survey exports easily run into hundreds of thousands of points) can exceed the JS

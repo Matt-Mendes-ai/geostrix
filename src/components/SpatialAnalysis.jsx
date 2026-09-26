@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download, Info } from "lucide-react";
-import Papa from "papaparse";
+import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
+import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -60,12 +61,8 @@ export default function SpatialAnalysis({ points, onClose }) {
       x: c.point.x, y: c.point.y, z: c.point.z ?? "", value: c.point.value, label: c.point.label ?? "",
       voronoi_area: c.area.toFixed(3), decluster_weight: c.weight.toFixed(6),
     }));
-    const csv = Papa.unparse(rows);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "voronoi_decluster.csv"; a.click();
-    URL.revokeObjectURL(url);
+    // TASKS.csv #444 — through the normal Save dialog (was a blob download that bypassed it).
+    saveFile({ suggestedName: "voronoi_decluster.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toCsv(rows) });
   };
 
   return (

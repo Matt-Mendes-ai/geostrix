@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
+import { saveFile } from "../lib/desktop.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -49,14 +51,11 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   const excludedCount = intercepts.filter((i) => excludedSet.has(i.id)).length;
   const softCount = intercepts.filter((i) => softSet.has(i.id)).length;
 
+  // TASKS.csv #444 — was a hand-built join(","): a unit or hole name containing a comma or quote shifted
+  // every column after it. Now quoted properly (toCsv) and saved through the normal Save dialog.
   const exportCsv = () => {
-    const header = "layer,hole_id,unit,from_m,x,y,z,excluded,soft\n";
-    const body = intercepts.map((i) => [i.layerLabel, i.hole_id, i.unit, i.from, i.x.toFixed(2), i.y.toFixed(2), i.z.toFixed(2), excludedSet.has(i.id) ? "yes" : "no", softSet.has(i.id) ? "yes" : "no"].join(",")).join("\n");
-    const blob = new Blob([header + body], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "boundary_intercepts.csv"; a.click();
-    URL.revokeObjectURL(url);
+    const rows = intercepts.map((i) => ({ layer: i.layerLabel, hole_id: i.hole_id, unit: i.unit, from_m: i.from, x: i.x.toFixed(2), y: i.y.toFixed(2), z: i.z.toFixed(2), excluded: excludedSet.has(i.id) ? "yes" : "no", soft: softSet.has(i.id) ? "yes" : "no" }));
+    saveFile({ suggestedName: "boundary_intercepts.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toCsv(rows) });
   };
 
   return (

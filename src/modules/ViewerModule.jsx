@@ -98,6 +98,7 @@ import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import PlannedHoleTargeting from "../components/PlannedHoleTargeting.jsx"; // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
 import { normalizeCommaDecimals } from "../lib/numberLocale.js"; // TASKS.csv #284
+import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
@@ -462,11 +463,9 @@ function normSurvey(r) {
 // back a note explaining what it did (or, for the genuinely ambiguous "1,234" case, what it
 // deliberately did NOT do) — see src/lib/numberLocale.js for the heuristic and why it's shaped that way.
 function parseCSV(file, onDone) {
-  Papa.parse(file, {
-    header: true, dynamicTyping: true, skipEmptyLines: true, comments: "#", // #404: skip GeoStrix's own parameter stamp
-    complete: (res) => { const { rows, note } = normalizeCommaDecimals(res.data); onDone(rows, null, note); },
-    error: (err) => onDone(null, err.message),
-  });
+  // TASKS.csv #444 — the shared reader (lib/tabular.js): the same #284 comma-decimal handling and #404
+  // stamp skipping as before, plus the Windows-1252 fallback for Excel exports.
+  parseTableFile(file).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message));
 }
 // TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,
 // GeoPackage import). Both new import formats get converted to the exact same flat-row-array shape

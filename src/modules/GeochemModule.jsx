@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
+import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "lucide-react";
 import Papa from "papaparse";
@@ -86,18 +87,16 @@ export default function GeochemModule() {
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
   const handleFile = (file, isPxrf) => {
-    Papa.parse(file, {
-      header: true, dynamicTyping: true, skipEmptyLines: true, comments: "#", // #404: skip GeoStrix's own parameter stamp
-      complete: (res) => {
+    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+        const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
         // import path (src/lib/numberLocale.js) — and the note is surfaced, not swallowed.
-        const { rows: data, note } = normalizeCommaDecimals(res.data);
+        const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = Object.keys(data[0]);
         openAssayModal(file, headers, data, isPxrf);
-      },
     });
   };
 
@@ -225,10 +224,9 @@ export default function GeochemModule() {
   // already uses (see that branch's own TASKS.csv #210 comment for why the dedupe matters) — surface
   // sample lab exports have the same "more than one candidate column per element" problem.
   const handleSurfaceFile = (file) => {
-    Papa.parse(file, {
-      header: true, dynamicTyping: true, skipEmptyLines: true,
-      complete: (res) => {
-        const { rows: data, note } = normalizeCommaDecimals(res.data); // TASKS.csv #284
+    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+        const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
+        const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = Object.keys(data[0]);
@@ -260,7 +258,6 @@ export default function GeochemModule() {
           mapping,
           defaultMedium: "soil", elements,
         });
-      },
     });
   };
 

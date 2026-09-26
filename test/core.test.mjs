@@ -210,3 +210,16 @@ test("#349 DB browser SQL per engine: MySQL backticks + snapshot/LIMIT-OFFSET pa
   assert.equal(p.page(500), "FETCH FORWARD 500 FROM geostrix_import_cursor;");
   assert.equal(p.begin, "BEGIN READ ONLY;");
 });
+
+import { decodeTableBytes, parseTableText, toCsv } from "../src/lib/tabular.js";
+test("#444 shared CSV reader/writer: Windows-1252 fallback, comma decimals, # stamp skipped, quoting", () => {
+  const bytes = Uint8Array.from([...Buffer.from("x;y;dip"), 0xb0, ...Buffer.from("\n")]); // 0xB0 = "°" in Windows-1252, invalid UTF-8
+  const d = decodeTableBytes(bytes);
+  assert.equal(d.encoding, "windows-1252"); assert.ok(d.text.includes("dip\u00b0"));
+  assert.equal(decodeTableBytes(Buffer.from("\ufeffa,b\n1,2")).text, "a,b\n1,2"); // BOM stripped, UTF-8 kept
+  const t = parseTableText('# GeoStrix stamp\nx,y,value\n"412000,5","6250000,25","1,5"\n"412001,5","6250001,25","2,25"\n');
+  assert.deepEqual(t.headers, ["x", "y", "value"]);
+  assert.equal(t.rows.length, 2); assert.equal(t.rows[0].x, 412000.5); assert.equal(t.rows[1].value, 2.25);
+  assert.ok(/comma decimals/i.test(t.note), t.note);
+  assert.equal(toCsv([{ unit: 'Andesite, "upper"', hole: "A-1" }]), 'unit,hole\r\n"Andesite, ""upper""",A-1');
+});
