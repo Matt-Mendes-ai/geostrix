@@ -327,10 +327,34 @@ const PY_SIDECAR_BASE = "http://127.0.0.1:8765";
 // sent on every request. In a plain-browser dev session there is no Electron, no token, and a hand-started
 // sidecar that doesn't require one — so the header is simply omitted there.
 let sidecarTokenPromise = null;
+// TASKS.csv #353 — before the token (and with it any project data) goes to 127.0.0.1:8765, make sure the
+// program listening there is OUR sidecar: it must return HMAC-SHA256(token, a fresh random nonce). Anything
+// else on that port (another app, a leftover process from another tool) gets nothing. Checked once per
+// session; a failed check is not remembered, so starting the real sidecar later still works.
+let sidecarVerified = null;
+const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+export async function sidecarProof(token, nonce) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(token), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", key, enc.encode(nonce)));
+}
+async function verifySidecarIdentity(token) {
+  const nonce = hex(crypto.getRandomValues(new Uint8Array(24)));
+  const res = await fetch(`${PY_SIDECAR_BASE}/health?nonce=${nonce}`, { signal: AbortSignal.timeout(3000) });
+  const j = await res.json().catch(() => ({}));
+  if (j?.proof !== (await sidecarProof(token, nonce))) {
+    const e = new Error("Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.");
+    e.code = "SIDECAR_IDENTITY";
+    throw e;
+  }
+}
 async function sidecarHeaders(extra = {}) {
   if (!sidecarTokenPromise) sidecarTokenPromise = d?.getSidecarToken ? d.getSidecarToken().catch(() => null) : Promise.resolve(null);
   const token = await sidecarTokenPromise;
-  return token ? { ...extra, "X-GeoStrix-Token": token } : extra;
+  if (!token) return extra;
+  if (!sidecarVerified) sidecarVerified = verifySidecarIdentity(token).catch((e) => { sidecarVerified = null; throw e; });
+  await sidecarVerified;
+  return { ...extra, "X-GeoStrix-Token": token };
 }
 // TASKS.csv #440 — the desktop app starts the sidecar on first use instead of at launch. Every call that
 // needs Python goes through this first: it asks the main process to spawn it (a no-op when running) and,
@@ -374,6 +398,7 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
     if (!res.ok) return { ok: false, status: res.status, error: formatSidecarErrorDetail(data?.detail) || `Sidecar returned HTTP ${res.status}` };
     return { ok: true, status: res.status, data };
   } catch (err) {
+    if (err?.code === "SIDECAR_IDENTITY") return { ok: false, status: 0, error: err.message }; // #353
     return { ok: false, status: 0, error: "Python sidecar not reachable (not started, still booting, or Python/deps not installed — see python-sidecar/README.md)." };
   }
 }
@@ -390,7 +415,7 @@ export const sidecarCancelJob = (id) => sidecarJson(`/v1/jobs/${encodeURICompone
 
 export async function pythonHealth() {
   try {
-    const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000), headers: await sidecarHeaders() });
+    const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000) }); // #353: /health needs no token — never send it before the identity check
     if (!res.ok) return { ok: false, error: `Sidecar returned HTTP ${res.status}` };
     const data = await res.json();
     return { ok: true, ...data };
@@ -511,6 +536,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
     // don't send them; undefined then, and every consumer treats that as "unknown".
     return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o };
   } catch (err) {
+    if (err?.code === "SIDECAR_IDENTITY") return { ok: false, error: err.message }; // #353
     // A user-triggered cancel (opts.signal aborted with this specific reason) gets its own quiet,
     // non-error message — distinct from a genuine timeout/connectivity problem, which the two branches
     // below still handle exactly as before.

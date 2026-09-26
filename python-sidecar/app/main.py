@@ -11,6 +11,7 @@ Run standalone for testing (see python-sidecar/README.md):
 """
 
 from typing import List, Literal
+import hashlib
 import hmac
 import importlib.metadata
 import importlib.util
@@ -59,7 +60,12 @@ async def _guard(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
     cl = request.headers.get("content-length")
-    if request.method in ("POST", "PUT") and (cl is None or int(cl) > MAX_BODY_BYTES):
+    # TASKS.csv #353 — a non-numeric Content-Length used to raise inside int() (HTTP 500); now a clean 400
+    try:
+        cl_n = int(cl) if cl is not None else None
+    except ValueError:
+        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."})
+    if request.method in ("POST", "PUT") and (cl_n is None or cl_n > MAX_BODY_BYTES):
         return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."})
     if _TOKEN and request.url.path != "/health":
         sent = request.headers.get("x-geostrix-token", "")
@@ -136,13 +142,18 @@ def _dist_version(name):
 
 
 @app.get("/health")
-def health():
+def health(nonce: str | None = None):
     simpeg_v = _dist_version("simpeg")
+    # TASKS.csv #353 — identity proof. The app sends a random nonce and checks this HMAC (keyed with the
+    # per-launch token it gave THIS process) before it sends the token or any project data: a different
+    # program that happens to hold the port cannot produce it, so it never receives either.
+    proof = hmac.new(_TOKEN.encode(), nonce.encode(), hashlib.sha256).hexdigest() if (_TOKEN and nonce and len(nonce) <= 128) else None
     # Availability is decided by whether the modules can be FOUND (no import), not by metadata alone — a
     # frozen build without copied metadata once reported SimPEG missing while it ran jobs fine (#321).
     available = bool(importlib.util.find_spec("simpeg") and importlib.util.find_spec("choclo"))
     return {
         "status": "ok", "service": "geostrix-sidecar", "version": "0.1.0", "api_version": API_VERSION,
+        **({"proof": proof} if proof else {}),
         "capabilities": {
             "potentialFields": {"available": available,
                                 "simpeg": simpeg_v, "discretize": _dist_version("discretize"), "choclo": _dist_version("choclo")},
