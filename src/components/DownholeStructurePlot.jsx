@@ -21,8 +21,10 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 //   * Does structural style CHANGE at a lithology contact (the classic "is this contact structural or
 //     depositional" question)?
 //   * Are the picks internally sane before they ever reach the stereonet — a run of identical
-//     azimuths, or alpha values that jump around impossibly between adjacent picks, is a logging or
-//     core-orientation error, and it is invisible on a stereonet where it just adds to the scatter.
+//     azimuths is a logging error, and dip directions fanning through 360° over a short run is a
+//     core-orientation error; both are invisible on a stereonet where they just add to the scatter.
+//     (TASKS.csv #430: alpha is measured against the core axis, not the orientation line, so erratic
+//     alpha points at logging or depth errors — never at the orientation line.)
 //
 // THE PLOT, following the standard used in Leapfrog / Datamine / Target / LogChief so it reads the way
 // a geologist already expects:
@@ -301,9 +303,10 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 right is dipping east.
               </div>
               <div style={{ color: "#55606e", marginTop: 4 }}>
-                Clustered tails = a consistent set. Tails fanning through 360° over a short interval, or
-                alpha jumping wildly between adjacent picks, usually means a core-orientation problem
-                rather than real geology.
+                Clustered tails = a consistent set. Tails fanning through 360° over a short interval
+                usually means a core-orientation problem rather than real geology. Alpha does not depend
+                on the orientation line, so alpha jumping wildly between adjacent picks points to a
+                logging or depth error instead.
               </div>
             </div>
 

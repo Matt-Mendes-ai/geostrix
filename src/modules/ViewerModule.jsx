@@ -82,6 +82,7 @@ import {
   roleForLithology, isCrossCuttingRole,
   colorForMedium, classifyBreaks, paletteColorsHex, PALETTES,
   CATEGORICAL_SAFE_COLORS, // TASKS.csv #306
+  isOverturnedValue, // TASKS.csv #430
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
@@ -359,6 +360,7 @@ function normStructure(r, mapping, customFields, dipConvention) {
     ...(Number.isFinite(alpha) ? { alpha } : {}),
     ...(Number.isFinite(beta) ? { beta } : {}),
     ...(mapping.structure_id && String(r[mapping.structure_id] ?? "").trim() ? { structure_id: String(r[mapping.structure_id]).trim() } : {}), // #362
+    ...(mapping.overturned && isOverturnedValue(r[mapping.overturned]) ? { overturned: true } : {}), // #430
   }, r, customFields);
 }
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
@@ -3676,7 +3678,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const p = findOnTrace(t.pts, s.depth);
       if (!p) return;
       const api = sceneToApi(p);
-      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth });
+      // #430 — an overturned pick tells GemPy the younger side is the other way (polarity -1)
+      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth, ...(s.overturned ? { polarity: -1 } : {}) });
     });
     return orientations;
   };

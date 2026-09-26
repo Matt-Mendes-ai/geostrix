@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Plus, Trash2, Save } from "lucide-react";
-import { holeDirection, referenceLine, solveUnoriented } from "../lib/coreOrientation.js";
+import { holeDirection, referenceLine, solveUnoriented, roundAzimuth } from "../lib/coreOrientation.js";
 import { surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -82,20 +82,34 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     const raN = Number(refAlpha), rbN = Number(refBeta);
     const uaN = Number(unkAlpha), ubN = Number(unkBeta);
     if ([azN, dipN, kddN, kdN, raN, rbN, uaN, ubN].some((v) => isNaN(v))) return null;
-    const d = holeDirection(azN, dipN);
+    // TASKS.csv #429 — a hole dip typed as -60 (the negative-down convention many logging systems use)
+    // made holeDirection point the hole UP and the answer silently wrong. Read it as 60° below
+    // horizontal and say so; beyond 90° is not a hole dip at all.
+    if (Math.abs(dipN) > 90) return { error: "Hole dip must be 0–90° below horizontal." };
+    const dipNote = dipN < 0 ? `Hole dip ${dipN}° read as ${-dipN}° below horizontal (negative-down convention).` : null;
+    const d = holeDirection(azN, Math.abs(dipN));
     const r = referenceLine(d, useTop);
     if (!r) return { error: "This hole is within ~2.6° of vertical — a bottom-of-hole/top-of-hole reference line isn't physically defined (the same real-world limit an actual core-orientation tool would hit)." };
     const res = solveUnoriented({ holeDir: d, refLine: r, knownDipDirDeg: kddN, knownDipDeg: kdN, refAlphaDeg: raN, refBetaDeg: rbN, unkAlphaDeg: uaN, unkBetaDeg: ubN });
     if (!res.ok) return { error: res.reason };
-    return res;
+    return { ...res, dipNote, holeAz: azN, holeDip: Math.abs(dipN) };
   }, [azimuth, dip, useTop, knownDipDir, knownDip, refAlpha, refBeta, unkAlpha, unkBeta]);
 
   const canSave = result && !result.error && holeId && depth !== "" && !isNaN(Number(depth));
   const save = () => {
     if (!canSave) return;
+    // TASKS.csv #429 — keep how this orientation was obtained on the pick itself: the raw measurements,
+    // the calibration and its QC, so a later reviewer can redo or distrust it (they used to be dropped).
+    const refName = selectedRefId.startsWith("oc:") ? "outcrop measurement"
+      : (fieldStructuralRefs.find((r) => r.id === selectedRefId)?.label || "ad hoc reference");
     onSaveStructurePick({
       hole_id: holeId, depth: Number(depth), value: unkLabel || "(unnamed)",
-      dip: Number(result.dipDeg.toFixed(2)), azimuth: Number(result.dipDirDeg.toFixed(2)),
+      dip: Number(result.dipDeg.toFixed(2)), azimuth: roundAzimuth(result.dipDirDeg),
+      alpha: Number(unkAlpha), beta_scribed: Number(unkBeta),
+      ref_dipdir: Number(knownDipDir), ref_dip: Number(knownDip), ref_alpha: Number(refAlpha), ref_beta_scribed: Number(refBeta),
+      gamma: roundAzimuth(result.gammaDeg), alpha_check_deg: Number(result.alphaDiscrepancyDeg.toFixed(2)),
+      hole_az_used: Number(result.holeAz.toFixed(2)), hole_dip_used: Number(result.holeDip.toFixed(2)),
+      orientedFrom: `alpha/beta calibrated on ${refName} ${knownDipDir}°/${knownDip}° (${useTop ? "top" : "bottom"}-of-hole line; rotation ${roundAzimuth(result.gammaDeg, 1)}°; alpha check off ${result.alphaDiscrepancyDeg.toFixed(1)}°)`,
       _src: "Core orientation calculator",
     });
   };
@@ -166,7 +180,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             {result?.error && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-solid)", lineHeight: 1.5 }}>{result.error}</div>}
             {result && !result.error && (
               <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "9px 10px", fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{unkLabel || "Unknown structure"}: true dip {result.dipDeg.toFixed(1)}° / dip-dir {result.dipDirDeg.toFixed(1)}°</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{unkLabel || "Unknown structure"}: true dip {result.dipDeg.toFixed(1)}° / dip-dir {roundAzimuth(result.dipDirDeg, 1).toFixed(1)}°</div>
+                {result.dipNote && <div style={{ color: "var(--color-text-secondary)", marginBottom: 2 }}>{result.dipNote}</div>}
                 <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "var(--color-danger-solid)" : "var(--color-text-secondary)" }}>
                   Alpha check: reference structure's on-core alpha vs. what its known attitude implies —
                   off by {result.alphaDiscrepancyDeg.toFixed(1)}°{result.alphaDiscrepancyDeg > 5 ? " (large — is this really the same structure logged in the field?)" : ""}

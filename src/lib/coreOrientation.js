@@ -73,6 +73,22 @@ export function referenceLine(holeDir, useTop = false) {
   return norm(sub(vertical, scale(holeDir, vDotD)));
 }
 
+// TASKS.csv #429 — the range rules for the alpha-beta calculator; returns a plain-language reason or null.
+export function checkAlphaBetaInputs({ knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg, knownDipDirDeg }) {
+  const all = { knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg, knownDipDirDeg };
+  if (!Object.values(all).every(Number.isFinite)) return "Every angle must be a number.";
+  if (refAlphaDeg < 0 || refAlphaDeg > 90 || unkAlphaDeg < 0 || unkAlphaDeg > 90) return "Alpha is the acute angle between the core axis and the structure, so it must be 0–90°.";
+  if (refBetaDeg < 0 || refBetaDeg > 360 || unkBetaDeg < 0 || unkBetaDeg > 360) return "Beta is measured around the core, 0–360°.";
+  if (knownDipDeg < 0 || knownDipDeg > 90) return "The reference structure's dip must be 0–90° (give the direction it dips toward as the dip-direction).";
+  return null;
+}
+
+// TASKS.csv #429 — round a dip-direction for display/storage without ever producing 360 (359.999 -> 0).
+export function roundAzimuth(deg, dp = 2) {
+  const r = Number(Number(deg).toFixed(dp));
+  return r >= 360 ? r - 360 : r < 0 ? r + 360 : r;
+}
+
 // Forward: true pole -> {alphaDeg (0-90), betaDeg (0-360, clockwise looking down-hole from refLine)}.
 // betaDeg is null when alpha is ~90 (core-perpendicular plane => circular intersection, no defined beta).
 export function alphaBetaFromPole(pole, holeDir, refLine) {
@@ -104,6 +120,10 @@ export function poleFromAlphaBeta(alphaDeg, betaDeg, holeDir, refLine) {
 // that SAME arbitrary line, solves for the core's unknown rotational offset and returns the unknown
 // structure's true dip/dip-direction.
 export function solveUnoriented({ holeDir, refLine, knownDipDirDeg, knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg }) {
+  // TASKS.csv #429 — out-of-range inputs used to be solved anyway (alpha 95 or a known dip of 120 gave a
+  // confident, meaningless answer). Beta 360 is the same line as 0; dip-direction wraps freely.
+  const bad = checkAlphaBetaInputs({ knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg, knownDipDirDeg });
+  if (bad) return { ok: false, reason: bad };
   const knownPole = poleFromDipDD(knownDipDirDeg, knownDipDeg);
   const calcRef = alphaBetaFromPole(knownPole, holeDir, refLine);
   const alphaDiscrepancyDeg = Math.abs(calcRef.alphaDeg - refAlphaDeg);

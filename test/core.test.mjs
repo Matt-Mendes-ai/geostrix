@@ -96,6 +96,40 @@ test("#427 alpha/beta -> dip/dip direction round-trips through the forward model
   assert.ok(orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 89.5 }).error); // near-vertical: refused
 });
 
+import { parseStructureRows } from "../src/lib/mapLayers.js";
+import { isOverturnedValue } from "../src/lib/layers.js";
+test("#430 outcrop numbers with units or labels parse; quadrant strikes stay skipped; overturned values", () => {
+  const cols = { x: "x", y: "y", dip: "dip", dipDir: "dd" };
+  const r = parseStructureRows([
+    { x: "500100", y: "6200100", dip: "65 deg", dd: "120°" },
+    { x: "500200", y: "6200200", dip: "dip 40", dd: "az: 300" },
+    { x: "500300", y: "6200300", dip: "30", dd: "N45E" },
+    { x: "5.001e5", y: "6200400", dip: "10", dd: "90" },
+  ], cols);
+  assert.deepEqual(r.rows.map((o) => [o.dip, o.dipDir]), [[65, 120], [40, 300], [10, 90]]);
+  assert.equal(r.rows[2].x, 500100);
+  assert.equal(r.skipped, 1);
+  for (const v of ["Y", "overturned", "-1", "Down", " O/T "]) assert.equal(isOverturnedValue(v), true, v);
+  for (const v of ["", "N", "up", "1", "normal", null, undefined]) assert.equal(isOverturnedValue(v), false, String(v));
+});
+
+import { solveUnoriented, roundAzimuth } from "../src/lib/coreOrientation.js";
+test("#429 alpha-beta calculator: range checks, beta 360 = 0, dip-direction never 360", () => {
+  const hd = holeDirection(90, 60), rl = referenceLine(hd, false);
+  const base = { holeDir: hd, refLine: rl, knownDipDirDeg: 270, knownDipDeg: 45, refAlphaDeg: 40, refBetaDeg: 100, unkAlphaDeg: 50, unkBetaDeg: 200 };
+  assert.equal(solveUnoriented(base).ok, true);
+  assert.match(solveUnoriented({ ...base, unkAlphaDeg: 95 }).reason, /0–90/);
+  assert.match(solveUnoriented({ ...base, refAlphaDeg: -1 }).reason, /0–90/);
+  assert.match(solveUnoriented({ ...base, knownDipDeg: 120 }).reason, /dip must be 0–90/);
+  assert.match(solveUnoriented({ ...base, refBetaDeg: 400 }).reason, /0–360/);
+  const a = solveUnoriented({ ...base, unkBetaDeg: 0 }), b = solveUnoriented({ ...base, unkBetaDeg: 360 });
+  assert.ok(Math.abs(a.dipDeg - b.dipDeg) < 1e-9 && Math.abs(a.dipDirDeg - b.dipDirDeg) < 1e-9);
+  assert.equal(solveUnoriented({ ...base, knownDipDirDeg: 630 }).dipDirDeg.toFixed(6), solveUnoriented(base).dipDirDeg.toFixed(6)); // 630 = 270
+  assert.equal(roundAzimuth(359.9996), 0);
+  assert.equal(roundAzimuth(359.994), 359.99);
+  assert.equal(roundAzimuth(12.345, 1), 12.3);
+});
+
 import { unitAt, unitVolumes, checkAgainstLogs } from "../src/lib/modelCheck.js";
 test("#356 model check: block lookup (z fastest), volumes, logged-vs-modelled metres", () => {
   // 2 x 1 x 4 block over x 0..200, y 0..100, z -400..0; ids per column (z fastest): 3,2,2,1 bottom->top

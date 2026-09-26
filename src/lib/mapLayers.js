@@ -431,7 +431,16 @@ export function structureClass(t) {
 // reported (not corrected) because it usually means a left-hand-rule strike or a typo, and only the
 // geologist knows which.
 export function parseStructureRows(rawRows, cols) {
-  const num = (v) => { if (v == null || v === "") return null; const n = Number(String(v).replace(/[^\d.+-eE]/g, "")); return Number.isFinite(n) ? n : null; };
+  // TASKS.csv #430 — the old /[^\d.+-eE]/ held a RANGE '+'..'e' (digits, capitals, a-e), so "65 deg" became
+  // "65de" and "dip 65" "dip65" and both were skipped. Strip degree marks and a leading label only; anything
+  // else that isn't a plain number (e.g. quadrant "N45E") still counts as skipped, never guessed.
+  const num = (v) => {
+    if (v == null || v === "") return null;
+    const s = String(v).trim().replace(/[°º]|deg(?:rees?)?\.?/gi, "").replace(/^(?:dip\s*dir(?:ection)?|dip|az(?:imuth)?|strike|x|y|z)\s*[:=]?\s*/i, "").trim();
+    if (s === "") return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
   const rows = [];
   let skipped = 0, derivedFromStrike = 0, rhrMismatches = 0;
   rawRows.forEach((r) => {

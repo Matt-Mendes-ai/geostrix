@@ -578,6 +578,9 @@ export const TARGET_SCHEMAS = {
     // TASKS.csv #362 — which individual structure a pick belongs to (e.g. "Main Fault", "F2"). Without it,
     // every pick of one type (all 'FLT') is modelled as ONE surface even when they are several faults.
     { key: "structure_id", label: "Structure name / ID (optional — which fault/vein)", required: false, aliases: ["structure_id", "structure_name", "struct_id", "fault_id", "fault_name", "vein_id"] },
+    // TASKS.csv #430 — overturned bedding: the implicit model is told the younging side is the other way
+    // (GemPy orientation polarity -1). Y / overturned / -1 / down mark a pick as overturned.
+    { key: "overturned", label: "Overturned / younging (optional — Y, overturned, -1 or down = overturned)", required: false, aliases: ["overturned", "younging", "facing", "polarity", "way_up"] },
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -774,4 +777,11 @@ export function diffCollarImport(existing, incoming) {
     });
   }
   return { newHoles, unchanged, changed, duplicatesInFile };
+}
+
+// TASKS.csv #430 — does an "overturned / younging / polarity" cell mark the pick as overturned? Only clear
+// yes-values count; anything else (blank, "N", "up", "1", "normal") is the ordinary right-way-up case.
+const OVERTURNED_VALUES = new Set(["y", "yes", "true", "overturned", "ot", "o/t", "inverted", "-1", "down", "facing down", "younging down"]);
+export function isOverturnedValue(v) {
+  return v != null && OVERTURNED_VALUES.has(String(v).trim().toLowerCase());
 }
