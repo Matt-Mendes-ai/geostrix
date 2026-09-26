@@ -5501,6 +5501,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       } else if (format === "glb") {
         const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current, prov, extra);
         await saveFile({ suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: uint8ToBase64(new Uint8Array(buf)), encoding: "base64" });
+      } else if (format === "omf") {
+        // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)
+        const { writeOMF } = await import("../lib/omfWriter.js");
+        const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
+        const desc = `GeoStrix surface, EPSG:${project?.epsg ?? "?"}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
+        const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
+        await saveFile({ suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
       }
       setNotices((p) => [...p, `Exported "${surf.name}" as ${format.toUpperCase()} (real-world coordinates).`]);
     } catch (err) {
@@ -9930,6 +9937,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Wavefront OBJ — universal, human-readable">OBJ</button>
                     <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this">DXF</button>
                     <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="glTF Binary — modern standard, keeps normals, good for Blender/web viewers">glTF</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it (TASKS.csv #411)">OMF</button>
                   </div>
                 </div>
               )}

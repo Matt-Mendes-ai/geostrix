@@ -101,7 +101,7 @@ export default function GeophysicsModule() {
   // TASKS.csv #328 — the export package (module loaded on first use: it brings the GeoTIFF writer)
   const exportModelPackage = async (model) => {
     const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
-    const r = buildModelExportZip(model, project.epsg);
+    const r = await buildModelExportZip(model, project.epsg);
     if (r.error) { setVoxelError({ text: `Could not export "${model.name}": ${r.error}` }); return; }
     const res = await saveFile({ suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
     if (res?.ok) setVoxelError({ info: true, text: `Exported "${model.name}": ${r.files.length} files (${r.files.filter((f) => f.endsWith(".tif")).length} depth slices).${r.warnings.length ? " " + r.warnings.join(" ") : ""}` });

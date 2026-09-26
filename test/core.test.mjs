@@ -379,7 +379,7 @@ test("#480 UBC import puts every value in its own cell (file z runs top-down, as
 });
 
 import { tensorFromCells, ubcMeshText, ubcModelText, buildModelExportZip } from "../src/lib/modelExport.js";
-test("#328 UBC export re-imports to the same cells; air cells are no-data; ragged grids refused", () => {
+test("#328 UBC export re-imports to the same cells; air cells are no-data; ragged grids refused", async () => {
   const cells = [];
   for (let ix = 0; ix < 4; ix++) for (let iy = 0; iy < 3; iy++) for (let iz = 0; iz < 5; iz++) {
     if (iz === 4 && ix === 0) continue; // "air" above the terrain in one column
@@ -394,9 +394,9 @@ test("#328 UBC export re-imports to the same cells; air cells are no-data; ragge
   const byPos = new Map(back.map((c) => [`${c.x},${c.y},${c.z}`, c.value]));
   for (const c of cells) assert.equal(byPos.get(`${c.x},${c.y},${c.z}`), c.value);
   assert.ok(tensorFromCells([...cells, { x: 500013, y: 6250012.5, z: 812.5, dx: 25, dy: 25, dz: 25, value: 1 }]).error);
-  const r = buildModelExportZip({ name: "Test model", cells, source: "estimate" }, 3156);
+  const r = await buildModelExportZip({ name: "Test model", cells, source: "estimate" }, 3156);
   assert.ok(!r.error);
-  assert.deepEqual(r.files.filter((f) => !f.startsWith("depth_slices/")), ["Test_model.msh", "Test_model.mod", "Test_model_support.mod", "provenance.txt"]);
+  assert.deepEqual(r.files.filter((f) => !f.startsWith("depth_slices/")), ["Test_model.msh", "Test_model.mod", "Test_model_support.mod", "Test_model.omf", "provenance.txt"]);
   assert.equal(r.files.filter((f) => f.endsWith(".tif")).length, 5);
 });
 
@@ -502,4 +502,23 @@ test("#451 surveys: stats per survey, colours on each survey's own range, radar-
   assert.deepEqual([agl.done, agl.outside], [1, 1]);
   // converting again starts from the kept height, not the already-converted elevation
   assert.equal(aglToElevation(agl.rows, "heli", () => 1200).rows[0].z, 1230);
+});
+
+import { writeOMF, volumeElementFromModel } from "../src/lib/omfWriter.js";
+import { parseOMF, omfVolumeToCells } from "../src/lib/omf.js";
+test("#411 OMF v1 writer: a block model and a surface round-trip through GeoStrix's OMF importer", async () => {
+  const cells = [];
+  for (let ix = 0; ix < 3; ix++) for (let iy = 0; iy < 4; iy++) for (let iz = 0; iz < 5; iz++) {
+    if (ix === 0 && iz === 4) continue;
+    cells.push({ x: 500012.5 + 25 * ix, y: 6250012.5 + 25 * iy, z: 805 + 10 * iz, dx: 25, dy: 25, dz: 10, value: ix * 100 + iy * 10 + iz });
+  }
+  const v = volumeElementFromModel({ name: "bm", cells, property: "chi" });
+  const bytes = await writeOMF({ elements: [v.element, { type: "surface", name: "top", vertices: [0, 0, 0, 10, 0, 0, 0, 10, 5], triangles: [0, 1, 2] }] });
+  assert.deepEqual(Array.from(bytes.slice(0, 4)), [0x84, 0x83, 0x82, 0x81]);
+  const parsed = await parseOMF(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  assert.deepEqual(parsed.elements.map((e) => e.kind), ["volume", "surface"]);
+  const back = omfVolumeToCells(parsed.elements[0], "chi");
+  const got = back.cells || back;
+  assert.equal(got.length, cells.length); // the 4 empty (NaN) cells are not re-imported
+  for (const c of got) assert.equal(c.value, Math.round((c.x - 500012.5) / 25) * 100 + Math.round((c.y - 6250012.5) / 25) * 10 + Math.round((c.z - 805) / 10));
 });

@@ -132,7 +132,8 @@ export function uint8ToBase64(bytes) {
 }
 
 // The whole package. Returns { zip: Uint8Array, files: [names], warnings } or { error }.
-export function buildModelExportZip(model, epsg) {
+// TASKS.csv #411 — async since it now also writes the model as OMF v1 (CompressionStream).
+export async function buildModelExportZip(model, epsg) {
   const cells = model.cells || [];
   const t = tensorFromCells(cells);
   if (t.error) return { error: t.error };
@@ -154,6 +155,13 @@ export function buildModelExportZip(model, epsg) {
       notes.push(`Data (.obs): the ${d.observed.length} stations the inversion used, with the uncertainty it used (column 5); observed = after the base-level removal recorded below.${model.method === "mag" ? " Header: field inclination, GRID declination, strength; then the anomaly projection (same, 1 = total-field anomaly)." : " Gravity sign: positive over dense rock (UBC's convention)."}`);
     } else warnings.push("No .obs files: the inducing field was not recorded with this model.");
   } else if (model.source === "simpeg") warnings.push("No .obs files: this model was made before GeoStrix kept its station data (re-run the inversion to get them).");
+  // #411 — the same model as OMF v1 (one file Leapfrog / Datamine / Vulcan / Micromine open directly)
+  const { writeOMF, volumeElementFromModel } = await import("./omfWriter.js");
+  const ve = volumeElementFromModel(model);
+  if (!ve.error) {
+    files.push({ name: `${base}.omf`, data: await writeOMF({ name: model.name, description: `GeoStrix block model, EPSG:${epsg}`, elements: [ve.element] }) });
+    notes.push("OMF (.omf): the same grid as one OMF v1 VolumeElement (value" + (ve.element.data.length > 1 ? " and support" : "") + " per cell; empty cells NaN) — opens in Leapfrog, Datamine, Vulcan, Micromine and Geosoft.");
+  }
   const slices = depthSliceTiffs(cells, t, epsg);
   if (slices.error) warnings.push(`No depth slices: ${slices.error}`);
   else {
