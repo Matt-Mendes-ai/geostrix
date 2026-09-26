@@ -181,3 +181,16 @@ test("#419 EPSG 4617 / 3979 / 3857 and WKT AUTHORITY detection", () => {
   assert.equal(guessEpsgFromPrjWkt('GEOGCRS["NAD83(CSRS)",ID["EPSG",4617]]'), 4617);
   assert.equal(guessEpsgFromPrjWkt('PROJCS["Weird",AUTHORITY["EPSG","99999"]]'), null);
 });
+
+import { sanitizeMesh } from "../src/lib/meshSanitize.js";
+test("#314 NaN/null vertices from GemPy: triangles touching them dropped, indices kept, bbox stays finite", () => {
+  const v = [[0, 0, 0], [1, 0, 0], [null, 0, 0], [0, 1, 0], [1, 1, NaN]];
+  const f = [[0, 1, 3], [1, 2, 3], [1, 3, 4], [0, 1, 3]];
+  const r = sanitizeMesh(v, f);
+  assert.equal(r.badVertices, 2); assert.equal(r.droppedFaces, 2);
+  assert.deepEqual(r.faces, [[0, 1, 3], [0, 1, 3]]);
+  assert.equal(r.vertices.length, 5);
+  assert.ok(r.vertices.flat().every(Number.isFinite));
+  assert.deepEqual(sanitizeMesh([[null, 0, 0]], [[0, 0, 0]]).vertices, []);
+  const good = sanitizeMesh([[0, 0, 0]], []); assert.equal(good.badVertices, 0);
+});

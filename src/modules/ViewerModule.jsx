@@ -20,6 +20,7 @@ import { rigRows, rigKML, rigGPX } from "../lib/rigExport.js"; // TASKS.csv #397
 import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
 import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
+import { sanitizeMesh } from "../lib/meshSanitize.js"; // TASKS.csv #314
 import { checkAgainstLogs, unitVolumes, blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, pythonImplicitModel, saveFile, loadSampleFiles } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
@@ -3920,9 +3921,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ? verts.map(([x, y, z]) => { const w = anisoWarpPoint({ x, y, z }, anisoCenter, anisoBasis, unwarpScl); return [w.x, w.y, w.z]; })
       : verts);
     let ensembleBase = null; // TASKS.csv #52 (a)
+    const nonFinite = []; // TASKS.csv #314
     specs.forEach((spec) => {
-      const surf = byName[spec.meshName];
+      let surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
+      // TASKS.csv #314 — NaN from GemPy arrives as null with HTTP 200: drop what touches it, and say so.
+      const clean = sanitizeMesh(surf.vertices, surf.faces);
+      if (clean.badVertices) {
+        if (!clean.vertices.length) { missing.push(`${spec.label} (GemPy returned no finite vertices)`); return; }
+        nonFinite.push(`${spec.label}: ${clean.badVertices} of ${surf.vertices.length} vertices were not numbers, ${clean.droppedFaces} triangle(s) removed`);
+        surf = { ...surf, vertices: clean.vertices, faces: clean.faces };
+      }
       const apiVerts = unwarpVerts(surf.vertices);
       const sceneVerts = apiVerts.map(apiToScene);
       // TASKS.csv #88 — boundary constraint: drop any triangle with a vertex outside the selected
@@ -3999,6 +4008,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
     if (missing.length) setNotices((p) => [...p, `GemPy returned no mesh for: ${missing.join(", ")} (try adding more points or a wider spread of orientations for those).`]);
+    if (nonFinite.length) setNotices((p) => [...p, `GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: ${nonFinite.join("; ")}. Usually too few points / orientations for the extent or resolution.`]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a
     // modelled unit (by its code / group codes) is sampled at its midpoint in the model; the report says
     // what share of the logged metres the model puts in the same unit, per unit and the worst holes.
