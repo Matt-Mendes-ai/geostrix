@@ -796,6 +796,68 @@ export function StoreProvider({ children }) {
   const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); };
 
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg })), []);
+  // TASKS.csv #485 — Cartography: move EVERYTHING in the open project into another CRS (projectReproject.js for
+  // the coordinates, rasterImagesReproject.js for the drape pictures), then reload it through the normal load
+  // path so the 3D view rebuilds every object (generated surfaces are only re-read from the store on a load).
+  // Marked unsaved; undo history cleared (an undo step would put old-CRS coordinates back under the new label).
+  // Returns the report ({ counts, notes, maxRotationDeg }). setEpsg alone = "relabel only".
+  const reprojectProjectTo = useCallback(async (toEpsg, opts = {}) => {
+    const live = liveRef.current;
+    const fromEpsg = live.project?.epsg;
+    const { reprojectProject } = await import("./projectReproject.js");
+    const { fields, report } = reprojectProject(live, fromEpsg, toEpsg, opts);
+    if (live.rasters?.some((r) => r.dataUrl)) {
+      const { reprojectRasterImages } = await import("./rasterImagesReproject.js");
+      fields.rasters = await reprojectRasterImages(fields.rasters || live.rasters, fromEpsg, toEpsg, opts.onProgress);
+      report.counts.rasters = fields.rasters.length;
+    }
+    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...fields }), live.project?.name);
+    setActiveTabDirty(true); // after the load (which marks a loaded project clean): this one has changed
+    clearUndoHistory();
+    return report;
+  }, []);
+  // TASKS.csv #486 — one object was imported in the wrong CRS: "its coordinates are really in fromEpsg" -> moved
+  // into the project CRS with the same code as a whole-project change, applied to just that object. target:
+  // { kind: "drillholes" | "plannedHoles" | "surfaceSamples" | "terrain" | "survey" (id = source file) |
+  //   "voxelModels" | "generatedSurfaces" | "rasters" | "boundaries" | "mapLayers" | "surfaceStructures" |
+  //   "omfObjects" (id = object id) }.
+  const reprojectObjectTo = useCallback(async (target, fromEpsg, opts = {}) => {
+    const live = liveRef.current;
+    const toEpsg = live.project?.epsg;
+    const { reprojectProject } = await import("./projectReproject.js");
+    let sub, merge;
+    const k = target.kind;
+    if (k === "drillholes") {
+      sub = { collars: live.collars, survey: live.survey, layers: { structure: live.layers.structure || [] } };
+      merge = (f) => ({ collars: f.collars || live.collars, survey: f.survey || live.survey, layers: f.layers?.structure ? { ...live.layers, structure: f.layers.structure } : live.layers });
+    } else if (k === "plannedHoles" || k === "surfaceSamples") {
+      sub = { [k]: live[k] }; merge = (f) => ({ [k]: f[k] || live[k] });
+    } else if (k === "terrain") {
+      sub = { terrain: live.terrain }; merge = (f) => ({ terrain: f.terrain || live.terrain });
+    } else if (k === "survey") {
+      const rows = live.layers.geophys_pts || [], at = [];
+      const mine = rows.filter((r, i) => (r._src === target.id ? at.push(i) : false));
+      sub = { layers: { geophys_pts: mine } };
+      merge = (f) => { const out = rows.slice(); at.forEach((i, n) => { out[i] = f.layers.geophys_pts[n]; }); return { layers: { ...live.layers, geophys_pts: out } }; };
+    } else {
+      const item = (live[k] || []).find((x) => x.id === target.id);
+      if (!item) throw new Error("That object is no longer in the project.");
+      sub = { [k]: [item] };
+      merge = (f) => ({ [k]: live[k].map((x) => (x.id === target.id ? (f[k] ? f[k][0] : x) : x)) });
+    }
+    const { fields, report } = reprojectProject({ project: live.project, ...sub }, fromEpsg, toEpsg, opts);
+    const changed = merge(fields);
+    if (k === "rasters") {
+      const { reprojectRasterImages } = await import("./rasterImagesReproject.js");
+      const r = changed.rasters.find((x) => x.id === target.id);
+      const [moved] = await reprojectRasterImages([r], fromEpsg, toEpsg);
+      changed.rasters = changed.rasters.map((x) => (x.id === target.id ? moved : x));
+    }
+    loadProjectPayload(payloadFromFields({ ...liveRef.current, ...changed }), live.project?.name);
+    setActiveTabDirty(true);
+    clearUndoHistory();
+    return report;
+  }, []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
 
   // TASKS.csv #135 — desurvey method is a PROJECT setting, not a UI preference: it changes every
@@ -1351,7 +1413,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   }, [activeLayoutPageId, clearUndoHistory]);
 
   const value = {
-    project, setEpsg, setProjectName,
+    project, setEpsg, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
     collars, setCollars,
     survey, setSurvey,

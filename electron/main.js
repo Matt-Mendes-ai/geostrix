@@ -900,7 +900,7 @@ function buildMenu() {
       label: "Tools",
       submenu: [
         { label: "Cross-section (pop-out)", accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") },
-        { label: "Set project EPSG…", click: () => mainWindow?.webContents.send("menu", "set-epsg") },
+        { label: "Project CRS (Cartography)…", click: () => mainWindow?.webContents.send("menu", "set-epsg") },
       ],
     },
     {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2 } from "lucide-react";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "lucide-react";
+import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
@@ -18,6 +19,7 @@ const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
 const GeophysicsModule = React.lazy(() => import("./modules/GeophysicsModule.jsx"));
 const RasterModule = React.lazy(() => import("./modules/RasterModule.jsx"));
 const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
+const CartographyModule = React.lazy(() => import("./modules/CartographyModule.jsx")); // TASKS.csv #485
 // TASKS.csv #138 — project report is opened rarely (not every session), so lazy-load it the same way
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
@@ -45,6 +47,8 @@ const MODULES = [
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
   { id: "raster", label: "Raster", icon: Image },
+  // TASKS.csv #485 — the project CRS and the reprojection tools (user request: "its own tab ... called cartography")
+  { id: "cartography", label: "Cartography", icon: Globe2 },
   { id: "layout", label: "Layout", icon: Layout },
 ];
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
@@ -73,7 +77,6 @@ export default function App() {
   // mode, so it's always current by the time it's read for a non-viewer tab.
   const lastViewerModeRef = useRef("view");
   if (VIEWER_MODES[active]) lastViewerModeRef.current = VIEWER_MODES[active];
-  const [epsgEditing, setEpsgEditing] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
@@ -222,7 +225,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
     const off = onMenu((action) => {
       if (action.startsWith("module-")) setActive(action.replace("module-", ""));
       else if (action === "export-pdf") doExportPdf();
-      else if (action === "set-epsg") setEpsgEditing(true);
+      else if (action === "set-epsg") setActive("cartography"); // #485 — the CRS lives in Cartography now
       else if (action === "cross-section") setActive("viewer");
       else if (action === "new-project") doNew();
       else if (action === "open-project") doOpen();
@@ -409,13 +412,14 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
             {active === "geochem" && <GeochemModule />}
             {active === "geophysics" && <GeophysicsModule />}
             {active === "raster" && <RasterModule />}
+            {active === "cartography" && <CartographyModule />}
             {active === "layout" && <LayoutModule />}
           </Suspense>
         </ErrorBoundary>
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar epsgEditing={epsgEditing} setEpsgEditing={setEpsgEditing} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
+      <StatusBar onEpsg={() => setActive("cartography")} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {reportOpen && (
         <Suspense fallback={null}>
@@ -469,8 +473,8 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
-  const { project, setEpsg, collars, desurveyMethod, setDesurveyMethod } = useStore();
+function StatusBar({ onEpsg, pyStatus, updater, onHelp }) {
+  const { project, collars, desurveyMethod, setDesurveyMethod } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick
@@ -584,19 +588,9 @@ function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
         })()
       )}
       <span className="spacer" />
-      {epsgEditing ? (
-        <span>
-          EPSG:
-          <input
-            autoFocus defaultValue={project.epsg}
-            onBlur={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setEpsg(v); setEpsgEditing(false); }}
-            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-            style={{ width: 70, marginLeft: 6, background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "2px 5px" }}
-          />
-        </span>
-      ) : (
-        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setEpsgEditing(true)} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
-      )}
+      {/* TASKS.csv #485 — the old inline box relabelled the project without moving any data; the CRS is now set
+          (and data optionally reprojected) in the Cartography tab. */}
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to open Cartography (project CRS, reprojection tools)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

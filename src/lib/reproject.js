@@ -392,3 +392,34 @@ export function reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data
   }
   return { bbox: [txmin, tymin, txmax, tymax], width: outW, height: outH, data: out };
 }
+
+// ---------------------------------------------------------------------------------------------
+// TASKS.csv #485 — the CRSs this app can actually build (exactly the codes getProj4DefSync knows), by name,
+// for the Cartography tab's project-CRS picker and the reprojection tools. Order: most-used first.
+const CRS_NAMED = [
+  [3156, "NAD83(CSRS) / UTM zone 9N"], [3155, "NAD83(CSRS) / UTM zone 8N"], [3157, "NAD83(CSRS) / UTM zone 10N"],
+  [3154, "NAD83(CSRS) / UTM zone 7N"], [2955, "NAD83(CSRS) / UTM zone 11N"],
+  [3005, "NAD83 / BC Albers"], [3979, "NAD83(CSRS) / Canada Atlas Lambert"], [3857, "WGS 84 / Pseudo-Mercator (web maps)"],
+  [4326, "WGS 84 (longitude / latitude)"], [4269, "NAD83 (longitude / latitude)"], [4617, "NAD83(CSRS) (longitude / latitude)"],
+  [4267, "NAD27 (longitude / latitude) — ~10 m datum approximation"],
+];
+export function listSupportedCrs() {
+  const out = CRS_NAMED.map(([code, name]) => ({ code, name }));
+  for (let z = 1; z <= 23; z++) out.push({ code: 26900 + z, name: `NAD83 / UTM zone ${z}N` });
+  for (let z = 1; z <= 22; z++) out.push({ code: 26700 + z, name: `NAD27 / UTM zone ${z}N — ~10 m datum approximation` });
+  for (let z = 1; z <= 60; z++) out.push({ code: 32600 + z, name: `WGS 84 / UTM zone ${z}N` });
+  for (let z = 1; z <= 60; z++) out.push({ code: 32700 + z, name: `WGS 84 / UTM zone ${z}S` });
+  return out.map((c) => ({ ...c, geographic: /longitude/.test(c.name) }));
+}
+let crsNameCache = null;
+export function crsName(epsg) {
+  if (!crsNameCache) crsNameCache = new Map(listSupportedCrs().map((c) => [c.code, c.name]));
+  return crsNameCache.get(Number(epsg)) || null;
+}
+// (x, y) in fromEpsg -> [x, y] in toEpsg, with one cached converter; null if either code is unknown.
+export function pointTransform(fromEpsg, toEpsg) {
+  const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
+  if (!fromDef || !toDef) return null;
+  const c = converter(fromDef, toDef);
+  return (x, y) => c.forward([x, y]);
+}
