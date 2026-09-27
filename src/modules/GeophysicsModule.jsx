@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
+import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
@@ -10,7 +11,7 @@ import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } fr
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
-import { getCol, classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
@@ -47,7 +48,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // standing in for an invitation to act. The text is unchanged (it is accurate and hard-won — the
 // "no public spec" notes in particular are the outcome of real investigation); only its placement
 // moved, behind the InfoButton disclosure this module already uses eight times for exactly this job.
-const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation) plus a value (or reading/mag/response). "
+const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) plus a value (mag, TMI, gravity, reading...); headers like Easting_X or Raw_Mag_nT are recognised, and anything unclear opens a column picker. "
   + "GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM — a filename with \"dem\"/\"srtm\"/\"elev\"/"
   + "\"terrain\"/\"topo\" in it is treated as elevation data, otherwise it's imported as a flat raster drape. "
   + ".gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column "
@@ -68,20 +69,8 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation) plus a valu
 // TASKS.csv #365 — a blank or missing z is kept as null ("elevation not recorded"), never 0 or an invented
 // elevation: ground mag files usually have no elevation column, and the inversion's "sensor at a fixed
 // height above terrain" mode is exactly how such data must be used.
-const cellNum = (v) => (v === "" || v == null ? NaN : Number(v));
-function normGeophysRow(r) {
-  const x = cellNum(getCol(r, ["x", "easting", "east"]));
-  const y = cellNum(getCol(r, ["y", "northing", "north"]));
-  const zRaw = cellNum(getCol(r, ["z", "elevation", "elev"]));
-  const z = Number.isFinite(zRaw) ? zRaw : null;
-  const value = cellNum(getCol(r, ["value", "val", "reading", "mag", "response"]));
-  const label = getCol(r, ["label", "channel", "field", "survey"]);
-  // TASKS.csv #327 — line and fiducial travel with each point (line-based QC, levelling, provenance)
-  const line = getCol(r, ["line", "line_no", "lineno", "line_number", "flight_line", "flightline"]);
-  const fid = getCol(r, ["fid", "fiducial", "fiducial_no"]);
-  return { x, y, z, value, label: label !== undefined ? String(label) : undefined,
-    ...(line !== undefined && line !== "" ? { line: String(line) } : {}), ...(fid !== undefined && fid !== "" ? { fid: Number.isFinite(Number(fid)) ? Number(fid) : String(fid) } : {}) };
-}
+// TASKS.csv #484 — which column is which is decided per file by src/lib/geophysColumns.js (words in the
+// headers, e.g. Easting_X / Raw_Mag_nT), with the column picker as the fallback.
 
 export default function GeophysicsModule() {
   const [geoPane, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
@@ -184,7 +173,7 @@ export default function GeophysicsModule() {
     if (!terrain) return;
     const { rows: out, done, outside } = aglToElevation(layers.geophys_pts || [], key, (x, y) => terrainElevationAt(terrain, x, y));
     setLayers((l) => ({ ...l, geophys_pts: out }));
-    setError(`"${key}": ${done.toLocaleString()} point(s) now at terrain + their height above ground${outside ? `; ${outside} outside the terrain have no elevation (not drawn)` : ""}. The original heights are kept on each point.`);
+    setError({ info: true, text: `"${key}": ${done.toLocaleString()} point(s) now at terrain + their height above ground${outside ? `; ${outside} outside the terrain have no elevation (not drawn)` : ""}. The original heights are kept on each point.` });
   };
 
   const importFile = async (file) => {
@@ -206,31 +195,46 @@ export default function GeophysicsModule() {
     }
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
-        const parsed = res.data.map(normGeophysRow);
+        // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
+        // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
+        const cols = guessGeophysColumns(res.meta.fields || []);
+        const openPicker = (why) => {
+          setXyzPending({ fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label });
+          setError({ info: true, text: `${why} Pick the columns below, then Import.` });
+        };
+        if (!cols.ok) {
+          const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
+          openPicker(`"${file.name}": couldn't tell which column is ${missing} from the headers (${(res.meta.fields || []).join(", ") || "none"}).`);
+          return;
+        }
+        const parsed = rowsToGeophysPoints(res.data, cols);
         const bad = parsed.filter((r) => !Number.isFinite(r.x) || !Number.isFinite(r.y) || !Number.isFinite(r.value));
         let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
         const noZ = good.filter((r) => r.z == null).length; // #365
         if (!good.length) {
-          setError(`No usable rows found — looked for x/y (or easting/northing) and a value (or reading/mag/response) column. Got headers: ${res.meta.fields?.join(", ") || "(none)"}.`);
+          openPicker(`"${file.name}": none of its ${res.data.length.toLocaleString()} row(s) had numbers in ${cols.x} / ${cols.y} / ${cols.value}.`);
           return;
         }
+        // Longitude/latitude columns and no Source CRS typed: they can only be WGS84.
+        const srcEpsg = geophysSourceEpsg || (cols.geographic ? "4326" : "");
         let reprojectNote = "";
-        if (geophysSourceEpsg && project?.epsg && Number(geophysSourceEpsg) !== Number(project.epsg)) {
+        if (srcEpsg && project?.epsg && Number(srcEpsg) !== Number(project.epsg)) {
           let failed = 0;
           good = good.map((r) => {
-            const p = reprojectXY(r.x, r.y, geophysSourceEpsg, project.epsg);
+            const p = reprojectXY(r.x, r.y, srcEpsg, project.epsg);
             if (!p) { failed++; return r; }
             return { ...r, x: p.x, y: p.y };
           });
           reprojectNote = failed
-            ? ` Couldn't resolve a proj4 definition for EPSG:${geophysSourceEpsg} or EPSG:${project.epsg} — no reprojection happened.`
-            : ` Reprojected from EPSG:${geophysSourceEpsg} to the project's EPSG:${project.epsg}.`;
+            ? ` Couldn't resolve a proj4 definition for EPSG:${srcEpsg} or EPSG:${project.epsg} — no reprojection happened.`
+            : ` Reprojected from EPSG:${srcEpsg}${!geophysSourceEpsg && cols.geographic ? " (longitude/latitude columns)" : ""} to the project's EPSG:${project.epsg}.`;
         }
         mergeLayer("geophys_pts", good);
         const zNote = noZ ? ` ${noZ} point(s) have no elevation: they are kept for modelling with "sensor at a fixed height above terrain", and are not drawn in 3D.` : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
-        if (bad.length) setError(`Imported ${good.length} point(s); skipped ${bad.length} row(s) missing x/y or a value.${zNote}${reprojectNote}${readNote}`);
-        else if (reprojectNote || zNote || readNote) setError(`Imported ${good.length} point(s).${zNote}${reprojectNote}${readNote}`);
+        const others = cols.valueCandidates.filter((c) => c !== cols.value);
+        const colNote = ` Columns: X = ${cols.x}, Y = ${cols.y}, Z = ${cols.z || "(none)"}, value = ${cols.value}${others.length ? ` (also looked like measurements: ${others.join(", ")} — import again and pick one to use it instead)` : ""}.`;
+        setError({ info: true, text: `Imported ${good.length.toLocaleString()} point(s) from "${file.name}"${bad.length ? `; skipped ${bad.length} row(s) missing x/y or a value` : ""}.${colNote}${zNote}${reprojectNote}${readNote}` });
     }).catch((err) => setError(`Could not parse ${file.name}: ${err.message}`));
   };
 
@@ -643,7 +647,12 @@ export default function GeophysicsModule() {
       setXyzError({ info: false, text: "Pick an X, Y, and Value column before importing." });
       return;
     }
-    let mapped = parsedRows
+    // TASKS.csv #484 — a CSV that fell through to the picker: same row mapping as the automatic path
+    let mapped = xyzPending.source === "csv"
+      ? rowsToGeophysPoints(parsedRows, { x: xCol, y: yCol, z: zCol, value: valueCol, line: xyzPending.lineCol, fid: xyzPending.fidCol, label: xyzPending.labelCol })
+        .map((r) => ({ ...r, _src: fileName }))
+        .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value))
+      : parsedRows
       .map((r) => ({
         // TASKS.csv #365 — no z column means "elevation not recorded" (null), not the mean collar elevation.
         x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol],
@@ -670,8 +679,9 @@ export default function GeophysicsModule() {
     }
     mergeLayer("geophys_pts", mapped);
     const skipped = parsedRows.length - mapped.length;
-    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with no-data "*" in the chosen columns)` : ""}.${reprojectNote}` });
+    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}` });
     setXyzPending(null);
+    if (xyzPending.source === "csv") setError(null);
   };
 
   // TASKS.csv #28 — UBC-GIF tensor mesh (.msh) + model (.mod/.con/.den) import. Both files are picked
@@ -995,11 +1005,15 @@ export default function GeophysicsModule() {
           </div>
         )}
 
-        {error && (
-          <div style={{ marginTop: 8, padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", lineHeight: 1.5 }}>
-            {error}
-          </div>
-        )}
+        {error && (() => {
+          // #484 — {info, text} renders neutral (success / "pick the columns"); a plain string is an error
+          const info = typeof error === "object" && error.info;
+          return (
+            <div style={{ marginTop: 8, padding: "8px 10px", background: info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+              {typeof error === "object" ? error.text : error}
+            </div>
+          );
+        })()}
 
         {rows.length > 0 && (
           <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -1245,7 +1259,7 @@ export default function GeophysicsModule() {
                     levels.forEach(({ level, polylines }) => {
                       addBoundary({ name: `${terrain.name} ${level} m`, polylines, color: contourColor, elevation: level, drapeMode: "flat" });
                     });
-                    setError(`Generated ${levels.length} contour level${levels.length === 1 ? "" : "s"} (${contourInterval} m interval) as boundaries.${truncated ? " Stopped at the 200-level cap — use a larger interval for full coverage." : ""}`);
+                    setError({ info: true, text: `Generated ${levels.length} contour level${levels.length === 1 ? "" : "s"} (${contourInterval} m interval) as boundaries.${truncated ? " Stopped at the 200-level cap — use a larger interval for full coverage." : ""}` });
                     setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
