@@ -61,6 +61,63 @@ async function fetchTileBitmap(z, x, y) {
 // dataUrl, reprojectedTo, reprojectNote, tileCount, zoom, failedTiles } — the same shape
 // buildRasterImport() produces, so RasterModule's existing addRaster() call site needs no new handling.
 // onProgress(done, total) is called after each tile finishes downloading, for a progress indicator.
+// Web Mercator northing (unitless: radians of the Mercator y axis). Tile pixel ROWS are evenly spaced in this,
+// not in latitude.
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
+// TASKS.csv #423 — resample a tile mosaic (RGBA bytes, `mw` x `mh`, covering `tiles` = tile-grid extent in
+// lon/lat) onto a gridW x gridH lon/lat grid over `bbox`. Returns Float32 R/G/B/A bands (0-255).
+//  * Rows are sampled in Mercator Y. Interpolating linearly in latitude across a multi-tile mosaic put
+//    features up to 3.5 m (z14), ~14 m (z13), 55 m (z12), 222 m (z11) off north-south.
+//  * Pixel CENTRES: the mosaic's outer edges are tile corners, so its first/last pixel centres sit half a
+//    pixel inside them.
+//  * Alpha comes from the mosaic: a tile that failed to download is transparent, not opaque black.
+//  * R/G/B come back PREMULTIPLIED by alpha (r * a / 255) so every later interpolation (the reprojection
+//    below) weights colour by coverage; unpremultiply() divides it back out once, at the end. Interpolating
+//    straight colour against a missing tile's zeros fades its neighbours toward black.
+export function resampleMosaic(rgba, mw, mh, tiles, bbox, gridW, gridH) {
+  const n = mw * mh;
+  const pr = new Float32Array(n), pg = new Float32Array(n), pb = new Float32Array(n), pa = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = rgba[i * 4 + 3] / 255;
+    pr[i] = rgba[i * 4] * a; pg[i] = rgba[i * 4 + 1] * a; pb[i] = rgba[i * 4 + 2] * a; pa[i] = rgba[i * 4 + 3];
+  }
+  const halfX = (tiles.lonMax - tiles.lonMin) / mw / 2;
+  const yTop = mercY(tiles.latMax), yBot = mercY(tiles.latMin), halfY = (yTop - yBot) / mh / 2;
+  const x0 = tiles.lonMin + halfX, x1 = tiles.lonMax - halfX, y0 = yBot + halfY, y1 = yTop - halfY;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const r = new Float32Array(gridW * gridH), g = new Float32Array(gridW * gridH), b = new Float32Array(gridW * gridH), a = new Float32Array(gridW * gridH);
+  for (let row = 0; row < gridH; row++) {
+    const lat = bbox.latMax - (row / Math.max(1, gridH - 1)) * (bbox.latMax - bbox.latMin);
+    const y = clamp(mercY(lat), y0, y1);
+    for (let col = 0; col < gridW; col++) {
+      const lon = bbox.lonMin + (col / Math.max(1, gridW - 1)) * (bbox.lonMax - bbox.lonMin);
+      const x = clamp(lon, x0, x1);
+      const idx = row * gridW + col;
+      const alpha = bilinearSample(pa, mw, mh, x0, y0, x1, y1, x, y);
+      if (!(alpha > 0.5)) continue; // no imagery here (a failed tile): transparent
+      r[idx] = bilinearSample(pr, mw, mh, x0, y0, x1, y1, x, y);
+      g[idx] = bilinearSample(pg, mw, mh, x0, y0, x1, y1, x, y);
+      b[idx] = bilinearSample(pb, mw, mh, x0, y0, x1, y1, x, y);
+      a[idx] = alpha;
+    }
+  }
+  return { r, g, b, a };
+}
+
+// Premultiplied R/G/B/A bands (NaN = no data) -> straight RGBA bytes for an ImageData.
+export function unpremultiply(r, g, b, a, out) {
+  for (let i = 0; i < a.length; i++) {
+    const al = Number.isFinite(a[i]) ? Math.min(255, a[i]) : 0;
+    const k = al > 0.5 ? 255 / al : 0;
+    out[i * 4] = Number.isFinite(r[i]) ? r[i] * k : 0;
+    out[i * 4 + 1] = Number.isFinite(g[i]) ? g[i] * k : 0;
+    out[i * 4 + 2] = Number.isFinite(b[i]) ? b[i] * k : 0;
+    out[i * 4 + 3] = al > 0.5 ? al : 0;
+  }
+  return out;
+}
+
 export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress }) {
   if (!(Number.isFinite(lonMin) && Number.isFinite(latMin) && Number.isFinite(lonMax) && Number.isFinite(latMax))) {
     throw new Error("Invalid area — couldn't determine a bounding box to fetch.");
@@ -99,32 +156,14 @@ export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, ta
   const [mxmin, mymin, mxmax, mymax] = [nwLL.lon, seLL.lat, seLL.lon, nwLL.lat]; // full tile-grid extent (may be slightly wider than the requested bbox)
 
   const { data: mdata } = mctx.getImageData(0, 0, mosaic.width, mosaic.height);
-  const mw = mosaic.width, mh = mosaic.height;
-  const rBand = new Float32Array(mw * mh), gBand = new Float32Array(mw * mh), bBand = new Float32Array(mw * mh);
-  for (let i = 0; i < mw * mh; i++) {
-    rBand[i] = mdata[i * 4]; gBand[i] = mdata[i * 4 + 1]; bBand[i] = mdata[i * 4 + 2];
-  }
 
   // Resample from the (possibly wider) tile-grid mosaic onto a regular grid over exactly the
   // requested bbox — same aspect-based sizing srtmFetch.js uses for its elevation grid.
   const aspect = (lonMax - lonMin) / Math.max(1e-12, latMax - latMin);
   const gridW = aspect >= 1 ? GRID_MAX : Math.max(2, Math.round(GRID_MAX * aspect));
   const gridH = aspect >= 1 ? Math.max(2, Math.round(GRID_MAX / aspect)) : GRID_MAX;
-  const outR = new Float32Array(gridW * gridH), outG = new Float32Array(gridW * gridH), outB = new Float32Array(gridW * gridH);
-  const outA = new Float32Array(gridW * gridH);
-  for (let row = 0; row < gridH; row++) {
-    const lat = latMax - (row / Math.max(1, gridH - 1)) * (latMax - latMin);
-    for (let col = 0; col < gridW; col++) {
-      const lon = lonMin + (col / Math.max(1, gridW - 1)) * (lonMax - lonMin);
-      const idx = row * gridW + col;
-      const r = bilinearSample(rBand, mw, mh, mxmin, mymin, mxmax, mymax, lon, lat);
-      if (r === null) { outA[idx] = 0; continue; }
-      outR[idx] = r;
-      outG[idx] = bilinearSample(gBand, mw, mh, mxmin, mymin, mxmax, mymax, lon, lat) ?? 0;
-      outB[idx] = bilinearSample(bBand, mw, mh, mxmin, mymin, mxmax, mymax, lon, lat) ?? 0;
-      outA[idx] = 255;
-    }
-  }
+  const { r: outR, g: outG, b: outB, a: outA } = resampleMosaic(mdata, mosaic.width, mosaic.height,
+    { lonMin: mxmin, latMin: mymin, lonMax: mxmax, latMax: mymax }, { lonMin, latMin, lonMax, latMax }, gridW, gridH);
 
   let outBbox = [lonMin, latMin, lonMax, latMax];
   let outGridW = gridW, outGridH = gridH;
@@ -148,13 +187,7 @@ export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, ta
   canvas.width = outGridW; canvas.height = outGridH;
   const ctx = canvas.getContext("2d");
   const imgData = ctx.createImageData(outGridW, outGridH);
-  for (let i = 0; i < outGridW * outGridH; i++) {
-    const a = finalA[i];
-    imgData.data[i * 4] = Number.isFinite(finalR[i]) ? finalR[i] : 0;
-    imgData.data[i * 4 + 1] = Number.isFinite(finalG[i]) ? finalG[i] : 0;
-    imgData.data[i * 4 + 2] = Number.isFinite(finalB[i]) ? finalB[i] : 0;
-    imgData.data[i * 4 + 3] = Number.isFinite(a) ? a : 0;
-  }
+  unpremultiply(finalR, finalG, finalB, finalA, imgData.data); // #423
   ctx.putImageData(imgData, 0, 0);
 
   return {
