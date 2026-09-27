@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
-import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #321 — compact storage of SimPEG models
-import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
+import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
-import { normalizeDesurveyMethod, DEFAULT_DESURVEY_METHOD } from "./desurvey.js";
+import { normalizeDesurveyMethod } from "./desurvey.js";
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -44,45 +44,8 @@ export const useSetCursor = () => useContext(CursorSetterContext);
 // context, so every one of those ticks re-rendered every useStore() consumer including ViewerModule
 // itself — which, same as cursor, only ever calls the setter and never reads taskProgress's value in
 // its own render output (only App.jsx's status bar does). Identical split, same reasoning.
-// TASKS.csv #321 (database review) — a SimPEG model can hold tens of thousands of cells, and voxel models
-// are written into every save AND every 60 s autosave. As cell objects ({x,y,z,dx,dy,dz,value,support})
-// that is ~70-100 bytes of JSON per cell; as Float32 base64 columns it is ~4 bytes per value. Only models
-// with source "simpeg" are compacted (imported UBC/OMF models keep their existing shape, untouched). The
-// compact form is cached per model object, so the repeated snapshot/dirty-check calls re-encode nothing.
-const COMPACT_KEYS = ["x", "y", "z", "dx", "dy", "dz", "value", "support"];
-const compactCache = new WeakMap();
-export function compactVoxelModels(list) {
-  return (list || []).map((m) => {
-    if (m.source !== "simpeg" || !Array.isArray(m.cells)) return m;
-    let c = compactCache.get(m);
-    if (!c) {
-      const { cells, ...rest } = m;
-      const cols = {};
-      COMPACT_KEYS.forEach((k) => {
-        // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
-        const base = k === "x" || k === "y" || k === "z" ? cells[0]?.[k] ?? 0 : 0;
-        cols[k] = { base, b64: f32ToB64(cells.map((cell) => (cell[k] ?? NaN) - base)) };
-      });
-      c = { ...rest, compactCells: { n: cells.length, cols } };
-      compactCache.set(m, c);
-    }
-    return c;
-  });
-}
-export function expandVoxelModels(list) {
-  return (list || []).map((m) => {
-    if (!m.compactCells) return m;
-    const { compactCells, ...rest } = m;
-    const cols = {};
-    COMPACT_KEYS.forEach((k) => { const c = compactCells.cols[k]; const arr = b64ToF32(c.b64); cols[k] = (i) => arr[i] + c.base; });
-    const cells = Array.from({ length: compactCells.n }, (_, i) => {
-      const cell = {};
-      COMPACT_KEYS.forEach((k) => { cell[k] = cols[k](i); });
-      return cell;
-    });
-    return { ...rest, cells };
-  });
-}
+// TASKS.csv #321 — compact SimPEG voxel storage now lives with the field table (projectFields.js).
+export { compactVoxelModels, expandVoxelModels } from "./projectFields.js";
 
 const TaskProgressValueContext = createContext(null);
 const TaskProgressSetterContext = createContext(() => {});
@@ -97,10 +60,6 @@ export function TaskProgressProvider({ children }) {
 export const useTaskProgressValue = () => useContext(TaskProgressValueContext);
 export const useSetTaskProgress = () => useContext(TaskProgressSetterContext);
 
-const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
-// v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
-// older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
-const PROJECT_VERSION = 6;
 
 // TASKS.csv #342 — PROJECT_VERSION used to be written but never read. A file from a NEWER GeoStrix can
 // carry fields this build doesn't know; loadProjectPayload silently drops unknown keys, and saving the
@@ -127,20 +86,6 @@ function fileNameToProjectName(fileName) {
   if (!fileName) return null;
   return fileName.replace(/\.(geostrix\.json|geox\.json|json)$/i, "");
 }
-
-// TASKS.csv #68 — the Layout page's element list used to live in LayoutModule's own useState, which
-// meant it reset to this same starter set every time LayoutModule unmounted — which happens on
-// every trip to another tab, including the trip "Add viewport"/"Refresh" themselves force (Layout
-// asks Viewer to render a theme, hops to the Viewer tab to do it, then hops back — see
-// requestViewportRender below) — so a real layout could be wiped out by using its own core feature.
-// Moved into the store (same pattern as themes/customLayers) so it survives tab switches and now
-// round-trips through project save/load too.
-const DEFAULT_LAYOUT_ELEMENTS = [
-  { id: "title", type: "title", x: 40, y: 30, text: "Untitled Section", w: 400 },
-  { id: "north", type: "north", x: 1000, y: 40 },
-  { id: "scale", type: "scale", x: 40, y: 720, meters: 100 },
-  { id: "legend", type: "legend", x: 900, y: 500, items: [["Lithology", "#c98a5a"], ["Alteration", "#4a6b4a"], ["Fault", "#c0392b"]] },
-];
 
 export function StoreProvider({ children }) {
   const [project, setProject] = useState({ name: "Untitled project", epsg: 3156 }); // 3156 = NAD83 UTM 9N (Golden Triangle)
@@ -685,7 +630,7 @@ export function StoreProvider({ children }) {
     }));
   }, []);
 
-  // ---- Layout pages (TASKS.csv #68, extended by #69) — see DEFAULT_LAYOUT_ELEMENTS comment above for
+  // ---- Layout pages (TASKS.csv #68, extended by #69) — see DEFAULT_LAYOUT_ELEMENTS in projectFields.js for
   // why page content lives here instead of in LayoutModule's own state. #69 added multiple named pages
   // per project; `layoutPages` is the real persisted state, `layoutElements`/`setLayoutElements` below
   // are kept as derived accessors bound to whichever page is currently active, so every existing call
@@ -820,6 +765,36 @@ export function StoreProvider({ children }) {
   // TaskProgressProvider/useTaskProgressValue/useSetTaskProgress pair above (TASKS.csv #226 follow-up)
   // — see that context's own comment for why it's split out of this giant one.
 
+  // TASKS.csv #448 — every project-file field's [value, setter], keyed as in FIELDS (projectFields.js). This and
+  // the useState calls are the only hand-written lists; save / load / New / autosave / undo / the unsaved-change
+  // watcher are all generated from FIELDS (test/projectFields.test.mjs checks this object against it).
+  const fieldState = {
+    project: [project, setProject], collars: [collars, setCollars], survey: [survey, setSurvey], layers: [layers, setLayers],
+    assays: [assays, setAssays], assayElements: [assayElements, setAssayElements], customLayers: [customLayers, setCustomLayers],
+    viewerUiState: [viewerUiState, setViewerUiState], themes: [themes, setThemes], rasters: [rasters, setRasters],
+    boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], surfaceStructures: [surfaceStructures, setSurfaceStructures],
+    fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
+    geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
+    omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
+    geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
+    geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
+    voxelModels: [voxelModels, setVoxelModels], layerGroups: [layerGroups, setLayerGroups],
+    layoutPages: [layoutPages, setLayoutPages], activeLayoutPageId: [activeLayoutPageId, setActiveLayoutPageId],
+    dbConnections: [dbConnections, setDbConnections], excludedIntercepts: [excludedIntercepts, setExcludedIntercepts],
+    softIntercepts: [softIntercepts, setSoftIntercepts], interceptSets: [interceptSets, setInterceptSets],
+    sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
+    plannedHoles: [plannedHoles, setPlannedHoles], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements],
+    generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
+  };
+  const live = {};
+  for (const k of FIELD_KEYS) live[k] = fieldState[k][0];
+  // Read by the save / tab / autosave callbacks, so they no longer need every field in their dependency arrays
+  // (they were re-created on every edit of anything). Assigned during render: current by the time a handler runs.
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  // Setters never change identity, so the first render's table is safe inside []-dependency callbacks.
+  const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); };
+
   const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg })), []);
   const setProjectName = useCallback((name) => setProject((p) => ({ ...p, name })), []);
 
@@ -837,48 +812,10 @@ export function StoreProvider({ children }) {
   const replaceLayer = useCallback((key, rows) => setLayers((p) => ({ ...p, [key]: rows })), []);
 
   const newProject = useCallback(() => {
-    setProject({ name: "Untitled project", epsg: 3156, desurveyMethod: DEFAULT_DESURVEY_METHOD }); // #135 — a new project starts on the industry-standard default
-    setCollars([]); setSurvey([]); setLayers({ ...EMPTY_LAYERS });
-    setAssays([]); setAssayElements([]); setCustomLayers([]);
-    setViewerUiState(null); setViewerUiStateSeq((s) => s + 1);
+    setFields(emptyFields()); // TASKS.csv #448 — every saved field (#343: seven used to keep the old project's values)
+    setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null);
     setPendingLayoutImages([]);
-    setThemes([]);
-    setRasters([]);
-    setMapLayers([]); setSurfaceStructures([]); // TASKS.csv #316/#317
-    setTerrain(null);
-    setGeophysPtsStops([]); setGeophysPtsColorMode("continuous"); setGeophysPtsMin(null); setGeophysPtsMax(null);
-    setVoxelModels([]);
-    setGeneratedSurfaces([]); setModelDomains([]); // TASKS.csv #52
-    setLayerGroups([]);
-    setLithoGroups([]); // TASKS.csv #176 — a grouping belongs to the project it was built for
-    setGeophysSurveys({}); // TASKS.csv #451
-    setCrmCertificates({}); // TASKS.csv #400
-    // TASKS.csv #69 — reset to a single fresh page rather than just clearing the active page's
-    // elements (setLayoutElements(DEFAULT_LAYOUT_ELEMENTS) would leave any OTHER pages behind as
-    // orphaned leftovers from the previous project).
-    { const id = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; setLayoutPages([{ id, name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }]); setActiveLayoutPageId(id); }
-    setDbConnections([]);
-    setExcludedIntercepts([]);
-    setSoftIntercepts([]);
-    setInterceptSets([]); // TASKS.csv #52 (c)
-    setSections([]);
-    // Saved layout templates round-trip through the project file just like themes (below), so a
-    // "New project" resets them too — there's no global/user-level storage outside a project file
-    // yet, so a template that should survive across projects needs to be re-saved from the new
-    // project once it's set up, same as themes already work.
-    setLayoutTemplates([]);
-    // TASKS.csv #343 — these seven saved fields were never reset, so a "new" tab started with the previous
-    // project's boundaries, planned holes, surface samples, OMF objects, section groups and field
-    // references, and saving wrote them into the new file. (Longer-term fix in #343: one field table
-    // driving snapshot/load/new/autosave so a list can't drift again.)
-    setBoundaries([]);
-    setFieldStructuralRefs([]);
-    setOmfObjects([]);
-    setSectionGroups([]);
-    setPlannedHoles([]);
-    setSurfaceSamples([]);
-    setSurfaceElements([]);
     // Historically doNew() in App.jsx confirmed with the user before calling this ("Unsaved changes
     // will be lost"), since it reset the only project in place. TASKS.csv #34 (workspace tabs, below)
     // now calls this only from newWorkspaceTab() / closeWorkspaceTab()'s "last tab closed" branch,
@@ -903,12 +840,7 @@ export function StoreProvider({ children }) {
   // (older files just lack the key, same `|| []` fallback pattern as every other field here).
   // Shared field list for save / tab-stash / dirty-comparison, so these can't drift apart the way
   // three separate hand-written object literals eventually would.
-  const snapshotCurrentPayload = () => ({
-    version: PROJECT_VERSION, project, collars, survey, layers: compactLayers(layers) /* #374 */, assays, assayElements, customLayers,
-    viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels: compactVoxelModels(voxelModels), layerGroups, layoutPages, activeLayoutPageId, dbConnections,
-    excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements,
-    generatedSurfaces, modelDomains, // TASKS.csv #52
-  });
+  const snapshotCurrentPayload = () => payloadFromFields(liveRef.current); // TASKS.csv #448
 
   // TASKS.csv #34 — multi-project workspace tabs. Declared here (ahead of saveProject/loadProjectPayload
   // below, which both reference activeTabId) rather than after them — several of those callbacks close
@@ -977,7 +909,7 @@ export function StoreProvider({ children }) {
       setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
     }
     return res;
-  }, [workspaceTabs, activeTabId, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, activeTabId]);
+  }, [workspaceTabs, activeTabId, project]);
 
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
@@ -989,75 +921,12 @@ export function StoreProvider({ children }) {
     // it, or it simply predates this fix and was never anything but "Untitled project"). Falls back to
     // the payload's own name, then "Untitled project", only when no real file name is available at all
     // (e.g. restoring the silent crash-recovery autosave, which isn't a named file on disk).
-    setProject({ ...(data.project || { epsg: 3156 }), name: fallbackName || data.project?.name || "Untitled project" });
-    setCollars(data.collars || []);
-    setSurvey(data.survey || []);
-    setLayers({ ...EMPTY_LAYERS, ...(expandLayers(data.layers) || {}) }); // #374 — point surveys stored compact
-    setAssays(data.assays || []);
-    setAssayElements(data.assayElements || []);
-    setCustomLayers(data.customLayers || []);
-    // Older project files (version < 2) simply won't have this — viewerUiState comes back
-    // undefined -> null, and ViewerModule falls back to its defaults, same as before this feature.
-    setViewerUiState(data.viewerUiState || null);
+    // Every field from the table (projectFields.js): older files just lack newer keys and get that field's empty
+    // value; layers / voxel models are expanded from their compact form; pre-#69 flat layouts become "Page 1".
+    setFields(fieldsFromPayload(data, fallbackName));
     setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null); // a different project's saved camera has no meaning here — fall back to the default view
     setPendingLayoutImages([]);
-    // Older (pre-v3) project files have no themes key — comes back [], same graceful fallback
-    // pattern as viewerUiState on pre-v2 files.
-    setThemes(data.themes || []);
-    // Same fallback for pre-v4 files and rasters. Boundaries (Geosoft .ply import) are newer still —
-    // any file saved before that feature also just falls back to [].
-    setRasters(data.rasters || []);
-    setBoundaries(data.boundaries || []);
-    setMapLayers(data.mapLayers || []); // TASKS.csv #316 — older files just lack the key
-    setSurfaceStructures(data.surfaceStructures || []); // TASKS.csv #317
-    setFieldStructuralRefs(data.fieldStructuralRefs || []);
-    setLithoGroups(data.lithoGroups || []); // TASKS.csv #176 — pre-#176 files just lack the key
-    setGeophysSurveys(data.geophysSurveys || {}); // TASKS.csv #451 — older files: every survey unlabelled
-    setCrmCertificates(data.crmCertificates || {}); // TASKS.csv #400
-    setOmfObjects(data.omfObjects || []);
-    // TASKS.csv #69 — multi-page layout. Files saved before #69 (or with no persisted layout at all)
-    // only ever had a single flat `layoutElements` array — wrap it as "Page 1" rather than losing it.
-    // A #69+ file has `layoutPages` directly.
-    if (data.layoutPages && data.layoutPages.length) {
-      setLayoutPages(data.layoutPages);
-      const wantedActive = data.activeLayoutPageId;
-      setActiveLayoutPageId(wantedActive && data.layoutPages.some((p) => p.id === wantedActive) ? wantedActive : data.layoutPages[0].id);
-    } else {
-      const id = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      setLayoutPages([{ id, name: "Page 1", elements: data.layoutElements || DEFAULT_LAYOUT_ELEMENTS }]);
-      setActiveLayoutPageId(id);
-    }
-    // Same fallback for pre-v6 files: no terrain/groups yet.
-    setTerrain(data.terrain || null);
-    // Fallback for pre-#122 files: no geophysics-point classification saved yet.
-    setGeophysPtsStops(data.geophysPtsStops || []);
-    setGeophysPtsColorMode(data.geophysPtsColorMode || "continuous");
-    setGeophysPtsMin(data.geophysPtsMin ?? null);
-    setGeophysPtsMax(data.geophysPtsMax ?? null);
-    // Fallback for pre-#27/#28 files: no voxel models yet.
-    setVoxelModels(expandVoxelModels(data.voxelModels || [])); // TASKS.csv #321 — SimPEG models are stored compact
-    setLayerGroups(data.layerGroups || []);
-    setDbConnections(data.dbConnections || []);
-    setExcludedIntercepts(data.excludedIntercepts || []);
-    setSoftIntercepts(data.softIntercepts || []);
-    // Fallback for pre-#52(c) files: no named intercept sets yet.
-    setInterceptSets(data.interceptSets || []);
-    setSections(data.sections || []);
-    setSectionGroups(data.sectionGroups || []);
-    // Fallback for pre-#18 files: no saved layout templates yet.
-    setLayoutTemplates(data.layoutTemplates || []);
-    // Fallback for pre-#188 files: no planned drillholes yet.
-    setPlannedHoles(data.plannedHoles || []);
-    // Fallback for pre-#228 files: no surface geochem samples yet.
-    setSurfaceSamples(data.surfaceSamples || []);
-    setSurfaceElements(data.surfaceElements || []);
-    // TASKS.csv #52 — fallback for every project file saved before generated surfaces were persisted:
-    // the keys simply aren't there and both come back empty, i.e. exactly the pre-#52 behaviour
-    // (nothing modelled yet this session). Same additive/backward-compatible pattern as every other
-    // field here, so PROJECT_VERSION doesn't need bumping.
-    setGeneratedSurfaces(data.generatedSurfaces || []);
-    setModelDomains(data.modelDomains || []);
     extraDirtyBaseline.current = null; // #462 — a freshly loaded project is not "changed"
     undoRebaseline.current = true; setTimeout(() => { undoRebaseline.current = false; }, 0); // #478 (never left armed: it must not swallow a real edit)
     projectSeqRef.current++; // #466 — a different project now lives in this tab
@@ -1091,7 +960,7 @@ export function StoreProvider({ children }) {
     // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
     // autosave now carries every dirty background tab, so nothing is cleared on a switch.
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload]);
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
@@ -1102,7 +971,7 @@ export function StoreProvider({ children }) {
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject]);
 
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
@@ -1142,7 +1011,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't
@@ -1177,8 +1046,8 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
   const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0 || mapLayers.length > 0 || surfaceStructures.length > 0; // #316/#317 — a map-only project is still work worth autosaving
-  const autosaveRef = useRef({ project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork });
-  autosaveRef.current = { project, collars, survey, layers, assays, assayElements, customLayers, viewerUiState, themes, rasters, boundaries, mapLayers, surfaceStructures, fieldStructuralRefs, lithoGroups, geophysSurveys, crmCertificates, omfObjects, terrain, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, voxelModels, layerGroups, layoutPages, activeLayoutPageId, dbConnections, excludedIntercepts, softIntercepts, interceptSets, sections, sectionGroups, layoutTemplates, plannedHoles, surfaceSamples, surfaceElements, generatedSurfaces, modelDomains, hasWork };
+  const autosaveRef = useRef({ ...live, hasWork });
+  autosaveRef.current = { ...live, hasWork };
   // TASKS.csv #340 — the tabs themselves ride along so the autosave can include every DIRTY background
   // tab (a stashed payload lives only in memory otherwise).
   const autosaveTabsRef = useRef({ workspaceTabs, activeTabId, activeTabDirty });
@@ -1234,7 +1103,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       if (last && last.length === sig.length && last.every((v, i) => v === sig[i])) return; // unchanged since the last write
       lastAutosaveSigRef.current = sig;
       autosaveWrite(JSON.stringify({
-        version: PROJECT_VERSION, ...payload, layers: compactLayers(payload.layers) /* #374 */, voxelModels: compactVoxelModels(payload.voxelModels),
+        ...payloadFromFields(payload), // #448 (layers #374 / voxel models #321 compact)
         activeDirty: activeWorth,
         backgroundTabs: background.map((t) => ({ name: t.name, payload: { ...t.payload, layers: compactLayers(t.payload.layers), voxelModels: compactVoxelModels(t.payload.voxelModels) } })),
         autosavedAt: Date.now(),
@@ -1315,7 +1184,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // the first render's setLayoutElements bound to "page_initial", so undo did nothing on other pages or wrote
   // one page's elements over another's; and a page SWITCH changed layoutElements' identity and recorded a
   // spurious undo step. The pages list is unchanged by switching and restores exactly.
-  const undoSnapshot = () => ({ collars, survey, layers, assays, assayElements, customLayers, layoutPages, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements });
+  const undoSnapshot = () => { const snap = {}; for (const k of UNDO_KEYS) snap[k] = live[k]; return snap; }; // #448: fields with track "undo"
   // Bug fix (found while adding plannedHoles to undo-tracking for #188 and testing redo end-to-end —
   // NOT a new bug, this affected every undo-tracked field, not just plannedHoles): `undo`/`redo` below
   // are `useCallback(fn, [applySnapshot])`, and `applySnapshot` never changes identity, so `undo`/
@@ -1357,7 +1226,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // (activeWorth = hasWork && activeDirty) did not save it — the result was lost on close. These fields are
   // not undoable (still true) but they ARE changes: reference-compared here, cheaply (setters replace them
   // immutably). View-only state (camera / viewerUiState) is deliberately left out so orbiting never prompts.
-  const extraDirtyFields = [generatedSurfaces, modelDomains, voxelModels, rasters, terrain, mapLayers, surfaceStructures, lithoGroups, geophysSurveys, crmCertificates, themes, fieldStructuralRefs, layoutTemplates, project.epsg, desurveyMethod];
+  const extraDirtyFields = extraDirtyValues(live); // #448: fields with track "dirty", plus EPSG / desurvey method
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;
@@ -1390,19 +1259,13 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       setUndoCount(undoPast.current.length);
       setRedoCount(0);
     }, UNDO_DEBOUNCE_MS);
-  }, [collars, survey, layers, assays, assayElements, customLayers, layoutPages, sections, sectionGroups, boundaries, omfObjects, layerGroups, excludedIntercepts, softIntercepts, interceptSets, plannedHoles, surfaceSamples, surfaceElements]); // #463: layoutPages
+  }, UNDO_KEYS.map((k) => live[k])); // #448 (always the same length); #463: layoutPages
 
   const applySnapshot = useCallback((snap) => {
     undoApplying.current = true;
-    setCollars(snap.collars); setSurvey(snap.survey); setLayers(snap.layers);
-    setAssays(snap.assays); setAssayElements(snap.assayElements); setCustomLayers(snap.customLayers);
+    for (const f of FIELDS) if (f.track === "undo" && f.key !== "layoutPages") fieldState[f.key][1](snap[f.key] ?? f.empty());
     // #463 — whole pages list; keep the active page if it still exists, else the first one.
     if (snap.layoutPages) { setLayoutPages(snap.layoutPages); setActiveLayoutPageId((id) => (snap.layoutPages.some((p) => p.id === id) ? id : snap.layoutPages[0]?.id || id)); }
-    setSections(snap.sections); setSectionGroups(snap.sectionGroups || []); setBoundaries(snap.boundaries); setOmfObjects(snap.omfObjects || []);
-    setLayerGroups(snap.layerGroups);
-    setExcludedIntercepts(snap.excludedIntercepts); setSoftIntercepts(snap.softIntercepts); setInterceptSets(snap.interceptSets);
-    setPlannedHoles(snap.plannedHoles || []);
-    setSurfaceSamples(snap.surfaceSamples || []); setSurfaceElements(snap.surfaceElements || []);
     // React batches these, but the flag needs to survive until AFTER the effect above re-runs on the
     // new state — a plain synchronous reset here would race it. A setTimeout(0) micro-delay lets
     // this render's effects flush first.
