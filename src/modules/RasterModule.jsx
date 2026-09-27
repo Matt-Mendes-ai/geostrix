@@ -5,7 +5,8 @@ import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
-import { toLonLat } from "../lib/reproject.js";
+import { toLonLat, crsName } from "../lib/reproject.js";
+import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import InfoButton from "../components/InfoButton.jsx";
 import BasemapView from "../components/BasemapView.jsx";
 import GeoreferencerModal from "../components/GeoreferencerModal.jsx";
@@ -247,22 +248,11 @@ export default function RasterModule() {
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
-        <label style={{ display: "block", fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 8 }}>
-          Source CRS (EPSG, optional)
-          <input
-            type="number" value={sourceEpsg} placeholder={`blank = use the file's own tag, else assume EPSG:${project?.epsg ?? "?"}`}
-            onChange={(e) => setSourceEpsg(e.target.value)}
-            title="The CRS the file's own coordinates are in. Leave blank to trust a GeoTIFF's embedded CRS tag. Set it for a .gxf (that format has no CRS tag at all) or when a file's tag is wrong — the raster is then reprojected into the project's EPSG on import."
-            style={{ width: "100%", boxSizing: "border-box", marginTop: 3, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
-          />
-        </label>
-        {(Number(sourceEpsg) === 4267 || (Number(sourceEpsg) >= 26701 && Number(sourceEpsg) <= 26722)) && (
-          <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
-            ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
-            published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
-            that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
-          </div>
-        )}
+        <SourceCrsField
+          value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))}
+          defaultText={`From the file's own tag, else the project CRS (${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`})`}
+          title="The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import."
+        />
         <input
           ref={fileInput}
           type="file"

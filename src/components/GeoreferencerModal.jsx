@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #488
 import { X, Upload, Trash2, MapPin } from "lucide-react";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js"; // TASKS.csv #290
@@ -26,21 +27,6 @@ const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points ar
 // after, so RMSE and the residual column stay in project units and mean what they say.
 // Low severity by design — a wildly wrong CRS shows up immediately as a terrible RMSE rather than
 // silently — but "immediately visible" isn't the same as "correctable", and it wasn't correctable.
-// Every NAD27 code reproject.js recognizes (geographic + the UTM North series from TASKS.csv #223).
-const NAD27_CODES = new Set([4267, ...Array.from({ length: 22 }, (_, i) => 26701 + i)]);
-const CP_CRS_OPTIONS = [
-  { value: "", label: "Same as project (already project coordinates)" },
-  { value: "4326", label: "EPSG:4326 — WGS84 lat/lon (degrees)" },
-  { value: "4269", label: "EPSG:4269 — NAD83 lat/lon (degrees)" },
-  // NAD27 is offered because it IS what a lot of pre-1990s BC assessment-report maps print, but see
-  // the NAD27 note below — proj4js can't do the exact, spatially-varying NAD27 shift without NTv2
-  // grids, so reproject.js applies a published ~10 m-class Helmert approximation (EPSG:1179) instead:
-  // honest-but-approximate rather than silently wrong. TASKS.csv #299.
-  { value: "4267", label: "EPSG:4267 — NAD27 lat/lon (degrees) — approximate, see note" },
-  { value: "3005", label: "EPSG:3005 — BC Albers" },
-  { value: "other", label: "Other EPSG code…" },
-];
-
 export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -80,9 +66,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   const removePoint = (id) => setPoints((p) => p.filter((pt) => pt.id !== id));
 
   // TASKS.csv #290 — "" means "already in the project's CRS" (the previous, only behavior).
-  const [cpEpsgChoice, setCpEpsgChoice] = useState("");
-  const [cpEpsgOther, setCpEpsgOther] = useState("");
-  const cpEpsg = cpEpsgChoice === "other" ? cpEpsgOther.trim() : cpEpsgChoice;
+  const [cpEpsg, setCpEpsg] = useState(""); // #488 — "" = same as project (any listed CRS, chosen by name)
   const needsReproject = !!cpEpsg && !!projectEpsg && Number(cpEpsg) !== Number(projectEpsg);
   const isGeographicCp = needsReproject && /\+proj=longlat/.test(getProj4DefSync(cpEpsg) || "");
   // Set when a CRS was asked for but can't be used — surfaced in the UI instead of silently falling
@@ -177,25 +161,11 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
           <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 8 }}>
             {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
                 workflow that types project coordinates behaves exactly as it did before. */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block" }}>
-              Control points are in
-              <select value={cpEpsgChoice} onChange={(e) => setCpEpsgChoice(e.target.value)} style={{ ...numInput, width: "100%", marginTop: 3 }}
-                title="The CRS of the coordinates printed on the scanned map. They're reprojected into the project's CRS before the transform is fitted.">
-                {CP_CRS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </label>
-            {cpEpsgChoice === "other" && (
-              <input type="number" value={cpEpsgOther} onChange={(e) => setCpEpsgOther(e.target.value)} placeholder="EPSG code, e.g. 32609" style={{ ...numInput, width: "100%" }} />
-            )}
-            {/* TASKS.csv #299 — was "no datum shift at all, expect ~100 m offset". An approximate
-                shift (EPSG:1179 geocentric translation, DMA TR8350.2, Alberta/BC extent) is now
-                applied, so the wording says what it actually buys (~10 m class) without pretending
-                it is a grid shift. */}
-            {NAD27_CODES.has(Number(cpEpsg)) && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>
-                NAD27 note: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a published 3-parameter fit for Alberta/BC — typically within ~10 m). It is not survey-grade: that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet. Expect a small residual on top of the fit's own RMSE.
-              </div>
-            )}
+            <SourceCrsField
+              label="Control points are in" value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))}
+              defaultText="Same as project (already project coordinates)"
+              title="The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted."
+            />
             {needsReproject && !crsError && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.

@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
+import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { X } from "lucide-react";
 import { TARGET_SCHEMAS, guessMapping } from "../lib/layers.js";
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
@@ -8,12 +10,6 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
-// TASKS.csv #299 — proj4js applies no real NAD27->NAD83 datum shift, so any of these codes silently
-// lands data ~100m off in BC. 4267 = NAD27 geographic, 26701-26722 = NAD27 UTM zones 1N-22N.
-function isNad27Epsg(v) {
-  const n = Number(v);
-  return n === 4267 || (n >= 26701 && n <= 26722);
-}
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -124,31 +120,15 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
 
           {hasAbsoluteXY && (
             <div style={{ marginTop: 14 }}>
-              <div style={label}>Source CRS (EPSG, optional)</div>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder={`leave blank to assume this file is already EPSG:${projectEpsg ?? "?"} (the project CRS)`}
-                value={modal.sourceEpsg || ""}
-                onChange={(e) => onChange({ ...modal, sourceEpsg: e.target.value.replace(/[^0-9]/g, "") })}
-                style={{ ...sel, width: "100%" }}
+              <SourceCrsField
+                value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })}
+                defaultText={`Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
               />
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>
-                If this file's x/y is in a different EPSG than the project (e.g. a claim boundary or
-                collar list pulled in a different UTM zone), enter its EPSG code here and it'll be
-                reprojected into the project's EPSG:{projectEpsg ?? "?"} on import so it lines up with
-                everything else. Recognized codes: WGS84/NAD83/NAD27 geographic, WGS84 &amp; NAD83 UTM
-                zones, and NAD83(CSRS) UTM 7N–11N (BC).
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>
+                If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or
+                datum), pick it here and it is reprojected into the project CRS on import so it lines up with
+                everything else.
               </div>
-              {isNad27Epsg(modal.sourceEpsg) && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: 6, lineHeight: 1.4 }}>
-                  ⚠ NAD27 (TASKS.csv #299): an <em>approximate</em> NAD27→NAD83 datum shift is applied
-                  (EPSG:1179, a published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m).
-                  This is not survey-grade: the exact shift varies from place to place and needs a
-                  grid-based (NTv2) transform, which GeoStrix doesn't ship yet. Fine for siting old
-                  assessment-report or claim-map coordinates in context; don't survey off it.
-                </div>
-              )}
 
               {/* TASKS.csv #205 — a merged/regional dataset can have DIFFERENT rows in different
                   EPSGs (e.g. one collar list spanning two UTM zones), which the single Source CRS

@@ -3,6 +3,7 @@ import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; /
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
+import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
@@ -19,7 +20,7 @@ import { blockModelRows, blockModelParamLines } from "../lib/blockModelExport.js
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
-import { toLonLat, reprojectXY } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, crsName } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
@@ -886,25 +887,11 @@ export default function GeophysicsModule() {
 
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-          <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)", flexShrink: 0 }}>Source CRS (EPSG)</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder={`optional — assumes EPSG:${project?.epsg ?? "?"}`}
-            value={geophysSourceEpsg}
-            onChange={(e) => setGeophysSourceEpsg(e.target.value.replace(/[^0-9]/g, ""))}
-            style={{ ...numInput, width: "auto", flex: 1 }}
-            title="If these points' x/y are in a different EPSG than the project, enter it here — reprojected into the project CRS on import."
-          />
-        </div>
-        {(Number(geophysSourceEpsg) === 4267 || (Number(geophysSourceEpsg) >= 26701 && Number(geophysSourceEpsg) <= 26722)) && (
-          <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>
-            ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a
-            published 3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade;
-            that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.
-          </div>
-        )}
+        <SourceCrsField
+          value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))}
+          defaultText={`Same as project — ${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`} (longitude/latitude columns: WGS 84)`}
+          title="The CRS these points' x/y are in. They are reprojected into the project CRS on import."
+        />
 
         <button onClick={() => fileInput.current.click()} style={pBtn}>
           <Upload size={14} /> Import CSV…
@@ -1120,11 +1107,11 @@ export default function GeophysicsModule() {
           <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
         </div>
         {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="Leave blank to use the GeoTIFF's own CRS tag. Set it when the file has no tag or a wrong one (e.g. 3005 for a BC TRIM DEM, 4617 for NRCan CDEM).">
-          DEM source CRS
-          <input value={demSourceEpsg} onChange={(e) => setDemSourceEpsg(e.target.value.replace(/[^0-9]/g, ""))} placeholder="from file" style={{ ...numInput, width: 80, flex: "none" }} aria-label="DEM source EPSG" />
-          <span style={{ color: "var(--color-text-muted)" }}>EPSG (optional)</span>
-        </div>
+        <SourceCrsField
+          label="DEM source CRS" value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))}
+          defaultText="From the file's own CRS tag"
+          title="Leave it on the file's own tag. Change it when the DEM has no tag or a wrong one (e.g. NAD83 / BC Albers for a BC TRIM DEM, NAD83(CSRS) longitude/latitude for NRCan CDEM)."
+        />
         {(collars || []).length > 0 && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.">
             <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} /> Crop to the drillholes +

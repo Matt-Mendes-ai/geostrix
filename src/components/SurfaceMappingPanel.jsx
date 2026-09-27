@@ -5,13 +5,14 @@
 // Its own component rather than more inline JSX in GeophysicsModule (already ~1,500 lines); it talks
 // to the store directly, the same way AddWebLayerModal does.
 import React, { useRef, useState } from "react";
+import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette } from "lucide-react";
 import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync } from "../lib/reproject.js";
+import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName } from "../lib/reproject.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer,
@@ -35,8 +36,9 @@ const autoColorFor = () => {
 // Builds a store-ready map layer from a parsed vector layer. Reprojects into the project CRS when the
 // source CRS is known and differs (and both are codes reproject.js can build); otherwise the coordinates
 // are taken as already being in the project CRS, and the returned note says so.
-function buildLayer(parsed, { sourceName, projectEpsg, qml }) {
-  const src = parsed.epsg ? Number(parsed.epsg) : null;
+function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride }) {
+  // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
+  const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
   const dst = projectEpsg ? Number(projectEpsg) : null;
   let transform;
   let crsNote;
@@ -80,6 +82,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [busy, setBusy] = useState(false);
   const [openLegend, setOpenLegend] = useState({});
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
+  const [mapSourceEpsg, setMapSourceEpsg] = useState(""); // #488 — "" = the file's own CRS
 
   const importMaps = async (fileList) => {
     const files = Array.from(fileList || []);
@@ -99,7 +102,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; });
     const addParsed = (parsed, sourceName) => {
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
-      const layer = buildLayer(parsed, { sourceName, projectEpsg: project?.epsg, qml });
+      const layer = buildLayer(parsed, { sourceName, projectEpsg: project?.epsg, qml, sourceOverride: mapSourceEpsg });
       if (!layer) { failed.push(`${sourceName}${parsed.name ? ` (${parsed.name})` : ""}: no usable features`); return; }
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
       done.push(`${layer.name}: ${layer.features.length} ${layer.geomType}${layer.features.length === 1 ? "" : "s"}${layer.skipped ? ` (${layer.skipped} empty/unsupported skipped)` : ""}, ${layer.crsNote}${qml ? ", styled from .qml" : ""}`);
@@ -221,6 +224,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         Map layers (GeoPackage / shapefile)
         <InfoButton title="Map layers" text={`Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG (${project?.epsg ?? "?"}). Mapped contacts between units can be projected underground from the 3D Modeling tab.`} />
       </div>
+      <SourceCrsField
+        value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))}
+        defaultText={`From the file (.prj / GeoPackage), else the project CRS (${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`})`}
+        title="Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one."
+      />
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy}>
         <MapIcon size={14} /> {busy ? "Importing…" : "Import map layer (.gpkg / .zip / .shp + .qml)…"}
       </button>
@@ -331,10 +339,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </select>
             </div>
           ))}
-          <div style={row} title="EPSG code of this file's easting/northing. Defaults to the project's; change it if the file is in another datum or zone (e.g. 26909 = NAD83 UTM 9N) and it will be reprojected.">
-            <span style={lbl}>Source EPSG</span>
-            <input type="number" value={pendingStruct.sourceEpsg} onChange={(e) => setPendingStruct((p) => ({ ...p, sourceEpsg: e.target.value }))} style={numInput} />
-          </div>
+          <SourceCrsField
+            value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))}
+            defaultText={`Same as project — ${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`}`}
+            title="The CRS of this file's easting/northing. It is reprojected into the project CRS on import."
+          />
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
             <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Import</button>
             <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Cancel</button>
