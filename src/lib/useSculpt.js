@@ -304,7 +304,6 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const t0 = performance.now();
     const pos = geo.attributes.position.array;
     const idx = geo.index.array;
-    const dir = axis === "vertical" ? { x: 0, y: 1, z: 0 } : a.normal;
     // Undo record captures the ORIGINAL coordinates of exactly the vertices this brush moved (a few KB,
     // vs. a megabyte for a whole-mesh snapshot — see sculpt.js captureUndo).
     const record = captureUndo(a.base, a.brush);

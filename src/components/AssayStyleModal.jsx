@@ -17,7 +17,6 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
     minCutoff: style?.minCutoff ?? "",
     breaks: style?.breaks ? style.breaks.map((b) => ({ ...b })) : [],
   }));
-  const [breakDraftError, setBreakDraftError] = useState("");
 
   const commit = (next) => {
     setLocal(next);
@@ -109,7 +108,6 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                   </div>
                 ))}
                 <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} /> Add class</button>
-                {breakDraftError && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon-strong)" }}>{breakDraftError}</div>}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                   Classes are evaluated in order — a sample's colour comes from the first class whose value is ≤ its threshold. A value above every threshold still gets the top class's colour, so nothing above the highest break silently disappears.
                 </div>

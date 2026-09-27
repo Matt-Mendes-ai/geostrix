@@ -34,7 +34,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, mergeLayer, replaceLayer, layers, collars, survey, boundaries } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries } = store;
 
   const [diagramId, setDiagramId] = useState("boxplot");
   const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform

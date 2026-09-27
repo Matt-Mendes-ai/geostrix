@@ -51,16 +51,13 @@ function buildShpShx(features, geomType) {
 
   // ---- content bodies per record, built first so total file length (for the header) is known ----
   const shpRecords = [];
-  const shxEntries = [];
-  let shpWordsSoFar = 50; // 100-byte header = 50 words
   features.forEach((f, idx) => {
     const body = new ByteWriter();
     body.push(i32le(shapeType));
     if (geomType === "point") {
+      // PointZ record: ShapeType, X, Y, Z, M (M unused)
       const [x, y, z] = f.geometry[0];
-      body.push(f64le(x)); body.push(f64le(y));
-      body.push(f64le(0)); // M (unused) placeholder position for PointZ per spec order is actually X,Y,Z,M
-      // NOTE: PointZ record layout is: ShapeType, X, Y, Z, M — fix ordering below by rebuilding body.
+      body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0)); body.push(f64le(0));
     } else {
       const pts = f.geometry;
       let fxmin = Infinity, fymin = Infinity, fxmax = -Infinity, fymax = -Infinity, fzmin = Infinity, fzmax = -Infinity;
@@ -81,18 +78,6 @@ function buildShpShx(features, geomType) {
     }
     shpRecords.push({ idx, body });
   });
-
-  // Fix PointZ body properly (X, Y, Z, M order) — rebuilt cleanly here rather than patched above.
-  if (geomType === "point") {
-    shpRecords.length = 0;
-    features.forEach((f, idx) => {
-      const [x, y, z] = f.geometry[0];
-      const body = new ByteWriter();
-      body.push(i32le(shapeType));
-      body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0)); body.push(f64le(0));
-      shpRecords.push({ idx, body });
-    });
-  }
 
   shp.push(shpHeader(shapeType, xmin, ymin, xmax, ymax, zmin, zmax, () => {
     let words = 50;

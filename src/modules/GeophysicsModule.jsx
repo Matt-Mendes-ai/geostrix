@@ -127,7 +127,6 @@ export default function GeophysicsModule() {
   const effectiveMaxCells = voxelCellBudget || MAX_CELLS;
   const [error, setError] = useState(null);
   const [rasterError, setRasterError] = useState(null);
-  const [rasterBusy, setRasterBusy] = useState(false);
   const [terrainError, setTerrainError] = useState(null);
   const [terrainBusy, setTerrainBusy] = useState(false);
   const [demSourceEpsg, setDemSourceEpsg] = useState(""); // TASKS.csv #419 — DEM source CRS override
@@ -246,16 +245,13 @@ export default function GeophysicsModule() {
   // helper (raster.js) the Raster module's own import button calls — one shared parse/message path.
   const importRaster = async (file) => {
     if (!file) return;
-    setRasterError(null);
-    setRasterBusy(true);
+    setRasterError({ info: true, text: `Importing ${file.name}…` }); // a large GeoTIFF takes a few seconds
     try {
       const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
       addRaster(raster);
       setRasterError({ info: true, text: `${msg} (Tip: raster imports now have their own "Raster" tab — this drop still works here too.)` });
     } catch (err) {
       setRasterError({ info: false, text: err.message });
-    } finally {
-      setRasterBusy(false);
     }
   };
 

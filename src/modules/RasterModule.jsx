@@ -416,5 +416,4 @@ export default function RasterModule() {
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "9px 10px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", justifyContent: "flex-start" };
 const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" };

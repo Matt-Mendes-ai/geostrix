@@ -14,7 +14,7 @@
     "build:full": "npm run build:sidecar && npm run build",
     "preview": "vite preview",
     "test": "node --no-warnings --test \"test/*.test.mjs\"",
-    "lint": "eslint ."
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "@fontsource/exo-2": "^5.3.0",

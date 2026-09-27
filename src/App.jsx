@@ -59,7 +59,7 @@ const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeti
 export default function App() {
   const store = useStore();
   const {
-    newProject, saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, addPlannedHole,
+    saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     undo, redo, canUndo, canRedo,
@@ -470,7 +470,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
 }
 
 function StatusBar({ epsgEditing, setEpsgEditing, pyStatus, updater, onHelp }) {
-  const { project, setEpsg, setProjectName, collars, desurveyMethod, setDesurveyMethod } = useStore();
+  const { project, setEpsg, collars, desurveyMethod, setDesurveyMethod } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
   // specifically so this component re-renders on every mousemove-driven cursor update / progress tick

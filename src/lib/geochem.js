@@ -494,12 +494,12 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   // over the same interval with DIFFERENT results are a genuine data conflict (a re-assay, a mislabeled
   // sample), not a double-import, and silently discarding one of them would be its own quiet data loss.
   // Those are left alone and stay dataQC's business to report.
+  // (CompositingModal reports the count itself, via countDuplicateAssayIntervals.)
   const dupSeen = new Set();
-  let duplicatesSkipped = 0;
   assays.forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
     const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
-    if (dupSeen.has(key)) { duplicatesSkipped++; return; }
+    if (dupSeen.has(key)) return;
     dupSeen.add(key);
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);

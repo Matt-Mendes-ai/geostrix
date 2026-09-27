@@ -75,7 +75,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import {
-  LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, getCol, EPSG_COL_ALIASES,
+  LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, EPSG_COL_ALIASES,
   diffCollarImport, // TASKS.csv #283
   colorForLithology, colorForAlteration, colorForStructure,
   rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB,
@@ -406,16 +406,6 @@ function fitScreenLabels(group, camera, viewportH) {
     const a = sp.material?.userData?.labelAspect;
     if (a) sp.scale.set(s * a, s, 1);
   }
-}
-function normCollar(r) {
-  return {
-    hole_id: String(getCol(r, ["hole_id", "holeid", "hole", "bhid"]) ?? "").trim(),
-    x: Number(getCol(r, ["x", "easting", "east"])), y: Number(getCol(r, ["y", "northing", "north"])), z: Number(getCol(r, ["z", "elevation", "elev"])),
-    azimuth: undefined, dip: undefined, length: undefined,
-  };
-}
-function normSurvey(r) {
-  return { hole_id: String(getCol(r, ["hole_id", "holeid", "hole", "bhid"]) ?? "").trim(), depth: Number(getCol(r, ["depth", "at", "md", "station"])), azimuth: Number(getCol(r, ["azimuth", "azi", "az"])), dip: Number(getCol(r, ["dip", "inclination", "incl"])) };
 }
 // onDone(rows, errorMessage, localeNote) — TASKS.csv #284: Papa's dynamicTyping leaves a
 // European-locale value like "1,5" as the literal STRING "1,5", and Number("1,5") is NaN, so every
@@ -960,8 +950,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     lastCamState, setLastCamState,
     addLayoutImage, goToModule,
-    themes, addTheme, updateTheme, renameTheme, deleteTheme,
-    viewportRenderRequest, viewportRenderRequestSeq, viewportPendingRequest, resolveViewportRender,
+    themes, addTheme, renameTheme, deleteTheme,
+    viewportRenderRequest, viewportPendingRequest, resolveViewportRender,
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
@@ -5173,7 +5163,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setDomains((p) => [...p, { id, name: name || "New domain", constraints: [] }]);
     return id;
   }, []);
-  const renameDomain = useCallback((id, name) => setDomains((p) => p.map((d) => d.id === id ? { ...d, name } : d)), []);
   const deleteDomain = useCallback((id) => {
     const dom = (modelDomains || []).find((d) => d.id === id); // TASKS.csv #386
     if (!confirmDestructive(`Delete model domain "${dom?.name || "domain"}" and its fault-side constraints?`)) return;
@@ -5753,7 +5742,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         assayDisplayElements.forEach((sym, idx) => {
           const style = assayStyle[sym];
           const holeAssays = (assaysByHole.get(c.hole_id) || []).filter((a) => a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
-          const { min, max } = globalAssayRanges[sym] || { min: 0, max: 0 };
           const angle = (2 * Math.PI * idx) / n;
           const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
           holeAssays.forEach((a) => {
@@ -5766,7 +5754,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
             mesh.scale.setScalar(size);
             mesh.position.set(p.x + offX, p.y, p.z + offZ);
-            const unit = assayElements.find((e) => e.symbol === sym)?.unit || "";
+            const unit = elementUnits[sym] || "";
             mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${unit}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
             groups.assay.add(mesh);
           });
@@ -6744,7 +6732,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // it only ever runs for a model actually at opacity<1, never for the opaque default.
       const material = new THREE.MeshLambertMaterial({ transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
       const mesh = new THREE.InstancedMesh(geometry, material, cells.length);
-      const { min, max } = model;
       // TASKS.csv #209 — perf fix, profiled not guessed. Real repro: an OMF-style model with its own
       // colour stops (Matt's own real workflow — see makeVoxelColorResolverRGB's comment) hitting
       // colorForVoxelValue() once per cell was re-sorting the stops array AND re-parsing every stop's
@@ -6933,7 +6920,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         return;
       }
       const target = forceTarget || guessTarget(headers);
-      const schema = TARGET_SCHEMAS[target];
       const mapping = guessMapping(target, headers); // #426
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
       setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
@@ -6985,7 +6971,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!rows.length) return;
     if (looksLikeAssay(headers)) { setNotices((p) => [...p, `${sourceName} looks like assay data — import it from the Geochem module instead.`]); return; }
     const target = guessTarget(headers);
-    const schema = TARGET_SCHEMAS[target];
     const mapping = guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
     setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
@@ -7181,7 +7166,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
     } else if (target === "custom") {
-      const isPoint = mapping.depth && !mapping.from;
       const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),
         from: mapping.from ? num(r[mapping.from]) : undefined, to: mapping.to ? num(r[mapping.to]) : undefined,

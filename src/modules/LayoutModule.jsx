@@ -48,7 +48,7 @@ export default function LayoutModule() {
     // viewport"/"Refresh" themselves force) — a real layout could be wiped out just by using its own
     // core feature. Now it survives tab switches and round-trips through project save/load.
     layoutElements: elements, setLayoutElements: setElements,
-    layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
+    layoutTemplates, addLayoutTemplate, deleteLayoutTemplate,
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
