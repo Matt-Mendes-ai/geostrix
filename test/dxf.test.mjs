@@ -51,3 +51,71 @@ test("#409 section contacts/faults/strings export as vertex CSV rows and 3D DXF 
   assert.match(back.layers.join(" "), /4200N_contact_DACT/);
   assert.equal(kindOf({ isUpperContact: true }), "contact");
 });
+
+// TASKS.csv #414 — streaming, typed-array solid import with one part per layer.
+import { parseDXFMesh, createDXFMeshParser } from "../src/lib/dxf.js";
+import { parseSolidFile, parseSolidFileStream, parseOBJMesh, solidBounds } from "../src/lib/solidImport.js";
+
+const face = (layer, pts) => ["0", "3DFACE", "8", layer, ...pts.flatMap((p, k) => [`${10 + k}`, `${p[0]}`, `${20 + k}`, `${p[1]}`, `${30 + k}`, `${p[2]}`])];
+const tri = (layer, a, b, c) => face(layer, [a, b, c, c]);
+const solidDxf = (eol = "\n") => ["0", "SECTION", "2", "HEADER", "0", "ENDSEC", "0", "SECTION", "2", "ENTITIES",
+  ...tri("PIT", [0, 0, 100], [10, 0, 100], [10, 10, 105]),
+  ...tri("PIT", [0, 0, 100], [10, 10, 105], [0, 10, 100]),       // shares 2 vertices with the first: welded
+  ...face("PIT", [[20, 0, 90], [30, 0, 90], [30, 10, 90], [20, 10, 90]]), // a genuine quad: 2 triangles
+  ...tri("PIT", [5, 5, 5], [5, 5, 5], [6, 6, 6]),                  // degenerate: dropped
+  ...tri("STOPE", [100, 100, 0], [110, 100, 0], [110, 110, 0]),
+  "0", "POLYLINE", "8", "PILLAR", "66", "1", "70", "64",
+  ...[[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]].flatMap(([x, y, z]) => ["0", "VERTEX", "8", "PILLAR", "10", `${x + 200}`, "20", `${y}`, "30", `${z}`, "70", "192"]),
+  "0", "VERTEX", "8", "PILLAR", "10", "0", "20", "0", "30", "0", "70", "128", "71", "1", "72", "-2", "73", "3", "74", "4",
+  "0", "SEQEND", "0", "ENDSEC", "0", "EOF"].join(eol) + eol;
+
+test("#414 DXF solid: one part per layer, welded, quads split, degenerates dropped, polyface read", () => {
+  const m = parseDXFMesh(solidDxf());
+  assert.deepEqual(m.parts.map((p) => [p.layer, p.indices.length / 3, p.positions.length / 3]), [["PIT", 4, 10], ["STOPE", 1, 3], ["PILLAR", 2, 4]]);
+  assert.ok(m.parts.every((p) => p.positions instanceof Float64Array && p.indices instanceof Uint32Array));
+  assert.equal(m.triangleCount, 7);
+  assert.equal(m.nFaceEntities, 5); // 4 PIT + 1 STOPE; the degenerate face still counts as an entity and registers its 2 distinct vertices (as before #414)
+  assert.equal(m.nPolyfaceMeshes, 1);
+  const pit = m.parts[0];
+  assert.deepEqual([...pit.indices.slice(0, 6)], [0, 1, 2, 0, 2, 3]); // shared corner vertices reused
+  assert.deepEqual([...pit.positions.slice(6, 9)], [10, 10, 105]);
+});
+
+test("#414 feeding a DXF in chunks gives the same mesh, whatever the split and line endings", () => {
+  for (const eol of ["\n", "\r\n", "\r"]) {
+    const text = solidDxf(eol);
+    const whole = JSON.stringify(parseDXFMesh(text).parts.map((p) => [p.layer, [...p.positions], [...p.indices]]));
+    for (let cut = 1; cut < text.length; cut += 7) {
+      for (const size of [1, 3, 64]) {
+        const p = createDXFMeshParser();
+        p.feed(text.slice(0, cut));
+        for (let i = cut; i < text.length; i += size) p.feed(text.slice(i, i + size));
+        assert.equal(JSON.stringify(p.finish().parts.map((q) => [q.layer, [...q.positions], [...q.indices]])), whole, `eol ${JSON.stringify(eol)} cut ${cut} size ${size}`);
+      }
+      if (eol !== "\n") break; // one cut per non-LF ending keeps the test fast; LF gets every 7th
+    }
+  }
+});
+
+test("#414 DXF errors: no ENTITIES section, or no faces", () => {
+  assert.throws(() => parseDXFMesh("0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nEOF\n"), /No ENTITIES section/);
+  assert.throws(() => parseDXFMesh(dxf(lw)), /No 3D faces found/);
+});
+
+test("#414 OBJ: objects become parts sharing the global vertex list; negative refs; quads fan-split", () => {
+  const obj = ["# pit", "v 0 0 0", "v 1 0 0", "v 1 1 0", "v 0 1 0", "o shell", "f 1 2 3 4", "o bench", "v 5 5 5", "f -1 -3 -4", "f 1//1 2//2 3//3"].join("\n");
+  const m = parseOBJMesh(obj);
+  assert.deepEqual(m.parts.map((p) => [p.layer, p.indices.length / 3, p.positions.length / 3]), [["shell", 2, 4], ["bench", 2, 4]]);
+  const bench = m.parts[1];
+  assert.deepEqual([...bench.positions.slice(0, 3)], [5, 5, 5]); // local vertex 0 = global vertex 5
+  assert.equal(m.quads, 1);
+});
+
+test("#414 parseSolidFileStream (File) = parseSolidFile (text); bounds over all parts", async () => {
+  const text = solidDxf("\r\n");
+  const a = parseSolidFile("pit.dxf", text), b = await parseSolidFileStream(new File([text], "pit.dxf"));
+  assert.equal(JSON.stringify(b.parts.map((p) => [...p.positions])), JSON.stringify(a.parts.map((p) => [...p.positions])));
+  assert.match(b.note, /3 layers/);
+  assert.deepEqual(solidBounds(a.parts), { min: { x: 0, y: 0, z: 0 }, max: { x: 201, y: 110, z: 105 } });
+  await assert.rejects(parseSolidFileStream(new File(["x"], "pit.stl")), /Unsupported solid format/);
+});

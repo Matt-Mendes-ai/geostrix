@@ -189,127 +189,212 @@ export function dxfToBoundaries(text, baseName) {
 //     is a display hint only and is why the indices are abs()'d here).
 // Vertices are welded on rounded coordinates so a 3DFACE soup (which repeats every shared vertex, once
 // per adjoining triangle) comes back as a real indexed mesh instead of 3x the vertices it should have.
-export function parseDXFMesh(text, opts = {}) {
-  // 1e-4 m = 0.1 mm, which is exactly the precision exportSurfaceDXF writes (toFixed(4)) — welding any
-  // tighter than the file's own precision would fail to merge vertices that ARE the same point.
-  const weldTol = opts.weldTolerance ?? 1e-4;
-  const rawLines = text.split(/\r\n|\r|\n/);
-  const pairs = [];
-  for (let i = 0; i + 1 < rawLines.length; i += 2) {
-    const code = parseInt(rawLines[i].trim(), 10);
-    if (!Number.isFinite(code)) continue;
-    pairs.push([code, rawLines[i + 1].trim()]);
-  }
-  let entStart = -1, entEnd = pairs.length;
-  for (let i = 0; i < pairs.length - 1; i++) {
-    if (pairs[i][0] === 2 && pairs[i][1] === "ENTITIES") { entStart = i + 1; break; }
-  }
-  if (entStart === -1) throw new Error("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported).");
-  for (let i = entStart; i < pairs.length; i++) {
-    if (pairs[i][0] === 0 && pairs[i][1] === "ENDSEC") { entEnd = i; break; }
-  }
-
-  const vertices = [];           // [x, y, z] in DXF/world coordinates
-  const indices = [];            // flat triangle index list
-  const weld = new Map();
-  const key = (x, y, z) => {
-    const q = 1 / weldTol;
-    return `${Math.round(x * q)},${Math.round(y * q)},${Math.round(z * q)}`;
+//
+// TASKS.csv #414 — streaming, typed-array parser, ONE MESH PER DXF LAYER. The first version split the whole
+// file into a line array, then a [code, value] pair array, then welded through string keys into [x,y,z]
+// arrays: a 200k-face (39 MB) file took 1.6 s and 522 MB of heap, 1M faces (195 MB) 11 s and 1.6 GB, all on
+// the UI thread, and every layer (pit shell, stopes, pillars...) merged into one grey mesh. Now:
+//   * fed in chunks (feed(text) any number of times, then finish()), so a file is never held as one string —
+//     it can also be larger than the ~512 MB a JS string can hold — and solidImport.worker.js can stream it
+//     off the UI thread;
+//   * per-layer growable Float64 positions + Uint32 indices, welded through an open-addressing hash on the
+//     quantised coordinates (no per-vertex string keys or arrays).
+// Result: { parts: [{ layer, positions: Float64Array (x,y,z world), indices: Uint32Array }], triangleCount,
+// vertexCount, nFaceEntities, nPolyfaceMeshes }. Weld rule and triangle rules are unchanged.
+class GrowF64 {
+  constructor(n = 3072) { this.a = new Float64Array(n); this.n = 0; }
+  push3(x, y, z) { if (this.n + 3 > this.a.length) { const b = new Float64Array(this.a.length * 2); b.set(this.a); this.a = b; } this.a[this.n++] = x; this.a[this.n++] = y; this.a[this.n++] = z; }
+  trimmed() { return this.a.slice(0, this.n); }
+}
+class GrowU32 {
+  constructor(n = 3072) { this.a = new Uint32Array(n); this.n = 0; }
+  push3(x, y, z) { if (this.n + 3 > this.a.length) { const b = new Uint32Array(this.a.length * 2); b.set(this.a); this.a = b; } this.a[this.n++] = x; this.a[this.n++] = y; this.a[this.n++] = z; }
+  trimmed() { return this.a.slice(0, this.n); }
+}
+const TWO32 = 4294967296;
+const mix = (h, v) => {
+  const lo = v % TWO32, hi = Math.floor(v / TWO32); // exact for |v| < 2^53 (quantised UTM at 0.1 mm ~ 6e10)
+  h = Math.imul(h ^ (lo | 0), 0x85ebca6b);
+  return Math.imul(h ^ (hi | 0), 0xc2b2ae35) ^ (h >>> 13);
+};
+// One layer's mesh under construction.
+function meshBucket(layer, q) {
+  const pos = new GrowF64(), qpos = new GrowF64(), idx = new GrowU32();
+  let table = new Int32Array(4096).fill(-1), count = 0;
+  const slot = (qx, qy, qz) => (mix(mix(mix(0x9e3779b9, qx), qy), qz) >>> 0) & (table.length - 1);
+  const grow = () => {
+    const old = table; table = new Int32Array(old.length * 2).fill(-1);
+    for (let k = 0; k < old.length; k++) {
+      const v = old[k]; if (v < 0) continue;
+      let s = slot(qpos.a[v * 3], qpos.a[v * 3 + 1], qpos.a[v * 3 + 2]);
+      while (table[s] >= 0) s = (s + 1) & (table.length - 1);
+      table[s] = v;
+    }
   };
-  const addVertex = (x, y, z) => {
-    const k = key(x, y, z);
-    const hit = weld.get(k);
-    if (hit !== undefined) return hit;
-    const idx = vertices.length;
-    vertices.push([x, y, z]);
-    weld.set(k, idx);
-    return idx;
-  };
-  const addTriangle = (a, b, c) => {
+  return {
+    layer,
+    vertex(x, y, z) {
+      const qx = Math.round(x * q), qy = Math.round(y * q), qz = Math.round(z * q);
+      let s = slot(qx, qy, qz);
+      for (;;) {
+        const v = table[s];
+        if (v < 0) break;
+        if (qpos.a[v * 3] === qx && qpos.a[v * 3 + 1] === qy && qpos.a[v * 3 + 2] === qz) return v;
+        s = (s + 1) & (table.length - 1);
+      }
+      const v = count++;
+      table[s] = v; pos.push3(x, y, z); qpos.push3(qx, qy, qz);
+      if (count * 2 > table.length) grow();
+      return v;
+    },
     // A degenerate triangle (two vertices welded to the same index) has no area and no normal; keeping
     // it would only produce NaN normals downstream. This is exactly what a triangular 3DFACE's repeated
     // 4th vertex collapses to, so this is the normal path, not an error case.
-    if (a === b || b === c || a === c) return;
-    indices.push(a, b, c);
+    triangle(a, b, c) { if (a !== b && b !== c && a !== c) idx.push3(a, b, c); },
+    get triangles() { return idx.n / 3; },
+    get vertices() { return count; },
+    result() { return { layer, positions: pos.trimmed(), indices: idx.trimmed() }; },
   };
+}
 
-  let nFaceEntities = 0, nPolyfaceMeshes = 0;
-  let i = entStart;
-  while (i < entEnd) {
-    const [code, value] = pairs[i];
-    if (code !== 0) { i++; continue; }
-    if (value === "3DFACE") {
-      const v = [[null, null, null], [null, null, null], [null, null, null], [null, null, null]];
-      i++;
-      while (i < entEnd && pairs[i][0] !== 0) {
-        const [c, val] = pairs[i];
-        // 10..13 = x of vertex 0..3, 20..23 = y, 30..33 = z
-        if (c >= 10 && c <= 13) v[c - 10][0] = parseFloat(val);
-        else if (c >= 20 && c <= 23) v[c - 20][1] = parseFloat(val);
-        else if (c >= 30 && c <= 33) v[c - 30][2] = parseFloat(val);
-        i++;
+// Line splitter for chunked text: calls onLine(line) per complete line, keeps a partial last line (and a
+// trailing "\r" that may be the first half of "\r\n") for the next chunk.
+export function lineFeeder(onLine) {
+  let rest = "";
+  return {
+    feed(chunk) {
+      let buf = rest + chunk, hold = "";
+      if (buf.endsWith("\r")) { buf = buf.slice(0, -1); hold = "\r"; }
+      let start = 0, nN = buf.indexOf("\n"), nR = buf.indexOf("\r");
+      for (;;) {
+        if (nN >= 0 && nN < start) nN = buf.indexOf("\n", start);
+        if (nR >= 0 && nR < start) nR = buf.indexOf("\r", start);
+        const nl = nN < 0 ? nR : nR < 0 ? nN : Math.min(nN, nR);
+        if (nl < 0) break;
+        onLine(buf.slice(start, nl));
+        start = nl + (nl === nR && nN === nl + 1 ? 2 : 1); // "\r\n" is one line break
       }
-      const ok = v.map((p) => p.every(Number.isFinite));
+      rest = buf.slice(start) + hold;
+    },
+    end() { const last = rest.replace(/\r$/, ""); if (last.length) onLine(last); rest = ""; },
+  };
+}
+
+export function createDXFMeshParser(opts = {}) {
+  // 1e-4 m = 0.1 mm, which is exactly the precision exportSurfaceDXF writes (toFixed(4)) — welding any
+  // tighter than the file's own precision would fail to merge vertices that ARE the same point.
+  const q = 1 / (opts.weldTolerance ?? 1e-4);
+  const buckets = new Map();
+  const bucket = (layer) => { let b = buckets.get(layer); if (!b) { b = meshBucket(layer, q); buckets.set(layer, b); } return b; };
+  let nFaceEntities = 0, nPolyfaceMeshes = 0;
+  let section = null, sawEntities = false, expectSectionName = false;
+  let ent = null;  // the entity whose group codes are being read: { type, layer, ... }
+  let poly = null; // an open POLYLINE (its VERTEX entities follow until SEQEND)
+
+  const finishEntity = () => {
+    if (!ent) return;
+    const e = ent; ent = null;
+    if (e.type === "3DFACE") {
+      const ok = [0, 1, 2, 3].map((k) => Number.isFinite(e.v[k * 3]) && Number.isFinite(e.v[k * 3 + 1]) && Number.isFinite(e.v[k * 3 + 2]));
       if (ok[0] && ok[1] && ok[2]) {
-        const a = addVertex(...v[0]), b = addVertex(...v[1]), c = addVertex(...v[2]);
-        addTriangle(a, b, c);
-        if (ok[3]) {
-          const d = addVertex(...v[3]);
-          addTriangle(a, c, d); // no-op when vertex 3 repeats vertex 2 (the triangle convention)
-        }
+        const b = bucket(e.layer), v = e.v;
+        const a = b.vertex(v[0], v[1], v[2]), bb = b.vertex(v[3], v[4], v[5]), c = b.vertex(v[6], v[7], v[8]);
+        b.triangle(a, bb, c);
+        if (ok[3]) b.triangle(a, c, b.vertex(v[9], v[10], v[11])); // a quad's 2nd half; no-op for the triangle convention (vertex 3 = vertex 2)
         nFaceEntities++;
       }
-    } else if (value === "POLYLINE") {
-      let flags = 0;
-      i++;
-      while (i < entEnd && pairs[i][0] !== 0) { if (pairs[i][0] === 70) flags = parseInt(pairs[i][1], 10) || 0; i++; }
-      const isPolyface = (flags & 64) !== 0;
-      const local = []; // 1-based per the DXF face records
-      const faces = [];
-      while (i < entEnd && !(pairs[i][0] === 0 && pairs[i][1] === "SEQEND")) {
-        if (pairs[i][0] === 0 && pairs[i][1] === "VERTEX") {
-          let x = null, y = null, z = 0, vflags = 0;
-          const f = [0, 0, 0, 0];
-          i++;
-          while (i < entEnd && pairs[i][0] !== 0) {
-            const [c, val] = pairs[i];
-            if (c === 10) x = parseFloat(val);
-            else if (c === 20) y = parseFloat(val);
-            else if (c === 30) z = parseFloat(val);
-            else if (c === 70) vflags = parseInt(val, 10) || 0;
-            else if (c >= 71 && c <= 74) f[c - 71] = parseInt(val, 10) || 0;
-            i++;
-          }
-          // vertex flag bit 128 = "this VERTEX carries a face record"; bit 64 = "it's a mesh vertex".
-          // Falling back to "has any non-zero 71..74" covers writers that omit the flag.
-          if ((vflags & 128 && !(vflags & 64)) || (!Number.isFinite(x) && f.some((n) => n !== 0))) faces.push(f);
-          else if (Number.isFinite(x) && Number.isFinite(y)) local.push([x, y, Number.isFinite(z) ? z : 0]);
-          else if (f.some((n) => n !== 0)) faces.push(f);
-        } else i++;
-      }
-      i++; // past SEQEND
-      if (isPolyface && local.length && faces.length) {
-        const gi = local.map((p) => addVertex(p[0], p[1], p[2]));
-        faces.forEach((f) => {
-          // negative index = invisible edge, a display hint only — magnitude is the real 1-based index
-          const idx = f.map((n) => Math.abs(n)).filter((n) => n >= 1 && n <= gi.length).map((n) => gi[n - 1]);
-          if (idx.length >= 3) {
-            addTriangle(idx[0], idx[1], idx[2]);
-            if (idx.length === 4) addTriangle(idx[0], idx[2], idx[3]);
-          }
-        });
-        nPolyfaceMeshes++;
-      }
-      continue;
-    } else {
-      i++;
+    } else if (e.type === "POLYLINE") {
+      poly = { layer: e.layer, polyface: (e.flags & 64) !== 0, local: [], faces: [] };
+    } else if (e.type === "VERTEX" && poly) {
+      const { x, y, z, vflags, f } = e;
+      // vertex flag bit 128 = "this VERTEX carries a face record"; bit 64 = "it's a mesh vertex".
+      // Falling back to "has any non-zero 71..74" covers writers that omit the flag.
+      if ((vflags & 128 && !(vflags & 64)) || (!Number.isFinite(x) && f.some((n) => n !== 0))) poly.faces.push(f);
+      else if (Number.isFinite(x) && Number.isFinite(y)) poly.local.push(x, y, Number.isFinite(z) ? z : 0);
+      else if (f.some((n) => n !== 0)) poly.faces.push(f);
     }
-  }
+  };
+  const finishPolyline = () => {
+    const p = poly; poly = null;
+    if (!p || !p.polyface || !p.local.length || !p.faces.length) return;
+    const b = bucket(p.layer);
+    const gi = [];
+    for (let k = 0; k < p.local.length; k += 3) gi.push(b.vertex(p.local[k], p.local[k + 1], p.local[k + 2]));
+    p.faces.forEach((f) => {
+      // negative index = invisible edge, a display hint only — magnitude is the real 1-based index
+      const idx = f.map((n) => Math.abs(n)).filter((n) => n >= 1 && n <= gi.length).map((n) => gi[n - 1]);
+      if (idx.length >= 3) {
+        b.triangle(idx[0], idx[1], idx[2]);
+        if (idx.length === 4) b.triangle(idx[0], idx[2], idx[3]);
+      }
+    });
+    nPolyfaceMeshes++;
+  };
 
-  if (!indices.length) {
-    throw new Error("No 3D faces found — this DXF has no 3DFACE entities or polyface mesh. A plan-view DXF (lines/polylines) can be imported as a boundary from the Geophysics tab instead.");
-  }
-  return { vertices, indices, nFaceEntities, nPolyfaceMeshes, triangleCount: indices.length / 3 };
+  const onPair = (code, value) => {
+    if (code === 0) {
+      finishEntity();
+      if (value === "SECTION") { expectSectionName = true; return; }
+      if (value === "ENDSEC") { if (poly) finishPolyline(); section = null; return; }
+      if (section !== "ENTITIES") return;
+      if (value === "SEQEND") { finishPolyline(); return; }
+      if (value === "3DFACE") ent = { type: value, layer: "0", v: new Array(12).fill(NaN) };
+      else if (value === "POLYLINE") { if (poly) finishPolyline(); ent = { type: value, layer: "0", flags: 0 }; }
+      else if (value === "VERTEX") ent = poly ? { type: value, x: NaN, y: NaN, z: 0, vflags: 0, f: [0, 0, 0, 0] } : null;
+      else { if (poly) finishPolyline(); ent = null; } // any other entity also ends an unterminated POLYLINE
+      return;
+    }
+    if (expectSectionName) { expectSectionName = false; if (code === 2) { section = value; if (value === "ENTITIES") sawEntities = true; } return; }
+    if (!ent) return;
+    if (code === 8) { ent.layer = value || "0"; return; }
+    if (ent.type === "3DFACE") {
+      // 10..13 = x of vertex 0..3, 20..23 = y, 30..33 = z
+      if (code >= 10 && code <= 13) ent.v[(code - 10) * 3] = parseFloat(value);
+      else if (code >= 20 && code <= 23) ent.v[(code - 20) * 3 + 1] = parseFloat(value);
+      else if (code >= 30 && code <= 33) ent.v[(code - 30) * 3 + 2] = parseFloat(value);
+    } else if (ent.type === "POLYLINE") {
+      if (code === 70) ent.flags = parseInt(value, 10) || 0;
+    } else if (ent.type === "VERTEX") {
+      if (code === 10) ent.x = parseFloat(value);
+      else if (code === 20) ent.y = parseFloat(value);
+      else if (code === 30) ent.z = parseFloat(value);
+      else if (code === 70) ent.vflags = parseInt(value, 10) || 0;
+      else if (code >= 71 && code <= 74) ent.f[code - 71] = parseInt(value, 10) || 0;
+    }
+  };
+
+  // Group-code lines are always a bare integer; values are whitespace-trimmed per DXF convention. A line
+  // that should be a code but isn't a number drops that pair, as the first version did.
+  let codeLine = null;
+  const lines = lineFeeder((line) => {
+    if (codeLine === null) { codeLine = line; return; }
+    const code = parseInt(codeLine.trim(), 10);
+    codeLine = null;
+    if (Number.isFinite(code)) onPair(code, line.trim());
+  });
+
+  return {
+    feed: (text) => lines.feed(text),
+    // Faces so far (for a progress line / an early budget check).
+    get triangleCount() { let t = 0; buckets.forEach((b) => { t += b.triangles; }); return t; },
+    finish() {
+      lines.end(); finishEntity(); if (poly) finishPolyline();
+      if (!sawEntities) throw new Error("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported).");
+      const parts = [...buckets.values()].filter((b) => b.triangles > 0).map((b) => b.result());
+      if (!parts.length) {
+        throw new Error("No 3D faces found — this DXF has no 3DFACE entities or polyface mesh. A plan-view DXF (lines/polylines) can be imported as a boundary from the Geophysics tab instead.");
+      }
+      const triangleCount = parts.reduce((s, p) => s + p.indices.length / 3, 0);
+      const vertexCount = parts.reduce((s, p) => s + p.positions.length / 3, 0);
+      return { parts, triangleCount, vertexCount, nFaceEntities, nPolyfaceMeshes };
+    },
+  };
+}
+
+export function parseDXFMesh(text, opts = {}) {
+  const p = createDXFMeshParser(opts);
+  p.feed(text);
+  return p.finish();
 }
 
 // ---------------------------------------------------------------------------------------------

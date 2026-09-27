@@ -31,7 +31,10 @@ import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFea
 // startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
 const loadGpkg = () => import("../lib/gpkg.js");
 import { buildDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
-import { parseSolidFile, solidBounds, SOLID_IMPORT_EXTENSIONS } from "../lib/solidImport.js"; // TASKS.csv #148
+import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImport.js"; // TASKS.csv #148
+import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
+// TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
+const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 // TASKS.csv #289 / #439 — raster.js (and geotiff) loaded on first raster import, not at startup.
@@ -4857,47 +4860,70 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const importSolidRef = useRef(null);
   const importSolidFile = useCallback(async (file) => {
     if (!file) return;
+    // TASKS.csv #414 — parsed in a worker (a 1M-face DXF used to freeze the UI for ~11 s and take ~2 GB),
+    // with progress in the status bar, and one surface per DXF layer / OBJ object instead of one merged mesh.
+    const progLabel = `Reading ${file.name}`;
+    const clearProgress = () => setTaskProgress((cur) => (cur && cur.label === progLabel ? null : cur));
+    setTaskProgress({ label: progLabel, pct: 0 });
     try {
-      const text = await file.text();
-      const solid = parseSolidFile(file.name, text);
-      const bounds = solidBounds(solid.vertices);
+      const solid = await parseSolidInWorker(file, (read, total) => setTaskProgress((cur) => (cur && cur.label === progLabel ? { ...cur, pct: Math.round((read / Math.max(1, total)) * 100) } : cur)));
+      clearProgress();
+      const layered = solid.parts.length > 1;
+      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(`"${file.name}" has ${solid.triangleCount.toLocaleString()} triangles${layered ? ` in ${solid.parts.length} layers` : ""}. That can make the 3D view slow to move on a modest computer, and it adds about ${Math.round((solid.vertexCount * 3 * 12 + solid.triangleCount * 3 * 7) / 1e6)} MB to the saved project. Import it anyway?`)) {
+        setNotices((p) => [...p, `${file.name}: import cancelled (${solid.triangleCount.toLocaleString()} triangles).`]);
+        return;
+      }
+      const bounds = solidBounds(solid.parts);
       const o = originRef.current;
-      // World (easting, northing, elevation) -> scene, the exact inverse of meshExport.js's
-      // sceneVertsToWorld (scene x = east offset, y = elevation offset, z = -(north offset)).
-      const sceneVerts = solid.vertices.map(([e, n, z]) => [e - o.x, z - o.z, o.y - n]);
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flat(), 3));
-      geo.setIndex(solid.indices);
-      geo.computeVertexNormals();
-      // Wireframe-ish translucent grey, visually distinct from the gold/coloured generated surfaces —
-      // an imported reference shape should not look like something this app modelled.
-      const mat = new THREE.MeshLambertMaterial({ color: 0x8fa3b8, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
-      const mesh = new THREE.Mesh(geo, mat);
       const label = file.name.replace(/\.(dxf|obj)$/i, "");
-      mesh.userData = { tip: `${label} (imported ${solid.format})\n${solid.vertices.length} vertices, ${solid.triangleCount} triangles` };
-      implicitGroupRef.current?.add(mesh);
-      const id = `impl_${Date.now()}_imported`;
-      implicitMeshesRef.current[id] = mesh;
-      setImplicitSurfaces((p) => [...p, {
-        id, name: `${label} (imported)`, visible: true,
-        vertexCount: solid.vertices.length, faceCount: solid.triangleCount,
-        type: "imported", relationships: [], closure: null,
-        params: {
-          tool: "imported solid", sourceFile: file.name, format: solid.format,
-          detail: solid.note, vertices: solid.vertices.length, triangles: solid.triangleCount,
-          crsAssumed: project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
-          importedAt: new Date().toISOString(),
-        },
-      }]);
+      const stamp = Date.now();
+      const box = new THREE.Box3();
+      const added = solid.parts.map((part, k) => {
+        // World (easting, northing, elevation) -> scene, the exact inverse of meshExport.js's
+        // sceneVertsToWorld (scene x = east offset, y = elevation offset, z = -(north offset)).
+        const w = part.positions, scene = new Float32Array(w.length);
+        for (let i = 0; i < w.length; i += 3) { scene[i] = w[i] - o.x; scene[i + 1] = w[i + 2] - o.z; scene[i + 2] = o.y - w[i + 1]; }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+        geo.setIndex(new THREE.BufferAttribute(part.indices, 1));
+        geo.computeVertexNormals();
+        // Translucent grey-blue family, visually distinct from the gold/coloured generated surfaces — an
+        // imported reference shape should not look like something this app modelled. Layers get neighbouring
+        // tones so a pit shell and its stopes can be told apart (the #52 sync-out saves the material colour).
+        const color = IMPORTED_SOLID_COLORS[k % IMPORTED_SOLID_COLORS.length];
+        const mat = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+        const mesh = new THREE.Mesh(geo, mat);
+        const name = layered ? `${label} — ${part.layer}` : label;
+        const nVerts = w.length / 3, nTris = part.indices.length / 3;
+        mesh.userData = { tip: `${name} (imported ${solid.format})\n${nVerts} vertices, ${nTris} triangles` };
+        implicitGroupRef.current?.add(mesh);
+        const id = `impl_${stamp}_imported${layered ? `_${k}` : ""}`;
+        implicitMeshesRef.current[id] = mesh;
+        box.expandByObject(mesh);
+        return {
+          id, name: `${name} (imported)`, visible: true,
+          vertexCount: nVerts, faceCount: nTris,
+          type: "imported", relationships: [], closure: null,
+          params: {
+            tool: "imported solid", sourceFile: file.name, format: solid.format, ...(layered ? { layer: part.layer } : {}),
+            detail: solid.note, vertices: nVerts, triangles: nTris,
+            crsAssumed: project?.epsg ? `assumed already in EPSG:${project.epsg}` : "assumed already in the project CRS",
+            importedAt: new Date().toISOString(),
+          },
+        };
+      });
+      setImplicitSurfaces((p) => [...p, ...added]);
       const bb = bounds
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
-      setNotices((p) => [...p, `Imported "${file.name}" as a solid: ${solid.vertices.length.toLocaleString()} vertices / ${solid.triangleCount.toLocaleString()} triangles (${solid.format}, ${solid.note}). It appears under Generated surfaces with the same show/hide, remove and query controls.${bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.`]);
-      fitBox(new THREE.Box3().setFromObject(mesh));
+      const layerNote = layered ? ` One surface per ${solid.format === "DXF" ? "layer" : "object"} (${solid.parts.map((p) => p.layer).join(", ")}).` : "";
+      setNotices((p) => [...p, `Imported "${file.name}" as a solid: ${solid.vertexCount.toLocaleString()} vertices / ${solid.triangleCount.toLocaleString()} triangles (${solid.format}, ${solid.note}).${layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.${bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.`]);
+      fitBox(box);
     } catch (e) {
+      clearProgress();
       setNotices((p) => [...p, `${file.name}: couldn't import as a solid (${e.message || e}).`]);
     }
-  }, [fitBox, project?.epsg]);
+  }, [fitBox, project?.epsg, setTaskProgress]);
 
 
   // ---------- TASKS.csv #318 — mapped surface contacts ----------
