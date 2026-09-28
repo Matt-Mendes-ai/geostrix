@@ -16,7 +16,7 @@ import { igrfField, decimalYear } from "./igrf.js";
 import { trueNorthBearingInGridDeg } from "./inversion.js";
 
 export const AZIMUTH_REFS = {
-  grid: "Grid north (the project's coordinate grid) — no change",
+  grid: "Grid north (the project's grid, or the grid of the CRS given here)",
   true: "True north (e.g. gyro surveys)",
   magnetic: "Magnetic north (compass / magnetic tools) — needs the survey date",
 };

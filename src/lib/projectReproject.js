@@ -15,7 +15,7 @@
 //
 // Returns { fields: { <only the fields that changed> }, report: { counts, notes, maxRotationDeg } }. Every
 // changed object is a NEW object (the #321 / #374 compaction caches are keyed by object identity).
-import { pointTransform, getProj4DefSync, reprojectGrid } from "./reproject.js";
+import { pointTransform, getProj4DefSync, reprojectGrid, turnGridBearing, bearingTurn } from "./reproject.js";
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { fillNoData } from "./demFill.js";
 
@@ -34,17 +34,16 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   // grid bearing at (x, y) re-expressed in the new grid
   const az = (x, y, a) => {
     if (!rotate || !fin(a) || !fin(x) || !fin(y)) return a;
-    const r = a / DEG, [x0, y0] = T(x, y), [x1, y1] = T(x + 10 * Math.sin(r), y + 10 * Math.cos(r));
-    const out = ((Math.atan2(x1 - x0, y1 - y0) * DEG) % 360 + 360) % 360;
-    maxRot = Math.max(maxRot, Math.abs(((out - a + 540) % 360) - 180));
-    return Math.round(out * 100) / 100;
+    const out = turnGridBearing(T, x, y, a);
+    maxRot = Math.max(maxRot, Math.abs(bearingTurn(a, out)));
+    return out;
   };
   // how far grid north turns at (x, y), whatever opts.rotateAzimuths says (for the voxel note)
   const convergence = (x, y) => {
     const [x0, y0] = T(x, y), [x1, y1] = T(x, y + 10);
     return Math.abs(Math.atan2(x1 - x0, y1 - y0) * DEG);
   };
-  const turn = (a, b) => ((b - a + 540) % 360) - 180; // signed change from bearing a to bearing b
+  const turn = bearingTurn;
   const f = {};
 
   // ---- drillholes ----

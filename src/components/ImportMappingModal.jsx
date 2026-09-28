@@ -242,6 +242,23 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                     <input type="radio" name="azref" checked={(modal.azimuthRef || "grid") === k} onChange={() => onChange({ ...modal, azimuthRef: k })} /> {text}
                   </label>
                 ))}
+                {/* TASKS.csv #490 — which grid "grid north" is. Collars: the Source CRS above (their azimuths are
+                    turned with their coordinates). Survey / structure files have no coordinates: pick the CRS here. */}
+                {(modal.azimuthRef || "grid") === "grid" && modal.target === "collars" && modal.sourceEpsg && Number(modal.sourceEpsg) !== Number(projectEpsg) && (
+                  <div style={{ marginLeft: 22, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+                    Grid north of the Source CRS above ({crsName(modal.sourceEpsg) || `EPSG:${modal.sourceEpsg}`}): azimuths are turned to the project grid along with the coordinates.
+                  </div>
+                )}
+                {(modal.azimuthRef || "grid") === "grid" && modal.target !== "collars" && (
+                  <div style={{ marginLeft: 22, marginTop: 4 }}>
+                    <SourceCrsField
+                      label="Grid of" value={modal.azimuthGridEpsg || ""}
+                      onChange={(c) => onChange({ ...modal, azimuthGridEpsg: c === "" ? "" : String(c) })}
+                      defaultText={`The project CRS — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+                      title="If these azimuths were measured against another CRS's grid (e.g. the neighbouring UTM zone), pick it: each one is turned to the project grid at its hole's collar."
+                    />
+                  </div>
+                )}
                 {modal.azimuthRef === "magnetic" && (
                   <label style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 22 }}>
                     Survey date

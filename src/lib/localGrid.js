@@ -61,11 +61,14 @@ export function parseControlPoints(text) {
 // column names. Lengths/depths (depth, from, to, length) and elevations (z) are converted when
 // `units === "ft"`; x/y go through the fitted similarity when `grid` is given; `zShift` (metres, after
 // unit conversion) is added to z. Returns new rows and a summary of what was done.
+// TASKS.csv #490 — an azimuth column (mapping.azimuth) is measured from the LOCAL grid's north, so it turns with
+// the grid: a counter-clockwise rotation of rotationDeg lowers every bearing by rotationDeg.
 const LENGTH_KEYS = ["depth", "from", "to", "length"];
 export function transformImportRows(rows, mapping, { units = "m", grid = null, zShift = 0 } = {}) {
   const f = units === "ft" ? FEET : 1;
   const num = (v) => (v === "" || v == null ? NaN : Number(v));
-  let moved = 0;
+  let moved = 0, turned = 0;
+  const rot = grid ? (Number.isFinite(grid.rotationDeg) ? grid.rotationDeg : (Math.atan2(grid.b, grid.a) * 180) / Math.PI) : 0;
   const out = rows.map((r) => {
     const o = { ...r };
     if (f !== 1) {
@@ -77,7 +80,11 @@ export function transformImportRows(rows, mapping, { units = "m", grid = null, z
       const w = applySimilarity(grid, num(o[mapping.x]), num(o[mapping.y]));
       o[mapping.x] = w.x; o[mapping.y] = w.y; moved++;
     }
+    const ac = mapping.azimuth;
+    if (grid && ac && Number.isFinite(num(o[ac]))) {
+      o[ac] = Math.round((((num(o[ac]) - rot) % 360) + 360) % 360 * 100) / 100; turned++;
+    }
     return o;
   });
-  return { rows: out, moved };
+  return { rows: out, moved, turned, rotationDeg: rot };
 }

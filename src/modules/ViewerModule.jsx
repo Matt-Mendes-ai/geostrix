@@ -10,7 +10,7 @@ const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx"
 import LocatorMap from "../components/LocatorMap.jsx";
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 import PromptModal from "../components/PromptModal.jsx";
-import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg } from "../lib/reproject.js";
+import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg, pointTransform, turnGridBearing, bearingTurn, crsName } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
@@ -7008,11 +7008,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg }) => {
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
-      if (!azimuthRef || azimuthRef === "grid") return { rows, note: "" };
+      if (!azimuthRef || azimuthRef === "grid") return applyGridOf(rows, locate);
       const epsg = (importStateRef.current.project || project)?.epsg;
       const cache = new Map();
       let fixed = 0; const failed = new Set(); let example = null;
@@ -7031,6 +7031,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         + (failed.size ? ` ${failed.size} hole(s) could not be converted (no collar location or project CRS) and were left as-is: ${[...failed].slice(0, 6).join(", ")}.` : "");
       return { rows: out, note };
     };
+    // TASKS.csv #490 — survey / structure azimuths measured from the grid north of ANOTHER CRS (e.g. a survey
+    // file from a contractor working in the neighbouring UTM zone). These files have no coordinates, so each
+    // hole's collar (project CRS) is taken back into that CRS and the bearing is rebuilt in the project grid.
+    function applyGridOf(rows, locate) {
+      const projEpsg = (importStateRef.current.project || project)?.epsg;
+      if (target === "collars" || !azimuthGridEpsg || !projEpsg || Number(azimuthGridEpsg) === Number(projEpsg)) return { rows, note: "" };
+      const fwd = pointTransform(azimuthGridEpsg, projEpsg), inv = pointTransform(projEpsg, azimuthGridEpsg);
+      if (!fwd || !inv) return { rows, note: ` Azimuths left as they are: EPSG:${azimuthGridEpsg} isn't a CRS GeoStrix can convert.` };
+      let fixed = 0, maxTurn = 0; const failed = new Set();
+      const out = rows.map((r) => {
+        if (!Number.isFinite(r.azimuth)) return r;
+        const loc = locate(r);
+        if (!loc || !Number.isFinite(loc.x) || !Number.isFinite(loc.y)) { failed.add(r.hole_id); return r; }
+        const [sx, sy] = inv(loc.x, loc.y);
+        const a = turnGridBearing(fwd, sx, sy, r.azimuth);
+        fixed++; maxTurn = Math.max(maxTurn, Math.abs(bearingTurn(r.azimuth, a)));
+        return { ...r, azimuth: a };
+      });
+      const note = (fixed ? ` ${fixed} azimuth(s) turned from the grid north of ${crsName(azimuthGridEpsg) || `EPSG:${azimuthGridEpsg}`} to the project grid (up to ${maxTurn.toFixed(2)}°).` : "")
+        + (failed.size ? ` ${failed.size} hole(s) have no collar yet, so their azimuths were left as they are: ${[...failed].slice(0, 6).join(", ")}.` : "");
+      return { rows: out, note };
+    }
     if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
       setNotices((p) => [...p, `${fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.`]);
       return false;
@@ -7079,15 +7101,24 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           if (!groups.has(key)) groups.set(key, []);
           groups.get(key).push(r);
         });
-        let reprojectedCount = 0, unreprojectedCount = 0;
+        let reprojectedCount = 0, unreprojectedCount = 0, turned = 0, maxTurn = 0;
         const okEpsgs = [], badEpsgs = [];
+        // TASKS.csv #490 — a grid azimuth is relative to the SOURCE grid's north; turn it with the convergence
+        // difference (true / magnetic azimuths are converted from the project-CRS location further down).
+        const gridAz = !azimuthRef || azimuthRef === "grid";
         for (const [rowEpsgKey, groupRows] of groups) {
           const fromEpsg = rowEpsgKey || sourceEpsg;
           if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
           let groupFailed = 0;
+          const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
           groupRows.forEach((r) => {
             const p = reprojectXY(r.x, r.y, fromEpsg, toEpsg);
             if (!p) { groupFailed++; return; }
+            if (T && Number.isFinite(r.azimuth)) {
+              const a = turnGridBearing(T, r.x, r.y, r.azimuth);
+              maxTurn = Math.max(maxTurn, Math.abs(bearingTurn(r.azimuth, a))); turned++;
+              r.azimuth = a;
+            }
             r.x = p.x; r.y = p.y;
           });
           if (groupFailed && !badEpsgs.includes(fromEpsg)) badEpsgs.push(fromEpsg);
@@ -7098,6 +7129,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const parts = [];
         if (reprojectedCount) parts.push(`reprojected ${reprojectedCount} row(s) from EPSG:${okEpsgs.join("/")} to the project's EPSG:${toEpsg}`);
         if (unreprojectedCount) parts.push(`left ${unreprojectedCount} row(s) unchanged${badEpsgs.length ? ` (unrecognized EPSG:${badEpsgs.join("/")})` : " (already the project CRS, or no source CRS given)"}`);
+        if (turned) parts.push(`turned ${turned} grid azimuth(s) to the project grid (up to ${maxTurn.toFixed(2)}°)`);
         reprojectNote = parts.length ? ` On import: ${parts.join("; ")}.` : "";
       }
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
@@ -7244,7 +7276,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const zShift = importModal.target === "collars" ? Number(importModal.zShift) || 0 : 0;
       const t = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift });
       modalData = { ...importModal, allRows: t.rows };
-      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? " and elevations" : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? ` ${t.moved} collar(s) moved from the local grid to EPSG:${project?.epsg} (scale ${grid.scale.toFixed(6)}, rotation ${grid.rotationDeg.toFixed(3)}°, RMS ${grid.rmsM.toFixed(2)} m over ${grid.n} control points).` : ""}${zShift ? ` Elevations shifted by ${zShift} m.` : ""}`]);
+      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? " and elevations" : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? ` ${t.moved} collar(s) moved from the local grid to EPSG:${project?.epsg} (scale ${grid.scale.toFixed(6)}, rotation ${grid.rotationDeg.toFixed(3)}°, RMS ${grid.rmsM.toFixed(2)} m over ${grid.n} control points)${t.turned ? `; ${t.turned} azimuth(s) turned with the grid (${(-grid.rotationDeg).toFixed(3)}°)` : ""}.` : ""}${zShift ? ` Elevations shifted by ${zShift} m.` : ""}`]);
     }
     commitImportData(modalData);
     setImportModal(null);

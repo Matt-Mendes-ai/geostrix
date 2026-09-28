@@ -12,7 +12,7 @@ import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName } from "../lib/reproject.js";
+import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer,
@@ -192,8 +192,22 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     let crsNote = "";
     if (src && dst && src !== dst) {
       if (!getProj4DefSync(src) || !getProj4DefSync(dst)) { setStructMsg({ ok: false, text: `EPSG:${src} isn't a CRS GeoStrix can reproject from — leave it as the project's EPSG:${dst} if the coordinates are already in it.` }); return; }
-      out.rows.forEach((r) => { const t = reprojectXY(r.x, r.y, src, dst); if (t) { r.x = t.x; r.y = t.y; } });
-      crsNote = ` Reprojected EPSG:${src} → EPSG:${dst}.`;
+      // TASKS.csv #490 — dip directions are relative to the file's grid north: turn them (and the strike, by the
+      // same angle) with the convergence difference, as a project CRS change does.
+      const T = pointTransform(src, dst);
+      let maxTurn = 0;
+      out.rows.forEach((r) => {
+        const t = reprojectXY(r.x, r.y, src, dst);
+        if (!t) return;
+        if (Number.isFinite(r.dipDir)) {
+          const d = turnGridBearing(T, r.x, r.y, r.dipDir), turn = bearingTurn(r.dipDir, d);
+          maxTurn = Math.max(maxTurn, Math.abs(turn));
+          if (Number.isFinite(r.strike)) r.strike = Math.round(((r.strike + turn) % 360 + 360) % 360 * 100) / 100;
+          r.dipDir = d;
+        }
+        r.x = t.x; r.y = t.y;
+      });
+      crsNote = ` Reprojected EPSG:${src} → EPSG:${dst}; dip directions turned to the project grid (up to ${maxTurn.toFixed(2)}°).`;
     }
     addSurfaceStructureSet({ name: p.name, rows: out.rows, snapToTerrain: true });
     const noZ = out.rows.filter((r) => r.z == null).length;

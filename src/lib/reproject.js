@@ -423,3 +423,15 @@ export function pointTransform(fromEpsg, toEpsg) {
   const c = converter(fromDef, toDef);
   return (x, y) => c.forward([x, y]);
 }
+// TASKS.csv #485 / #490 — a grid bearing (azimuth / dip direction, degrees from the SOURCE grid's north) at
+// source point (x, y), re-expressed against the target grid's north: rebuilt from two transformed points 10 m
+// apart, so it carries the full convergence difference (a few degrees between neighbouring UTM zones, ~0 for
+// a datum change inside one zone). T is a pointTransform(). Rounded to 0.01°; non-finite input is returned.
+export function turnGridBearing(T, x, y, a) {
+  if (!T || !Number.isFinite(a) || !Number.isFinite(x) || !Number.isFinite(y)) return a;
+  const r = a * Math.PI / 180, [x0, y0] = T(x, y), [x1, y1] = T(x + 10 * Math.sin(r), y + 10 * Math.cos(r));
+  const out = ((Math.atan2(x1 - x0, y1 - y0) * 180 / Math.PI) % 360 + 360) % 360;
+  return Math.round(out * 100) / 100 % 360;
+}
+// signed change (degrees, -180..180) from bearing a to bearing b
+export const bearingTurn = (a, b) => ((b - a + 540) % 360) - 180;
