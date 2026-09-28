@@ -99,7 +99,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const done = [];
     const failed = [];
     const looseShp = {};
-    files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; });
+    files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
     const addParsed = (parsed, sourceName) => {
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
       const layer = buildLayer(parsed, { sourceName, projectEpsg: project?.epsg, qml, sourceOverride: mapSourceEpsg });
@@ -133,6 +133,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         const p = parseShapefileParts({
           shp: new Uint8Array(await parts.shp.arrayBuffer()),
           dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null,
+          cpg: parts.cpg ? await parts.cpg.text() : null,
         }, 0, parts.prj ? await parts.prj.text() : null);
         if (!parts.dbf) failed.push(`${b}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit`);
         addParsed({ ...p, name: null, epsg: guessEpsgFromPrjWkt(p.prjWkt) }, b);

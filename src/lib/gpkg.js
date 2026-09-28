@@ -26,6 +26,7 @@
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { prjWktFor } from "./shapefile.js";
+import { crsName, guessEpsgFromPrjWkt } from "./reproject.js"; // TASKS.csv #415
 
 let sqlPromise = null;
 function loadSQL() {
@@ -179,10 +180,11 @@ export async function buildGeoPackage(layers) {
   layers.forEach((layer) => {
     if (!layer.features?.length) return;
     const epsg = Number(layer.epsg);
-    const srsId = Number.isFinite(epsg) ? epsg : 0;
+    // #415 — no CRS: GeoStrix coordinates are metres, so "undefined cartesian" (-1), not "undefined geographic" (0)
+    const srsId = Number.isFinite(epsg) && epsg > 0 ? epsg : -1;
     if (!usedSrsIds.has(srsId)) {
       const wkt = prjWktFor(srsId) || "undefined";
-      db.run("INSERT INTO gpkg_spatial_ref_sys (srs_name, srs_id, organization, organization_coordsys_id, definition) VALUES (?, ?, 'EPSG', ?, ?);", [`EPSG:${srsId}`, srsId, srsId, wkt]);
+      db.run("INSERT INTO gpkg_spatial_ref_sys (srs_name, srs_id, organization, organization_coordsys_id, definition) VALUES (?, ?, 'EPSG', ?, ?);", [crsName(srsId) || `EPSG:${srsId}`, srsId, srsId, wkt]);
       usedSrsIds.add(srsId);
     }
 
@@ -227,9 +229,14 @@ export async function parseGeoPackage(gpkgBytes) {
     const geomColRes = db.exec("SELECT table_name, column_name, srs_id FROM gpkg_geometry_columns;");
     const geomColByTable = {};
     (geomColRes[0]?.values || []).forEach(([table, col, srsId]) => { geomColByTable[table] = { col, srsId }; });
-    const srsRes = db.exec("SELECT srs_id, organization, organization_coordsys_id FROM gpkg_spatial_ref_sys;");
+    const srsRes = db.exec("SELECT srs_id, organization, organization_coordsys_id, definition FROM gpkg_spatial_ref_sys;");
     const epsgBySrsId = {};
-    (srsRes[0]?.values || []).forEach(([srsId, org, orgCode]) => { if (String(org).toUpperCase() === "EPSG") epsgBySrsId[srsId] = orgCode; });
+    // #415 — an EPSG-tagged row gives the code; a custom row (organization "NONE", or a user-defined CRS QGIS
+    // wrote) is recognised from its WKT definition, as a shapefile's .prj is. -1 / 0 are "undefined".
+    (srsRes[0]?.values || []).forEach(([srsId, org, orgCode, definition]) => {
+      if (String(org).toUpperCase() === "EPSG" && Number(orgCode) > 0) epsgBySrsId[srsId] = orgCode;
+      else if (Number(srsId) > 0) { const g = guessEpsgFromPrjWkt(definition); if (g) epsgBySrsId[srsId] = g; }
+    });
 
     const layers = [];
     for (const [tableName] of contentsRes[0].values) {

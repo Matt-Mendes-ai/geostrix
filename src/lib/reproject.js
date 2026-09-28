@@ -303,6 +303,8 @@ export function guessEpsgFromPrjWkt(wkt) {
     for (const [code, e] of REGISTRY) if (prefix && e.name === `${prefix} / MGA zone ${zone}`) return code;
     return null;
   }
+  if (w.includes("CANADA_ATLAS_LAMBERT") && w.includes("CSRS")) return 3979; // #415
+  if (w.includes("MERCATOR_AUXILIARY_SPHERE") || w.includes("PSEUDO-MERCATOR") || w.includes("PSEUDO_MERCATOR") || w.includes("WEB_MERCATOR")) return 3857; // #415
   if (w.includes("NEW_ZEALAND_TRANSVERSE_MERCATOR") || w.includes("NZGD_2000_NEW_ZEALAND_TRANSVERSE") || w.includes("NZTM")) return 2193;
   // Geographic-only (GEOGCS with no PROJCS) — the datum name alone decides.
   if (!w.includes("PROJCS")) {
@@ -312,6 +314,7 @@ export function guessEpsgFromPrjWkt(wkt) {
     if (w.includes("GDA2020")) return 7844;
     if (w.includes("GDA_1994") || w.includes("GDA94")) return 4283;
     if (w.includes("ETRS")) return 4258;
+    if (w.includes("CSRS")) return 4617; // #415 — NAD83(CSRS) lon/lat (NRCan CDEM), before plain NAD83
     if (w.includes("WGS_1984") || w.includes("WGS84")) return 4326;
     // GEOGCS datum names spell it out in full ("D_North_American_1983"/"GCS_North_American_1983"),
     // unlike a PROJCS's UTM-zone name which abbreviates to "NAD_1983" — check both spellings.

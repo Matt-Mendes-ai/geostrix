@@ -1,4 +1,5 @@
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
+import { getProj4DefSync, crsName } from "./reproject.js"; // TASKS.csv #415
 // Minimal ESRI Shapefile (+ DBF attribute table, + PRJ projection file) writer, zipped, for the new
 // "Export Shapefile" right-click action on vector layers (collars, survey/drillhole traces, litho/alt/
 // vein/structure/geochem intervals, geophysics points). Hand-written rather than an npm dependency —
@@ -115,6 +116,15 @@ function shpHeader(shapeType, xmin, ymin, xmax, ymax, zmin, zmax, fileWordsFn) {
 // ---------- DBF ----------
 // Field type inferred per-column from the first non-null value seen across all features — 'N'umeric
 // (with 6 decimal places, wide enough for coordinates/grades without truncating) or 'C'haracter.
+// the UTF-8 bytes of `text`, at most maxBytes long, never cutting a multi-byte character in half
+const UTF8 = new TextEncoder();
+function utf8Fit(text, maxBytes) {
+  const b = UTF8.encode(text);
+  if (b.length <= maxBytes) return b;
+  let n = maxBytes;
+  while (n > 0 && (b[n] & 0xc0) === 0x80) n--; // b[n] is a continuation byte: back up to the start of its character
+  return b.subarray(0, n);
+}
 function buildDbf(features, columns) {
   const fieldDefs = columns.map((col) => {
     let numeric = true;
@@ -145,6 +155,7 @@ function buildDbf(features, columns) {
   header.setUint8(2, now.getMonth() + 1);
   header.setUint8(3, now.getDate());
   header.setUint32(4, features.length, true);
+  header.setUint8(29, 0x00); // language driver: none — the .cpg says UTF-8 (#415)
   header.setUint16(8, headerLen, true);
   header.setUint16(10, recordLen, true);
   w.push(header.buffer);
@@ -169,12 +180,16 @@ function buildDbf(features, columns) {
       let text;
       if (fd.type === "N") {
         text = raw == null || raw === "" || !Number.isFinite(raw) ? "" : Number(raw).toFixed(fd.dec);
-        text = text.slice(0, fd.len).padStart(fd.len, " ");
+        text = text.slice(0, fd.len);
       } else {
         text = raw == null ? "" : String(raw);
-        text = text.slice(0, fd.len).padEnd(fd.len, " ");
       }
-      for (let c = 0; c < fd.len; c++) rec[off + c] = text.charCodeAt(c) || 0x20;
+      // TASKS.csv #415 — UTF-8 (declared by the .cpg written alongside), cut to the field's BYTE length at a
+      // character boundary. This used to write each UTF-16 code unit's low byte, so anything outside Latin-1
+      // (e.g. "€", "Ł") came out as a wrong character.
+      const bytes = utf8Fit(text.trimEnd(), fd.len);
+      rec.fill(0x20, off, off + fd.len);
+      if (fd.type === "N") rec.set(bytes, off + fd.len - bytes.length); else rec.set(bytes, off);
       off += fd.len;
     });
     w.push(rec.buffer);
@@ -184,28 +199,62 @@ function buildDbf(features, columns) {
   return w.toUint8Array();
 }
 
-// ---------- .prj (WKT) — only for the small set of EPSG codes reproject.js already recognizes ----------
-// Standard ESRI WKT templates for a UTM zone (Transverse Mercator, central meridian = -183 + 6*zone) —
-// covers WGS84 UTM, NAD83 UTM, and (as a documented approximation — NAD83(CSRS) differs from plain
-// NAD83 by a sub-metre, time-dependent correction, negligible for a shapefile handoff) this app's own
-// NAD83(CSRS) BC zones. Geographic (lon/lat) gets a plain GEOGCS. An EPSG this app doesn't recognize
-// gets no .prj at all (same "can't help, here's why" fallback shape as reproject.js) rather than a
-// silently wrong one.
-function utmWkt(name, zone, datumWkt) {
-  const cm = -183 + 6 * zone;
-  return `PROJCS["${name}",${datumWkt},PROJECTION["Transverse_Mercator"],PARAMETER["False_Easting",500000.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",${cm}.0],PARAMETER["Scale_Factor",0.9996],PARAMETER["Latitude_Of_Origin",0.0],UNIT["Meter",1.0]]`;
-}
-const WGS84_GEOGCS = `GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
-const NAD83_GEOGCS = `GEOGCS["GCS_North_American_1983",DATUM["D_North_American_1983",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
-const NAD83_CSRS_UTM_ZONES = { 3154: 7, 3155: 8, 3156: 9, 3157: 10, 2955: 11 };
+// ---------- .prj (WKT) ----------
+// TASKS.csv #415 — ESRI-style WKT1 (what ArcGIS and QGIS write into a .prj) for EVERY CRS reproject.js can
+// build, generated from its proj4 definition (projection parameters) and its EPSG name (datum). It used to
+// cover only WGS 84 / NAD83 UTM North and the BC CSRS zones — and wrote those CSRS zones on a plain NAD83
+// datum — so a 3005, NAD27, southern-hemisphere or (#489) SIRGAS / GDA / ETRS89 export got a README instead.
+// No AUTHORITY clause, as ESRI writes it; every code was checked to be identified back as itself both by
+// PROJ (pyproj CRS.from_wkt(...).to_epsg()) and by this app's own guessEpsgFromPrjWkt (TASKS.csv #415 notes).
+// A code reproject.js can't build still gets no .prj (a README says why) rather than a guessed one.
+const WKT_ELLIPSOIDS = {
+  GRS80: ["GRS_1980", "6378137.0", "298.257222101"],
+  WGS84: ["WGS_1984", "6378137.0", "298.257223563"],
+  clrk66: ["Clarke_1866", "6378206.4", "294.9786982"],
+  aust_SA: ["GRS_1967_Truncated", "6378160.0", "298.25"],
+};
+// EPSG name prefix -> [ESRI datum name, ESRI PROJCS prefix]; longest prefix first
+const WKT_DATUMS = [
+  ["NAD83(CSRS)", "North_American_1983_CSRS", "NAD_1983_CSRS"], ["NAD83", "North_American_1983", "NAD_1983"],
+  ["NAD27", "North_American_1927", "NAD_1927"], ["WGS 84", "WGS_1984", "WGS_1984"], ["SIRGAS 2000", "SIRGAS_2000", "SIRGAS_2000"],
+  ["SAD69", "South_American_1969", "SAD_1969"], ["GDA2020", "GDA2020", "GDA2020"], ["GDA94", "GDA_1994", "GDA_1994"],
+  ["ETRS89", "ETRS_1989", "ETRS_1989"], ["NZGD2000", "NZGD_2000", "NZGD_2000"],
+];
+const wktNum = (v) => { const n = Number(v); return Number.isInteger(n) ? `${n}.0` : String(n); };
+const wktParam = (name, v) => `PARAMETER["${name}",${wktNum(v)}]`;
 export function prjWktFor(epsg) {
   const code = Number(epsg);
-  if (!Number.isFinite(code)) return null;
-  if (code === 4326) return WGS84_GEOGCS;
-  if (NAD83_CSRS_UTM_ZONES[code]) return utmWkt(`NAD83_CSRS_UTM_Zone_${NAD83_CSRS_UTM_ZONES[code]}N`, NAD83_CSRS_UTM_ZONES[code], NAD83_GEOGCS);
-  if (code >= 32601 && code <= 32660) return utmWkt(`WGS_1984_UTM_Zone_${code - 32600}N`, code - 32600, WGS84_GEOGCS);
-  if (code >= 26901 && code <= 26923) return utmWkt(`NAD83_UTM_Zone_${code - 26900}N`, code - 26900, NAD83_GEOGCS);
-  return null;
+  const def = Number.isFinite(code) ? getProj4DefSync(code) : null;
+  const name = crsName(code);
+  if (!def || !name) return null;
+  const arg = (k, dflt = 0) => { const m = def.match(new RegExp(`\\+${k}=(\\S+)`)); return m ? m[1] : dflt; };
+  const has = (k) => new RegExp(`\\+${k}(\\s|$)`).test(def);
+  const d = WKT_DATUMS.find(([prefix]) => name.startsWith(prefix));
+  if (!d) return null;
+  const ell = WKT_ELLIPSOIDS[arg("datum") === "WGS84" || code === 3857 ? "WGS84" : arg("ellps")];
+  if (!ell) return null;
+  const geogcs = `GEOGCS["GCS_${d[1]}",DATUM["D_${d[1]}",SPHEROID["${ell[0]}",${ell[1]},${ell[2]}]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
+  const proj = arg("proj");
+  if (proj === "longlat") return geogcs;
+  if (code === 3857) {
+    return `PROJCS["WGS_1984_Web_Mercator_Auxiliary_Sphere",${geogcs},PROJECTION["Mercator_Auxiliary_Sphere"],${wktParam("False_Easting", 0)},${wktParam("False_Northing", 0)},${wktParam("Central_Meridian", 0)},${wktParam("Standard_Parallel_1", 0)},${wktParam("Auxiliary_Sphere_Type", 0)},UNIT["Meter",1.0]]`;
+  }
+  // PROJCS name the ESRI way: "<datum prefix>_<rest of the EPSG name>", e.g. SIRGAS_2000_UTM_Zone_23S
+  const rest = name.split(" / ")[1].split(" — ")[0];
+  const tail = { "BC Albers": "BC_Environment_Albers", "New Zealand Transverse Mercator 2000": "New_Zealand_Transverse_Mercator" }[rest]
+    || rest.replace(/\bzone\b/, "Zone").replace(/[^A-Za-z0-9]+/g, "_");
+  let body;
+  if (proj === "utm") {
+    const zone = Number(arg("zone"));
+    body = `PROJECTION["Transverse_Mercator"],${wktParam("False_Easting", 500000)},${wktParam("False_Northing", has("south") ? 10000000 : 0)},${wktParam("Central_Meridian", -183 + 6 * zone)},${wktParam("Scale_Factor", 0.9996)},${wktParam("Latitude_Of_Origin", 0)}`;
+  } else if (proj === "tmerc") {
+    body = `PROJECTION["Transverse_Mercator"],${wktParam("False_Easting", arg("x_0"))},${wktParam("False_Northing", arg("y_0"))},${wktParam("Central_Meridian", arg("lon_0"))},${wktParam("Scale_Factor", arg("k", 1))},${wktParam("Latitude_Of_Origin", arg("lat_0"))}`;
+  } else if (proj === "aea" || proj === "lcc") {
+    body = `PROJECTION["${proj === "aea" ? "Albers" : "Lambert_Conformal_Conic"}"],${wktParam("False_Easting", arg("x_0"))},${wktParam("False_Northing", arg("y_0"))},${wktParam("Central_Meridian", arg("lon_0"))},${wktParam("Standard_Parallel_1", arg("lat_1"))},${wktParam("Standard_Parallel_2", arg("lat_2"))}${proj === "lcc" ? `,${wktParam("Scale_Factor", 1)}` : ""},${wktParam("Latitude_Of_Origin", arg("lat_0"))}`;
+  } else {
+    return null;
+  }
+  return `PROJCS["${d[2]}_${tail}",${geogcs},${body},UNIT["Meter",1.0]]`;
 }
 
 // ---------- ZIP (STORED — no compression, valid per the ZIP spec and readable by every common tool) ----------
@@ -279,6 +328,7 @@ export function buildShapefileZip({ features, geomType, epsg, baseName = "export
     { name: `${name}.shp`, data: shp },
     { name: `${name}.shx`, data: shx },
     { name: `${name}.dbf`, data: dbf },
+    { name: `${name}.cpg`, data: strBytes("UTF-8") }, // #415 — the .dbf text is UTF-8
   ];
   const wkt = prjWktFor(epsg);
   if (wkt) zipFiles.push({ name: `${name}.prj`, data: strBytes(wkt) });
@@ -386,7 +436,10 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
 // SKIPPED with a returned count (surfaced as a notice by the caller) rather than silently dropped —
 // matches the "no silent truncation" approach the rest of this app already follows (e.g. the surface-
 // modeling sanitization pass in ViewerModule's runSurfaceStack).
-const SUPPORTED_SHAPE_TYPES = new Set([1, 11, 3, 13, 5, 15]);
+// TASKS.csv #415 — also the "measured" variants (PointM 21, PolyLineM 23, PolygonM 25: same layout as the
+// plain types plus M values, which are ignored) and MultiPoint (8 / 18 / 28), whose points each become their
+// own feature carrying the record's attributes.
+const SUPPORTED_SHAPE_TYPES = new Set([1, 11, 21, 3, 13, 23, 5, 15, 25, 8, 18, 28]);
 function parseShp(shpBytes) {
   const r = new ByteReader(shpBytes);
   r.off = 100; // skip the fixed 100-byte header (file code, 5 unused words, file length, version, shape type, bbox) — nothing in it is needed to read records
@@ -400,11 +453,21 @@ function parseShp(shpBytes) {
     const shapeType = r.i32le();
     if (shapeType === 0) { geoms.push(null); r.off = recordEnd; continue; } // null shape
     if (!SUPPORTED_SHAPE_TYPES.has(shapeType)) { skippedCount++; geoms.push(null); r.off = recordEnd; continue; }
-    if (shapeType === 1 || shapeType === 11) {
+    if (shapeType === 1 || shapeType === 11 || shapeType === 21) {
       // PointZ record layout is ShapeType, X, Y, Z, M — read sequentially, Z only present for type 11.
       const x = r.f64le(), y = r.f64le();
       const zVal = shapeType === 11 ? r.f64le() : 0;
       geoms.push({ type: "point", pts: [[x, y, zVal]] });
+    } else if (shapeType === 8 || shapeType === 18 || shapeType === 28) {
+      // MultiPoint: bbox, numPoints, points[] [, Zrange, Z[]] [, Mrange, M[]]
+      r.skip(32);
+      const n = r.i32le();
+      const xy = [];
+      for (let i = 0; i < n; i++) { const x = r.f64le(); const y = r.f64le(); xy.push([x, y]); }
+      const z = new Array(n).fill(0);
+      if (shapeType === 18) { r.skip(16); for (let i = 0; i < n; i++) z[i] = r.f64le(); }
+      const pts = xy.map(([x, y], i) => [x, y, z[i]]);
+      geoms.push(pts.length ? { type: "point", pts: pts.slice(0, 1), multi: pts } : null);
     } else {
       // PolyLine/PolyLineZ/Polygon/PolygonZ share one binary layout: bbox, numParts, numPoints,
       // parts[], points[] (X,Y pairs) [, Zrange, Z[]] [, Mrange, M[]]. Multi-part features collapse
@@ -442,7 +505,30 @@ function parseShp(shpBytes) {
 }
 
 // ---------- DBF reader ----------
-function parseDbf(dbfBytes) {
+// TASKS.csv #415 — which text encoding a .dbf uses. A .cpg sidecar names it (QGIS writes "UTF-8"; ArcGIS
+// writes e.g. "UTF-8", "1252" or "ISO 88591"). Without one, the records are tried as strict UTF-8 first — text
+// in a single-byte code page almost never happens to be valid UTF-8 once it has any accented letter — and
+// fall back to Windows-1252 (a superset of ASCII / Latin-1, what old ArcGIS and most DBF tools wrote).
+export function dbfEncoding(cpgText, dbfBytes) {
+  const c = String(cpgText || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (c) {
+    let label = null;
+    if (/^(UTF-?8|65001)$/.test(c)) label = "utf-8";
+    else if (/^\d{3,4}$/.test(c)) label = c.length === 4 && c.startsWith("125") ? `windows-${c}` : `ibm${c}`;
+    else if (/^ISO-?8859-?\d{1,2}$/.test(c)) label = `iso-8859-${c.match(/^ISO-?8859-?(\d{1,2})$/)[1]}`; // "ISO-8859-1", ArcGIS's "ISO 88591"
+    else label = c.toLowerCase();
+    try { new TextDecoder(label); return label; } catch { /* unknown label: sniff below */ }
+  }
+  if (dbfBytes) {
+    const headerLen = new DataView(dbfBytes.buffer, dbfBytes.byteOffset, dbfBytes.byteLength).getUint16(8, true);
+    const body = dbfBytes.subarray(headerLen);
+    if (body.some((b) => b >= 0x80)) {
+      try { new TextDecoder("utf-8", { fatal: true }).decode(body); return "utf-8"; } catch { /* not UTF-8 */ }
+    }
+  }
+  return "windows-1252";
+}
+function parseDbf(dbfBytes, encoding = "windows-1252") {
   const dv = new DataView(dbfBytes.buffer, dbfBytes.byteOffset, dbfBytes.byteLength);
   const numRecords = dv.getUint32(4, true);
   const headerLen = dv.getUint16(8, true);
@@ -458,7 +544,7 @@ function parseDbf(dbfBytes) {
     fields.push({ name: name.trim(), type, len, dec });
     off += 32;
   }
-  const dec = new TextDecoder("latin1"); // DBF is single-byte-encoded (no BOM/UTF-8 guarantee) — latin1 is a safe superset for byte-for-byte ASCII/Windows-1252 text without mangling
+  const dec = new TextDecoder(encoding); // #415 — from the .cpg, or sniffed (dbfEncoding); was always Latin-1
   const rows = [];
   let recOff = headerLen;
   for (let i = 0; i < numRecords && recOff < dbfBytes.length; i++) {
@@ -504,17 +590,24 @@ export async function parseShapefileZip(zipBytes, wantLayer = null) {
   // decode it and hand it along so the caller can run it through reproject.js's guessEpsgFromPrjWkt.
   const prjBytes = entries[`${base}.prj`];
   const prjWkt = prjBytes ? new TextDecoder().decode(prjBytes) : null;
-  const parsed = parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`] }, baseNames.length - 1, prjWkt);
+  const cpgBytes = entries[`${base}.cpg`]; // #415 — the .dbf's text encoding
+  const cpg = cpgBytes ? new TextDecoder().decode(cpgBytes) : null;
+  const parsed = parseShapefileParts({ shp: entries[`${base}.shp`], dbf: entries[`${base}.dbf`], cpg }, baseNames.length - 1, prjWkt);
   return { ...parsed, layerNames: baseNames, layerName: base };
 }
 // Parses raw .shp (+ optional .dbf) bytes directly — used when the user drops loose .shp/.dbf/.shx
 // files together (grouped by basename) rather than a zip, matching how a lot of real-world shapefiles
 // actually arrive (unzipped, straight off a USB drive or an old FTP archive).
-export function parseShapefileParts({ shp, dbf }, otherBaseNames = 0, prjWkt = null) {
+export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0, prjWkt = null) {
   if (!shp) throw new Error("No .shp data found.");
   const { geoms, skippedCount } = parseShp(shp);
-  const attrRows = dbf ? parseDbf(dbf) : [];
-  const features = geoms.map((g, i) => (g ? { geometry: g.pts, parts: g.parts || [g.pts], attributes: attrRows[i] || {} } : null)).filter(Boolean);
+  const attrRows = dbf ? parseDbf(dbf, dbfEncoding(cpg, dbf)) : [];
+  const features = geoms.flatMap((g, i) => {
+    if (!g) return [];
+    const attributes = attrRows[i] || {};
+    if (g.multi) return g.multi.map((pt) => ({ geometry: [pt], parts: [[pt]], attributes })); // #415 MultiPoint
+    return [{ geometry: g.pts, parts: g.parts || [g.pts], attributes }];
+  });
   if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
   const geomType = geoms.find((g) => g)?.type || "point";
   return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
