@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "lucide-react";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
-import { useStore, useCursorValue, useTaskProgressValue } from "./lib/store.jsx";
+import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
+// TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
+const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
@@ -405,7 +407,10 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         {/* TASKS.csv #442 — per-module boundaries inside the store: a render error in one tab no longer
             unmounts the project (the outer boundary in main.jsx is now only the last resort). */}
         <ErrorBoundary scope="module" label="3D view" onSave={saveProject}>
-          <ViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
+          {/* TASKS.csv #438 — hidden, it sees a frozen store value and skips every store write until shown */}
+          <FreezeStore frozen={!VIEWER_MODES[active]}>
+            <MemoViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
+          </FreezeStore>
         </ErrorBoundary>
         <ErrorBoundary scope="module" key={active} label={active} onSave={saveProject}>
           <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>

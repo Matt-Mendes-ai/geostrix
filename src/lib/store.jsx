@@ -8,6 +8,24 @@ import { normalizeDesurveyMethod } from "./desurvey.js";
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
 
+// TASKS.csv #438 — the always-mounted 3D viewer (#225) is hidden (display:none) whenever another tab is
+// showing, yet as a useStore() consumer it re-rendered on EVERY store write: each Layout drag step, each
+// Geochem edit (measured 2026-09-28 with Harry loaded and Layout showing: 15 of 15 layout edits re-rendered
+// the hidden viewer, 7.3 ms each in the dev build, against 1.3 ms for the Layout tab itself). Children of
+// this provider see the store value as it was when `frozen` became true; while frozen, store writes don't
+// reach them, and the first render with frozen = false hands them the latest value, so they catch up with
+// everything that changed in one render. Pair it with React.memo on the child, or the parent's own
+// re-render still re-renders it. Only for a subtree that is not visible and doesn't need to react while
+// hidden: anything that needs the viewer (Layout's viewport render requests, #202) first switches to it.
+export function FreezeStore({ frozen, children }) {
+  const live = useContext(StoreContext);
+  // the value is captured once, in the render where `frozen` turns true ("storing information from previous
+  // renders" — a render-phase update, only on that transition)
+  const [hold, setHold] = useState({ frozen, value: live });
+  if (hold.frozen !== frozen) setHold({ frozen, value: live });
+  return <StoreContext.Provider value={frozen ? (hold.frozen ? hold.value : live) : live}>{children}</StoreContext.Provider>;
+}
+
 // TASKS.csv #226/#214 (software-design-specialist audit finding, performance follow-up) — cursor was
 // previously plain useState INSIDE StoreProvider, exposed through the same single giant context value
 // as everything else. setCursor(worldPt) fires on every pointermove while hovering the 3D view (see
