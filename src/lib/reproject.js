@@ -358,8 +358,13 @@ export async function toLonLat(x, y, epsg) {
 // Bilinear-sample a regular row-major grid (row 0 = the NORTH/ymax edge, same convention raster.js
 // and ViewerModule's sampleTerrainElevation already use) at a real-world (x, y) point. Returns null
 // if (x, y) is outside the grid's bbox (caller decides the fallback — e.g. try the next tile).
+// TASKS.csv #487 — a point a rounding error outside the grid (an edge node after a there-and-back
+// transform lands ~1e-10 outside) is clamped onto the edge, not dropped as nodata.
+const edgeTol = (a, b) => 1e-9 * Math.max(1, Math.abs(b - a));
 export function bilinearSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
-  if (x < xmin || x > xmax || y < ymin || y > ymax || w < 2 || h < 2) return null;
+  const ex = edgeTol(xmin, xmax), ey = edgeTol(ymin, ymax);
+  if (x < xmin - ex || x > xmax + ex || y < ymin - ey || y > ymax + ey || w < 2 || h < 2) return null;
+  x = Math.min(xmax, Math.max(xmin, x)); y = Math.min(ymax, Math.max(ymin, y));
   const fx = ((x - xmin) / (xmax - xmin)) * (w - 1);
   const fyTop = ((ymax - y) / (ymax - ymin)) * (h - 1); // row 0 = north
   const x0 = Math.max(0, Math.min(w - 2, Math.floor(fx))), x1 = x0 + 1;
@@ -418,7 +423,17 @@ function rowInverse(inv, txmin, txmax, outW, tolX, tolY) {
 
 // `band` (one array -> `elevations`) or `bands` (several same-shaped channels -> `bandsOut`; TASKS.csv
 // #450: satelliteFetch.js warps R, G, B and A in ONE pass instead of four).
-export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, bands }, fromDef, toDef, outW, outH) {
+// TASKS.csv #487 — opts.nearest: nearest-node sampling instead of bilinear (class grids and imagery, where a
+// blend of two values invents one that isn't in the data).
+function nearestSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
+  const ex = edgeTol(xmin, xmax), ey = edgeTol(ymin, ymax);
+  if (x < xmin - ex || x > xmax + ex || y < ymin - ey || y > ymax + ey || w < 2 || h < 2) return null;
+  x = Math.min(xmax, Math.max(xmin, x)); y = Math.min(ymax, Math.max(ymin, y));
+  const c = Math.round(((x - xmin) / (xmax - xmin)) * (w - 1)), r = Math.round(((ymax - y) / (ymax - ymin)) * (h - 1));
+  return band[r * w + c];
+}
+export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, bands }, fromDef, toDef, outW, outH, opts = {}) {
+  const sample = opts.nearest ? nearestSample : bilinearSample;
   const corners = [
     [xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax],
   ].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
@@ -435,7 +450,7 @@ export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, band
     const { sx, sy } = row2src(ty);
     for (let col = 0; col < outW; col++) {
       for (let b = 0; b < srcBands.length; b++) {
-        const v = bilinearSample(srcBands[b], gridW, gridH, xmin, ymin, xmax, ymax, sx[col], sy[col]);
+        const v = sample(srcBands[b], gridW, gridH, xmin, ymin, xmax, ymax, sx[col], sy[col]);
         outs[b][row * outW + col] = v === null ? NaN : v;
       }
     }
