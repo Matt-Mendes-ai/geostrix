@@ -6,7 +6,8 @@
 //     or only relabel (the data was already in it and the label was wrong).
 //   * Reproject a layer — one object imported in the wrong CRS ("it was really EPSG:X") moved into the
 //     project CRS.
-//   * Reproject a file — a CSV's x/y columns from one CRS to another, saved as a new CSV (nothing imported).
+//   * Reproject a file — a CSV's x/y columns from one CRS to another, saved as a new CSV; or (#487) a zipped
+//     shapefile, every layer and vertex, saved as a new zip with a .prj for the new CRS (nothing imported).
 // Every importer still reprojects INTO the project CRS on import (its Source CRS box); #488 moves those boxes
 // onto the same picker.
 import React, { useMemo, useState } from "react";
@@ -22,6 +23,9 @@ import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
+import SourceCrsField from "../components/SourceCrsField.jsx";
+import { readShapefileLayers, reprojectShapefileZip, reportShapefileText } from "../lib/fileReproject.js"; // #487
+import { uint8ToBase64 } from "../lib/modelExport.js";
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
 const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(--color-accent-dark)", color: "#fff" };
@@ -97,15 +101,31 @@ export default function CartographyModule() {
   });
 
   // ---- reproject a file pane ----
-  const [file, setFile] = useState(null); // { name, headers, rows, xCol, yCol }
+  const [file, setFile] = useState(null); // CSV: { name, headers, rows, xCol, yCol }; shapefile (#487): { kind: "shp", name, bytes, layers }
   const [fileFrom, setFileFrom] = useState(null);
   const [fileTo, setFileTo] = useState(null);
   const pickFile = (f) => run(async () => {
+    if (/\.zip$/i.test(f.name)) { // #487 — a zipped shapefile (one or more layers)
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const { layers } = await readShapefileLayers(bytes);
+      setFile({ kind: "shp", name: f.name, bytes, layers });
+      setFileFrom(null); // "" = each layer's own .prj
+      const noPrj = layers.filter((l) => !l.epsg).map((l) => l.name);
+      setMsg({ ok: true, text: `"${f.name}": ${layers.length} layer(s), ${layers.reduce((n, l) => n + l.features.length, 0).toLocaleString()} features.${noPrj.length ? ` No recognisable .prj for ${noPrj.join(", ")} — choose "From".` : ""} Choose "To", then save.` });
+      return;
+    }
     const t = await parseTableFile(f);
     const g = guessGeophysColumns(t.headers);
     setFile({ name: f.name, headers: t.headers, rows: t.rows, xCol: g.x, yCol: g.y });
     if (g.geographic) setFileFrom(4326);
     setMsg({ ok: true, text: `"${f.name}": ${t.rows.length.toLocaleString()} rows. Check the X / Y columns and both CRSs, then save.` });
+  });
+  const saveReprojectedShp = () => run(async () => {
+    const { bytes, report } = await reprojectShapefileZip(file.bytes, fileFrom || null, fileTo);
+    const base = file.name.replace(/\.[^.]+$/, "");
+    const res = await saveFile({ suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+    if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
+    setMsg({ ok: true, text: reportShapefileText(report, fileTo) });
   });
   const saveReprojected = () => run(async () => {
     const T = pointTransform(fileFrom, fileTo);
@@ -135,7 +155,7 @@ export default function CartographyModule() {
           </RibbonGroup>
           <RibbonGroup label="Reproject">
             <RibbonButton icon={Layers} label="A layer" active={pane === "layer"} onClick={() => { setPane("layer"); setMsg(null); }} title="One layer, survey, voxel model, surface or raster was imported in the wrong CRS: move it into the project CRS" />
-            <RibbonButton icon={FileSpreadsheet} label="A file" active={pane === "file"} onClick={() => { setPane("file"); setMsg(null); }} title="Reproject the X/Y columns of a CSV from one CRS to another and save it as a new file" />
+            <RibbonButton icon={FileSpreadsheet} label="A file" active={pane === "file"} onClick={() => { setPane("file"); setMsg(null); }} title="Reproject a CSV's X/Y columns, or a zipped shapefile, from one CRS to another and save it as a new file" />
           </RibbonGroup>
         </Ribbon>
 
@@ -184,12 +204,28 @@ export default function CartographyModule() {
         {pane === "file" && (
           <>
             <TaskPaneHeader icon={FileSpreadsheet} title="Reproject a file" />
-            <div style={note}>Converts the X/Y columns of a CSV and saves a copy with two new columns. Nothing is imported into the project.</div>
+            <div style={note}>A CSV: its X/Y columns are converted and saved as a copy with two new columns. A zipped shapefile: every layer and vertex is converted and saved as a new zip with a .prj for the new CRS. Nothing is imported into the project.</div>
             <label style={{ ...btn, marginTop: 10 }}>
-              <FileSpreadsheet size={14} /> {file ? file.name : "Choose a CSV…"}
-              <input type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
+              <FileSpreadsheet size={14} /> {file ? file.name : "Choose a CSV or a zipped shapefile…"}
+              <input type="file" accept=".csv,.txt,.zip" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
             </label>
-            {file && (
+            {file?.kind === "shp" && (
+              <>
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+                  {file.layers.map((l) => <li key={l.name}>{l.name}: {l.features.length.toLocaleString()} {l.geomType} feature(s) · {l.epsg ? nameOf(l.epsg) : l.hasPrj ? ".prj not recognised" : "no .prj"}</li>)}
+                </ul>
+                <div style={{ marginTop: 10 }}>
+                  <SourceCrsField label="From" value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : Number(c))}
+                    defaultText={file.layers.every((l) => l.epsg) ? "Each layer's own .prj" : "Choose — not every layer has a recognisable .prj"}
+                    title="Leave it on the .prj unless that is missing or wrong." />
+                </div>
+                <div style={{ marginTop: 4 }}><CrsPicker label="To" value={fileTo} onChange={setFileTo} height={120} /></div>
+                <button style={primary} disabled={busy || !fileTo || (!fileFrom && !file.layers.every((l) => l.epsg))} onClick={saveReprojectedShp}>
+                  {busy ? <Loader2 size={14} className="spin" /> : <FileSpreadsheet size={14} />} Save reprojected shapefile…
+                </button>
+              </>
+            )}
+            {file && file.kind !== "shp" && (
               <>
                 {[["X / easting / longitude", "xCol"], ["Y / northing / latitude", "yCol"]].map(([lab, key]) => (
                   <label key={key} style={{ display: "block", marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>

@@ -17,10 +17,10 @@ test("#415 a .prj for every listed CRS, read back as the same code", () => {
   assert.equal(prjWktFor(99999), null);
 });
 
-test("#415 attribute text round-trips as UTF-8 with a .cpg; field widths are bytes", async () => {
+test("#415 / #487 attribute text round-trips as UTF-8 with a .cpg; text fields fit their longest value (bytes, max 254)", async () => {
   const long = "Granodiorito pórfiro — zona de alteração potássica com calcopirita e bornita disseminadas";
   const zip = buildShapefileZip({ epsg: 31983, baseName: "t", geomType: "point", features: [
-    { geometry: [[1, 2, 3]], attributes: { NAME: "São João €", NOTE: long, V: 1.5 } },
+    { geometry: [[1, 2, 3]], attributes: { NAME: "São João €", NOTE: long, V: 1.5, HUGE: "ç".repeat(200) } },
   ] });
   const entries = await readZipEntries(zip);
   assert.equal(new TextDecoder().decode(entries["t.cpg"]), "UTF-8");
@@ -29,8 +29,9 @@ test("#415 attribute text round-trips as UTF-8 with a .cpg; field widths are byt
   const a = back.features[0].attributes;
   assert.equal(a.NAME, "São João €");
   assert.equal(a.V, 1.5);
-  // cut to the 60-byte field without splitting a character
-  assert.ok(long.startsWith(a.NOTE) && new TextEncoder().encode(a.NOTE).length <= 60 && !a.NOTE.includes("�"));
+  assert.equal(a.NOTE, long); // #487: was cut to a fixed 60 bytes
+  // 400 bytes of text: cut to DBF's 254-byte limit without splitting a 2-byte character
+  assert.equal(a.HUGE, "ç".repeat(127));
 });
 
 test("#415 .dbf encoding: .cpg names it, else UTF-8 is sniffed, else Windows-1252", () => {
@@ -75,4 +76,38 @@ test("#415 MultiPoint (8/18) becomes one feature per point; PointM / PolyLineM /
   assert.equal(l.skippedCount, 0);
   assert.deepEqual(l.features[0].geometry, [[0, 0, 0], [1, 1, 0]]);
   assert.equal(l.features[1].parts[0].length, 4);
+});
+
+import { shapefileZipFiles, buildZip } from "../src/lib/shapefile.js";
+import { reprojectShapefileZip, readShapefileLayers } from "../src/lib/fileReproject.js";
+import { pointTransform } from "../src/lib/reproject.js";
+
+test("#487 reproject a zipped shapefile: every layer, ring and part; attributes and z kept; new .prj", async () => {
+  const outer = [[460000, 6260000, 5], [461000, 6260000, 5], [461000, 6261000, 5], [460000, 6261000, 5], [460000, 6260000, 5]];
+  const hole = [[460400, 6260400, 0], [460400, 6260600, 0], [460600, 6260600, 0], [460600, 6260400, 0], [460400, 6260400, 0]];
+  const lineA = [[459000, 6259000, 100], [459500, 6259500, 110]], lineB = [[462000, 6262000, 120], [462100, 6262300, 130]];
+  const src = buildZip([
+    ...shapefileZipFiles({ features: [{ geometry: outer, parts: [outer, hole], attributes: { Unit: "Hazelton", Au: 0.5 } }], geomType: "polygon", epsg: 3156, baseName: "geology", keepFieldCase: true }),
+    ...shapefileZipFiles({ features: [{ geometry: lineA, parts: [lineA, lineB], attributes: { Name: "Fault 1" } }], geomType: "polyline", epsg: 3156, baseName: "faults", keepFieldCase: true }),
+  ]);
+  const { bytes, report } = await reprojectShapefileZip(src, null, 3157); // From = each layer's .prj
+  assert.deepEqual(report.map((r) => [r.name, r.from, r.features, r.vertices, r.failed]), [["geology", 3156, 1, 10, 0], ["faults", 3156, 1, 4, 0]]);
+  const T = pointTransform(3156, 3157);
+  const { layers } = await readShapefileLayers(bytes);
+  assert.deepEqual(layers.map((l) => [l.name, l.epsg, l.geomType]), [["geology", 3157, "polygon"], ["faults", 3157, "polyline"]]);
+  const g = layers[0].features[0];
+  assert.equal(g.parts.length, 2); // the hole survives
+  assert.deepEqual(g.attributes, { Unit: "Hazelton", Au: 0.5 }); // original field-name case kept
+  [outer, hole].forEach((ring, k) => ring.forEach(([x, y, z], i) => {
+    const [ex, ey] = T(x, y), [ax, ay, az] = g.parts[k][i];
+    assert.ok(Math.hypot(ax - ex, ay - ey) < 1e-6 && az === z);
+  }));
+  assert.equal(layers[1].features[0].parts.length, 2);
+  // and back again: within a millimetre of where it started
+  const back = await readShapefileLayers((await reprojectShapefileZip(bytes, null, 3156)).bytes);
+  back.layers[0].features[0].parts[0].forEach(([x, y], i) => assert.ok(Math.hypot(x - outer[i][0], y - outer[i][1]) < 1e-3));
+  // no .prj and no From: refused with a reason
+  const noPrj = buildZip(shapefileZipFiles({ features: [{ geometry: [[1, 2, 0]], attributes: {} }], geomType: "point", epsg: 12345, baseName: "p" }));
+  await assert.rejects(reprojectShapefileZip(noPrj, null, 4326), /no \.prj — choose its CRS/);
+  assert.equal((await reprojectShapefileZip(noPrj, 4326, 3857)).report[0].vertices, 1);
 });

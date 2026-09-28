@@ -17,6 +17,7 @@ import { getProj4DefSync, crsName } from "./reproject.js"; // TASKS.csv #415
 
 const SHP_POINT_Z = 11;
 const SHP_POLYLINE_Z = 13;
+const SHP_POLYGON_Z = 15; // TASKS.csv #487 — polygons (with every ring / part) for the Cartography file reprojection
 
 // ---------- binary writer helpers ----------
 class ByteWriter {
@@ -37,17 +38,21 @@ function f64le(v) { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, 
 // features: [{ geometry: [[x,y,z], ...], attributes: {...} }]  (geometry is 1 point for 'point', a
 // vertex list for 'polyline' — one "part" per feature; multi-part lines aren't needed by anything this
 // app exports).
+// TASKS.csv #487 — geomType "polygon" too, and multi-part features: a feature's `parts` (every line of a
+// multi-part polyline, every ring of a polygon, as the reader returns them) are written when present;
+// otherwise `geometry` is the single part, as before.
 function buildShpShx(features, geomType) {
-  const shapeType = geomType === "point" ? SHP_POINT_Z : SHP_POLYLINE_Z;
+  const shapeType = geomType === "point" ? SHP_POINT_Z : geomType === "polygon" ? SHP_POLYGON_Z : SHP_POLYLINE_Z;
+  const partsOf = (f) => (geomType !== "point" && f.parts?.length ? f.parts.filter((p) => p.length) : [f.geometry]);
   const shp = new ByteWriter();
   const shx = new ByteWriter();
 
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity, zmin = Infinity, zmax = -Infinity;
-  features.forEach((f) => f.geometry.forEach(([x, y, z]) => {
+  features.forEach((f) => partsOf(f).forEach((part) => part.forEach(([x, y, z]) => {
     if (x < xmin) xmin = x; if (x > xmax) xmax = x;
     if (y < ymin) ymin = y; if (y > ymax) ymax = y;
     const zz = z ?? 0; if (zz < zmin) zmin = zz; if (zz > zmax) zmax = zz;
-  }));
+  })));
   if (!features.length) { xmin = ymin = xmax = ymax = zmin = zmax = 0; }
 
   // ---- content bodies per record, built first so total file length (for the header) is known ----
@@ -60,7 +65,8 @@ function buildShpShx(features, geomType) {
       const [x, y, z] = f.geometry[0];
       body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0)); body.push(f64le(0));
     } else {
-      const pts = f.geometry;
+      const parts = partsOf(f);
+      const pts = parts.flat();
       let fxmin = Infinity, fymin = Infinity, fxmax = -Infinity, fymax = -Infinity, fzmin = Infinity, fzmax = -Infinity;
       pts.forEach(([x, y, z]) => {
         if (x < fxmin) fxmin = x; if (x > fxmax) fxmax = x;
@@ -68,9 +74,10 @@ function buildShpShx(features, geomType) {
         const zz = z ?? 0; if (zz < fzmin) fzmin = zz; if (zz > fzmax) fzmax = zz;
       });
       body.push(f64le(fxmin)); body.push(f64le(fymin)); body.push(f64le(fxmax)); body.push(f64le(fymax));
-      body.push(i32le(1)); // NumParts
+      body.push(i32le(parts.length)); // NumParts
       body.push(i32le(pts.length)); // NumPoints
-      body.push(i32le(0)); // Parts[0] = 0 (single part starting at vertex 0)
+      let start = 0;
+      parts.forEach((part) => { body.push(i32le(start)); start += part.length; }); // Parts[i] = first vertex of part i
       pts.forEach(([x, y]) => { body.push(f64le(x)); body.push(f64le(y)); });
       body.push(f64le(fzmin)); body.push(f64le(fzmax));
       pts.forEach(([, , z]) => body.push(f64le(z ?? 0)));
@@ -125,7 +132,7 @@ function utf8Fit(text, maxBytes) {
   while (n > 0 && (b[n] & 0xc0) === 0x80) n--; // b[n] is a continuation byte: back up to the start of its character
   return b.subarray(0, n);
 }
-function buildDbf(features, columns) {
+function buildDbf(features, columns, { keepCase = false } = {}) {
   const fieldDefs = columns.map((col) => {
     let numeric = true;
     for (const f of features) {
@@ -133,16 +140,21 @@ function buildDbf(features, columns) {
       if (v == null || v === "") continue;
       if (typeof v !== "number" || !Number.isFinite(v)) { numeric = false; break; }
     }
-    const name = col.slice(0, 10).toUpperCase().replace(/[^A-Z0-9_]/g, "_") || "FIELD";
-    return numeric ? { name, type: "N", len: 19, dec: 6 } : { name, type: "C", len: 60, dec: 0 };
+    const name = (keepCase ? col.slice(0, 10) : col.slice(0, 10).toUpperCase()).replace(/[^A-Za-z0-9_]/g, "_") || "FIELD";
+    if (numeric) return { name, type: "N", len: 19, dec: 6 };
+    // #487 — as wide as the longest value (UTF-8 bytes), 1..254; was always 60, which cut longer text
+    let len = 1;
+    for (const f of features) { const v = f.attributes[col]; if (v != null) len = Math.max(len, UTF8.encode(String(v)).length); }
+    return { name, type: "C", len: Math.min(254, len), dec: 0 };
   });
   // DBF field names must be unique within the 10-char limit — dedupe collisions (e.g. two source
   // columns both truncating to the same 10 chars) by appending a numeric suffix.
   const seen = new Map();
   fieldDefs.forEach((fd) => {
-    const count = seen.get(fd.name) || 0;
+    const key = fd.name.toUpperCase(); // DBF names are case-insensitive
+    const count = seen.get(key) || 0;
     if (count > 0) fd.name = (fd.name.slice(0, 8) + "_" + count).slice(0, 10);
-    seen.set(fd.name, count + 1);
+    seen.set(key, count + 1);
   });
 
   const recordLen = 1 + fieldDefs.reduce((s, f) => s + f.len, 0); // +1 for the deletion flag byte
@@ -318,11 +330,15 @@ function concat(arrays) {
 // ---------- public entry point ----------
 // { features: [{geometry, attributes}], geomType: 'point'|'polyline', epsg, baseName } -> Uint8Array
 // (a .zip containing baseName.shp/.shx/.dbf[/.prj]), ready to hand to saveFile()/a download link.
-export function buildShapefileZip({ features, geomType, epsg, baseName = "export" }) {
+export function buildShapefileZip(layer) {
+  return buildZip(shapefileZipFiles(layer));
+}
+// TASKS.csv #487 — the zip entries of one layer (several layers can share a zip: Cartography's file tool)
+export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false }) {
   if (!features || !features.length) throw new Error("Nothing to export — this layer has no rows with usable coordinates.");
   const columns = Array.from(features.reduce((set, f) => { Object.keys(f.attributes || {}).forEach((k) => set.add(k)); return set; }, new Set()));
   const { shp, shx } = buildShpShx(features, geomType);
-  const dbf = buildDbf(features, columns);
+  const dbf = buildDbf(features, columns, { keepCase: keepFieldCase });
   const name = (baseName || "export").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase() || "export";
   const zipFiles = [
     { name: `${name}.shp`, data: shp },
@@ -333,7 +349,7 @@ export function buildShapefileZip({ features, geomType, epsg, baseName = "export
   const wkt = prjWktFor(epsg);
   if (wkt) zipFiles.push({ name: `${name}.prj`, data: strBytes(wkt) });
   else zipFiles.push({ name: `${name}_READ_ME.txt`, data: strBytes(`No .prj was generated — EPSG:${epsg} isn't one of the codes GeoStrix has a built-in projection definition for (see reproject.js). This shapefile's coordinates are in EPSG:${epsg} — set that manually as the layer's CRS in your GIS software if it doesn't prompt you.`) });
-  return buildZip(zipFiles);
+  return zipFiles;
 }
 
 // =====================================================================================
