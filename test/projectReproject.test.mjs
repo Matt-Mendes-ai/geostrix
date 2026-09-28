@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { reprojectProject } from "../src/lib/projectReproject.js";
-import { reprojectXY, listSupportedCrs, crsName, getProj4DefSync } from "../src/lib/reproject.js";
+import { reprojectXY, listSupportedCrs, crsName, getProj4DefSync, datumNote, guessEpsgFromPrjWkt } from "../src/lib/reproject.js";
 import { f32ToB64, b64ToF32 } from "../src/lib/inversion.js";
 import { emptyFields } from "../src/lib/projectFields.js";
 
@@ -107,4 +107,41 @@ test("#485 every listed CRS can be built and has a name", () => {
   assert.ok(l.every((c) => getProj4DefSync(c.code) && c.name));
   assert.equal(crsName(3156), "NAD83(CSRS) / UTM zone 9N");
   assert.equal(crsName(12345), null);
+});
+
+// TASKS.csv #489 — one point per new family, WGS 84 -> CRS, against PROJ 9.8 / EPSG v12.029 with the named
+// EPSG transformation (computed with pyproj; the full sweep of every listed code is described in TASKS.csv).
+test("#489 new CRS families match PROJ", () => {
+  const cases = [
+    [31983, -45.5, -20.2, 447763.2524, 7766307.7371], // SIRGAS 2000 to WGS 84 (1)
+    [6210, -45.3, 1.5, 466628.7206, 165797.7365], // SIRGAS 2000 to WGS 84 (1)
+    [29193, -45.5, -20.2, 447807.5193, 7766353.1653], // SAD69 to WGS 84 (14)
+    [7855, 145.1, -37.8, 332725.3546, 5814674.7553], // GDA2020 to WGS 84 (2)
+    [28350, 116.0, -31.9, 405440.1468, 6470212.3753], // GDA94 to WGS 84 (1)
+    [6738, 169.2, -45.0, 358132.4307, 5015473.5866], // GDA94 to WGS 84 (1)
+    [25832, 9.2, 50.1, 514303.6572, 5549768.4083], // ETRS89 to WGS 84 (1)
+    [2193, 174.8, -41.3, 1750697.5213, 5426376.6232], // NZGD2000 to WGS 84 (1)
+    [2961, -63.6, 44.6, 452382.7753, 4938691.0718], // NAD83(CSRS) to WGS 84 (2)
+    [9713, -39.0, 60.0, 499999.3335, 6651409.9599], // NAD83(CSRS) to WGS 84 (2)
+  ];
+  for (const [code, lon, lat, x, y] of cases) {
+    const p = reprojectXY(lon, lat, 4326, code);
+    assert.ok(Math.hypot(p.x - x, p.y - y) < 0.01, `EPSG:${code} off by ${Math.hypot(p.x - x, p.y - y).toFixed(3)} m`);
+  }
+  assert.equal(crsName(29193), "SAD69 / UTM zone 23S — Brazil datum shift, ~5 m");
+  assert.ok(datumNote(29193) && datumNote(26709) && !datumNote(31983) && !datumNote(3156));
+});
+
+test("#489 .prj names of the new families are recognised", () => {
+  const prj = (name, geog) => `PROJCS["${name}",GEOGCS["${geog}",DATUM["D"],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"]]`;
+  assert.equal(guessEpsgFromPrjWkt(prj("SIRGAS_2000_UTM_Zone_23S", "GCS_SIRGAS_2000")), 31983);
+  assert.equal(guessEpsgFromPrjWkt(prj("SIRGAS_2000_UTM_Zone_24N", "GCS_SIRGAS_2000")), 6211);
+  assert.equal(guessEpsgFromPrjWkt(prj("SAD_1969_UTM_Zone_22S", "GCS_South_American_1969")), 29192);
+  assert.equal(guessEpsgFromPrjWkt(prj("GDA_1994_MGA_Zone_50", "GCS_GDA_1994")), 28350);
+  assert.equal(guessEpsgFromPrjWkt(prj("GDA2020_MGA_Zone_55", "GCS_GDA2020")), 7855);
+  assert.equal(guessEpsgFromPrjWkt(prj("ETRS_1989_UTM_Zone_32N", "GCS_ETRS_1989")), 25832);
+  assert.equal(guessEpsgFromPrjWkt(prj("NZGD_2000_New_Zealand_Transverse_Mercator", "GCS_NZGD_2000")), 2193);
+  assert.equal(guessEpsgFromPrjWkt(prj("NAD_1983_CSRS_UTM_Zone_20N", "GCS_North_American_1983_CSRS")), 2961);
+  assert.equal(guessEpsgFromPrjWkt('GEOGCS["GCS_SIRGAS_2000",DATUM["D_SIRGAS_2000",SPHEROID["GRS_1980",6378137.0,298.257222101]],TOWGS84[0,0,0,0,0,0,0]]'), 4674);
+  assert.equal(guessEpsgFromPrjWkt('GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984"]]'), 4326); // unchanged
 });

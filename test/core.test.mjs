@@ -50,8 +50,10 @@ test("#370 IDW bucket search equals a brute-force nearest-k scan", () => {
 });
 
 test("#416 reprojection still gives the same coordinates", () => {
+  // #489: the reference is PROJ 9.8's EPSG:1946 (NAD83(CSRS) to WGS 84 (2)). The old expected value
+  // (432287.3539, 6262271.5643) carried the CSRS rotations-read-as-zero bug, 0.9 m off.
   const p = reprojectXY(-130.1, 56.5, 4326, 3156);
-  assert.ok(Math.abs(p.x - 432287.3539) < 0.01 && Math.abs(p.y - 6262271.5643) < 0.01);
+  assert.ok(Math.abs(p.x - 432286.5455) < 0.01 && Math.abs(p.y - 6262271.9940) < 0.01);
 });
 
 import proj4 from "proj4";

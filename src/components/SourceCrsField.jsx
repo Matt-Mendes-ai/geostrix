@@ -2,12 +2,11 @@
 // picker as Cartography's project CRS (was a bare "EPSG" number box in each importer). Blank value = the
 // importer's own default, spelled out in `defaultText` (e.g. "Same as project — NAD83(CSRS) / UTM zone 9N", or
 // "From the file's own CRS tag"). Warns for NAD27 (approximate datum shift, #299) and for codes GeoStrix can't
-// convert. value: "" | number | numeric string; onChange(code | "").
+// convert (#489: any approximate datum shift, via datumNote). value: "" | number | numeric string; onChange(code | "").
 import React, { useState } from "react";
 import CrsPicker from "./CrsPicker.jsx";
-import { crsName } from "../lib/reproject.js";
+import { crsName, datumNote } from "../lib/reproject.js";
 
-const isNad27 = (c) => Number(c) === 4267 || (Number(c) >= 26701 && Number(c) <= 26722);
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", fontFamily: "inherit", flexShrink: 0 };
 
 export default function SourceCrsField({ value, onChange, defaultText, label = "Source CRS", title }) {
@@ -34,11 +33,9 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
           GeoStrix can't convert from EPSG:{value}, so the coordinates would be used as they are. Pick a CRS from the list.
         </div>
       )}
-      {set && isNad27(value) && (
+      {set && datumNote(value) && (
         <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: 4, lineHeight: 1.4 }}>
-          ⚠ NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a published
-          3-parameter fit for Alberta/BC — typically within ~10&nbsp;m). Not survey-grade; that needs a grid-based
-          (NTv2) transform, which GeoStrix doesn't ship yet.
+          ⚠ {datumNote(value)}
         </div>
       )}
     </div>

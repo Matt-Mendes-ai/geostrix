@@ -98,18 +98,83 @@ const GEOGRAPHIC = {
 // as the NAD83(CSRS) UTM definitions below, so 4617 -> 3156 is a pure projection with no spurious datum
 // offset. 4617 is how NRCan's CDEM / HRDEM ship; 3979 is the Canada-wide Atlas Lambert; 3857 is web
 // Mercator (tile services, many web exports).
-const CSRS_TOWGS84 = "+towgs84=-0.991,1.9072,0.5129,-1.25033e-07,-4.6785e-08,-5.6529e-08,0";
+// TASKS.csv #489 fix: this is EPSG:1946 (NAD83(CSRS) to WGS 84 (2), 1 m). Its rotations were written in RADIANS
+// with EPSG's coordinate-frame signs (-1.25033e-07, ...), but proj4 reads +towgs84 rotations as ARC-SECONDS in
+// the position-vector convention, so they were effectively zero: every CSRS <-> WGS 84 / NAD83 conversion was
+// ~0.9 m off. Now arc-seconds with the signs flipped; matches PROJ's EPSG:1946 to 0.0000 m across all 20 codes.
+const CSRS_TOWGS84 = "+towgs84=-0.991,1.9072,0.5129,0.0257899075194932,0.0096500989602704,0.0116599432323421,0";
 const EXTRA_DEFS = {
   4617: `+proj=longlat +ellps=GRS80 ${CSRS_TOWGS84} +no_defs`,
   3979: `+proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 ${CSRS_TOWGS84} +units=m +no_defs`,
   3857: "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs",
 };
 
-// NAD83(CSRS) UTM zones covering BC (7N–11N) — individually verified against the real EPSG registry
-// (each zone's own definition record), not derived from a formula. See the header comment above.
+// NAD83(CSRS) UTM zones — individually verified against the real EPSG registry (each zone's own definition
+// record), not derived from a formula: the codes are an irregular series. BC's 7N–11N first; TASKS.csv #489
+// added the rest of Canada (12N–24N), checked against the EPSG database v12.029 (PROJ 9.8).
 const NAD83_CSRS_UTM = {
   3154: 7, 3155: 8, 3156: 9, 3157: 10, 2955: 11,
+  2956: 12, 2957: 13, 3158: 14, 3159: 15, 3160: 16, 2958: 17, 2959: 18, 2960: 19, 2961: 20, 2962: 21, 3761: 22, 9709: 23, 9713: 24,
 };
+
+// TASKS.csv #489 — national CRSs used for mineral exploration outside Canada. Every code, zone and name below
+// was checked against the EPSG database (v12.029, via PROJ 9.8 / pyproj 3.8) — codes are NOT a linear series
+// in most of these families (e.g. SIRGAS 2000 UTM 23N/24N are 6210/6211, MGA 46/47/59 for GDA94 are
+// 6736/6737/6738), so each irregular code is listed explicitly. The same check compared this module's output
+// with PROJ's at points across each zone (scripts in TASKS.csv #489's notes).
+//   SIRGAS 2000, GDA94, GDA2020, ETRS89, NZGD2000: GRS80 and zero shift to WGS 84, as the EPSG registry's own
+//     transformation for each (accuracy 1–3 m: these frames drift from WGS 84 by plate motion, not by datum).
+//   SAD69: Brazil's IBGE shift (EPSG:1877, SAD69 to WGS 84 (14): -66.87, 4.37, -38.52; ~5 m in Brazil) on the
+//     GRS 1967 Modified ellipsoid. The shift differs by country (EPSG lists 5–26 m ones for Peru, Chile, etc.),
+//     so the CRS names say so and SourceCrsField warns (datumNote below).
+const GRS80_ZERO = "+ellps=GRS80 +towgs84=0,0,0,0,0,0,0";
+const SAD69_BRAZIL = "+ellps=aust_SA +towgs84=-66.87,4.37,-38.52,0,0,0,0";
+const SAD69_TAG = "Brazil datum shift, ~5 m";
+const REGISTRY = new Map(); // code -> { def, name }
+{
+  const reg = (code, def, name) => REGISTRY.set(code, { def, name });
+  const utm = (zone, south, datum) => `+proj=utm +zone=${zone}${south ? " +south" : ""} ${datum} +units=m +no_defs`;
+  const geog = (datum) => `+proj=longlat ${datum} +no_defs`;
+  // SIRGAS 2000 (Brazil and Latin America's current frame)
+  reg(4674, geog(GRS80_ZERO), "SIRGAS 2000 (longitude / latitude)");
+  for (let z = 11; z <= 22; z++) reg(31954 + z, utm(z, false, GRS80_ZERO), `SIRGAS 2000 / UTM zone ${z}N`);
+  reg(6210, utm(23, false, GRS80_ZERO), "SIRGAS 2000 / UTM zone 23N");
+  reg(6211, utm(24, false, GRS80_ZERO), "SIRGAS 2000 / UTM zone 24N");
+  for (let z = 17; z <= 25; z++) reg(31960 + z, utm(z, true, GRS80_ZERO), `SIRGAS 2000 / UTM zone ${z}S`);
+  reg(5396, utm(26, true, GRS80_ZERO), "SIRGAS 2000 / UTM zone 26S");
+  // SAD69 (older Brazilian / South American data)
+  reg(4618, geog(SAD69_BRAZIL), `SAD69 (longitude / latitude) — ${SAD69_TAG}`);
+  reg(5463, utm(17, false, SAD69_BRAZIL), `SAD69 / UTM zone 17N — ${SAD69_TAG}`);
+  for (let z = 18; z <= 22; z++) reg(29150 + z, utm(z, false, SAD69_BRAZIL), `SAD69 / UTM zone ${z}N — ${SAD69_TAG}`);
+  for (let z = 17; z <= 25; z++) reg(29170 + z, utm(z, true, SAD69_BRAZIL), `SAD69 / UTM zone ${z}S — ${SAD69_TAG}`);
+  // Australia: MGA is UTM (south) on GDA94 / GDA2020
+  reg(4283, geog(GRS80_ZERO), "GDA94 (longitude / latitude)");
+  reg(6736, utm(46, true, GRS80_ZERO), "GDA94 / MGA zone 46");
+  reg(6737, utm(47, true, GRS80_ZERO), "GDA94 / MGA zone 47");
+  for (let z = 48; z <= 58; z++) reg(28300 + z, utm(z, true, GRS80_ZERO), `GDA94 / MGA zone ${z}`);
+  reg(6738, utm(59, true, GRS80_ZERO), "GDA94 / MGA zone 59");
+  reg(7844, geog(GRS80_ZERO), "GDA2020 (longitude / latitude)");
+  for (let z = 46; z <= 59; z++) reg(7800 + z, utm(z, true, GRS80_ZERO), `GDA2020 / MGA zone ${z}`);
+  // Europe
+  reg(4258, geog(GRS80_ZERO), "ETRS89 (longitude / latitude)");
+  for (let z = 28; z <= 37; z++) reg(25800 + z, utm(z, false, GRS80_ZERO), `ETRS89 / UTM zone ${z}N`);
+  // New Zealand
+  reg(2193, `+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000 ${GRS80_ZERO} +units=m +no_defs`, "NZGD2000 / New Zealand Transverse Mercator 2000");
+}
+
+// TASKS.csv #489 — a warning for CRSs whose datum shift to WGS 84 is an approximation (null for the rest).
+export function datumNote(epsg) {
+  const c = Number(epsg);
+  if (c === 4267 || (c >= 26701 && c <= 26722)) {
+    // #489 sweep against PROJ: within ~12 m of PROJ's local choice in zones 9-12N, ~31 m in 7-8N, up to ~200 m
+    // in zones far from western Canada (the shift is a fit for Alberta/BC only).
+    return "NAD27 (TASKS.csv #299): an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.";
+  }
+  if (REGISTRY.get(c)?.def.includes(SAD69_BRAZIL)) {
+    return "SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.";
+  }
+  return null;
+}
 
 // TASKS.csv #223 (QGIS-specialist audit finding: importing a real dataset declared as EPSG:3005 —
 // NAD83 / BC Albers, the BC provincial government's own standard mapping CRS for open data — placed a
@@ -136,8 +201,10 @@ export function getProj4DefSync(epsg) {
   if (GEOGRAPHIC[code]) return GEOGRAPHIC[code];
   if (EXTRA_DEFS[code]) return EXTRA_DEFS[code]; // #419
   if (code === 3005) return EPSG_3005_BC_ALBERS;
+  const r = REGISTRY.get(code); // #489
+  if (r) return r.def;
   if (NAD83_CSRS_UTM[code]) {
-    return utmProj4(NAD83_CSRS_UTM[code], false, "+ellps=GRS80 +towgs84=-0.991,1.9072,0.5129,-1.25033e-07,-4.6785e-08,-5.6529e-08,0");
+    return utmProj4(NAD83_CSRS_UTM[code], false, `+ellps=GRS80 ${CSRS_TOWGS84}`);
   }
   if (code >= 32601 && code <= 32660) return utmProj4(code - 32600, false, "+datum=WGS84"); // WGS84 UTM N
   if (code >= 32701 && code <= 32760) return utmProj4(code - 32700, true, "+datum=WGS84"); // WGS84 UTM S
@@ -205,9 +272,17 @@ export function guessEpsgFromPrjWkt(wkt) {
     const zone = Number(utmMatch[1]);
     const south = utmMatch[2] === "S";
     if (zone >= 1 && zone <= 60) {
+      // #489 — national frames first: their WKT often also carries a TOWGS84[...] clause, which the
+      // WGS 84 test below would otherwise match.
+      const fromRegistry = (prefix, suffix) => {
+        for (const [code, e] of REGISTRY) if (e.name.startsWith(`${prefix} / UTM zone ${zone}${suffix}`)) return code;
+        return null;
+      };
+      if (w.includes("SIRGAS")) return fromRegistry("SIRGAS 2000", south ? "S" : "N");
+      if (w.includes("SAD_1969") || w.includes("SAD69") || w.includes("SOUTH_AMERICAN_1969")) return fromRegistry("SAD69", south ? "S" : "N");
+      if (w.includes("ETRS")) return south ? null : fromRegistry("ETRS89", "N");
       if (w.includes("CSRS")) {
-        // Only BC's own 7N–11N CSRS zones have a verified entry (see NAD83_CSRS_UTM above) — an
-        // out-of-range CSRS zone falls through to null rather than guessing at an unverified series.
+        // CSRS codes are an irregular series (see NAD83_CSRS_UTM above) — an unlisted zone is null, not a guess.
         const csrsCode = Object.entries(NAD83_CSRS_UTM).find(([, z]) => z === zone)?.[0];
         if (csrsCode) return Number(csrsCode);
       } else if (w.includes("NAD_1983") || w.includes("NAD83")) {
@@ -220,8 +295,23 @@ export function guessEpsgFromPrjWkt(wkt) {
     }
     return null; // recognized as SOME UTM zone but not a datum/zone combo this app has verified — don't guess
   }
+  // #489 — Australian MGA and New Zealand TM names carry no "UTM_Zone"
+  const mga = w.match(/MGA[_ ]ZONE[_ ]?(\d{2})/);
+  if (mga) {
+    const zone = Number(mga[1]);
+    const prefix = w.includes("2020") ? "GDA2020" : w.includes("GDA_1994") || w.includes("GDA94") ? "GDA94" : null;
+    for (const [code, e] of REGISTRY) if (prefix && e.name === `${prefix} / MGA zone ${zone}`) return code;
+    return null;
+  }
+  if (w.includes("NEW_ZEALAND_TRANSVERSE_MERCATOR") || w.includes("NZGD_2000_NEW_ZEALAND_TRANSVERSE") || w.includes("NZTM")) return 2193;
   // Geographic-only (GEOGCS with no PROJCS) — the datum name alone decides.
   if (!w.includes("PROJCS")) {
+    // #489 — national frames before WGS 84 (their WKT may carry a TOWGS84[...] clause)
+    if (w.includes("SIRGAS")) return 4674;
+    if (w.includes("SAD_1969") || w.includes("SAD69") || w.includes("SOUTH_AMERICAN_1969")) return 4618;
+    if (w.includes("GDA2020")) return 7844;
+    if (w.includes("GDA_1994") || w.includes("GDA94")) return 4283;
+    if (w.includes("ETRS")) return 4258;
     if (w.includes("WGS_1984") || w.includes("WGS84")) return 4326;
     // GEOGCS datum names spell it out in full ("D_North_American_1983"/"GCS_North_American_1983"),
     // unlike a PROJCS's UTM-zone name which abbreviates to "NAD_1983" — check both spellings.
@@ -405,6 +495,10 @@ const CRS_NAMED = [
 ];
 export function listSupportedCrs() {
   const out = CRS_NAMED.map(([code, name]) => ({ code, name }));
+  const listed = new Set(out.map((c) => c.code));
+  // #489 — the rest of the NAD83(CSRS) zones, by zone number, then the national frames
+  Object.entries(NAD83_CSRS_UTM).sort((a, b) => a[1] - b[1]).forEach(([code, z]) => { if (!listed.has(Number(code))) out.push({ code: Number(code), name: `NAD83(CSRS) / UTM zone ${z}N` }); });
+  for (const [code, e] of REGISTRY) out.push({ code, name: e.name });
   for (let z = 1; z <= 23; z++) out.push({ code: 26900 + z, name: `NAD83 / UTM zone ${z}N` });
   for (let z = 1; z <= 22; z++) out.push({ code: 26700 + z, name: `NAD27 / UTM zone ${z}N — ~10 m datum approximation` });
   for (let z = 1; z <= 60; z++) out.push({ code: 32600 + z, name: `WGS 84 / UTM zone ${z}N` });
