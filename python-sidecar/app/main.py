@@ -11,6 +11,7 @@ Run standalone for testing (see python-sidecar/README.md):
 """
 
 from typing import List, Literal
+import base64  # TASKS.csv #325
 import hashlib
 import hmac
 import importlib.metadata
@@ -338,13 +339,55 @@ def job_status(job_id: str):
     return st
 
 
+# TASKS.csv #325 — an inversion result's per-cell columns (up to ~10^5-10^6 numbers each) as base64 binary
+# instead of JSON number lists: FastAPI's JSON encoding of those lists and the app's JSON.parse were most
+# of the transfer cost. Each column is float32 OFFSETS from its first value, plus the number of decimals it
+# was rounded to (coordinates to the cm / mm, support to 4 places...), so the app rounds back to exactly the
+# numbers the plain JSON carried. That is checked here, column by column: a column that would not come back
+# identical (a raw float64, or an extent beyond float32's reach at that rounding) goes as exact float64
+# instead. 3D cell centres are WORLD coordinates (~6e6 m northings), hence the offsets. Only when the app
+# asks (?binary=1), so the plain-JSON result the test scripts read is unchanged; the app decodes on receipt
+# (desktop.js decodeBinaryCells) and nothing past that point sees a difference.
+def _encode_column(v):
+    a = np.asarray(v, dtype=float)
+    finite = a[np.isfinite(a)]
+    base = float(finite[0]) if finite.size else 0.0
+    for d in range(0, 7):  # the fewest decimals that reproduce every value
+        if np.all(np.abs(finite * 10 ** d - np.round(finite * 10 ** d)) < 1e-9 * np.maximum(1, np.abs(finite * 10 ** d))):
+            break
+    else:
+        d = None
+    # base 0 first: a column that is already float32 (model values) goes as-is; then offsets from the first value
+    for b in (0.0, base):
+        off = (a - b).astype("<f4")
+        back = off.astype(float) + b
+        if d is not None:
+            back = np.floor(back * 10 ** d + 0.5) / 10 ** d  # exactly what the app does (Math.round(x * p) / p)
+        if np.array_equal(back, a, equal_nan=True):
+            return {"dtype": "f4", "n": int(a.size), "base": b, "decimals": d, "b64": base64.b64encode(off.tobytes()).decode("ascii")}
+    return {"dtype": "f8", "n": int(a.size), "b64": base64.b64encode(a.astype("<f8").tobytes()).decode("ascii")}
+
+
+def binary_cells(r):
+    cells = r.get("cells") if isinstance(r, dict) else None
+    if not isinstance(cells, dict):
+        return r
+    out = {}
+    for k, v in cells.items():
+        if isinstance(v, list) and v and all(x is None or isinstance(x, (int, float)) for x in v[:64]):
+            out[k] = _encode_column(v)
+        else:
+            out[k] = v
+    return {**r, "cells": out}
+
+
 @app.get("/v1/jobs/{job_id}/result")
-def job_result(job_id: str):
+def job_result(job_id: str, binary: int = 0):
     from app.jobs import manager
     r = manager.result(job_id)
     if r is None:
         raise HTTPException(404, "No finished result for that job.")
-    return r
+    return binary_cells(r) if binary else r
 
 
 @app.post("/v1/jobs/{job_id}/cancel")

@@ -390,7 +390,30 @@ export const sidecarStartPotentialJob = (request) => sidecarJson("/v1/jobs", { m
 // TASKS.csv #322 — 2D DC resistivity / IP inversion job
 export const sidecarStartDcipJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "dcip2d", request }, timeoutMs: 60000 });
 export const sidecarJobStatus = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });
-export const sidecarJobResult = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/result`, { timeoutMs: 120000 });
+// TASKS.csv #325 — asks for the per-cell columns as base64 binary (main.py binary_cells) and turns them back
+// into plain number arrays here, so every caller sees exactly the shape it always did. An older sidecar that
+// ignores ?binary=1 returns plain lists, which pass through untouched.
+export function decodeBinaryCells(data) {
+  const cells = data?.cells;
+  if (!cells || typeof cells !== "object" || Array.isArray(cells)) return data;
+  const out = {};
+  for (const [k, v] of Object.entries(cells)) {
+    if (v && typeof v === "object" && typeof v.b64 === "string" && (v.dtype === "f4" || v.dtype === "f8")) {
+      const s = typeof atob === "function" ? atob(v.b64) : globalThis.Buffer.from(v.b64, "base64").toString("binary");
+      const bytes = new Uint8Array(s.length);
+      for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+      if (v.dtype === "f8") { out[k] = Array.from(new Float64Array(bytes.buffer)); continue; }
+      // float32 offsets from `base`, rounded back to the column's decimals (exact: the sidecar checked it)
+      const f = new Float32Array(bytes.buffer), base = Number(v.base) || 0, arr = new Array(f.length);
+      const p = Number.isInteger(v.decimals) ? 10 ** v.decimals : null;
+      for (let i = 0; i < f.length; i++) { const x = f[i] + base; arr[i] = p ? Math.round(x * p) / p : x; }
+      out[k] = arr;
+    } else out[k] = v;
+  }
+  return { ...data, cells: out };
+}
+export const sidecarJobResult = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/result?binary=1`, { timeoutMs: 120000 })
+  .then((r) => (r.ok ? { ...r, data: decodeBinaryCells(r.data) } : r));
 export const sidecarCancelJob = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {}, timeoutMs: 10000 });
 
 export async function pythonHealth() {
