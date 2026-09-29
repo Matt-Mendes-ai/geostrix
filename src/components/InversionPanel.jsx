@@ -539,11 +539,11 @@ function MisfitChart({ history, target }) {
   return (
     <svg width={W} height={H} role="img" aria-label={`Data misfit by iteration, from ${history[0].phi_d.toFixed(0)} to ${history[history.length - 1].phi_d.toFixed(0)}; target ${target.toFixed(0)}`} style={{ display: "block", marginTop: 6 }}>
       <line x1={P} x2={W - 6} y1={y(target)} y2={y(target)} stroke="var(--color-text-muted)" strokeDasharray="4 3" />
-      <text x={W - 8} y={y(target) - 3} textAnchor="end" style={{ fontSize: 9, fill: "var(--color-text-muted)" }}>target</text>
+      <text x={W - 8} y={y(target) - 3} textAnchor="end" style={{ fontSize: "var(--font-size-xs)", fill: "var(--color-text-muted)" }}>target</text>
       <path d={path} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} />
       {history.map((h, i) => <circle key={i} cx={x(i)} cy={y(h.phi_d)} r={2.2} fill="var(--color-accent)" />)}
-      <text x={2} y={12} style={{ fontSize: 9, fill: "var(--color-text-muted)" }}>misfit (log)</text>
-      <text x={W - 6} y={H - 2} textAnchor="end" style={{ fontSize: 9, fill: "var(--color-text-muted)" }}>iteration {history.length}</text>
+      <text x={2} y={12} style={{ fontSize: "var(--font-size-xs)", fill: "var(--color-text-muted)" }}>misfit (log)</text>
+      <text x={W - 6} y={H - 2} textAnchor="end" style={{ fontSize: "var(--font-size-xs)", fill: "var(--color-text-muted)" }}>iteration {history.length}</text>
     </svg>
   );
 }

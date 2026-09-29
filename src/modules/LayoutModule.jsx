@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 import { PAGE_FORMATS, pageFormatOf, pagePx } from "../lib/pageFormats.js"; // TASKS.csv #398
 import { azimuthToGridOffset } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
+import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -1269,7 +1270,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
           <line x1="60" y1="80" x2={tx} y2={ty} stroke="#1a2028" strokeWidth="1.2" />
           <text x={tx} y={ty - 4} fontSize="11" textAnchor="middle" fill="#1a2028">★</text>
           <line x1="60" y1="80" x2={mx} y2={my} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
-          <text x={mx + 4} y={my - 2} fontSize="9" fontWeight="700" fill="#1a2028">MN</text>
+          <text x={mx + 4} y={my - 2} fontSize={fontSizes.xs} fontWeight="700" fill="#1a2028">MN</text>
           <text x="4" y="98" fontSize="8.5" fill="#1a2028">True north {fmt(convergence)} of grid north</text>
           <text x="4" y="109" fontSize="8.5" fill="#1a2028">Magnetic declination {fmt(declination)} ({date.slice(0, 4)})</text>
           <text x="4" y="120" fontSize="8" fill="#55606e">IGRF-14; changes about 0.1-0.2°/yr</text>

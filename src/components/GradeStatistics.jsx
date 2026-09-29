@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "magsusc", "structure"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -334,9 +335,9 @@ function Histogram({ data, unit, logScale }) {
         );
       })}
       <line x1={padL} y1={10 + plotH} x2={padL + plotW} y2={10 + plotH} stroke="#c7ccd3" />
-      <text x={padL} y={h - 4} fontSize="9.5" fill="#55606e">{(logScale ? Math.pow(10, data.min) : data.min).toFixed(logScale ? 3 : 2)}</text>
-      <text x={padL + plotW} y={h - 4} fontSize="9.5" fill="#55606e" textAnchor="end">{(logScale ? Math.pow(10, data.max) : data.max).toFixed(logScale ? 3 : 2)} {unit}</text>
-      <text x={4} y={16} fontSize="9.5" fill="#55606e">{data.maxCount}</text>
+      <text x={padL} y={h - 4} fontSize={fontSizes.xs} fill="#55606e">{(logScale ? Math.pow(10, data.min) : data.min).toFixed(logScale ? 3 : 2)}</text>
+      <text x={padL + plotW} y={h - 4} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{(logScale ? Math.pow(10, data.max) : data.max).toFixed(logScale ? 3 : 2)} {unit}</text>
+      <text x={4} y={16} fontSize={fontSizes.xs} fill="#55606e">{data.maxCount}</text>
     </svg>
   );
 }
@@ -359,7 +360,7 @@ function BoxPlots({ groups, domainLabel }) {
         const s = g.stats;
         return (
           <g key={g.key}>
-            <text x={padL - 8} y={y + 4} fontSize="10.5" fill="#1a2028" textAnchor="end">{domainLabel(g.key)}</text>
+            <text x={padL - 8} y={y + 4} fontSize={fontSizes.sm} fill="#1a2028" textAnchor="end">{domainLabel(g.key)}</text>
             <line x1={x(s.min)} y1={y} x2={x(s.max)} y2={y} stroke="#55606e" strokeWidth="1" />
             <line x1={x(s.min)} y1={y - 5} x2={x(s.min)} y2={y + 5} stroke="#55606e" strokeWidth="1" />
             <line x1={x(s.max)} y1={y - 5} x2={x(s.max)} y2={y + 5} stroke="#55606e" strokeWidth="1" />

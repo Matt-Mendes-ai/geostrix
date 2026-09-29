@@ -33,8 +33,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // A CSS custom property does not survive leaving the document. Several components serialize a live
 // <svg> subtree to a STANDALONE file (XMLSerializer -> .svg, or -> PNG via a blob URL): StripLog,
-// SectionWindow, StereonetModal, FenceDiagramModal, DownholeStructurePlot, GeochemModule, and
-// lib/striplogSvg.js (which builds SVG as a string). In an exported file there is no :root to
+// SectionWindow, StereonetModal, FenceDiagramModal, DownholeStructurePlot, GeochemModule (the <svg> it
+// exports is GeochemPlot's — #385), and lib/striplogSvg.js (which builds SVG as a string). In an exported file there is no :root to
 // resolve `var(--color-*)` against, so those colors would render unstyled. Those files therefore
 // keep literal hex on purpose and were deliberately excluded from the var() migration. If you ever
 // need a token there, inline the resolved value (form 2) — never a `var()` reference.

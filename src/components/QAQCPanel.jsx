@@ -14,6 +14,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // convention, no external CRM certificate database) and its accepted first-pass limitations.
 const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -239,7 +240,7 @@ function ControlChart({ points, limits }) {
       {points.map((p) => (
         <circle key={p.i} cx={x(p.i)} cy={y(p.value)} r={4} fill={p.outside3sd ? "#d9534f" : p.outside2sd ? "#e2a63c" : "#4a9be0"} stroke="#ffffff" strokeWidth="1" />
       ))}
-      <text x={padL - 6} y={y(limits.mean) + 4} fontSize="9.5" fill="#1e5a9c" textAnchor="end">mean</text>
+      <text x={padL - 6} y={y(limits.mean) + 4} fontSize={fontSizes.xs} fill="#1e5a9c" textAnchor="end">mean</text>
     </svg>
   );
 }

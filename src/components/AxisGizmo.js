@@ -14,6 +14,14 @@ import * as THREE from "three";
 // widget rendered via viewport/scissor into the SAME renderer/canvas as the main scene (own tiny
 // navScene + navCamera, mount(renderer, mount) once, renderEachFrame() every frame) — reusing that
 // approach rather than inventing a new rendering path.
+// TASKS.csv #385 — the app's typeface (bundled @fontsource/exo-2, weight 700 imported in main.jsx). A canvas
+// texture keeps whatever font was available when it was drawn, so the label is drawn now and drawn again
+// once the font has loaded.
+const LABEL_FONT = (px) => `bold ${px}px 'Exo 2', system-ui, sans-serif`;
+function drawWhenFontReady(px, draw) {
+  draw();
+  if (typeof document !== "undefined" && document.fonts?.load && !document.fonts.check(LABEL_FONT(px))) document.fonts.load(LABEL_FONT(px)).then(draw, () => {});
+}
 export function createAxisGizmo({ camStateRef }) {
   const navScene = new THREE.Scene();
   // TASKS.csv — user request: "can you remove this background from the orientation arrow ... the
@@ -39,10 +47,14 @@ export function createAxisGizmo({ camStateRef }) {
   const makeLabelSprite = (text, colorHex) => {
     const c = document.createElement("canvas"); c.width = 64; c.height = 64;
     const ctx = c.getContext("2d");
-    ctx.fillStyle = `#${colorHex.toString(16).padStart(6, "0")}`;
-    ctx.font = "bold 46px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(text, 32, 34);
     const tex = new THREE.CanvasTexture(c);
+    drawWhenFontReady(46, () => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = `#${colorHex.toString(16).padStart(6, "0")}`;
+      ctx.font = LABEL_FONT(46); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, 32, 34);
+      tex.needsUpdate = true;
+    });
     const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, sizeAttenuation: true });
     const sprite = new THREE.Sprite(mat);
     sprite.scale.set(0.62, 0.62, 1);

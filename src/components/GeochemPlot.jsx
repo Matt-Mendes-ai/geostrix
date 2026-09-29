@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from "react";
 import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochem.js";
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 
 const W = 620, H = 560, PAD = 60;
 
@@ -68,7 +69,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
           {f.box && (
             <polygon points={[[f.box[0][0], f.box[0][1]], [f.box[1][0], f.box[0][1]], [f.box[1][0], f.box[1][1]], [f.box[0][0], f.box[1][1]]].map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill="none" stroke="#2a3444" strokeWidth="1" />
           )}
-          {f.pts && <text x={sx(centroid(f.pts)[0])} y={sy(centroid(f.pts)[1])} fill="#4a5568" fontSize="9" textAnchor="middle">{f.name}</text>}
+          {f.pts && <text x={sx(centroid(f.pts)[0])} y={sy(centroid(f.pts)[1])} fill="#4a5568" fontSize={fontSizes.xs} textAnchor="middle">{f.name}</text>}
         </g>
       ))}
 
@@ -88,7 +89,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
         return (
           <g>
             <line x1={sx(0)} y1={sy(0)} x2={sx(x2)} y2={sy(Math.min(ymax, slope * x2))} stroke="#c07a4a" strokeWidth="1.5" strokeDasharray="5 3" />
-            <text x={sx(x2 * 0.55)} y={sy(Math.min(ymax, slope * x2 * 0.55)) - 6} fill="#c07a4a" fontSize="9" textAnchor="middle">trend (this dataset), slope {slope.toFixed(2)}</text>
+            <text x={sx(x2 * 0.55)} y={sy(Math.min(ymax, slope * x2 * 0.55)) - 6} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">trend (this dataset), slope {slope.toFixed(2)}</text>
           </g>
         );
       })()}
@@ -97,13 +98,13 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
       {xticks.map((t, i) => (
         <g key={`x${i}`}>
           <line x1={sx(t)} y1={PAD} x2={sx(t)} y2={H - PAD} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={sx(t)} y={H - PAD + 16} fill="#65717e" fontSize="9.5" textAnchor="middle">{fmtTick(t)}</text>
+          <text x={sx(t)} y={H - PAD + 16} fill="#65717e" fontSize={fontSizes.xs} textAnchor="middle">{fmtTick(t)}</text>
         </g>
       ))}
       {yticks.map((t, i) => (
         <g key={`y${i}`}>
           <line x1={PAD} y1={sy(t)} x2={W - PAD} y2={sy(t)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
+          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize={fontSizes.xs} textAnchor="end">{fmtTick(t)}</text>
         </g>
       ))}
 
@@ -126,12 +127,12 @@ function BoxplotGuides({ sx, sy }) {
   return (
     <g>
       <polygon points={box.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill="#eaf1fa" fillOpacity="0.5" stroke="#3a5068" strokeDasharray="3 2" />
-      <text x={sx(40)} y={sy(40)} fill="#5a7290" fontSize="9" textAnchor="middle">least-altered box</text>
+      <text x={sx(40)} y={sy(40)} fill="#5a7290" fontSize={fontSizes.xs} textAnchor="middle">least-altered box</text>
       {/* corner labels */}
-      <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize="9">sericite / K-feldspar</text>
-      <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize="9">chlorite-pyrite</text>
-      <text x={sx(70)} y={sy(8)} fill="#8290a0" fontSize="9">epidote-calcite</text>
-      <text x={sx(4)} y={sy(8)} fill="#8290a0" fontSize="9">albite</text>
+      <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>sericite / K-feldspar</text>
+      <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>chlorite-pyrite</text>
+      <text x={sx(70)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>epidote-calcite</text>
+      <text x={sx(4)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>albite</text>
     </g>
   );
 }
@@ -175,7 +176,7 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
       <text x={A[0]} y={A[1] - 10} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[0]}</text>
       <text x={Fp[0] - 6} y={Fp[1] + 18} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[1]}</text>
       <text x={M[0] + 6} y={M[1] + 18} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[2]}</text>
-      {diagram.dividers && <text x={cx} y={bottom - 30} fill="#c07a4a" fontSize="9" textAnchor="middle">calc-alkaline ↑ / tholeiitic ↓</text>}
+      {diagram.dividers && <text x={cx} y={bottom - 30} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">calc-alkaline ↑ / tholeiitic ↓</text>}
     </svg>
   );
 }
@@ -221,7 +222,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       {yticks.map((t, i) => (
         <g key={`y${i}`}>
           <line x1={PAD} y1={sy(t)} x2={W - PAD} y2={sy(t)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize="9.5" textAnchor="end">{fmtTick(t)}</text>
+          <text x={PAD - 8} y={sy(t) + 3} fill="#65717e" fontSize={fontSizes.xs} textAnchor="end">{fmtTick(t)}</text>
         </g>
       ))}
       {/* normalized value of 1 = same as the reference (chondrite/primitive mantle) */}
@@ -230,7 +231,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       {order.map((sym, i) => (
         <g key={sym}>
           <line x1={sx(i)} y1={PAD} x2={sx(i)} y2={H - PAD} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={sx(i)} y={H - PAD + 16} fill="#65717e" fontSize="9.5" textAnchor="middle">{sym}</text>
+          <text x={sx(i)} y={H - PAD + 16} fill="#65717e" fontSize={fontSizes.xs} textAnchor="middle">{sym}</text>
         </g>
       ))}
 
@@ -241,7 +242,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">Element (chondrite/primitive-mantle order)</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>Sample / normalizing value</text>
       {hiddenCount > 0 && (
-        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize="9.5" textAnchor="end">+{hiddenCount} more samples not drawn (showing most recent {MAX_LINES})</text>
+        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">+{hiddenCount} more samples not drawn (showing most recent {MAX_LINES})</text>
       )}
     </svg>
   );
