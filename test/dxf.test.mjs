@@ -142,3 +142,22 @@ test("#483 solid normals from the worker equal three.js computeVertexNormals aft
   for (let i = 0; i < n * 3; i += 3) worst = Math.max(worst, Math.abs(ref[i] - wn[i]), Math.abs(ref[i + 1] - wn[i + 2]), Math.abs(ref[i + 2] + wn[i + 1]));
   assert.ok(worst < 1e-4, `worst ${worst}`);
 });
+
+import { sceneVertsToWorld, sceneVertsToWorldFlat } from "../src/lib/meshExport.js";
+test("#491 sceneVertsToWorldFlat gives exactly sceneVertsToWorld's numbers, flattened (indexed Uint16/Uint32 and non-indexed)", () => {
+  const o = { x: 460123.4, y: 6261234.5, z: 812.25 }, r2 = (v) => Math.round(v * 100) / 100;
+  const mk = (n, index) => {
+    const g = new THREE.BufferGeometry(), p = new Float32Array(n * 3);
+    for (let i = 0; i < p.length; i++) p[i] = Math.sin(i * 1.7) * 900 + i * 0.013;
+    g.setAttribute("position", new THREE.BufferAttribute(p, 3));
+    if (index) g.setIndex(index);
+    return g;
+  };
+  for (const g of [mk(300, Array.from({ length: 900 }, (_, i) => (i * 7) % 300)), mk(70000, Array.from({ length: 210000 }, (_, i) => (i * 13) % 70000)), mk(99, null)]) {
+    const ref = sceneVertsToWorld(g, o), flat = sceneVertsToWorldFlat(g, o, r2), raw = sceneVertsToWorldFlat(g, o);
+    assert.deepEqual(flat.vertices, ref.vertices.flatMap((v) => v.map(r2)));
+    assert.deepEqual(raw.vertices, ref.vertices.flat());
+    assert.deepEqual(flat.indices, ref.indices);
+    assert.ok(Array.isArray(flat.indices) && Array.isArray(flat.vertices));
+  }
+});

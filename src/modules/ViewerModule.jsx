@@ -88,7 +88,7 @@ import {
   isOverturnedValue, // TASKS.csv #430
 } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
-import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } from "../lib/meshExport.js";
+import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat } from "../lib/meshExport.js";
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
@@ -4907,7 +4907,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${stamp}_imported${layered ? `_${k}` : ""}`;
         implicitMeshesRef.current[id] = mesh;
-        box.expandByObject(mesh);
+        // #491 — was box.expandByObject(mesh), which walks every vertex through the world matrix (~50 ms per
+        // 250k vertices). The typed-array bounding box moved by the world matrix is the same box here: the
+        // parents only translate and scale (vertical exaggeration).
+        geo.computeBoundingBox();
+        mesh.updateWorldMatrix(true, false);
+        box.union(geo.boundingBox.clone().applyMatrix4(mesh.matrixWorld));
         return {
           id, name: `${name} (imported)`, visible: true,
           vertexCount: nVerts, faceCount: nTris,
@@ -6031,13 +6036,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const geo = mesh?.geometry;
       let cached = surfaceGeomCacheRef.current[s.id];
       if (geo && (!cached || cached.uuid !== geo.uuid)) {
-        const { vertices, indices } = sceneVertsToWorld(geo, o);
-        const flat = new Array(vertices.length * 3);
-        for (let i = 0; i < vertices.length; i++) {
-          flat[i * 3] = r2(vertices[i][0]);
-          flat[i * 3 + 1] = r2(vertices[i][1]);
-          flat[i * 3 + 2] = r2(vertices[i][2]);
-        }
+        // #491 — the flat typed-array walk: same numbers as sceneVertsToWorld + the 1 cm rounding, without a
+        // [x, y, z] array per vertex (a 1M-face import spent ~260 ms here on the UI thread).
+        const { vertices: flat, indices } = sceneVertsToWorldFlat(geo, o, r2);
         cached = { uuid: geo.uuid, vertices: flat, indices };
         surfaceGeomCacheRef.current[s.id] = cached;
       }
