@@ -137,3 +137,24 @@ export function solidBounds(parts) {
   if (mn[0] === Infinity) return null;
   return { min: { x: mn[0], y: mn[1], z: mn[2] }, max: { x: mx[0], y: mx[1], z: mx[2] } };
 }
+
+// TASKS.csv #483 — per-vertex normals of a part, in WORLD axes, computed in the solid worker so the UI thread
+// no longer spends ~400 ms in three.js computeVertexNormals after a 1M-face import. Same maths as three.js:
+// each triangle adds its area-weighted normal (cb x ab) to its three vertices, then every sum is normalised
+// (a vertex no triangle touches keeps a zero normal, as there). The caller maps them to scene axes.
+export function solidNormals(positions, indices) {
+  const acc = new Float64Array(positions.length);
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
+    const cbx = positions[c] - positions[b], cby = positions[c + 1] - positions[b + 1], cbz = positions[c + 2] - positions[b + 2];
+    const abx = positions[a] - positions[b], aby = positions[a + 1] - positions[b + 1], abz = positions[a + 2] - positions[b + 2];
+    const nx = cby * abz - cbz * aby, ny = cbz * abx - cbx * abz, nz = cbx * aby - cby * abx;
+    for (const v of [a, b, c]) { acc[v] += nx; acc[v + 1] += ny; acc[v + 2] += nz; }
+  }
+  const out = new Float32Array(positions.length);
+  for (let i = 0; i < acc.length; i += 3) {
+    const len = Math.hypot(acc[i], acc[i + 1], acc[i + 2]);
+    if (len > 0) { out[i] = acc[i] / len; out[i + 1] = acc[i + 1] / len; out[i + 2] = acc[i + 2] / len; }
+  }
+  return out;
+}

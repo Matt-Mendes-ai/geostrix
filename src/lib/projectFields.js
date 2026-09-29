@@ -13,6 +13,7 @@
 //   load(data)     optional: read the value from a payload (default: data[key] || empty())
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
+import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
@@ -133,7 +134,8 @@ export const FIELDS = [
   { key: "plannedHoles", track: "undo", empty: list }, // TASKS.csv #188
   { key: "surfaceSamples", track: "undo", empty: list }, // TASKS.csv #228
   { key: "surfaceElements", track: "undo", empty: list },
-  { key: "generatedSurfaces", track: "dirty", empty: list }, // TASKS.csv #52
+  { key: "generatedSurfaces", track: "dirty", empty: list, // TASKS.csv #52
+    save: compactSurfaces, load: (data) => expandSurfaces(data.generatedSurfaces || []) }, // #483 — large meshes stored compact
   { key: "modelDomains", track: "dirty", empty: list },
 ];
 

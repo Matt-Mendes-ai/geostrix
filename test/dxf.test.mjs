@@ -119,3 +119,26 @@ test("#414 parseSolidFileStream (File) = parseSolidFile (text); bounds over all 
   assert.deepEqual(solidBounds(a.parts), { min: { x: 0, y: 0, z: 0 }, max: { x: 201, y: 110, z: 105 } });
   await assert.rejects(parseSolidFileStream(new File(["x"], "pit.stl")), /Unsupported solid format/);
 });
+
+import * as THREE from "three";
+import { solidNormals } from "../src/lib/solidImport.js";
+test("#483 solid normals from the worker equal three.js computeVertexNormals after the world->scene rotation", () => {
+  // a UTM-placed, stretched torus: an INDEXED mesh, so each vertex sums the normals of the faces sharing it
+  const g = new THREE.TorusGeometry(120, 40, 24, 48);
+  const pos = g.getAttribute("position").array;
+  const n = pos.length / 3, world = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) { world[i * 3] = pos[i * 3] + 460000; world[i * 3 + 1] = pos[i * 3 + 1] * 0.7 + 6260000; world[i * 3 + 2] = pos[i * 3 + 2] + 900; }
+  const indices = Uint32Array.from(g.getIndex().array);
+  const wn = solidNormals(world, indices);
+  const o = { x: 460050, y: 6260020, z: 880 };
+  const scene = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i += 3) { scene[i] = world[i] - o.x; scene[i + 1] = world[i + 2] - o.z; scene[i + 2] = o.y - world[i + 1]; }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+  geo.setIndex(new THREE.BufferAttribute(indices, 1));
+  geo.computeVertexNormals();
+  const ref = geo.getAttribute("normal").array;
+  let worst = 0;
+  for (let i = 0; i < n * 3; i += 3) worst = Math.max(worst, Math.abs(ref[i] - wn[i]), Math.abs(ref[i + 1] - wn[i + 2]), Math.abs(ref[i + 2] + wn[i + 1]));
+  assert.ok(worst < 1e-4, `worst ${worst}`);
+});

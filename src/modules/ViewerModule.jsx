@@ -4869,7 +4869,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const solid = await parseSolidInWorker(file, (read, total) => setTaskProgress((cur) => (cur && cur.label === progLabel ? { ...cur, pct: Math.round((read / Math.max(1, total)) * 100) } : cur)));
       clearProgress();
       const layered = solid.parts.length > 1;
-      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(`"${file.name}" has ${solid.triangleCount.toLocaleString()} triangles${layered ? ` in ${solid.parts.length} layers` : ""}. That can make the 3D view slow to move on a modest computer, and it adds about ${Math.round((solid.vertexCount * 3 * 12 + solid.triangleCount * 3 * 7) / 1e6)} MB to the saved project. Import it anyway?`)) {
+      // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
+      // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
+      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(`"${file.name}" has ${solid.triangleCount.toLocaleString()} triangles${layered ? ` in ${solid.parts.length} layers` : ""}. That can make the 3D view slow to move on a modest computer, and it adds up to about ${Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6)} MB to the saved project. Import it anyway?`)) {
         setNotices((p) => [...p, `${file.name}: import cancelled (${solid.triangleCount.toLocaleString()} triangles).`]);
         return;
       }
@@ -4886,7 +4888,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
         geo.setIndex(new THREE.BufferAttribute(part.indices, 1));
-        geo.computeVertexNormals();
+        // #483 — normals come from the worker in world axes; scene = (x, elevation, -north), a rotation, so
+        // the same component swap applies. (The main-thread fallback parser has none: compute them here.)
+        if (part.normals?.length === w.length) {
+          const wn = part.normals, sn = new Float32Array(wn.length);
+          for (let i = 0; i < wn.length; i += 3) { sn[i] = wn[i]; sn[i + 1] = wn[i + 2]; sn[i + 2] = -wn[i + 1]; }
+          geo.setAttribute("normal", new THREE.BufferAttribute(sn, 3));
+        } else geo.computeVertexNormals();
         // Translucent grey-blue family, visually distinct from the gold/coloured generated surfaces — an
         // imported reference shape should not look like something this app modelled. Layers get neighbouring
         // tones so a pit shell and its stopes can be told apart (the #52 sync-out saves the material colour).
