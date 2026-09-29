@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Keyboard, Info } from "lucide-react";
+import { X, Keyboard, Info, Cpu } from "lucide-react";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -76,7 +76,42 @@ const SHORTCUT_GROUPS = [
   },
 ];
 
-export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
+// TASKS.csv #391 — what the optional Python engine does, in the app. The status bar's "Py" tooltip used to
+// point at python-sidecar/README.md, which the installer doesn't ship, and only on hover.
+const PY_STATUS_TEXT = {
+  connected: "Running.",
+  standby: "Idle — it starts by itself the first time one of the features below needs it.",
+  checking: "Checking…",
+  unavailable: "Not available right now.",
+};
+function PythonHelp({ pyStatus }) {
+  const p = { margin: "0 0 10px" };
+  return (
+    <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6, overflowY: "auto" }}>
+      <p style={p}>GeoStrix has a built-in Python engine for its heaviest calculations. It is installed with the app,
+        runs only on this computer, and starts the first time a feature needs it (the first start can take up to a
+        minute on a slow machine).</p>
+      <p style={p}><b style={{ color: "var(--color-text)" }}>Status:</b> {PY_STATUS_TEXT[pyStatus] || PY_STATUS_TEXT.unavailable}</p>
+      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>Features that use it</div>
+      <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
+        <li>Implicit geological modelling (GemPy) — 3D Modeling tab</li>
+        <li>Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion</li>
+        <li>2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP</li>
+      </ul>
+      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, rasters,
+        Cartography — works without it.</p>
+      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>If it doesn't start</div>
+      <ol style={{ margin: 0, paddingLeft: 18 }}>
+        <li>Try the feature again after a minute — the first start unpacks its libraries.</li>
+        <li>Check your antivirus: some (Bitdefender, for one) block or quarantine <code>geostrix-sidecar.exe</code> in
+          the GeoStrix install folder, or its connection to this computer. Restore it / allow it, then restart GeoStrix.</li>
+        <li>Reinstall GeoStrix with the latest installer from the GitHub releases page.</li>
+      </ol>
+    </div>
+  );
+}
+
+export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pyStatus }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [tab, setTab] = useState(initialTab);
@@ -86,12 +121,13 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose }) {
         <div style={header}>
           <div style={{ display: "flex", gap: 4 }}>
             <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={14} />} label="Shortcuts" />
+            <TabBtn active={tab === "python"} onClick={() => setTab("python")} icon={<Cpu size={14} />} label="Python features" />
             <TabBtn active={tab === "about"} onClick={() => setTab("about")} icon={<Info size={14} />} label="About" />
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
-        {tab === "shortcuts" ? (
+        {tab === "python" ? <PythonHelp pyStatus={pyStatus} /> : tab === "shortcuts" ? (
           <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
               Most of GeoStrix is a point-and-click tool by design — this is the small, real set of

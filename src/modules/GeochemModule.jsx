@@ -6,7 +6,7 @@ import Papa from "papaparse";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
-import { saveFile } from "../lib/desktop.js";
+import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
   isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
@@ -85,6 +85,20 @@ export default function GeochemModule() {
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
+  // TASKS.csv #391 — the Harry property sample's assays (the same shipped file the 3D View's "Load sample
+  // project" notice points to), through the normal assay import so every check and notice is the usual one.
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const loadSampleAssays = async () => {
+    setSampleLoading(true);
+    try {
+      const [file] = await loadSampleFiles("harry_property", ["assay_wide.csv"]);
+      handleFile(file, false);
+    } catch (err) {
+      setNotices((p) => [...p, `Couldn't load the sample assays: ${err.message}`]);
+    } finally {
+      setSampleLoading(false);
+    }
+  };
   const handleFile = (file, isPxrf) => {
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
@@ -541,7 +555,13 @@ export default function GeochemModule() {
               onAction={() => fileRef.current.click()}
               actionTitle="Pick an assay CSV — a hole ID, from/to depths, and one column per element"
               secondary={
-                <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title="Import a pXRF export instead">Import pXRF…</button>
+                <>
+                  <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title="Import a pXRF export instead">Import pXRF…</button>
+                  {/* TASKS.csv #391 — the empty Geochem tab offered imports only; the sample assays ship with the app */}
+                  <button onClick={loadSampleAssays} disabled={sampleLoading} style={emptyStateSecondaryBtn} title="The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)">
+                    {sampleLoading ? "Loading sample…" : "Load sample assays"}
+                  </button>
+                </>
               }
               footnote="An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically."
             >

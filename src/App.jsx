@@ -83,7 +83,7 @@ export default function App() {
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
   const [recoveryNote, setRecoveryNote] = useState(null); // TASKS.csv #465 — where the recovered work went
-  const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "about"
+  const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
   // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
   // status bar (below) — "checking"/"not-available" stay silent, since a routine background check
@@ -424,8 +424,8 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar onEpsg={() => setActive("cartography")} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} />
-      {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} onClose={() => setShortcutsTab(null)} /></Suspense>}
+      <StatusBar onEpsg={() => setActive("cartography")} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {reportOpen && (
         <Suspense fallback={null}>
           <ProjectReportModal store={store} onClose={() => setReportOpen(false)} />
@@ -478,7 +478,7 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
   );
 }
 
-function StatusBar({ onEpsg, pyStatus, updater, onHelp }) {
+function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
   const { project, collars, desurveyMethod, setDesurveyMethod } = useStore();
   // TASKS.csv #226/#214 — cursor and taskProgress both live in their own tiny contexts now (see
   // store.jsx's own comments on CursorProvider/TaskProgressProvider), not the big shared store,
@@ -489,7 +489,9 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp }) {
   const taskProgress = useTaskProgressValue();
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";
-  const pyLabel = pyStatus === "connected" ? "Python: connected" : pyStatus === "checking" ? "Python: checking…" : pyStatus === "standby" ? "Python: standby — starts when a feature needs it (implicit modelling, interpolation, magnetics/gravity)" : "Python: not available (optional — see python-sidecar/README.md)";
+  // #391 — interpolation no longer uses Python (#406); the README the old text pointed at isn't installed
+  const pyLabel = (pyStatus === "connected" ? "Python engine: running" : pyStatus === "checking" ? "Python engine: checking…" : pyStatus === "standby" ? "Python engine: idle — starts when implicit modelling or a geophysics inversion needs it" : "Python engine: not available")
+    + " — click for what it does and what to do if it won't start";
   const pct = taskProgress ? Math.max(0, Math.min(100, Math.round(taskProgress.pct ?? 0))) : 0;
   return (
     <div className="ge-status">
@@ -518,10 +520,12 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp }) {
       >
         <span aria-hidden="true" style={{ border: "1px solid var(--color-border-light)", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", textAlign: "center", fontSize: "var(--font-size-sm)" }}>?</span>
       </button>
-      <span title={pyLabel} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
+      {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
+      <button type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
+        style={{ background: "none", border: "none", color: "inherit", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
         Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : pyStatus === "standby" ? "idle" : "off"}
-      </span>
+      </button>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
           {/* TASKS.csv #321 — `indeterminate` stages (loading, building sensitivities) have no real fraction
