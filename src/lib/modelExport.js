@@ -12,6 +12,7 @@
 import { writeArrayBuffer } from "geotiff";
 import { buildZip } from "./shapefile.js";
 import { b64ToF32 } from "./inversion.js";
+import { arrMin, arrMax } from "./arrayStats.js";
 
 export const UBC_NODATA = -99999;
 const key = (v) => Math.round(v * 1000); // mm keys: cell centres from float32 storage are not bit-identical
@@ -109,7 +110,9 @@ export function provenanceText(model, t, files, epsg, notes) {
     `Model: ${model.name}`,
     `Source: ${model.source || "import"}${model.property ? ` | property: ${model.property}` : ""}`,
     `CRS: EPSG:${epsg} (all coordinates, all files)`,
-    `Grid: ${t.nx} x ${t.ny} x ${t.nz} cells, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`,
+    t.adaptive // TASKS.csv #324 — an octree model has no single grid
+      ? `Mesh: adaptive (octree), ${t.n} cells of ${t.sizes.join(" / ")} m, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`
+      : `Grid: ${t.nx} x ${t.ny} x ${t.nz} cells, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`,
     `Cells with no value (air above the terrain, outside the model) = ${UBC_NODATA} in every file.`,
     "",
     "Files:",
@@ -135,16 +138,29 @@ export function uint8ToBase64(bytes) {
 // TASKS.csv #411 — async since it now also writes the model as OMF v1 (CompressionStream).
 export async function buildModelExportZip(model, epsg) {
   const cells = model.cells || [];
-  const t = tensorFromCells(cells);
-  if (t.error) return { error: t.error };
+  let t = tensorFromCells(cells);
+  // TASKS.csv #324 — an adaptive (octree) inversion has cells of several sizes, so no single grid: UBC tensor,
+  // OMF v1 volume and depth slices can't hold it. It still exports — as a cell list plus the data and the
+  // provenance — instead of refusing the whole package.
+  const adaptive = !!t.error && cells.length > 0 && new Set(cells.map((c) => c.dx)).size > 1;
+  if (t.error && !adaptive) return { error: t.error };
   const base = String(model.name || "model").replace(/[^\w\-]+/g, "_").replace(/_+/g, "_").slice(0, 60) || "model";
   const files = [];
   const enc = (s) => new TextEncoder().encode(s);
-  files.push({ name: `${base}.msh`, data: enc(ubcMeshText(t)) });
-  files.push({ name: `${base}.mod`, data: enc(ubcModelText(cells, t, "value")) });
-  if (cells.some((c) => Number.isFinite(c.support))) files.push({ name: `${base}_support.mod`, data: enc(ubcModelText(cells, t, "support")) });
   const warnings = [];
   const notes = [];
+  if (adaptive) {
+    const ext = (k, w) => ({ min: arrMin(cells.map((c) => c[k] - c[w] / 2)), max: arrMax(cells.map((c) => c[k] + c[w] / 2)) }); // #371: no spread over 10^5 cells
+    t = { adaptive: true, n: cells.length, sizes: [...new Set(cells.map((c) => c.dx))].sort((a, b) => a - b), x: ext("x", "dx"), y: ext("y", "dy"), z: ext("z", "dz") };
+    const hasSupport = cells.some((c) => Number.isFinite(c.support));
+    const rows = cells.map((c) => [c.x, c.y, c.z, c.dx, c.dy, c.dz, Number.isFinite(c.value) ? c.value : "", ...(hasSupport ? [Number.isFinite(c.support) ? c.support : ""] : [])].join(","));
+    files.push({ name: `${base}_cells.csv`, data: enc([`x,y,z,dx,dy,dz,value${hasSupport ? ",support" : ""}`, ...rows].join("\n") + "\n") });
+    notes.push(`Cells (.csv): one row per cell — centre x, y, z (elevation) and size dx, dy, dz in metres, value${hasSupport ? " and data support" : ""}. The mesh is adaptive (octree: cells of ${t.sizes.join(" / ")} m), so there are no UBC .msh/.mod, OMF or depth-slice files: those formats need one regular grid. Re-run the inversion with the uniform mesh if you need them.`);
+  } else {
+    files.push({ name: `${base}.msh`, data: enc(ubcMeshText(t)) });
+    files.push({ name: `${base}.mod`, data: enc(ubcModelText(cells, t, "value")) });
+    if (cells.some((c) => Number.isFinite(c.support))) files.push({ name: `${base}_support.mod`, data: enc(ubcModelText(cells, t, "support")) });
+  }
   const d = decodeStationData(model.stationData);
   const f = model.params?.inducingField;
   if (d && model.method) {
@@ -157,13 +173,13 @@ export async function buildModelExportZip(model, epsg) {
   } else if (model.source === "simpeg") warnings.push("No .obs files: this model was made before GeoStrix kept its station data (re-run the inversion to get them).");
   // #411 — the same model as OMF v1 (one file Leapfrog / Datamine / Vulcan / Micromine open directly)
   const { writeOMF, volumeElementFromModel } = await import("./omfWriter.js");
-  const ve = volumeElementFromModel(model);
+  const ve = adaptive ? { error: "adaptive mesh" } : volumeElementFromModel(model);
   if (!ve.error) {
     files.push({ name: `${base}.omf`, data: await writeOMF({ name: model.name, description: `GeoStrix block model, EPSG:${epsg}`, elements: [ve.element] }) });
     notes.push("OMF (.omf): the same grid as one OMF v1 VolumeElement (value" + (ve.element.data.length > 1 ? " and support" : "") + " per cell; empty cells NaN) — opens in Leapfrog, Datamine, Vulcan, Micromine and Geosoft.");
   }
-  const slices = depthSliceTiffs(cells, t, epsg);
-  if (slices.error) warnings.push(`No depth slices: ${slices.error}`);
+  const slices = adaptive ? null : depthSliceTiffs(cells, t, epsg);
+  if (!slices) { /* #324: explained in the cells note */ } else if (slices.error) warnings.push(`No depth slices: ${slices.error}`);
   else {
     slices.files.forEach((s) => files.push({ name: `depth_slices/${base}_${s.name}`, data: s.data }));
     notes.push(`Depth slices: one float32 GeoTIFF per model level (${slices.files.length}), named by the level's centre elevation (m; "m" prefix = below 0); pixel ${slices.pixel[0]} x ${slices.pixel[1]} m, same values as the .mod file.`);

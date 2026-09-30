@@ -4,7 +4,9 @@ Scope decided by the #321 specialist panel (geophysicist, exploration geologist,
 GIS, structural, database, performance, security, software design, UX, visual design):
   * potential fields only (mag TMI scalar susceptibility, gravity gz density contrast) — no DC/IP/EM/MT,
     no MVI, no sparse/IRLS, no joint inversion in v1;
-  * TENSOR mesh (maps 1:1 onto GeoStrix's existing UBC tensor voxel path; OcTree is not displayable yet);
+  * TENSOR mesh by default (maps 1:1 onto GeoStrix's existing UBC tensor voxel path); TASKS.csv #324 adds an
+    OCTREE option for inversions (fine cells near the surface under the survey, coarser with depth), which
+    needs ~6x fewer active cells and so ~6x less sensitivity RAM for the same core cell;
   * integral-equation simulation with the choclo engine; the dense sensitivity matrix is float32
     (SimPEG 0.25.2's default sensitivity_dtype, checked in potential_fields/base.py) and its size is
     checked by `plan()` BEFORE anything is allocated;
@@ -88,6 +90,57 @@ def build_mesh(spec):
                       origin=[spec["x0"], spec["y0"], spec["z0"]])
 
 
+# TASKS.csv #324 — adaptive (octree) mesh for inversions. Same core box and total padding width as the tensor
+# mesh above (mesh_spec), but only the top of the model under the survey uses the core cell: `fine` layers of
+# it below the terrain, then `fine2` layers of 2x, and nothing coarser than `max_factor` x the core cell
+# anywhere in the core volume down to `depth`; the padding coarsens freely (octree 2:1 balance). Measured on
+# a 900-station TMI survey (25 m cells, 500 m depth): 24,892 active cells vs 147,852 for the tensor mesh,
+# sensitivity 90 MB vs 532 MB, and the same recovery of a buried block (moment centre 76 vs 69 m off, 39 vs
+# 40% of the core moment within 150 m of it) — the cost is coarser cells at depth, where the data resolve
+# little anyway. Only the terrain inside the survey footprint drives the fine layer.
+OCTREE_DEFAULTS = {"fine": 4, "fine2": 4, "maxFactor": 4}
+
+
+def octree_mesh(stations, topo_xyz, core_cell, depth, pad_cells=6, pad_factor=1.3, margin_cells=2, fine=4, fine2=4, max_factor=4):
+    from discretize import TreeMesh
+    c = float(core_cell)
+    spec = mesh_spec(stations, c, depth, pad_cells, pad_factor, margin_cells, top_z=topo_xyz[:, 2].max())
+    core = spec["core"]
+    pad = sum(_pad_widths(c, pad_cells, pad_factor))
+    x_lo, x_hi = core["x"][0] - pad, core["x"][1] + pad
+    y_lo, y_hi = core["y"][0] - pad, core["y"][1] + pad
+    z_lo, z_top = core["z"][0] - pad, core["z"][1]
+    pow2 = lambda L: 2 ** int(math.ceil(math.log2(max(2.0, L / c))))
+    nx, ny, nz = pow2(x_hi - x_lo), pow2(y_hi - y_lo), pow2(z_top - z_lo)
+    origin = [(x_lo + x_hi) / 2 - nx * c / 2, (y_lo + y_hi) / 2 - ny * c / 2, z_top - nz * c]  # top stays on the terrain grid
+    mesh = TreeMesh([[(c, nx)], [(c, ny)], [(c, nz)]], origin=origin, diagonal_balance=True)
+    inb = ((topo_xyz[:, 0] >= core["x"][0]) & (topo_xyz[:, 0] <= core["x"][1])
+           & (topo_xyz[:, 1] >= core["y"][0]) & (topo_xyz[:, 1] <= core["y"][1]))
+    surf = topo_xyz[inb] if inb.sum() >= 3 else topo_xyz
+    mesh.refine_surface(surf, padding_cells_by_level=[[0, 0, int(fine)], [0, 0, int(fine2)]], finalize=False)
+    level = mesh.max_level - int(round(math.log2(max(1, int(max_factor)))))
+    mesh.refine_box(np.array([[core["x"][0], core["y"][0], core["z"][0]]]), np.array([[core["x"][1], core["y"][1], core["z"][1]]]),
+                    [level], finalize=False)
+    mesh.finalize()
+    spec = dict(spec, type="octree", nCells=int(mesh.n_cells), base=[nx, ny, nz],
+                cellSizes=sorted({float(round(h, 3)) for h in np.unique(mesh.h_gridded[:, 0])}))
+    return mesh, spec
+
+
+def _mesh_type(req):
+    t = ((req.get("mesh") or {}).get("type") or "tensor").lower()
+    if t not in ("tensor", "octree"):
+        raise ValueError(f"Unknown mesh type '{t}' (tensor or octree).")
+    return t if req.get("kind", "inversion") == "inversion" else "tensor"  # the forward tool stays on the tensor mesh
+
+
+def _octree_from_req(req, st, topo):
+    m = req["mesh"]
+    o = {**OCTREE_DEFAULTS, **(m.get("octree") or {})}
+    return octree_mesh(st, topo, m["coreCell"], m["depth"], m.get("padCells", 6), m.get("padFactor", 1.3), m.get("marginCells", 2),
+                       fine=o["fine"], fine2=o["fine2"], max_factor=o["maxFactor"])
+
+
 def active_cells(mesh, topo_xyz):
     """Cells below the terrain. topo_xyz: (N,3) local coordinates of the terrain grid nodes."""
     from discretize.utils import active_from_xyz
@@ -126,6 +179,14 @@ def plan(req, ram_cap_bytes):
     n_active = estimate_active_fraction(spec, topo)
     n_data = len(stations)
     kind = req.get("kind", "inversion")
+    mesh_type = _mesh_type(req)
+    tensor_active = n_active
+    octree_info = None
+    if mesh_type == "octree" and topo is not None and len(topo) and len(stations):
+        # #324 — an octree can't be sized by formula; building it (no simulation) takes well under a second
+        omesh, ospec = _octree_from_req(req, st, topo)
+        n_active = int(active_cells(omesh, topo).sum())
+        octree_info = {"nCells": ospec["nCells"], "cellSizes": ospec["cellSizes"], "tensorActiveEst": tensor_active}
     sens = n_data * n_active * SENS_BYTES if kind == "inversion" else 0
     reasons = []
     clearance_stats = None
@@ -158,7 +219,8 @@ def plan(req, ram_cap_bytes):
     # building the matrix ~10 s per GB. Reported so the user sees the cost before committing to it.
     peak = int(1.25 * sens + 0.4e9) if kind == "inversion" else int(0.4e9)
     return {"peakRamEstimateBytes": peak, "buildSecondsEstimate": round(10 * sens / 1e9, 1),
-            "nData": n_data, "nCells": spec["nCells"], "nActiveEst": n_active, "meshShape": spec["n"],
+            "nData": n_data, "nCells": octree_info["nCells"] if octree_info else spec["nCells"], "nActiveEst": n_active, "meshShape": spec["n"],
+            "meshType": mesh_type, "octree": octree_info,
             "coreCell": req["mesh"]["coreCell"], "sensitivityBytes": sens, "ramCapBytes": ram_cap_bytes,
             "localOrigin": local.tolist(), "core": spec["core"], "ok": not reasons, "reasons": reasons,
             "clearance": clearance_stats}
@@ -296,16 +358,24 @@ def drillhole_constraints(mesh, actv, points_local, tolerance, lower, upper):
     n_act = int(actv.sum())
     act_index = np.full(mesh.n_cells, -1, dtype=np.int64)
     act_index[np.flatnonzero(actv)] = np.arange(n_act)
-    nodes = [mesh.nodes_x, mesh.nodes_y, mesh.nodes_z]
     pts = np.asarray(points_local, dtype=float)
-    inside = np.ones(len(pts), dtype=bool)
-    ijk = []
-    for a in range(3):
-        n = nodes[a]
-        inside &= (pts[:, a] >= n[0]) & (pts[:, a] <= n[-1])
-        ijk.append(np.clip(np.searchsorted(n, pts[:, a], side="right") - 1, 0, len(n) - 2))
-    shape = (len(mesh.h[0]), len(mesh.h[1]), len(mesh.h[2]))
-    cell = np.ravel_multi_index((ijk[0], ijk[1], ijk[2]), shape, order="F")
+    if hasattr(mesh, "get_containing_cells"):  # #324 — octree: ask the tree which cell holds each point
+        lo_b = np.asarray(mesh.origin, dtype=float)
+        hi_b = lo_b + np.array([mesh.h[a].sum() for a in range(3)])
+        inside = np.all((pts[:, :3] >= lo_b) & (pts[:, :3] <= hi_b), axis=1)
+        cell = np.zeros(len(pts), dtype=np.int64)
+        if inside.any():
+            cell[inside] = np.asarray(mesh.get_containing_cells(pts[inside, :3]), dtype=np.int64)
+    else:
+        nodes = [mesh.nodes_x, mesh.nodes_y, mesh.nodes_z]
+        inside = np.ones(len(pts), dtype=bool)
+        ijk = []
+        for a in range(3):
+            n = nodes[a]
+            inside &= (pts[:, a] >= n[0]) & (pts[:, a] <= n[-1])
+            ijk.append(np.clip(np.searchsorted(n, pts[:, a], side="right") - 1, 0, len(n) - 2))
+        shape = (len(mesh.h[0]), len(mesh.h[1]), len(mesh.h[2]))
+        cell = np.ravel_multi_index((ijk[0], ijk[1], ijk[2]), shape, order="F")
     a_idx = np.where(inside, act_index[cell], -1)
     used = a_idx >= 0
     lo = np.full(n_act, lower, dtype=float)
@@ -351,13 +421,20 @@ def run_job(req, progress, ram_cap_bytes):
     local = np.asarray(p["localOrigin"])
     st = stations - local
     topo = _topo_local(req, local)
-    spec = mesh_spec(st, req["mesh"]["coreCell"], req["mesh"]["depth"], req["mesh"].get("padCells", 6),
-                     req["mesh"].get("padFactor", 1.3), req["mesh"].get("marginCells", 2),
-                     top_z=topo[:, 2].max() if topo is not None else None)
-    mesh = build_mesh(spec)
+    mesh_type = _mesh_type(req)
+    if mesh_type == "octree":  # #324 (inversions only; plan() already required a terrain)
+        mesh, spec = _octree_from_req(req, st, topo)
+    else:
+        spec = mesh_spec(st, req["mesh"]["coreCell"], req["mesh"]["depth"], req["mesh"].get("padCells", 6),
+                         req["mesh"].get("padFactor", 1.3), req["mesh"].get("marginCells", 2),
+                         top_z=topo[:, 2].max() if topo is not None else None)
+        mesh = build_mesh(spec)
     actv = active_cells(mesh, topo) if topo is not None else np.ones(mesh.n_cells, dtype=bool)
     n_act = int(actv.sum())
-    progress({"stage": "mesh", "message": f"Mesh {spec['n'][0]}x{spec['n'][1]}x{spec['n'][2]}, {n_act} active cells"})
+    if mesh_type == "octree":
+        progress({"stage": "mesh", "message": f"Octree mesh, {spec['nCells']} cells ({', '.join(f'{h:g}' for h in spec['cellSizes'])} m), {n_act} active"})
+    else:
+        progress({"stage": "mesh", "message": f"Mesh {spec['n'][0]}x{spec['n'][1]}x{spec['n'][2]}, {n_act} active cells"})
     field = req.get("field") or {}
     versions = {"simpeg": simpeg.__version__, "discretize": discretize.__version__}
 
@@ -496,20 +573,31 @@ def run_job(req, progress, ram_cap_bytes):
     sens = np.sqrt(np.einsum("ij,ij->j", G, G, dtype=np.float64)).ravel()
     sens = sens / sens.max() if sens.max() > 0 else sens
     # Only core, active cells go back to the renderer — padding and air are never displayed.
-    ix0, ix1 = spec["core"]["ix"]
-    iy0, iy1 = spec["core"]["iy"]
-    iz0, iz1 = spec["core"]["iz"]
-    nx, ny, nz = spec["n"]
-    ii, jj, kk = np.unravel_index(np.arange(mesh.n_cells), (nx, ny, nz), order="F")
-    core_mask = (ii >= ix0) & (ii < ix1) & (jj >= iy0) & (jj < iy1) & (kk >= iz0) & (kk < iz1)
+    if mesh_type == "octree":
+        # #324 — the core box by cell CENTRE (octree cells don't line up with index ranges); each cell keeps
+        # its own size, which the voxel renderer already draws per instance
+        core = spec["core"]
+        ccl = mesh.cell_centers
+        core_mask = ((ccl[:, 0] >= core["x"][0]) & (ccl[:, 0] <= core["x"][1]) & (ccl[:, 1] >= core["y"][0])
+                     & (ccl[:, 1] <= core["y"][1]) & (ccl[:, 2] >= core["z"][0]) & (ccl[:, 2] <= core["z"][1]))
+    else:
+        ix0, ix1 = spec["core"]["ix"]
+        iy0, iy1 = spec["core"]["iy"]
+        iz0, iz1 = spec["core"]["iz"]
+        nx, ny, nz = spec["n"]
+        ii, jj, kk = np.unravel_index(np.arange(mesh.n_cells), (nx, ny, nz), order="F")
+        core_mask = (ii >= ix0) & (ii < ix1) & (jj >= iy0) & (jj < iy1) & (kk >= iz0) & (kk < iz1)
     full_model = np.full(mesh.n_cells, np.nan)
     full_model[actv] = rec
     full_sens = np.full(mesh.n_cells, np.nan)
     full_sens[actv] = sens
     keep = core_mask & actv
     cc = np.round(mesh.cell_centers[keep] + local, 2)
-    hx, hy, hz = mesh.h
-    sizes = np.round(np.c_[hx[ii[keep]], hy[jj[keep]], hz[kk[keep]]], 3)
+    if mesh_type == "octree":
+        sizes = np.round(mesh.h_gridded[keep], 3)
+    else:
+        hx, hy, hz = mesh.h
+        sizes = np.round(np.c_[hx[ii[keep]], hy[jj[keep]], hz[kk[keep]]], 3)
     # Values rounded through float32 (the precision SimPEG's sensitivities have anyway) — cuts the JSON the
     # renderer has to parse (performance review: ~20-25 MB for 150k cells as full doubles).
     f32 = lambda a: np.asarray(a, dtype=np.float32).astype(float)
@@ -521,7 +609,8 @@ def run_job(req, progress, ram_cap_bytes):
         "predicted": pred.tolist(), "standardDeviation": std.tolist(),
         "phi_d": phi_d, "target": float(len(dobs)), "reachedTarget": phi_d <= 1.05 * len(dobs),
         "iterations": len(history), "maxIter": max_iter, "history": history,
-        "mesh": {"shape": spec["n"], "coreCell": req["mesh"]["coreCell"], "nActive": n_act, "nCoreActive": int(keep.sum()),
+        "mesh": {"type": mesh_type, "shape": spec["n"], "coreCell": req["mesh"]["coreCell"], "nActive": n_act, "nCoreActive": int(keep.sum()),
+                 **({"nCells": spec["nCells"], "cellSizes": spec["cellSizes"], "octree": {**OCTREE_DEFAULTS, **(req["mesh"].get("octree") or {})}} if mesh_type == "octree" else {}),
                  "padCells": req["mesh"].get("padCells", 6), "padFactor": req["mesh"].get("padFactor", 1.3), "depth": req["mesh"]["depth"]},
         "localOrigin": local.tolist(), "versions": versions,
         "seconds": time.time() - t0, "sensitivitySeconds": sens_seconds, "sensitivityBytes": int(G.nbytes),

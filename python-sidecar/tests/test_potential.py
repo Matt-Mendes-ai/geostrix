@@ -309,6 +309,82 @@ def test_inversion_with_drillhole_constraints():
     assert abs(v[body].mean() - 0.05) < abs(vf[body].mean() - 0.05)
 
 
+def test_octree_plan_is_smaller():
+    """TASKS.csv #324 — the octree plan reports its mesh and needs several times fewer active cells."""
+    st = _grid_stations(20, 40.0, 1010.0)
+    topo = _grid_stations(40, 20.0, 1000.0)
+    base = {"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(),
+            "field": {"strength": 56000.0, "inclination": 75.0, "declination": 18.0},
+            "mesh": {"coreCell": 20.0, "depth": 400.0, "padCells": 6}}
+    t = P.plan(base, ram_cap_bytes=int(4e9))
+    o = P.plan(dict(base, mesh=dict(base["mesh"], type="octree")), ram_cap_bytes=int(4e9))
+    print(f"plan: tensor {t['nActiveEst']} active ({t['sensitivityBytes']/1e6:.0f} MB), octree {o['nActiveEst']} active "
+          f"({o['sensitivityBytes']/1e6:.0f} MB), cell sizes {o['octree']['cellSizes']}")
+    assert t["meshType"] == "tensor" and o["meshType"] == "octree" and o["ok"]
+    assert o["octree"]["tensorActiveEst"] == t["nActiveEst"]
+    assert o["nActiveEst"] * 3 < t["nActiveEst"]
+    assert 20.0 in o["octree"]["cellSizes"] and 40.0 in o["octree"]["cellSizes"]
+    # the forward tool ignores the octree option (its plate code needs the tensor grid)
+    assert P.plan(dict(base, kind="forward", mesh=dict(base["mesh"], type="octree")), ram_cap_bytes=int(4e9))["meshType"] == "tensor"
+
+
+def test_octree_inversion_recovers_block():
+    """TASKS.csv #324 — the same buried block as test_inversion_recovers_block, data made on an independent
+    FINE tensor mesh, inverted on the octree: the returned core cells tile the core volume exactly (no gaps,
+    no overlaps), come in several sizes, and the block is found."""
+    rng = np.random.default_rng(3)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    local = P._local_origin(st)
+    tspec = P.mesh_spec(st - local, 12.5, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    tmesh = P.build_mesh(tspec)
+    tact = P.active_cells(tmesh, topo - local)
+    _, sim = P._survey_and_sim("mag", tmesh, tact, st - local, field, "forward_only")
+    cc = tmesh.cell_centers[tact] + local
+    true_centre = np.array([500000.0, 6250000.0, 875.0])
+    block = (np.abs(cc[:, 0] - true_centre[0]) <= 60) & (np.abs(cc[:, 1] - true_centre[1]) <= 60) & (np.abs(cc[:, 2] - true_centre[2]) <= 50)
+    clean = sim.dpred(np.where(block, 0.05, 0.0))
+    std = 1.0 + 0.02 * np.abs(clean)
+    dobs = clean + rng.standard_normal(len(clean)) * std
+    req = {"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+           "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4, "type": "octree"},
+           "observed": dobs.tolist(), "uncertainty": {"floor": 1.0, "percent": 2.0}, "reg": {"maxIter": 20}}
+    out = P.run_job(req, lambda e: None, ram_cap_bytes=int(1.5e9))
+    c = out["cells"]
+    v = np.array(c["value"]); xyz = np.c_[c["x"], c["y"], c["z"]]; d = np.c_[c["dx"], c["dy"], c["dz"]]
+    core = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)["core"]
+    core_vol = (core["x"][1] - core["x"][0]) * (core["y"][1] - core["y"][0]) * (1000.0 - core["z"][0])
+    vol = float(np.prod(d, axis=1).sum())
+    w = np.clip(v, 0, None)
+    top = w >= np.quantile(w, 0.98)
+    err = (xyz[top] * w[top, None]).sum(0) / w[top].sum() - true_centre
+    print(f"octree inversion: {out['mesh']['nActive']} active ({out['mesh']['cellSizes']} m), {len(v)} core cells in "
+          f"{sorted(set(np.round(d[:, 0], 3)))} m; core volume {vol:.0f} vs box below terrain {core_vol:.0f} m3; "
+          f"phi_d {out['phi_d']:.0f}/{out['target']:.0f} reached={out['reachedTarget']}; centroid error "
+          f"E {err[0]:.1f} N {err[1]:.1f} Z {err[2]:.1f} m; peak chi {v.max():.4f}")
+    assert out["mesh"]["type"] == "octree"
+    assert len(set(np.round(d[:, 0], 3))) >= 2
+    assert abs(vol - core_vol) < 1e-6 * core_vol
+    assert out["reachedTarget"]
+    assert abs(err[0]) <= 25 and abs(err[1]) <= 25 and abs(err[2]) <= 50
+
+
+def test_drillhole_constraints_octree():
+    """TASKS.csv #324 — the drillhole constraints find cells in an octree too."""
+    import discretize
+    mesh = discretize.TreeMesh([[(10.0, 16)], [(10.0, 16)], [(10.0, 16)]], origin=[0, 0, 0])
+    mesh.refine_box(np.array([[0, 0, 80]]), np.array([[80, 80, 160]]), [mesh.max_level], finalize=False)
+    mesh.finalize()
+    actv = np.ones(mesh.n_cells, dtype=bool)
+    pts = np.array([[5, 5, 95, 0.02], [6, 6, 96, 0.04], [150, 150, 20, 0.01], [500, 5, 5, 0.1]], float)
+    lo, up, mref, hit, rep = P.drillhole_constraints(mesh, actv, pts, 0.005, 0.0, np.inf)
+    c0 = int(mesh.get_containing_cells([5, 5, 95])); c2 = int(mesh.get_containing_cells([150, 150, 20]))
+    assert rep["outsideMesh"] == 1 and rep["pointsUsed"] == 3 and rep["cells"] == 2
+    assert abs(mref[c0] - 0.03) < 1e-12 and abs(mref[c2] - 0.01) < 1e-12
+    assert mesh.h_gridded[c0][0] == 10.0 and mesh.h_gridded[c2][0] > 10.0  # a fine and a coarse cell
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
