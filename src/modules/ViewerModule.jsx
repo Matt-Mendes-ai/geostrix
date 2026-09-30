@@ -10,34 +10,25 @@ const VariogramModal = lazyModal(() => import("../components/VariogramModal.jsx"
 import LocatorMap from "../components/LocatorMap.jsx";
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 import PromptModal from "../components/PromptModal.jsx";
-import { toLonLat, reprojectXY, guessEpsgFromPrjWkt, isMetricProjectedEpsg, pointTransform, turnGridBearing, bearingTurn, crsName } from "../lib/reproject.js";
+import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
-import { azimuthToGridOffset, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #396
-import { orientFromAlphaBeta } from "../lib/coreOrientation.js"; // TASKS.csv #427
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { readKmlFile, kmlFeaturesToRows } from "../lib/kml.js"; // TASKS.csv #424
-import { fitSimilarity, parseControlPoints, transformImportRows } from "../lib/localGrid.js"; // TASKS.csv #412
 import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
 import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
-import { openSectionWindow, saveFile, loadSampleFiles } from "../lib/desktop.js";
+import { openSectionWindow, saveFile } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "lucide-react"; // #458 ribbon icons
-import { buildShapefileZip, parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../lib/shapefile.js";
-// TASKS.csv #439 — gpkg.js (and with it sql.js) is loaded on first GeoPackage import/export, not at
-// startup: it was pulling sql.js into the eagerly-loaded bundle for a feature most sessions never touch.
-const loadGpkg = () => import("../lib/gpkg.js");
-import { buildDXF, dxfToBoundaries } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
+import { buildShapefileZip } from "../lib/shapefile.js";
+import { buildDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImport.js"; // TASKS.csv #148
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
-// TASKS.csv #289 / #439 — raster.js (and geotiff) loaded on first raster import, not at startup.
-const loadRaster = () => import("../lib/raster.js");
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
@@ -76,7 +67,7 @@ const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompare
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS, isOverturnedValue } from "../lib/layers.js";
+import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat } from "../lib/meshExport.js";
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
@@ -86,7 +77,6 @@ import { SUPPORT_COLORS, ESTIMATION_METHODS } from "../lib/estimation.js"; // SU
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
-import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
@@ -94,6 +84,8 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
 import { useModelling } from "./viewer/useModelling.js"; // TASKS.csv #445 step 2
+import { loadGpkg } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3
+import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -142,32 +134,6 @@ function uint8ToBase64(bytes) {
 // visibility/color passes below instead of a full rebuild for a categoryFilter/legendOverride change.
 const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
-// TASKS.csv #208 — generic "extra fields" plumbing, designed once and reused by every row-builder
-// below (and by the collars/survey/custom branches of commitImportData directly) rather than a
-// one-off special case just for litho's new `description` field. customFields is an array of
-// {column, name} pairs the user maps in ImportMappingModal — each maps an arbitrary source column
-// into an arbitrarily-named field on the imported row, carried straight through to the attribute
-// table (AttributeTableModal already derives its columns from Object.keys() of whatever a row
-// actually has, so this needs zero changes there) and hover tooltips (added explicitly below, since
-// those use fixed string templates rather than iterating keys).
-// TASKS.csv #213 — user request: "other software will let the user assign a data type to the added
-// column eg. text, number, category, etc." `type` (added alongside column/name in ImportMappingModal)
-// controls how the raw CSV value is coerced: "number" parses it so the field behaves like any other
-// numeric layer value (filterable/sortable), "category" trims it to a clean string for a coded value
-// expected to match consistently, "text" (the default, and the ONLY behavior before this fix) keeps
-// it exactly as Papa Parse read it, unchanged, for full backward compatibility with any code path that
-// still passes {column, name} pairs with no type at all.
-function applyCustomFields(row, r, customFields) {
-  if (!customFields || !customFields.length) return row;
-  customFields.forEach(({ column, name, type }) => {
-    if (!column || !name) return;
-    const raw = r[column];
-    row[name] = type === "number" ? (raw === "" || raw == null ? null : Number(raw))
-      : type === "category" ? String(raw ?? "").trim()
-      : raw;
-  });
-  return row;
-}
 // TASKS.csv #434 — back-to-front re-sort of a transparent voxel model's instances, run (throttled) while
 // the camera orbits. The old version did a comparator sort of all cells plus two new Vector3 and a colour
 // conversion per cell every pass: 131-165 ms per re-sort at the 100k-cell cap (measured), i.e. the main
@@ -219,50 +185,6 @@ function sortVoxelInstancesBackToFront(mesh, cells, camPos) {
 
 // TASKS.csv #445 — interval merging moved to src/lib/viewer/intervals.js
 
-function normInterval(r, mapping, customFields) {
-  return applyCustomFields({
-    hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    from: num(r[mapping.from]), // TASKS.csv #337 — blank is missing, not 0
-    to: num(r[mapping.to]),
-    value: String(r[mapping.value] ?? "Unknown").trim(),
-    extra: mapping.extra ? num(r[mapping.extra]) : undefined,
-    description: mapping.description ? (String(r[mapping.description] ?? "").trim() || undefined) : undefined,
-  }, r, customFields);
-}
-function normNumericInterval(r, mapping, customFields) {
-  return applyCustomFields({
-    hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    from: num(r[mapping.from]), // TASKS.csv #337 — a blank RQD/recovery/magsusc cell is missing, not 0
-    to: num(r[mapping.to]),
-    value: num(r[mapping.value]),
-  }, r, customFields);
-}
-function normStructure(r, mapping, customFields, dipConvention) {
-  // TASKS.csv #426 — dip must be 0-90 and dip direction 0-360; anything else is dropped to "unknown"
-  // (NaN) and counted by the caller, instead of a dip of -30 plotting as a horizontal plane. A negative
-  // dip is only accepted as a sign convention when the user said so (dipConvention "neg_down").
-  let dip = mapping.dip ? num(r[mapping.dip]) : undefined;
-  if (Number.isFinite(dip) && dip < 0 && dipConvention === "neg_down") dip = -dip;
-  if (Number.isFinite(dip) && (dip < 0 || dip > 90)) dip = NaN;
-  let azimuth = mapping.azimuth ? num(r[mapping.azimuth]) : undefined;
-  if (!Number.isFinite(azimuth) && mapping.strike) {
-    const strike = num(r[mapping.strike]);
-    if (Number.isFinite(strike)) azimuth = (((strike + 90) % 360) + 360) % 360; // right-hand rule
-  }
-  if (Number.isFinite(azimuth)) azimuth = azimuth === 360 ? 0 : (azimuth < 0 || azimuth > 360 ? NaN : azimuth);
-  const alpha = mapping.alpha ? num(r[mapping.alpha]) : NaN, beta = mapping.beta ? num(r[mapping.beta]) : NaN; // #427
-  return applyCustomFields({
-    hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    depth: num(r[mapping.depth]), // TASKS.csv #337
-    value: String(r[mapping.value] ?? "").trim(),
-    dip,
-    azimuth,
-    ...(Number.isFinite(alpha) ? { alpha } : {}),
-    ...(Number.isFinite(beta) ? { beta } : {}),
-    ...(mapping.structure_id && String(r[mapping.structure_id] ?? "").trim() ? { structure_id: String(r[mapping.structure_id]).trim() } : {}), // #362
-    ...(mapping.overturned && isOverturnedValue(r[mapping.overturned]) ? { overturned: true } : {}), // #430
-  }, r, customFields);
-}
 // TASKS.csv #131 — small canvas-rendered text sprite, the standard three.js technique for always-
 // camera-facing labels (a Sprite auto-billboards, unlike a Mesh) without pulling in a font/SDF-text
 // library just for hole names. Rendered at a fixed pixel-ish canvas resolution then scaled in world
@@ -343,107 +265,6 @@ function fitScreenLabels(group, camera, viewportH) {
     const a = sp.material?.userData?.labelAspect;
     if (a) sp.scale.set(s * a, s, 1);
   }
-}
-// onDone(rows, errorMessage, localeNote) — TASKS.csv #284: Papa's dynamicTyping leaves a
-// European-locale value like "1,5" as the literal STRING "1,5", and Number("1,5") is NaN, so every
-// numeric filter downstream silently dropped the whole row and the only symptom was a short row count
-// in the toast. normalizeCommaDecimals converts the columns it can PROVE are comma-decimal and hands
-// back a note explaining what it did (or, for the genuinely ambiguous "1,234" case, what it
-// deliberately did NOT do) — see src/lib/numberLocale.js for the heuristic and why it's shaped that way.
-function parseCSV(file, onDone) {
-  // TASKS.csv #444 — the shared reader (lib/tabular.js): the same #284 comma-decimal handling and #404
-  // stamp skipping as before, plus the Windows-1252 fallback for Excel exports.
-  parseTableFile(file).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message));
-}
-// TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,
-// GeoPackage import). Both new import formats get converted to the exact same flat-row-array shape
-// Papa.parse already produces for a CSV (via shapefileFeaturesToRows/gpkgFeaturesToRows), so every
-// existing CSV-shaped import consumer (openImportModal below, and GeophysicsModule's block-model
-// import) can accept a shapefile .zip or a .gpkg with no format-specific logic beyond this one
-// dispatch point — extension decides which parser runs, everything downstream is unchanged.
-// onDone(rows, errorMessage, meta) — meta.note is an optional extra string (multi-layer/skipped-
-// feature caveats) the caller should fold into its own notice rather than silently dropping.
-// TASKS.csv #288 — `chosenLayer` (a layer/table NAME) selects which layer of a multi-layer .zip or
-// multi-table .gpkg to read. When a file has more than one and the caller hasn't chosen yet, this
-// reports the available layers back through meta.layerOptions and imports NOTHING, so the caller can
-// put a picker up instead of silently taking the first one (which is what it used to do).
-function parseVectorFile(file, onDone, chosenLayer = null) {
-  const name = file.name.toLowerCase();
-  // TASKS.csv #424 — KML/KMZ waypoints and tracks: lon/lat rows with the source CRS set to EPSG:4326
-  // (KML is always WGS84), so the normal import step reprojects them to the project CRS.
-  if (name.endsWith(".kml") || name.endsWith(".kmz")) {
-    readKmlFile(file).then(({ features, skipped }) => {
-      if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
-      const { rows, headers } = kmlFeaturesToRows(features);
-      const nPts = features.filter((f) => f.geomType === "point").length;
-      let note = ` KML: ${nPts} point(s), ${features.length - nPts} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.`;
-      if (skipped) note += ` ${skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.`;
-      onDone(rows, null, { headers, note, detectedEpsg: 4326 });
-    }).catch((err) => onDone(null, err.message));
-    return;
-  }
-  if (name.endsWith(".gpkg")) {
-    let gpkgFeaturesToRows;
-    Promise.all([file.arrayBuffer(), loadGpkg()]).then(([buf, g]) => { gpkgFeaturesToRows = g.gpkgFeaturesToRows; return g.parseGeoPackage(buf); }).then(({ layers }) => {
-      const usable = layers.filter((l) => l.features.length);
-      if (!usable.length) { onDone(null, "No usable point/line features found in this GeoPackage."); return; }
-      if (usable.length > 1 && !chosenLayer) {
-        onDone(null, null, { layerOptions: usable.map((l) => ({ name: l.name, count: l.features.length, geomType: l.geomType })) });
-        return;
-      }
-      const layer = (chosenLayer && usable.find((l) => l.name === chosenLayer)) || usable[0];
-      const { rows, headers } = gpkgFeaturesToRows(layer);
-      let note = "";
-      if (usable.length > 1) note += ` Imported the "${layer.name}" table of ${usable.length} in this GeoPackage — open the file again to bring in another one.`;
-      if (layer.skippedCount) note += ` ${layer.skippedCount} feature(s) with an unsupported/empty geometry were skipped.`;
-      // TASKS.csv #223 — GeoPackage already read its own SRS registry properly (gpkg_spatial_ref_sys,
-      // a structured field, more reliable than shapefile's .prj WKT-name-sniffing above) but never
-      // surfaced it as a Source CRS suggestion — same fix, same "only ever suggests" caveat.
-      const detectedEpsg = layer.epsg ? Number(layer.epsg) : null;
-      if (detectedEpsg) note += ` Detected source CRS EPSG:${detectedEpsg} from this GeoPackage's own SRS registry — pre-filled below, double-check it's correct.`;
-      onDone(rows, null, { headers, note, detectedEpsg });
-    }).catch((err) => onDone(null, err.message));
-    return;
-  }
-  if (name.endsWith(".zip") || name.endsWith(".shp")) {
-    const reader = name.endsWith(".zip")
-      ? file.arrayBuffer().then((buf) => parseShapefileZip(buf, chosenLayer))
-      : file.arrayBuffer().then((buf) => parseShapefileParts({ shp: new Uint8Array(buf) }));
-    reader.then((parsed) => {
-      // TASKS.csv #288 — same "ask, don't silently take the first one" gate as the GeoPackage branch
-      // above. parseShapefileZip now returns the real basenames, not just a count of the skipped ones.
-      if (parsed.layerNames?.length > 1 && !chosenLayer) {
-        onDone(null, null, { layerOptions: parsed.layerNames.map((n) => ({ name: n })) });
-        return;
-      }
-      const { rows, headers } = shapefileFeaturesToRows(parsed);
-      let note = "";
-      if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — "${parsed.layerName}" was imported; open the file again to pick another.`;
-      if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
-      if (parsed.hasAttributes === false) note += " No .dbf attribute table was found alongside the .shp — only coordinates came through.";
-      // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
-      // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
-      // reproject unasked) — guessEpsgFromPrjWkt returns null for anything it can't confidently
-      // recognize, so an unmatched .prj falls through to exactly today's behavior (ask the user).
-      let detectedEpsg = null;
-      if (parsed.prjWkt) {
-        detectedEpsg = guessEpsgFromPrjWkt(parsed.prjWkt);
-        note += detectedEpsg
-          ? ` Detected source CRS EPSG:${detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.`
-          : " This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.";
-      }
-      onDone(rows, null, { headers, note, detectedEpsg });
-    }).catch((err) => onDone(null, err.message));
-    return;
-  }
-  // TASKS.csv #284 — the comma-decimal note rides the existing meta.note channel, so it surfaces in
-  // the same toast/notice every other import caveat already uses (no new plumbing).
-  parseCSV(file, (data, err, localeNote) => onDone(data, err, { headers: data && data.length ? Object.keys(data[0]) : [], note: localeNote || "" }));
-}
-function looksLikeAssay(headers) {
-  const ELEMENTS = new Set(["Ag","Al","As","Au","Ba","Be","Bi","Ca","Cd","Co","Cr","Cu","Fe","Ga","K","La","Mg","Mn","Mo","Na","Ni","P","Pb","S","Sb","Sc","Sr","Th","Ti","Tl","U","V","W","Zn","Zr","Nb","Y","Yb"]);
-  const count = headers.filter((h) => ELEMENTS.has(h.trim())).length;
-  return count >= 4;
 }
 
 // TASKS.csv #313 — how wide, in screen pixels, a lithology tube must be in the OPENING view before we
@@ -5557,468 +5378,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [visibleHoles, syncLayerBatches]);
 
   // ---------- generic import pipeline ----------
-  const openImportModal = (file, forceTarget, chosenLayer = null) => {
-    parseVectorFile(file, (data, err, meta) => {
-      // TASKS.csv #288 — a multi-layer .zip/.gpkg reports its layers instead of importing the first
-      // one; put the picker up and come back through this same function with the chosen layer name.
-      if (meta?.layerOptions) { setLayerPicker({ file, forceTarget, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); return; }
-      const headers = meta?.headers || Object.keys(data[0]);
-      if (!forceTarget && looksLikeAssay(headers)) {
-        setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
-        return;
-      }
-      const target = forceTarget || guessTarget(headers);
-      const mapping = guessMapping(target, headers); // #426
-      const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
-      if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-    }, chosenLayer);
-  };
-  // TASKS.csv #288 — {file, forceTarget, options} while the layer picker is open, null otherwise.
-  const [layerPicker, setLayerPicker] = useState(null);
-
-  // TASKS.csv #289 (QGIS-specialist review) — the Browser panel's file filter used to be
-  // `[".csv", ".zip", ".shp", ".gpkg"]`, so .tif/.gxf rasters and .dxf CAD files — both fully
-  // supported elsewhere in this app (RasterModule/GeophysicsModule/dxf.js) — never appeared as
-  // importable in the tree at all. A geologist used to QGIS's Browser, where the Browser IS the one
-  // place you pull in ANY supported file, reaches for it here for an airborne grid or a surveyor's
-  // DXF and simply doesn't find it, with no explanation. The dispatch below is purely that filter-list
-  // gap being closed: each extension is routed to the handler that already exists for it, so a file
-  // picked from the Browser behaves exactly like the same file imported from its own module's button.
-  const importBrowserFile = async (file) => {
-    const name = (file?.name || "").toLowerCase();
-    // Drape elevation default, same rule RasterModule/GeophysicsModule use: roughly collar level if
-    // holes are loaded, else 0. The per-raster elevation control on the Raster tab moves it after.
-    const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
-    if (/\.(tiff?|gxf)$/.test(name)) {
-      try {
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
-        addRaster(raster);
-        setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Raster tab.`]);
-      } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }
-      return;
-    }
-    if (/\.dxf$/.test(name)) {
-      try {
-        // TASKS.csv #408 — one boundary per DXF layer, keeping Z; a face-only DXF is a solid.
-        const specs = dxfToBoundaries(await file.text(), file.name.replace(/\.dxf$/i, ""));
-        specs.forEach((sp) => addBoundary({ ...sp, elevation: defaultElevation }));
-        const n3d = specs.filter((sp) => sp.useVertexZ).length;
-        setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.`]);
-      } catch (err) {
-        if (err.facesOnly) { importSolidFile(file); return; } // #408 — 3DFACE / polyface only: import as a solid
-        setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]);
-      }
-      return;
-    }
-    openImportModal(file);
-  };
-
-  // same pipeline as CSV import, just fed from a database query result instead of a parsed file
-  const openImportFromRows = ({ headers, rows, sourceName }) => {
-    if (!rows.length) return;
-    if (looksLikeAssay(headers)) { setNotices((p) => [...p, `${sourceName} looks like assay data — import it from the Geochem module instead.`]); return; }
-    const target = guessTarget(headers);
-    const mapping = guessMapping(target, headers); // #426
-    const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
-    setDbModalOpen(false);
-  };
-
-  // Does the actual import given a fully-resolved {target, mapping, allRows, dipConvention, fileName}
-  // — split out from the modal's "Import" button handler so a multi-file drag-and-drop (see
-  // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
-  // the modal, while still routing through the exact same logic or one that needs confirmation.
-  // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg }) => {
-    // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
-    // location (declination and convergence vary across a property). Returns the rows plus a notice.
-    const applyAzimuthRef = (rows, locate) => {
-      if (!azimuthRef || azimuthRef === "grid") return applyGridOf(rows, locate);
-      const epsg = (importStateRef.current.project || project)?.epsg;
-      const cache = new Map();
-      let fixed = 0; const failed = new Set(); let example = null;
-      const out = rows.map((r) => {
-        if (!Number.isFinite(r.azimuth)) return r;
-        const loc = locate(r);
-        const key = loc ? `${Math.round(loc.x / 100)},${Math.round(loc.y / 100)}` : null; // 100 m cells: same offset to <0.01 deg
-        let o = key ? cache.get(key) : null;
-        if (key && o === undefined) { o = azimuthToGridOffset(azimuthRef, loc.x, loc.y, epsg, azimuthDate); cache.set(key, o); }
-        if (!o) { failed.add(r.hole_id); return r; }
-        fixed++; if (!example) example = o;
-        return { ...r, azimuth: wrap360(r.azimuth + o.offset) };
-      });
-      const what = azimuthRef === "magnetic" ? `magnetic north (IGRF-14 at ${azimuthDate}: declination ${example?.declination >= 0 ? "+" : ""}${example?.declination?.toFixed(2)}°, grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)` : `true north (grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)`;
-      const note = (fixed ? ` ${fixed} azimuth(s) converted from ${what} to grid north.` : "")
-        + (failed.size ? ` ${failed.size} hole(s) could not be converted (no collar location or project CRS) and were left as-is: ${[...failed].slice(0, 6).join(", ")}.` : "");
-      return { rows: out, note };
-    };
-    // TASKS.csv #490 — survey / structure azimuths measured from the grid north of ANOTHER CRS (e.g. a survey
-    // file from a contractor working in the neighbouring UTM zone). These files have no coordinates, so each
-    // hole's collar (project CRS) is taken back into that CRS and the bearing is rebuilt in the project grid.
-    function applyGridOf(rows, locate) {
-      const projEpsg = (importStateRef.current.project || project)?.epsg;
-      if (target === "collars" || !azimuthGridEpsg || !projEpsg || Number(azimuthGridEpsg) === Number(projEpsg)) return { rows, note: "" };
-      const fwd = pointTransform(azimuthGridEpsg, projEpsg), inv = pointTransform(projEpsg, azimuthGridEpsg);
-      if (!fwd || !inv) return { rows, note: ` Azimuths left as they are: EPSG:${azimuthGridEpsg} isn't a CRS GeoStrix can convert.` };
-      let fixed = 0, maxTurn = 0; const failed = new Set();
-      const out = rows.map((r) => {
-        if (!Number.isFinite(r.azimuth)) return r;
-        const loc = locate(r);
-        if (!loc || !Number.isFinite(loc.x) || !Number.isFinite(loc.y)) { failed.add(r.hole_id); return r; }
-        const [sx, sy] = inv(loc.x, loc.y);
-        const a = turnGridBearing(fwd, sx, sy, r.azimuth);
-        fixed++; maxTurn = Math.max(maxTurn, Math.abs(bearingTurn(r.azimuth, a)));
-        return { ...r, azimuth: a };
-      });
-      const note = (fixed ? ` ${fixed} azimuth(s) turned from the grid north of ${crsName(azimuthGridEpsg) || `EPSG:${azimuthGridEpsg}`} to the project grid (up to ${maxTurn.toFixed(2)}°).` : "")
-        + (failed.size ? ` ${failed.size} hole(s) have no collar yet, so their azimuths were left as they are: ${[...failed].slice(0, 6).join(", ")}.` : "");
-      return { rows: out, note };
-    }
-    if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
-      setNotices((p) => [...p, `${fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.`]);
-      return false;
-    }
-    const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
-    const schema = TARGET_SCHEMAS[target];
-    const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
-    if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
-    const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
-
-    if (target === "collars") {
-      let rows = allRows.map((r) => applyCustomFields({
-        // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
-        hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
-        azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
-        dip: mapping.dip ? flipDip(num(r[mapping.dip])) : undefined,
-        length: mapping.length ? num(r[mapping.length]) : undefined,
-        // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
-        // the reprojection pass below — stripped before the collar is stored.
-        _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
-      }, r, customFields));
-      // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
-      // instead of the old behaviour of keeping it at z = 0.
-      const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z))).map((r) => r.hole_id);
-      rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
-      if (noCoords.length) setNotices((p) => [...p, `${fileName}: ${noCoords.length} collar(s) skipped — missing or non-numeric X, Y or Z (${noCoords.slice(0, 8).join(", ")}${noCoords.length > 8 ? ", …" : ""}). Fix them in the file and re-import.`]);
-      // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
-      // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
-      // its position by desurveying against a collar+survey trace), so reprojecting here is what
-      // actually lets a geologist combine a collar list pulled in a different UTM zone with the rest
-      // of the project — same "reproject at import" approach parseDEMFiles already uses for rasters.
-      //
-      // TASKS.csv #205 — a per-row source-CRS column (e.g. a merged regional DB export spanning two
-      // UTM zones, like 3157/3156) can't be handled by one global "Source CRS" reprojection pass over
-      // the whole batch: each row needs to be reprojected FROM ITS OWN declared EPSG. Rows are grouped
-      // by their own per-row EPSG value and each group is reprojected separately; a row with a missing
-      // or unrecognized per-row value falls back to the single global `sourceEpsg` override exactly
-      // like the pre-#205 behavior (and if that's also unset/unrecognized, its x/y is left as-is).
-      let reprojectNote = "";
-      const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
-      if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
-        const toEpsg = liveProject.epsg;
-        const groups = new Map(); // fromEpsg key ("" = fall back to global sourceEpsg) -> rows in that group
-        rows.forEach((r) => {
-          const key = r._rowEpsg || "";
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key).push(r);
-        });
-        let reprojectedCount = 0, unreprojectedCount = 0, turned = 0, maxTurn = 0;
-        const okEpsgs = [], badEpsgs = [];
-        // TASKS.csv #490 — a grid azimuth is relative to the SOURCE grid's north; turn it with the convergence
-        // difference (true / magnetic azimuths are converted from the project-CRS location further down).
-        const gridAz = !azimuthRef || azimuthRef === "grid";
-        for (const [rowEpsgKey, groupRows] of groups) {
-          const fromEpsg = rowEpsgKey || sourceEpsg;
-          if (!fromEpsg || Number(fromEpsg) === Number(toEpsg)) { unreprojectedCount += groupRows.length; continue; }
-          let groupFailed = 0;
-          const T = gridAz ? pointTransform(fromEpsg, toEpsg) : null;
-          groupRows.forEach((r) => {
-            const p = reprojectXY(r.x, r.y, fromEpsg, toEpsg);
-            if (!p) { groupFailed++; return; }
-            if (T && Number.isFinite(r.azimuth)) {
-              const a = turnGridBearing(T, r.x, r.y, r.azimuth);
-              maxTurn = Math.max(maxTurn, Math.abs(bearingTurn(r.azimuth, a))); turned++;
-              r.azimuth = a;
-            }
-            r.x = p.x; r.y = p.y;
-          });
-          if (groupFailed && !badEpsgs.includes(fromEpsg)) badEpsgs.push(fromEpsg);
-          unreprojectedCount += groupFailed;
-          const succeeded = groupRows.length - groupFailed;
-          if (succeeded) { reprojectedCount += succeeded; if (!okEpsgs.includes(fromEpsg)) okEpsgs.push(fromEpsg); }
-        }
-        const parts = [];
-        if (reprojectedCount) parts.push(`reprojected ${reprojectedCount} row(s) from EPSG:${okEpsgs.join("/")} to the project's EPSG:${toEpsg}`);
-        if (unreprojectedCount) parts.push(`left ${unreprojectedCount} row(s) unchanged${badEpsgs.length ? ` (unrecognized EPSG:${badEpsgs.join("/")})` : " (already the project CRS, or no source CRS given)"}`);
-        if (turned) parts.push(`turned ${turned} grid azimuth(s) to the project grid (up to ${maxTurn.toFixed(2)}°)`);
-        reprojectNote = parts.length ? ` On import: ${parts.join("; ")}.` : "";
-      }
-      rows = rows.map(({ _rowEpsg, ...rest }) => rest);
-
-      // TASKS.csv #283 — this used to be a bare last-write-wins merge
-      // (`new Map([...collars, ...rows].map(c => [c.hole_id, c]))`): re-dropping a collar file
-      // silently replaced every matching hole's coordinates with no diff and no chance to say no,
-      // which is quietly destructive when the file was grabbed from the wrong folder. Now the diff is
-      // computed FIRST (diffCollarImport, layers.js — pure and unit-verified) and the user is only
-      // interrupted when it would actually change something: a re-import of the identical file, or one
-      // that only adds new holes, still commits straight through with no extra click.
-      // BUG FIX (found verifying #407, 2026-09-23): commitImportData is reached from the multi-file queue
-      // (processImportQueue, a useCallback created once), whose closure holds the FIRST render's `collars`
-      // (usually []), so a multi-file drop merged against an empty list and REPLACED every existing collar
-      // (the 37-hole sample became 2 holes after dropping a 2-hole collar file). Read the latest collars.
-      const azc = applyAzimuthRef(rows, (r) => r); // #396 — collar's own (project-CRS) location
-      rows = azc.rows;
-      const liveCollars = importStateRef.current.collars || [];
-      const diff = diffCollarImport(liveCollars, rows);
-      let overwriteExisting = true;
-      if (diff.changed.length) {
-        const preview = diff.changed.slice(0, 6).map((c) => {
-          const moved = c.shift > 1e-6 ? ` — moves ${c.shift < 10 ? c.shift.toFixed(2) : c.shift.toFixed(0)} world units` : "";
-          return `  • ${c.hole_id}: ${c.fields.join(", ")} differ${moved}`;
-        }).join("\n");
-        overwriteExisting = window.confirm(
-          `${fileName} contains ${diff.changed.length} hole(s) that already exist in this project with DIFFERENT values:\n\n${preview}` +
-          `${diff.changed.length > 6 ? `\n  …and ${diff.changed.length - 6} more` : ""}\n\n` +
-          `OK — overwrite those ${diff.changed.length} collar(s) with this file's values (the old ones are lost).\n` +
-          `Cancel — keep the existing collars and import only the ${diff.newHoles.length} new hole(s).`
-        );
-      }
-      const existingIds = new Set(liveCollars.map((c) => c.hole_id));
-      const applied = overwriteExisting ? rows : rows.filter((r) => !existingIds.has(r.hole_id));
-      setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
-      setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
-      // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
-      // different coordinates and were updated") rather than a bare "Loaded N collars".
-      const parts = [];
-      if (diff.newHoles.length) parts.push(`${diff.newHoles.length} new`);
-      if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
-      if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
-      if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
-      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);
-    } else if (target === "survey") {
-      const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
-      // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
-      // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
-      const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
-      const azs = applyAzimuthRef(all.filter((r) => Number.isFinite(r.azimuth) && Number.isFinite(r.dip)), liveCollarAt); // #396
-      const rows = azs.rows;
-      // TASKS.csv #336 — a hole's survey in this file REPLACES its earlier survey (with _src stamped so
-      // the layer inspector can tell imports apart); undo restores the old one.
-      const replaced = replaceRowsByHole(importStateRef.current.survey, rows).replacedHoles; // for the notice only
-      setSurvey((prev) => replaceRowsByHole(prev, rows).rows);
-      setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
-        + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
-        + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
-        + azs.note]);
-    } else if (target === "structure") {
-      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
-      // TASKS.csv #427 — oriented-core alpha/beta -> true dip / dip direction, per pick, from the hole's
-      // survey at that depth (desurvey.surveyAzimuthDipAt). Only for picks with no dip/dip direction of
-      // their own; raw alpha/beta stay on the pick. Converted results are already grid-referenced (they
-      // come from the hole's grid azimuths), so they skip the azimuth-reference step below.
-      let abDone = 0; const abFailed = [];
-      if (mapping.alpha && mapping.beta) {
-        const surveyByHole = new Map();
-        (importStateRef.current.survey || []).forEach((sv) => { if (!surveyByHole.has(sv.hole_id)) surveyByHole.set(sv.hole_id, []); surveyByHole.get(sv.hole_id).push(sv); });
-        structRows = structRows.map((r) => {
-          if (Number.isFinite(r.dip) && Number.isFinite(r.azimuth)) return r;
-          if (!Number.isFinite(r.alpha) || !Number.isFinite(r.beta)) return r; // alpha-only stays unoriented
-          const collar = liveCollarAt(r);
-          const att = collar ? surveyAzimuthDipAt(collar, surveyByHole.get(r.hole_id) || [], r.depth) : null;
-          const o = att ? orientFromAlphaBeta({ alphaDeg: r.alpha, betaDeg: r.beta, holeAzDeg: att.azimuth, holeDipDeg: att.dip, useTop: betaRefLine === "top" }) : { error: "no collar/survey for this hole" };
-          if (o.error) { abFailed.push(`${r.hole_id}@${r.depth} (${o.error})`); return r; }
-          abDone++;
-          return { ...r, dip: o.dipDeg, azimuth: o.dipDirDeg, orientedFrom: `alpha/beta, ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line`, _abGrid: true };
-        });
-      }
-      const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
-      const azst = { rows: [...azst0.rows, ...structRows.filter((r) => r._abGrid).map(({ _abGrid, ...r }) => r)], note: azst0.note };
-      if (abDone || abFailed.length) setNotices((p) => [...p, `${fileName}: ${abDone} pick(s) oriented from alpha/beta using each hole's survey.${abFailed.length ? ` ${abFailed.length} could not be oriented and are shown as unoriented: ${abFailed.slice(0, 5).join("; ")}${abFailed.length > 5 ? "; …" : ""}.` : ""}`]);
-      const rows = azst.rows;
-      if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
-      // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
-      const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (dipConvention === "neg_down" ? Math.abs(d) > 90 : (d < 0 || d > 90)); }).length : 0;
-      if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown.`]);
-      const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows).replacedHoles;
-      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, rows).rows })); // TASKS.csv #336
-      if (replaced.length) setNotices((p) => [...p, `${fileName}: replaced the earlier structure picks of ${replaced.length} hole(s) — Ctrl+Z to undo.`]);
-      setLayerVisible((p) => ({ ...p, structure: true }));
-      setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
-    } else if (target === "custom") {
-      const rows = allRows.map((r) => applyCustomFields({
-        hole_id: String(r[mapping.hole_id] ?? "").trim(),
-        from: mapping.from ? num(r[mapping.from]) : undefined, to: mapping.to ? num(r[mapping.to]) : undefined,
-        depth: mapping.depth ? num(r[mapping.depth]) : undefined, value: r[mapping.value],
-      }, r, customFields)).filter((r) => r.hole_id);
-      const id = `custom_${Date.now()}`;
-      const group = new THREE.Group(); group.name = id;
-      layerGroupsRef.current[id] = group;
-      sceneRef.current.getObjectByName("root").add(group);
-      setCustomLayers((p) => [...p, { id, name: fileName.replace(/\.csv$/i, ""), rows, group }]);
-      setCustomVisible((p) => ({ ...p, [id]: true }));
-      setNotices((p) => [...p, `Added "${fileName}" as a custom layer (${rows.length} rows).`]);
-    } else {
-      // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector
-      // (LayerInspector.jsx) break a layer down by which import it came from, since it's common to
-      // build up one layer (e.g. lithology) from several CSVs (different holes, different field
-      // seasons) and later want to pull just one of those back out without clearing the whole layer.
-      const numeric = LAYER_META[target].numeric;
-      const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
-        : allRows.map((r) => normInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
-      // TASKS.csv #336 — rows for a hole already in this layer replace that hole's earlier rows.
-      const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows).replacedHoles;
-      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], rows).rows }));
-      setLayerVisible((p) => ({ ...p, [target]: true }));
-      if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
-      setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`
-        + (replaced.length ? ` Replaced the earlier rows of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")]);
-    }
-    return true;
-  };
-
-  // Modal's "Import" button: commit whatever's currently in importModal state, then close it and
-  // let the multi-file queue (if there is one) move on to the next file.
-  const commitImport = () => {
-    if (!importModal) return;
-    // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
-    let modalData = importModal;
-    const units = importModal.units || "m";
-    const gridOn = importModal.target === "collars" && importModal.localGridOn;
-    if (units === "ft" || gridOn || Number(importModal.zShift)) {
-      let grid = null;
-      if (gridOn) {
-        try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
-        catch (e) { setNotices((p) => [...p, `${importModal.fileName}: local grid — ${e.message} Nothing was imported.`]); return; }
-        if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
-          setNotices((p) => [...p, `${importModal.fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:${importModal.sourceEpsg}). Nothing was imported.`]);
-          return;
-        }
-      }
-      const zShift = importModal.target === "collars" ? Number(importModal.zShift) || 0 : 0;
-      const t = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift });
-      modalData = { ...importModal, allRows: t.rows };
-      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? " and elevations" : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? ` ${t.moved} collar(s) moved from the local grid to EPSG:${project?.epsg} (scale ${grid.scale.toFixed(6)}, rotation ${grid.rotationDeg.toFixed(3)}°, RMS ${grid.rmsM.toFixed(2)} m over ${grid.n} control points)${t.turned ? `; ${t.turned} azimuth(s) turned with the grid (${(-grid.rotationDeg).toFixed(3)}°)` : ""}.` : ""}${zShift ? ` Elevations shifted by ${zShift} m.` : ""}`]);
-    }
-    commitImportData(modalData);
-    setImportModal(null);
-    processImportQueue();
-  };
-
-  // ---------- multi-file drag-and-drop (drop several CSVs on the viewport at once) ----------
-  // Files this module is CONFIDENT about (guessTarget picked a specific known type, not the
-  // "custom" fallback, and every required column was found by guessColumn) import immediately with
-  // no dialog. Anything less certain — an unrecognized shape, a required column guessColumn
-  // couldn't find — still opens the same mapping modal used for a single-file drop, one at a time,
-  // so nothing gets imported wrong silently. The queue (importQueueRef) advances after each modal
-  // commit/cancel and after each auto-import, until every dropped file has been handled.
-  const importQueueRef = useRef([]);
-  const importQueueTotalRef = useRef(0); // total files this drop started with, for the progress bar
-  // TASKS.csv #229 — re-entrancy guard against a double-import: if handleDrop somehow fires twice for
-  // one physical drop (nested drop zones, or the OS/Electron bridging a file drop through more than
-  // one path), the second call used to overwrite importQueueRef.current with a fresh copy of the SAME
-  // files mid-flight, while the first call's async parseVectorFile chain was still running — so when
-  // that first chain's callback called processImportQueue() again, it resumed draining the SECOND
-  // call's freshly-reset array from the top, re-importing files the first chain had already committed.
-  // importActiveRef blocks a second queue from starting while one is already draining.
-  const importActiveRef = useRef(false);
-  const processImportQueue = useCallback(() => {
-    const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
-    const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
-    const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
-    setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
-    parseVectorFile(file, (data, err, meta) => {
-      // TASKS.csv #288 — a multi-layer .zip/.gpkg in a multi-file drop opens the picker and pauses the
-      // queue here; the picker's own onPick/onCancel resumes it (openImportModal -> mapping modal ->
-      // commitImport/cancel -> processImportQueue), so the queue can't advance past an unanswered
-      // question or double-import the same file.
-      if (meta?.layerOptions) { setLayerPicker({ file, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); processImportQueue(); return; }
-      const headers = meta?.headers || Object.keys(data[0]);
-      if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-      if (looksLikeAssay(headers)) {
-        setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
-        processImportQueue();
-        return;
-      }
-      const target = guessTarget(headers);
-      const schema = TARGET_SCHEMAS[target];
-      const mapping = guessMapping(target, headers); // #426
-      const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]);
-      // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
-      // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
-      // actually consistent with the "negative = down" convention this path assumes. A positive-down
-      // export (Datamine style) used to be committed silently and plotted every hole pointing up.
-      const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && guessColumnExact(headers, f.aliases) === mapping[f.key]);
-      const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
-      const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
-      const confident = target !== "custom" && missingRequired.length === 0 && exactRequired && dipsAgree;
-      const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down" };
-      if (confident) {
-        commitImportData(modalData);
-        processImportQueue();
-      } else {
-        const remaining = importQueueRef.current.length;
-        setImportModal({ ...modalData, fileName: remaining ? `${file.name} (${remaining} more queued)` : file.name });
-      }
-    });
-  }, [setTaskProgress]);
-
-  // TASKS.csv #190/#191 — .zip (shapefile bundle) and .gpkg accepted here alongside .csv, matching
-  // the file inputs' own accept="" lists below. A bare .shp (no surrounding .zip) is also accepted —
-  // it just imports with no attributes if no .dbf was dropped alongside it in the SAME drop (loose
-  // multi-file .shp/.shx/.dbf sets dropped together aren't grouped by basename here — out of scope
-  // for this pass; the .zip bundle this app's own shapefile export already produces, or that any GIS
-  // tool's "export as zipped shapefile" option produces, is the primary supported path).
-  const handleDrop = (e) => {
-    e.preventDefault(); setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz)$/i.test(f.name)); // kml/kmz: #424
-    const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
-    if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
-    if (files.length === 1) { openImportModal(files[0]); return; }
-    // TASKS.csv #229 — ignore a second drop-queue start while one is still draining (see
-    // importActiveRef's own comment above processImportQueue) instead of stomping the in-flight queue.
-    if (importActiveRef.current) { setNotices((p) => [...p, "Already importing a previous drop — please wait for it to finish before dropping more files."]); return; }
-    importActiveRef.current = true;
-    setNotices((p) => [...p, `Importing ${files.length} files — auto-detecting each one, will ask when unsure…`]);
-    importQueueTotalRef.current = files.length;
-    importQueueRef.current = files;
-    processImportQueue();
-  };
-
-  // TASKS.csv #293 — "Load sample project" from the empty 3D View. The single highest-leverage
-  // onboarding fix from the UX review: sample_data/ is now actually shipped in the installer (see
-  // package.json's build.extraResources and main.js's sample-data-path handler), and this is the
-  // in-app path to it, so a first-time user with no data of their own has something to look at
-  // within one click instead of an empty grid.
-  //
-  // Deliberately reuses the multi-file drag-and-drop queue verbatim (importQueueRef +
-  // processImportQueue) rather than a bespoke loader — the files are turned into real File objects
-  // by loadSampleFiles(), so every confidence check, column guess and notice behaves exactly as if
-  // the user had dragged these same CSVs onto the viewport. assay_wide.csv is intentionally NOT in
-  // this list: assays belong to the Geochem module's own import path (looksLikeAssay would just
-  // reject it here with a notice), and the user is pointed there by the closing notice instead.
-  const [sampleLoading, setSampleLoading] = useState(false);
-  const SAMPLE_FILES = ["collars.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"];
-  const loadSampleProject = async () => {
-    if (sampleLoading || importActiveRef.current) return;
-    setSampleLoading(true);
-    try {
-      const files = await loadSampleFiles("harry_property", SAMPLE_FILES);
-      setNotices((p) => [...p, `Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Assays for these holes can be imported from the Geochem tab (sample_data/harry_property/assay_wide.csv).`]);
-      importActiveRef.current = true;
-      importQueueTotalRef.current = files.length;
-      importQueueRef.current = files;
-      processImportQueue();
-    } catch (err) {
-      setNotices((p) => [...p, `Couldn't load the sample project: ${err.message}`]);
-    } finally {
-      setSampleLoading(false);
-    }
-  };
+  // TASKS.csv #445 step 3 — the import pipeline lives in modules/viewer/useImportPipeline.js (moved verbatim); called here, where that code used to sit, so the hook order is unchanged.
+  const { commitImport, handleDrop, importBrowserFile, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker } = useImportPipeline({
+    addBoundary,
+    addRaster,
+    collars,
+    importModal,
+    importSolidFile,
+    importStateRef,
+    layerGroupsRef,
+    project,
+    sceneRef,
+    setCollars,
+    setCustomLayers,
+    setCustomVisible,
+    setDbModalOpen,
+    setDragOver,
+    setImportModal,
+    setLayerVisible,
+    setLayers,
+    setNotices,
+    setNumericRange,
+    setSurvey,
+    setTaskProgress,
+    setVisibleHoles,
+  });
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
   // TASKS.csv #222 — useCallback so this keeps a stable identity across renders, required for
