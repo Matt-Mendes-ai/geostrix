@@ -123,9 +123,14 @@ def _on_startup():
 # going straight back to the person who triggered it, which is exactly who needs it.
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signature fixed by FastAPI
+    # TASKS.csv #324 follow-up — Starlette runs this catch-all handler in ServerErrorMiddleware, OUTSIDE the
+    # CORS middleware, so the 500 went out without Access-Control-Allow-Origin: the renderer's fetch() then
+    # failed as a network error and the app said "Python engine isn't reachable" instead of showing this
+    # message (reproduced live: an invalid octree setting in /v1/geophys/plan). The header is added here.
     return JSONResponse(
         status_code=500,
         content={"detail": f"Unhandled sidecar error ({type(exc).__name__}): {exc}"},
+        headers={"Access-Control-Allow-Origin": "*"},
     )
 
 
@@ -283,7 +288,10 @@ def geophys_plan(req: dict = Body(...)):
     _validate_potential(req)
     from app.geophys.potential import plan  # numpy/scipy only — no SimPEG import in the parent
     from app.jobs import sensitivity_cap_bytes
-    return plan(req, sensitivity_cap_bytes())
+    try:
+        return plan(req, sensitivity_cap_bytes())
+    except ValueError as exc:  # #324 follow-up — a request the plan can't use (e.g. octree settings) is the caller's to fix
+        raise HTTPException(400, str(exc))
 
 
 @app.post("/v1/jobs")

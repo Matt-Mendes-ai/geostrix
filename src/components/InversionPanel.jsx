@@ -57,7 +57,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const [thin, setThin] = useState("");
   const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
   const [unc, setUnc] = useState({ floor: "", percent: "" });
-  const [mesh, setMesh] = useState({ coreCell: "", depth: "", type: "tensor" }); // type: TASKS.csv #324 (inversions)
+  const [mesh, setMesh] = useState({ coreCell: "", depth: "", type: "tensor", octree: { fine: "4", fine2: "4", maxFactor: "4" } }); // type, octree: TASKS.csv #324 (inversions)
+  const octreeSettings = { fine: Math.round(Number(mesh.octree.fine)), fine2: Math.round(Number(mesh.octree.fine2)), maxFactor: Number(mesh.octree.maxFactor) }; // #324 follow-up
   // TASKS.csv #451 — a survey already labelled magnetics / gravity pre-selects the method (still confirmed below)
   useEffect(() => {
     const m = geophysSurveys?.[activeSurvey]?.method;
@@ -156,7 +157,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       method, kind, stations,
       ...(topo ? { topo: topo.points } : {}),
       ...(method === "mag" ? { field: { strength: num(field.strength), inclination: num(field.inclination), declination: decl.grid } } : {}),
-      mesh: { coreCell: cell, depth: num(mesh.depth), padCells: 6, padFactor: 1.3, ...(kind === "inversion" ? { type: mesh.type } : {}) }, // #324 — the forward tool stays tensor
+      mesh: { coreCell: cell, depth: num(mesh.depth), padCells: 6, padFactor: 1.3, ...(kind === "inversion" ? { type: mesh.type, ...(mesh.type === "octree" ? { octree: octreeSettings } : {}) } : {}) }, // #324 — the forward tool stays tensor
     };
     if (kind === "inversion") {
       request.observed = observed;
@@ -229,7 +230,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       uncertainty: { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0, units: M.unit, source: "entered by user" },
       ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
       mesh: { type: mesh.type, coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers,
-        ...(mesh.type === "octree" ? { octree: { fineLayers: 4, doubledLayers: 4, maxCellInModel: `${4 * num(mesh.coreCell)} m`, cellSizesM: p.octree?.cellSizes || null, how: "core cell in the first 4 layers under the terrain over the survey, then 4 layers of 2x, never coarser than 4x inside the model volume" } } : {}) }, // #324
+        ...(mesh.type === "octree" ? { octree: { fineLayers: octreeSettings.fine, doubledLayers: octreeSettings.fine2, maxCellInModel: `${octreeSettings.maxFactor * num(mesh.coreCell)} m`, cellSizesM: p.octree?.cellSizes || null, how: `core cell in the first ${octreeSettings.fine} layers under the terrain over the survey, then ${octreeSettings.fine2} layers of 2x, never coarser than ${octreeSettings.maxFactor}x inside the model volume` } } : {}) }, // #324
       regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
       drillholeConstraints: p.meta.drillholeConstraints ? { ...p.meta.drillholeConstraints, how: "each cell a hole passes through: reference = mean of the log samples in it, bounds = that mean ± tolerance" } : null, // #323
@@ -329,7 +330,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       {open && (
         <div style={{ fontSize: "var(--font-size-sm)" }}>
           {engine === null && <div style={small}>Starting the Python engine…</div>}
-          {engine && !engine.ok && <div style={small}>Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; see python-sidecar/README.md if it never comes up.</div>}
+          {engine && !engine.ok && <div style={small}>Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; if it never comes up, click "Py" in the status bar for what to check.</div>}
           {engine && engine.ok && !engine.available && <div style={small}>The running Python engine has no SimPEG — update GeoStrix to a version that includes it.</div>}
           {engine?.available && !allRows.length && <div style={small}>Import a magnetic or gravity survey in Point cloud (CSV) above first — x, y, z and the measured value per station.</div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
@@ -405,13 +406,24 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 </div>
                 <div style={row} title="How deep below the stations the model extends. Potential-field data lose resolution quickly with depth."><span style={lbl}>Model depth</span><input type="number" min={1} value={mesh.depth} onChange={(e) => setMesh((p) => ({ ...p, depth: e.target.value }))} style={inp} /> m</div>
                 {/* TASKS.csv #324 — adaptive (octree) mesh */}
-                <div style={row} title="Uniform: every model cell is the core cell size (the same as before). Adaptive (octree): the core cell only in the top layers under the survey, then 2x, never coarser than 4x inside the model — typically 4-6x fewer cells, so 4-6x less memory, for larger areas or finer cells on a modest computer. The cost is coarser cells at depth, where the data resolve little anyway. An adaptive model can't be exported as UBC or GeoTIFF slices (those need one regular grid); CSV export works.">
+                <div style={row} title="Uniform: every model cell is the core cell size (the same as before). Adaptive (octree): the core cell only in the top layers under the survey, then 2x, never coarser than 4x inside the model (adjustable below) — typically 4-6x fewer cells, so 4-6x less memory, for larger areas or finer cells on a modest computer. The cost is coarser cells at depth, where the data resolve little anyway. An adaptive model exports as a cell list and UBC-GIF OcTree files, not as a UBC tensor mesh, OMF or GeoTIFF slices (those need one regular grid).">
                   <span style={lbl}>Mesh</span>
                   <select value={mesh.type} onChange={(e) => setMesh((p) => ({ ...p, type: e.target.value }))} style={{ ...inp, width: "auto" }} aria-label="Inversion mesh">
                     <option value="tensor">Uniform (tensor)</option>
                     <option value="octree">Adaptive (octree) — less memory</option>
                   </select>
                 </div>
+                {/* TASKS.csv #324 follow-up — the octree's shape; the plan shows the resulting cells and memory */}
+                {mesh.type === "octree" && (
+                  <div style={row} title="Layers of the core cell right under the terrain over the survey, then layers of 2x the core cell, then nothing coarser than the chosen size inside the model. More fine layers = more resolution near the surface and more memory; press 'Estimate size and memory' to see the effect.">
+                    <span style={lbl}>Octree layers</span>
+                    <input type="number" min={1} max={16} value={mesh.octree.fine} onChange={(e) => setMesh((p) => ({ ...p, octree: { ...p.octree, fine: e.target.value } }))} style={{ ...inp, width: 40 }} aria-label="Layers of the core cell" /> ×1,
+                    <input type="number" min={0} max={16} value={mesh.octree.fine2} onChange={(e) => setMesh((p) => ({ ...p, octree: { ...p.octree, fine2: e.target.value } }))} style={{ ...inp, width: 40 }} aria-label="Then layers of 2x the core cell" /> ×2, then ≤
+                    <select value={mesh.octree.maxFactor} onChange={(e) => setMesh((p) => ({ ...p, octree: { ...p.octree, maxFactor: e.target.value } }))} style={{ ...inp, width: "auto" }} aria-label="Coarsest cell inside the model">
+                      {["1", "2", "4", "8"].map((f) => <option key={f} value={f}>×{f}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div style={row} title="Levelled TMI and Bouguer gravity carry an arbitrary base level. With susceptibility bounded at zero, an uncorrected positive level can only be fitted by inventing material near the edges. The value removed is stored with the model.">
                   <span style={lbl}>Remove base level</span>
                   <select value={baseLevel} onChange={(e) => setBaseLevel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Base level removed before inverting">

@@ -137,6 +137,16 @@ def _mesh_type(req):
 def _octree_from_req(req, st, topo):
     m = req["mesh"]
     o = {**OCTREE_DEFAULTS, **(m.get("octree") or {})}
+    # #324 follow-up — the panel exposes these; refuse nonsense rather than build a strange mesh
+    try:
+        fine, fine2, mf = int(o["fine"]), int(o["fine2"]), int(o["maxFactor"])
+    except (TypeError, ValueError):
+        raise ValueError("Octree settings must be whole numbers.")
+    if not (1 <= fine <= 16) or not (0 <= fine2 <= 16):
+        raise ValueError("Octree layers: 1-16 layers of the core cell, then 0-16 layers of 2x.")
+    if mf not in (1, 2, 4, 8):
+        raise ValueError("Coarsest cell inside the model must be 1, 2, 4 or 8 x the core cell.")
+    o = {"fine": fine, "fine2": fine2, "maxFactor": mf}
     return octree_mesh(st, topo, m["coreCell"], m["depth"], m.get("padCells", 6), m.get("padFactor", 1.3), m.get("marginCells", 2),
                        fine=o["fine"], fine2=o["fine2"], max_factor=o["maxFactor"])
 

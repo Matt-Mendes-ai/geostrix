@@ -363,6 +363,8 @@ export async function isSidecarRunning() {
   return d?.isSidecarRunning ? d.isSidecarRunning().catch(() => false) : true;
 }
 
+// #391 follow-up — the README this used to point to isn't installed; the status bar's "Py" opens the in-app help
+const SIDECAR_UNREACHABLE = "GeoStrix's Python engine isn't reachable (not started, still starting, or blocked) — click \"Py\" in the status bar for what to check.";
 async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, signal } = {}) {
   await ensureSidecarUp();
   try {
@@ -379,7 +381,7 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
     return { ok: true, status: res.status, data };
   } catch (err) {
     if (err?.code === "SIDECAR_IDENTITY") return { ok: false, status: 0, error: err.message }; // #353
-    return { ok: false, status: 0, error: "Python sidecar not reachable (not started, still booting, or Python/deps not installed — see python-sidecar/README.md)." };
+    return { ok: false, status: 0, error: SIDECAR_UNREACHABLE };
   }
 }
 
@@ -423,7 +425,7 @@ export async function pythonHealth() {
     const data = await res.json();
     return { ok: true, ...data };
   } catch (err) {
-    return { ok: false, error: "Python sidecar not reachable (not started, still booting, or Python/deps not installed — see python-sidecar/README.md)." };
+    return { ok: false, error: SIDECAR_UNREACHABLE };
   }
 }
 

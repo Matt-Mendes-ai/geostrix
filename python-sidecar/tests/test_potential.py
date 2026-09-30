@@ -370,6 +370,32 @@ def test_octree_inversion_recovers_block():
     assert abs(err[0]) <= 25 and abs(err[1]) <= 25 and abs(err[2]) <= 50
 
 
+def test_octree_settings():
+    """TASKS.csv #324 follow-up — the panel's octree settings change the mesh as described, and nonsense is refused."""
+    st = _grid_stations(16, 40.0, 1010.0)
+    topo = _grid_stations(32, 20.0, 1000.0)
+    base = {"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(),
+            "field": {"strength": 56000.0, "inclination": 75.0, "declination": 18.0},
+            "mesh": {"coreCell": 20.0, "depth": 400.0, "padCells": 6, "type": "octree"}}
+    n = lambda depth=400.0, **o: P.plan(dict(base, mesh=dict(base["mesh"], depth=depth, octree=o)), ram_cap_bytes=int(4e9))["nActiveEst"]
+    default, more_fine, finest_cap = n(), n(fine=8), n(maxFactor=1)
+    # the cap only binds where the model is deep enough for cells to reach it (400 m: 4 x 20 + 4 x 40 m, then
+    # 80 m cells fill the rest by the 2:1 balance, so x4 and x8 give the same mesh); at 1000 m it does
+    deep4, deep8 = n(depth=1000.0), n(depth=1000.0, maxFactor=8)
+    tensor = P.plan(dict(base, mesh=dict(base["mesh"], type="tensor")), ram_cap_bytes=int(4e9))["nActiveEst"]
+    print(f"octree settings: default {default}, 8 fine layers {more_fine}, cap 1x {finest_cap}, tensor {tensor} active cells; "
+          f"1000 m deep: cap 4x {deep4}, cap 8x {deep8}")
+    assert more_fine > default
+    assert finest_cap > more_fine
+    assert deep8 < deep4
+    for bad in ({"fine": 0}, {"fine2": 99}, {"maxFactor": 3}, {"fine": "x"}):
+        try:
+            n(**bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"accepted {bad}")
+
+
 def test_drillhole_constraints_octree():
     """TASKS.csv #324 — the drillhole constraints find cells in an octree too."""
     import discretize
