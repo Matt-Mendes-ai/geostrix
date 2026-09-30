@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #488
-import { X, Upload, Trash2, MapPin } from "lucide-react";
+import { X, Upload, Trash2, MapPin } from "./icons.js";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js"; // TASKS.csv #290
 import { useEscapeKey } from "../lib/useEscapeKey.js";

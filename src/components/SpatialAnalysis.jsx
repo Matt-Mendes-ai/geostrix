@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download, Info } from "lucide-react";
+import { X, Download, Info } from "./icons.js";
 import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
 import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";

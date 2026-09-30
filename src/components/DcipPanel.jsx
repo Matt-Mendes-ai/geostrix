@@ -3,7 +3,7 @@
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Upload, Play } from "lucide-react";
+import { Upload, Play } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, lineGeometry, terrainProfile, pseudoPositions, sectionCells } from "../lib/dcip.js";

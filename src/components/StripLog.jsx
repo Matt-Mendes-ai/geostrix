@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";

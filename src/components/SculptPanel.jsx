@@ -4,7 +4,7 @@
 // src/lib/useSculpt.js (which in turn calls the verified maths in src/lib/sculpt.js). Kept out of
 // ViewerModule.jsx so that file grows by one JSX element rather than a hundred lines.
 import React from "react";
-import { Hand, Undo2, Check, X as XIcon } from "lucide-react";
+import { Hand, Undo2, Check, X as XIcon } from "./icons.js";
 
 const num = (v, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
 

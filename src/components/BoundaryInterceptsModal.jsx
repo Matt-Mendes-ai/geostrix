@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "lucide-react";
+import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
 import { saveFile } from "../lib/desktop.js";

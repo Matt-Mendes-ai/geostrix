@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

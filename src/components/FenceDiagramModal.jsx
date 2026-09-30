@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import { colorForLithology } from "../lib/layers.js";
 import { buildFencePanel, panelPointAtDepth, correlationBands } from "../lib/fence.js";
 import { saveFile } from "../lib/desktop.js";

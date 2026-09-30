@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "lucide-react";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "./components/icons.js";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442

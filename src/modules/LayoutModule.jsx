@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "lucide-react";
+import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";

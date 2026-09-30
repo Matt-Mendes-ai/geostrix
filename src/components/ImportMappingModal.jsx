@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
-import { X } from "lucide-react";
+import { X } from "./icons.js";
 import { TARGET_SCHEMAS, guessMapping } from "../lib/layers.js";
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412

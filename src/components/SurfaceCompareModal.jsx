@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, GitCompare, Download, Layers, Check } from "lucide-react";
+import { X, GitCompare, Download, Layers, Check } from "./icons.js";
 import { buildMeshQuery, closestPointOnMesh } from "../lib/meshQuery.js";
 import { computeMeshVolume } from "../lib/volumetrics.js";
 import { buildLineages, compareSurfaceGeometry, diffParams, editDisclosure } from "../lib/surfaceVersions.js";

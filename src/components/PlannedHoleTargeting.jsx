@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Crosshair, GitCompareArrows } from "lucide-react";
+import { Crosshair, GitCompareArrows } from "./icons.js";
 import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual } from "../lib/holePlanning.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { useStore } from "../lib/store.jsx";

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download, Ruler } from "lucide-react";
+import { X, Download, Ruler } from "./icons.js";
 import { buildMeshQuery, isMeshClosed, signedDistanceToMesh, intervalsInsideMesh, holeDistanceToMesh } from "../lib/meshQuery.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

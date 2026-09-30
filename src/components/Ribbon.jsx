@@ -11,7 +11,7 @@
 // its ribbon — pass show={false}.
 import React, { createContext, useContext } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X } from "./icons.js";
 
 export const RibbonSlotContext = createContext(null);
 

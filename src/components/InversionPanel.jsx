@@ -11,7 +11,7 @@
 //     observed / predicted / residual maps, provenance on the model, and no volume or tonnage anywhere.
 // The job itself lives in lib/inversionJobs.js so it survives tab switches.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "lucide-react";
+import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { activateOnKey } from "../lib/a11y.js";

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, LayoutGrid, Loader2 } from "lucide-react";
+import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";

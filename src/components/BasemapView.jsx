@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Plus, Minus, Move, Square, Check, Crosshair, Layers } from "lucide-react";
+import { X, Plus, Minus, Move, Square, Check, Crosshair, Layers } from "./icons.js";
 import LayerPicker from "./LayerPicker.jsx";
 import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
@@ -7,7 +7,7 @@ import { fetchAndCacheTile } from "../lib/tileCache.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { useSetTaskProgress } from "../lib/store.jsx";
-import { Download } from "lucide-react";
+import { Download } from "./icons.js";
 
 const TILE = 256;
 

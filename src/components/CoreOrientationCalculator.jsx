@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Plus, Trash2, Save } from "lucide-react";
+import { X, Plus, Trash2, Save } from "./icons.js";
 import { holeDirection, referenceLine, solveUnoriented, roundAzimuth } from "../lib/coreOrientation.js";
 import { surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

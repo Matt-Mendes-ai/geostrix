@@ -1,9 +1,9 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "lucide-react";
+import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma } from "lucide-react";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma } from "../components/icons.js";
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391

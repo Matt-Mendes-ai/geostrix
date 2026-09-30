@@ -7,7 +7,7 @@
 import React, { useRef, useState } from "react";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
-import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette } from "lucide-react";
+import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";

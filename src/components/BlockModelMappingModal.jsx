@@ -2,7 +2,7 @@
 // infer them from the centroid spacing) and which attributes to bring in (one block model each). The
 // guesses come from lib/blockModelCsv.js (Micromine / Datamine / Vulcan / generic names).
 import React, { useState } from "react";
-import { X, Box } from "lucide-react";
+import { X, Box } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps, panel, header as headerStyle, sel } from "../lib/modalStyles.js";

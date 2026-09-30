@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "lucide-react";
+import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { runDataQC } from "../lib/dataQC.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";

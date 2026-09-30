@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Globe, Loader2, Download } from "lucide-react";
+import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, inp, btn } from "../lib/modalStyles.js";

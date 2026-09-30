@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { X, Eye, EyeOff, Trash2, Download, Upload } from "lucide-react";
+import { X, Eye, EyeOff, Trash2, Download, Upload } from "./icons.js";
 import { distinctValues } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";

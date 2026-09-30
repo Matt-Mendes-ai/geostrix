@@ -5,7 +5,7 @@
 // the element-column auto-detection/unit-inference helpers (isElementColumn/inferUnit, both reused
 // as-is from geochem.js) and this same left-column-mapping/right-element-checklist layout.
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { X } from "./icons.js";
 import { inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";

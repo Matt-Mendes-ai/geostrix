@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Play } from "lucide-react";
+import { X, Play } from "./icons.js";
 import { compositeDownhole } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266 — same QAQC exclusion the estimator uses
 import { samplePointsFromIntervals } from "../lib/estimation.js";

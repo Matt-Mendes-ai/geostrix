@@ -8,7 +8,7 @@
 // always starts from "everything included" (matching the pre-#240-scope default behavior) and the
 // user unchecks what they don't want.
 import React, { useState } from "react";
-import { X, Layers3 } from "lucide-react";
+import { X, Layers3 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";

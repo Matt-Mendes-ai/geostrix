@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, Play, Download, Database } from "lucide-react";
+import { X, Play, Download, Database } from "./icons.js";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { buildWorkspaceDatabase, runQuery } from "../lib/sqlWorkspace.js";

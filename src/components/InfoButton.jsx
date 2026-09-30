@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Info } from "lucide-react";
+import { Info } from "./icons.js";
 
 // TASKS.csv #192 — user request: "Let's make an 'i' info button beside the tools that require
 // explaining. When the user hover or click on the button it will display those texts you have in

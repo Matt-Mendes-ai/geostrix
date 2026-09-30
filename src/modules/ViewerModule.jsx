@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
-import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "lucide-react"; // GitCompare/Check: TASKS.csv #93
+import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ChevronRight, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
@@ -20,7 +20,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.j
 import { openSectionWindow, saveFile } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "lucide-react"; // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { buildShapefileZip } from "../lib/shapefile.js";
 import { buildDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImport.js"; // TASKS.csv #148

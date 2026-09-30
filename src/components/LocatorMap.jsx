@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Maximize2, Layers } from "lucide-react";
+import { X, Maximize2, Layers } from "./icons.js";
 import LayerPicker from "./LayerPicker.jsx";
 import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "lucide-react";
+import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements

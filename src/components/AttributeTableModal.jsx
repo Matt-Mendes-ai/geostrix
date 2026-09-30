@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { X, Trash2, Save, Sigma } from "lucide-react";
+import { X, Trash2, Save, Sigma } from "./icons.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";

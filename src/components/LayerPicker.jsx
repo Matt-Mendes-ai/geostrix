@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "./icons.js";
 import { BASE_LAYERS } from "../lib/baseLayers.js";
 import { getCacheStats, clearTileCache, formatCacheBytes } from "../lib/tileCache.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements

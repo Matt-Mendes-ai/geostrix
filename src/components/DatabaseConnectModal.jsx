@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Database, Play, Loader2, Save, Trash2 } from "lucide-react";
+import { X, Database, Play, Loader2, Save, Trash2 } from "./icons.js";
 import { dbLiveQuery, dbLiveListTables } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";

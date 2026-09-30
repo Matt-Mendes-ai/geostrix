@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Plus, Trash2, RotateCcw } from "lucide-react";
+import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";

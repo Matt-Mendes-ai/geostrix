@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary } from "../lib/qaqc.js";

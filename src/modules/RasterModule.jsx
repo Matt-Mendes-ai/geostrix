@@ -1,6 +1,6 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "lucide-react";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373

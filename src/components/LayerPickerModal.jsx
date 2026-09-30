@@ -10,7 +10,7 @@
 // Source CRS detection from the .prj/gpkg SRS registry, the target guess) behaves identically to a
 // single-layer file.
 import React from "react";
-import { X, Layers3 } from "lucide-react";
+import { X, Layers3 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";

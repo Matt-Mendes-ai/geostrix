@@ -13,7 +13,7 @@
 // onto the same picker.
 import React, { useMemo, useState } from "react";
 import Papa from "papaparse";
-import { Globe2, Layers, FileSpreadsheet, Loader2, CheckCircle2 } from "lucide-react";
+import { Globe2, Layers, FileSpreadsheet, Loader2, CheckCircle2 } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx";
 import CrsPicker from "../components/CrsPicker.jsx";

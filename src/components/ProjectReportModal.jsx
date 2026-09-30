@@ -8,7 +8,7 @@
 // them, the same lightweight technique any CSV-based multi-table export uses — not as polished as
 // real Excel sheets, but zero new dependencies and consistent with every other export in this app.
 import React, { useMemo } from "react";
-import { X, Download, FileBarChart2 } from "lucide-react";
+import { X, Download, FileBarChart2 } from "./icons.js";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";

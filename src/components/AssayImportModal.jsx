@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { X } from "./icons.js";
 import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";

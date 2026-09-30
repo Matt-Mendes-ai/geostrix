@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Keyboard, Info, Cpu } from "lucide-react";
+import { X, Keyboard, Info, Cpu } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";

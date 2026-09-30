@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import { alphaAngle } from "../lib/stereonet.js";
 import { colorForStructure, colorForLithology } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "lucide-react";
+import { X, Download } from "./icons.js";
 import Papa from "papaparse";
 import { computeBestIntercepts, avgGradeInRange, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";

@@ -13,7 +13,7 @@
 // polygon boundary is both its top and its base), so the user picks one unit PAIR explicitly — nothing is
 // matched by name.
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowDownToLine } from "lucide-react";
+import { ArrowDownToLine } from "./icons.js";
 import InfoButton from "./InfoButton.jsx";
 import { extractMapContacts, STRUCTURE_CLASS_LABELS } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements

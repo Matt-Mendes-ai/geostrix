@@ -5,7 +5,7 @@ import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "lucide-react";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "../components/icons.js";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } from "../lib/geophysSurveys.js"; // TASKS.csv #451
@@ -40,7 +40,7 @@ import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASK
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "lucide-react";
+import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
