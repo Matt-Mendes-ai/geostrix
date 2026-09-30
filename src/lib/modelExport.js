@@ -13,6 +13,7 @@ import { writeArrayBuffer } from "geotiff";
 import { buildZip } from "./shapefile.js";
 import { b64ToF32 } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
+import { ubcOctreeFromCells } from "./ubcOctree.js"; // TASKS.csv #324 follow-up
 
 export const UBC_NODATA = -99999;
 const key = (v) => Math.round(v * 1000); // mm keys: cell centres from float32 storage are not bit-identical
@@ -155,7 +156,17 @@ export async function buildModelExportZip(model, epsg) {
     const hasSupport = cells.some((c) => Number.isFinite(c.support));
     const rows = cells.map((c) => [c.x, c.y, c.z, c.dx, c.dy, c.dz, Number.isFinite(c.value) ? c.value : "", ...(hasSupport ? [Number.isFinite(c.support) ? c.support : ""] : [])].join(","));
     files.push({ name: `${base}_cells.csv`, data: enc([`x,y,z,dx,dy,dz,value${hasSupport ? ",support" : ""}`, ...rows].join("\n") + "\n") });
-    notes.push(`Cells (.csv): one row per cell — centre x, y, z (elevation) and size dx, dy, dz in metres, value${hasSupport ? " and data support" : ""}. The mesh is adaptive (octree: cells of ${t.sizes.join(" / ")} m), so there are no UBC .msh/.mod, OMF or depth-slice files: those formats need one regular grid. Re-run the inversion with the uniform mesh if you need them.`);
+    notes.push(`Cells (.csv): one row per cell — centre x, y, z (elevation) and size dx, dy, dz in metres, value${hasSupport ? " and data support" : ""}.`);
+    // #324 follow-up — the same model as UBC-GIF OcTree files (GIFtools, Geoscience ANALYST, the UBC-GIF codes)
+    const oct = ubcOctreeFromCells(cells, UBC_NODATA);
+    if (oct.error) warnings.push(`No UBC OcTree files: ${oct.error}`);
+    else {
+      files.push({ name: `${base}_octree.msh`, data: enc(oct.meshText) });
+      files.push({ name: `${base}_octree.mod`, data: enc(oct.modelText) });
+      if (oct.supportText) files.push({ name: `${base}_octree_support.mod`, data: enc(oct.supportText) });
+      notes.push(`UBC OcTree (_octree.msh / .mod): a ${oct.base}^3 base mesh of ${oct.smallest} m cells, top south-west corner ${oct.origin.map((v) => v.toFixed(2)).join(", ")}; ${oct.nModel.toLocaleString()} model cells plus ${oct.nFiller.toLocaleString()} no-data (${UBC_NODATA}) cells that complete the octree around them, 2:1 balanced as the UBC-GIF codes expect${oct.modelCellsSplit ? ` (${oct.modelCellsSplit} model cells were split to keep the balance; their parts carry the same value)` : ""}.`);
+    }
+    notes.push(`The mesh is adaptive (octree: cells of ${t.sizes.join(" / ")} m), so there are no UBC tensor .msh/.mod, OMF or depth-slice files: those formats need one regular grid. Re-run the inversion with the uniform mesh if you need them.`);
   } else {
     files.push({ name: `${base}.msh`, data: enc(ubcMeshText(t)) });
     files.push({ name: `${base}.mod`, data: enc(ubcModelText(cells, t, "value")) });
