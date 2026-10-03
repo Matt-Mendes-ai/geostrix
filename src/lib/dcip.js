@@ -102,3 +102,42 @@ export function sectionCells(result, geom, field, thickness) {
   }
   return out;
 }
+
+// TASKS.csv #322 — what a saved line keeps of a result: the section (cells + electrodes) and the fit, not
+// the predicted data / per-iteration history (re-run the inversion for those).
+export function slimDcipResult(result) {
+  const c = result.cells;
+  const cells = { s: c.s, z: c.z, ds: c.ds, dz: c.dz, resistivity: c.resistivity, support: c.support, ...(c.chargeability ? { chargeability: c.chargeability } : {}) };
+  return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
+    iterations: result.iterations, ip: result.ip ? { phi_d: result.ip.phi_d } : null, mesh: result.mesh, versions: result.versions };
+}
+
+// A saved line back into the panel's import shape: one row per reading under fixed headers, so the normal
+// column-mapping / parse path (parseDcipRows) is reused unchanged. B / N blank = pole, as in an imported file.
+export const SAVED_LINE_HEADERS = ["A", "B", "M", "N", "Apparent resistivity", "Chargeability"];
+export function savedLineToFile(entry) {
+  const ip = entry.ip && entry.ip.length === entry.readings.length;
+  const headers = ip ? SAVED_LINE_HEADERS : SAVED_LINE_HEADERS.slice(0, 5);
+  const rows = entry.readings.map((r, i) => {
+    const o = { A: r[0], B: r[1] ?? "", M: r[2], N: r[3] ?? "", "Apparent resistivity": entry.rho[i] };
+    if (ip) o.Chargeability = entry.ip[i];
+    return o;
+  });
+  const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "Apparent resistivity", ...(ip ? { ip: "Chargeability" } : {}) };
+  return { file: { name: entry.name, headers, rows }, mapping };
+}
+
+// The inverted section as table rows: distance along the line, its x / y in the project CRS, elevation,
+// cell size, values and support (normalised sensitivity).
+export function sectionTableRows(result, geom) {
+  const c = result.cells;
+  const out = [];
+  for (let i = 0; i < c.s.length; i++) {
+    const [x, y] = geom.at(c.s[i]);
+    const row = { distance_m: c.s[i], x: +x.toFixed(3), y: +y.toFixed(3), z: c.z[i], ds_m: c.ds[i], dz_m: c.dz[i], resistivity_ohmm: c.resistivity[i] };
+    if (c.chargeability) row.chargeability_mVV = c.chargeability[i];
+    row.support = c.support[i];
+    out.push(row);
+  }
+  return out;
+}

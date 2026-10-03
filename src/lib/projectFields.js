@@ -104,6 +104,7 @@ export const FIELDS = [
   { key: "lithoGroups", track: "dirty", empty: list }, // TASKS.csv #176 — a grouping belongs to the project it was built for
   { key: "geophysSurveys", track: "dirty", empty: map }, // TASKS.csv #451 — older files: every survey unlabelled
   { key: "crmCertificates", track: "dirty", empty: map }, // TASKS.csv #400
+  { key: "dcipLines", track: "dirty", empty: list }, // TASKS.csv #322 — DC/IP line data (+ last section) kept with the project
   { key: "omfObjects", track: "undo", empty: list },
   { key: "terrain", track: "dirty", empty: () => null },
   // Geophysics point-cloud legend (pre-#122 files have none): display preferences.

@@ -435,6 +435,15 @@ export function StoreProvider({ children }) {
   // TASKS.csv #400 — certified values per standard (CRM) and element, from its certificate: {[std]: {[symbol]: {mean, sd}}}
   const [crmCertificates, setCrmCertificates] = useState({});
   const setCrmCertificate = useCallback((std, symbol, cert) => setCrmCertificates((p) => ({ ...p, [std]: { ...(p[std] || {}), [symbol]: cert } })), []);
+  // TASKS.csv #322 — DC/IP survey lines kept in the project: { id, name, readings, rho, ip, line, opts, savedAt, section? }.
+  // Upserted by name, so re-importing or re-inverting a line replaces its entry rather than piling up copies.
+  const [dcipLines, setDcipLines] = useState([]);
+  const saveDcipLine = useCallback((entry) => setDcipLines((p) => {
+    const i = p.findIndex((l) => l.name === entry.name);
+    if (i < 0) return [...p, { id: `dcip_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...entry }];
+    const next = p.slice(); next[i] = { ...p[i], ...entry, id: p[i].id }; return next;
+  }), []);
+  const removeDcipLine = useCallback((id) => setDcipLines((p) => p.filter((l) => l.id !== id)), []);
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
@@ -793,6 +802,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
+    dcipLines: [dcipLines, setDcipLines],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -1462,6 +1472,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     geophysSurveys, setGeophysSurveys, updateGeophysSurvey, // TASKS.csv #451
     crmCertificates, setCrmCertificate, // TASKS.csv #400
+    dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,

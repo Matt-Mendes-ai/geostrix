@@ -3,13 +3,17 @@
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Upload, Play } from "./icons.js";
+import { Upload, Play, Download, Trash2 } from "./icons.js";
+import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, lineGeometry, terrainProfile, pseudoPositions, sectionCells } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, lineGeometry, terrainProfile, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows } from "../lib/dcip.js";
+import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
+import { stampLines, withStamp } from "../lib/provenance.js";
+import { version as APP_VERSION } from "../../package.json";
 import { logStops, sequentialStops, fitVerdict } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
-import { pythonHealth, ensureSidecarUp } from "../lib/desktop.js";
+import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 
@@ -17,7 +21,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"]];
 
 export default function DcipPanel({ pBtn, numInput }) {
-  const { terrain, project, addVoxelModelToTab, getProjectToken } = useStore();
+  const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
   const [engine, setEngine] = useState(null);
@@ -27,7 +31,8 @@ export default function DcipPanel({ pBtn, numInput }) {
   const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02 });
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
-  const [last, setLast] = useState(null); // { result, geom, name }
+  const [last, setLast] = useState(null); // { result, geom, name, restored? }
+  const [pick, setPick] = useState("");
 
   useEffect(() => subscribeInversionJob((j) => setJob(j ? { ...j } : null)), []);
   useEffect(() => {
@@ -54,6 +59,20 @@ export default function DcipPanel({ pBtn, numInput }) {
     } catch (e) { setMsg({ ok: false, text: `Could not read ${f.name}: ${e.message}` }); }
   };
 
+  // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
+  const lineName = file ? file.name.replace(/\.(csv|txt)$/i, "") : "";
+  const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
+  const loadSaved = (id) => {
+    const e = dcipLines.find((l) => l.id === id);
+    if (!e) return;
+    const { file: f, mapping: m } = savedLineToFile(e);
+    setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
+    const sl = e.section?.line;
+    const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number)) : null;
+    setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt } : null);
+    setMsg({ ok: true, text: `${e.name}: ${e.readings.length} readings from the project${e.section ? ", with its last inverted section" : ""}.` });
+  };
+
   const run = async () => {
     const problems = [];
     if (!parsed || !parsed.readings.length) problems.push("Import a line with A, M and apparent-resistivity columns.");
@@ -76,7 +95,9 @@ export default function DcipPanel({ pBtn, numInput }) {
       uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0 },
       ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0 } } : {}),
     };
-    const name = file.name.replace(/\.(csv|txt)$/i, "");
+    const name = lineName;
+    keepLine();
+    const lineAtRun = { ...line }, ranOpts = { ...opts };
     const meta = { label: `DC/IP inversion (${name})` };
     const lineGeom = geom;
     const params = {
@@ -91,6 +112,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       kind: "dcip2d", setTaskProgress,
       onDone: (result) => {
         setLast({ result, geom: lineGeom, name });
+        saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
         const thick = num(opts.cell);
         const rc = sectionCells(result, lineGeom, "resistivity", thick);
         const rv = rc.map((c) => c.value);
@@ -119,6 +141,15 @@ export default function DcipPanel({ pBtn, numInput }) {
       {engine && !engine.available && <div style={{ ...small, color: "var(--color-danger-fg)", marginBottom: 8 }}>Needs GeoStrix's Python engine with SimPEG (status bar: Py).</div>}
       <div style={small}>One survey line: electrode positions A, B, M, N as distances along the line (m; B or N blank for a pole), apparent resistivity (ohm·m) and optionally chargeability (mV/V). 2.5D: the ground is assumed not to change across the line.</div>
       <button onClick={() => fileRef.current?.click()} style={{ ...pBtn, marginTop: 8 }}><Upload size={14} /> Import line CSV…</button>
+      {dcipLines.length > 0 && (
+        <div style={row}>
+          <select value={pick} onChange={(e) => { setPick(e.target.value); if (e.target.value) loadSaved(e.target.value); }} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Lines saved in the project">
+            <option value="">Lines in this project ({dcipLines.length})…</option>
+            {dcipLines.map((l) => <option key={l.id} value={l.id}>{l.name} — {l.readings.length} readings{l.section ? ", inverted" : ""}</option>)}
+          </select>
+          {pick && <button onClick={() => { removeDcipLine(pick); setPick(""); }} title="Remove this line from the project" aria-label="Remove saved line" style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={13} /></button>}
+        </div>
+      )}
       <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
       {file && (
         <div style={{ marginTop: 8 }}>
@@ -132,6 +163,10 @@ export default function DcipPanel({ pBtn, numInput }) {
             </div>
           ))}
           {parsed?.readings.length > 0 && <Pseudosection parsed={parsed} />}
+          {parsed?.readings.length > 0 && (
+            <button onClick={() => { keepLine(); setMsg({ ok: true, text: `${lineName} kept in the project (saved with it; also kept automatically when you invert).` }); }} style={{ ...pBtn, marginTop: 6 }}
+              title="Store the readings, line position and settings in the project file, so the line can be reloaded and re-inverted without the CSV.">Keep line in project</button>
+          )}
           <div className="ge-section-label" style={{ marginTop: 10 }}>Line position (project CRS)</div>
           <div style={row}><span style={lbl}>Start x / y</span><input type="number" value={line.x0} onChange={(e) => setLine((l) => ({ ...l, x0: e.target.value }))} style={inp} aria-label="Line start x" /><input type="number" value={line.y0} onChange={(e) => setLine((l) => ({ ...l, y0: e.target.value }))} style={inp} aria-label="Line start y" /></div>
           <div style={row}><span style={lbl}>End x / y</span><input type="number" value={line.x1} onChange={(e) => setLine((l) => ({ ...l, x1: e.target.value }))} style={inp} aria-label="Line end x" /><input type="number" value={line.y1} onChange={(e) => setLine((l) => ({ ...l, y1: e.target.value }))} style={inp} aria-label="Line end y" /></div>
@@ -150,7 +185,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       )}
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
-      {last && <SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} />}
+      {last && <SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} />}
     </div>
   );
 }
@@ -173,8 +208,10 @@ function Pseudosection({ parsed }) {
 }
 
 // the inverted section: cells coloured by resistivity (log) and chargeability, poorly supported cells greyed
-function SectionResult({ last, cutoff }) {
+function SectionResult({ last, cutoff, epsg, pBtn }) {
   const { result } = last;
+  const { addLayoutImage, goToModule } = useStore();
+  const [note, setNote] = useState(null);
   const c = result.cells;
   const [field, setField] = useState("resistivity");
   const vals = c[field];
@@ -201,8 +238,29 @@ function SectionResult({ last, cutoff }) {
         {result.electrodes.map((e, i) => <circle key={i} cx={5 + (e[0] - s0) * sx} cy={5 + (z1 - e[1]) * sz} r={1.6} fill="#1a2028" />)}
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: red conductive, blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · grey = barely seen by the data. Added to Block models (3D, along the line).
+        {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: red conductive, blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · grey = barely seen by the data. {last.restored ? `Inverted ${last.restored.slice(0, 10)} (kept in the project).` : "Added to Block models (3D, along the line)."}
       </div>
+      <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+        <button onClick={() => exportCsv(last, epsg)} style={{ ...pBtn, width: "auto", flex: 1 }} title="Every section cell: distance, x / y (project CRS), elevation, size, values, support"><Download size={13} /> CSV</button>
+        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${last.name}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={13} /> PNG</button>
+        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote("Section added to the Layout page."); }} style={{ ...pBtn, width: "auto", flex: 1 }}>Add to Layout</button>
+      </div>
+      {note && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
     </div>
   );
+}
+
+async function sectionImage(last, field, cutoff) {
+  try { await document.fonts?.load("15px 'Exo 2'"); } catch { /* the fallback font is fine */ }
+  return renderDcipSectionPng({ result: last.result, name: last.name, field, cutoff });
+}
+
+function exportCsv(last, epsg) {
+  const r = last.result;
+  const stamp = stampLines({ tool: "2D DC resistivity / IP inversion (SimPEG) — section cells", version: APP_VERSION, epsg, params: [
+    `Line: ${last.name}; azimuth ${last.geom.azimuth.toFixed(2)} deg (grid); distance 0 at the line start`,
+    `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / r.target).toFixed(2)}x` : ""}`,
+    "support = normalised sensitivity (how much the data see the cell); low-support cells are poorly constrained",
+  ] });
+  saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(sectionTableRows(r, last.geom)), stamp) });
 }
