@@ -18,10 +18,23 @@ export function decodeTableBytes(bytes) {
   return { text, encoding };
 }
 
-// Text -> { rows, headers, note, errors }. Header row, typed values, blank lines skipped, lines starting
-// with "#" skipped (GeoStrix's own export stamp, #404), comma decimals converted where provable (#284).
+// TASKS.csv #509 — identifier columns are read as TEXT. Typing every column turned hole ids "0045" into 45,
+// "1.10" into 1.1 and "1E3" into 1000: the ids no longer matched the company database (or a Postgres collar
+// table, which keeps "0045"), and distinct holes ("01" / "001") merged. A header counts as an identifier when
+// it names a hole / sample / collar (the same words the importers' hole-id guess uses), unless it is
+// plainly a measurement of one (hole_depth, sample_weight, sample_from...).
+const ID_WORD = /(hole|bhid|dhid|sample|samp_?id|collar_?id|drill_?id)/;
+const MEASURE_WORD = /(depth|length|len$|dip|azi|^az|_az|dia(m|meter)?$|size|from|to$|_to_|elev|east|north|recov|rqd|weight|wt|mass|count|interval|eoh|_m$|_ft$|grade|value)/;
+export function isIdentifierHeader(h) {
+  const k = String(h ?? "").trim().toLowerCase().replace(/[\s.\-/]+/g, "_");
+  return ID_WORD.test(k) && !MEASURE_WORD.test(k);
+}
+
+// Text -> { rows, headers, note, errors }. Header row, typed values (identifier columns kept as text, #509),
+// blank lines skipped, lines starting with "#" skipped (GeoStrix's own export stamp, #404), comma decimals
+// converted where provable (#284).
 export function parseTableText(text, { comments = "#" } = {}) {
-  const res = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true, comments });
+  const res = Papa.parse(text, { header: true, dynamicTyping: (field) => !isIdentifierHeader(field), skipEmptyLines: true, comments });
   const { rows, note } = normalizeCommaDecimals(res.data);
   return { rows, headers: res.meta.fields || [], note: note || "", errors: res.errors || [] };
 }

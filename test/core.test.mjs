@@ -247,7 +247,7 @@ test("#349 DB browser SQL per engine: MySQL backticks + snapshot/LIMIT-OFFSET pa
   assert.equal(p.begin, "BEGIN READ ONLY;");
 });
 
-import { decodeTableBytes, parseTableText, toCsv } from "../src/lib/tabular.js";
+import { decodeTableBytes, parseTableText, toCsv, isIdentifierHeader } from "../src/lib/tabular.js";
 test("#444 shared CSV reader/writer: Windows-1252 fallback, comma decimals, # stamp skipped, quoting", () => {
   const bytes = Uint8Array.from([...Buffer.from("x;y;dip"), 0xb0, ...Buffer.from("\n")]); // 0xB0 = "°" in Windows-1252, invalid UTF-8
   const d = decodeTableBytes(bytes);
@@ -549,4 +549,14 @@ test("#400 certified CRM limits and bias; duplicates pair by parent id / same in
   assert.deepEqual(pairs.map((p) => [p.how, +p.rpd.toFixed(1), p.belowLimit]), [["parent id", 9.5, false], ["same interval", 66.7, true]]);
   assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100 });
   assert.equal(blankRows(rows, "Au", units, 0.01)[0].flagged, true); // a sample_type blank under a real hole id
+});
+
+test("#509 hole / sample id columns are read as text; numeric columns still typed", () => {
+  const t = parseTableText("Hole ID,SampleID,from,to,Au,hole_depth\n0045,000123,0,1.5,0.2,300\n1.10,1E3,1.5,3,1E3,250\n01,TRUE,3,4,,200\n001,7,4,5,0.5,150\n");
+  assert.deepEqual(t.rows.map((r) => r["Hole ID"]), ["0045", "1.10", "01", "001"]); // "01" and "001" stay distinct holes
+  assert.deepEqual(t.rows.map((r) => r.SampleID), ["000123", "1E3", "TRUE", "7"]);
+  assert.deepEqual(t.rows.map((r) => r.Au), [0.2, 1000, null, 0.5]);
+  assert.deepEqual(t.rows.map((r) => r.hole_depth), [300, 250, 200, 150]);
+  for (const h of ["hole_id", "HoleID", "BHID", "DHID", "Sample_No", "Collar ID"]) assert.equal(isIdentifierHeader(h), true, h);
+  for (const h of ["hole_depth", "HoleLength", "sample_weight", "Sample From", "Hole_Az", "Hole Dip", "Easting", "Au_ppm"]) assert.equal(isIdentifierHeader(h), false, h);
 });
