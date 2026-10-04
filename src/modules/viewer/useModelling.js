@@ -22,6 +22,7 @@ import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice } from "../../lib/notices.js";
 import { searchEllipsoidBasis, filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, continuesUnitAbove, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
+import { codedRuns, topsForCode, codeInfo } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function useModelling(ctx) {
@@ -52,6 +53,7 @@ export function useModelling(ctx) {
     isSameProject,
     layers,
     lithoGroups,
+    modellingCodes, // TASKS.csv #599
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
@@ -569,18 +571,50 @@ export function useModelling(ctx) {
   // conventions for one real unit produced two separate, incomplete surfaces. A group matches any
   // interval (and any drawn section contact) whose code is IN its code set, so every convention's
   // intervals feed ONE surface, named/colored by the group itself.
-  const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null } = {}) => {
-    const isGroup = typeof target === "object" && target !== null;
-    const unitName = isGroup ? target.name : target;
-    const codes = new Set(isGroup ? (target.codes || []) : [target]);
+  // TASKS.csv #599 — a modelling-code target ({kind: "mcode", name}) takes its contacts from the coded runs:
+  // only where the code starts directly below a younger stratigraphic unit (lib/modellingCodes.js), never at
+  // a hole start, below an unlogged gap, below casing / overburden or below an intrusion / cross-cutting body
+  // (#495). Roles default from the code (#496's old four-code table) and are set in the code list.
+  const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : (r === "fault" || r === "dyke" || r === "breccia") ? "cross-cutting" : "stratigraphic"; };
+  const mcodeGroupOf = (v) => (lithoGroups || []).find((g) => (g.codes || []).includes(v))?.name || null;
+  const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null, pileOrder = null } = {}) => {
+    const isMcode = typeof target === "object" && target !== null && target.kind === "mcode";
+    const isGroup = typeof target === "object" && target !== null && !isMcode;
+    const unitName = isGroup || isMcode ? target.name : target;
+    const codes = new Set(isGroup ? (target.codes || []) : [unitName]); // for an mcode: the code itself (drawn section contacts are tagged with it)
     const domain = domains.find((d) => d.id === modelDomainId);
     const points = [];
+    let mcodeInfo = null, mcodeLogged = null;
     // TASKS.csv #354 — only real tops: a row whose interval above (same hole) is also one of `codes`
     // continues the unit. For a lithology GROUP that also drops the internal AND/BAS boundaries between
     // member codes, which are not contacts of the grouped unit either.
     const litEnds = intervalEndIndex(layers.litho);
     let splitsSkipped = 0;
-    traces.forEach((t) => {
+    if (isMcode) {
+      // a stack's own order is the pile order for codes the code list hasn't placed
+      const mc = pileOrder ? { ...modellingCodes, codes: [...(modellingCodes?.codes || []).filter((c) => Number.isFinite(c.order)), ...pileOrder.filter((n) => !(modellingCodes?.codes || []).some((c) => c.name === n && Number.isFinite(c.order))).map((n) => ({ ...((modellingCodes?.codes || []).find((c) => c.name === n) || {}), name: n, order: 1000 + pileOrder.indexOf(n) }))] } : modellingCodes;
+      const runs = codedRuns(layers.litho, mc, mcodeGroupOf);
+      const { tops, skipped } = topsForCode(runs, unitName, mc, mcodeDefaultRole);
+      mcodeInfo = codeInfo(mc, unitName, mcodeDefaultRole);
+      mcodeLogged = new Set(runs.filter((x) => x.code === unitName).flatMap((x) => x.rows.map((r) => r.value)));
+      const byHole = new Map(traces.map((t) => [t.hole_id, t]));
+      tops.forEach((run) => {
+        const r = run.rows[0], t = byHole.get(run.hole_id);
+        if (!t || excludedIntercepts.includes(interceptId("litho", r)) || !interceptInActiveSet(interceptId("litho", r))) return;
+        const p = findOnTrace(t.pts, run.from);
+        if (!p || (domain && !pointInDomain(p, domain, implicitMeshesRef.current))) return;
+        const api = sceneToApi(p);
+        if (softIntercepts.includes(interceptId("litho", r))) api.nugget = SOFT_NUGGET;
+        api.srcCode = r.value;
+        const pickSigma = r.uncertainty_m == null || r.uncertainty_m === "" ? NaN : Number(r.uncertainty_m);
+        if (Number.isFinite(pickSigma) && pickSigma >= 0) api.sigma = pickSigma;
+        points.push(api);
+      });
+      const why = [skipped.belowRole ? `${skipped.belowRole} below casing / overburden or an intrusion / cross-cutting unit` : null, skipped.holeStart ? `${skipped.holeStart} at a hole start` : null,
+        skipped.gap ? `${skipped.gap} below an unlogged gap` : null, skipped.olderAbove ? `${skipped.olderAbove} below an OLDER unit (overturned, repeated or up-hole)` : null].filter(Boolean);
+      if (!silent || why.length) setNotices((p) => [...p, `${unitName}: ${tops.length} contact(s) where it starts below a younger stratigraphic unit.${why.length ? ` Not used as contacts: ${why.join("; ")}.` : ""}`]);
+    }
+    if (!isMcode) traces.forEach((t) => {
       (layers.litho || []).filter((r) => r.hole_id === t.hole_id && codes.has(r.value) && !isNaN(r.from)).forEach((r) => {
         if (continuesUnitAbove(litEnds, r, codes)) { splitsSkipped++; return; }
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
@@ -762,13 +796,14 @@ export function useModelling(ctx) {
     // disagree it falls back to "stratigraphic" (the same default an unlisted raw code already gets)
     // rather than guessing from one member.
     let role;
-    if (isGroup) { const roles = new Set([...codes].map(roleForLithology)); role = roles.size === 1 ? [...roles][0] : "stratigraphic"; }
+    if (isMcode) role = mcodeInfo.role === "overburden" ? "overburden" : mcodeInfo.role === "stratigraphic" ? "stratigraphic" : "dyke"; // #599: intrusion / cross-cutting -> a cross-cutting surface type
+    else if (isGroup) { const roles = new Set([...codes].map(roleForLithology)); role = roles.size === 1 ? [...roles][0] : "stratigraphic"; }
     else role = roleForLithology(unitName);
     const type = role === "overburden" ? "overburden_base" : role === "fault" ? "fault" : role === "dyke" ? "dyke" : role === "breccia" ? "breccia_body" : "stratigraphic_contact";
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
-    const color = isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: [...codes] }; // codes: #356 model check
+    const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes] }; // codes: #356 model check (logged codes)
   };
 
   const runImplicitModel = useCallback(async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
@@ -782,7 +817,7 @@ export function useModelling(ctx) {
     if (!spec) return;
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
     await runSurfaceModel(spec, runOpts.ensemble ? { ensemble: runOpts.ensemble } : undefined);
-  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, mapConstraint, mapLayers, surfaceStructures, terrain]);
+  }, [layers.litho, layers.structure, runSurfaceModel, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, modellingCodes /* #599 */, mapConstraint, mapLayers, surfaceStructures, terrain]);
 
   // Stratigraphic stack tool (TASKS.csv #52 follow-up): models several lithology units' top contacts
   // in ONE sidecar request instead of one at a time. This isn't just a convenience batch — sending
@@ -802,11 +837,13 @@ export function useModelling(ctx) {
 
     const specs = [];
     const skipped = [];
+    // TASKS.csv #599 — the stack's own top-to-bottom order is the pile order for its modelling codes
+    const pileOrder = unitNames.filter((u) => typeof u === "string" && u.startsWith("mcode:")).map((u) => u.slice(6));
     unitNames.forEach((u) => {
       // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
       // only here, at the point the spec is actually gathered.
       const target = resolveLithoTarget(u);
-      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true }) : null;
+      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder }) : null;
       if (spec) specs.push(spec); else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
     });
     if (skipped.length) setNotices((p) => [...p, `Skipping from the stack (no lithology intervals found): ${skipped.join(", ")}.`]);
@@ -820,7 +857,7 @@ export function useModelling(ctx) {
     if (faultSpecs.length) setNotices((p) => [...p, `The stack is offset by ${faultSpecs.length} fault(s) solved in the same model: ${faultSpecs.map((f) => f.meshName).join(", ")}.`]);
 
     await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
-  }, [stackFaults /* #360 */, layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, stackRelation]);
+  }, [stackFaults /* #360 */, layers.litho, layers.structure, runSurfaceStack, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, searchEllipsoid, softIntercepts, sections, includeSectionContacts, lithoGroups, modellingCodes /* #599 */, stackRelation]);
 
   // TASKS.csv #360 — structure picks usable as faults in the stack: one entry per structure type + name
   // (#362 structure_id), each needing a position along a hole and a dip / dip direction.

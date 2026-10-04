@@ -67,6 +67,7 @@ const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompare
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
+import { codesInUse } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat } from "../lib/meshExport.js";
@@ -654,6 +655,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
+    modellingCodes, setModellingCodes, // TASKS.csv #599
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
@@ -2936,9 +2938,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // `group:` key rides through implicitTarget / stackUnits unchanged and is only resolved to the
   // real group object at the point gatherLithoSurfaceSpec is actually called (or a badge is drawn).
   const isLithoGroupKey = (v) => typeof v === "string" && v.startsWith("group:");
+  const isMcodeKey = (v) => typeof v === "string" && v.startsWith("mcode:"); // TASKS.csv #599
+  // TASKS.csv #599 — modelling codes the geologist created or assigned (not every raw code again), with role
+  const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : isCrossCuttingRole(r) ? "cross-cutting" : "stratigraphic"; };
+  const modellingCodeList = useMemo(() => {
+    const named = new Set([...Object.values(modellingCodes?.assign || {}), ...(modellingCodes?.codes || []).map((c) => c.name)]);
+    if (!named.size) return [];
+    const groupOf = (v) => lithoGroups.find((g) => (g.codes || []).includes(v))?.name || null;
+    return codesInUse(layers.litho, modellingCodes, groupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
+  }, [modellingCodes, layers.litho, lithoGroups]);
   const lithoGroupKey = (g) => `group:${g.id}`;
   // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
-  const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : v);
+  const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : isMcodeKey(v) ? { kind: "mcode", name: v.slice(6) } : v); // #599 mcode:
   // A group's role comes from its member codes: shared role if every member agrees, else null
   // ("mixed" — no badge, no guessing). Cross-cutting if ANY member is, which is what keeps a group
   // off the Stack picker under the same safety rail a raw fault/dyke/breccia code already gets.
@@ -3247,6 +3258,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     isSameProject,
     layers,
     lithoGroups,
+    modellingCodes, // TASKS.csv #599
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
@@ -6964,6 +6976,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 })}
               </optgroup>
             )}
+            {modellingCodeList.length > 0 && (
+              <optgroup label="Modelling codes">
+                {modellingCodeList.map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role !== "stratigraphic" ? ` (${c.role})` : ""}</option>)}
+              </optgroup>
+            )}
           </select>
           <button
             onClick={() => runImplicitModel(implicitTarget)}
@@ -7042,6 +7059,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 })}
               </optgroup>
             )}
+            {/* TASKS.csv #599 — intrusion / cross-cutting / ignored codes break the stack's non-crossing rule: not offered */}
+            {modellingCodeList.some((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")) && (
+              <optgroup label="Modelling codes">
+                {modellingCodeList.filter((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")).map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role === "overburden" ? " (overburden)" : ""}</option>)}
+              </optgroup>
+            )}
           </select>
         </div>
         {stackUnits.length === 0 && (
@@ -7051,8 +7074,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every
           // member shares the role (mixed => plain, no guessing); a since-deleted group is flagged.
           const grp = isLithoGroupKey(u) ? resolveLithoTarget(u) : null;
-          const role = isLithoGroupKey(u) ? (grp ? lithoGroupRole(grp) : null) : roleForLithology(u);
-          const display = isLithoGroupKey(u) ? (grp ? grp.name : "(deleted group)") : u;
+          const role = isLithoGroupKey(u) ? (grp ? lithoGroupRole(grp) : null) : isMcodeKey(u) ? (modellingCodeList.find((c) => c.name === u.slice(6))?.role ?? null) : roleForLithology(u);
+          const display = isLithoGroupKey(u) ? (grp ? grp.name : "(deleted group)") : isMcodeKey(u) ? `${u.slice(6)} (code)` : u; // #599
           return (
           <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", width: 14, flexShrink: 0 }}>{i + 1}</span>
