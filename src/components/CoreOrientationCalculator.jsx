@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Plus, Trash2, Save } from "./icons.js";
-import { holeDirection, referenceLine, solveUnoriented, roundAzimuth } from "../lib/coreOrientation.js";
+import { holeDirection, calculatorReferenceLine, solveUnoriented, roundAzimuth } from "../lib/coreOrientation.js";
 import { surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -26,7 +26,6 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
   const [depth, setDepth] = useState("");
   const [azimuth, setAzimuth] = useState("");
   const [dip, setDip] = useState("");
-  const [useTop, setUseTop] = useState(false); // Matt: bottom-of-hole is the default reference line, not top
 
   const [selectedRefId, setSelectedRefId] = useState("");
   const [knownDipDir, setKnownDipDir] = useState("");
@@ -88,12 +87,12 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     if (Math.abs(dipN) > 90) return { error: "Hole dip must be 0–90° below horizontal." };
     const dipNote = dipN < 0 ? `Hole dip ${dipN}° read as ${-dipN}° below horizontal (negative-down convention).` : null;
     const d = holeDirection(azN, Math.abs(dipN));
-    const r = referenceLine(d, useTop);
-    if (!r) return { error: "This hole is within ~2.6° of vertical — a bottom-of-hole/top-of-hole reference line isn't physically defined (the same real-world limit an actual core-orientation tool would hit)." };
+    // TASKS.csv #497 — non-oriented core: any perpendicular works (the rotation absorbs it), vertical holes included
+    const r = calculatorReferenceLine(d);
     const res = solveUnoriented({ holeDir: d, refLine: r, knownDipDirDeg: kddN, knownDipDeg: kdN, refAlphaDeg: raN, refBetaDeg: rbN, unkAlphaDeg: uaN, unkBetaDeg: ubN });
     if (!res.ok) return { error: res.reason };
     return { ...res, dipNote, holeAz: azN, holeDip: Math.abs(dipN) };
-  }, [azimuth, dip, useTop, knownDipDir, knownDip, refAlpha, refBeta, unkAlpha, unkBeta]);
+  }, [azimuth, dip, knownDipDir, knownDip, refAlpha, refBeta, unkAlpha, unkBeta]);
 
   const canSave = result && !result.error && holeId && depth !== "" && !isNaN(Number(depth));
   const save = () => {
@@ -109,7 +108,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
       ref_dipdir: Number(knownDipDir), ref_dip: Number(knownDip), ref_alpha: Number(refAlpha), ref_beta_scribed: Number(refBeta),
       gamma: roundAzimuth(result.gammaDeg), alpha_check_deg: Number(result.alphaDiscrepancyDeg.toFixed(2)),
       hole_az_used: Number(result.holeAz.toFixed(2)), hole_dip_used: Number(result.holeDip.toFixed(2)),
-      orientedFrom: `alpha/beta calibrated on ${refName} ${knownDipDir}°/${knownDip}° (${useTop ? "top" : "bottom"}-of-hole line; rotation ${roundAzimuth(result.gammaDeg, 1)}°; alpha check off ${result.alphaDiscrepancyDeg.toFixed(1)}°)`,
+      orientedFrom: `alpha/beta calibrated on ${refName} ${knownDipDir}°/${knownDip}° (rotation ${roundAzimuth(result.gammaDeg, 1)}°; alpha check off ${result.alphaDiscrepancyDeg.toFixed(1)}°)`,
       _src: "Core orientation calculator",
     });
   };
@@ -142,10 +141,10 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               <input type="number" placeholder="Hole azimuth (°)" value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
               <input type="number" placeholder="Hole dip below horiz. (0-90°)" value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-              <input type="checkbox" checked={useTop} onChange={(e) => setUseTop(e.target.checked)} />
-              Use top-of-hole reference line (default: bottom-of-hole)
-            </label>
+            {/* TASKS.csv #497 — the bottom/top-of-hole toggle changed nothing (proved in test/core.test.mjs), so it is a note now */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+              Measure both betas from the same scribed line (bottom- or top-of-hole, or any line) — the answer doesn't depend on which. Works for vertical holes too.
+            </div>
 
             <div className="ge-section-label" style={{ marginTop: 14 }}>Reference structure (known true attitude)</div>
             <div style={row}>

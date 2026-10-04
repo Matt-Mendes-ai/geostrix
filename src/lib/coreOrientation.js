@@ -73,6 +73,20 @@ export function referenceLine(holeDir, useTop = false) {
   return norm(sub(vertical, scale(holeDir, vDotD)));
 }
 
+// TASKS.csv #497 — the line beta is measured from, for the NON-ORIENTED core calculator (solveUnoriented).
+// There the scribed line is arbitrary: the rotation gamma, solved from the reference structure, absorbs
+// whichever perpendicular is used, so the answer does not depend on it — bottom-of-hole, top-of-hole or any
+// other (checked over random holes in test/core.test.mjs). So unlike oriented core (orientFromAlphaBeta,
+// which really needs gravity's line and still refuses near-vertical holes), a near-vertical hole is fine
+// here: it falls back to a fixed perpendicular. Vertical holes are exactly where orientation tools fail, so
+// this is where the calibration method is needed most.
+export function calculatorReferenceLine(holeDir) {
+  const r = referenceLine(holeDir, false);
+  if (r) return r;
+  const axis = Math.abs(holeDir[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  return norm(cross(holeDir, axis));
+}
+
 // TASKS.csv #429 — the range rules for the alpha-beta calculator; returns a plain-language reason or null.
 export function checkAlphaBetaInputs({ knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg, knownDipDirDeg }) {
   const all = { knownDipDeg, refAlphaDeg, refBetaDeg, unkAlphaDeg, unkBetaDeg, knownDipDirDeg };

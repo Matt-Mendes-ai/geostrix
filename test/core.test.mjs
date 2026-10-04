@@ -584,3 +584,33 @@ test("#507 fit verdict says 'Reached' only for runs that reached the target", as
   assert.equal(v(160, { reachedTarget: false }).level, "under");
   assert.equal(v(40, { reachedTarget: true }).level, "over");
 });
+
+test("#497 non-oriented core: the answer doesn't depend on the scribed line, so vertical holes work", async () => {
+  const C = await import("../src/lib/coreOrientation.js");
+  const rot = (v, axis, deg) => { // Rodrigues rotation of v about unit axis
+    const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t), d = v[0] * axis[0] + v[1] * axis[1] + v[2] * axis[2];
+    const x = [axis[1] * v[2] - axis[2] * v[1], axis[2] * v[0] - axis[0] * v[2], axis[0] * v[1] - axis[1] * v[0]];
+    return [0, 1, 2].map((i) => v[i] * c + x[i] * s + axis[i] * d * (1 - c));
+  };
+  const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+  let worst = 0;
+  const cases = [[0, 90], [123, 90], [10, 88], [200, 89.9], [45, 60], [300, 30], [90, 75]];
+  for (const [az, dip] of cases) {
+    const d = C.holeDirection(az, dip);
+    // the geologist's arbitrary scribe line: some perpendicular, rotated by an unknown amount
+    const scribe = rot(C.calculatorReferenceLine(d), d, 137);
+    const known = { dd: 75, dip: 40 }, truth = { dd: 300, dip: 65 };
+    const mRef = C.alphaBetaFromPole(C.poleFromDipDD(known.dd, known.dip), d, scribe);
+    const mUnk = C.alphaBetaFromPole(C.poleFromDipDD(truth.dd, truth.dip), d, scribe);
+    const solve = (refLine) => C.solveUnoriented({ holeDir: d, refLine, knownDipDirDeg: known.dd, knownDipDeg: known.dip, refAlphaDeg: mRef.alphaDeg, refBetaDeg: mRef.betaDeg, unkAlphaDeg: mUnk.alphaDeg, unkBetaDeg: mUnk.betaDeg });
+    const lines = [C.calculatorReferenceLine(d), C.referenceLine(d, false), C.referenceLine(d, true), rot(C.calculatorReferenceLine(d), d, 71)].filter(Boolean);
+    for (const L of lines) {
+      const r = solve(L);
+      assert.equal(r.ok, true, `${az}/${dip}`);
+      worst = Math.max(worst, Math.abs(r.dipDeg - truth.dip), angDiff(r.dipDirDeg, truth.dd));
+    }
+  }
+  assert.ok(worst < 1e-6, `worst error ${worst}`);
+  // oriented core still refuses a vertical hole (gravity's line really is undefined there)
+  assert.ok(C.orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 90 }).error);
+});
