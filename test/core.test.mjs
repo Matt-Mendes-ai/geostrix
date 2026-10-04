@@ -568,3 +568,19 @@ test("#508 block-model CSV: a blank or NA coordinate / grade is skipped, not rea
   assert.deepEqual(r.cells.map((c) => [c.x, c.value]), [[10, 1.5], [90, 0]]); // a real 0 stays
   assert.equal(r.badRows, 3);
 });
+
+test("#507 fit verdict says 'Reached' only for runs that reached the target", async () => {
+  const { fitVerdict } = await import("../src/lib/inversion.js");
+  const v = (phi_d, extra = {}) => fitVerdict({ phi_d, target: 100, iterations: 15, ...extra });
+  const stopped = v(140, { reachedTarget: false }); // stopped at maxIter, 40% over
+  assert.equal(stopped.level, "close");
+  assert.doesNotMatch(stopped.text, /^Reached/);
+  assert.match(stopped.text, /not converged/);
+  assert.equal(v(101, { reachedTarget: true }).level, "ok");
+  assert.match(v(101, { reachedTarget: true }).text, /^Reached the target fit \(misfit 1\.01x/);
+  // older results without the flag: the sidecar's own test (phi_d <= 1.05 N)
+  assert.equal(v(104).level, "ok");
+  assert.equal(v(120).level, "close");
+  assert.equal(v(160, { reachedTarget: false }).level, "under");
+  assert.equal(v(40, { reachedTarget: true }).level, "over");
+});

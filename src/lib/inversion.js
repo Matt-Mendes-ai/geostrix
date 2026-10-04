@@ -121,6 +121,11 @@ export function fitVerdict(result) {
   const chi = result.phi_d / result.target;
   if (chi > 1.5) return { chi, level: "under", text: `Did not reach the target fit (misfit ${chi.toFixed(2)}x the target) — the model does not explain the data to the uncertainty you entered. Treat it as unfinished.` };
   if (chi < 0.5) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) — likely fitting noise; the uncertainty may be set too large.` };
+  // TASKS.csv #507 — "Reached" only when the run did reach it: the sidecar's reachedTarget (phi_d <= 1.05 N);
+  // results without the flag (older saved sections) use the same test. A run that stopped at its iteration
+  // limit at 1.05-1.5x used to be reported — and stored in provenance — as converged.
+  const reached = result.reachedTarget ?? chi <= 1.05;
+  if (!reached) return { chi, level: "close", text: `Stopped after ${result.iterations} iteration${result.iterations === 1 ? "" : "s"} before reaching the target fit (misfit ${chi.toFixed(2)}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered.` };
   return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.` };
 }
 
