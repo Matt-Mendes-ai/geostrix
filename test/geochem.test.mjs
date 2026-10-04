@@ -156,3 +156,23 @@ test("#401 calculated element: presets, partial rows skipped, safe parser errors
   assert.throws(() => addCalculatedElement(assays, els, "Zn", "Zn"), /already exists/);
   assert.throws(() => addCalculatedElement(assays, els, "1x", "Zn"), /start with a letter/);
 });
+
+test("#510 same-interval rows inside one file are kept (not merged); re-importing that file still replaces", () => {
+  const file = [
+    { hole_id: "H", from: 0, to: 2, source: "assay", values: { Au: 1, Cu: 10 } },
+    { hole_id: "H", from: 0, to: 2, source: "assay", values: { Au: 3, Cu: 50 } }, // field duplicate
+    { hole_id: "H", from: 2, to: 4, source: "assay", values: { Au: 0.5 } },
+  ];
+  const first = mergeAssayRows([], file);
+  assert.equal(first.rows.length, 3);
+  assert.equal(first.merged, 0);
+  assert.equal(first.repeatedInFile, 1);
+  assert.deepEqual(first.rows.slice(0, 2).map((r) => r.values), [{ Au: 1, Cu: 10 }, { Au: 3, Cu: 50 }]); // no hybrid row
+  // the same file again (e.g. a corrected Cu): occurrence k updates occurrence k — no doubling
+  const again = mergeAssayRows(first.rows, [{ ...file[0], values: { Cu: 11 } }, { ...file[1], values: { Cu: 52 } }, file[2]]);
+  assert.equal(again.rows.length, 3);
+  assert.equal(again.merged, 3);
+  assert.deepEqual(again.rows.slice(0, 2).map((r) => r.values), [{ Au: 1, Cu: 11 }, { Au: 3, Cu: 52 }]);
+  // a later file with a third copy of the interval appends it
+  assert.equal(mergeAssayRows(again.rows, [file[0], file[1], file[0]]).rows.length, 4);
+});

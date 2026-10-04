@@ -129,15 +129,26 @@ export function convertUnit(v, fromUnit, toUnit) {
 // existing row: its element values overwrite the same elements, and elements it doesn't carry are kept
 // (so a later batch that only adds Cu to already-imported Au intervals fills them in rather than
 // duplicating them). Rows for new intervals are appended. Returns the merged list and counts.
+// TASKS.csv #510 — rows are matched against EARLIER imports only, never against other rows of the same file:
+// a file listing an interval twice (field / lab duplicates under the real hole id — 159 pairs in the Harry
+// assays) used to merge the pair into one hybrid row (Au from one, Cu from the other) on a first import, and
+// the duplicate checks never saw them. Matching is by occurrence: the k-th incoming row of an interval
+// updates the k-th existing row of it, so re-importing such a file still replaces rather than duplicates.
+// `repeatedInFile` counts the extra same-interval rows in `incoming` (kept, for the notice).
 export function mergeAssayRows(prev, incoming) {
   const key = (r) => `${r.hole_id}|${r.from}|${r.to}|${r.source || ""}`;
   const out = (prev || []).slice();
-  const index = new Map(out.map((r, i) => [key(r), i]));
-  let merged = 0, added = 0;
+  const existing = new Map(); // key -> indices in `out` of the earlier rows, in order
+  out.forEach((r, i) => { const k = key(r); if (!existing.has(k)) existing.set(k, []); existing.get(k).push(i); });
+  const seen = new Map(); // key -> occurrences so far in `incoming`
+  let merged = 0, added = 0, repeatedInFile = 0;
   incoming.forEach((r) => {
     const k = key(r);
-    const i = index.get(k);
-    if (i == null) { index.set(k, out.length); out.push(r); added++; return; }
+    const n = seen.get(k) || 0;
+    seen.set(k, n + 1);
+    if (n > 0) repeatedInFile++;
+    const i = existing.get(k)?.[n];
+    if (i == null) { out.push(r); added++; return; }
     const old = out[i];
     const quals = { ...(old.qualifiers || {}) };
     Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
@@ -147,7 +158,7 @@ export function mergeAssayRows(prev, incoming) {
     out[i] = next;
     merged++;
   });
-  return { rows: out, merged, added };
+  return { rows: out, merged, added, repeatedInFile };
 }
 
 // element wt% -> oxide wt%

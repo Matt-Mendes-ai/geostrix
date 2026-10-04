@@ -231,7 +231,7 @@ export default function GeochemModule() {
       rows = Array.from(byInterval.values()).filter((r) => r.hole_id && !isNaN(r.from));
     }
     // TASKS.csv #336 — same hole/from/to merges into the existing row instead of duplicating it.
-    const mergedCount = mergeAssayRows(assays, rows).merged; // for the notice only
+    const { merged: mergedCount, repeatedInFile } = mergeAssayRows(assays, rows); // for the notice only
     setAssays((prev) => mergeAssayRows(prev, rows).rows);
     // Existing elements keep their unit (#334); only new symbols add an entry.
     setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
@@ -241,6 +241,8 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
+      repeatedInFile ? `${repeatedInFile} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.` : null,
       oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, `Loaded ${rows.length} ${modal.isPxrf ? "pXRF" : "assay"} intervals (${chosen.length} elements).${extra ? " " + extra : ""}`]);
