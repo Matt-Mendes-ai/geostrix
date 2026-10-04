@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { rowKey, effectiveCode, codedRuns, topsForCode, autoNumber, connectIntervals, codesInUse, EMPTY_MODELLING_CODES } from "../src/lib/modellingCodes.js";
+import { rowKey, effectiveCode, codedRuns, topsForCode, autoNumber, connectIntervals, codesInUse, withPileOrder, EMPTY_MODELLING_CODES } from "../src/lib/modellingCodes.js";
 
 const r = (hole_id, from, to, value) => ({ hole_id, from, to, value });
 // one hole: casing, then dacite / andesite alternating three times, an intrusion, more dacite
@@ -68,4 +68,18 @@ test("#599 on the real Harry log: DACT tops under casing / intrusions / hole sta
   console.log(`Harry DACT: ${all} runs -> ${tops.length} tops; skipped`, skipped);
   assert.ok(tops.length <= 25, `the review counted at most 25 real DACT contacts, got ${tops.length}`);
   assert.equal(tops.length + skipped.holeStart + skipped.gap + skipped.belowRole + skipped.olderAbove, all);
+});
+
+test("#599 a stack's pile order keeps every code's role (casing / intrusions still block tops)", () => {
+  const mc = { ...EMPTY_MODELLING_CODES, codes: [{ name: "CAS", role: "overburden" }, { name: "INT", role: "intrusion" }, { name: "DAC", order: 5 }] };
+  const ordered = withPileOrder(mc, ["AND", "DAC"]);
+  assert.deepEqual(ordered.codes.find((c) => c.name === "CAS"), { name: "CAS", role: "overburden" });
+  assert.deepEqual(ordered.codes.find((c) => c.name === "INT"), { name: "INT", role: "intrusion" });
+  assert.equal(ordered.codes.find((c) => c.name === "DAC").order, 5); // an explicit order wins
+  assert.equal(ordered.codes.find((c) => c.name === "AND").order, 1000);
+  // with DAC placed at 5 and AND (stack) at 1000, AND is the older one: DAC below AND is not a top
+  assert.equal(topsForCode(codedRuns(H1, ordered), "DAC", ordered).skipped.olderAbove, 2);
+  // stack order alone (AND above DAC): tops at 40 and 70 only — not 5 (below casing) or 85 (below the intrusion)
+  const stackOnly = withPileOrder({ ...mc, codes: mc.codes.filter((c) => c.name !== "DAC") }, ["AND", "DAC"]);
+  assert.deepEqual(topsForCode(codedRuns(H1, stackOnly), "DAC", stackOnly).tops.map((t) => t.from), [40, 70]);
 });

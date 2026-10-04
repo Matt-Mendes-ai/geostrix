@@ -115,6 +115,16 @@ export function connectIntervals(mc, rowA, rowB, lithoRows, groupOf) {
   return { ...base, assign, ties, codes };
 }
 
+// A stack's own top-to-bottom order as the pile order, for the codes the code list hasn't placed. Every
+// other entry of the code list (roles, colours, explicit orders) is kept as it is.
+export function withPileOrder(mc, names) {
+  const base = mc || EMPTY_MODELLING_CODES;
+  if (!names?.length) return base;
+  const list = (base.codes || []).map((c) => (names.includes(c.name) && !Number.isFinite(c.order) ? { ...c, order: 1000 + names.indexOf(c.name) } : c));
+  names.forEach((n, i) => { if (!list.some((c) => c.name === n)) list.push({ name: n, order: 1000 + i }); });
+  return { ...base, codes: list };
+}
+
 // Every code in use (effective codes of the rows), in pile order then name.
 export function codesInUse(lithoRows, mc, groupOf, defaultRole) {
   const names = new Set();

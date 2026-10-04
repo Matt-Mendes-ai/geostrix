@@ -7,7 +7,7 @@
 // `ctx` carries what the code reads from the component (store values, state + setters, refs, helpers) —
 // the list was produced by a scope analysis (eslint-scope), not by hand; the return is what the rest of
 // ViewerModule uses.
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { desurveyHole } from "../../lib/desurvey.js";
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
@@ -22,7 +22,7 @@ import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice } from "../../lib/notices.js";
 import { searchEllipsoidBasis, filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, continuesUnitAbove, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo } from "../../lib/modellingCodes.js"; // TASKS.csv #599
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function useModelling(ctx) {
@@ -353,16 +353,21 @@ export function useModelling(ctx) {
     // ground, and nothing here is a resource.
     if (res.block) {
       const codeToUnit = new Map();
-      specs.forEach((sp) => (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)));
+      specs.forEach((sp) => { if (!sp.mcode) (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)); });
+      // TASKS.csv #599 — units modelled from modelling codes are checked interval by interval against each
+      // interval's own code (DACT1 / DACT2 both come from logged DACT: the logged code can't tell them apart)
+      const mcodeUnits = new Set(specs.filter((sp) => sp.mcode).map((sp) => sp.meshName));
+      const unitOfRow = (r) => { if (mcodeUnits.size) { const ec = effectiveCode(r, mcRef.current, mcodeGroupOf); if (mcodeUnits.has(ec)) return ec; } return codeToUnit.get(r.value); };
       const samples = [];
       traces.forEach((t) => {
         // latest store rows via the ref: this useCallback's closure can hold stale `layers`
         (importStateRef.current.layers?.litho || []).forEach((r) => {
-          if (r.hole_id !== t.hole_id || !codeToUnit.has(r.value) || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
+          const unit = unitOfRow(r);
+          if (r.hole_id !== t.hole_id || unit == null || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
           const p = findOnTrace(t.pts, (r.from + r.to) / 2);
           if (!p) return;
           const api = sceneToApi(p);
-          samples.push({ hole_id: t.hole_id, x: api.x, y: api.y, z: api.z, metres: r.to - r.from, logged: codeToUnit.get(r.value) });
+          samples.push({ hole_id: t.hole_id, x: api.x, y: api.y, z: api.z, metres: r.to - r.from, logged: unit });
         });
       });
       const chk = checkAgainstLogs(res.block, samples);
@@ -575,6 +580,8 @@ export function useModelling(ctx) {
   // only where the code starts directly below a younger stratigraphic unit (lib/modellingCodes.js), never at
   // a hole start, below an unlogged gap, below casing / overburden or below an intrusion / cross-cutting body
   // (#495). Roles default from the code (#496's old four-code table) and are set in the code list.
+  const mcRef = useRef(modellingCodes); // TASKS.csv #599 — read by the model check after the run (closure can be stale)
+  mcRef.current = modellingCodes;
   const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : (r === "fault" || r === "dyke" || r === "breccia") ? "cross-cutting" : "stratigraphic"; };
   const mcodeGroupOf = (v) => (lithoGroups || []).find((g) => (g.codes || []).includes(v))?.name || null;
   const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null, pileOrder = null } = {}) => {
@@ -592,7 +599,7 @@ export function useModelling(ctx) {
     let splitsSkipped = 0;
     if (isMcode) {
       // a stack's own order is the pile order for codes the code list hasn't placed
-      const mc = pileOrder ? { ...modellingCodes, codes: [...(modellingCodes?.codes || []).filter((c) => Number.isFinite(c.order)), ...pileOrder.filter((n) => !(modellingCodes?.codes || []).some((c) => c.name === n && Number.isFinite(c.order))).map((n) => ({ ...((modellingCodes?.codes || []).find((c) => c.name === n) || {}), name: n, order: 1000 + pileOrder.indexOf(n) }))] } : modellingCodes;
+      const mc = withPileOrder(modellingCodes, pileOrder); // roles of every code kept (the first version dropped unplaced codes' roles)
       const runs = codedRuns(layers.litho, mc, mcodeGroupOf);
       const { tops, skipped } = topsForCode(runs, unitName, mc, mcodeDefaultRole);
       mcodeInfo = codeInfo(mc, unitName, mcodeDefaultRole);
@@ -803,7 +810,7 @@ export function useModelling(ctx) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes] }; // codes: #356 model check (logged codes)
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], ...(isMcode ? { mcode: true } : {}) }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   const runImplicitModel = useCallback(async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
