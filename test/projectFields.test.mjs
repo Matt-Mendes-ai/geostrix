@@ -131,3 +131,16 @@ test("#513 projectHasContent: false for a new project, true when ANY project fie
   // view state alone (camera, a database profile) is not work
   assert.equal(projectHasContent({ ...emptyFields(), viewerUiState: { cam: 1 }, dbConnections: [{ host: "h" }] }), false);
 });
+
+test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump the version", async () => {
+  const { formatFingerprint } = await import("../src/lib/projectFields.js");
+  // If this fails you changed what a project file contains (a field added / removed / re-encoded). Bump
+  // PROJECT_VERSION in projectFields.js (so #342 warns an OLDER GeoStrix that opens the new file), then add
+  // the new version and fingerprint here. Never edit an existing entry.
+  const PINNED = {
+    7: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
+  };
+  assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
+  assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
+  assert.equal(payloadFromFields(emptyFields()).version, PROJECT_VERSION);
+});

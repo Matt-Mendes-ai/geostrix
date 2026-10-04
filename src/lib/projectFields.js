@@ -18,7 +18,14 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
-export const PROJECT_VERSION = 6;
+// v7 (TASKS.csv #514) — the format changed several times while still writing 6, so an older GeoStrix opened
+// newer files with no warning (#342's guard compares this number) and silently dropped or misread data:
+// compact point-survey layers (#374), compact voxel models (#321), compact generated surfaces (#483), and new
+// fields (lithoGroups #176, geophysSurveys #451, crmCertificates #400, mapLayers #316, surfaceStructures
+// #317, fieldStructuralRefs, dcipLines #322...). Older files still open here unchanged.
+// RULE: any change to FIELDS (a key added / removed, or a field's save/load encoding) bumps this number —
+// test/projectFields.test.mjs freezes the format fingerprint and fails until it is bumped.
+export const PROJECT_VERSION = 7;
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -180,6 +187,12 @@ const NOT_CONTENT = new Set(["layoutPages"]);
 const isEmptyValue = (v) => v == null || (Array.isArray(v) ? v.length === 0 : typeof v === "object" ? Object.values(v).every(isEmptyValue) : false);
 export function projectHasContent(live) {
   return FIELDS.some((f) => f.track !== "view" && !NOT_CONTENT.has(f.key) && !isEmptyValue(live[f.key]));
+}
+
+// TASKS.csv #514 — what an older GeoStrix needs to know about to read a file: the field keys in order and
+// which fields have their own encoding. The test pins it per PROJECT_VERSION.
+export function formatFingerprint() {
+  return FIELDS.map((f) => `${f.key}${f.save ? "+save" : ""}${f.load ? "+load" : ""}`).join(",");
 }
 
 // Values the unsaved-change watcher reference-compares (every "dirty" field, plus the project settings that
