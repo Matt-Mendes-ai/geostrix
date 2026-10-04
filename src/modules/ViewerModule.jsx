@@ -67,7 +67,8 @@ const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompare
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
-import { codesInUse } from "../lib/modellingCodes.js"; // TASKS.csv #599
+import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
+import ModellingCodesPane from "../components/ModellingCodesPane.jsx"; // TASKS.csv #599
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat } from "../lib/meshExport.js";
@@ -898,6 +899,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [pickHoleMode, setPickHoleMode] = useState(false);
   const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
   useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
+  // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modeling tab), connect it to another hole
+  const [mcPickMode, setMcPickMode] = useState(false);
+  const [mcSelected, setMcSelected] = useState(null); // the litho row picked
+  const [mcConnectFrom, setMcConnectFrom] = useState(null); // the row the next pick gets connected to
+  const mcDownRef = useRef(null); // pointer-down position: a drag (orbit / pan) is not a pick
   const [pickedHolePoint, setPickedHolePoint] = useState(null);
 
   const [sectionMode, setSectionMode] = useState(false);
@@ -2941,12 +2947,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const isMcodeKey = (v) => typeof v === "string" && v.startsWith("mcode:"); // TASKS.csv #599
   // TASKS.csv #599 — modelling codes the geologist created or assigned (not every raw code again), with role
   const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : isCrossCuttingRole(r) ? "cross-cutting" : "stratigraphic"; };
+  const mcGroupOf = useCallback((v) => lithoGroups.find((g) => (g.codes || []).includes(v))?.name || null, [lithoGroups]);
   const modellingCodeList = useMemo(() => {
     const named = new Set([...Object.values(modellingCodes?.assign || {}), ...(modellingCodes?.codes || []).map((c) => c.name)]);
     if (!named.size) return [];
-    const groupOf = (v) => lithoGroups.find((g) => (g.codes || []).includes(v))?.name || null;
-    return codesInUse(layers.litho, modellingCodes, groupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
-  }, [modellingCodes, layers.litho, lithoGroups]);
+    return codesInUse(layers.litho, modellingCodes, mcGroupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
+  }, [modellingCodes, layers.litho, mcGroupOf]);
   const lithoGroupKey = (g) => `group:${g.id}`;
   // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
   const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : isMcodeKey(v) ? { kind: "mcode", name: v.slice(6) } : v); // #599 mcode:
@@ -4147,7 +4153,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // that share this same tube-building path — harmless no-op for rows that don't have one.
           // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
           // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value };
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -5701,6 +5707,68 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setPickedHolePoint(world);
     setPickHoleMode(false);
   }, [pickHoleMode, raycastWorldPoint]);
+  // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modeling tab: select it, or — when
+  // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
+  // hover tooltip; the lithology layer must be visible to be picked.
+  const onMcodeClick = useCallback((e) => {
+    if (!mcPickMode || mode !== "modeling") return;
+    const d = mcDownRef.current;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    const hit = pickHits(raycaster).find((h) => h.object.userData?.lithoRow && h.object.parent?.visible !== false);
+    if (!hit) return;
+    const row = hit.object.userData.lithoRow;
+    if (mcConnectFrom) {
+      if (row.hole_id === mcConnectFrom.hole_id) { setNotices((p) => [...p, "Connect: pick the matching interval in ANOTHER hole (or press the connect button again to cancel)."]); return; }
+      const code = effectiveCode(mcConnectFrom, modellingCodes, mcGroupOf);
+      setModellingCodes((p) => connectIntervals(p, mcConnectFrom, row, layers.litho, mcGroupOf));
+      setNotices((p) => [...p, `${row.hole_id} ${Number(row.from).toFixed(1)}–${Number(row.to).toFixed(1)} m (${row.value}) connected to ${mcConnectFrom.hole_id}: modelling code ${code}.`]);
+      setMcConnectFrom(null);
+    }
+    setMcSelected(row);
+  }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, layers.litho, pickHits, setModellingCodes]);
+  // TASKS.csv #599 — overlay in the Modeling tab: a tie line (in the code's colour) between the middles of each
+  // pair of connected intervals, and the selected / "connect from" interval highlighted along its trace.
+  const mcOverlayRef = useRef(null);
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (!mcOverlayRef.current) { mcOverlayRef.current = new THREE.Group(); mcOverlayRef.current.name = "modellingCodesOverlay"; scene.add(mcOverlayRef.current); }
+    const g = mcOverlayRef.current;
+    g.children.slice().forEach((o) => { g.remove(o); o.geometry?.dispose(); o.material?.dispose(); });
+    g.visible = mode === "modeling";
+    if (mode !== "modeling") return;
+    const traceOf = (hole) => tracesRef.current.find((t) => t.hole_id === hole);
+    const parseKey = (k) => { const parts = String(k).split("|"); const to = Number(parts.pop()), from = Number(parts.pop()); return { hole_id: parts.join("|"), from, to }; };
+    (modellingCodes?.ties || []).forEach((tie) => {
+      const a = parseKey(tie.a), b = parseKey(tie.b);
+      const ta = traceOf(a.hole_id), tb = traceOf(b.hole_id);
+      if (!ta || !tb) return;
+      const pa = findOnTrace(ta.pts, (a.from + a.to) / 2), pb = findOnTrace(tb.pts, (b.from + b.to) / 2);
+      if (!pa || !pb) return;
+      const rowA = (layers.litho || []).find((r) => r.hole_id === a.hole_id && Math.abs(Number(r.from) - a.from) < 1e-3);
+      const code = rowA ? effectiveCode(rowA, modellingCodes, mcGroupOf) : null;
+      const color = (code && codeInfo(modellingCodes, code).color) || (rowA ? colorForLithology(rowA.value) : "#ffd400");
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(pa.x, pa.y, pa.z), new THREE.Vector3(pb.x, pb.y, pb.z)]), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 }));
+      line.renderOrder = 10;
+      g.add(line);
+    });
+    const highlight = (row, color) => {
+      const t = row && traceOf(row.hole_id);
+      if (!t) return;
+      const n = 8, pts = [];
+      for (let i = 0; i <= n; i++) { const p = findOnTrace(t.pts, Number(row.from) + ((Number(row.to) - Number(row.from)) * i) / n); if (p) pts.push(new THREE.Vector3(p.x, p.y, p.z)); }
+      if (pts.length < 2) return;
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, (LAYER_META.litho?.radius || 2.2) * 1.8, 8, false), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false }));
+      tube.renderOrder = 9;
+      g.add(tube);
+    };
+    highlight(mcSelected, "#ffd400");
+    if (mcConnectFrom && mcConnectFrom !== mcSelected) highlight(mcConnectFrom, "#ff8a00");
+    lastActivityRef.current = Date.now();
+  }, [modellingCodes, mcSelected, mcConnectFrom, mode, layers.litho, collars, survey, mcGroupOf]);
   // TASKS.csv #121 follow-up — user request: "let's kinda merge the two buttons, we really only need
   // one" (originally shipped as two separate toolbar buttons, Ruler for distance and Shapes for area).
   // One toolbar button now turns measuring on (defaulting to distance) or off; while it's on, a small
@@ -6112,6 +6180,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <RibbonGroup label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
+            <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
             <RibbonButton icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
           <RibbonGroup label="Lithology">
@@ -6866,6 +6935,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the
             Layers "+ Group" header above and CoreOrientationCalculator's field-reference library —
             a short, infrequently-edited list, not a modal workflow. */}
+        </>)}
+        {toolPane === "mcodes" && (<>
+        {paneHeader("Modelling codes", Waypoints, "model")}
+        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
+          pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
+          askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
         </>)}
         {toolPane === "groups" && (<>
         {paneHeader("Lithology groups", Group, "model")}
@@ -7946,7 +8021,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || sculpt.targetId ? "crosshair" : "default" }}>
+      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modeling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
