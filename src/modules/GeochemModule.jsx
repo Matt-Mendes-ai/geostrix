@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
+import { num } from "../lib/layers.js"; // TASKS.csv #508 — blank / "NA" -> NaN, never 0
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
@@ -195,6 +196,10 @@ export default function GeochemModule() {
       return out;
     };
     let rows = [];
+    // TASKS.csv #508 — Number("") / Number(null) is 0, so a blank from or to used to become a phantom 0 m
+    // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.
+    const validInterval = (r) => r.hole_id && Number.isFinite(r.from) && Number.isFinite(r.to);
+    let skippedNoDepth = 0;
     if (format === "wide") {
       rows = allRows.map((r) => {
         const values = {};
@@ -209,16 +214,19 @@ export default function GeochemModule() {
             if (q) quals[e.symbol] = q;
           }
         });
-        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: Number(r[mapping.from]), to: Number(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
+        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
         if (Object.keys(quals).length) out.qualifiers = quals;
         return tagQC(out, r);
-      }).filter((r) => r.hole_id && !isNaN(r.from));
+      });
+      const before = rows.length;
+      rows = rows.filter(validInterval);
+      skippedNoDepth = before - rows.length;
     } else {
       const byInterval = new Map();
       allRows.filter((r) => !mapping.method || r[mapping.method] === selectedMethod).forEach((r) => {
         const sym = isElementColumn(String(r[mapping.analyte] ?? ""));
         if (!sym || !chosen.find((c) => c.symbol === sym)) return;
-        const hole = String(r[mapping.hole_id] ?? "").trim(), from = Number(r[mapping.from]), to = Number(r[mapping.to]);
+        const hole = String(r[mapping.hole_id] ?? "").trim(), from = num(r[mapping.from]), to = num(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" }, r));
         const { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
@@ -228,7 +236,9 @@ export default function GeochemModule() {
           if (q) { if (!target.qualifiers) target.qualifiers = {}; target.qualifiers[sym] = q; }
         }
       });
-      rows = Array.from(byInterval.values()).filter((r) => r.hole_id && !isNaN(r.from));
+      const all = Array.from(byInterval.values());
+      rows = all.filter(validInterval);
+      skippedNoDepth = all.length - rows.length;
     }
     // TASKS.csv #336 — same hole/from/to merges into the existing row instead of duplicating it.
     const { merged: mergedCount, repeatedInFile } = mergeAssayRows(assays, rows); // for the notice only
@@ -241,6 +251,7 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
       repeatedInFile ? `${repeatedInFile} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.` : null,
       oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,
@@ -313,7 +324,7 @@ export default function GeochemModule() {
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
       return {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
-        x: Number(r[mapping.x]), y: Number(r[mapping.y]), z: Number(r[mapping.z]),
+        x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]), // #508 — a blank z is not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : defaultMedium,
         values,
       };

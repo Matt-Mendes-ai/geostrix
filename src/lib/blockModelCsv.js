@@ -21,6 +21,8 @@ const SYN = {
 const NOT_ATTR = new Set(["ijk", "i", "j", "k", "ix", "iy", "iz", "index", "idx", "id", "block_id", "blockid", "nx", "ny", "nz", "xmorig", "ymorig", "zmorig", "parent", "sub_block", "subblock"]);
 const GRADE_HINT = /^(au|ag|cu|zn|pb|mo|ni|co|u3o8|fe|grade|value|val|density|sg|resistivity|susceptibility|chargeability)(_|$)/;
 
+import { num } from "./layers.js";
+
 export function numericColumns(headers, rows, sample = 200) {
   const out = [];
   const n = Math.min(rows.length, sample);
@@ -47,8 +49,9 @@ export function guessBlockModelMapping(headers, rows) {
 // Rows -> cells for ONE attribute. Missing / non-positive sizes are inferred per axis from the smallest
 // gap between distinct centroids (a regular lattice's spacing), as before.
 export function blockModelCellsFromRows(rows, mapping, attr) {
-  const num = (r, k) => (mapping[k] ? Number(r[mapping[k]]) : NaN);
-  const parsed = rows.map((r) => ({ x: num(r, "x"), y: num(r, "y"), z: num(r, "z"), dx: num(r, "dx"), dy: num(r, "dy"), dz: num(r, "dz"), value: attr ? Number(r[attr]) : NaN }));
+  // TASKS.csv #508 — layers.num: a blank / "NA" cell is NaN, not 0 (an unestimated block was a real 0-grade block)
+  const cell = (r, k) => (mapping[k] ? num(r[mapping[k]]) : NaN);
+  const parsed = rows.map((r) => ({ x: cell(r, "x"), y: cell(r, "y"), z: cell(r, "z"), dx: cell(r, "dx"), dy: cell(r, "dy"), dz: cell(r, "dz"), value: attr ? num(r[attr]) : NaN }));
   const good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value));
   const infer = (sizeKey, posKey) => {
     if (!good.some((r) => !(r[sizeKey] > 0))) return null;

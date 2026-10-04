@@ -560,3 +560,11 @@ test("#509 hole / sample id columns are read as text; numeric columns still type
   for (const h of ["hole_id", "HoleID", "BHID", "DHID", "Sample_No", "Collar ID"]) assert.equal(isIdentifierHeader(h), true, h);
   for (const h of ["hole_depth", "HoleLength", "sample_weight", "Sample From", "Hole_Az", "Hole Dip", "Easting", "Au_ppm"]) assert.equal(isIdentifierHeader(h), false, h);
 });
+
+test("#508 block-model CSV: a blank or NA coordinate / grade is skipped, not read as 0", async () => {
+  const { blockModelCellsFromRows } = await import("../src/lib/blockModelCsv.js");
+  const t = parseTableText("x,y,z,dx,dy,dz,au\n10,10,10,20,20,20,1.5\n30,10,10,20,20,20,\n50,10,,20,20,20,2\n70,10,10,20,20,20,NA\n90,10,10,20,20,20,0\n");
+  const r = blockModelCellsFromRows(t.rows, { x: "x", y: "y", z: "z", dx: "dx", dy: "dy", dz: "dz" }, "au");
+  assert.deepEqual(r.cells.map((c) => [c.x, c.value]), [[10, 1.5], [90, 0]]); // a real 0 stays
+  assert.equal(r.badRows, 3);
+});
