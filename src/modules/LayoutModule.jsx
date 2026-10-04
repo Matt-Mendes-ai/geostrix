@@ -4,6 +4,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
+import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { colorForLithology, UNIT_NAMES, distinctValues, minMax } from "../lib/layers.js";
@@ -547,7 +548,7 @@ export default function LayoutModule() {
             <RibbonButton icon={FolderOpen} label={`Templates (${layoutTemplates.length})`} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
           </RibbonGroup>
           <RibbonGroup label="Output">
-            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export this page as a PDF at its paper size" onClick={() => savePDF("layout.pdf")} />
+            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export this page as a PDF at its paper size" onClick={() => savePDF("layout.pdf", pdfOptions(activePage?.format))} />{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
           </RibbonGroup>
         </Ribbon>
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
