@@ -3,7 +3,7 @@
 // unmounts or hides the panel) would orphan the job — still computing in the sidecar, with nobody left to
 // collect the result or offer Cancel (software-design review, #321). Here it survives any UI change, and it
 // drives the status bar's progress chip through the store's stable setter.
-import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob } from "./desktop.js";
+import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob, abandonSidecarJob, JOB_POLL_MAX_MISSES } from "./desktop.js";
 
 let current = null; // { id, request, meta, status, result, error, onDone }
 const listeners = new Set();
@@ -45,7 +45,13 @@ async function poll(job, setTaskProgress, onDone) {
     const st = await sidecarJobStatus(job.id);
     if (current !== job) return;
     if (!st.ok) {
-      if (++misses >= 5) { job.status = { ...job.status, state: "failed" }; job.error = st.error; setTaskProgress?.(null); emit(); return; }
+      if (++misses >= JOB_POLL_MAX_MISSES) {
+        // #515 — cancel before letting go, so the job doesn't keep the engine's one slot (and its RAM)
+        const c = await abandonSidecarJob(job.id);
+        job.status = { ...job.status, state: "failed" };
+        job.error = `Lost contact with the Python engine (${misses} status checks in a row failed: ${st.error})${c.ok ? " — the job was cancelled." : " — it will be cancelled automatically when you start the next run."}`;
+        setTaskProgress?.(null); emit(); return;
+      }
     } else {
       misses = 0;
       job.status = st.data;

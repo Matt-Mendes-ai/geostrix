@@ -377,7 +377,7 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
     const text = await res.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
-    if (!res.ok) return { ok: false, status: res.status, error: formatSidecarErrorDetail(data?.detail) || `Sidecar returned HTTP ${res.status}` };
+    if (!res.ok) return { ok: false, status: res.status, error: formatSidecarErrorDetail(data?.detail) || `Sidecar returned HTTP ${res.status}`, data }; // data: #515 (running_job)
     return { ok: true, status: res.status, data };
   } catch (err) {
     if (err?.code === "SIDECAR_IDENTITY") return { ok: false, status: 0, error: err.message }; // #353
@@ -388,9 +388,9 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
 // TASKS.csv #321 — SimPEG potential-field jobs. plan() never allocates anything heavy; a job runs in its
 // own sidecar process, so cancel really frees its memory.
 export const sidecarPlanPotential = (request) => sidecarJson("/v1/geophys/plan", { method: "POST", body: request, timeoutMs: 60000 });
-export const sidecarStartPotentialJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "potential", request }, timeoutMs: 60000 });
+export const sidecarStartPotentialJob = (request) => startSidecarJob("potential", request);
 // TASKS.csv #322 — 2D DC resistivity / IP inversion job
-export const sidecarStartDcipJob = (request) => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "dcip2d", request }, timeoutMs: 60000 });
+export const sidecarStartDcipJob = (request) => startSidecarJob("dcip2d", request);
 export const sidecarJobStatus = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });
 // TASKS.csv #325 — asks for the per-cell columns as base64 binary (main.py binary_cells) and turns them back
 // into plain number arrays here, so every caller sees exactly the shape it always did. An older sidecar that
@@ -417,6 +417,37 @@ export function decodeBinaryCells(data) {
 export const sidecarJobResult = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/result?binary=1`, { timeoutMs: 120000 })
   .then((r) => (r.ok ? { ...r, data: decodeBinaryCells(r.data) } : r));
 export const sidecarCancelJob = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {}, timeoutMs: 10000 });
+
+// TASKS.csv #515 — the sidecar runs ONE job at a time. A poll loop that gave up (lost contact, deadline) without
+// cancelling used to leave that job holding the slot — still using CPU and RAM — and every later run got 409
+// "cancel it first" with no job left in the app to cancel. Now giving up always sends /cancel; if that cannot
+// get through either, the id is remembered, and the next start that hits a 409 naming it cancels it and retries.
+const abandonedJobs = new Set();
+export async function abandonSidecarJob(id) {
+  if (!id) return { ok: false };
+  abandonedJobs.add(id);
+  const r = await sidecarCancelJob(id);
+  if (r.ok) abandonedJobs.delete(id);
+  return r;
+}
+export async function startSidecarJob(jobKind, request) {
+  const post = () => sidecarJson("/v1/jobs", { method: "POST", body: { jobKind, request }, timeoutMs: 60000 });
+  let res = await post();
+  const stale = res.status === 409 ? res.data?.running_job : null;
+  if (stale && abandonedJobs.has(stale)) {
+    await sidecarCancelJob(stale);
+    for (let i = 0; i < 20; i++) { // the process is terminated on cancel; give it up to ~10 s to free the slot
+      const st = await sidecarJobStatus(stale);
+      if (!st.ok || st.data?.state !== "running") break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    abandonedJobs.delete(stale);
+    res = await post();
+  }
+  return res;
+}
+// Poll misses tolerated before a loop gives up (a busy machine can miss one 10 s status call).
+export const JOB_POLL_MAX_MISSES = 5;
 
 export async function pythonHealth() {
   try {
@@ -472,12 +503,13 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     ...(opts.returnBlock ? { return_block: true } : {}), // TASKS.csv #356
     ...(opts.faults?.length ? { faults: opts.faults } : {}), // TASKS.csv #360 — faults that offset the stack
   };
-  const start = await sidecarJson("/v1/jobs", { method: "POST", body: { jobKind: "implicit", request }, timeoutMs: 60000 });
+  const start = await startSidecarJob("implicit", request); // #515
   if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
   if (!start.ok) return { ok: false, error: start.status === 0 ? "Python sidecar not reachable, or gempy isn't installed there yet (pip install -r python-sidecar/requirements.txt)." : start.error };
   const id = start.data.id;
   const deadline = Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now
   const cancelled = () => opts.signal?.aborted;
+  let misses = 0; // #515
   for (;;) {
     if (cancelled()) { await sidecarCancelJob(id); return { ok: false, cancelled: true, error: "Cancelled." }; }
     if (Date.now() > deadline) { await sidecarCancelJob(id); return { ok: false, error: "Stopped after 15 minutes. Try a coarser resolution or fewer points/orientations." }; }
@@ -487,7 +519,12 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     });
     if (cancelled()) continue;
     const st = await sidecarJobStatus(id);
-    if (!st.ok) return { ok: false, error: st.error };
+    if (!st.ok) {
+      if (++misses < JOB_POLL_MAX_MISSES) continue;
+      const c = await abandonSidecarJob(id); // #515 — never leave it holding the engine
+      return { ok: false, error: `Lost contact with the Python engine during the run (${misses} status checks in a row failed: ${st.error})${c.ok ? " — the job was cancelled." : " — it will be cancelled automatically when you start the next run."}` };
+    }
+    misses = 0;
     if (st.data.state === "done") break;
     if (st.data.state === "cancelled") return { ok: false, cancelled: true, error: "Cancelled." };
     if (st.data.state === "failed") return { ok: false, error: st.data.error || "The modelling job failed." };

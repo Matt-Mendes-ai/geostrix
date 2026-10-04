@@ -313,7 +313,7 @@ def start_job(req: dict = Body(...)):
         from app.jobs import manager
         job_id = manager.start("implicit", payload)
         if job_id is None:
-            raise HTTPException(409, "Another modelling or inversion job is already running — wait for it or cancel it first.")
+            return _job_slot_busy(manager)
         return {"id": job_id}
     if req.get("jobKind") == "dcip2d":  # TASKS.csv #322
         payload = req.get("request") or {}
@@ -321,7 +321,7 @@ def start_job(req: dict = Body(...)):
         from app.jobs import manager
         job_id = manager.start("dcip2d", payload)
         if job_id is None:
-            raise HTTPException(409, "Another modelling or inversion job is already running — wait for it or cancel it first.")
+            return _job_slot_busy(manager)
         return {"id": job_id}
     if req.get("jobKind") != "potential":
         raise HTTPException(400, "jobKind must be 'potential', 'implicit' or 'dcip2d'.")
@@ -334,7 +334,7 @@ def start_job(req: dict = Body(...)):
         raise HTTPException(400, " ".join(p["reasons"]))
     job_id = manager.start("potential", payload)
     if job_id is None:
-        raise HTTPException(409, "Another inversion is already running — wait for it or cancel it first.")
+        return _job_slot_busy(manager)
     return {"id": job_id, "plan": p}
 
 
@@ -506,6 +506,17 @@ _SURFACE_PALETTE = ["#c98a5a", "#4a6b4a", "#6b7a8a", "#c0392b", "#8a3a3a", "#d4b
 # to fill in the "hard" points of a surface that has at least one explicit (soft) nugget elsewhere, so
 # every point ends up with a value GemPy actually receives rather than mixing None into the array.
 DEFAULT_NUGGET = 2e-05
+
+
+def _job_slot_busy(manager):
+    """TASKS.csv #515 — 409 for a second job, naming the one that holds the slot. If the app had lost track of
+    that job (it gave up polling and its cancel could not get through), it can recognise the id as one it
+    abandoned and cancel it, instead of being told "cancel it first" with nothing to cancel. Returned (not
+    raised) so it passes through CORSMiddleware like any other response."""
+    return JSONResponse(status_code=409, content={
+        "detail": "Another modelling or inversion job is already running — wait for it or cancel it first.",
+        "running_job": manager.running_id(),
+    })
 
 
 def _dedupe_onlap_orientations(surfaces):

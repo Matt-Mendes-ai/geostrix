@@ -68,8 +68,10 @@ def main():
     # Start a job, then try a second: must be 409 while the first runs.
     st, j = call("POST", "/v1/jobs", {"jobKind": "potential", "request": base})
     print("start:", st, j.get("id")); assert st == 200
-    st2, _ = call("POST", "/v1/jobs", {"jobKind": "potential", "request": base})
-    print("second concurrent start ->", st2); assert st2 == 409
+    st2, b2 = call("POST", "/v1/jobs", {"jobKind": "potential", "request": base})
+    print("second concurrent start ->", st2, b2); assert st2 == 409
+    # TASKS.csv #515 — the 409 names the job holding the slot, so an app that lost track of it can cancel it
+    assert b2.get("running_job") == j["id"] and "already running" in b2.get("detail", ""), b2
     time.sleep(1.5)
     st, s = call("GET", f"/v1/jobs/{j['id']}")
     print("status after 1.5 s:", s["state"], s["progress"])

@@ -120,6 +120,11 @@ class JobManager:
         j = self._job
         return bool(j and j["state"] in ("queued", "running"))
 
+    def running_id(self):
+        """TASKS.csv #515 — the id of the job holding the slot (None when free), so a 409 can name it."""
+        j = self._job
+        return j["id"] if j and j["state"] in ("queued", "running") else None
+
     def start(self, kind, req):
         with self._lock:
             if self.busy():
