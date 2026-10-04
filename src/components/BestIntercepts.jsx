@@ -156,7 +156,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
       `Element: ${symbol} (${unit}) | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,
-      `Grades: length-weighted over assayed metres; unsampled/unassayed metres inside an intercept are reported per row, not diluted in at zero.`,
+      // TASKS.csv #501/#502 — this now describes what computeBestIntercepts actually does (it used to dilute at zero)
+      `Grades: length-weighted over assayed metres only; unsampled / not-assayed metres inside an intercept are left out of the grade and reported per row (unsampled_or_unassayed_m), not diluted in at zero. Empty cells were read at import as either not assayed or below detection ('<DL' at half), as chosen for each file.`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       ASSAY_READING_RULES,
       twEnabled ? `True width: from a ${twDipDir}/${twDip} (dip direction/dip) structure against hole traces desurveyed by ${desurveyMethod || "minimum curvature"}` : "True width: not computed (lengths are downhole)",
@@ -342,7 +343,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                       <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}
                         title={[
                           r.overRange ? "Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this." : null,
-                          r.unsampledM > 1e-6 ? `${r.unsampledM.toFixed(2)} m inside this intercept has no ${symbol} result (unsampled or not assayed) and is counted at zero grade.` : null,
+                          r.unsampledM > 1e-6 ? `${r.unsampledM.toFixed(2)} m inside this intercept has no ${symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only (#502).` : null,
                           r.overlapM > 1e-6 ? `${r.overlapM.toFixed(2)} m is covered by overlapping assay rows with different results; their average is used.` : null,
                         ].filter(Boolean).join(" ") || undefined}>
                         {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}

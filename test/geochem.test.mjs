@@ -38,10 +38,13 @@ test("#402 a '<' value never passes the cutoff; '>' marks a minimum", () => {
   assert.equal(one([row(0, 1, 100, { qualifiers: { Au: ">" } })])[0].overRange, true);
 });
 
-test("plain intercept with a gap is unchanged", () => {
+test("plain intercept with a gap: the gap is reported, not counted at zero (#502)", () => {
   const r = one([row(0, 1, 2), row(1, 2, 0.1), row(3, 4, 3), row(10, 11, 1)], { maxInternalDilution: 2 });
   assert.equal(r.length, 2);
-  assert.ok(Math.abs(r[0].avgGrade - 1.275) < 1e-9);
+  // #502: (2 + 0.1 + 3) / 3 assayed metres; was (2 + 0.1 + 0 + 3) / 4 = 1.275 with the gap at zero grade
+  assert.ok(Math.abs(r[0].avgGrade - 1.7) < 1e-9);
+  assert.equal(r[0].length, 4);
+  assert.equal(r[0].unsampledM, 1);
 });
 
 test("#331 avgGradeInRange resolves overlaps and duplicates the same way", () => {
@@ -175,4 +178,21 @@ test("#510 same-interval rows inside one file are kept (not merged); re-importin
   assert.deepEqual(again.rows.slice(0, 2).map((r) => r.values), [{ Au: 1, Cu: 11 }, { Au: 3, Cu: 52 }]);
   // a later file with a third copy of the interval appends it
   assert.equal(mergeAssayRows(again.rows, [file[0], file[1], file[0]]).rows.length, 4);
+});
+
+test("#502 one blank cell, one answer: intercept, 'also show' grade and the stamp's rule agree", async () => {
+  const { blankDetectionLimit, isBlankAssayCell } = await import("../src/lib/geochem.js");
+  const rows = [row(0, 1, 2), { hole_id: "H1", from: 1, to: 2, values: {} }, row(2, 3, 2)];
+  const r = one(rows, { cutoff: 0.5 });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].avgGrade, 2); // was 1.333 (blank counted at zero)
+  assert.equal(r[0].unsampledM, 1);
+  assert.equal(avgGradeInRange(rows, "H1", 0, 3, "Au", "ppm", U), 2);
+  // bridging still uses the assayed metres: a blank between two 0.6 g/t samples at a 0.5 cutoff bridges
+  assert.equal(one([row(0, 1, 0.6), { hole_id: "H1", from: 1, to: 2, values: {} }, row(2, 3, 0.6)], { cutoff: 0.5 }).length, 1);
+  // detection limit for blanks read as below detection: the lab's most common '<x', else the lowest value
+  assert.deepEqual(blankDetectionLimit(["<0.005", "<0.005", "<0.01", 0.2, "", null]), { limit: 0.005, basis: "lt" });
+  assert.deepEqual(blankDetectionLimit([0.02, 0.3, "", null, "NA"]), { limit: 0.02, basis: "min" });
+  assert.deepEqual(blankDetectionLimit(["", null]), { limit: null, basis: null });
+  assert.equal(isBlankAssayCell("  "), true); assert.equal(isBlankAssayCell("NA"), false); assert.equal(isBlankAssayCell(0), false);
 });

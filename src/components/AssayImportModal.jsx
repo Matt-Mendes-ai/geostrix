@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -19,6 +19,15 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
       : modal.elements.filter((e) => e.checked).flatMap((e) => modal.allRows.map((r) => r[e.header]));
     cells.forEach((raw) => { const v = parseAssayValue(raw); if (v != null && v < 0) { if (v <= NO_DATA_SENTINEL_MAX) sentinels++; else codes++; } });
     return { codes, sentinels };
+  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
+  // TASKS.csv #502 — empty element cells (in rows that have at least one result: a row with none had nothing
+  // analysed). The user says what they mean for this file; GeochemModule applies it.
+  const blanks = useMemo(() => {
+    if (modal.format === "long") return modal.allRows.filter((r) => isBlankAssayCell(r[modal.mapping.value])).length;
+    const cols = modal.elements.filter((e) => e.checked).map((e) => e.header);
+    let n = 0;
+    modal.allRows.forEach((r) => { const empty = cols.filter((h) => isBlankAssayCell(r[h])).length; if (empty < cols.length) n += empty; });
+    return n;
   }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
   const unitClashes = modal.elements.filter((e) => e.checked && existingUnits[e.symbol] && existingUnits[e.symbol] !== e.unit);
@@ -158,7 +167,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
         </div>
 
-        {(negatives.codes > 0 || negatives.sentinels > 0 || unitClashes.length > 0) && (
+        {(negatives.codes > 0 || negatives.sentinels > 0 || unitClashes.length > 0 || blanks > 0) && (
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
             {negatives.codes > 0 && (
               <div>
@@ -170,6 +179,19 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="negmode" checked={modal.negativeMode === "missing"} onChange={() => onChange({ ...modal, negativeMode: "missing" })} />
                   Not assayed (leave blank)
+                </label>
+              </div>
+            )}
+            {blanks > 0 && (
+              <div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{blanks.toLocaleString()} empty element cell(s) in rows that have other results. What does an empty cell mean in this file?</div>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="blankmode" checked={(modal.blankMode || "missing") === "missing"} onChange={() => onChange({ ...modal, blankMode: "missing" })} />
+                  Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres
+                </label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="blankmode" checked={modal.blankMode === "bdl"} onChange={() => onChange({ ...modal, blankMode: "bdl" })} />
+                  Below detection — stored as "&lt;DL" at half the limit (the lab's most common "&lt;" limit in that column, else its lowest value)
                 </label>
               </div>
             )}

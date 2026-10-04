@@ -10,7 +10,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, reeProfile,
+  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -200,6 +200,24 @@ export default function GeochemModule() {
     // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.
     const validInterval = (r) => r.hole_id && Number.isFinite(r.from) && Number.isFinite(r.to);
     let skippedNoDepth = 0;
+    // TASKS.csv #502 — what an EMPTY element cell means in this file (the import dialog asks when there are
+    // any): "missing" = not assayed (default; excluded from grades everywhere, reported as unsampled), or
+    // "bdl" = below detection, stored as '<DL' at half the limit like any lab '<x'. The limit per element is
+    // the lab's most common '<x' in that column, else the lowest value reported (blankDetectionLimit). A row
+    // whose element cells are ALL empty had nothing analysed, so it stays not-assayed either way.
+    const blankMode = modal.blankMode || "missing";
+    const blankLimits = new Map(), blankBdl = new Map(), blankNoLimit = new Set();
+    if (blankMode === "bdl") {
+      chosen.forEach((e) => blankLimits.set(e.symbol, blankDetectionLimit(format === "wide"
+        ? allRows.map((r) => r[e.header])
+        : allRows.filter((r) => (!mapping.method || r[mapping.method] === selectedMethod) && isElementColumn(String(r[mapping.analyte] ?? "")) === e.symbol).map((r) => r[mapping.value]))));
+    }
+    const blankAsBdl = (sym, header) => {
+      const L = blankLimits.get(sym);
+      if (!L?.limit) { blankNoLimit.add(sym); return null; }
+      blankBdl.set(sym, (blankBdl.get(sym) || 0) + 1);
+      return read(`<${L.limit}`, sym, header);
+    };
     if (format === "wide") {
       rows = allRows.map((r) => {
         const values = {};
@@ -207,8 +225,10 @@ export default function GeochemModule() {
         // the substituted number so the substitution stops being invisible downstream (dataQC warns on
         // over-range rows; nothing else has to care).
         const quals = {};
+        const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
-          const { v, q } = read(r[e.header], e.symbol, e.header);
+          let { v, q } = read(r[e.header], e.symbol, e.header);
+          if (v == null && anyResult && isBlankAssayCell(r[e.header])) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
           if (v != null) {
             values[e.symbol] = v;
             if (q) quals[e.symbol] = q;
@@ -229,7 +249,8 @@ export default function GeochemModule() {
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = num(r[mapping.from]), to = num(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" }, r));
-        const { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
+        let { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
+        if (v == null && blankMode === "bdl" && isBlankAssayCell(r[mapping.value])) ({ v, q } = blankAsBdl(sym, String(r[mapping.analyte] ?? "")) || { v, q }); // #502
         if (v != null) {
           const target = byInterval.get(key);
           target.values[sym] = v;
@@ -252,6 +273,8 @@ export default function GeochemModule() {
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
       skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508
+      blankBdl.size ? `Empty cells read as below detection: ${[...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return `${sym} ${n} at <${L.limit} (${L.basis === "lt" ? "the lab's most common '<' limit in the file" : "the lowest value reported — no '<' limit in the file"})`; }).join("; ")}; stored at half the limit and flagged '<'.` : null, // #502
+      blankNoLimit.size ? `No detection limit could be found for ${[...blankNoLimit].join(", ")} (no '<' values and no reported values), so their empty cells stay not assayed.` : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
       repeatedInFile ? `${repeatedInFile} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.` : null,
       oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,

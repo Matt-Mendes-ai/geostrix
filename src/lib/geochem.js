@@ -117,6 +117,27 @@ export function readAssayCell(raw, negativeMode = "bdl") {
   return { value: Math.abs(value) / 2, qualifier: "<", kind: "neg_bdl" };
 }
 
+// TASKS.csv #502 — a truly EMPTY cell (not "NA" or another text code, which stay not-assayed). At import the
+// user says what an empty cell means for that file: not assayed (default), or below detection.
+export const isBlankAssayCell = (raw) => raw == null || (typeof raw === "string" && raw.trim() === "");
+
+// TASKS.csv #502 — the detection limit to give a blank read as below detection, from the column itself: the
+// most common '<x' limit the lab reported in it, else the smallest positive value reported (a proxy, said so
+// in the notice). null when the column has neither. cells = the raw cells of one element column.
+export function blankDetectionLimit(cells) {
+  const lt = new Map();
+  let minPos = Infinity;
+  for (const raw of cells) {
+    if (isBlankAssayCell(raw)) continue;
+    const s = String(raw).trim();
+    if (s.startsWith("<")) { const x = parseFloat(s.slice(1)); if (x > 0) lt.set(x, (lt.get(x) || 0) + 1); continue; }
+    const v = typeof raw === "number" ? raw : parseFloat(s);
+    if (v > 0 && v < minPos) minPos = v;
+  }
+  if (lt.size) { let best = null, n = -1; lt.forEach((c, x) => { if (c > n || (c === n && x < best)) { best = x; n = c; } }); return { limit: best, basis: "lt" }; }
+  return Number.isFinite(minPos) ? { limit: minPos, basis: "min" } : { limit: null, basis: null };
+}
+
 // TASKS.csv #334 — convert a value between ppb / ppm / % (g/t == ppm).
 export function convertUnit(v, fromUnit, toUnit) {
   if (v == null || fromUnit === toUnit) return v;
@@ -184,11 +205,14 @@ export function valueIn(sample, symbol, unit, elementUnits) {
 // merged into one composite, allowed to bridge a short run of below-cutoff ("internal dilution")
 // material up to maxInternalDilution metres without breaking the intercept — exactly like a geologist
 // manually compositing a log by hand, just automated. Below-cutoff rows bridged into a composite keep
-// their OWN real assayed grade (not assumed zero) — only depth genuinely uncovered by any assay row
-// (a gap between two rows, e.g. unsampled/lost core) falls back to a 0-grade filler for that portion.
-// The composite's reported grade is length-weighted across every sub-interval it contains, so a wide
-// intercept with a diluting low-grade patch inside it reports an honestly diluted grade, not just the
-// grade of the above-cutoff pieces alone.
+// their OWN real assayed grade (not assumed zero), so a wide intercept with a diluting low-grade patch
+// inside it reports an honestly diluted grade, not just the grade of the above-cutoff pieces alone.
+// TASKS.csv #502 — metres with NO result for the element (a gap between rows — unsampled / lost core — or a
+// row where this element was not assayed) are EXCLUDED from the grade, which is length-weighted over the
+// assayed metres only, and reported as unsampledM. They used to be counted at zero grade here while
+// composites, the "also show" grades and the CSV stamp excluded them: three answers for one blank cell
+// (2 / blank / 2 g/t read 1.333 here, 2.0 elsewhere). A blank that really means below detection is set at
+// import (the "blank cells mean" option), as '<DL' at half the limit, and then counts like any '<x'.
 // TASKS.csv #402 — "including" sub-intercepts, the standard way a drill result is reported
 // ("42 m @ 1.2 g/t, including 6 m @ 5.1 g/t"). The high-grade intercepts are computed with exactly the
 // same rules at the higher cutoff (same dilution and minimum length, so they are real intercepts in their
@@ -218,9 +242,9 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
     // re-assay @ 5 reported "0-2 m @ 6.5"; a duplicated 0-1 m @ 10 plus 1-2 m @ 1 reported "2 m @ 10.5"
     // when the true answer is 5.5). See resolveAssaySegments for how overlaps are resolved.
     const segs = resolveAssaySegments(rows, symbol, unit, elementUnits, stats);
-    let current = null; // { from, to, subs: [{from,to,value,width,gt,conflict}], gradeLen }
+    let current = null; // { from, to, subs: [{from,to,value,width,gt,conflict}], gradeLen, assayedLen }
     let pending = []; // below-cutoff segments seen since the last above-cutoff one, not yet committed
-    const startAt = (r, v, width) => ({ from: r.from, to: r.to, subs: [{ from: r.from, to: r.to, value: v, width, gt: r.gt, conflict: r.conflict }], gradeLen: v * width });
+    const startAt = (r, v, width) => ({ from: r.from, to: r.to, subs: [{ from: r.from, to: r.to, value: v, width, gt: r.gt, conflict: r.conflict }], gradeLen: v * width, assayedLen: width });
     const flush = () => {
       if (!current) return;
       const length = current.to - current.from;
@@ -228,10 +252,10 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
         const unsampled = current.subs.reduce((t, r) => t + (r.unsampled ? r.width : 0), 0);
         composites.push({
           hole_id, from: current.from, to: current.to, length,
-          avgGrade: length > 0 ? current.gradeLen / length : 0,
+          avgGrade: current.assayedLen > 0 ? current.gradeLen / current.assayedLen : 0, // #502 — over assayed metres
           intervals: current.subs.filter((r) => !r.unsampled && r.value != null && r.value >= cutoff && !r.lt).length,
           // TASKS.csv #332 — metres inside the intercept with no result for this element (unsampled core, or
-          // not assayed / a negative no-data code) that were counted at zero grade.
+          // not assayed / a negative no-data code); #502: excluded from the grade, reported here.
           unsampledM: unsampled,
           // TASKS.csv #402 — an over-range ('>x', read at its ceiling) sample inside the intercept makes
           // the reported grade a MINIMUM; and metres where overlapping assays were averaged are reported.
@@ -251,12 +275,13 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
         if (current) {
           const gap = r.from - current.to; // total distance to bridge, sampled + unsampled
           const pendingWidth = pending.reduce((t, q) => t + q.width, 0);
-          const pendingGrade = pending.reduce((t, q) => t + (q.value || 0) * q.width, 0);
+          const pendingGrade = pending.reduce((t, q) => t + (q.unsampled ? 0 : (q.value || 0) * q.width), 0);
+          const pendingAssayed = pending.reduce((t, q) => t + (q.unsampled ? 0 : q.width), 0);
           // TASKS.csv #332 — a bridge is only taken if the intercept still averages at or above the cutoff
           // afterwards. Chained bridges used to be accepted blindly, so a table headed "0.5 g/t cutoff"
           // could contain "0-7 m @ 0.21 g/t".
-          const newLen = r.to - current.from;
-          const bridgedAvg = newLen > 0 ? (current.gradeLen + pendingGrade + v * width) / newLen : 0;
+          const newAssayed = current.assayedLen + pendingAssayed + width;
+          const bridgedAvg = newAssayed > 0 ? (current.gradeLen + pendingGrade + v * width) / newAssayed : 0;
           if (gap <= maxInternalDilution + EPS && bridgedAvg >= cutoff - EPS) {
             pending.forEach((q) => current.subs.push(q));
             const unsampled = gap - pendingWidth;
@@ -264,6 +289,7 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
             current.to = r.to;
             current.subs.push({ from: r.from, to: r.to, value: v, width, gt: r.gt, conflict: r.conflict });
             current.gradeLen += pendingGrade + v * width;
+            current.assayedLen = newAssayed;
             pending = [];
           } else {
             flush();
@@ -273,7 +299,7 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
           current = startAt(r, v, width);
         }
       } else if (current) {
-        pending.push({ from: r.from, to: r.to, value: v == null ? 0 : v, width, lt: r.lt, gt: r.gt, conflict: r.conflict, unsampled: v == null }); // not assayed for this element = zero, and reported as such
+        pending.push({ from: r.from, to: r.to, value: v == null ? 0 : v, width, lt: r.lt, gt: r.gt, conflict: r.conflict, unsampled: v == null }); // not assayed for this element: excluded from the grade, reported (#502)
         if (r.to - current.to > maxInternalDilution + EPS) flush(); // already past the bridging allowance
       }
     }
@@ -331,7 +357,7 @@ function resolveAssaySegments(rows, symbol, unit, elementUnits, stats) {
     if (b - a <= EPS) continue;
     while (i < sorted.length && sorted[i].from <= a + EPS) { active.push(i); i++; }
     active = active.filter((j) => sorted[j].to > a + EPS);
-    if (!active.length) continue; // unsampled gap — the intercept walk fills it at zero grade
+    if (!active.length) continue; // unsampled gap — the intercept walk reports it as unsampled metres, outside the grade (#502)
     const withValue = active.filter((j) => vals[j] != null);
     if (active.length > 1) active.forEach((j) => overlapping.add(j));
     const value = withValue.length ? withValue.reduce((t, j) => t + vals[j], 0) / withValue.length : null;
