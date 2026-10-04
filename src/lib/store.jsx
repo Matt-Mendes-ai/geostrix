@@ -444,6 +444,8 @@ export function StoreProvider({ children }) {
     const next = p.slice(); next[i] = { ...p[i], ...entry, id: p[i].id }; return next;
   }), []);
   const removeDcipLine = useCallback((id) => setDcipLines((p) => p.filter((l) => l.id !== id)), []);
+  // TASKS.csv #599 — modelling codes ({ codes, assign, ties }, see lib/modellingCodes.js)
+  const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
@@ -802,7 +804,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -1473,6 +1475,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     geophysSurveys, setGeophysSurveys, updateGeophysSurvey, // TASKS.csv #451
     crmCertificates, setCrmCertificate, // TASKS.csv #400
     dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
+    modellingCodes, setModellingCodes, // TASKS.csv #599
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,

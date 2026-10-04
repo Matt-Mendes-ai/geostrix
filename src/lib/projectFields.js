@@ -25,7 +25,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // #317, fieldStructuralRefs, dcipLines #322...). Older files still open here unchanged.
 // RULE: any change to FIELDS (a key added / removed, or a field's save/load encoding) bumps this number —
 // test/projectFields.test.mjs freezes the format fingerprint and fails until it is bumped.
-export const PROJECT_VERSION = 7;
+// v8 (TASKS.csv #599) adds modellingCodes (per-interval modelling codes, the code list, correlation ties).
+export const PROJECT_VERSION = 8;
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -111,7 +112,11 @@ export const FIELDS = [
   { key: "lithoGroups", track: "dirty", empty: list }, // TASKS.csv #176 — a grouping belongs to the project it was built for
   { key: "geophysSurveys", track: "dirty", empty: map }, // TASKS.csv #451 — older files: every survey unlabelled
   { key: "crmCertificates", track: "dirty", empty: map }, // TASKS.csv #400
-  { key: "dcipLines", track: "dirty", empty: list }, // TASKS.csv #322 — DC/IP line data (+ last section) kept with the project
+  { key: "dcipLines", track: "dirty", empty: list },
+  // TASKS.csv #599 — per-interval modelling codes + the code list (role, pile order) + correlation ties.
+  // Undo-tracked: assigning and connecting intervals are hand edits, small, and easy to get wrong.
+  { key: "modellingCodes", track: "undo", empty: () => ({ codes: [], assign: {}, ties: [] }),
+    load: (data) => ({ codes: [], assign: {}, ties: [], ...(data.modellingCodes || {}) }) }, // TASKS.csv #322 — DC/IP line data (+ last section) kept with the project
   { key: "omfObjects", track: "undo", empty: list },
   { key: "terrain", track: "dirty", empty: () => null },
   // Geophysics point-cloud legend (pre-#122 files have none): display preferences.
