@@ -68,6 +68,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
+import { legendScale } from "../lib/legendScale.js"; // TASKS.csv #498
 import ModellingCodesPane from "../components/ModellingCodesPane.jsx"; // TASKS.csv #599
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
@@ -1610,9 +1611,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         groups.push({ key: `assay_${sym}`, label: `${sym} (${unit})`, items });
       });
     }
-    const ramp = (model, lo, hi) => {
-      const n = 7;
-      return { min: lo, max: hi, discrete: model.colorMode === "discrete", colors: Array.from({ length: n }, (_, i) => colorForVoxelValue(model, lo + ((hi - lo) * i) / (n - 1))) };
+    // TASKS.csv #498 / #522 — from the model's own stops: a log-coloured model on a log bar with decade ticks,
+    // a classified model as one swatch per class (lib/legendScale.js)
+    const pushScale = (key, label, model, lo, hi) => {
+      const L = legendScale(model, lo, hi, fmt);
+      if (L.kind === "classes") groups.push({ key, label, items: L.items });
+      else groups.push({ key, label, items: [], ramp: L });
     };
     (voxelModels || []).forEach((m) => {
       if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
@@ -1620,7 +1624,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
       // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
       if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
-      groups.push({ key: `voxel_${m.id}`, label: m.name, items: [], ramp: ramp(m, lo, hi) });
+      pushScale(`voxel_${m.id}`, m.name, m, lo, hi);
     });
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {
@@ -1630,7 +1634,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const colorer = makeSurveyColorer(gpts.filter((r) => Number.isFinite(r.value)), { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax });
         for (const [key, model] of colorer.models) {
           const units = geophysSurveys?.[key]?.units;
-          groups.push({ key: `geophys_pts_${key}`, label: colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${LAYER_META.geophys_pts?.label || "Geophysics points"}${units ? ` (${units})` : ""}`, items: [], ramp: ramp(model, model.min, model.max) });
+          pushScale(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${LAYER_META.geophys_pts?.label || "Geophysics points"}${units ? ` (${units})` : ""}`, model, model.min, model.max);
         }
       }
     }

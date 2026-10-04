@@ -614,3 +614,26 @@ test("#497 non-oriented core: the answer doesn't depend on the scribed line, so 
   // oriented core still refuses a vertical hole (gravity's line really is undefined there)
   assert.ok(C.orientFromAlphaBeta({ alphaDeg: 40, betaDeg: 100, holeAzDeg: 0, holeDipDeg: 90 }).error);
 });
+
+test("#498/#522 legend built from the model's stops: log ramps on a log scale, discrete models as classes", async () => {
+  const { legendScale, stopsAreLogSpaced } = await import("../src/lib/legendScale.js");
+  const { logStops, sequentialStops } = await import("../src/lib/inversion.js");
+  const dc = { stops: logStops(1, 10000), colorMode: "continuous" };
+  assert.equal(stopsAreLogSpaced(dc.stops), true);
+  assert.equal(stopsAreLogSpaced(sequentialStops(0, 50)), false);
+  const L = legendScale(dc, 1, 10000);
+  assert.equal(L.log, true);
+  // the conductive half is in the key now: the first quarter of the bar is red-to-white, the middle is the white anchor
+  assert.equal(L.colors[0], dc.stops[0].color);
+  assert.equal(L.colors[8].toLowerCase(), "#f4f4f2"); // the white midpoint sits at the GEOMETRIC middle (100 ohm.m)
+  assert.deepEqual(L.ticks.map((t) => t.label), ["10", "100", "1000"]);
+  assert.ok(Math.abs(L.ticks[1].at - 0.5) < 1e-9);
+  // a linear model stays linear, no ticks
+  const lin = legendScale({ stops: sequentialStops(0, 50), colorMode: "continuous" }, 0, 50);
+  assert.equal(lin.log, false); assert.equal(lin.ticks.length, 0);
+  // the reviewer's case: 3 classes at unequal breaks over 0-1000 — every class shown with its range
+  const cls = legendScale({ colorMode: "discrete", stops: [{ value: 0, color: "#fff7cc" }, { value: 10, color: "#d9601a" }, { value: 100, color: "#3d0d3a" }] }, 0, 1000);
+  assert.deepEqual(cls.items, [["0 – 10", "#fff7cc"], ["10 – 100", "#d9601a"], ["≥ 100", "#3d0d3a"]]);
+  // a range that cuts a class keeps only what is shown
+  assert.deepEqual(legendScale({ colorMode: "discrete", stops: [{ value: 0, color: "a" }, { value: 10, color: "b" }, { value: 100, color: "c" }] }, 20, 60).items, [["20 – 60", "b"]]);
+});

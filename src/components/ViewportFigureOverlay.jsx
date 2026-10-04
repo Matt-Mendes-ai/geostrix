@@ -157,10 +157,15 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           )}
           {ramps.map((g) => (
             <div key={g.key} style={{ marginTop: 6 }}>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}</div>
-              <div style={{ height: 9, width: 180, borderRadius: 2, border: "1px solid var(--color-border-light)", background: g.ramp.discrete ? `linear-gradient(to right, ${g.ramp.colors.map((c, i, a) => `${c} ${(100 * i) / a.length}% ${(100 * (i + 1)) / a.length}%`).join(", ")})` : `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }} />
-              <div style={{ display: "flex", justifyContent: "space-between", width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
-                <span>{fmtR(g.ramp.min)}</span><span>{fmtR(g.ramp.max)}</span>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}{g.ramp.log ? " · log scale" : ""}</div>
+              {/* TASKS.csv #498 — the model's own colours (log-sampled for a log model), decade ticks on a log bar */}
+              <div style={{ position: "relative", height: 9, width: 180, borderRadius: 2, border: "1px solid var(--color-border-light)", background: `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }}>
+                {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, top: 5, width: 1, height: 4, background: "var(--color-text)" }} />)}
+              </div>
+              <div style={{ position: "relative", height: 14, width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+                <span style={{ position: "absolute", left: 0 }}>{fmtR(g.ramp.min)}</span>
+                {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
+                <span style={{ position: "absolute", right: 0 }}>{fmtR(g.ramp.max)}</span>
               </div>
             </div>
           ))}
