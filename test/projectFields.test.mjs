@@ -111,3 +111,23 @@ test("#448 every non-view field marks the project unsaved when it changes", () =
   // undo-tracked + dirty-tracked + view-only = every field, no overlap
   assert.equal(UNDO_KEYS.length + DIRTY_KEYS.length + Object.keys(VIEW_ONLY).length, FIELD_KEYS.length);
 });
+
+test("#513 projectHasContent: false for a new project, true when ANY project field holds data", async () => {
+  const { projectHasContent, emptyFields, FIELDS } = await import("../src/lib/projectFields.js");
+  assert.equal(projectHasContent(emptyFields()), false);
+  // the fields the old hand-kept list missed, one at a time
+  for (const [k, v] of [["voxelModels", [{ id: "m" }]], ["survey", [{ hole_id: "H" }]], ["rasters", [{ id: "r" }]], ["terrain", { name: "dem" }],
+    ["dcipLines", [{ id: "l" }]], ["generatedSurfaces", [{ id: "s" }]], ["boundaries", [{ id: "b" }]], ["crmCertificates", { OREAS: { Au: { mean: 1 } } }]]) {
+    assert.equal(projectHasContent({ ...emptyFields(), [k]: v }), true, k);
+  }
+  assert.equal(projectHasContent({ ...emptyFields(), layers: { ...emptyFields().layers, litho: [{ hole_id: "H" }] } }), true);
+  // every content field counts (a field added to FIELDS later is covered without touching this rule)
+  for (const f of FIELDS) {
+    if (f.track === "view" || f.key === "layoutPages") continue;
+    const e = f.empty();
+    const filled = Array.isArray(e) ? [{}] : e && typeof e === "object" ? { x: [1] } : { x: 1 };
+    assert.equal(projectHasContent({ ...emptyFields(), [f.key]: filled }), true, f.key);
+  }
+  // view state alone (camera, a database profile) is not work
+  assert.equal(projectHasContent({ ...emptyFields(), viewerUiState: { cam: 1 }, dbConnections: [{ host: "h" }] }), false);
+});

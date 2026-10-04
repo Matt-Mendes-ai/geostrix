@@ -170,6 +170,18 @@ export function payloadFromFields(live) {
   return out;
 }
 
+// TASKS.csv #513 — does this project hold anything worth a crash-recovery autosave (and should a recovered
+// autosave go into its own tab rather than replace it)? Derived from FIELDS — any field that is not view state
+// and is not empty — instead of a hand-kept list: that list (collars, assays, layers, sections, surface
+// samples, map layers, surface structures) missed inversion models, survey, rasters, terrain, DC/IP lines,
+// generated surfaces, boundaries..., so a project holding only an inversion was never autosaved. layoutPages
+// is skipped: a new project already has its default page.
+const NOT_CONTENT = new Set(["layoutPages"]);
+const isEmptyValue = (v) => v == null || (Array.isArray(v) ? v.length === 0 : typeof v === "object" ? Object.values(v).every(isEmptyValue) : false);
+export function projectHasContent(live) {
+  return FIELDS.some((f) => f.track !== "view" && !NOT_CONTENT.has(f.key) && !isEmptyValue(live[f.key]));
+}
+
 // Values the unsaved-change watcher reference-compares (every "dirty" field, plus the project settings that
 // change geometry; a rename alone is handled by Save As, not an edit). Always the same length.
 export function extraDirtyValues(live) {

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 
@@ -1135,7 +1135,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // "Save", not a replacement for it — real saves and explicit discards both clear it (see
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
-  const hasWork = collars.length > 0 || assays.length > 0 || surfaceSamples.length > 0 || Object.values(layers).some((rows) => rows.length > 0) || sections.length > 0 || mapLayers.length > 0 || surfaceStructures.length > 0; // #316/#317 — a map-only project is still work worth autosaving
+  const hasWork = projectHasContent(live); // #513 — every project field, not a hand-kept list (#316/#317 had to add map layers by hand)
   const autosaveRef = useRef({ ...live, hasWork });
   autosaveRef.current = { ...live, hasWork };
   // TASKS.csv #340 — the tabs themselves ride along so the autosave can include every DIRTY background
