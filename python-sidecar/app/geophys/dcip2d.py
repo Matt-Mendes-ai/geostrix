@@ -131,7 +131,13 @@ def run_job(req, progress):
     pred = sim.dpred(m_dc)
     phi_d = float(np.sum(((rho - pred) / std) ** 2))
     J = sim.getJ(m_dc)
-    sens = np.sqrt(np.einsum("ij,ij->j", J, J))
+    # TASKS.csv #505 — support from the uncertainty-WEIGHTED sensitivity (each reading's row / its std): a
+    # row of J scales with that reading's apparent resistivity, so unweighted, readings over resistive ground
+    # dominated and the conductive side — the VMS / epithermal target — was greyed out as "barely seen"
+    # (77% of its 0-10 m cells vs 0% on the resistive side, half 1000 / half 30 ohm.m line). Weighted, the
+    # two sides read the same (review494 geophysicist dcsupport.py).
+    Jw = J / std[:, None]
+    sens = np.sqrt(np.einsum("ij,ij->j", Jw, Jw))
     sens = sens / sens.max() if sens.max() > 0 else sens
 
     out_ip = None

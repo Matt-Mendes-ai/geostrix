@@ -581,6 +581,11 @@ def run_job(req, progress, ram_cap_bytes):
     # by the #321 performance review, i.e. ~7.5 GB peak at the 1.5 GB cap: an out-of-memory kill at the end
     # of a finished run on an 8 GB laptop. This form adds ~2 MB and ran in 0.75 s on the same matrix.
     sens = np.sqrt(np.einsum("ij,ij->j", G, G, dtype=np.float64)).ravel()
+    # TASKS.csv #506 — per unit VOLUME: a column of G scales with its cell's volume, so on the #324 octree a
+    # 50 m cell read ~8x (2^3) the support of a 25 m cell at the same depth, and the deep coarse cells — the
+    # least resolved — passed the "hide below" cutoff (octree hid 1.7% of core cells vs 50% on the tensor
+    # mesh, same data). On a uniform tensor core this is a constant factor, removed by the max below.
+    sens = sens / mesh.cell_volumes[actv]
     sens = sens / sens.max() if sens.max() > 0 else sens
     # Only core, active cells go back to the renderer — padding and air are never displayed.
     if mesh_type == "octree":

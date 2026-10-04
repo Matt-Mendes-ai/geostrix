@@ -411,6 +411,33 @@ def test_drillhole_constraints_octree():
     assert mesh.h_gridded[c0][0] == 10.0 and mesh.h_gridded[c2][0] > 10.0  # a fine and a coarse cell
 
 
+def test_octree_support_per_volume():
+    """TASKS.csv #506 — support is per unit volume: at the same depth a 50 m octree cell must read about the
+    same support as the tensor mesh's 25 m cells (it read ~8x more, the volume ratio, so deep coarse cells
+    passed the 'hide below' cutoff)."""
+    from app.geophys import potential as P
+    rng = np.random.default_rng(3)
+    def g(n, sp, z, x0=500000.0, y0=6250000.0):
+        xs = x0 + (np.arange(n) - (n - 1) / 2) * sp
+        X, Y = np.meshgrid(xs, y0 + (np.arange(n) - (n - 1) / 2) * sp)
+        return np.c_[X.ravel(), Y.ravel(), np.full(X.size, z)]
+    st, topo = g(15, 40.0, 1010.0), g(30, 25.0, 1000.0)
+    r = np.hypot(st[:, 0] - 500000, st[:, 1] - 6250000)
+    dobs = rng.standard_normal(len(st)) * 2 + 50 * np.exp(-(r / 100) ** 2)
+    med = {}
+    for mt in ("octree", "tensor"):
+        out = P.run_job({"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(),
+                         "field": {"strength": 56000.0, "inclination": 75.0, "declination": 18.0},
+                         "mesh": {"coreCell": 25.0, "depth": 400.0, "padCells": 4, "type": mt}, "observed": dobs.tolist(),
+                         "uncertainty": {"floor": 2.0, "percent": 0}, "reg": {"maxIter": 2}, "baseLevel": "none"}, lambda e: None, int(1.5e9))
+        c = out["cells"]
+        x, y, z, s = (np.asarray(c[k]) for k in ("x", "y", "z", "support"))
+        band = (np.abs(x - 500000) < 150) & (np.abs(y - 6250000) < 150) & (z > 750) & (z < 800)  # 200-250 m deep
+        med[mt] = float(np.median(s[band]))
+    print(f"support at 200-250 m: octree {med['octree']:.4f}, tensor {med['tensor']:.4f}")
+    assert 0.5 < med["octree"] / med["tensor"] < 2.0, med
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

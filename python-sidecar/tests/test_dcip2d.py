@@ -88,7 +88,43 @@ def test_pole_dipole_homogeneous():
     assert out["reachedTarget"] and seen.min() > 85 and seen.max() < 115
 
 
+def test_support_not_biased_against_conductors():
+    """TASKS.csv #505 — support must not grey out conductive ground just because its apparent resistivities are
+    small. Flat line, left half 1000 ohm.m, right half 30 ohm.m: the share of shallow cells under the panel's
+    default 0.02 cutoff must be about the same on both sides (unweighted support: ~77% conductive vs 0%)."""
+    from discretize.utils import active_from_xyz
+    from simpeg import maps
+    from simpeg.electromagnetics.static import resistivity as dc
+    x = np.arange(64) * 10.0
+    rows = np.array([[x[i], x[i] + 20, x[i] + 20 + n * 20, x[i] + 40 + n * 20] for i in range(64) for n in range(1, 7) if x[i] + 40 + n * 20 <= x[-1]])
+    topo = np.c_[[-500.0, 1200.0], [1000.0, 1000.0]]
+    pos = np.unique(rows.ravel())
+    locs = np.c_[pos, np.full(len(pos), 1000.0)]
+    idx = np.searchsorted(pos, rows)
+    mesh, _ = D._mesh(pos, topo, 5.0, 150.0)
+    tx = np.linspace(mesh.nodes_x[0], mesh.nodes_x[-1], 600)
+    active = active_from_xyz(mesh, np.c_[tx, np.full(len(tx), 1000.0)])
+    cc = mesh.cell_centers[active]
+    sigma = np.where(cc[:, 0] < 315, 1 / 1000.0, 1 / 30.0)
+    survey = D._survey(idx, locs, "apparent_resistivity")
+    survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
+    survey.set_geometric_factor()
+    rho = dc.Simulation2DNodal(mesh, survey=survey, sigmaMap=maps.InjectActiveCells(mesh, active, 1e-8)).dpred(sigma)
+    rho = rho * (1 + 0.03 * np.random.default_rng(11).standard_normal(len(rho)))
+    out = D.run_job({"readings": rows.tolist(), "rho": rho.tolist(), "topo": topo.tolist(), "mesh": {"cell": 5.0, "depth": 150.0},
+                     "uncertainty": {"percent": 3, "floor": 0.0}, "maxIter": 20}, lambda e: None)
+    c = out["cells"]
+    s, z, sup = (np.asarray(c[k]) for k in ("s", "z", "support"))
+    shallow = (1000 - z) < 10
+    res_side, con_side = shallow & (s > 100) & (s < 260), shallow & (s > 370) & (s < 530)
+    g_res, g_con = np.mean(sup[res_side] < 0.02), np.mean(sup[con_side] < 0.02)
+    print(f"support (0-10 m, cutoff 0.02): greyed {g_res:.0%} on the 1000 ohm.m side, {g_con:.0%} on the 30 ohm.m side; "
+          f"median support {np.median(sup[res_side]):.3f} vs {np.median(sup[con_side]):.3f}")
+    assert abs(g_con - g_res) <= 0.15, (g_res, g_con)
+
+
 if __name__ == "__main__":
     test_pole_dipole_homogeneous()
     test_dcip2d_recovers_block()
+    test_support_not_biased_against_conductors()
     print("ALL PASSED")
