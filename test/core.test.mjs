@@ -655,3 +655,17 @@ test("#499 section corridor: only the part of a hole inside the buffer is on the
   assert.equal(corridorRuns([{ md: 0, x: 0, y: 100 }, { md: 50, x: 0, y: 60 }], a, b, 25).runs.length, 0);
   assert.deepEqual(corridorRuns([{ md: 0, x: 0, y: 5 }, { md: 50, x: 10, y: -5 }], a, b, 25).runs, [[0, 50]]);
 });
+
+test("#500 a sparse estimate (gaps of whole cells) is still one tensor grid; a ragged gap is not", () => {
+  const c = (x, y, z, v) => ({ x, y, z, dx: 40, dy: 40, dz: 40, value: v });
+  // two drill clusters with empty columns / levels between them
+  const cells = [c(20, 20, 20, 1), c(60, 20, 20, 2), c(220, 20, 20, 3), c(220, 140, 100, 4)];
+  const t = tensorFromCells(cells);
+  assert.equal(t.error, undefined);
+  assert.deepEqual([t.nx, t.ny, t.nz], [6, 4, 3]);
+  assert.deepEqual(t.x.centers, [20, 60, 100, 140, 180, 220]);
+  const vals = ubcModelText(cells, t).trim().split(/\s+/).map(Number);
+  assert.equal(vals.length, 72);
+  assert.equal(vals.filter((v) => v !== -99999).length, 4); // the 4 estimates, everything else no-data
+  assert.ok(tensorFromCells([...cells, c(250, 20, 20, 5)]).error); // 250 is not on the 40 m lattice
+});

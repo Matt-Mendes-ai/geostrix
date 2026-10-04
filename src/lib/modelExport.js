@@ -19,14 +19,27 @@ export const UBC_NODATA = -99999;
 const key = (v) => Math.round(v * 1000); // mm keys: cell centres from float32 storage are not bit-identical
 
 // The tensor grid the cells sit on, or { error } when they are not one (an OcTree, a rotated or ragged model).
+// TASKS.csv #500 — a gap between occupied columns / rows / levels that is a whole number of cells of the same
+// size is filled with empty (no-data) positions: an estimated block model keeps only the blocks it estimated,
+// so it nearly always has empty rows between drill clusters, and it used to be refused here ("not on one
+// regular grid") — no OMF, no UBC package for the normal estimation hand-off (#411). A gap that is not a
+// whole number of cells, or between cells of different sizes, still means "not one grid".
 export function tensorFromCells(cells) {
   const axis = (c, w) => {
     const m = new Map();
     for (const cell of cells) { const k = key(cell[c]); if (!m.has(k)) m.set(k, { c: cell[c], w: cell[w] }); }
-    const list = [...m.values()].sort((a, b) => a.c - b.c);
-    for (let i = 1; i < list.length; i++) {
-      const gap = (list[i].c - list[i].w / 2) - (list[i - 1].c + list[i - 1].w / 2);
-      if (Math.abs(gap) > 0.01 * Math.min(list[i].w, list[i - 1].w)) return null;
+    const occupied = [...m.values()].sort((a, b) => a.c - b.c);
+    const list = [occupied[0]];
+    for (let i = 1; i < occupied.length; i++) {
+      const prev = list[list.length - 1], cur = occupied[i];
+      const gap = (cur.c - cur.w / 2) - (prev.c + prev.w / 2);
+      const tol = 0.01 * Math.min(cur.w, prev.w);
+      if (Math.abs(gap) > tol) {
+        const n = Math.round(gap / prev.w);
+        if (Math.abs(cur.w - prev.w) > tol || n < 1 || Math.abs(gap - n * prev.w) > tol) return null;
+        for (let k = 1; k <= n; k++) list.push({ c: prev.c + k * prev.w, w: prev.w, empty: true });
+      }
+      list.push(cur);
     }
     const index = new Map(list.map((e, i) => [key(e.c), i]));
     return { centers: list.map((e) => e.c), widths: list.map((e) => e.w), index, min: list[0].c - list[0].w / 2, max: list[list.length - 1].c + list[list.length - 1].w / 2 };
