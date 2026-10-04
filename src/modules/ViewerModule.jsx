@@ -69,6 +69,7 @@ const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModa
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { legendScale } from "../lib/legendScale.js"; // TASKS.csv #498
+import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import ModellingCodesPane from "../components/ModellingCodesPane.jsx"; // TASKS.csv #599
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
@@ -5807,7 +5808,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
     const holeIds = new Set(holesInBand.map((t) => t.hole_id));
-    const holes = holesInBand.map((t) => ({ hole_id: t.hole_id, trace: t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] })) }));
+    // TASKS.csv #499 — each hole carries the depth runs that are actually inside the corridor and its offset
+    // from the line; everything drawn on the hole is clipped to those runs below (sectionCorridor.js).
+    const holes = holesInBand.map((t) => {
+      const trace = t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] }));
+      const cr = corridorRuns(trace, a, b, corridor);
+      return { hole_id: t.hole_id, trace, runs: cr.runs, minOffset: cr.minOffset, maxOffset: cr.maxOffset };
+    });
 
     // User request: "make the geophysics voxel display on the cross section too" (reference: a Rogue
     // Geoscience section PDF showing a classified geophysics grid draped as a colored background behind
@@ -5918,6 +5925,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
       });
     });
+
+    // TASKS.csv #499 — keep only what lies in the corridor: intervals / assay bars clipped to the in-corridor runs,
+    // points and structures kept when their depth is in one. (Before, a hole touching the corridor anywhere had
+    // its whole log drawn as if on the section.)
+    {
+      const runsOf = new Map(holes.map((h) => [h.hole_id, h.runs]));
+      const clip = (holeId, from, to) => (runsOf.get(holeId) || []).map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
+      const kept = intervals.flatMap((iv) => clip(iv.hole_id, iv.from, iv.to).map(([f, t]) => ({ ...iv, from: f, to: t })));
+      intervals.length = 0; intervals.push(...kept);
+      const keptPts = points.flatMap((pt) => {
+        if (pt.assay) { const c = clip(pt.hole_id, pt.assay.from, pt.assay.to); return c.length ? [{ ...pt, md: (c[0][0] + c[c.length - 1][1]) / 2, assay: { ...pt.assay, from: c[0][0], to: c[c.length - 1][1] } }] : []; }
+        return mdInRuns(pt.md, runsOf.get(pt.hole_id)) ? [pt] : [];
+      });
+      points.length = 0; points.push(...keptPts);
+      const keptPlanes = planes.filter((pl) => mdInRuns(pl.depth, runsOf.get(pl.hole_id)));
+      planes.length = 0; planes.push(...keptPlanes);
+    }
 
     // User request (TASKS.csv #112): "Will need an elevation profile on the cross section from SRTM."
     // Samples the loaded terrain surface at regular steps along the section line (same

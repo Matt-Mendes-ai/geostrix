@@ -449,7 +449,7 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
       <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
       <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
       <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || "Cross-section"}</text>
-      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{`Azimuth ${Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0)}° · ${vExag && vExag !== 1 ? `${vExag}x vertical exaggeration` : "no vertical exaggeration"}${section.corridor ? ` · holes within ±${section.corridor} m` : ""} · elevation in m`}</text>
+      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{`Azimuth ${Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0)}° · ${vExag && vExag !== 1 ? `${vExag}x vertical exaggeration` : "no vertical exaggeration"}${section.corridor ? ` · data within ±${section.corridor} m of the line (dashed = trace projected from further away)` : ""} · elevation in m`}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -473,10 +473,23 @@ function SectionSVG({ data, svgRef, contacts, drawing, drawPoints, onAddPoint, v
 
       {holes.map((h, hi) => {
         const pts = h.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
+        // TASKS.csv #499 — solid only where the hole is inside the corridor; the rest is projected onto the
+        // section from further away, so it is drawn faint and dashed (and carries no data: the main window
+        // clips intervals / assays / structures to the in-corridor runs). Older payloads without runs: solid.
+        const runs = h.runs;
+        const at = (md) => { // trace position at a measured depth, interpolated
+          const tr = h.trace;
+          let i = 1; while (i < tr.length - 1 && tr[i].md < md) i++;
+          const p0 = tr[i - 1], p1 = tr[i], t = p1.md === p0.md ? 0 : Math.max(0, Math.min(1, (md - p0.md) / (p1.md - p0.md)));
+          return [sx(along(p0.x + t * (p1.x - p0.x), p0.y + t * (p1.y - p0.y))), sz(p0.z + t * (p1.z - p0.z))];
+        };
+        const solid = runs ? runs.map(([m0, m1]) => [at(m0), ...h.trace.filter((p) => p.md > m0 && p.md < m1).map((p) => [sx(along(p.x, p.y)), sz(p.z)]), at(m1)]) : [pts];
+        const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)} m` : `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)}…${h.maxOffset >= 0 ? "+" : ""}${h.maxOffset.toFixed(0)} m`) : null;
         return (
           <g key={hi}>
-            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2" />
-            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}</text>
+            {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{`${h.hole_id}: outside the ±${section.corridor} m buffer — projected onto the section, no data drawn here`}</title></polyline>}
+            {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? `: ${off} from the section line` : ""}`}</title></polyline>)}
+            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}{off ? <title>{`${off} from the section line (in the buffer)`}</title> : null}</text>
           </g>
         );
       })}

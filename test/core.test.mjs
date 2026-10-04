@@ -637,3 +637,21 @@ test("#498/#522 legend built from the model's stops: log ramps on a log scale, d
   // a range that cuts a class keeps only what is shown
   assert.deepEqual(legendScale({ colorMode: "discrete", stops: [{ value: 0, color: "a" }, { value: 10, color: "b" }, { value: 100, color: "c" }] }, 20, 60).items, [["20 – 60", "b"]]);
 });
+
+test("#499 section corridor: only the part of a hole inside the buffer is on the section", async () => {
+  const { corridorRuns, mdInRuns, signedOffset } = await import("../src/lib/sectionCorridor.js");
+  const { desurveyHole } = await import("../src/lib/desurvey.js");
+  const a = { x: -500, y: 0 }, b = { x: 500, y: 0 };
+  // the reviewer's case: E-W section, +-25 m, hole collared 200 m south drilling N at -45 for 400 m
+  const pts = desurveyHole({ hole_id: "H", x: 0, y: -200, z: 500, length: 400 }, [{ depth: 0, azimuth: 0, dip: 45 }, { depth: 400, azimuth: 0, dip: 45 }]);
+  const { runs, minOffset, maxOffset } = corridorRuns(pts.map((p) => ({ md: p.md, x: p.x, y: p.y })), a, b, 25);
+  assert.equal(runs.length, 1);
+  // in the buffer between y = -25 and +25: md = (200 -+ 25) / cos 45
+  assert.ok(Math.abs(runs[0][0] - 175 / Math.SQRT1_2) < 2 && Math.abs(runs[0][1] - 225 / Math.SQRT1_2) < 2, JSON.stringify(runs));
+  assert.equal(mdInRuns(0, runs), false); assert.equal(mdInRuns(282, runs), true); assert.equal(mdInRuns(400, runs), false);
+  assert.ok(minOffset >= -25 - 1e-9 && maxOffset <= 25 + 1e-9);
+  assert.ok(signedOffset(0, 10, a, b) > 0 && signedOffset(0, -10, a, b) < 0);
+  // a hole that never reaches the buffer has no run; one entirely inside has one run over its whole length
+  assert.equal(corridorRuns([{ md: 0, x: 0, y: 100 }, { md: 50, x: 0, y: 60 }], a, b, 25).runs.length, 0);
+  assert.deepEqual(corridorRuns([{ md: 0, x: 0, y: 5 }, { md: 50, x: 10, y: -5 }], a, b, 25).runs, [[0, 50]]);
+});
