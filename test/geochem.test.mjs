@@ -196,3 +196,12 @@ test("#502 one blank cell, one answer: intercept, 'also show' grade and the stam
   assert.deepEqual(blankDetectionLimit(["", null]), { limit: null, basis: null });
   assert.equal(isBlankAssayCell("  "), true); assert.equal(isBlankAssayCell("NA"), false); assert.equal(isBlankAssayCell(0), false);
 });
+
+test("#504 makeRangeAverager gives avgGradeInRange's numbers for many windows (overlaps, duplicates, gaps)", async () => {
+  const { makeRangeAverager } = await import("../src/lib/geochem.js");
+  const rows = [row(0, 4, 2), row(1, 2, 5), row(6, 7, 10), row(6, 7, 10), row(7, 8, 1), { hole_id: "H2", from: 0, to: 3, values: { Au: 4 } }, { hole_id: "H1", from: 9, to: 10, values: {} }];
+  const avg = makeRangeAverager(rows, U);
+  const windows = [["H1", 0, 4], ["H1", 0.5, 1.5], ["H1", 3, 7], ["H1", 4, 6], ["H1", 6, 8], ["H1", 8.5, 10], ["H1", -5, 50], ["H2", 1, 2], ["H3", 0, 1]];
+  for (const [h, f, t] of windows) assert.equal(avg(h, f, t, "Au", "ppm"), avgGradeInRange(rows, h, f, t, "Au", "ppm", U), `${h} ${f}-${t}`);
+  assert.equal(avg("H1", 4, 6, "Au", "ppm"), null); // a gap: no grade, not zero
+});

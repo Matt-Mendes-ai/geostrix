@@ -451,22 +451,39 @@ export function domainsForInterval(domainRows, hole_id, from, to) {
 }
 
 export function avgGradeInRange(assays, hole_id, from, to, symbol, unit, elementUnits) {
+  return makeRangeAverager(assays.filter((a) => a.hole_id === hole_id), elementUnits)(hole_id, from, to, symbol, unit);
+}
+
+// TASKS.csv #504 — the same average for MANY windows over one assay table (Best Intercepts' "also show"
+// columns: one call per intercept per extra element). avgGradeInRange filtered the whole table, de-duplicated
+// and re-resolved the hole's segments on every call — O(intercepts x all assays): 845 ms on the 37-hole
+// Harry sample with three extras, 23 s at 63k rows, re-run on every keystroke in the cutoff box. Here the
+// table is grouped by hole ONCE (same #331 duplicate rule), each hole's segments are resolved once per
+// element and unit (same resolveAssaySegments), and a window is a binary search plus a short sum. Same
+// numbers as avgGradeInRange (test/geochem.test.mjs compares them).
+export function makeRangeAverager(assays, elementUnits) {
   const EPS = 1e-6;
-  // TASKS.csv #331 — same duplicate/overlap resolution as computeBestIntercepts, so an "Also show" grade
-  // over an intercept can't double-count a re-assay or a double-imported row either.
-  const { byHole } = groupAssayRowsByHole(assays.filter((a) => a.hole_id === hole_id));
-  const rows = byHole.get(hole_id);
-  if (!rows) return null;
-  let weighted = 0, coveredWidth = 0;
-  resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((sg) => {
-    if (sg.value == null) return;
-    const overlap = Math.min(sg.to, to) - Math.max(sg.from, from);
-    if (overlap <= EPS) return;
-    weighted += sg.value * overlap;
-    coveredWidth += overlap;
-  });
-  if (coveredWidth <= EPS) return null;
-  return weighted / coveredWidth;
+  const { byHole } = groupAssayRowsByHole(assays);
+  const cache = new Map(); // `${hole}|${symbol}|${unit}` -> segments sorted by depth
+  return (hole_id, from, to, symbol, unit) => {
+    const rows = byHole.get(hole_id);
+    if (!rows) return null;
+    const k = `${hole_id}|${symbol}|${unit}`;
+    let segs = cache.get(k);
+    if (!segs) { segs = resolveAssaySegments(rows, symbol, unit, elementUnits, null); cache.set(k, segs); }
+    let lo = 0, hi = segs.length; // first segment ending after `from`
+    while (lo < hi) { const m = (lo + hi) >> 1; if (segs[m].to <= from + EPS) lo = m + 1; else hi = m; }
+    let weighted = 0, coveredWidth = 0;
+    for (let i = lo; i < segs.length && segs[i].from < to - EPS; i++) {
+      const sg = segs[i];
+      if (sg.value == null) continue;
+      const overlap = Math.min(sg.to, to) - Math.max(sg.from, from);
+      if (overlap <= EPS) continue;
+      weighted += sg.value * overlap;
+      coveredWidth += overlap;
+    }
+    return coveredWidth <= EPS ? null : weighted / coveredWidth;
+  };
 }
 
 // ---------- fixed-length downhole compositing ----------

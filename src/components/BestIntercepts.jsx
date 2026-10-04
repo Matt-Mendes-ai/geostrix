@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import Papa from "papaparse";
-import { computeBestIntercepts, avgGradeInRange, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
+import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
@@ -82,6 +82,16 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const reportAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
+  // TASKS.csv #504 — built once per assay table / domain layer, NOT per keystroke in the cutoff boxes: the
+  // averager groups by hole and caches each hole's resolved segments; the domain rows are grouped by hole so
+  // each intercept scans only its own hole (domainsForInterval filters by hole anyway: same result).
+  const rangeAvg = useMemo(() => makeRangeAverager(reportAssays, elementUnits), [reportAssays, elementUnits]);
+  const domainByHole = useMemo(() => {
+    if (!domainRows) return null;
+    const m = new Map();
+    domainRows.forEach((d) => { if (!m.has(d.hole_id)) m.set(d.hole_id, []); m.get(d.hole_id).push(d); });
+    return m;
+  }, [domainRows]);
   const results = useMemo(() => {
     if (!symbol) return [];
     let rows = computeBestIntercepts(reportAssays, symbol, unit, elementUnits, { cutoff, maxInternalDilution, minLength });
@@ -94,16 +104,16 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     }
     const out = rows.filter((r) => r.avgGrade * r.length >= minGradeLen - 1e-9).map((r) => ({
       ...r,
-      extras: Object.fromEntries(extraSymbols.map((s) => [s, avgGradeInRange(reportAssays, r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm", elementUnits)])),
+      extras: Object.fromEntries(extraSymbols.map((s) => [s, rangeAvg(r.hole_id, r.from, r.to, s, elementUnits[s] || "ppm")])),
       // null (not a fallback to downhole length) whenever the geometry can't be resolved — see
       // trueWidth.js: showing the UNCORRECTED number under a "True width" heading would be worse
       // than showing nothing.
       tw: tracesByHole ? trueWidthForIntercept(tracesByHole.get(r.hole_id), r.from, r.to, twDipDir, twDip) : null,
-      dom: domainRows ? domainsForInterval(domainRows, r.hole_id, r.from, r.to) : null,
+      dom: domainByHole ? domainsForInterval(domainByHole.get(r.hole_id) || [], r.hole_id, r.from, r.to) : null,
     }));
     out.stats = rows.stats; // TASKS.csv #331/#333 — duplicates skipped, overlapping rows, negative codes
     return out;
-  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainRows, includeCutoff]);
+  }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, extraSymbols, tracesByHole, twDipDir, twDip, domainByHole, rangeAvg, includeCutoff]);
   const incOn = includeCutoff !== "" && Number(includeCutoff) > cutoff; // #402
   const meqMetals = meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100 })) : [];
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
