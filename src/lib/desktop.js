@@ -495,7 +495,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   const r = await sidecarJobResult(id);
   if (!r.ok) return { ok: false, error: r.error };
   const data = r.data;
-  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null };
+  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null, orientationsDeduplicated: data.orientations_deduplicated ?? null }; // #512
 }
 
 // The pre-#355 synchronous call, kept only as a fallback for an older sidecar.
@@ -539,7 +539,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
     // TASKS.csv #274 — rangeUsed/rangeDefault/cO are what the run notice and the exported surface's
     // provenance report, so "why did this look different than last time" has an answer. Older sidecars
     // don't send them; undefined then, and every consumer treats that as "unknown".
-    return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o };
+    return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, orientationsDeduplicated: data.orientations_deduplicated ?? null }; // #512
   } catch (err) {
     if (err?.code === "SIDECAR_IDENTITY") return { ok: false, error: err.message }; // #353
     // A user-triggered cancel (opts.signal aborted with this specific reason) gets its own quiet,

@@ -340,6 +340,8 @@ export function useModelling(ctx) {
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
+    // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
+    if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, `${res.orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.`]);
     if (missing.length) setNotices((p) => [...p, `GemPy returned no mesh for: ${missing.join(", ")} (try adding more points or a wider spread of orientations for those).`]);
     if (nonFinite.length) setNotices((p) => [...p, `GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: ${nonFinite.join("; ")}. Usually too few points / orientations for the extent or resolution.`]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a

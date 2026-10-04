@@ -493,6 +493,8 @@ class ImplicitModelResponse(BaseModel):
     # TASKS.csv #356 — {resolution, extent, ids (z fastest, then y, then x), labels (unit name per id, id 1
     # = above every modelled top -> None)} when return_block was set.
     block: dict | None = None
+    # TASKS.csv #512 — orientations dropped as exact repeats inside the one ONLAP group (see _dedupe_onlap_orientations)
+    orientations_deduplicated: int | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -504,6 +506,33 @@ _SURFACE_PALETTE = ["#c98a5a", "#4a6b4a", "#6b7a8a", "#c0392b", "#8a3a3a", "#d4b
 # to fill in the "hard" points of a surface that has at least one explicit (soft) nugget elsewhere, so
 # every point ends up with a value GemPy actually receives rather than mixing None into the array.
 DEFAULT_NUGGET = 2e-05
+
+
+def _dedupe_onlap_orientations(surfaces):
+    """TASKS.csv #512 — in ONLAP mode every surface sits in ONE StructuralGroup, i.e. one scalar field, and
+    the client sends the same structural picks on every unit (nothing ties a pick to a unit). GemPy then
+    receives each gradient k times at the same position: identical information, but 3 x k x N gradient rows
+    in the kriging system. Measured with this endpoint (review494/leapfrog/dup_orient.py: 2 planes, 300
+    orientations, 36^3): 227 s duplicated vs 91 s sent once, same meshes. So within the group, an orientation
+    already given on an earlier surface (same position, dip, azimuth, polarity) is dropped. A surface left with
+    none keeps its first one, so every element still carries an orientation as before. ERODE is untouched:
+    there each surface is its own group / field and needs its own copy.
+    Returns (list of orientation lists, one per surface, number dropped)."""
+    seen = set()
+    out, dropped = [], 0
+    for surf in surfaces:
+        kept = []
+        for o in surf.orientations:
+            k = (round(o.x, 3), round(o.y, 3), round(o.z, 3), round(o.dip, 4), round(o.azimuth, 4), o.polarity)
+            if k in seen:
+                continue
+            seen.add(k)
+            kept.append(o)
+        if not kept and surf.orientations:
+            kept = [surf.orientations[0]]
+        dropped += len(surf.orientations) - len(kept)
+        out.append(kept)
+    return out, dropped
 
 
 @app.post("/implicit-model", response_model=ImplicitModelResponse)
@@ -529,7 +558,11 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
 
     elements = []
     fault_elements = []  # TASKS.csv #360
+    deduped = None
+    if req.relation != "erode":  # #512 — one shared field: send each shared orientation once
+        strat_orients, deduped = _dedupe_onlap_orientations(req.surfaces)
     for i, surf in enumerate(list(req.faults) + list(req.surfaces)):
+        orients = surf.orientations if (deduped is None or i < len(req.faults)) else strat_orients[i - len(req.faults)]
         sx = np.array([p.x for p in surf.points])
         sy = np.array([p.y for p in surf.points])
         sz = np.array([p.z for p in surf.points])
@@ -543,11 +576,11 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         else:
             sp = SurfacePointsTable.from_arrays(x=sx, y=sy, z=sz, names=surf.name)
 
-        ox = np.array([o.x for o in surf.orientations])
-        oy = np.array([o.y for o in surf.orientations])
-        oz = np.array([o.z for o in surf.orientations])
+        ox = np.array([o.x for o in orients])
+        oy = np.array([o.y for o in orients])
+        oz = np.array([o.z for o in orients])
         gxs, gys, gzs = [], [], []
-        for o in surf.orientations:
+        for o in orients:
             dip_r, az_r = np.radians(o.dip), np.radians(o.azimuth)
             gxs.append(o.polarity * np.sin(dip_r) * np.sin(az_r))
             gys.append(o.polarity * np.sin(dip_r) * np.cos(az_r))
@@ -634,4 +667,4 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         ids = (np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int) - len(fault_elements)).tolist()
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
-    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block)
+    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped)
