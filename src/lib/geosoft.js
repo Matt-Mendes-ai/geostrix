@@ -67,6 +67,12 @@ export function parseXYZ(text) {
   let columns = null;
   let currentLine = null;
   const rows = [];
+  // TASKS.csv #600 (40958Z) — the header is not always the FIRST "/" line: a GEM GSM-19 dump opens with a dozen
+  // instrument lines ("/Gem Systems GSM-19WV …", "/GPS datum WGS84", …) before "/X Y elev rawmag …", and a
+  // Geosoft export can open with "/ XYZ EXPORT …" / "/ DATABASE …". The first one used to be taken, so X / Y
+  // landed under "Gem" / "Systems". Every "/" line is a candidate until the first data row; the header is the
+  // last candidate with that row's token count (else the last candidate).
+  const candidates = [];
   for (const raw of lines) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
@@ -75,13 +81,16 @@ export function parseXYZ(text) {
       const rest = trimmed.slice(1).trim();
       if (!rest) continue; // lone "/" comment line
       if (/^=+(\s+=+)*$/.test(rest)) continue; // "====...====" underline row
-      if (!columns) columns = rest.split(/\s+/); // first "/"-prefixed content line is the header
+      if (!columns) candidates.push(rest.split(/\s+/));
       continue;
     }
     const lineMatch = trimmed.match(/^Line\s+(\S+)/i);
     if (lineMatch) { currentLine = lineMatch[1]; continue; }
-    if (!columns) continue; // a data-shaped row before any header was seen — can't map columns, skip
     const toks = trimmed.split(/\s+/);
+    if (!columns) {
+      if (!candidates.length) continue; // a data-shaped row before any header was seen — can't map columns, skip
+      columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
+    }
     const row = { _line: currentLine };
     for (let i = 0; i < columns.length; i++) {
       const tok = toks[i];

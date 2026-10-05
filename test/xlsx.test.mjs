@@ -220,3 +220,14 @@ test("#600 oxideOfHeader is cached per header and still right", async () => {
   assert.equal(oxideOfHeader("au_ppm"), null);
   assert.ok(Math.abs(fromOxideHeader(2.1393, "SiO2") - 1) < 1e-3);
 });
+
+test("#600 parseXYZ: the header is the '/' line matching the data's width, not the first one (GEM GSM-19 dump)", async () => {
+  const { parseXYZ } = await import("../src/lib/geosoft.js");
+  const gem = "/Gem Systems GSM-19WV 2029042 v9.0\n/GPS datum WGS84 \n/09V\n/X Y elev rawmag sq\nline  93.53\n 0611053.36  6356328.88  1391  56892.45 99\n";
+  const r = parseXYZ(gem);
+  assert.deepEqual(r.columns, ["X", "Y", "elev", "rawmag", "sq"]);
+  assert.equal(r.rows[0].X, 611053.36);
+  assert.equal(r.rows[0]._line, "93.53");
+  const geosoft = "/ XYZ EXPORT [03/14/2022]\n/ DATABASE [.\survey.gdb]\n/  X  Y  MAG\n/====  ====  ====\nLine 10\n 1 2 3\n";
+  assert.deepEqual(parseXYZ(geosoft).columns, ["X", "Y", "MAG"]);
+});
