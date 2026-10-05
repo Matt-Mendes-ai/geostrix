@@ -6,7 +6,7 @@ import { readKmlFile, kmlFeaturesToRows } from "../kml.js";
 import { isElementColumn } from "../geochem.js"; // TASKS.csv #600
 import { xlsxToCsvFiles } from "../xlsx.js"; // TASKS.csv #605
 import { parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../shapefile.js";
-import { num, isOverturnedValue } from "../layers.js";
+import { num, isOverturnedValue, targetFromName, guessTargetFor } from "../layers.js";
 import { parseTableFile, parseTableText } from "../tabular.js";
 
 export function normInterval(r, mapping, customFields) {
@@ -117,6 +117,27 @@ export function looksLikeAssay(headers) {
 // unrecognised, so a collar shapefile arrived with no hole ids and no CRS. groupShapefileParts attaches each
 // .shp's same-basename siblings to it (file.shpParts) and drops them from the list; the same pairing the Map
 // layers panel already does (#415). Returns { files, unmatched } (sidecars with no .shp in the selection).
+// TASKS.csv #600 (40958Z) — a multi-file drop is imported in this order: collars, then surveys, then the rest.
+// Explorer hands files over alphabetically, so "…Structures.csv" came before "q_collar….csv" and every
+// alpha/beta pick (649 in the Lawyers logs) was left unoriented ("no collar/survey for this hole"). A CSV's
+// type is guessed from its header line (first 64 KB only), anything else from its name. Stable otherwise.
+export async function orderImportFiles(files) {
+  const rank = { collars: 0, survey: 1 };
+  const keyed = await Promise.all(files.map(async (f, i) => {
+    let target = targetFromName(f.name);
+    if (/\.csv$/i.test(f.name)) {
+      try {
+        const head = await f.slice(0, 65536).text();
+        const firstLine = head.split(/\r?\n/).find((l) => l.trim() && !l.startsWith("#")) || "";
+        const headers = parseTableText(firstLine + "\n").headers;
+        target = guessTargetFor(headers, f.name);
+      } catch { /* keep the name guess */ }
+    }
+    return { f, i, r: rank[target] ?? 2 };
+  }));
+  return keyed.sort((a, b) => a.r - b.r || a.i - b.i).map((k) => k.f);
+}
+
 export const SHAPEFILE_SIDECAR = /\.(dbf|prj|cpg|shx|qix|sbn|sbx|xml)$/i;
 export function groupShapefileParts(list) {
   const base = (n) => n.toLowerCase().replace(/\.shp\.xml$|\.[^.]+$/, "");

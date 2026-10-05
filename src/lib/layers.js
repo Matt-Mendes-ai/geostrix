@@ -567,7 +567,7 @@ export const TARGET_SCHEMAS = {
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
-  vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type"]) },
+  vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"
   breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
@@ -576,7 +576,7 @@ export const TARGET_SCHEMAS = {
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
-    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag", "value"], null, true)
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true)
       .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },
@@ -786,6 +786,8 @@ export function schemaSatisfied(target, mapping) {
   return !schema.oneOf || schema.oneOf.some((keys) => keys.every((k) => mapping[k]));
 }
 export function guessTargetFor(headers, name) {
+  // #600 (40958Z) — a void / cavity log is not veins (its bare "Type" column hit the vein rule): ask, as custom
+  if (/\b(voids?|cavit(y|ies))\b/i.test(String(name || ""))) return "custom";
   const hint = targetFromName(name);
   if (hint && schemaSatisfied(hint, guessMapping(hint, headers))) return hint;
   return guessTarget(headers);

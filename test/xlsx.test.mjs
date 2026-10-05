@@ -196,3 +196,18 @@ test("#600 parseTableText: comma-decimal scan skipped only when impossible", asy
   assert.deepEqual(parseTableText("a;b\n1,5;2\n2,25;3\n").rows.map((r) => r.a), [1.5, 2.25]); // semicolon file still scanned
   assert.deepEqual(parseTableText("hole_id,a\n0045,1.5\n").rows[0], { hole_id: "0045", a: 1.5 }); // ids stay text (#509), cache per header
 });
+
+test("#600 a multi-file drop imports collars, then surveys, then the rest (alphabetical order put structures first)", async () => {
+  const { orderImportFiles } = await import("../src/lib/viewer/importHelpers.js");
+  const { guessTargetFor } = await import("../src/lib/layers.js");
+  const f = (name, header) => new File([header + "\n1,2,3\n"], name);
+  const files = [
+    f("2021 & 2022 DDH Structures.csv", '"Hole ID","Depth (m)","Structure Type","Alpha","Beta"'),
+    f("2021 & 2022 DDH Lith.csv", '"Hole ID","From (m)","to (m)","Lithology"'),
+    f("downhole.csv", "hole_id,depth,azimuth,dip"),
+    f("q_collar_2023.csv", "hole_id,x,y,z,azi,dip,depth"),
+    f("pads.zip", "x"),
+  ];
+  assert.deepEqual((await orderImportFiles(files)).map((x) => x.name), ["q_collar_2023.csv", "downhole.csv", "2021 & 2022 DDH Structures.csv", "2021 & 2022 DDH Lith.csv", "pads.zip"]);
+  assert.equal(guessTargetFor(['Hole ID', 'From (m)', 'To (m)', 'Type'], "2021 & 2022 DDH Voids.csv"), "custom");
+});

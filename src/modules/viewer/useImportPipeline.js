@@ -18,7 +18,7 @@ import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #60
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts: #600
+import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 
 export function useImportPipeline(ctx) {
   const {
@@ -538,7 +538,7 @@ export function useImportPipeline(ctx) {
     batchRowsRef.current = new WeakSet(); // #605
     setNotices((p) => [...p, `Importing ${files.length} files — auto-detecting each one, will ask when unsure…`]);
     importQueueTotalRef.current = files.length;
-    importQueueRef.current = files;
+    importQueueRef.current = await orderImportFiles(files); // #600: collars, then surveys, then the rest
     processImportQueue();
   };
 
