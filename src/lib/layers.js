@@ -545,7 +545,7 @@ export const TARGET_SCHEMAS = {
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi"] },
-    { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip"] },
+    { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
@@ -562,11 +562,17 @@ export const TARGET_SCHEMAS = {
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type"]) },
-  mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "mineral"], ["min1_pct", "min_pct1", "percent", "pct"]) },
+  mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
-  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "bulk_density", "density", "value"], null, true) },
-  magsusc: { label: "Mag. susceptibility (numeric)", fields: intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_sus", "mag", "value"], null, true) },
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "value"], null, true) },
+  // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
+  // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
+  magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag", "value"], null, true)
+      .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
+    { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
+  ] },
   structure: { label: "Structure planes", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md"] },
@@ -618,11 +624,14 @@ export function num(v) {
 // interleaved (holes zig-zagging between two surveys, intercept metres doubled); QC only warned after
 // the fact. Holes not in the new file are untouched, so building one layer from several files that
 // cover DIFFERENT holes still works. Returns the merged list and which holes were replaced.
-export function replaceRowsByHole(prev, incoming) {
+// TASKS.csv #605 — keepRows (a Set/WeakSet of row objects): rows committed earlier in the SAME drop are never
+// replaced. Two files of one delivery feeding one layer (a workbook's Alteration and Breccia sheets) add up;
+// before, the second wiped the first's rows for every hole they shared.
+export function replaceRowsByHole(prev, incoming, keepRows = null) {
   const incomingHoles = new Set(incoming.map((r) => r.hole_id));
   const replacedHoles = new Set();
   const kept = [];
-  (prev || []).forEach((r) => { if (incomingHoles.has(r.hole_id)) replacedHoles.add(r.hole_id); else kept.push(r); });
+  (prev || []).forEach((r) => { if (incomingHoles.has(r.hole_id) && !keepRows?.has(r)) replacedHoles.add(r.hole_id); else kept.push(r); });
   return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles] };
 }
 
@@ -706,9 +715,9 @@ export function guessTarget(headers) {
   // column made the mag-sus log a lithology) or "vein" (a Sample_Type column), with the value unmapped.
   const base = lower.map((h) => h.trim().split(".").pop());
   const any = (re) => base.some((h) => re.test(h));
-  if (has("from") && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$/)) return "magsusc";
+  if ((has("from") || has("depth")) && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$|^mag_si$/)) return "magsusc"; // #605: point readings (depth) too
   if (has("from") && any(/^bulkdens|^sg(_d|_calc)?$|^specific_gravity$/)) return "sg";
-  if (has("from") && any(/^min\d*_code\d*$/)) return "mnlgy";
+  if (has("from") && any(/^min\d*_code\d*$|^min_mnlgy$/)) return "mnlgy";
   if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
   if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
@@ -733,6 +742,30 @@ export function guessTarget(headers) {
   if (has("from") && has("to")) return "litho";
   if (has("depth")) return "structure";
   return "custom";
+}
+// TASKS.csv #605 — what a file or worksheet NAME says it is ("Vein Log.csv", a workbook's "Specific Gravity"
+// sheet). Used by guessTargetFor only when that type's required columns can be mapped from the headers;
+// otherwise the header-based guess stands. Assays are recognised separately (looksLikeAssay).
+const NAME_HINTS = [
+  [/collar|coordinates|\bheaders?\b/, "collars"], [/survey/, "survey"], [/litholog|\blitho/, "litho"],
+  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b/, "vein"], [/geotech|\brqd\b/, "geotech"],
+  [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct/, "structure"],
+];
+export function targetFromName(name) {
+  const base = String(name || "").toLowerCase().replace(/\.[a-z0-9]+$/, "").replace(/[_]+/g, " ");
+  for (const [re, t] of NAME_HINTS) if (re.test(base)) return t;
+  return null;
+}
+export function schemaSatisfied(target, mapping) {
+  const schema = TARGET_SCHEMAS[target];
+  if (!schema) return false;
+  if (schema.fields.some((f) => f.required && !mapping[f.key])) return false;
+  return !schema.oneOf || schema.oneOf.some((keys) => keys.every((k) => mapping[k]));
+}
+export function guessTargetFor(headers, name) {
+  const hint = targetFromName(name);
+  if (hint && schemaSatisfied(hint, guessMapping(hint, headers))) return hint;
+  return guessTarget(headers);
 }
 export function getCol(row, keys) {
   for (const k of keys) { const found = Object.keys(row).find((rk) => rk.toLowerCase().trim() === k); if (found && row[found] !== undefined && row[found] !== "") return row[found]; }

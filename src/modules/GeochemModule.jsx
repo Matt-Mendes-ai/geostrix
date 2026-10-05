@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
-import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
+import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num } from "../lib/layers.js"; // TASKS.csv #508 — blank / "NA" -> NaN, never 0
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
@@ -103,8 +103,10 @@ export default function GeochemModule() {
       setSampleLoading(false);
     }
   };
+  // TASKS.csv #605 — an .xlsx gives its sheet with the most element columns (an MX "Assay Samples" sheet)
+  const elementScore = (headers) => headers.filter((h) => isElementColumn(h)).length;
   const handleFile = (file, isPxrf) => {
-    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableOrWorkbook(file, elementScore).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
@@ -299,7 +301,7 @@ export default function GeochemModule() {
   // already uses (see that branch's own TASKS.csv #210 comment for why the dedupe matters) — surface
   // sample lab exports have the same "more than one candidate column per element" problem.
   const handleSurfaceFile = (file) => {
-    parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableOrWorkbook(file, elementScore).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
@@ -382,10 +384,10 @@ export default function GeochemModule() {
   // button layout's own ordering — "Import assays" is the primary action, pXRF is the secondary one).
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv"));
+    const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name)); // #605
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv files can be dropped in directly."]); return; }
-    if (skipped) setNotices((p) => [...p, `${skipped} non-CSV file(s) skipped.`]);
+    if (!files.length) { setNotices((p) => [...p, "Only .csv or .xlsx files can be dropped in directly."]); return; }
+    if (skipped) setNotices((p) => [...p, `${skipped} other file(s) skipped.`]);
     files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
   };
 
@@ -514,9 +516,9 @@ export default function GeochemModule() {
             <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} title="Plot → SVG" onClick={exportPlotSVG} />
           </RibbonGroup>
         </Ribbon>
-        <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
-        <input ref={pxrfRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
-        <input ref={surfaceFileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
+        <input ref={fileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
+        <input ref={pxrfRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
+        <input ref={surfaceFileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
 
         <div className="ge-section-label">Assays &amp; pXRF</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
@@ -526,7 +528,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
         </div>
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
         {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>}
 
         {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}

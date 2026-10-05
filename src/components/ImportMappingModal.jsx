@@ -319,7 +319,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             (onCommit already validates and refuses cleanly), just avoidable friction. The per-row "*"/
             red-border cues above already exist; this just stops the click from being possible at all. */}
         {(() => {
-          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key]);
+          const missingRequired = schema.fields.filter((f) => f.required && !modal.mapping[f.key])
+            .concat(schema.oneOf && !schema.oneOf.some((keys) => keys.every((k) => modal.mapping[k])) ? [{ key: "oneOf", label: "From + To, or Depth" }] : []); // #605
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
               {missingRequired.length > 0 && (

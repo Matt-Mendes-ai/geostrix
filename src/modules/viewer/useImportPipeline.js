@@ -14,7 +14,8 @@ import { orientFromAlphaBeta } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax } from "../../lib/layers.js";
+import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
+import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile } from "../../lib/viewer/importHelpers.js";
 
 export function useImportPipeline(ctx) {
@@ -54,7 +55,7 @@ export function useImportPipeline(ctx) {
         setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
         return;
       }
-      const target = forceTarget || guessTarget(headers);
+      const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
       const mapping = guessMapping(target, headers); // #426
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
       setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
@@ -105,7 +106,7 @@ export function useImportPipeline(ctx) {
   const openImportFromRows = ({ headers, rows, sourceName }) => {
     if (!rows.length) return;
     if (looksLikeAssay(headers)) { setNotices((p) => [...p, `${sourceName} looks like assay data — import it from the Geochem module instead.`]); return; }
-    const target = guessTarget(headers);
+    const target = guessTargetFor(headers, sourceName); // #605
     const mapping = guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
     setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
@@ -117,6 +118,10 @@ export function useImportPipeline(ctx) {
   // handleDrop/processImportQueue below) can commit files it's confident about without ever opening
   // the modal, while still routing through the exact same logic or one that needs confirmation.
   // Returns false (and leaves the caller to show a notice) if required fields aren't mapped.
+  // TASKS.csv #605 — the rows committed so far by the drop being drained (null outside a multi-file drop):
+  // a later file of the SAME drop adds to them instead of replacing them by hole (replaceRowsByHole keepRows).
+  const batchRowsRef = useRef(null);
+  const keepBatch = (rows) => { if (batchRowsRef.current) rows.forEach((r) => batchRowsRef.current.add(r)); return rows; };
   const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg }) => {
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
@@ -295,8 +300,9 @@ export function useImportPipeline(ctx) {
       const rows = azs.rows;
       // TASKS.csv #336 — a hole's survey in this file REPLACES its earlier survey (with _src stamped so
       // the layer inspector can tell imports apart); undo restores the old one.
-      const replaced = replaceRowsByHole(importStateRef.current.survey, rows).replacedHoles; // for the notice only
-      setSurvey((prev) => replaceRowsByHole(prev, rows).rows);
+      const keep = batchRowsRef.current;
+      const replaced = replaceRowsByHole(importStateRef.current.survey, rows, keep).replacedHoles; // for the notice only
+      setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
       setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
         + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
         + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
@@ -330,8 +336,9 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
       const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (dipConvention === "neg_down" ? Math.abs(d) > 90 : (d < 0 || d > 90)); }).length : 0;
       if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown.`]);
-      const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows).replacedHoles;
-      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, rows).rows })); // TASKS.csv #336
+      const keep = batchRowsRef.current;
+      const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows, keep).replacedHoles;
+      setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep).rows })); // TASKS.csv #336
       if (replaced.length) setNotices((p) => [...p, `${fileName}: replaced the earlier structure picks of ${replaced.length} hole(s) — Ctrl+Z to undo.`]);
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
@@ -357,8 +364,9 @@ export function useImportPipeline(ctx) {
       const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
         : allRows.map((r) => normInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
       // TASKS.csv #336 — rows for a hole already in this layer replace that hole's earlier rows.
-      const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows).replacedHoles;
-      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], rows).rows }));
+      const keep = batchRowsRef.current;
+      const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep).replacedHoles;
+      setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep).rows }));
       setLayerVisible((p) => ({ ...p, [target]: true }));
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
       setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`
@@ -414,7 +422,7 @@ export function useImportPipeline(ctx) {
   const importActiveRef = useRef(false);
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
@@ -432,10 +440,10 @@ export function useImportPipeline(ctx) {
         processImportQueue();
         return;
       }
-      const target = guessTarget(headers);
+      const target = guessTargetFor(headers, file.name); // #605
       const schema = TARGET_SCHEMAS[target];
       const mapping = guessMapping(target, headers); // #426
-      const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]);
+      const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]).concat(schemaSatisfied(target, mapping) || !schema.oneOf ? [] : [{ key: "oneOf", label: "From / To or Depth" }]); // #605
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
       // actually consistent with the "negative = down" convention this path assumes. A positive-down
@@ -461,17 +469,34 @@ export function useImportPipeline(ctx) {
   // multi-file .shp/.shx/.dbf sets dropped together aren't grouped by basename here — out of scope
   // for this pass; the .zip bundle this app's own shapefile export already produces, or that any GIS
   // tool's "export as zipped shapefile" option produces, is the primary supported path).
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault(); setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz)$/i.test(f.name)); // kml/kmz: #424
-    const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
+    const dropped = Array.from(e.dataTransfer.files || []);
+    let files = dropped.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605
+    const skipped = dropped.length - files.length;
+    if (!files.length) { setNotices((p) => [...p, "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
+    // TASKS.csv #605 — an Excel workbook becomes one CSV per non-empty sheet ("Book - Sheet.csv"), queued like
+    // dropped CSVs: same detection (the sheet name is the hint), same dialogs.
+    if (files.some((f) => isXlsxName(f.name))) {
+      const expanded = [];
+      for (const f of files) {
+        if (!isXlsxName(f.name)) { expanded.push(f); continue; }
+        try {
+          const sheets = await xlsxToCsvFiles(new Uint8Array(await f.arrayBuffer()), f.name);
+          setNotices((p) => [...p, `${f.name}: ${sheets.length} sheet(s) with data — ${sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ")}. Each is imported like a CSV.`]);
+          sheets.forEach((s) => expanded.push(new File([s.text], s.name, { type: "text/csv" })));
+        } catch (err) { setNotices((p) => [...p, `${f.name}: could not read the workbook (${err.message}).`]); }
+      }
+      files = expanded;
+      if (!files.length) return;
+    }
     if (files.length === 1) { openImportModal(files[0]); return; }
     // TASKS.csv #229 — ignore a second drop-queue start while one is still draining (see
     // importActiveRef's own comment above processImportQueue) instead of stomping the in-flight queue.
     if (importActiveRef.current) { setNotices((p) => [...p, "Already importing a previous drop — please wait for it to finish before dropping more files."]); return; }
     importActiveRef.current = true;
+    batchRowsRef.current = new WeakSet(); // #605
     setNotices((p) => [...p, `Importing ${files.length} files — auto-detecting each one, will ask when unsure…`]);
     importQueueTotalRef.current = files.length;
     importQueueRef.current = files;
@@ -499,6 +524,7 @@ export function useImportPipeline(ctx) {
       const files = await loadSampleFiles("harry_property", SAMPLE_FILES);
       setNotices((p) => [...p, `Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Assays for these holes can be imported from the Geochem tab (sample_data/harry_property/assay_wide.csv).`]);
       importActiveRef.current = true;
+      batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;
       importQueueRef.current = files;
       processImportQueue();

@@ -4,9 +4,10 @@
 import { guessEpsgFromPrjWkt } from "../reproject.js";
 import { readKmlFile, kmlFeaturesToRows } from "../kml.js";
 import { isElementColumn } from "../geochem.js"; // TASKS.csv #600
+import { xlsxToCsvFiles } from "../xlsx.js"; // TASKS.csv #605
 import { parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../shapefile.js";
 import { num, isOverturnedValue } from "../layers.js";
-import { parseTableFile } from "../tabular.js";
+import { parseTableFile, parseTableText } from "../tabular.js";
 
 export function normInterval(r, mapping, customFields) {
   return applyCustomFields({
@@ -47,10 +48,12 @@ export function applyCustomFields(row, r, customFields) {
 }
 
 export function normNumericInterval(r, mapping, customFields) {
+  // TASKS.csv #605 — point readings (mag sus by depth): from = to = depth
+  const pointDepth = !mapping.from && mapping.depth ? num(r[mapping.depth]) : null;
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),
-    from: num(r[mapping.from]), // TASKS.csv #337 — a blank RQD/recovery/magsusc cell is missing, not 0
-    to: num(r[mapping.to]),
+    from: pointDepth ?? num(r[mapping.from]), // TASKS.csv #337 — a blank RQD/recovery/magsusc cell is missing, not 0
+    to: pointDepth ?? num(r[mapping.to]),
     value: num(r[mapping.value]),
   }, r, customFields);
 }
@@ -121,6 +124,19 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       let note = ` KML: ${nPts} point(s), ${features.length - nPts} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.`;
       if (skipped) note += ` ${skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.`;
       onDone(rows, null, { headers, note, detectedEpsg: 4326 });
+    }).catch((err) => onDone(null, err.message));
+    return;
+  }
+  // TASKS.csv #605 — an Excel workbook through an Import button: one sheet is read straight away; several go
+  // through the same picker as a multi-layer .zip / .gpkg (#288), named by sheet. (A dropped workbook is
+  // instead expanded into one queued file per sheet — useImportPipeline.handleDrop.)
+  if (name.endsWith(".xlsx")) {
+    file.arrayBuffer().then((buf) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then((sheets) => {
+      if (!sheets.length) { onDone(null, "No sheet with a header row and data in this workbook."); return; }
+      const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
+      if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => s.sheet) }); return; }
+      const t = parseTableText(pick.text);
+      onDone(t.rows, null, { headers: t.headers, note: ` Sheet "${pick.sheet}" of ${file.name}.${t.note ? ` ${t.note}` : ""}` });
     }).catch((err) => onDone(null, err.message));
     return;
   }
