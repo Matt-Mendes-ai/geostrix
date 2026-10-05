@@ -20,3 +20,15 @@ export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName }, co
     `Cancel — keep EPSG:${cur} and reproject the data into it.`);
   return ok ? d : null;
 }
+
+// For importers that settle the source CRS deep inside (raster.js buildRasterImport / parseDEMFiles): returns a
+// (sourceEpsg, currentEpsg) => epsg function they call once the file's CRS is known.
+export function projectEpsgChooser({ isEmpty, setEpsg, fileName, notify }) {
+  return (sourceEpsg, currentEpsg) => {
+    const d = askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg: sourceEpsg, fileName });
+    if (!d) return currentEpsg;
+    setEpsg(d);
+    notify?.(`Project CRS set to ${crsName(d)} (EPSG:${d}) from ${fileName}.`);
+    return d;
+  };
+}

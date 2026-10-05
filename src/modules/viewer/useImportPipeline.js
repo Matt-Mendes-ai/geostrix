@@ -109,7 +109,9 @@ export function useImportPipeline(ctx) {
     const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
     if (/\.(tiff?|gxf)$/.test(name)) {
       try {
-        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+        const live = importStateRef.current;
+        const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
+        const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
         addRaster(raster);
         setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Raster tab.`]);
       } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }

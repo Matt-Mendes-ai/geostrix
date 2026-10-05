@@ -1,4 +1,5 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import React, { useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
@@ -26,7 +27,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
 export default function RasterModule() {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers } = useStore();
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg } = useStore(); // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -211,7 +212,8 @@ export default function RasterModule() {
     setError(null);
     setBusy(true);
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg });
+      const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg });
       addRaster(raster);
       setError({ info: true, text: msg });
     } catch (err) {

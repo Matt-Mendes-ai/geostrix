@@ -304,7 +304,7 @@ async function peekDemTile(file) {
 // it lines up with the rest of the project instead of landing at raw lon/lat coordinates. Returns
 // { name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH, elevations, srcWidth, srcHeight, epsgTag,
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
-export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null } = {}) {
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null } = {}) {
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error("No file selected.");
   const tiles = [];
@@ -368,6 +368,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
 
   // TASKS.csv #419 — a user-set source CRS overrides the file's own tag (untagged or wrongly tagged DEMs).
   const epsgTag = sourceEpsgOverride ? Number(sourceEpsgOverride) : tiles[0].epsgTag;
+  if (chooseProjectEpsg && epsgTag) targetEpsg = Number(chooseProjectEpsg(epsgTag, targetEpsg)) || targetEpsg; // #607
 
   let outBbox = [xmin, ymin, xmax, ymax];
   let outGridW = gridW, outGridH = gridH;
@@ -587,7 +588,7 @@ export async function parseGXF(file) {
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg } = {}) {
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg } = {}) {
   const isGxf = /\.gxf$/i.test(file.name);
   const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file);
   let bbox = parsed.bbox;
@@ -598,7 +599,8 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   const overrideEpsg = sourceEpsg === "" || sourceEpsg == null ? null : Number(sourceEpsg);
   const tagEpsg = parsed.epsgTag ? Number(parsed.epsgTag) : null;
   const srcEpsg = Number.isFinite(overrideEpsg) ? overrideEpsg : tagEpsg;
-  const projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
+  let projEpsg = epsg == null || epsg === "" ? null : Number(epsg);
+  if (chooseProjectEpsg && srcEpsg) projEpsg = Number(chooseProjectEpsg(srcEpsg, projEpsg)) || projEpsg; // #607 — an empty project may take this CRS
   const srcLabel = Number.isFinite(overrideEpsg) ? "the Source CRS you set" : "this file's own CRS tag";
 
   let crsNote = "";

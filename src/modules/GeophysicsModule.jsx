@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
@@ -87,6 +88,7 @@ export default function GeophysicsModule() {
     geophysSurveys, updateGeophysSurvey, setLayers, // TASKS.csv #451
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
+    projectIsEmpty, setEpsg, // TASKS.csv #607
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
@@ -252,7 +254,7 @@ export default function GeophysicsModule() {
     if (!file) return;
     setRasterError({ info: true, text: `Importing ${file.name}…` }); // a large GeoTIFF takes a few seconds
     try {
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation });
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
       addRaster(raster);
       setRasterError({ info: true, text: `${msg} (Tip: raster imports now have their own "Raster" tab — this drop still works here too.)` });
     } catch (err) {
@@ -278,7 +280,7 @@ export default function GeophysicsModule() {
       // TASKS.csv #422 — crop to the drillholes (+ buffer) unless the user wants the whole tile.
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
-      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo }); // override: #419
+      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(`Replace the current terrain ("${terrain.name}") with "${parsed.name}"? Only one terrain surface is supported at a time.`)) {
         setTerrainBusy(false);
