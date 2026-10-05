@@ -67,6 +67,9 @@ export default defineConfig({
           // vendor-react always loads at startup anyway.
           if (id.includes("vite/preload-helper")) return "vendor-react";
           if (!id.includes("node_modules")) return undefined;
+          // TASKS.csv #600 — three's add-ons (examples/jsm: GLTFExporter, used only by the lazily-loaded surface
+          // export) stay with their importer instead of the startup three chunk
+          if (/three[\/]examples[\/]/.test(id)) return undefined;
           if (id.includes("three")) return "vendor-three";
           if (/geotiff[\/]dist-[a-z]+[\/]compression[\/]/.test(id)) return undefined; // #439 — per-codec, loaded on demand
           if (id.includes("geotiff")) return "vendor-geotiff";
