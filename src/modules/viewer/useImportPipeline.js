@@ -14,7 +14,7 @@ import { orientFromAlphaBeta } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, minMax } from "../../lib/layers.js";
+import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTarget, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile } from "../../lib/viewer/importHelpers.js";
 
 export function useImportPipeline(ctx) {
@@ -271,8 +271,10 @@ export function useImportPipeline(ctx) {
           `Cancel — keep the existing collars and import only the ${diff.newHoles.length} new hole(s).`
         );
       }
-      const existingIds = new Set(liveCollars.map((c) => c.hole_id));
-      const applied = overwriteExisting ? rows : rows.filter((r) => !existingIds.has(r.hole_id));
+      // #600 — merged field by field (mergeCollar): a value the file lacks never wipes the existing one, and
+      // a value the existing collar lacks is filled in even when the overwrite was declined.
+      const prevById = new Map(liveCollars.map((c) => [c.hole_id, c]));
+      const applied = rows.map((r) => (prevById.has(r.hole_id) ? mergeCollar(prevById.get(r.hole_id), r, overwriteExisting) : r));
       setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
       // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
@@ -280,6 +282,7 @@ export function useImportPipeline(ctx) {
       const parts = [];
       if (diff.newHoles.length) parts.push(`${diff.newHoles.length} new`);
       if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
+      if (diff.filled.length) parts.push(`${diff.filled.length} existing hole(s) completed with values they did not have (${[...new Set(diff.filled.flatMap((f) => f.fields))].join(", ")})`); // #600
       if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
       if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
       setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);

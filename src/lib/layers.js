@@ -776,17 +776,34 @@ function sameCollarValue(a, b) {
 // Returns { newHoles, unchanged, changed:[{hole_id, fields, before, after, shift}], duplicatesInFile }
 // where `shift` is the horizontal+vertical distance the collar would move (world units), which is the
 // number that actually matters to a geologist looking at this prompt.
+// TASKS.csv #600 — a value only one side has is not a conflict: collars often come in two files (a BC ARIS
+// export: "Coordinates" with x / y / z, then "Headers" with the same x / y / z plus the actual depth and the
+// planned azimuth / dip). The second file used to count every hole as CHANGED (length: missing -> 452), asked
+// to overwrite all 19, and declining dropped the depths; importing them the other way round "changed" the
+// depth to missing, and accepting wiped it. Now: incoming missing -> keep the existing value; existing missing
+// -> a FILL (merged without asking); only two different present values are a change. mergeCollar applies it.
+const missingCollarValue = (v) => v == null || v === "" || (typeof v === "number" && Number.isNaN(v));
+export function mergeCollar(prev, incoming, overwrite) {
+  const out = { ...prev };
+  for (const [k, v] of Object.entries(incoming)) {
+    if (missingCollarValue(v)) continue;
+    if (overwrite || missingCollarValue(prev[k])) out[k] = v;
+  }
+  return out;
+}
 export function diffCollarImport(existing, incoming) {
   const byId = new Map((existing || []).map((c) => [c.hole_id, c]));
   const seen = new Set();
-  const newHoles = [], unchanged = [], changed = [], duplicatesInFile = [];
+  const newHoles = [], unchanged = [], changed = [], duplicatesInFile = [], filled = [];
   for (const r of incoming || []) {
     if (seen.has(r.hole_id)) duplicatesInFile.push(r.hole_id);
     seen.add(r.hole_id);
     const prev = byId.get(r.hole_id);
     if (!prev) { newHoles.push(r.hole_id); continue; }
-    const fields = COLLAR_COMPARE_FIELDS.filter((k) => !sameCollarValue(prev[k], r[k]));
-    if (!fields.length) { unchanged.push(r.hole_id); continue; }
+    const fills = COLLAR_COMPARE_FIELDS.filter((k) => missingCollarValue(prev[k]) && !missingCollarValue(r[k]));
+    if (fills.length) filled.push({ hole_id: r.hole_id, fields: fills });
+    const fields = COLLAR_COMPARE_FIELDS.filter((k) => !missingCollarValue(prev[k]) && !missingCollarValue(r[k]) && !sameCollarValue(prev[k], r[k]));
+    if (!fields.length) { if (!fills.length) unchanged.push(r.hole_id); continue; }
     const d = (k) => (Number.isFinite(prev[k]) && Number.isFinite(r[k]) ? r[k] - prev[k] : 0);
     changed.push({
       hole_id: r.hole_id, fields,
@@ -795,7 +812,7 @@ export function diffCollarImport(existing, incoming) {
       shift: Math.hypot(d("x"), d("y"), d("z")),
     });
   }
-  return { newHoles, unchanged, changed, duplicatesInFile };
+  return { newHoles, unchanged, changed, duplicatesInFile, filled };
 }
 
 // TASKS.csv #430 — does an "overturned / younging / polarity" cell mark the pick as overturned? Only clear

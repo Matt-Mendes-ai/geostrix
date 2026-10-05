@@ -104,3 +104,22 @@ test("#600 Data QC: no gap notes on sparse logs (veins, SG); still on lithology"
   assert.ok(msg("Vein").some((m) => /Overlapping/.test(m))); // the other checks still run
   assert.ok(!msg("Specific gravity").some((m) => /Gap of/.test(m)));
 });
+
+test("#600 collars in two files (Coordinates, then Headers with depth): fills merge without a conflict; missing never wipes", async () => {
+  const { diffCollarImport, mergeCollar } = await import("../src/lib/layers.js");
+  const coords = [{ hole_id: "MT23-118", x: 615006.498, y: 5789576.468, z: 965.237 }];
+  const headers = [{ hole_id: "MT23-118", x: 615006.498, y: 5789576.468, z: 965.237, length: 452, azimuth: 330, dip: 70 }];
+  const d = diffCollarImport(coords, headers);
+  assert.equal(d.changed.length, 0); // was 1 (length / azimuth / dip "differ"), which asked to overwrite
+  assert.deepEqual(d.filled, [{ hole_id: "MT23-118", fields: ["azimuth", "dip", "length"] }]);
+  assert.deepEqual(mergeCollar(coords[0], headers[0], false), headers[0]); // filled even without overwriting
+  // the other order: the file without depths must not wipe the depth
+  const back = diffCollarImport(headers, coords);
+  assert.equal(back.changed.length, 0); assert.deepEqual(back.unchanged, ["MT23-118"]);
+  assert.equal(mergeCollar(headers[0], coords[0], true).length, 452);
+  // a real difference is still a change, and declining keeps the old value
+  const moved = diffCollarImport(headers, [{ ...headers[0], z: 970 }]);
+  assert.deepEqual(moved.changed.map((c) => c.fields), [["z"]]);
+  assert.equal(mergeCollar(headers[0], { ...headers[0], z: 970 }, false).z, 965.237);
+  assert.equal(mergeCollar(headers[0], { ...headers[0], z: 970 }, true).z, 970);
+});
