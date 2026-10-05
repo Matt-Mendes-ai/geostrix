@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
-import { num } from "../lib/layers.js"; // TASKS.csv #508 — blank / "NA" -> NaN, never 0
+import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layers.js"; // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -122,15 +122,14 @@ export default function GeochemModule() {
   };
 
   const openAssayModal = (file, headers, data, isPxrf) => {
-    const guess = (aliases) => {
-      const lower = headers.map((h) => h.toLowerCase().trim());
-      for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
-      for (const a of aliases) { const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
-      return "";
-    };
-    const holeCol = guess(["hole_id", "holeid", "hole", "bhid"]);
-    const fromCol = guess(["from", "from_depth", "from_m", "depth_from"]);
-    const toCol = guess(["to", "to_depth", "to_m", "depth_to"]);
+    // TASKS.csv #600 (40958Z) — the shared column matcher: "To (m)" / "Hole ID" style headers, and no bare
+    // substring match on a short alias ("to" inside any header that contains those two letters)
+    const guess = (aliases) => guessColumn(headers, aliases);
+    // the interval schemas' own alias lists (sampfrom / sampto / geolto... — "SAMPTO" only matched the bare "to")
+    const aliasesOf = (key) => TARGET_SCHEMAS.litho.fields.find((f) => f.key === key).aliases;
+    const holeCol = guess(aliasesOf("hole_id"));
+    const fromCol = guess(aliasesOf("from"));
+    const toCol = guess(aliasesOf("to"));
     const isLong = headers.some((h) => /^(analyte|element)$/i.test(h.trim())) && headers.some((h) => /^(abundance|value|result)$/i.test(h.trim()));
     if (isLong) {
       const analyteCol = guess(["analyte", "element"]);
@@ -309,15 +308,14 @@ export default function GeochemModule() {
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = Object.keys(data[0]);
-        const lower = headers.map((h) => h.toLowerCase().trim());
-        const guess = (aliases) => {
-          for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
-          for (const a of aliases) { const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
-          return "";
-        };
+        // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
+        const guess = (aliases) => guessColumn(headers, aliases);
         const mapping = {
-          x: guess(["x", "easting", "east"]), y: guess(["y", "northing", "north"]), z: guess(["z", "elevation", "elev"]),
-          sample_id: guess(["sample_id", "sampleid", "sample", "sample_no"]), medium: guess(["medium", "sample_type", "type"]),
+          x: guess(["x", "easting", "east", "e_utm", "utm_e", "utme", "utm_east", "x_utm"]),
+          y: guess(["y", "northing", "north", "n_utm", "utm_n", "utmn", "utm_north", "y_utm"]),
+          z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]),
+          sample_id: guess(["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"]),
+          medium: guess(["medium", "sample_medium", "samp_type", "sample_type", "smpl_medium", "type"]),
         };
         // Bug found live-testing this feature: a bare "y" (northing) header false-positives against
         // isElementColumn as the element symbol Y (yttrium) — same first-token match logic that
@@ -351,6 +349,9 @@ export default function GeochemModule() {
     const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
     const zOf = (r) => { if (!mapping.z || zAllZero) return null; const v = num(r[mapping.z]); return Number.isFinite(v) ? v : null; };
     const mediaSet = new Set(SURFACE_MEDIA);
+    // TASKS.csv #600 (40958Z) — the words exports use for a medium: an MX rock file says "rock", which used to
+    // fall back to the default ("soil"), so every rock sample was labelled soil
+    const mediumAlias = (m) => (/rock|grab|chip|outcrop|float|channel/.test(m) ? "rock chip" : /stream|silt|sediment|\bsed\b|bleg/.test(m) ? "stream sediment" : /talus/.test(m) ? "talus fines" : /soil|b.?horizon/.test(m) ? "soil" : null);
     // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
@@ -388,7 +389,7 @@ export default function GeochemModule() {
       return {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
         x, y, z: zOf(r), // #508 / #606 — a blank (or all-zero) z is missing, not sea level
-        medium: mediaSet.has(rawMedium) ? rawMedium : defaultMedium,
+        medium: mediaSet.has(rawMedium) ? rawMedium : (mediumAlias(rawMedium) || defaultMedium), // #600: "rock" -> rock chip
         values,
       };
     }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
