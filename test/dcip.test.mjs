@@ -66,3 +66,27 @@ test("#322 a saved line reloads through the normal parse path unchanged; section
   assert.equal("chargeability_mVV" in sectionTableRows({ cells: { ...result.cells, chargeability: undefined } }, geom)[0], false);
   assert.equal(niceStep(0, 1000, 10), 100); assert.equal(niceStep(0, 230, 6), 50); assert.equal(niceStep(-120, -40, 4), 20);
 });
+
+test("#600 contractor TDIP line files (.dat / .ipg): whitespace table after metadata, '*' poles either side, MX = chargeability", async () => {
+  const { parseDcipWhitespaceText } = await import("../src/lib/dcip.js");
+  const dat = [
+    "DATATYPE:TDIP",
+    "LINE:8575E ARRAY:PLDP DIPOLE:100 UNITS:M T=20,20,30",
+    "        T1X        T2X        R1X        R2X         VP          I        STN          N        RHO         SP         MX",
+    "        750          *        850        950    260.135     3.4000        850          1       96.1      11.90       3.56",
+    "        750          *        950       1050     72.305     3.4000        950          2       80.2      17.40       3.68",
+    "        800          *        850        950    484.982     2.2000        850        0.5      103.9      13.20       3.35",
+  ].join("\n");
+  const ipg = ["POLE-DIPOLE IP DATA    2024-07-15", "/Vizsla Copper Corp.", "  T1X   T2X   R1X       R2X       VP        I    RHO      SP     MX",
+    "    *   750   850   950.000  260.135  3400.00   96.1   11.90   3.56", "    *   750   950  1050.000   72.305  3400.00   80.2   17.40   3.68"].join("\n");
+  for (const text of [dat, ipg]) {
+    const t = parseDcipWhitespaceText(text);
+    const m = guessDcipColumns(t.headers);
+    assert.deepEqual([m.a, m.b, m.m, m.n, m.rho, m.ip], ["T1X", "T2X", "R1X", "R2X", "RHO", "MX"]); // MX is chargeability, not the M electrode
+    const p = parseDcipRows(t.rows, m);
+    assert.deepEqual(p.readings.slice(0, 2), [[750, null, 850, 950], [750, null, 950, 1050]]); // '*' = pole, in either column
+    assert.deepEqual(p.rho.slice(0, 2), [96.1, 80.2]); assert.deepEqual(p.ip.slice(0, 2), [3.56, 3.68]);
+    assert.equal(p.array, "pole-dipole");
+  }
+  assert.equal(parseDcipWhitespaceText("a,b,c\n1,2,3"), null); // a CSV without electrode columns: not this reader's
+});

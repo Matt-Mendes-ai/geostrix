@@ -6,8 +6,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
-import { parseTableFile } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, lineGeometry, terrainProfile, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows } from "../lib/dcip.js";
+import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, terrainProfile, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -48,7 +48,12 @@ export default function DcipPanel({ pBtn, numInput }) {
   const onFile = async (f) => {
     if (!f) return;
     try {
-      const t = await parseTableFile(f);
+      let t = await parseTableFile(f);
+      // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table
+      if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) {
+        const w = parseDcipWhitespaceText(decodeTableBytes(await f.arrayBuffer()).text);
+        if (w) t = { headers: w.headers, rows: w.rows, note: w.note };
+      }
       const m = guessDcipColumns(t.headers);
       setFile({ name: f.name, headers: t.headers, rows: t.rows });
       setMapping(m);
@@ -60,7 +65,7 @@ export default function DcipPanel({ pBtn, numInput }) {
   };
 
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
-  const lineName = file ? file.name.replace(/\.(csv|txt)$/i, "") : "";
+  const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg)$/i, "") : "";
   const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
   const loadSaved = (id) => {
     const e = dcipLines.find((l) => l.id === id);
@@ -140,7 +145,7 @@ export default function DcipPanel({ pBtn, numInput }) {
     <div style={{ fontSize: "var(--font-size-sm)" }}>
       {engine && !engine.available && <div style={{ ...small, color: "var(--color-danger-fg)", marginBottom: 8 }}>Needs GeoStrix's Python engine with SimPEG (status bar: Py).</div>}
       <div style={small}>One survey line: electrode positions A, B, M, N as distances along the line (m; B or N blank for a pole), apparent resistivity (ohm·m) and optionally chargeability (mV/V). 2.5D: the ground is assumed not to change across the line.</div>
-      <button onClick={() => fileRef.current?.click()} style={{ ...pBtn, marginTop: 8 }}><Upload size={14} /> Import line CSV…</button>
+      <button onClick={() => fileRef.current?.click()} style={{ ...pBtn, marginTop: 8 }} title="A CSV, or a contractor TDIP line file (.dat / .ipg: T1X T2X R1X R2X ... RHO ... MX, '*' = electrode at infinity)"><Upload size={14} /> Import line (CSV / .dat)…</button>
       {dcipLines.length > 0 && (
         <div style={row}>
           <select value={pick} onChange={(e) => { setPick(e.target.value); if (e.target.value) loadSaved(e.target.value); }} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Lines saved in the project">
@@ -150,7 +155,7 @@ export default function DcipPanel({ pBtn, numInput }) {
           {pick && <button onClick={() => { removeDcipLine(pick); setPick(""); }} title="Remove this line from the project" aria-label="Remove saved line" style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={13} /></button>}
         </div>
       )}
-      <input ref={fileRef} type="file" accept=".csv,.txt" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
       {file && (
         <div style={{ marginTop: 8 }}>
           {FIELDS.map(([k, label]) => (

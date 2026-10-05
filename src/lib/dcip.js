@@ -9,14 +9,40 @@
 import { terrainElevationAt } from "./inversion.js";
 
 const norm = (h) => String(h).trim().toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, "");
+// TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
+// T1X / T2X current, R1X / R2X potential, RHO, and MX = the chargeability (mV/V). "mx" used to be an alias of
+// the M electrode, which would have read the chargeability column as an electrode position.
 const ALIASES = {
-  a: ["a", "c1", "a_x", "ax", "a_pos", "tx1", "c1_x"],
-  b: ["b", "c2", "b_x", "bx", "b_pos", "tx2", "c2_x"],
-  m: ["m", "p1", "m_x", "mx", "m_pos", "rx1", "p1_x"],
-  n: ["n", "p2", "n_x", "nx", "n_pos", "rx2", "p2_x"],
+  a: ["a", "c1", "t1x", "a_x", "ax", "a_pos", "tx1", "c1_x"],
+  b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x"],
+  m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x"],
+  n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x"],
   rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m"],
-  ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "eta", "ip_mv_v"],
+  ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "mx", "eta", "ip_mv_v"],
 };
+
+// TASKS.csv #600 — a line file that is not a plain CSV: contractor TDIP exports put metadata lines first
+// (DATATYPE:TDIP, LINE:... ARRAY:PLDP ...) and then a WHITESPACE-separated table with '*' for an electrode at
+// infinity. Finds the header line (the first one naming an A and an M electrode column), splits the rest on
+// whitespace, keeps rows with the header's column count. Returns { headers, rows, note } or null when the text
+// has no such header (then it is read as an ordinary CSV).
+export function parseDcipWhitespaceText(text) {
+  const lines = String(text).split(/\r?\n/);
+  const isA = (t) => ALIASES.a.includes(norm(t)), isM = (t) => ALIASES.m.includes(norm(t));
+  const hi = lines.findIndex((l) => { const t = l.trim().split(/\s+/); return t.length >= 4 && t.some(isA) && t.some(isM); });
+  if (hi < 0) return null;
+  const headers = lines[hi].trim().split(/\s+/);
+  const rows = [];
+  let skipped = 0;
+  for (const l of lines.slice(hi + 1)) {
+    if (!l.trim() || l.trim().startsWith("/")) continue;
+    const t = l.trim().split(/\s+/);
+    if (t.length !== headers.length) { skipped++; continue; }
+    rows.push(Object.fromEntries(headers.map((h, i) => [h, t[i]])));
+  }
+  const meta = lines.slice(0, hi).map((l) => l.trim()).filter(Boolean).join(" · ");
+  return { headers, rows, note: `Whitespace-separated line file${meta ? ` (${meta.slice(0, 160)})` : ""}; ${rows.length} readings${skipped ? `, ${skipped} line(s) with a different column count skipped` : ""}.` };
+}
 // Two passes: the full header (units included: "M (mV/V)" -> m_mv_v, a chargeability) first, then the header
 // without a bracketed unit ("Rho_a (ohm.m)" -> rho_a). A header is used for one field only.
 export function guessDcipColumns(headers) {
@@ -41,7 +67,10 @@ export function parseDcipRows(rows, mapping) {
   let skipped = 0;
   const useIp = !!mapping.ip;
   for (const r of rows) {
-    const a = num(r[mapping.a]), b = mapping.b ? num(r[mapping.b]) : null, m = num(r[mapping.m]), n = mapping.n ? num(r[mapping.n]) : null;
+    let a = num(r[mapping.a]), b = mapping.b ? num(r[mapping.b]) : null, m = num(r[mapping.m]), n = mapping.n ? num(r[mapping.n]) : null;
+    // #600 — a pole written in the FIRST column ('*' in T1X, the electrode in T2X) is the same pole array
+    if (a == null && b != null) { a = b; b = null; }
+    if (m == null && n != null) { m = n; n = null; }
     const v = num(r[mapping.rho]);
     const c = useIp ? num(r[mapping.ip]) : null;
     if (a == null || m == null || !(v > 0) || (useIp && c == null)) { skipped++; continue; }
