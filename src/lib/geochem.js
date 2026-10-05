@@ -37,8 +37,19 @@ const OXIDE_HEADERS = {
   MnO: ["Mn", 1.2912], MgO: ["Mg", 1.6583], CaO: ["Ca", 1.3992], Na2O: ["Na", 1.3480], K2O: ["K", 1.2046],
   P2O5: ["P", 2.2914], Cr2O3: ["Cr", 1.4615], BaO: ["Ba", 1.1165], SrO: ["Sr", 1.1826], ZrO2: ["Zr", 1.3508],
 };
+// TASKS.csv #600 (40958Z, performance) — the answer depends only on the header, and importers ask once per CELL:
+// 83,670 x 49 cells spent ~6 s of a 10.8 s assay commit here. Cached per header (frozen: callers only read it).
+const OXIDE_CACHE = new Map();
 export function oxideOfHeader(header) {
   if (!header) return null;
+  const k = String(header);
+  if (OXIDE_CACHE.has(k)) return OXIDE_CACHE.get(k);
+  const v = oxideOfHeaderUncached(k);
+  if (OXIDE_CACHE.size > 5000) OXIDE_CACHE.clear();
+  OXIDE_CACHE.set(k, v ? Object.freeze(v) : null);
+  return OXIDE_CACHE.get(k);
+}
+function oxideOfHeaderUncached(header) {
   const first = String(header).replace(/\(.*?\)/g, " ").split(/[\s_-]+/)[0].trim();
   // As written, then without a total-iron suffix ("Fe2O3T", "FeOtot"), then without a "T" prefix ("TFe2O3").
   const candidates = [first, first.replace(/(tot|total|T|t)$/, ""), first.replace(/^T/, "")];

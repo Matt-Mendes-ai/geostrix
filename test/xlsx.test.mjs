@@ -211,3 +211,12 @@ test("#600 a multi-file drop imports collars, then surveys, then the rest (alpha
   assert.deepEqual((await orderImportFiles(files)).map((x) => x.name), ["q_collar_2023.csv", "downhole.csv", "2021 & 2022 DDH Structures.csv", "2021 & 2022 DDH Lith.csv", "pads.zip"]);
   assert.equal(guessTargetFor(['Hole ID', 'From (m)', 'To (m)', 'Type'], "2021 & 2022 DDH Voids.csv"), "custom");
 });
+
+test("#600 oxideOfHeader is cached per header and still right", async () => {
+  const { oxideOfHeader, fromOxideHeader } = await import("../src/lib/geochem.js");
+  const a = oxideOfHeader("SiO2 (%)"), b = oxideOfHeader("SiO2 (%)");
+  assert.equal(a, b); // same cached object
+  assert.equal(a.symbol, "Si");
+  assert.equal(oxideOfHeader("au_ppm"), null);
+  assert.ok(Math.abs(fromOxideHeader(2.1393, "SiO2") - 1) < 1e-3);
+});
