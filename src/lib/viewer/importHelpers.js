@@ -112,6 +112,35 @@ export function looksLikeAssay(headers) {
 // multi-table .gpkg to read. When a file has more than one and the caller hasn't chosen yet, this
 // reports the available layers back through meta.layerOptions and imports NOTHING, so the caller can
 // put a picker up instead of silently taking the first one (which is what it used to do).
+// TASKS.csv #600 — a shapefile is usually delivered LOOSE (.shp + .dbf + .prj [+ .shx/.cpg], no .zip; e.g. an
+// ARIS report's "Collar Locations _All"). The 3D view used to queue the .shp alone and skip the rest as
+// unrecognised, so a collar shapefile arrived with no hole ids and no CRS. groupShapefileParts attaches each
+// .shp's same-basename siblings to it (file.shpParts) and drops them from the list; the same pairing the Map
+// layers panel already does (#415). Returns { files, unmatched } (sidecars with no .shp in the selection).
+export const SHAPEFILE_SIDECAR = /\.(dbf|prj|cpg|shx|qix|sbn|sbx|xml)$/i;
+export function groupShapefileParts(list) {
+  const base = (n) => n.toLowerCase().replace(/\.shp\.xml$|\.[^.]+$/, "");
+  const shps = new Map();
+  list.forEach((f) => { if (/\.shp$/i.test(f.name)) shps.set(base(f.name), f); });
+  const files = [], unmatched = [];
+  list.forEach((f) => {
+    if (!SHAPEFILE_SIDECAR.test(f.name)) { files.push(f); return; }
+    const shp = shps.get(base(f.name));
+    if (!shp) { unmatched.push(f); return; }
+    const ext = f.name.toLowerCase().match(/\.([^.]+)$/)[1];
+    if (["dbf", "prj", "cpg"].includes(ext)) shp.shpParts = { ...(shp.shpParts || {}), [ext]: f };
+  });
+  return { files, unmatched };
+}
+async function readLooseShapefile(file) {
+  const parts = file.shpParts || {};
+  return parseShapefileParts({
+    shp: new Uint8Array(await file.arrayBuffer()),
+    dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null,
+    cpg: parts.cpg ? await parts.cpg.text() : null,
+  }, 0, parts.prj ? await parts.prj.text() : null);
+}
+
 export function parseVectorFile(file, onDone, chosenLayer = null) {
   const name = file.name.toLowerCase();
   // TASKS.csv #424 — KML/KMZ waypoints and tracks: lon/lat rows with the source CRS set to EPSG:4326
@@ -134,7 +163,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
     file.arrayBuffer().then((buf) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then((sheets) => {
       if (!sheets.length) { onDone(null, "No sheet with a header row and data in this workbook."); return; }
       const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
-      if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => s.sheet) }); return; }
+      if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => ({ name: s.sheet, count: s.rows, unit: "row" })) }); return; }
       const t = parseTableText(pick.text);
       onDone(t.rows, null, { headers: t.headers, note: ` Sheet "${pick.sheet}" of ${file.name}.${t.note ? ` ${t.note}` : ""}` });
     }).catch((err) => onDone(null, err.message));
@@ -166,7 +195,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   if (name.endsWith(".zip") || name.endsWith(".shp")) {
     const reader = name.endsWith(".zip")
       ? file.arrayBuffer().then((buf) => parseShapefileZip(buf, chosenLayer))
-      : file.arrayBuffer().then((buf) => parseShapefileParts({ shp: new Uint8Array(buf) }));
+      : readLooseShapefile(file);
     reader.then((parsed) => {
       // TASKS.csv #288 — same "ask, don't silently take the first one" gate as the GeoPackage branch
       // above. parseShapefileZip now returns the real basenames, not just a count of the skipped ones.
@@ -178,7 +207,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       let note = "";
       if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — "${parsed.layerName}" was imported; open the file again to pick another.`;
       if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
-      if (parsed.hasAttributes === false) note += " No .dbf attribute table was found alongside the .shp — only coordinates came through.";
+      if (parsed.hasAttributes === false) note += " No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).";
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
       // reproject unasked) — guessEpsgFromPrjWkt returns null for anything it can't confidently

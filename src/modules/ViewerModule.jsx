@@ -88,7 +88,7 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
 import { useModelling } from "./viewer/useModelling.js"; // TASKS.csv #445 step 2
-import { loadGpkg } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3
+import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 
 const toRad = (d) => (d * Math.PI) / 180;
@@ -5635,7 +5635,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
         onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu({ key, label: meta.label, x: e.clientX, y: e.clientY }); }}
         expanded={!!expandedLayers[key]} onToggleExpand={() => setExpandedLayers((p) => ({ ...p, [key]: !p[key] }))}
-        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
+        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
@@ -6326,12 +6326,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("collar")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
+        <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Survey {survey.length ? `(${survey.length})` : ""}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("survey")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
+        <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
         {/* TASKS.csv #131 — hole (collar) labels, QGIS-specialist audit finding: GeoStrix had no text
             labeling anywhere in the 3D scene at all. Scoped to a small fixed set of label contents
@@ -6443,7 +6443,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </select>
         )}
         {emptyLayerKeys.filter((key) => key !== "geophys_pts").map((key) => (
-          <input key={key} ref={setInputRef(key)} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
+          <input key={key} ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
         ))}
 
         {/* User request: rasters/terrain show up as toggleable layer rows here too, not just inside
@@ -6660,7 +6660,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
-        <input ref={setInputRef("customCsv")} type="file" accept=".csv,.zip,.gpkg,.shp,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
+        <input ref={setInputRef("customCsv")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
             the toolbar above (Camera / Scissors icons) — same reasoning as Grid/Themes above. The

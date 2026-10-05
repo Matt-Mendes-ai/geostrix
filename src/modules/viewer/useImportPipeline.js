@@ -15,8 +15,8 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
 import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax } from "../../lib/layers.js";
-import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile } from "../../lib/viewer/importHelpers.js";
+import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
+import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts: #600
 
 export function useImportPipeline(ctx) {
   const {
@@ -178,7 +178,8 @@ export function useImportPipeline(ctx) {
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
 
     if (target === "collars") {
-      let rows = allRows.map((r) => applyCustomFields({
+      const ranked = pickRankedCollarRows(allRows, mapping.hole_id, allRows.length ? Object.keys(allRows[0]) : []); // #600
+      let rows = ranked.rows.map((r) => applyCustomFields({
         // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
         azimuth: mapping.azimuth ? num(r[mapping.azimuth]) : undefined,
@@ -289,8 +290,9 @@ export function useImportPipeline(ctx) {
       if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
       if (diff.filled.length) parts.push(`${diff.filled.length} existing hole(s) completed with values they did not have (${[...new Set(diff.filled.flatMap((f) => f.fields))].join(", ")})`); // #600
       if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
-      if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id(s) WITHIN the file itself (last one won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
-      setNotices((p) => [...p, `Loaded ${rows.length} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);
+      if (ranked.dropped) parts.push(`${ranked.holes.length} hole(s) had several location records (${ranked.dropped} extra rows) — kept the lowest "${ranked.rankColumn}" for each: ${ranked.holes.slice(0, 5).join(", ")}${ranked.holes.length > 5 ? ", …" : ""}`);
+      if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
+      setNotices((p) => [...p, `Loaded ${new Set(rows.map((r) => r.hole_id)).size} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);
     } else if (target === "survey") {
       const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
       // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
@@ -465,15 +467,13 @@ export function useImportPipeline(ctx) {
 
   // TASKS.csv #190/#191 — .zip (shapefile bundle) and .gpkg accepted here alongside .csv, matching
   // the file inputs' own accept="" lists below. A bare .shp (no surrounding .zip) is also accepted —
-  // it just imports with no attributes if no .dbf was dropped alongside it in the SAME drop (loose
-  // multi-file .shp/.shx/.dbf sets dropped together aren't grouped by basename here — out of scope
-  // for this pass; the .zip bundle this app's own shapefile export already produces, or that any GIS
-  // tool's "export as zipped shapefile" option produces, is the primary supported path).
+  // its .dbf / .prj / .cpg dropped in the SAME drop are paired with it by basename (groupShapefileParts, #600);
+  // a .shp dropped alone imports coordinates only, and the notice says to bring its .dbf and .prj.
   const handleDrop = async (e) => {
     e.preventDefault(); setDragOver(false);
-    const dropped = Array.from(e.dataTransfer.files || []);
-    let files = dropped.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605
-    const skipped = dropped.length - files.length;
+    const grouped = groupShapefileParts(Array.from(e.dataTransfer.files || [])); // #600: loose .shp + .dbf/.prj
+    let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605
+    const skipped = grouped.files.length - files.length + grouped.unmatched.length;
     if (!files.length) { setNotices((p) => [...p, "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
     // TASKS.csv #605 — an Excel workbook becomes one CSV per non-empty sheet ("Book - Sheet.csv"), queued like

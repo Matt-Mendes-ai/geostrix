@@ -38,7 +38,7 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
             <button key={o.name} onClick={() => onPick(o.name)} style={row} title={`Import "${o.name}"`}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>{o.name}</span>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", flexShrink: 0 }}>
-                {o.count != null ? `${o.count.toLocaleString()} feature${o.count === 1 ? "" : "s"}` : ""}{o.geomType ? ` · ${o.geomType}` : ""}
+                {o.count != null ? `${o.count.toLocaleString()} ${o.unit || "feature"}${o.count === 1 ? "" : "s"}` : ""}{o.geomType ? ` · ${o.geomType}` : ""}
               </span>
             </button>
           ))}

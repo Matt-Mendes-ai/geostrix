@@ -824,13 +824,35 @@ export function mergeCollar(prev, incoming, overwrite) {
   }
   return out;
 }
+// TASKS.csv #600 — a collar table can hold SEVERAL location records per hole with a rank (an MX Deposit
+// "Collar Locations" export: rank 0 the current location, higher ranks older/alternative fixes — the
+// 42648Z file has 691 rows for 544 holes, DH24-119 seven times, one of them with a 118.9 m depth for a 700 m
+// hole). "Last row wins" kept whichever came last. When the file has a rank column, the LOWEST numeric rank
+// wins (ties: the later row); with no rank column nothing changes here. Raw rows in, raw rows out (first-
+// appearance order); { rows, rankColumn, dropped, holes } for the notice.
+const RANK_ALIASES = ["rank", "loc_rank", "location_rank", "collar_rank", "priority"];
+export function pickRankedCollarRows(rawRows, holeCol, headers) {
+  const rankColumn = guessColumnExact(headers || [], RANK_ALIASES);
+  if (!rankColumn || !holeCol) return { rows: rawRows, rankColumn: null, dropped: 0, holes: [] };
+  const best = new Map(), order = [];
+  const rankOf = (r) => { const v = num(r[rankColumn]); return Number.isFinite(v) ? v : Infinity; };
+  for (const r of rawRows) {
+    const id = String(r[holeCol] ?? "").trim();
+    const prev = best.get(id);
+    if (!prev) { best.set(id, r); order.push(id); continue; }
+    if (rankOf(r) <= rankOf(prev)) best.set(id, r);
+  }
+  const counts = new Map(); rawRows.forEach((r) => { const id = String(r[holeCol] ?? "").trim(); counts.set(id, (counts.get(id) || 0) + 1); });
+  return { rows: order.map((id) => best.get(id)), rankColumn, dropped: rawRows.length - order.length, holes: [...counts].filter(([, n]) => n > 1).map(([id]) => id) };
+}
+
 export function diffCollarImport(existing, incoming) {
   const byId = new Map((existing || []).map((c) => [c.hole_id, c]));
-  const seen = new Set();
   const newHoles = [], unchanged = [], changed = [], duplicatesInFile = [], filled = [];
-  for (const r of incoming || []) {
-    if (seen.has(r.hole_id)) duplicatesInFile.push(r.hole_id);
-    seen.add(r.hole_id);
+  // #600: a repeated hole is reported as a duplicate and judged ONCE, on its last row (the one the merge keeps)
+  const lastById = new Map();
+  for (const r of incoming || []) { if (lastById.has(r.hole_id)) duplicatesInFile.push(r.hole_id); lastById.set(r.hole_id, r); }
+  for (const r of lastById.values()) {
     const prev = byId.get(r.hole_id);
     if (!prev) { newHoles.push(r.hole_id); continue; }
     const fills = COLLAR_COMPARE_FIELDS.filter((k) => missingCollarValue(prev[k]) && !missingCollarValue(r[k]));

@@ -115,3 +115,34 @@ test("#605 replaceRowsByHole keepRows: a later file of the same drop adds to its
   assert.deepEqual(res.replacedHoles, []);
   assert.deepEqual(replaceRowsByHole(rows, bx).rows.map((r) => r.value), ["chl", "bx"]); // no keep set: #336 unchanged
 });
+
+test("#600 groupShapefileParts: loose .shp/.dbf/.prj pair by basename; unmatched sidecars reported", async () => {
+  const { groupShapefileParts } = await import("../src/lib/viewer/importHelpers.js");
+  const f = (n) => new File(["x"], n);
+  const list = [f("Collar Locations _All.shp"), f("Collar Locations _All.DBF"), f("Collar Locations _All.prj"), f("Collar Locations _All.shx"),
+    f("Other.shp"), f("orphan.dbf"), f("assays.csv"), f("Collar Locations _All.shp.xml")];
+  const { files, unmatched } = groupShapefileParts(list);
+  assert.deepEqual(files.map((x) => x.name), ["Collar Locations _All.shp", "Other.shp", "assays.csv"]);
+  assert.deepEqual(unmatched.map((x) => x.name), ["orphan.dbf"]);
+  assert.deepEqual(Object.keys(files[0].shpParts).sort(), ["dbf", "prj"]);
+  assert.equal(files[1].shpParts, undefined);
+});
+
+test("#600 pickRankedCollarRows: lowest rank wins per hole; no rank column leaves rows alone; diff counts holes once", async () => {
+  const { pickRankedCollarRows, diffCollarImport } = await import("../src/lib/layers.js");
+  const raw = [
+    { hole_id: "DH24-119", rank: 1, depth: 700, x: 1 }, { hole_id: "DH24-119", rank: 0, depth: 700, x: 2 },
+    { hole_id: "DH24-119", rank: 6, depth: 118.9, x: 3 }, { hole_id: "A", rank: "", depth: 50, x: 9 }, { hole_id: "A", rank: 2, depth: 60, x: 8 },
+    { hole_id: "B", rank: 1, depth: 10, x: 5 },
+  ];
+  const r = pickRankedCollarRows(raw, "hole_id", Object.keys(raw[0]));
+  assert.equal(r.rankColumn, "rank");
+  assert.deepEqual(r.rows.map((x) => [x.hole_id, x.x]), [["DH24-119", 2], ["A", 8], ["B", 5]]); // blank rank loses to a numeric one
+  assert.equal(r.dropped, 3);
+  assert.deepEqual(r.holes, ["DH24-119", "A"]);
+  const noRank = raw.map(({ rank, ...x }) => x);
+  assert.equal(pickRankedCollarRows(noRank, "hole_id", Object.keys(noRank[0])).rows, noRank);
+  const d = diffCollarImport([], [{ hole_id: "A", x: 1 }, { hole_id: "A", x: 2 }, { hole_id: "B", x: 3 }]);
+  assert.deepEqual(d.newHoles, ["A", "B"]);
+  assert.deepEqual(d.duplicatesInFile, ["A"]);
+});
