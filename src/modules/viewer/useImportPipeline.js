@@ -7,7 +7,7 @@
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
 import { useRef, useState, useCallback } from "react";
 import * as THREE from "three";
-import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName } from "../../lib/reproject.js";
+import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360 } from "../../lib/azimuthRef.js";
 import { orientFromAlphaBeta } from "../../lib/coreOrientation.js";
@@ -15,6 +15,7 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
 import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
+import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts: #600
 
@@ -44,12 +45,26 @@ export function useImportPipeline(ctx) {
     setVisibleHoles,
   } = ctx;
 
+  // TASKS.csv #609 — a LINE or POLYGON shapefile (IP lines, claim outlines, a geology map) is map data, not a
+  // drillhole table: it used to fall to the collar guess and open the mapping dialog. It goes to Map layers
+  // (the Geophysics tab's panel) through the same builder, draped on the terrain when there is one.
+  const sendToMapLayers = (file, parsed) => {
+    const live = importStateRef.current;
+    const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
+    const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
+    if (!layer) { setNotices((p) => [...p, `${file.name}: no usable line / polygon features.`]); return; }
+    live.addMapLayer({ ...layer, drapeMode: live.terrain ? "terrain" : "flat" });
+    setNotices((p) => [...p, `${file.name}: ${layer.features.length} ${layer.geomType}${layer.features.length === 1 ? "" : "s"} added to Map layers (Geophysics tab), ${layer.crsNote}${live.terrain ? ", draped on the terrain" : ""}. Lines and polygons are map data, not drillhole tables.`]);
+  };
+  const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
+
   const openImportModal = (file, forceTarget, chosenLayer = null) => {
     parseVectorFile(file, (data, err, meta) => {
       // TASKS.csv #288 — a multi-layer .zip/.gpkg reports its layers instead of importing the first
       // one; put the picker up and come back through this same function with the chosen layer name.
       if (meta?.layerOptions) { setLayerPicker({ file, forceTarget, options: meta.layerOptions }); return; }
       if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); return; }
+      if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && looksLikeAssay(headers)) {
         setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
@@ -435,6 +450,7 @@ export function useImportPipeline(ctx) {
       // question or double-import the same file.
       if (meta?.layerOptions) { setLayerPicker({ file, options: meta.layerOptions }); return; }
       if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); processImportQueue(); return; }
+      if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers)) {
@@ -454,7 +470,11 @@ export function useImportPipeline(ctx) {
       const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
       const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
       const confident = target !== "custom" && missingRequired.length === 0 && exactRequired && dipsAgree;
-      const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down" };
+      // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
+      // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
+      // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
+      const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
+        sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
       if (confident) {
         commitImportData(modalData);
         processImportQueue();

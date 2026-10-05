@@ -219,7 +219,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
           ? ` Detected source CRS EPSG:${detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.`
           : " This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.";
       }
-      onDone(rows, null, { headers, note, detectedEpsg });
+      onDone(rows, null, { headers, note, detectedEpsg, vector: parsed }); // vector: #609 (lines / polygons -> Map layers)
     }).catch((err) => onDone(null, err.message));
     return;
   }

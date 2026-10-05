@@ -13,59 +13,12 @@ import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
-import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
+import { buildLayer, findField, autoColorFor } from "../lib/mapLayerBuild.js"; // TASKS.csv #609 — shared with the 3D-view drop
 import {
-  parseQmlStyle, autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer,
+  parseQmlStyle, autoCategories, applyQmlToCategories,
   guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS,
 } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
-
-// A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
-// with DBF-uppercased names ("LITH"). Match case-insensitively and use the layer's own spelling.
-const findField = (fields, name) => (name ? fields.find((f) => f.toLowerCase() === String(name).toLowerCase()) || null : null);
-
-const autoColorFor = () => {
-  let i = 0;
-  const seen = new Map();
-  return (value) => {
-    if (!seen.has(value)) seen.set(value, CATEGORICAL_SAFE_COLORS[i++ % CATEGORICAL_SAFE_COLORS.length]);
-    return seen.get(value);
-  };
-};
-
-// Builds a store-ready map layer from a parsed vector layer. Reprojects into the project CRS when the
-// source CRS is known and differs (and both are codes reproject.js can build); otherwise the coordinates
-// are taken as already being in the project CRS, and the returned note says so.
-function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride }) {
-  // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
-  const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
-  const dst = projectEpsg ? Number(projectEpsg) : null;
-  let transform;
-  let crsNote;
-  if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
-    transform = (x, y) => { const r = reprojectXY(x, y, src, dst); return r ? [r.x, r.y] : [x, y]; };
-    crsNote = `reprojected EPSG:${src} → EPSG:${dst}`;
-  } else if (src && dst && src !== dst) {
-    crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
-  } else if (!src) {
-    crsNote = `no CRS in file — assumed EPSG:${dst ?? "?"}`;
-  } else {
-    crsNote = `EPSG:${src}`;
-  }
-  const norm = normalizeMapLayer(parsed, transform);
-  if (!norm.features.length) return null;
-  const qmlField = findField(norm.fields, qml?.field);
-  const styleField = qmlField || guessStyleField(norm.fields);
-  let categories = styleField ? autoCategories(norm.features, styleField, autoColorFor()) : [];
-  if (qml && qmlField) categories = applyQmlToCategories(categories, qml);
-  return {
-    name: norm.name && norm.name !== sourceName ? `${sourceName} — ${norm.name}` : sourceName,
-    sourceName, geomType: norm.geomType, features: norm.features, fields: norm.fields, bbox: norm.bbox,
-    styleField, categories,
-    opacity: qml ? Math.max(0.15, qml.opacity) : (norm.geomType === "polygon" ? 0.6 : 1),
-    sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0,
-  };
-}
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
