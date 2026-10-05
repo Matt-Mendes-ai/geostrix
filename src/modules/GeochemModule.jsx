@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num } from "../lib/layers.js"; // TASKS.csv #508 — blank / "NA" -> NaN, never 0
+import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
@@ -36,7 +37,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project } = store;
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
@@ -323,16 +324,18 @@ export default function GeochemModule() {
         // element symbol. x/y/z/sample_id/medium are excluded from element detection since whichever
         // columns they resolved to are already spoken for by the mapping above, never a real analyte.
         const mappedCols = new Set(Object.values(mapping).filter(Boolean));
-        const bySymbol = new Map();
-        headers.filter((h) => !mappedCols.has(h)).filter(isElementColumn).forEach((h) => {
-          const sym = isElementColumn(h);
-          const existing = bySymbol.get(sym);
-          if (!existing || (/error/i.test(existing) && !/error/i.test(h))) bySymbol.set(sym, h);
-        });
-        const elements = Array.from(bySymbol.entries()).map(([sym, h]) => ({ symbol: sym, header: h, unit: inferUnit(h, sym), checked: true }));
+        // TASKS.csv #600 — the same column choice as drillhole assays (pickElementColumns): the most complete
+        // numeric column per element, over-limit column paired, descriptive columns skipped. The old
+        // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
+        // MX soil export (ARIS 42648Z).
+        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
+        // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
+        const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
+        const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
+        const sourceEpsg = codes.length === 1 && crsName(codes[0]) ? String(codes[0]) : "";
         setSurfaceModal({
           file, fileName: file.name, headers, allRows: data,
-          mapping,
+          mapping, sourceEpsg, sourceEpsgFrom: sourceEpsg ? crsCol : null,
           defaultMedium: "soil", elements,
         });
     });
@@ -348,19 +351,36 @@ export default function GeochemModule() {
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
     let negBdl = 0, negMissing = 0;
+    const overLimitFilled = new Map(); // #600 — as in commitAssayImport
+    // TASKS.csv #600 — surface samples in another CRS are reprojected into the project CRS like collars are
+    // (they used to be stored as-is, so an MX soil file in UTM 10 sat ~400 km from collars reprojected to UTM 9).
+    const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
+    const toEpsg = project?.epsg ? Number(project.epsg) : null;
+    const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
+    let reprojectFailed = 0;
     const rows = allRows.map((r) => {
       const values = {};
       chosen.forEach((e) => {
         const c = readAssayCell(r[e.header]);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
-        const v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
+        let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
+        const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
+        if (ol && parseAssayValue(r[e.header]) === ol.limit) {
+          const og = parseAssayValue(r[ol.header]);
+          if (og != null && Number.isFinite(og)) { v = convertUnit(og, ol.unit, existingUnit[e.symbol] || e.unit); overLimitFilled.set(e.symbol, (overLimitFilled.get(e.symbol) || 0) + 1); }
+        }
         if (v != null) values[e.symbol] = v;
       });
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
+      let x = num(r[mapping.x]), y = num(r[mapping.y]);
+      if (doReproject && Number.isFinite(x) && Number.isFinite(y)) {
+        const p = reprojectXY(x, y, fromEpsg, toEpsg);
+        if (p) ({ x, y } = p); else { reprojectFailed++; x = NaN; }
+      }
       return {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
-        x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]), // #508 — a blank z is not sea level
+        x, y, z: num(r[mapping.z]), // #508 — a blank z is not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : defaultMedium,
         values,
       };
@@ -371,6 +391,8 @@ export default function GeochemModule() {
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
+      overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
+      doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.${extra ? " " + extra : ""}`]);
     setSurfaceModal(null);
@@ -672,6 +694,7 @@ export default function GeochemModule() {
           onChange={setSurfaceModal}
           onCancel={() => setSurfaceModal(null)}
           onCommit={() => commitSurfaceImport(surfaceModal)}
+          projectEpsg={project?.epsg}
         />
       )}
 

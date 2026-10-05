@@ -11,10 +11,12 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #600
+import { crsName } from "../lib/reproject.js";
 
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
 
-export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit }) {
+export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   useEscapeKey(onCancel);
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
@@ -80,6 +82,18 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
             <select value={modal.defaultMedium} onChange={(e) => onChange({ ...modal, defaultMedium: e.target.value })} style={{ ...sel, width: 140 }} title="Used for every row when no medium column is mapped, or a row's medium value doesn't match anything recognized">
               {SURFACE_MEDIA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
+          </div>
+          {/* TASKS.csv #600 — reprojected into the project CRS on import, like collars */}
+          <div style={{ marginTop: 12 }}>
+            <SourceCrsField
+              value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })}
+              defaultText={`Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+            />
+            {modal.sourceEpsgFrom && (
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>
+                Read from the file's "{modal.sourceEpsgFrom}" column — check it. Samples are reprojected into the project CRS on import.
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
