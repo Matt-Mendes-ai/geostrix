@@ -669,3 +669,36 @@ test("#500 a sparse estimate (gaps of whole cells) is still one tensor grid; a r
   assert.equal(vals.filter((v) => v !== -99999).length, 4); // the 4 estimates, everything else no-data
   assert.ok(tensorFromCells([...cells, c(250, 20, 20, 5)]).error); // 250 is not on the 40 m lattice
 });
+
+test("#600 real ARIS logging exports are recognised and mapped (headers from BC assessment reports)", async () => {
+  const { guessTarget, guessMapping } = await import("../src/lib/layers.js");
+  const { looksLikeAssay } = await import("../src/lib/viewer/importHelpers.js");
+  const H = (s) => s.split("|");
+  const cases = [
+    ["Hole number|From|To|Length|Alt1_Code|Alt1_interp|Alt1_Int|Alt1_Style|Alt1Min1|Alt2_Code|Comments", "alt", "Alt1_Code"],
+    ["Hole number|From|To|Length|Min1_Code|Min1_pct|Min1_Size_mm|Min2_Code|Comments", "mnlgy", "Min1_Code"],
+    ["Hole number|From|To|Length|Vein1_Comp|Vein1_Modifiers|Vein1_Style|Vein1_Alpha|Vein1_Beta|Vein2_Comp", "vein", "Vein1_Comp"],
+    ["Hole number|From|To|Length|Reading_1|Reading_2|Reading_3|Ave_Reading|UnitCode|Read_By|Comments", "magsusc", "Ave_Reading"],
+    ["Hole number|From|To|Length|SampleID|Sample_Type|SG_Method|Weight_Dry_g|Weight_Wet_g|BulkDens_Calc|Lith1_GF_Code", "sg", "BulkDens_Calc"],
+    ["HOLEID|PROJECTCODE|GEOLFROM|GEOLTO|MagSus1|MagSus_By|MagSus_Date", "magsusc", "MagSus1"],
+    ["HOLEID|PROJECTCODE|GEOLFROM|GEOLTO|Min_Code1|Min_Host1|Min_pct1|Min_Code2", "mnlgy", "Min_Code1"],
+    ["HOLEID|PROJECTCODE|GEOLFROM|GEOLTO|SG_Weight_Dry_g|SG_Weight_Wet_g|SG_D|SG_By", "sg", "SG_D"],
+    ["Hole number|From|To|Length|MX Lithology.Lith1_GF_Code|Lithological_Log.Lith1_Min1|Lithological_Log.Lith1_Local_Comments", "litho", "MX Lithology.Lith1_GF_Code"],
+  ];
+  for (const [h, target, value] of cases) {
+    assert.equal(guessTarget(H(h)), target, h);
+    const m = guessMapping(target, H(h));
+    assert.equal(m.value, value, h);
+    assert.ok(m.from && m.to, `${h}: from ${m.from} to ${m.to}`);
+  }
+  // GEOLFROM / GEOLTO and SAMPFROM / SAMPTO map without the two-letter substring match
+  assert.deepEqual(["from", "to"].map((k) => guessMapping("litho", H("HOLEID|GEOLFROM|GEOLTO|Lith_Code"))[k]), ["GEOLFROM", "GEOLTO"]);
+  // collar header file: one-letter aliases no longer match inside words ("Hole tYpe", "Hole siZe"); actual depth wins
+  const coll = guessMapping("collars", H("Project|Hole number|Hole type|Hole size|Target depth|Actual depth|Azi_Planned|Dip_Planned|coordinates.Northing|coordinates.Easting|coordinates.Elevation"));
+  assert.deepEqual([coll.x, coll.y, coll.z, coll.length], ["coordinates.Easting", "coordinates.Northing", "coordinates.Elevation", "Actual depth"]);
+  // assay files by their element columns; descriptive "Ag status" columns don't count
+  assert.equal(looksLikeAssay(H("HOLEID|PROJECTCODE|SAMPLEID|SAMPFROM|SAMPTO|Ag_gpt_BESTEL|Al_pct_BESTEL|As_ppm_BESTEL|Au_gpt_BESTEL|Ba_ppm_BESTEL")), true);
+  assert.equal(looksLikeAssay(H("SAMPLEID|HOLEID|SAMPFROM|SAMPTO|Ag_XRF_ppm|Cu_XRF_ppm|Fe_XRF_pct|Zn_XRF_ppm")), true);
+  assert.equal(looksLikeAssay(H("Hole number|From|To|Ag status|Ag certificate|Au laboratory|Cu method|Zn date")), false);
+  assert.equal(looksLikeAssay(H("HOLEID|GEOLFROM|GEOLTO|Alt_Assemblage|AltMin_AB_Int_D|AltMin_CA_Int_D|AltMin_KF_Int_D")), false);
+});

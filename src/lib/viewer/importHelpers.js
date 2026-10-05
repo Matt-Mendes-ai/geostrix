@@ -3,6 +3,7 @@
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
 import { guessEpsgFromPrjWkt } from "../reproject.js";
 import { readKmlFile, kmlFeaturesToRows } from "../kml.js";
+import { isElementColumn } from "../geochem.js"; // TASKS.csv #600
 import { parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../shapefile.js";
 import { num, isOverturnedValue } from "../layers.js";
 import { parseTableFile } from "../tabular.js";
@@ -84,10 +85,16 @@ export function normStructure(r, mapping, customFields, dipConvention) {
 // TASKS.csv #289 / #439 — raster.js (and geotiff) loaded on first raster import, not at startup.
 export const loadRaster = () => import("../raster.js");
 
+// TASKS.csv #600 — element columns are recognised the way the assay importer itself reads them
+// (isElementColumn: "Au_gpt_BESTEL", "Ag_XRF_ppm", "Cu (ppm)", "SiO2"), counting DISTINCT elements, not only
+// headers that are exactly a symbol: a real ARIS assay export (Au_gpt_BESTEL ...) and a pXRF export were
+// not recognised as assays and were offered as vein / alteration layers instead. Words that start with a
+// symbol but are descriptive ("Ag status", "Au certificate") are not element columns.
+const NOT_GRADE = /\b(status|certificate|cert|laboratory|lab|method|date|completed|analys(is|ed)|comment|flag|qc|batch|job|error|err|lod|dl)\b/i;
 export function looksLikeAssay(headers) {
-  const ELEMENTS = new Set(["Ag","Al","As","Au","Ba","Be","Bi","Ca","Cd","Co","Cr","Cu","Fe","Ga","K","La","Mg","Mn","Mo","Na","Ni","P","Pb","S","Sb","Sc","Sr","Th","Ti","Tl","U","V","W","Zn","Zr","Nb","Y","Yb"]);
-  const count = headers.filter((h) => ELEMENTS.has(h.trim())).length;
-  return count >= 4;
+  const syms = new Set();
+  headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s) syms.add(s); });
+  return syms.size >= 4;
 }
 
 // TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,

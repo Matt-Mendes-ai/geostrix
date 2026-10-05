@@ -519,8 +519,8 @@ export const LAYER_META = {
 function intervalFields(valueAliases, extraAliases, numeric, descriptionAliases) {
   const fields = [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
-    { key: "from", label: "From", required: true, aliases: ["from", "from_m", "depth_from"] },
-    { key: "to", label: "To", required: true, aliases: ["to", "to_m", "depth_to"] },
+    { key: "from", label: "From", required: true, aliases: ["from", "from_m", "depth_from", "from_depth", "geolfrom", "sampfrom", "geol_from", "samp_from", "interval_from", "m_from"] },
+    { key: "to", label: "To", required: true, aliases: ["to", "to_m", "depth_to", "to_depth", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "m_to"] },
     // TASKS.csv #320 — "value"/"val" as LAST-resort aliases: a hand-built hole_id,from,to,value file left
     // Value unmapped. Appended, so every layer's own names (litho, rock_type...) still win.
     { key: "value", label: numeric ? "Value (numeric)" : "Value", required: true, aliases: [...valueAliases, ...["value", "val"].filter((a) => !valueAliases.includes(a))] },
@@ -546,7 +546,7 @@ export const TARGET_SCHEMAS = {
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
     { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi"] },
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip"] },
-    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "depth"] },
+    { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
@@ -555,13 +555,16 @@ export const TARGET_SCHEMAS = {
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
   ], dipConvention: true },
   litho: { label: "Lithology", fields: intervalFields(["lithology", "litho", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc"]) },
-  alt: { label: "Alteration", fields: intervalFields(["assemblage", "alteration"]) },
-  vein: { label: "Veins", fields: intervalFields(["assemblage", "type", "vein_type"]) },
-  mnlgy: { label: "Mineralization", fields: intervalFields(["mineral"], ["percent", "pct"]) },
+  // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
+  // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
+  // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
+  alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
+  vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type"]) },
+  mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "mineral"], ["min1_pct", "min_pct1", "percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
-  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "specific_gravity", "density", "value"], null, true) },
-  magsusc: { label: "Mag. susceptibility (numeric)", fields: intervalFields(["mag_avg_si", "mag", "value"], null, true) },
+  sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "bulk_density", "density", "value"], null, true) },
+  magsusc: { label: "Mag. susceptibility (numeric)", fields: intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_sus", "mag", "value"], null, true) },
   structure: { label: "Structure planes", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md"] },
@@ -584,8 +587,8 @@ export const TARGET_SCHEMAS = {
   ] },
   custom: { label: "Custom layer", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
-    { key: "from", label: "From (leave unset if point data)", required: false, aliases: ["from", "from_m", "depth_from"] },
-    { key: "to", label: "To (leave unset if point data)", required: false, aliases: ["to", "to_m", "depth_to"] },
+    { key: "from", label: "From (leave unset if point data)", required: false, aliases: ["from", "from_m", "depth_from", "from_depth", "geolfrom", "sampfrom", "geol_from", "samp_from", "interval_from", "m_from"] },
+    { key: "to", label: "To (leave unset if point data)", required: false, aliases: ["to", "to_m", "depth_to", "to_depth", "geolto", "sampto", "geol_to", "samp_to", "interval_to", "m_to"] },
     { key: "depth", label: "Depth (for point data)", required: false, aliases: ["depth", "at", "md"] },
     { key: "value", label: "Value / category", required: true, aliases: ["value", "label"] },
   ] },
@@ -650,10 +653,13 @@ export function guessColumnExact(headers, aliases) {
   return "";
 }
 
+// TASKS.csv #600 — the substring pass skips aliases of one or two letters: on a real ARIS collar header file
+// "y" matched "Hole tYpe" and "z" matched "Hole siZe", so Northing and Elevation were mapped to those columns.
+// Short aliases (x, y, z, az, dd, md, at, rl, sg...) now match a whole header only.
 export function guessColumn(headers, aliases) {
   const lower = headers.map((h) => h.toLowerCase().trim());
   for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
-  for (const a of aliases) { const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
+  for (const a of aliases) { if (a.length <= 2) continue; const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
   return "";
 }
 export function guessTarget(headers) {
@@ -692,6 +698,17 @@ export function guessTarget(headers) {
   if (!has("from") && has("depth") && has("dip") && structy) return "structure";
   if (!has("from") && has("depth") && has("alpha")) return "structure"; // #427 — oriented-core alpha/beta logging
   if (has("azimuth") && has("depth") && !has("from")) return "survey";
+  // TASKS.csv #600 — interval logs from logging software, recognised by their PRIMARY column's name (the
+  // header after any "Table." prefix): Alt1_Code / Alt_Assemblage, Min1_Code / Min_Code1, Vein1_Comp /
+  // Vein_Type1, Ave_Reading / MagSus1, BulkDens_Calc / SG_D. They used to fall through to "litho" (a UnitCode
+  // column made the mag-sus log a lithology) or "vein" (a Sample_Type column), with the value unmapped.
+  const base = lower.map((h) => h.trim().split(".").pop());
+  const any = (re) => base.some((h) => re.test(h));
+  if (has("from") && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$/)) return "magsusc";
+  if (has("from") && any(/^bulkdens|^sg(_d|_calc)?$|^specific_gravity$/)) return "sg";
+  if (has("from") && any(/^min\d*_code\d*$/)) return "mnlgy";
+  if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
+  if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy
   // above) — a real mnlgy CSV never has an "assemblage" column, so that combined check could
