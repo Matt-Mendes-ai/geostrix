@@ -58,6 +58,7 @@ function sampleLive() {
   live.voxelModels = [{ id: "v1", source: "simpeg", cells: [{ x: 500000, y: 6200000, z: 1000, dx: 25, dy: 25, dz: 12.5, value: 0.5, support: 1 }] }];
   live.layoutPages = [{ id: "p1", name: "Page 1", elements: [] }, { id: "p2", name: "Page 2", elements: [] }];
   live.activeLayoutPageId = "p2";
+  live.alterationBoxes = { boxes: { basalt: { ai: [20, 55], ccpi: [55, 85] } }, map: { BSL: "basalt" }, source: "logged" }; // #503
   live.modellingCodes = { codes: [{ name: "AND1", role: "stratigraphic", order: 1 }], assign: { "H1|0.000|2.000": "AND1" }, ties: [{ a: "H1|0.000|2.000", b: "H2|5.000|9.000" }] }; // #599
   return live;
 }
@@ -141,6 +142,7 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
   const PINNED = {
     7: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
     8: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
+    9: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");

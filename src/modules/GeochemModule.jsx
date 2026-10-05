@@ -10,11 +10,12 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, reeProfile,
+  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
+import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 import IsoconTool from "../components/IsoconTool.jsx";
 import CorrelationMatrix from "../components/CorrelationMatrix.jsx";
@@ -35,7 +36,9 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes } = store;
+  const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
+  const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useState("boxplot");
   const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
@@ -378,18 +381,34 @@ export default function GeochemModule() {
     files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
   };
 
-  const runMethod = (methodKey) => {
+  const runMethod = (methodKey, altSetup = null) => {
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
     if (missing.length) { setNotices((p) => [...p, `${method.label}: missing ${missing.join(", ")}.`]); return; }
+    // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
+    if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
+    let lithoByHole = null, noProtolith = 0;
+    if (altSetup && altSetup.source === "logged") {
+      lithoByHole = new Map();
+      (layers.litho || []).forEach((r) => { if (!lithoByHole.has(r.hole_id)) lithoByHole.set(r.hole_id, []); lithoByHole.get(r.hole_id).push(r); });
+    }
+    const counts = {};
     const rows = assays.map((a) => {
-      const value = method.classify(a.values, elementUnits, a);
+      let opts;
+      if (altSetup) {
+        const protolith = protolithForSample(a, { fixed: altSetup.source === "logged" ? null : altSetup.source, lithoByHole, map: altSetup.map });
+        if (!protolith) { noProtolith++; return null; }
+        opts = { protolith, boxes: altSetup.boxes };
+      }
+      const value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
+      counts[value] = (counts[value] || 0) + 1;
       return { hole_id: a.hole_id, from: a.from, to: a.to, value };
     }).filter(Boolean);
     replaceLayer(targetKey, rows);
-    setNotices((p) => [...p, `Generated ${rows.length} intervals → ${method.target === "litho" ? "Lithology (geochem)" : "Alteration (geochem)"} layer. Switch to 3D View to see it.`]);
+    const detail = altSetup ? ` ${Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ")}.${noProtolith ? ` ${noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).` : ""}${JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? " Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001)." : " Box limits: your edited values."} Screening level: protolith assumed.` : "";
+    setNotices((p) => [...p, `Generated ${rows.length} intervals → ${method.target === "litho" ? "Lithology (geochem)" : "Alteration (geochem)"} layer.${detail} Switch to 3D View to see it.`]);
   };
 
   // ---------- exports ----------
@@ -608,7 +627,7 @@ export default function GeochemModule() {
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>
-            <GeochemPlot diagramId={diagramId} samples={assays} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} />
+            <GeochemPlot diagramId={diagramId} samples={assays} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} />
             <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
               {diagram.spider
                 ? `${assays.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
@@ -619,6 +638,14 @@ export default function GeochemModule() {
         )}
       </div>
 
+      {altBoxOpen && (
+        <AlterationBoxModal
+          saved={alterationBoxes}
+          lithoCodes={[...new Set((layers.litho || []).filter((r) => assayHoleIds.has(r.hole_id)).map((r) => String(r.value ?? "").trim()).filter(Boolean))].sort()}
+          onCancel={() => setAltBoxOpen(false)}
+          onRun={(setup) => { setAlterationBoxes(setup); setAltBoxOpen(false); runMethod("alteration_boxplot", setup); }}
+        />
+      )}
       {assayModal && (
         <AssayImportModal
           modal={assayModal}

@@ -444,6 +444,8 @@ export function StoreProvider({ children }) {
     const next = p.slice(); next[i] = { ...p[i], ...entry, id: p[i].id }; return next;
   }), []);
   const removeDcipLine = useCallback((id) => setDcipLines((p) => p.filter((l) => l.id !== id)), []);
+  // TASKS.csv #503 — AI / CCPI least-altered boxes + protolith map (null = provisional defaults)
+  const [alterationBoxes, setAlterationBoxes] = useState(null);
   // TASKS.csv #599 — modelling codes ({ codes, assign, ties }, see lib/modellingCodes.js)
   const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
   const addLithoGroup = useCallback((group) => {
@@ -804,7 +806,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], alterationBoxes: [alterationBoxes, setAlterationBoxes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -1476,6 +1478,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     crmCertificates, setCrmCertificate, // TASKS.csv #400
     dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
     modellingCodes, setModellingCodes, // TASKS.csv #599
+    alterationBoxes, setAlterationBoxes, // TASKS.csv #503
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,

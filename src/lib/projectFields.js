@@ -26,7 +26,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // RULE: any change to FIELDS (a key added / removed, or a field's save/load encoding) bumps this number —
 // test/projectFields.test.mjs freezes the format fingerprint and fails until it is bumped.
 // v8 (TASKS.csv #599) adds modellingCodes (per-interval modelling codes, the code list, correlation ties).
-export const PROJECT_VERSION = 8;
+// v9 (TASKS.csv #503) adds alterationBoxes (the user's least-altered box limits + litho code -> protolith map).
+export const PROJECT_VERSION = 9;
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -115,6 +116,9 @@ export const FIELDS = [
   { key: "dcipLines", track: "dirty", empty: list },
   // TASKS.csv #599 — per-interval modelling codes + the code list (role, pile order) + correlation ties.
   // Undo-tracked: assigning and connecting intervals are hand edits, small, and easy to get wrong.
+  // TASKS.csv #503 — the AI / CCPI least-altered boxes per protolith (provisional defaults until edited) and
+  // the logged-code -> protolith map; null = never edited (the app then uses the provisional defaults).
+  { key: "alterationBoxes", track: "dirty", empty: () => null, load: (data) => data.alterationBoxes ?? null },
   { key: "modellingCodes", track: "undo", empty: () => ({ codes: [], assign: {}, ties: [] }),
     load: (data) => ({ codes: [], assign: {}, ties: [], ...(data.modellingCodes || {}) }) }, // TASKS.csv #322 — DC/IP line data (+ last section) kept with the project
   { key: "omfObjects", track: "undo", empty: list },

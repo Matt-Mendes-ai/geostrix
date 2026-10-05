@@ -851,20 +851,68 @@ export function reeProfile(sample, elementUnits, order, norm) {
   });
 }
 
+// ---------- TASKS.csv #503 — protolith-aware alteration box plot ----------
+// The classifier used to split AI / CCPI at 50/50 into four quadrants with ONE least-altered box, but least-
+// altered rocks plot in different places by protolith (Large et al. 2001): fresh basalt has a high CCPI by
+// nature, so 139 of Harry's 140 basalt samples came out "epidote-albite" alteration. Each sample is now tested
+// against the least-altered box of ITS protolith, and a sample outside the box is named by the direction it
+// lies in (the box plot's alteration trends), not by a fixed quadrant.
+// PROVISIONAL BOX LIMITS: inside the published least-altered envelope (AI 10-65, CCPI 15-85) but NOT taken
+// from Large et al. (2001) fig. 6 itself (it could not be read when this was written). They are editable in
+// the app and must be checked against the paper (Matt, 2026-10-05: "option 2").
+export const PROTOLITHS = ["rhyolite", "dacite", "andesite", "basalt"];
+export const PROVISIONAL_ALTERATION_BOXES = {
+  rhyolite: { ai: [20, 65], ccpi: [15, 40] },
+  dacite: { ai: [20, 65], ccpi: [25, 50] },
+  andesite: { ai: [20, 60], ccpi: [40, 70] },
+  basalt: { ai: [20, 55], ccpi: [55, 85] },
+};
+const PROTOLITH_SHORT = { rhyolite: "RHY", dacite: "DAC", andesite: "AND", basalt: "BAS" };
+// A starting guess from a logged code (editable per code in the app).
+export function guessProtolith(code) {
+  const c = String(code || "").toLowerCase();
+  if (/bas|bsl|gab|dol|mafic|^mv/.test(c)) return "basalt";
+  if (/and/.test(c)) return "andesite";
+  if (/dac/.test(c)) return "dacite";
+  if (/rhy|fel|qfp|qp/.test(c)) return "rhyolite";
+  return null;
+}
+// One sample's AI / CCPI against its protolith's box -> a layer code.
+export function classifyAlterationBox(ai, ccpi, protolith, boxes = PROVISIONAL_ALTERATION_BOXES) {
+  const b = boxes?.[protolith];
+  if (!b || !Number.isFinite(ai) || !Number.isFinite(ccpi)) return null;
+  const aiHi = ai > b.ai[1], aiLo = ai < b.ai[0], cHi = ccpi > b.ccpi[1], cLo = ccpi < b.ccpi[0];
+  if (!aiHi && !aiLo && !cHi && !cLo) return `LA-${PROTOLITH_SHORT[protolith]}`;
+  if (aiHi && cHi) return "CHL";   // up and right: chlorite-pyrite(-sericite), the footwall trend
+  if (aiHi) return "SER";          // up: sericite / K-feldspar
+  if (cHi && aiLo) return "EPI";   // down-right: epidote-calcite (diagenetic / regional)
+  if (cHi) return "CARB";          // right: chlorite-carbonate
+  if (aiLo) return "ALB";          // down: albite / Na-gain
+  return "LOWCCPI";                // in the AI range but left of the box
+}
+// The protolith of a sample: one fixed for every sample, or from the logged lithology at its midpoint.
+export function protolithForSample(sample, { fixed = null, lithoByHole = null, map = {} } = {}) {
+  if (fixed) return fixed;
+  const rows = lithoByHole?.get(sample.hole_id);
+  if (!rows) return null;
+  const mid = (Number(sample.from) + Number(sample.to)) / 2;
+  const r = rows.find((x) => mid >= Number(x.from) && mid < Number(x.to));
+  if (!r) return null;
+  const code = String(r.value ?? "").trim();
+  return code in map ? map[code] || null : guessProtolith(code);
+}
+
 // ---------- alteration / litho classification (reuse projections above) ----------
 export const GEOCHEM_METHODS = {
   alteration_boxplot: {
-    label: "Ishikawa AI / CCPI quadrants (Large et al. 2001)",
+    label: "Ishikawa AI / CCPI against the protolith's least-altered box (after Large et al. 2001)",
     target: "alt", requires: ["Na", "K", "Mg", "Ca", "Fe"],
-    classify: (v, u, sampleShim) => {
+    // TASKS.csv #503 — opts: { protolith, boxes }; no protolith -> not classified (no guessing a box)
+    classify: (v, u, sampleShim, opts = {}) => {
       const s = sampleShim || { values: v };
       const p = DIAGRAMS.boxplot.project(s, u);
       if (!p) return null;
-      const { x: CCPI, y: AI } = p;
-      if (AI >= 50 && CCPI < 50) return "SER";
-      if (AI >= 50 && CCPI >= 50) return "CHL";
-      if (AI < 50 && CCPI >= 50) return "EPI";
-      return "FRESH";
+      return classifyAlterationBox(p.y, p.x, opts.protolith, opts.boxes || PROVISIONAL_ALTERATION_BOXES);
     },
   },
   litho_winchester: {
@@ -898,7 +946,10 @@ export const GEOCHEM_METHODS = {
 };
 
 export const GEOCHEM_LABELS = {
-  SER: "Sericite/K-feldspar", CHL: "Chlorite-pyrite", EPI: "Epidote-albite", FRESH: "Weak/fresh",
+  SER: "Sericite/K-feldspar trend", CHL: "Chlorite-pyrite trend", EPI: "Epidote-calcite trend", FRESH: "Weak/fresh (older 50/50 quadrants)",
+  // TASKS.csv #503 — protolith-box classes (EPI is now 'epidote-calcite', the down-right trend)
+  "LA-RHY": "Least altered (rhyolite box)", "LA-DAC": "Least altered (dacite box)", "LA-AND": "Least altered (andesite box)", "LA-BAS": "Least altered (basalt box)",
+  CARB: "Chlorite-carbonate trend", ALB: "Albite / Na-gain trend", LOWCCPI: "Low CCPI (left of box)",
   KOM: "Komatiite", "THOL-FE": "Fe-tholeiite", "THOL-MAFIC": "Mg-tholeiite", "CA-BASALT": "Calc-alk. basalt",
   "CA-AND": "Calc-alk. andesite", "CA-DAC": "Calc-alk. dacite", "CA-RHY": "Calc-alk. rhyolite",
   BAS: "Basalt", "AND-BAS": "Basaltic andesite", AND: "Andesite", "RHY-DAC": "Rhyolite/Dacite",

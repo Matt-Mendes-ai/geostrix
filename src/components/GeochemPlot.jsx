@@ -6,7 +6,7 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 
 const W = 620, H = 560, PAD = 60;
 
-export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef }) {
+export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null }) {
   const diagram = DIAGRAMS[diagramId] || SPIDER_DIAGRAMS[diagramId];
   const localRef = useRef(null);
   const ref = svgRef || localRef;
@@ -24,11 +24,11 @@ export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy,
 
   if (diagram.spider) return <SpiderPlot diagram={diagram} samples={samples} elementUnits={elementUnits} colorBy={colorBy} svgRef={ref} />;
   if (diagram.ternary) return <TernaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} />;
-  return <BinaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} />;
+  return <BinaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} altBoxes={altBoxes} />;
 }
 
 // ---------- binary (x-y, optional log) ----------
-function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
+function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes }) {
   let [xmin, xmax] = diagram.xRange || [0, 1];
   let [ymin, ymax] = diagram.yRange || [0, 1];
   if (diagram.dynamicRange && projected.length) {
@@ -74,7 +74,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
       ))}
 
       {/* boxplot alteration trend guides */}
-      {diagram.boxplotOverlay && <BoxplotGuides sx={sx} sy={sy} />}
+      {diagram.boxplotOverlay && <BoxplotGuides sx={sx} sy={sy} boxes={altBoxes} />}
 
       {/* PER-style trend line: OLS-through-origin fit of the currently plotted points, as a rough
           stand-in for a true "precursor line" (which properly needs a known unaltered rock suite —
@@ -121,13 +121,22 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef }) {
   );
 }
 
-function BoxplotGuides({ sx, sy }) {
-  // least-altered box (~ AI 20-60, CCPI 20-60) and alteration vectors
-  const box = [[20, 20], [60, 20], [60, 60], [20, 60]];
+// TASKS.csv #503 — one least-altered box per protolith (the user's limits, or the provisional defaults), not
+// one generic box: fresh basalt sits at high CCPI by nature. x = CCPI, y = AI.
+const BOX_COLORS = { rhyolite: "#b8452e", dacite: "#c98a2b", andesite: "#4a8a4a", basalt: "#3a6aa8" };
+function BoxplotGuides({ sx, sy, boxes }) {
+  const list = boxes ? Object.entries(boxes) : [];
   return (
     <g>
-      <polygon points={box.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill="#eaf1fa" fillOpacity="0.5" stroke="#3a5068" strokeDasharray="3 2" />
-      <text x={sx(40)} y={sy(40)} fill="#5a7290" fontSize={fontSizes.xs} textAnchor="middle">least-altered box</text>
+      {list.map(([p, b]) => {
+        const pts = [[b.ccpi[0], b.ai[0]], [b.ccpi[1], b.ai[0]], [b.ccpi[1], b.ai[1]], [b.ccpi[0], b.ai[1]]];
+        return (
+          <g key={p}>
+            <polygon points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill={BOX_COLORS[p] || "#3a5068"} fillOpacity="0.07" stroke={BOX_COLORS[p] || "#3a5068"} strokeDasharray="3 2"><title>{`Least-altered ${p}: AI ${b.ai[0]}–${b.ai[1]}, CCPI ${b.ccpi[0]}–${b.ccpi[1]}`}</title></polygon>
+            <text x={sx(b.ccpi[0]) + 3} y={sy(b.ai[1]) + 10} fill={BOX_COLORS[p] || "#3a5068"} fontSize={fontSizes.xs}>{p}</text>
+          </g>
+        );
+      })}
       {/* corner labels */}
       <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>sericite / K-feldspar</text>
       <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>chlorite-pyrite</text>

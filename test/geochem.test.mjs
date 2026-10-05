@@ -205,3 +205,34 @@ test("#504 makeRangeAverager gives avgGradeInRange's numbers for many windows (o
   for (const [h, f, t] of windows) assert.equal(avg(h, f, t, "Au", "ppm"), avgGradeInRange(rows, h, f, t, "Au", "ppm", U), `${h} ${f}-${t}`);
   assert.equal(avg("H1", 4, 6, "Au", "ppm"), null); // a gap: no grade, not zero
 });
+
+test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not 'epidote-albite'", async () => {
+  const { readFileSync } = await import("node:fs");
+  const Papa = (await import("papaparse")).default;
+  const G = await import("../src/lib/geochem.js");
+  const read = (f) => Papa.parse(readFileSync(new URL(`../sample_data/harry_property/${f}`, import.meta.url), "utf8"), { header: true, skipEmptyLines: true }).data;
+  const rows = read("assay_wide.csv");
+  const els = Object.keys(rows[0]).filter((h) => !["hole_id", "from", "to"].includes(h));
+  const units = {}; els.forEach((h) => { const [s, u] = h.split("_"); units[s] = u === "pct" ? "%" : "ppm"; });
+  const assays = rows.map((r) => { const values = {}; els.forEach((h) => { const c = G.readAssayCell(r[h]); if (c.value != null) values[h.split("_")[0]] = c.value; }); return { hole_id: r.hole_id, from: +r.from, to: +r.to, values }; });
+  const lithoByHole = new Map();
+  read("litho.csv").forEach((r) => { if (!lithoByHole.has(r.hole_id)) lithoByHole.set(r.hole_id, []); lithoByHole.get(r.hole_id).push({ hole_id: r.hole_id, from: +r.from, to: +r.to, value: r.lithology }); });
+  const m = G.GEOCHEM_METHODS.alteration_boxplot;
+  const count = (sel) => { const c = {}; assays.forEach((a) => { const prot = G.protolithForSample(a, { lithoByHole, map: { DACT: "dacite", VCL: "dacite" } }); if (!sel(a, prot)) return; const v = m.classify(a.values, units, a, { protolith: prot }); c[v] = (c[v] || 0) + 1; }); return c; };
+  const bsl = count((a, p) => p === "basalt");
+  const n = Object.values(bsl).reduce((x, y) => x + y, 0);
+  console.log("Harry basalt (BSL):", bsl);
+  assert.ok(n >= 100, `basalt samples ${n}`);
+  assert.ok((bsl["LA-BAS"] || 0) / n > 0.6, `least altered share ${(bsl["LA-BAS"] || 0)}/${n}`);
+  // unit rules
+  assert.equal(G.classifyAlterationBox(40, 70, "basalt"), "LA-BAS");
+  assert.equal(G.classifyAlterationBox(40, 70, "rhyolite"), "CARB"); // same point is right of the rhyolite box
+  assert.equal(G.classifyAlterationBox(80, 90, "basalt"), "CHL");
+  assert.equal(G.classifyAlterationBox(80, 30, "rhyolite"), "SER");
+  assert.equal(G.classifyAlterationBox(10, 30, "rhyolite"), "ALB");
+  assert.equal(G.classifyAlterationBox(10, 60, "rhyolite"), "EPI");
+  assert.equal(G.classifyAlterationBox(40, 70, null), null); // no protolith, no box, no class
+  const edited = { ...G.PROVISIONAL_ALTERATION_BOXES, basalt: { ai: [20, 55], ccpi: [75, 95] } };
+  assert.equal(G.classifyAlterationBox(40, 70, "basalt", edited), "LOWCCPI"); // user-edited boxes are used
+  assert.equal(G.guessProtolith("BSL"), "basalt"); assert.equal(G.guessProtolith("ANDS"), "andesite"); assert.equal(G.guessProtolith("SED"), null);
+});
