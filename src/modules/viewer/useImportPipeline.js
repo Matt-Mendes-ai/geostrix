@@ -16,6 +16,7 @@ import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
 import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
+import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts: #600
 
@@ -48,7 +49,20 @@ export function useImportPipeline(ctx) {
   // TASKS.csv #609 — a LINE or POLYGON shapefile (IP lines, claim outlines, a geology map) is map data, not a
   // drillhole table: it used to fall to the collar guess and open the mapping dialog. It goes to Map layers
   // (the Geophysics tab's panel) through the same builder, draped on the terrain when there is one.
+  // TASKS.csv #607 — an empty project may take the file's declared CRS (lib/adoptCrs.js). Returns the CRS to import into.
+  const adoptCrsIfEmpty = (declared, fileName) => {
+    const live = importStateRef.current;
+    const d = askAdoptCrs({ isEmpty: live.projectIsEmpty, currentEpsg: live.project?.epsg, declaredEpsg: declared, fileName });
+    if (!d || !live.setEpsg) return Number(live.project?.epsg);
+    live.setEpsg(d);
+    // the rest of this import (and of a queued drop, until the next render refreshes the ref) sees it now
+    importStateRef.current = { ...live, project: { ...live.project, epsg: d }, projectIsEmpty: false };
+    setNotices((p) => [...p, `Project CRS set to ${crsName(d)} (EPSG:${d}) from ${fileName}.`]);
+    return d;
+  };
+
   const sendToMapLayers = (file, parsed) => {
+    adoptCrsIfEmpty(guessEpsgFromPrjWkt(parsed.prjWkt), file.name); // #607
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
     const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
@@ -222,6 +236,11 @@ export function useImportPipeline(ctx) {
       // or unrecognized per-row value falls back to the single global `sourceEpsg` override exactly
       // like the pre-#205 behavior (and if that's also unset/unrecognized, its x/y is left as-is).
       let reprojectNote = "";
+      // #607 — the file's one declared CRS (Source CRS, or a per-row EPSG column with a single value) may become
+      // the project CRS when nothing is loaded yet
+      const rowCodes = [...new Set(rows.map((r) => r._rowEpsg).filter(Boolean))];
+      const declaredEpsg = rowCodes.length === 1 && (!sourceEpsg || Number(sourceEpsg) === Number(rowCodes[0])) ? rowCodes[0] : (!rowCodes.length ? sourceEpsg : null);
+      if (declaredEpsg) adoptCrsIfEmpty(declaredEpsg, fileName);
       const liveProject = importStateRef.current.project || project; // stale-closure fix, see liveCollars below
       if (liveProject?.epsg && (perRowEpsgCol || (sourceEpsg && Number(sourceEpsg) !== Number(liveProject.epsg)))) {
         const toEpsg = liveProject.epsg;

@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num } from "../lib/layers.js"; // TASKS.csv #508 — blank / "NA" -> NaN, never 0
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
+import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
@@ -37,7 +38,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
@@ -359,7 +360,9 @@ export default function GeochemModule() {
     // TASKS.csv #600 — surface samples in another CRS are reprojected into the project CRS like collars are
     // (they used to be stored as-is, so an MX soil file in UTM 10 sat ~400 km from collars reprojected to UTM 9).
     const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
-    const toEpsg = project?.epsg ? Number(project.epsg) : null;
+    let toEpsg = project?.epsg ? Number(project.epsg) : null;
+    const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName }); // #607
+    if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, `Project CRS set to ${crsName(adopted)} (EPSG:${adopted}) from ${modal.fileName}.`]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;
     const rows = allRows.map((r) => {

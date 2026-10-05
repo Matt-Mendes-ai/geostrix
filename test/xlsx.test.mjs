@@ -157,3 +157,17 @@ test("#608 breccia logs are their own layer (MX Breccia table), not Alteration",
   assert.equal(LAYER_META.breccia.kind, "interval");
   assert.match(colorForBreccia("polymict"), /^#/);
 });
+
+test("#607 an empty project may adopt the file's declared CRS", async () => {
+  const { shouldOfferCrs, askAdoptCrs } = await import("../src/lib/adoptCrs.js");
+  assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 26910 }), true);
+  assert.equal(shouldOfferCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 26910 }), false); // data already loaded
+  assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 3156 }), false);   // same CRS
+  assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: null }), false);   // nothing declared
+  assert.equal(shouldOfferCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 999999 }), false); // unknown code
+  let asked = "";
+  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: "26910", fileName: "c.shp" }, (m) => { asked = m; return true; }), 26910);
+  assert.match(asked, /EPSG:26910/);
+  assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => false), null);
+  assert.equal(askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => { throw new Error("must not ask"); }), null);
+});

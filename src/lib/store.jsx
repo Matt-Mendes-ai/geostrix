@@ -1446,6 +1446,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
 
   const value = {
     project, setEpsg, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
     collars, setCollars,
     survey, setSurvey,

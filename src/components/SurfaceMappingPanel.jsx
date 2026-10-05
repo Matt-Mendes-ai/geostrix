@@ -14,6 +14,7 @@ import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
 import { buildLayer, findField, autoColorFor } from "../lib/mapLayerBuild.js"; // TASKS.csv #609 — shared with the 3D-view drop
+import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories,
   guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS,
@@ -22,7 +23,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
-    project, terrain,
+    project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
   } = useStore();
@@ -53,9 +54,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const failed = [];
     const looseShp = {};
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
+    let projectEpsg = project?.epsg, empty = projectIsEmpty; // #607 — the first layer of an empty project may set its CRS
     const addParsed = (parsed, sourceName) => {
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
-      const layer = buildLayer(parsed, { sourceName, projectEpsg: project?.epsg, qml, sourceOverride: mapSourceEpsg });
+      const adopted = askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
+      if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(`project CRS set to EPSG:${adopted}`); }
+      empty = false;
+      const layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
       if (!layer) { failed.push(`${sourceName}${parsed.name ? ` (${parsed.name})` : ""}: no usable features`); return; }
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
       done.push(`${layer.name}: ${layer.features.length} ${layer.geomType}${layer.features.length === 1 ? "" : "s"}${layer.skipped ? ` (${layer.skipped} empty/unsupported skipped)` : ""}, ${layer.crsNote}${qml ? ", styled from .qml" : ""}`);
