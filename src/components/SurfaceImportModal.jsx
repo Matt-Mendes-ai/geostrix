@@ -42,7 +42,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
   };
   const setAll = (checked) => onChange({ ...modal, elements: modal.elements.map((e) => ({ ...e, checked })) });
 
-  const required = [["x", "Easting (X)"], ["y", "Northing (Y)"], ["z", "Elevation (Z)"]];
+  const required = [["x", "Easting (X)"], ["y", "Northing (Y)"]]; // #606: Z is optional (missing -> placed on the terrain)
 
   return (
     <div style={overlay}>
@@ -66,6 +66,13 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               </select>
             </div>
           ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title="Optional. Samples with no elevation (blank, or a column that is 0 on every row) are placed on the terrain in the 3D view.">
+            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>Elevation (Z)</div>
+            <select value={modal.mapping.z || ""} onChange={(e) => setMapping("z", e.target.value)} style={{ ...sel, flex: 1 }}>
+              <option value="">— none: place on the terrain —</option>
+              {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>Sample ID</div>
             <select value={modal.mapping.sample_id || ""} onChange={(e) => setMapping("sample_id", e.target.value)} style={{ ...sel, flex: 1 }}>

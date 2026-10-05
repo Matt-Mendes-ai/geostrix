@@ -344,7 +344,11 @@ export default function GeochemModule() {
   const commitSurfaceImport = (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.x || !mapping.y || !mapping.z) { setNotices((p) => [...p, "Map X, Y, and Z columns."]); return; }
+    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, "Map the X and Y columns."]); return; }
+    // TASKS.csv #606 — Z is optional: a blank z, or a Z column that is 0 on every row (an MX soil export whose
+    // elevation was never filled in), is MISSING, not sea level; the 3D view places those samples on the terrain.
+    const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
+    const zOf = (r) => { if (!mapping.z || zAllZero) return null; const v = num(r[mapping.z]); return Number.isFinite(v) ? v : null; };
     const mediaSet = new Set(SURFACE_MEDIA);
     // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
@@ -380,11 +384,12 @@ export default function GeochemModule() {
       }
       return {
         sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "",
-        x, y, z: num(r[mapping.z]), // #508 — a blank z is not sea level
+        x, y, z: zOf(r), // #508 / #606 — a blank (or all-zero) z is missing, not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : defaultMedium,
         values,
       };
-    }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
+    }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
+    const noZ = rows.filter((r) => r.z == null).length;
     setSurfaceSamples((prev) => [...prev, ...rows]);
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
@@ -392,6 +397,7 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
+      noZ ? `${noZ} sample(s) have no elevation${zAllZero ? ` (the "${mapping.z}" column is 0 on every row)` : ""} — the 3D view places them on the terrain.` : null,
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.${extra ? " " + extra : ""}`]);

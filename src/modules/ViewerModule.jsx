@@ -679,7 +679,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const surfaceSampleTip = (row) => {
     const vals = Object.entries(row.values || {}).map(([sym, v]) => `${sym}: ${v}${surfaceElementUnits[sym] || "ppm"}`).join("\n");
-    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z`;
+    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : ""}`; // #606
   };
 
   const mountRef = useRef(null);
@@ -1034,6 +1034,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       m.geometry.computeBoundingBox(); m.geometry.computeBoundingSphere();
     });
   };
+  // TASKS.csv #606 — a surface sample with no elevation (z null: blank, or an all-zero Z column at import) sits
+  // on the terrain where the DEM covers it; outside the DEM (or with no DEM) it is left out and the panel says
+  // how many. Same array back when every sample has its own z, so loading a DEM does not rebuild the scene then.
+  const placedSurfaceSamples = useMemo(() => {
+    if (surfaceSamples.every((r) => Number.isFinite(r.z))) return surfaceSamples;
+    const b = terrain?.bbox;
+    return surfaceSamples.map((r) => {
+      if (Number.isFinite(r.z)) return r;
+      const inside = b && r.x >= b[0] && r.x <= b[2] && r.y >= b[1] && r.y <= b[3];
+      const z = inside ? sampleTerrainElevation(terrain, r.x, r.y) : NaN;
+      return Number.isFinite(z) ? { ...r, z, zDraped: true } : null;
+    }).filter(Boolean);
+  }, [surfaceSamples, terrain]);
+  const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
   const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -3864,8 +3878,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // TASKS.csv #228 — same "off-screen, not actually broken" anchor consideration as geophysPtsBbox
       // right above, for a surface-geochem-only project (no drillholes, no geophysics points either).
       const surfaceSamplesBbox = (() => {
-        if (!surfaceSamples.length) return null;
-        const sxr = minMax(surfaceSamples, (p) => p.x), syr = minMax(surfaceSamples, (p) => p.y);
+        if (!placedSurfaceSamples.length) return null;
+        const sxr = minMax(placedSurfaceSamples, (p) => p.x), syr = minMax(placedSurfaceSamples, (p) => p.y);
         return [sxr.min, syr.min, sxr.max, syr.max];
       })();
       // TASKS.csv #316/#317 — a map-layer-only or outcrop-structure-only project (mapping before any
@@ -3899,8 +3913,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         } else if (geophysPtsBbox && layers.geophys_pts?.length) {
           const zr = minMax(layers.geophys_pts, (p) => p.z);
           ezMin = zr.min; ezMax = zr.max;
-        } else if (surfaceSamplesBbox && surfaceSamples.length) {
-          const zr = minMax(surfaceSamples, (p) => p.z);
+        } else if (surfaceSamplesBbox && placedSurfaceSamples.length) {
+          const zr = minMax(placedSurfaceSamples, (p) => p.z);
           ezMin = zr.min; ezMax = zr.max;
         }
         originRef.current = { x: ox, y: oy, z: (ezMin + ezMax) / 2 };
@@ -3936,9 +3950,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // TASKS.csv #228 — surface geochemistry samples, same zero-collar-anchor reasoning as the
         // geophys_pts block right above: a surface-geochem-only project (no drillholes at all — the
         // exact "before ever drilling" workflow this feature targets) must still render here.
-        if (layerVisible.surface_samples && surfaceSamples.length) {
+        if (layerVisible.surface_samples && placedSurfaceSamples.length) {
           const sBuildErrors = [];
-          surfaceSamples.forEach((row) => {
+          placedSurfaceSamples.forEach((row) => {
             try {
               const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
               const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
@@ -4317,8 +4331,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // "raw world x/y/z, no hole to desurvey against" rendering as the geophys_pts block just above —
     // colored by sampling medium (colorForMedium) rather than by value, since a surface program often
     // mixes media (a soil grid plus a few rock-chip grabs) that shouldn't be blended into one gradient.
-    if (layerVisible.surface_samples && surfaceSamples.length) {
-      surfaceSamples.forEach((row) => {
+    if (layerVisible.surface_samples && placedSurfaceSamples.length) {
+      placedSurfaceSamples.forEach((row) => {
         try {
           const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
           const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
@@ -4381,7 +4395,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, surfaceSamples, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, placedSurfaceSamples /* #606 */, layerVisible.surface_samples, holeLabelMode]);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //
@@ -6569,6 +6583,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
             </div>
+            {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
+                {surfaceSamplesUnplaced} sample{surfaceSamplesUnplaced === 1 ? " has" : "s have"} no elevation and {terrain ? "lie outside the terrain" : "no terrain to sit on"} — {terrain ? "extend the DEM to cover them" : "load a DEM or SRTM terrain (Geophysics tab) and they are placed on it"}.
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
