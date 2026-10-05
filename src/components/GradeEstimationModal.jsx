@@ -36,7 +36,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   // behaviour until the user moves it).
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [domainKey, setDomainKey] = useState("");
-  const domainOptions = ["litho", "alt", "vein", "geotech"].filter((k) => (layers[k] || []).length > 0);
+  const domainOptions = ["litho", "alt", "vein", "breccia", "geotech"].filter((k) => (layers[k] || []).length > 0);
 
   // TASKS.csv #265 — a collar with no recorded length used to silently contribute 300 m of grid depth
   // (`c.z - (c.length || 300)`), which combined with minSamples:1 and a 50 m search radius meant the

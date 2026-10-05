@@ -15,7 +15,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // distinct from the multi-element Correlation Matrix (#21) — this is ONE element's own distribution,
 // broken out by domain, not element-vs-element relationships.
 
-const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "magsusc", "structure"];
+const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "geotech", "magsusc", "structure"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 

@@ -389,6 +389,7 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),
     ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),
+    ...validateIntervalLayer(layers.breccia || [], "Breccia", collarIds, holeLengths, { gaps: false }), // #608
     ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths),
     ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths),
     ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false }),

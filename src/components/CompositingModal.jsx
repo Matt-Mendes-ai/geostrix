@@ -25,7 +25,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can gen
 // averaging, and a reported coverage fraction so a composite built from mostly-missing core can be
 // filtered out rather than silently treated as a full real sample); this is the control panel + results
 // table + CSV export around it, matching the BestIntercepts.jsx pattern already established.
-const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "geotech"];
+const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "geotech"];
 
 export default function CompositingModal({ assays, assayElements, layers, onClose }) {
   // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.

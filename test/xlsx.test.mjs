@@ -146,3 +146,14 @@ test("#600 pickRankedCollarRows: lowest rank wins per hole; no rank column leave
   assert.deepEqual(d.newHoles, ["A", "B"]);
   assert.deepEqual(d.duplicatesInFile, ["A"]);
 });
+
+test("#608 breccia logs are their own layer (MX Breccia table), not Alteration", async () => {
+  const { guessTarget, guessTargetFor, guessMapping, colorForBreccia, LAYER_META } = await import("../src/lib/layers.js");
+  const h = ["project", "hole_id", "from", "to", "assemblage", "support", "sorting", "framework_pct", "genesis", "brecc_lith", "note"];
+  assert.equal(guessTarget(h), "breccia");
+  assert.equal(guessTargetFor(["hole_id", "from", "to", "assemblage"], "Book - Breccia.csv"), "breccia");
+  assert.equal(guessTargetFor(["hole_id", "from", "to", "alt_assemblage"], "Book - Alteration.csv"), "alt");
+  assert.equal(guessMapping("breccia", h).value, "assemblage");
+  assert.equal(LAYER_META.breccia.kind, "interval");
+  assert.match(colorForBreccia("polymict"), /^#/);
+});

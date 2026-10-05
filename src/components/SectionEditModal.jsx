@@ -15,7 +15,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
-const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
+const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 
 export default function SectionEditModal({ sectionCount, initialCorridor, voxelModels, onSave, onClose }) {
   useEscapeKey(onClose);

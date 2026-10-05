@@ -14,7 +14,7 @@
 // litho/alteration/vein/geotech — the always-available columns — and skips the assay track (which
 // StripLog's interactive version needs a user-picked element for anyway, not meaningful to default
 // per-hole in an unattended batch run).
-import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, rqdColor } from "./layers.js";
+import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, rqdColor } from "./layers.js";
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 const TRACK_W = 90;
@@ -59,8 +59,9 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
   const litho = (layers.litho || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const alt = (layers.alt || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const vein = (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
+  const breccia = (layers.breccia || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #608
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
-  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), 0);
+  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), 0);
   if (maxDepth <= 0) return null;
 
   const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));
@@ -70,6 +71,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
     { label: "Litho", rows: litho, kind: "fill", colorFn: LAYER_META.litho.colorFn, nameFn: (v) => UNIT_NAMES[v] || v },
     { label: "Alt.", rows: alt, kind: "fill", colorFn: colorForAlteration },
     { label: "Vein", rows: vein, kind: "tick", colorFn: colorForVein },
+    { label: "Bx", rows: breccia, kind: "fill", colorFn: colorForBreccia }, // #608
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
   ].filter((t) => t.rows.length);
   if (!tracks.length) return null;

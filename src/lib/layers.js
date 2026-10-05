@@ -153,6 +153,11 @@ export function colorForAlteration(a) { return ALT_COLORS[(a || "").toUpperCase(
 export const VEIN_COLORS = { CARB: "#a8c4a0", PY: "#c9c93d", "QTZ-PY": "#d4c060", QZ: "#e8e2d0", "QZ-CB": "#7fb0c2", "QZ-CHL": "#7fae7a", "QZ-SUL": "#b08a5a" };
 export function colorForVein(v) { return VEIN_COLORS[(v || "").toUpperCase()] || categoricalSafeColor("vein", v); }
 
+// TASKS.csv #608 — breccia logs (an MX "Breccia" table: assemblage monomict / polymict, support, genesis)
+// are their own layer; they used to be detected as Alteration and merged into it.
+export const BRECCIA_COLORS = { MONOMICT: "#9a7f63", POLYMICT: "#b0552f", HYDROTHERMAL: "#c9a03c", FAULT: "#6f5f86", TECTONIC: "#6f5f86", MAGMATIC: "#a3486a", PHREATOMAGMATIC: "#4f7f8f", CRACKLE: "#d4b98a", MOSAIC: "#8f9a5a" };
+export function colorForBreccia(v) { return BRECCIA_COLORS[(v || "").toUpperCase()] || categoricalSafeColor("breccia", v); }
+
 export const MIN_COLORS = { ACA: "#c8c8d8", CPY: "#d4af37", GAL: "#6a6a78", PO: "#8a6a45", PY: "#d4c060", SPH: "#6a3a2a" };
 export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] || categoricalSafeColor("mineral", m); }
 
@@ -493,6 +498,7 @@ export const LAYER_META = {
   litho:    { label: "Lithology",      kind: "interval", radius: 2.2, opacity: 1,    colorFn: colorForLithology, nameFn: (u) => UNIT_NAMES[u] || u, numeric: false },
   alt:      { label: "Alteration",     kind: "interval", radius: 3.4, opacity: 0.4,  colorFn: colorForAlteration, numeric: false },
   vein:     { label: "Veins",          kind: "interval", radius: 1.0, opacity: 0.9,  colorFn: colorForVein, numeric: false },
+  breccia:  { label: "Breccia",        kind: "interval", radius: 1.6, opacity: 0.85, colorFn: colorForBreccia, numeric: false }, // TASKS.csv #608
   geotech:  { label: "Geotech (RQD%)", kind: "interval", radius: 4.6, opacity: 0.35, colorFn: null, numeric: true },
   // TASKS.csv #137 — Micromine-specialist audit finding: recovery% and SG are routinely logged as
   // intervals feeding tonnage/density calculations for resource estimates, alongside RQD/lithology —
@@ -562,6 +568,7 @@ export const TARGET_SCHEMAS = {
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
   alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type"]) },
+  breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
@@ -719,6 +726,7 @@ export function guessTarget(headers) {
   if (has("from") && any(/^bulkdens|^sg(_d|_calc)?$|^specific_gravity$/)) return "sg";
   if (has("from") && any(/^min\d*_code\d*$|^min_mnlgy$/)) return "mnlgy";
   if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
+  if (has("from") && any(/^brecc|^breccia|^brx(_|$)|^bx_(type|code)$/)) return "breccia"; // #608 (MX: brecc_lith)
   if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy
@@ -748,7 +756,7 @@ export function guessTarget(headers) {
 // otherwise the header-based guess stands. Assays are recognised separately (looksLikeAssay).
 const NAME_HINTS = [
   [/collar|coordinates|\bheaders?\b/, "collars"], [/survey/, "survey"], [/litholog|\blitho/, "litho"],
-  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b/, "vein"], [/geotech|\brqd\b/, "geotech"],
+  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b/, "vein"], [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
   [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct/, "structure"],
 ];
 export function targetFromName(name) {

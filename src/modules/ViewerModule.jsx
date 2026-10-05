@@ -136,7 +136,7 @@ function uint8ToBase64(bytes) {
 // TASKS.csv #227 (continuation) — the layer keys whose geometry is one plain THREE.Mesh per row
 // (buildIntervalTube/buildPointMarkers/the structure loop), and therefore support the cheap post-hoc
 // visibility/color passes below instead of a full rebuild for a categoryFilter/legendOverride change.
-const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "litho_gc", "alt_gc", "mnlgy", "structure"];
+const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
 // TASKS.csv #434 — back-to-front re-sort of a transparent voxel model's instances, run (throttled) while
 // the camera orbits. The old version did a comparator sort of all cells plus two new Vector3 and a colour
@@ -280,11 +280,11 @@ function fitScreenLabels(group, camera, viewportH) {
 // first-time user will see; every other default-on interval layer is wider, so sizing to litho is
 // conservative in the right direction.
 const MIN_OPENING_TUBE_PX = 2.5;
-const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
+const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, breccia: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
 // TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
-const ALL_LAYER_KEYS = ["litho", "alt", "vein", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
+const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
 // TASKS.csv #308 (1) — the default grid colour used to be #30394a, a near-black slate at full opacity
 // on a light background. Measured 11.60:1 contrast against white, against ~2.8:1 for a mid lithology
 // colour, i.e. the reference grid had roughly 4x the contrast of the data it exists to reference, and
@@ -4006,7 +4006,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       litho: groupByHole(layers.litho), alt: groupByHole(layers.alt), vein: groupByHole(layers.vein),
       geotech: groupByHole(layers.geotech), litho_gc: groupByHole(layers.litho_gc), alt_gc: groupByHole(layers.alt_gc),
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
-      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg),
+      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), // #608
     };
     const assaysByHole = groupByHole(assays);
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
@@ -4180,6 +4180,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       buildIntervalTube("litho");
       buildIntervalTube("alt");
       buildIntervalTube("vein");
+      buildIntervalTube("breccia"); // #608
       buildIntervalTube("geotech");
       buildIntervalTube("recovery");
       buildIntervalTube("sg");
@@ -5877,7 +5878,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // is computed once here too, same values that effect's globalPointRanges.sg would produce.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
     const sgRange = minMax(sgVals);
-    ["litho", "alt", "vein", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
+    ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
       if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
@@ -5988,7 +5989,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // pixel — deliberately excludes geotech/mag.susc./assay values (their color encodes a continuous
     // number, and assay point labels embed the sample's own grade, so deduping those would produce
     // either a meaningless single swatch or one row per sample rather than a bounded category list).
-    const legendPrefixes = ["litho", "alt", "vein", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
+    const legendPrefixes = ["litho", "alt", "vein", "breccia", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
     const legendSeen = new Set();
     const legendItems = [];
     intervals.forEach((r) => {

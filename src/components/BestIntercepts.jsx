@@ -74,7 +74,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   // rows, not a hard-coded `litho`), so the picker offers whichever interval layers actually have
   // data — lithology is the usual choice but alteration or a custom layer is equally valid.
   const domainLayerOptions = useMemo(
-    () => ["litho", "alt", "vein", "mnlgy", "litho_gc", "alt_gc"].filter((k) => (layers?.[k] || []).length > 0),
+    () => ["litho", "alt", "vein", "breccia", "mnlgy", "litho_gc", "alt_gc"].filter((k) => (layers?.[k] || []).length > 0),
     [layers]
   );
   const [domainLayer, setDomainLayer] = useState("");
