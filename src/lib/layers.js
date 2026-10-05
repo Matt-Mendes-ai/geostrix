@@ -665,9 +665,20 @@ export function guessMapping(target, headers) {
   return mapping;
 }
 
+// TASKS.csv #600 (ARIS 40958Z) — a header as an alias would spell it: unit suffix dropped ("To (m)" -> "to",
+// "Depth [m]" -> "depth"), spaces / dashes / slashes to "_" ("Mag Avg" -> "mag_avg"), "%" to "pct" ("RQD %" ->
+// "rqd_pct"). Matching uses BOTH this and the plain lower-case header, so nothing that matched before stops
+// matching. "To (m)" never matched: "to" is too short for the substring pass (#600 above) and "to (m)" is not "to".
+export function normHeader(h) {
+  return String(h ?? "").toLowerCase().trim()
+    .replace(/\s*[([][^)\]]*[)\]]\s*$/, "")
+    .replace(/%/g, " pct ").trim()
+    .replace(/[\s\-/]+/g, "_").replace(/^_+|_+$/g, "");
+}
+const headerForms = (headers) => headers.map((h) => [h.toLowerCase().trim(), normHeader(h)]);
 export function guessColumnExact(headers, aliases) {
-  const lower = headers.map((h) => h.toLowerCase().trim());
-  for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
+  const forms = headerForms(headers);
+  for (const a of aliases) { const i = forms.findIndex((f) => f[0] === a || f[1] === a); if (i >= 0) return headers[i]; }
   return "";
 }
 
@@ -675,13 +686,14 @@ export function guessColumnExact(headers, aliases) {
 // "y" matched "Hole tYpe" and "z" matched "Hole siZe", so Northing and Elevation were mapped to those columns.
 // Short aliases (x, y, z, az, dd, md, at, rl, sg...) now match a whole header only.
 export function guessColumn(headers, aliases) {
-  const lower = headers.map((h) => h.toLowerCase().trim());
-  for (const a of aliases) { const i = lower.indexOf(a); if (i >= 0) return headers[i]; }
-  for (const a of aliases) { if (a.length <= 2) continue; const i = lower.findIndex((h) => h.includes(a)); if (i >= 0) return headers[i]; }
+  const forms = headerForms(headers);
+  for (const a of aliases) { const i = forms.findIndex((f) => f[0] === a || f[1] === a); if (i >= 0) return headers[i]; }
+  for (const a of aliases) { if (a.length <= 2) continue; const i = forms.findIndex((f) => f[0].includes(a) || f[1].includes(a)); if (i >= 0) return headers[i]; }
   return "";
 }
 export function guessTarget(headers) {
-  const lower = headers.map((h) => h.toLowerCase());
+  // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
+  const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];
   const has = (s) => lower.some((h) => h.includes(s));
   // Exact-column check for the short x/y/z headers real collar exports commonly use — a plain
   // substring test on single letters would false-positive on all sorts of unrelated columns.
@@ -725,6 +737,9 @@ export function guessTarget(headers) {
   if ((has("from") || has("depth")) && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$|^mag_si$/)) return "magsusc"; // #605: point readings (depth) too
   if (has("from") && any(/^bulkdens|^sg(_d|_calc)?$|^specific_gravity$/)) return "sg";
   if (has("from") && any(/^min\d*_code\d*$|^min_mnlgy$/)) return "mnlgy";
+  // #600 (40958Z) — a domain log ("Domain Type": waste / ore zone...) is not veins (the bare "type" rule below) nor
+  // lithology: a custom layer, so the dialog asks instead of committing it into Veins.
+  if (has("from") && any(/(^|_)domain(_type|_code|_name)?$/)) return "custom";
   if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
   if (has("from") && any(/^brecc|^breccia|^brx(_|$)|^bx_(type|code)$/)) return "breccia"; // #608 (MX: brecc_lith)
   if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
@@ -756,7 +771,7 @@ export function guessTarget(headers) {
 // otherwise the header-based guess stands. Assays are recognised separately (looksLikeAssay).
 const NAME_HINTS = [
   [/collar|coordinates|\bheaders?\b/, "collars"], [/survey/, "survey"], [/litholog|\blitho/, "litho"],
-  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b/, "vein"], [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
+  [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b(?!\s*min)/, "vein"], /* "Vein Min" is a mineral list (40958Z) */ [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
   [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct/, "structure"],
 ];
 export function targetFromName(name) {

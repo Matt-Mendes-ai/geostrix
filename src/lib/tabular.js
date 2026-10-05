@@ -33,9 +33,17 @@ export function isIdentifierHeader(h) {
 // Text -> { rows, headers, note, errors }. Header row, typed values (identifier columns kept as text, #509),
 // blank lines skipped, lines starting with "#" skipped (GeoStrix's own export stamp, #404), comma decimals
 // converted where provable (#284).
+const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
 export function parseTableText(text, { comments = "#" } = {}) {
-  const res = Papa.parse(text, { header: true, dynamicTyping: (field) => !isIdentifierHeader(field), skipEmptyLines: true, comments });
-  const { rows, note } = normalizeCommaDecimals(res.data);
+  // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
+  const typed = new Map();
+  const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field); typed.set(field, v); } return v; };
+  const res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments });
+  // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
+  // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
+  // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
+  const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
+  const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   return { rows, headers: res.meta.fields || [], note: note || "", errors: res.errors || [] };
 }
 

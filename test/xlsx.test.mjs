@@ -171,3 +171,28 @@ test("#607 an empty project may adopt the file's declared CRS", async () => {
   assert.equal(askAdoptCrs({ isEmpty: true, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => false), null);
   assert.equal(askAdoptCrs({ isEmpty: false, currentEpsg: 3156, declaredEpsg: 26910, fileName: "c.shp" }, () => { throw new Error("must not ask"); }), null);
 });
+
+test("#600 (40958Z) unit-suffixed / spaced headers map: To (m), Mag Avg, RQD %, Specific Gravity; domain and Vein Min logs", async () => {
+  const { normHeader, guessColumn, guessTarget, guessTargetFor, guessMapping } = await import("../src/lib/layers.js");
+  assert.equal(normHeader("To (m)"), "to");
+  assert.equal(normHeader("RQD %"), "rqd_pct");
+  assert.equal(normHeader("Depth [m]"), "depth");
+  assert.equal(guessColumn(["Hole ID", "From (m)", "to (m)"], ["to", "to_m"]), "to (m)");
+  const geo = ["Hole ID", "From (m)", "To (m)", "Length (m)", "Recovery (m)", "Recovery %", "RQD (m)", "RQD %"];
+  assert.equal(guessTarget(geo), "geotech");
+  assert.equal(guessMapping("geotech", geo).value, "RQD %");
+  const mag = ["Hole ID", "From (m)", "To (m)", "Device ID", "Mag Avg", "Mag Max"];
+  assert.equal(guessTarget(mag), "magsusc");
+  assert.equal(guessMapping("magsusc", mag).value, "Mag Avg");
+  assert.equal(guessTarget(["Hole ID", "From (m)", "To (m)", "Sample Number", "Specific Gravity"]), "sg");
+  assert.equal(guessTarget(["Hole ID", "From (m)", "to (m)", "Domain Type", "Description"]), "custom");
+  assert.equal(guessTargetFor(["Hole ID", "From (m)", "to (m)", "Type Code", "Mineral"], "2021 & 2022 DDH Vein Min.csv"), "mnlgy");
+  assert.equal(guessTargetFor(["Hole ID", "From (m)", "to (m)", "Type Code", "Dist %"], "2021 & 2022 DDH Vein type.csv"), "vein");
+});
+
+test("#600 parseTableText: comma-decimal scan skipped only when impossible", async () => {
+  const { parseTableText } = await import("../src/lib/tabular.js");
+  assert.deepEqual(parseTableText('a,b\n"1,5",2\n"2,25",3\n').rows.map((r) => r.a), [1.5, 2.25]); // quoted comma decimals still converted
+  assert.deepEqual(parseTableText("a;b\n1,5;2\n2,25;3\n").rows.map((r) => r.a), [1.5, 2.25]); // semicolon file still scanned
+  assert.deepEqual(parseTableText("hole_id,a\n0045,1.5\n").rows[0], { hole_id: "0045", a: 1.5 }); // ids stay text (#509), cache per header
+});
