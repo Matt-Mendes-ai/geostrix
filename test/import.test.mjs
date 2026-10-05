@@ -92,3 +92,15 @@ test("#411 interval XYZ on a desurveyed trace; block model CSV rows", () => {
   assert.equal(rows[0].XC, 463000.123);
   assert.ok(blockModelParamLines({ name: "m", cells: [], params: { element: "Au", cellSizeM: 25 } }).includes("cellSizeM: 25"));
 });
+
+test("#600 Data QC: no gap notes on sparse logs (veins, SG); still on lithology", async () => {
+  const { runDataQC } = await import("../src/lib/dataQC.js");
+  const collars = [{ hole_id: "H", x: 0, y: 0, z: 0, length: 100 }];
+  const iv = (from, to, value) => ({ hole_id: "H", from, to, value });
+  const { issues } = runDataQC({ project: {}, collars, survey: [], boundaries: [], assays: [], layers: { litho: [iv(0, 10, "AND"), iv(30, 40, "DAC")], vein: [iv(5, 5.2, "QZ"), iv(50, 50.3, "QZ"), iv(50.2, 50.5, "CB")], sg: [iv(12, 12.1, 2.7), iv(60, 60.1, 2.8)] } });
+  const msg = (lbl) => issues.filter((i) => i.category === lbl).map((i) => i.message);
+  assert.ok(msg("Lithology").some((m) => /Gap of 20\.0m/.test(m)));
+  assert.ok(!msg("Vein").some((m) => /Gap of/.test(m)));
+  assert.ok(msg("Vein").some((m) => /Overlapping/.test(m))); // the other checks still run
+  assert.ok(!msg("Specific gravity").some((m) => /Gap of/.test(m)));
+});

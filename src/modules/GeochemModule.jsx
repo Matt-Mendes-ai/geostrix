@@ -10,7 +10,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
+  isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -146,13 +146,9 @@ export default function GeochemModule() {
       // uncertainty/error-margin column is never the intended assay value) — the header dropdown in
       // AssayImportModal lets the user repoint any row at a different column, including one of the
       // other candidates this dedupe didn't pick, or a column the auto-detector missed entirely.
-      const bySymbol = new Map();
-      headers.filter(isElementColumn).forEach((h) => {
-        const sym = isElementColumn(h);
-        const existing = bySymbol.get(sym);
-        if (!existing || (/error/i.test(existing) && !/error/i.test(h))) bySymbol.set(sym, h);
-      });
-      const elements = Array.from(bySymbol.entries()).map(([sym, h]) => ({ symbol: sym, header: h, unit: inferUnit(h, sym), checked: true }));
+      // TASKS.csv #600 / #542 — the most complete column per element, an over-limit (ore-grade) column when one
+      // exists, descriptive / error columns skipped, implausible default-% units corrected (pickElementColumns).
+      const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
       setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements });
     }
   };
@@ -203,6 +199,7 @@ export default function GeochemModule() {
     // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.
     const validInterval = (r) => r.hole_id && Number.isFinite(r.from) && Number.isFinite(r.to);
     let skippedNoDepth = 0;
+    const overLimitFilled = new Map(); // #600 / #542 — element -> samples filled from the ore-grade column
     // TASKS.csv #502 — what an EMPTY element cell means in this file (the import dialog asks when there are
     // any): "missing" = not assayed (default; excluded from grades everywhere, reported as unsampled), or
     // "bdl" = below detection, stored as '<DL' at half the limit like any lab '<x'. The limit per element is
@@ -231,6 +228,16 @@ export default function GeochemModule() {
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
           let { v, q } = read(r[e.header], e.symbol, e.header);
+          // #600 / #542 — a sample at the main column's cap takes its ore-grade re-assay (converted to the main
+          // column's unit) when the file has one; only while the element still reads the auto-picked column
+          const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
+          if (ol && parseAssayValue(r[e.header]) === ol.limit) {
+            const og = parseAssayValue(r[ol.header]);
+            if (og != null && Number.isFinite(og)) {
+              v = convertUnit(og, ol.unit, existingUnit[e.symbol] || e.unit); q = null;
+              overLimitFilled.set(e.symbol, (overLimitFilled.get(e.symbol) || 0) + 1);
+            }
+          }
           if (v == null && anyResult && isBlankAssayCell(r[e.header])) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
           if (v != null) {
             values[e.symbol] = v;
@@ -276,6 +283,7 @@ export default function GeochemModule() {
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
       skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508
+      overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return `${sym} ${n} (at ${e.overLimit.limit} ${e.unit} in "${e.header}", from "${e.overLimit.header}")`; }).join("; ")}.` : null, // #600 / #542
       blankBdl.size ? `Empty cells read as below detection: ${[...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return `${sym} ${n} at <${L.limit} (${L.basis === "lt" ? "the lab's most common '<' limit in the file" : "the lowest value reported — no '<' limit in the file"})`; }).join("; ")}; stored at half the limit and flagged '<'.` : null, // #502
       blankNoLimit.size ? `No detection limit could be found for ${[...blankNoLimit].join(", ")} (no '<' values and no reported values), so their empty cells stay not assayed.` : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates

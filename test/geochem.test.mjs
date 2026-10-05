@@ -236,3 +236,24 @@ test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not '
   assert.equal(G.classifyAlterationBox(40, 70, "basalt", edited), "LOWCCPI"); // user-edited boxes are used
   assert.equal(G.guessProtolith("BSL"), "basalt"); assert.equal(G.guessProtolith("ANDS"), "andesite"); assert.equal(G.guessProtolith("SED"), null);
 });
+
+test("#600/#542 element columns: the complete column wins, over-limit re-assays fill capped samples, units sanity-checked", async () => {
+  const { pickElementColumns, parseAssayValue, convertUnit } = await import("../src/lib/geochem.js");
+  // the shape of a real BC ARIS export: ore-grade column FIRST, then the capped ICP column, then descriptive ones
+  const headers = ["Hole number", "From", "To", "Cu % Cu-OG62", "Cu", "Cu status", "Cu certificate", "Cu_plot_ %", "Au", "Au laboratory", "Cr", "Fe"];
+  const rows = [
+    { "Cu % Cu-OG62": "", Cu: "93.7", "Cu status": "Final", "Cu_plot_ %": "0.00937", Au: "0.005", Cr: "12", Fe: "3.1" },
+    { "Cu % Cu-OG62": "1.95", Cu: "10000", "Cu status": "Final", "Cu_plot_ %": "1.95", Au: "0.4", Cr: "665", Fe: "5.2" },
+    { "Cu % Cu-OG62": "", Cu: "387", "Cu status": "Final", "Cu_plot_ %": "0.0387", Au: "", Cr: "40", Fe: "2.2" },
+    { "Cu % Cu-OG62": "1.015", Cu: "10000", "Cu status": "Final", "Cu_plot_ %": "1.015", Au: "0.9", Cr: "8", Fe: "4.0" },
+  ];
+  const els = Object.fromEntries(pickElementColumns(headers, rows).map((e) => [e.symbol, e]));
+  assert.deepEqual(Object.keys(els).sort(), ["Au", "Cr", "Cu", "Fe"]); // no "Cu status" / "Au laboratory" / plot columns
+  assert.equal(els.Cu.header, "Cu"); // 4 values, not the 2-value ore-grade column
+  assert.equal(els.Cu.unit, "ppm");
+  assert.deepEqual([els.Cu.overLimit.header, els.Cu.overLimit.unit, els.Cu.overLimit.limit], ["Cu % Cu-OG62", "%", 10000]);
+  assert.equal(convertUnit(parseAssayValue(rows[1][els.Cu.overLimit.header]), "%", "ppm"), 19500); // the capped sample's real grade
+  assert.equal(els.Cr.unit, "ppm"); // Cr defaults to %, but 665 can't be %
+  assert.equal(els.Fe.unit, "%");
+  assert.equal(els.Au.overLimit, null);
+});

@@ -65,6 +65,50 @@ export function inferUnit(header, symbol) {
   if (symbol === "Au") return "ppm";
   return MAJOR_PCT.has(symbol) ? "%" : "ppm";
 }
+// TASKS.csv #600 / #542 — which column(s) to read for each element of a wide assay file. Real lab / database
+// exports carry several columns per element: an ICP column capped at its upper limit, an ore-grade re-assay
+// column filled only for those capped samples ("Cu" ppm capped at 10,000 + "Cu % Cu-OG62" for the 33 over-limit
+// samples, in a BC ARIS drillhole database), descriptive columns ("Cu status", "Cu certificate") and error
+// columns. The first matching header used to win, so Cu came from the 33-value ore-grade column and was
+// missing for the other 3,757 samples. Now: the MAIN column is the one with the most numeric values (ties:
+// a header that is just the symbol, then header order); an OVER-LIMIT column is another candidate whose values
+// sit only where the main column is at its maximum (the cap), and fills those samples at import (converted to
+// the main unit). A default-% element whose values run above 100 cannot be % and is read as ppm (Cr 1-665).
+// rows: the parsed rows (header -> raw cell). Returns [{ symbol, header, unit, alts, overLimit }].
+const DESCRIPTIVE_COLUMN = /\b(status|certificate|cert|laboratory|lab|method|workflow|date|completed|analys(is|ed)|comment|flag|qc|batch|job|lod|dl|plot)\b/i;
+export function pickElementColumns(headers, rows) {
+  const bySym = new Map();
+  headers.forEach((h, order) => {
+    const sym = isElementColumn(h);
+    if (!sym) return;
+    const words = String(h).replace(/[_]/g, " ");
+    if (DESCRIPTIVE_COLUMN.test(words) || /error/i.test(h)) return;
+    let n = 0, max = -Infinity;
+    for (const r of rows) { const v = parseAssayValue(r[h]); if (v != null && Number.isFinite(v)) { n++; if (v > max) max = v; } }
+    if (!bySym.has(sym)) bySym.set(sym, []);
+    bySym.get(sym).push({ header: h, n, max, order, exact: String(h).trim() === sym });
+  });
+  const out = [];
+  bySym.forEach((cands, symbol) => {
+    const sorted = [...cands].sort((a, b) => b.n - a.n || Number(b.exact) - Number(a.exact) || a.order - b.order);
+    const main = sorted[0];
+    let unit = inferUnit(main.header, symbol);
+    const unitInHeader = /ppm|ppb|gpt|g\/t|pct|%/i.test(main.header);
+    if (unit === "%" && !unitInHeader && main.max > 100) unit = "ppm";
+    let overLimit = null;
+    if (main.n && Number.isFinite(main.max)) {
+      for (const c of sorted.slice(1)) {
+        if (!c.n) continue;
+        let atCap = 0;
+        for (const r of rows) { const og = parseAssayValue(r[c.header]); if (og == null) continue; if (parseAssayValue(r[main.header]) === main.max) atCap++; }
+        if (atCap / c.n >= 0.9) { overLimit = { header: c.header, unit: inferUnit(c.header, symbol), limit: main.max, n: c.n }; break; }
+      }
+    }
+    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit });
+  });
+  return out;
+}
+
 // TASKS.csv #270 (LOW-1) - elements whose grade is universally quoted in g/t rather than ppm. The two
 // units are numerically identical for a solid (g/tonne = mg/kg = ppm), so this only ever changes the
 // LABEL next to a cutoff/cap field - but a cutoff typed one order of magnitude out is a real risk, and

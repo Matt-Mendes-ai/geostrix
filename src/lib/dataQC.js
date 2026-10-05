@@ -128,7 +128,10 @@ function validateSurveyAndTrajectory(collars, survey) {
 }
 
 // ---- Interval layers (litho/alt/vein/geotech/litho_gc/alt_gc) ----
-function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths) {
+// TASKS.csv #600 — { gaps: false } for logs that are sparse by nature (veins, SG samples): on a real ARIS
+// database the gap note fired 1,054 times for veins and 591 for SG — noise burying the real findings. Every
+// other check (overlaps, from > to, past end of hole, no code) still runs on them.
+function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true } = {}) {
   const issues = [];
   const byHole = new Map();
   rows.forEach((r) => {
@@ -175,7 +178,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths) {
           pushIssue(issues, "warning", layerLabel, holeId, `Overlapping intervals: ${maxEndOwner.from}–${maxEndOwner.to}m (${maxEndOwner.value}) and ${cur.from}–${cur.to}m (${cur.value}).`);
         } else if (cur.from > prev.to + 0.01 && cur.from >= maxEnd - 0.01) {
           const gap = cur.from - prev.to;
-          if (gap > 1) pushIssue(issues, "info", layerLabel, holeId, `Gap of ${gap.toFixed(1)}m between ${prev.to}m and ${cur.from}m (unlogged interval).`);
+          if (gaps && gap > 1) pushIssue(issues, "info", layerLabel, holeId, `Gap of ${gap.toFixed(1)}m between ${prev.to}m and ${cur.from}m (unlogged interval).`);
         }
       }
       if (cur.to > maxEnd) { maxEnd = cur.to; maxEndOwner = cur; }
@@ -385,10 +388,10 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validateSurveyAndTrajectory(collars, survey),
     ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths),
+    ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),
     ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths),
     ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths),
+    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false }),
     ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
     ...validateAssays(assays || [], collarIds, holeLengths),

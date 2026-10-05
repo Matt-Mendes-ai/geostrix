@@ -117,6 +117,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} title="Which column this element's values come from">
                     {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
+                  {/* TASKS.csv #600 / #542 — the over-limit column that fills capped samples, while the auto-picked column is used */}
+                  {e.overLimit && e.header === e.mainHeader && <span title={`Samples at ${e.overLimit.limit} (the cap of this column) take their value from "${e.overLimit.header}" (${e.overLimit.n} values), converted to ${e.unit}`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>+ over-limit</span>}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                     <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                   </select>
