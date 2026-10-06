@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { runDataQC } from "../lib/dataQC.js";
+import { runDataQC, collarTerrainOffsets } from "../lib/dataQC.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -29,8 +29,21 @@ const SEVERITY_META = {
 export default function DataQCModal({ onCancel }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { project, collars, survey, layers, boundaries, assays } = useStore();
-  const [result, setResult] = useState(() => runDataQC({ project, collars, survey, layers, boundaries, assays }));
+  const { project, collars, survey, layers, boundaries, assays, terrain, setCollars } = useStore();
+  // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
+  const [terrainThreshold, setTerrainThreshold] = useState(15);
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 });
+  const [result, setResult] = useState(() => runDataQC(qcArgs()));
+  const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
+  const snapToTerrain = () => {
+    if (!terrainOff.length) return;
+    if (!window.confirm(`Set the elevation of ${terrainOff.length} collar(s) to the terrain "${terrain.name || "DEM"}" (worst: ${terrainOff[0].hole_id}, ${terrainOff[0].dz > 0 ? "+" : ""}${terrainOff[0].dz.toFixed(1)} m)?\n\nEach keeps its old elevation in "z_before_snap". Ctrl+Z undoes it.`)) return;
+    const byId = new Map(terrainOff.map((o) => [o.hole_id, o]));
+    setCollars((prev) => prev.map((c) => (byId.has(c.hole_id) ? { ...c, z_before_snap: c.z, z: Math.round(byId.get(c.hole_id).dem * 100) / 100, z_source: `terrain: ${terrain.name || "DEM"}` } : c)));
+    rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)
+  };
+  const rerunAfterSnap = useRef(false);
+  useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; setResult(runDataQC(qcArgs())); } }, [collars]);
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -108,7 +121,14 @@ export default function DataQCModal({ onCancel }) {
         )}
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={() => setResult(runDataQC({ project, collars, survey, layers, boundaries, assays }))} style={rerunBtn}>
+          {terrain && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title="Collars further than this from the loaded terrain are flagged (SRTM: ~15 m; LiDAR: a few metres)">
+              Collar vs terrain over
+              <input type="number" min="0.5" step="0.5" value={terrainThreshold} onChange={(e) => setTerrainThreshold(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label="Collar vs terrain threshold (m)" /> m
+              {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title="Set those collars' elevation to the terrain (undoable; the old value is kept)">Snap {terrainOff.length} to terrain</button>}
+            </span>
+          )}
+          <button onClick={() => setResult(runDataQC(qcArgs()))} style={rerunBtn}>
             <RefreshCw size={14} /> Re-run
           </button>
         </div>

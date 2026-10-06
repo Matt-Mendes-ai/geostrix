@@ -13,6 +13,7 @@
 import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax } from "./arrayStats.js";
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
+import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #558
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 export { didYouMean };
@@ -372,7 +373,35 @@ function validateBoundaryTopology(boundaries) {
 // `layers` is the store's full layers object ({litho:[],alt:[],...}); `holeLengths` (hole_id -> max
 // known depth) is derived once here from survey (max station depth) falling back to collar.length,
 // then reused across every interval/point layer check rather than recomputed per-layer.
-export function runDataQC({ project, collars, survey, layers, boundaries, assays }) {
+// TASKS.csv #558 — collar elevation vs the loaded terrain / DEM. Handheld-GPS Z (±10-30 m), ellipsoidal heights and
+// feet entered as metres are among the commonest errors in junior-company data, and they shift every intercept
+// elevation and section. Only collars inside the DEM's footprint with a finite Z are compared.
+export function collarTerrainOffsets(collars, terrain) {
+  if (!terrain?.bbox || !terrain.elevations?.length) return [];
+  const [x0, y0, x1, y1] = terrain.bbox;
+  const out = [];
+  for (const c of collars || []) {
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(c.z)) continue;
+    if (c.x < x0 || c.x > x1 || c.y < y0 || c.y > y1) continue;
+    const dem = sampleTerrainElevation(terrain, c.x, c.y);
+    if (!Number.isFinite(dem)) continue;
+    out.push({ hole_id: c.hole_id, z: c.z, dem, dz: c.z - dem });
+  }
+  return out.sort((a, b) => Math.abs(b.dz) - Math.abs(a.dz));
+}
+function validateCollarsVsTerrain(collars, terrain, threshold) {
+  const issues = [];
+  const offs = collarTerrainOffsets(collars, terrain);
+  if (!offs.length) return issues;
+  const abs = offs.map((o) => Math.abs(o.dz)).sort((a, b) => a - b);
+  const med = abs[Math.floor(abs.length / 2)];
+  const off = offs.filter((o) => Math.abs(o.dz) > threshold);
+  pushIssue(issues, "info", "Collar vs terrain", null, `${offs.length} collar(s) compared with the terrain "${terrain.name || "DEM"}": median difference ${med.toFixed(1)} m, ${off.length} over ${threshold} m.${off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? ` All ${off.length} are ${off[0].dz > 0 ? "above" : "below"} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?` : ""}`);
+  off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, `Collar elevation ${o.z.toFixed(1)} m is ${Math.abs(o.dz).toFixed(1)} m ${o.dz > 0 ? "above" : "below"} the terrain (${o.dem.toFixed(1)} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.`));
+  return issues;
+}
+
+export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15 }) {
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const holeLengths = new Map();
   collars.forEach((c) => { if (Number.isFinite(c.length)) holeLengths.set(c.hole_id, c.length); });
@@ -390,6 +419,7 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
   const issues = [
     ...validateProject(project),
     ...validateCollars(collars),
+    ...validateCollarsVsTerrain(collars, terrain, terrainThreshold), // #558
     ...validateSurveyAndTrajectory(collars, survey),
     ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),

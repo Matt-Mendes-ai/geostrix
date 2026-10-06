@@ -287,3 +287,24 @@ test("#541 Data QC names the collar an orphan id nearly matches (case / spaces /
   assert.ok(msg, JSON.stringify(qc.issues.slice(0, 3)));
   assert.match(msg.message || msg.msg || msg.text, /Did you mean "DDH-01"/);
 });
+
+test("#558 Data QC compares collar elevations with the loaded terrain", async () => {
+  const { runDataQC, collarTerrainOffsets } = await import("../src/lib/dataQC.js");
+  // 11 x 11 DEM over 0..1000 m, elevation 500 + 0.1 * x
+  const gridW = 11, gridH = 11, elevations = new Float32Array(gridW * gridH);
+  for (let j = 0; j < gridH; j++) for (let i = 0; i < gridW; i++) elevations[j * gridW + i] = 500 + 0.1 * (i * 100);
+  const terrain = { name: "test DEM", bbox: [0, 0, 1000, 1000], gridW, gridH, elevations };
+  const collars = [
+    { hole_id: "OK", x: 200, y: 500, z: 522, length: 100 },     // DEM 520 -> +2
+    { hole_id: "HIGH", x: 500, y: 500, z: 580, length: 100 },   // DEM 550 -> +30
+    { hole_id: "FEET", x: 800, y: 500, z: 1902, length: 100 },  // DEM 580, z in feet -> +1322
+    { hole_id: "OUT", x: 5000, y: 500, z: 0, length: 100 },     // outside the DEM: not compared
+  ];
+  const offs = collarTerrainOffsets(collars, terrain);
+  assert.deepEqual(offs.map((o) => [o.hole_id, Math.round(o.dz)]), [["FEET", 1322], ["HIGH", 30], ["OK", 2]]);
+  const qc = runDataQC({ collars, survey: [], layers: {}, assays: [], terrain, terrainThreshold: 15 });
+  const t = qc.issues.filter((i) => i.category === "Collar vs terrain");
+  assert.deepEqual(t.filter((i) => i.severity === "warning").map((i) => i.holeId), ["FEET", "HIGH"]);
+  assert.match(t.find((i) => i.severity === "info").message, /3 collar\(s\) compared .* 2 over 15 m/);
+  assert.equal(runDataQC({ collars, survey: [], layers: {}, assays: [] }).issues.filter((i) => i.category === "Collar vs terrain").length, 0); // no terrain: no check
+});
