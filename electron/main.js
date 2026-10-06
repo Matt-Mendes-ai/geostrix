@@ -1013,7 +1013,22 @@ function setTileUserAgent() {
   });
 }
 
+// TASKS.csv #556 — one GeoStrix at a time. A second launch (double-click, nothing seems to happen on a slow
+// laptop, double-click again) used to start a full second app: both wrote the same userData autosave (the
+// last writer won, and either one's autosaveClear deleted the other's only recovery copy), and the second
+// one's Python engine could not bind its port, so #353 blamed "another program". Now the second launch just
+// brings the first window forward and exits; several projects already live side by side as workspace tabs.
+const gotSingleInstanceLock = isDev ? true : app.requestSingleInstanceLock(); // dev: a dev window must start beside an installed GeoStrix
+if (!gotSingleInstanceLock) app.quit();
+app.on("second-instance", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
+
 app.whenReady().then(async () => {
+  if (!gotSingleInstanceLock) return; // #556 — quitting; never open a second window
   setTileUserAgent(); // TASKS.csv #300 — before any window exists, so the first tile request carries it
   if (!isDev) registerAppProtocol(); // #562
   createMainWindow();
