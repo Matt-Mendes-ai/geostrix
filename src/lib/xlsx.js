@@ -80,8 +80,8 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
 // A table file for an importer that takes ONE table (Geochem assays / surface samples): a CSV as before, or the
 // best sheet of a workbook — the sheet scoring highest on scoreHeaders(headers) (e.g. its element-column count),
 // the first sheet with data on a tie or zero. Same { rows, headers, note } shape as parseTableFile.
-export async function parseTableOrWorkbook(file, scoreHeaders = () => 0) {
-  if (!isXlsxName(file.name)) return parseTableFile(file);
+export async function parseTableOrWorkbook(file, scoreHeaders = () => 0, opts = {}) {
+  if (!isXlsxName(file.name)) return parseTableFile(file, opts); // opts.columnar: #611
   const sheets = await xlsxToCsvFiles(new Uint8Array(await file.arrayBuffer()), file.name);
   if (!sheets.length) return { rows: [], headers: [], note: "No sheet with a header row and data in this workbook.", errors: [] };
   const parsed = sheets.map((s) => ({ s, t: parseTableText(s.text) }));

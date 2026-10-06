@@ -34,7 +34,9 @@ export function isIdentifierHeader(h) {
 // blank lines skipped, lines starting with "#" skipped (GeoStrix's own export stamp, #404), comma decimals
 // converted where provable (#284).
 const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
-export function parseTableText(text, { comments = "#" } = {}) {
+export function parseTableText(text, { comments = "#", columnar = false } = {}) {
+  // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
+  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field); typed.set(field, v); } return v; };
@@ -45,6 +47,84 @@ export function parseTableText(text, { comments = "#" } = {}) {
   const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   return { rows, headers: res.meta.fields || [], note: note || "", errors: res.errors || [] };
+}
+
+// TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
+// export (Lawyers q_ddh_assay: 83,670 rows x 109 columns) took 688 MB of heap that way and 4.6 s; the browser grew
+// ~970 MB through a Geochem import, on the 8 GB laptops GeoStrix targets. Here every typed column is a
+// Float64Array (plus a byte per row saying number / empty / other) and text columns are interned, so the same file
+// is 56 MB and 1.5 s. Callers still get an array of ROWS: each row is a tiny object (its index) whose prototype has
+// one getter per header, so r[header], map / filter / slice all behave as before, and the values are exactly what
+// Papa's dynamicTyping gives (numbers, null for empty, true / false, Dates for ISO timestamps, text as is).
+// Differences callers must respect: a row has no OWN keys (Object.keys / spread / JSON give nothing — use
+// `headers`). Only used where the caller opts in (the Geochem assay import), and only when it is provably the same
+// result: comma-delimited, no comma-decimal numbers, unique headers, every row the header's width. Anything else
+// returns null and the normal reader runs.
+const COLUMNAR_MIN_CHARS = 8_000_000;
+const FLOAT = /^\s*-?(\d+\.?|\.\d+|\d+\.\d+)([eE][-+]?\d+)?\s*$/; // Papa 5's own dynamic-typing rules
+const ISO_DATE = /^((\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z)))$/;
+const MAX_FLOAT = 2 ** 53;
+const IDX = Symbol("row");
+const K_NUM = 0, K_NULL = 1, K_OTHER = 2;
+
+export function parseTableColumns(text, { comments = "#" } = {}) {
+  if (QUOTED_COMMA_NUMBER.test(text)) return null;
+  let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null;
+  const errors = [];
+  const grow = () => {
+    cap *= 2;
+    cols.forEach((c) => {
+      if (!c.num) return;
+      const num = new Float64Array(cap); num.set(c.num); c.num = num;
+      const kind = new Uint8Array(cap); kind.set(c.kind); c.kind = kind;
+    });
+  };
+  const parser = Papa.parse(text, {
+    header: false, dynamicTyping: false, skipEmptyLines: true, comments,
+    step: (res, p) => {
+      if (bad) return;
+      if (res.errors?.length) errors.push(...res.errors);
+      delimiter = delimiter || res.meta.delimiter;
+      const a = res.data;
+      if (!headers) {
+        headers = a;
+        if (delimiter !== "," || new Set(headers).size !== headers.length) { bad = true; p.abort(); return; }
+        typed = headers.map((h) => !isIdentifierHeader(h));
+        cols = typed.map((t) => (t ? { num: new Float64Array(cap), kind: new Uint8Array(cap), other: [], pool: new Map() } : { txt: [], pool: new Map() }));
+        return;
+      }
+      if (a.length !== headers.length) { bad = true; p.abort(); return; }
+      if (n === cap) grow();
+      for (let j = 0; j < a.length; j++) {
+        const v = a[j], c = cols[j];
+        if (c.txt) { let s = c.pool.get(v); if (s === undefined) { s = v; c.pool.set(v, v); } c.txt.push(s); continue; }
+        if (v === "") { c.kind[n] = K_NULL; continue; }
+        if (FLOAT.test(v)) { const x = parseFloat(v); if (x > -MAX_FLOAT && x < MAX_FLOAT) { c.num[n] = x; c.kind[n] = K_NUM; continue; } }
+        c.kind[n] = K_OTHER;
+        // a text value in a typed column (an analysis-code column, "<0.005", "N/A"): kept in a per-column array
+        // (holey where the column is mostly numbers), interned — 50 code columns x 83,670 rows were 250 MB in a Map
+        if (v === "true" || v === "TRUE") c.other[n] = true;
+        else if (v === "false" || v === "FALSE") c.other[n] = false;
+        else if (ISO_DATE.test(v)) c.other[n] = new Date(v);
+        else { let t = c.pool.get(v); if (t === undefined) { t = v; c.pool.set(v, v); } c.other[n] = t; }
+      }
+      n++;
+    },
+  });
+  void parser;
+  if (bad || !headers) return null;
+  const proto = {};
+  headers.forEach((h, j) => {
+    const c = cols[j];
+    const get = c.txt
+      ? function () { return c.txt[this[IDX]]; }
+      : function () { const i = this[IDX], k = c.kind[i]; return k === K_NUM ? c.num[i] : k === K_NULL ? null : c.other[i]; };
+    Object.defineProperty(proto, h, { get, enumerable: true, configurable: false });
+  });
+  const rows = new Array(n);
+  for (let i = 0; i < n; i++) { const r = Object.create(proto); r[IDX] = i; rows[i] = r; }
+  cols.forEach((c) => { delete c.pool; });
+  return { rows, headers, note: "", errors, columnar: true };
 }
 
 // A File/Blob (browser or Electron renderer) -> the same, plus a note when the encoding fallback was used.

@@ -116,7 +116,7 @@ export default function GeochemModule() {
   // TASKS.csv #605 — an .xlsx gives its sheet with the most element columns (an MX "Assay Samples" sheet)
   const elementScore = (headers) => headers.filter((h) => isElementColumn(h)).length;
   const handleFile = (file, isPxrf) => {
-    parseTableOrWorkbook(file, elementScore).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
@@ -124,7 +124,7 @@ export default function GeochemModule() {
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
-        const headers = Object.keys(data[0]);
+        const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         openAssayModal(file, headers, data, isPxrf);
     });
   };
@@ -423,12 +423,12 @@ export default function GeochemModule() {
   // already uses (see that branch's own TASKS.csv #210 comment for why the dedupe matters) — surface
   // sample lab exports have the same "more than one candidate column per element" problem.
   const handleSurfaceFile = (file) => {
-    parseTableOrWorkbook(file, elementScore).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
+    parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
         if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
-        const headers = Object.keys(data[0]);
+        const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
         const guess = (aliases) => guessColumn(headers, aliases);
         const mapping = {
