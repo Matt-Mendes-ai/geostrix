@@ -173,7 +173,13 @@ function stationsWithInclination(collar, survey) {
 
 // Interpolates {md, I, Az} at an arbitrary MD along a stationsWithInclination() list.
 function interpAtStation(withI, md) {
-  let lo = withI[0], hi = withI[withI.length - 1];
+  // TASKS.csv #526 — outside the surveyed range, hold the nearest station's attitude. Past the last station the
+  // bracket search used to fall back to first..last with t > 1: a straight-line extrapolation along the whole-hole
+  // chord (a pick 100 m below a 200 m survey on a hole steepening from 50° to 70° came out at 80°).
+  const first = withI[0], last = withI[withI.length - 1];
+  if (md >= last.md) return { md, I: last.I, Az: last.Az };
+  if (md <= first.md) return { md, I: first.I, Az: first.Az };
+  let lo = first, hi = last;
   for (let i = 0; i < withI.length - 1; i++) if (md >= withI[i].md && md <= withI[i + 1].md) { lo = withI[i]; hi = withI[i + 1]; break; }
   const span = hi.md - lo.md, t = span <= 0 ? 0 : (md - lo.md) / span;
   // TASKS.csv #218 — azimuth is a compass bearing, not a plain number: interpolating the raw degree

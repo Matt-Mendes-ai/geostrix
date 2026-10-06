@@ -308,3 +308,13 @@ test("#558 Data QC compares collar elevations with the loaded terrain", async ()
   assert.match(t.find((i) => i.severity === "info").message, /3 collar\(s\) compared .* 2 over 15 m/);
   assert.equal(runDataQC({ collars, survey: [], layers: {}, assays: [] }).issues.filter((i) => i.category === "Collar vs terrain").length, 0); // no terrain: no check
 });
+
+test("#526 surveyAzimuthDipAt holds the last station's attitude below it (no chord extrapolation)", async () => {
+  const { surveyAzimuthDipAt } = await import("../src/lib/desurvey.js");
+  const collar = { hole_id: "A", x: 0, y: 0, z: 0, azimuth: 90, dip: -50 }; // no length
+  const survey = [{ hole_id: "A", depth: 0, azimuth: 90, dip: -50 }, { hole_id: "A", depth: 100, azimuth: 100, dip: -60 }, { hole_id: "A", depth: 200, azimuth: 110, dip: -70 }];
+  const below = surveyAzimuthDipAt(collar, survey, 300);
+  assert.ok(Math.abs(Math.abs(below.dip) - 70) < 1e-9 && Math.abs(below.azimuth - 110) < 1e-9, JSON.stringify(below));
+  const mid = surveyAzimuthDipAt(collar, survey, 150);
+  assert.ok(Math.abs(Math.abs(mid.dip) - 65) < 1e-6 && Math.abs(mid.azimuth - 105) < 1e-6, JSON.stringify(mid));
+});

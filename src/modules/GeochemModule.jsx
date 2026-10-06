@@ -324,6 +324,7 @@ export default function GeochemModule() {
         // the substituted number so the substitution stops being invisible downstream (dataQC warns on
         // over-range rows; nothing else has to care).
         const quals = {};
+        const valueSources = {}; // #542 — element -> the ore-grade column a value came from
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
           let { v, q } = read(r[e.header], e.symbol, e.header);
@@ -335,6 +336,7 @@ export default function GeochemModule() {
             if (og != null && Number.isFinite(og)) {
               v = convertUnit(og, ol.unit, existingUnit[e.symbol] || e.unit); q = null;
               overLimitFilled.set(e.symbol, (overLimitFilled.get(e.symbol) || 0) + 1);
+              valueSources[e.symbol] = ol.header;
             }
           }
           if (v == null && anyResult && isBlankAssayCell(r[e.header])) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
@@ -345,6 +347,7 @@ export default function GeochemModule() {
         });
         const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
         if (Object.keys(quals).length) out.qualifiers = quals;
+        if (Object.keys(valueSources).length) out.valueSources = valueSources; // #542 — which method each over-limit value is
         return tagQC(out, r);
       });
       const before = rows.length;
