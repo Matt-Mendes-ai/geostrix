@@ -42,18 +42,24 @@ export const RIBBON_TONES = {
   neutral: "#55606e",
 };
 
-export function RibbonButton({ icon: Icon, label, title, onClick, active = false, disabled = false, tone = "neutral", ariaLabel, children, buttonRef }) {
+// TASKS.csv #566 — disabledReason: a disabled button that says what it needs ("Import assays first"). It stays in the
+// Tab order (aria-disabled, clicks ignored) with the reason first in its tooltip and accessible description; a
+// plain `disabled` button is skipped by the keyboard, so a screen-reader user never learned why it was off.
+export function RibbonButton({ icon: Icon, label, title, onClick, active = false, disabled = false, disabledReason, tone = "neutral", ariaLabel, children, buttonRef }) {
+  const soft = disabled && !!disabledReason;
   return (
     <div className="ge-ribbon-cell">
       <button
         ref={buttonRef}
         type="button"
-        className={`ge-ribbon-btn${active ? " active" : ""}`}
+        className={`ge-ribbon-btn${active ? " active" : ""}${soft ? " is-disabled" : ""}`}
         aria-pressed={active || undefined}
         aria-label={ariaLabel || label}
-        title={title}
-        onClick={onClick}
-        disabled={disabled}
+        aria-disabled={soft || undefined}
+        aria-description={soft ? disabledReason : undefined}
+        title={soft ? `${disabledReason} — ${title || label}` : title}
+        onClick={soft ? undefined : onClick}
+        disabled={disabled && !soft}
       >
         {Icon && <Icon size={22} strokeWidth={1.7} color={disabled ? undefined : RIBBON_TONES[tone] || tone} aria-hidden="true" />}
         <span className="ge-ribbon-label">{label}</span>

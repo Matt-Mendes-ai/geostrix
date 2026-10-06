@@ -638,33 +638,33 @@ export default function GeochemModule() {
           <RibbonGroup label="Import">
             <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
             <RibbonButton icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
-            <RibbonButton icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
+            <RibbonButton icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
             <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
           </RibbonGroup>
           <RibbonGroup label="Classify">
-            <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
-            <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length} title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
-            <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
+            <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
+            <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
+            <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
           </RibbonGroup>
           <RibbonGroup label="Calculate">
-            <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", msg: null }))} />
-            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
+            <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", msg: null }))} />
+            <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyse">
-            <RibbonButton icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} title="Correlation matrix" onClick={() => setCorrOpen(true)} />
-            <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
-            <RibbonButton icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
-            <RibbonButton icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} title="SQL workspace" onClick={() => setSqlOpen(true)} />
+            <RibbonButton icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
+            <RibbonButton icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
+            <RibbonButton icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
-            <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
-            <RibbonButton icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
+            <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
+            <RibbonButton icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Export">
-            <RibbonButton icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} title="Assays → CSV" onClick={exportAssaysCSV} />
-            <RibbonButton icon={Download} label="Plot data" tone="output" disabled={!assayElements.length} title="Plot data → CSV" onClick={exportProjectedCSV} />
-            <RibbonButton icon={GImage} label="Plot PNG" tone="output" disabled={!assayElements.length} title="Plot → PNG" onClick={exportPlotPNG} />
-            <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} title="Plot → SVG" onClick={exportPlotSVG} />
+            <RibbonButton icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Assays → CSV" onClick={exportAssaysCSV} />
+            <RibbonButton icon={Download} label="Plot data" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot data → CSV" onClick={exportProjectedCSV} />
+            <RibbonButton icon={GImage} label="Plot PNG" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot → PNG" onClick={exportPlotPNG} />
+            <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot → SVG" onClick={exportPlotSVG} />
           </RibbonGroup>
         </Ribbon>
         <input ref={certRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { handleCertificates(e.target.files); e.target.value = ""; }} />

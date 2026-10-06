@@ -170,8 +170,8 @@ input, select { font-family: inherit; }
 }
 .ge-ribbon-btn:hover { background: var(--color-hover-bg); border-color: var(--color-border); }
 .ge-ribbon-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); box-shadow: inset 0 -2px 0 var(--color-accent-dark); }
-.ge-ribbon-btn:disabled { opacity: 0.4; cursor: default; }
-.ge-ribbon-btn:disabled:hover { background: transparent; border-color: transparent; }
+.ge-ribbon-btn:disabled, .ge-ribbon-btn.is-disabled { opacity: 0.4; cursor: default; } /* .is-disabled: #566, focusable */
+.ge-ribbon-btn:disabled:hover, .ge-ribbon-btn.is-disabled:hover { background: transparent; border-color: transparent; }
 .ge-ribbon-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 .ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
