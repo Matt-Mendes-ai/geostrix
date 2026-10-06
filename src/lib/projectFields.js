@@ -13,6 +13,7 @@
 //   load(data)     optional: read the value from a payload (default: data[key] || empty())
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
+import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers } from "./compactTable.js"; // TASKS.csv #555
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
 
@@ -27,7 +28,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // test/projectFields.test.mjs freezes the format fingerprint and fails until it is bumped.
 // v8 (TASKS.csv #599) adds modellingCodes (per-interval modelling codes, the code list, correlation ties).
 // v9 (TASKS.csv #503) adds alterationBoxes (the user's least-altered box limits + litho code -> protolith map).
-export const PROJECT_VERSION = 9;
+// v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
+export const PROJECT_VERSION = 10; // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -102,8 +104,8 @@ export const FIELDS = [
   { key: "collars", track: "undo", empty: list },
   { key: "survey", track: "undo", empty: list },
   { key: "layers", track: "undo", empty: () => ({ ...EMPTY_LAYERS }),
-    save: compactLayers, load: (data) => ({ ...EMPTY_LAYERS, ...(expandLayers(data.layers) || {}) }) }, // #374 — point surveys stored compact
-  { key: "assays", track: "undo", empty: list },
+    save: (l) => compactIntervalLayers(compactLayers(l)), load: (data) => ({ ...EMPTY_LAYERS, ...(expandIntervalLayers(expandLayers(data.layers)) || {}) }) }, // #374 point surveys (Float32); #555 big interval layers (exact columns)
+  { key: "assays", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.assays) || [] }, // #555 — exact columns from 2,000 rows
   { key: "assayElements", track: "undo", empty: list },
   { key: "customLayers", track: "undo", empty: list },
   // Older project files (version < 2) won't have this — null, and ViewerModule falls back to its defaults.
