@@ -88,6 +88,7 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
 import { useModelling } from "./viewer/useModelling.js"; // TASKS.csv #445 step 2
+import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 
@@ -4009,7 +4010,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
       recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), // #608
     };
-    const assaysByHole = groupByHole(assays);
+    const assaysByHole = groupByHole(assays.filter((a) => !isMarkedQcRow(a))); // #601 — a standard's grade is not the rock's
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
     // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
     // litho/alt/etc., just never extended to survey: `survey.filter(s => s.hole_id === c.hole_id)`

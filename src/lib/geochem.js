@@ -1,3 +1,4 @@
+import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601 (qaqc.js imports geochem.js too: used at call time only)
 // ============================================================
 // Geochemistry: element handling + diagram projections
 // ============================================================
@@ -212,7 +213,9 @@ export function convertUnit(v, fromUnit, toUnit) {
 // updates the k-th existing row of it, so re-importing such a file still replaces rather than duplicates.
 // `repeatedInFile` counts the extra same-interval rows in `incoming` (kept, for the notice).
 export function mergeAssayRows(prev, incoming) {
-  const key = (r) => `${r.hole_id}|${r.from}|${r.to}|${r.source || ""}`;
+  // #601 — a row marked as a QC sample keys on its own sample id too: a duplicate shares its original's interval
+  // and must never be merged INTO the original (re-importing the same QC sample still merges with itself)
+  const key = (r) => `${r.hole_id}|${r.from}|${r.to}|${r.source || ""}${isMarkedQcRow(r) ? `|qc:${r.sample_id || r.sample_type}` : ""}`;
   const out = (prev || []).slice();
   const existing = new Map(); // key -> indices in `out` of the earlier rows, in order
   out.forEach((r, i) => { const k = key(r); if (!existing.has(k)) existing.set(k, []); existing.get(k).push(i); });

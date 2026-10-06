@@ -6,7 +6,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck } from "../components/icons.js";
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
@@ -17,6 +17,8 @@ import {
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import AssayImportModal from "../components/AssayImportModal.jsx";
+import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
+import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 import IsoconTool from "../components/IsoconTool.jsx";
@@ -46,6 +48,7 @@ export default function GeochemModule() {
   const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
   const [colorElement, setColorElement] = useState(null);
   const [assayModal, setAssayModal] = useState(null);
+  const [certReview, setCertReview] = useState(null); // TASKS.csv #601
   const [surfaceModal, setSurfaceModal] = useState(null);
   const [isoconOpen, setIsoconOpen] = useState(false);
   // TASKS.csv #401 — calculated element (vectoring index) panel
@@ -62,6 +65,7 @@ export default function GeochemModule() {
   const fileRef = useRef(null);
   const pxrfRef = useRef(null);
   const surfaceFileRef = useRef(null);
+  const certRef = useRef(null); // TASKS.csv #601
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -154,6 +158,94 @@ export default function GeochemModule() {
       const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
       setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements });
     }
+  };
+
+  // TASKS.csv #601 — lab certificates: parse, join to the loaded assays by sample id, compare values, and suggest a QC
+  // type for each certificate sample the drillhole data doesn't have. Nothing is written until the review is accepted.
+  const handleCertificates = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const parsed = [], skipped = [];
+    for (const f of files) {
+      const text = await f.text();
+      if (!isLabCertificateText(text)) { skipped.push(f.name); continue; }
+      parsed.push(parseLabCertificate(text, f.name));
+    }
+    if (skipped.length) setNotices((p) => [...p, `Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`]);
+    if (!parsed.length) return;
+    const all = combineCertificates(parsed);
+    const join = joinCertificatesToAssays(all.rows, assays);
+    if (!join.matched.length) {
+      setNotices((p) => [...p, `None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`]);
+      return;
+    }
+    const columns = parsed.flatMap((p) => p.columns).filter((c, i, a) => a.findIndex((x) => x.header === c.header) === i);
+    const elementCols = pickElementColumns(all.headers.filter((h) => h !== "sample_id" && h !== "certificate"), all.rows);
+    // value check + what the certificates could add
+    let mismatchCount = 0, fillable = 0; const mismatchExamples = [], fillElements = new Set();
+    for (const { cert, assay } of join.matched) {
+      for (const e of elementCols) {
+        const raw = String(cert[e.header] ?? "").trim();
+        if (!raw || /^[<>]/.test(raw)) continue;
+        const v = parseAssayValue(raw);
+        if (v == null || !Number.isFinite(v)) continue;
+        const db = assay.values?.[e.symbol];
+        if (db == null) { fillable++; fillElements.add(e.symbol); continue; }
+        const c = convertUnit(v, e.unit, elementUnits[e.symbol] || e.unit);
+        if (Math.abs(c - db) > 0.02 * Math.max(Math.abs(c), Math.abs(db)) && Math.abs(c - db) > 1e-9) {
+          mismatchCount++;
+          if (mismatchExamples.length < 4) mismatchExamples.push(`${assay.sample_id} ${e.symbol}: database ${db}, certificate ${c} ${elementUnits[e.symbol] || e.unit}`);
+        }
+      }
+    }
+    const suggestions = suggestQcTypes(join.unmatched, join.matched.map((m) => m.cert), columns)
+      .map((s, i) => ({ ...s, certificate: join.unmatched[i].certificate }));
+    setCertReview({
+      all, elementCols, suggestions, fill: fillable > 0,
+      summary: { certificates: parsed.length, rows: all.rows.length, matched: join.matched.length, unmatched: join.unmatched.length, mismatchCount, mismatchExamples, fillable, fillElements: [...fillElements].slice(0, 12), labs: [...new Set(parsed.map((p) => p.meta.project).filter(Boolean))].join(", ") },
+      matched: join.matched,
+    });
+  };
+
+  const commitCertificates = (review) => {
+    const { all, elementCols, suggestions, fill, matched } = review;
+    const certById = new Map(all.rows.map((r) => [String(r.sample_id).trim().toUpperCase(), r]));
+    const { byId, byPrefix } = indexAssaysForPlacement(assays);
+    const certHeaders = elementCols.flatMap((e) => [e.header, ...(e.overLimit ? [e.overLimit.header] : [])]);
+    const rows = []; let unplaced = 0;
+    const counts = { standard: 0, blank: 0, duplicate: 0 };
+    for (const s of suggestions) {
+      if (!counts.hasOwnProperty(s.type)) continue; // "unclassified" = not imported
+      const cert = certById.get(String(s.sample_id).trim().toUpperCase());
+      const place = qcPlacement(s.sample_id, s.type === "duplicate" ? s.parent_id : null, byId, byPrefix);
+      if (!cert || !place) { unplaced++; continue; }
+      const row = { ...place, sample_type: s.type, sample_id: s.sample_id, parent_id: s.type === "duplicate" ? (s.parent_id || "") : "", qc_code: s.type === "standard" ? (s.qc_code || "") : "" };
+      certHeaders.forEach((h) => { row[h] = cert[h]; });
+      rows.push(row); counts[s.type]++;
+    }
+    let filled = 0;
+    if (fill) {
+      for (const { cert, assay } of matched) {
+        const row = { hole_id: assay.hole_id, from: assay.from, to: assay.to, sample_id: assay.sample_id, sample_type: assay.sample_type || "", parent_id: assay.parent_id || "", qc_code: assay.qc_code || "" };
+        let any = false;
+        for (const e of elementCols) {
+          const has = assay.values?.[e.symbol] != null;
+          row[e.header] = has ? "" : cert[e.header];
+          if (e.overLimit) row[e.overLimit.header] = has ? "" : cert[e.overLimit.header];
+          if (!has && String(cert[e.header] ?? "").trim()) { any = true; filled++; }
+        }
+        if (any) rows.push(row);
+      }
+    }
+    if (!rows.length) { setCertReview(null); return; }
+    commitAssayImport({
+      format: "wide", isPxrf: false, negativeMode: "bdl", blankMode: "missing",
+      headers: ["hole_id", "from", "to", "sample_type", "sample_id", "parent_id", "qc_code", ...certHeaders],
+      allRows: rows, mapping: { hole_id: "hole_id", from: "from", to: "to" },
+      elements: elementCols.map((e) => ({ ...e, mainHeader: e.header, checked: true })),
+    });
+    setNotices((p) => [...p, `Lab certificates: imported ${counts.standard} standard(s), ${counts.blank} blank(s) and ${counts.duplicate} duplicate(s) as QC samples${fill && filled ? `, and filled ${filled.toLocaleString()} missing value(s) of the drill samples` : ""}${unplaced ? `; ${unplaced} could not be placed (no drill sample with a nearby number or the given parent)` : ""}. They are in the QAQC panel; intercepts, statistics and models leave them out.`]);
+    setCertReview(null);
   };
 
   const commitAssayImport = (modal) => {
@@ -520,6 +612,7 @@ export default function GeochemModule() {
           <RibbonGroup label="Import">
             <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
             <RibbonButton icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
+            <RibbonButton icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
             <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
           </RibbonGroup>
           <RibbonGroup label="Classify">
@@ -548,6 +641,7 @@ export default function GeochemModule() {
             <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} title="Plot → SVG" onClick={exportPlotSVG} />
           </RibbonGroup>
         </Ribbon>
+        <input ref={certRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { handleCertificates(e.target.files); e.target.value = ""; }} />
         <input ref={fileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
         <input ref={pxrfRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
         <input ref={surfaceFileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
@@ -696,6 +790,10 @@ export default function GeochemModule() {
           onCancel={() => setAssayModal(null)}
           onCommit={() => commitAssayImport(assayModal)}
         />
+      )}
+
+      {certReview && (
+        <LabCertificateModal review={certReview} onChange={setCertReview} onCancel={() => setCertReview(null)} onCommit={() => commitCertificates(certReview)} />
       )}
 
       {surfaceModal && (

@@ -12,6 +12,7 @@
 
 import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax } from "./arrayStats.js";
+import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
 
@@ -231,6 +232,7 @@ function validateAssays(assays, collarIds, holeLengths) {
     pushIssue(issues, "warning", "Assays", null, `${count} ${sym} assay value${count === 1 ? " is" : "s are"} over-range (reported by the lab as ">x"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.`);
   });
   assays.forEach((a) => {
+    if (isMarkedQcRow(a)) return; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
     if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval references hole "${a.hole_id}", which has no matching collar.`);

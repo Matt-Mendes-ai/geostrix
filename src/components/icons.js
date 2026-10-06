@@ -119,6 +119,7 @@ export const Shapes = memoIcon(L.Shapes);
 export const Sheet = memoIcon(L.Sheet);
 export const ShieldAlert = memoIcon(L.ShieldAlert);
 export const ShieldCheck = memoIcon(L.ShieldCheck);
+export const FileCheck = memoIcon(L.FileCheck); // TASKS.csv #601
 export const Sigma = memoIcon(L.Sigma);
 export const SlidersHorizontal = memoIcon(L.SlidersHorizontal);
 export const Spline = memoIcon(L.Spline);

@@ -42,6 +42,10 @@ const TYPE_RULES = [
   ["standard", /^(std|standard|crm|srm|ref|reference|oreas|cert)/],
   ["regular", /^(sample|samp|core|rc|dd|reg|regular|primary|prim|original|orig|routine|drill|norm|normal|assay)/],
 ];
+// TASKS.csv #601 — a row MARKED as a QC sample by its sample_type (lab-certificate imports, acQuire / MX exports):
+// it sits on a real hole's interval (a duplicate on its original's, a standard / blank at its insertion point), so
+// the 3D grade display, Data QC's interval checks and the assay merge key must not treat it as a drill sample.
+export function isMarkedQcRow(row) { const c = sampleTypeClass(row?.sample_type); return c === "standard" || c === "blank" || c === "duplicate"; }
 export function sampleTypeClass(t) {
   const s = String(t ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (!s) return null;
