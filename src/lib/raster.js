@@ -77,6 +77,37 @@ function rampColor(t) {
 
 // file: a browser File (from an <input> or drag-drop). Returns { name, bbox:[xmin,ymin,xmax,ymax],
 // width, height, dataUrl, bandCount, epsgTag } or throws with a message meant to be shown directly.
+// TASKS.csv #561 (security) — geotiff.js decodes a read window at its NATIVE size before resampling to the
+// requested width/height, so the 2048 px texture cap and the 800 px DEM cap limited only the output: a 49 KB
+// tiled TIFF whose tiles all point at one deflated 256 x 256 tile claimed 20,000 x 20,000 px and took 22.6 s
+// and ~800 MB to decode (enough at ~40k px to crash the renderer and lose unsaved work). Every read now goes
+// through this: above MAX_DECODE_SAMPLES (window pixels x bands) it reads the largest reduced-resolution
+// overview that fits, else refuses within milliseconds. A real 1 m LiDAR tile is 400 M samples: crop it, or
+// give it overviews (gdaladdo) / thin it (gdalwarp -tr), as the message says.
+export const MAX_DECODE_SAMPLES = 64_000_000;
+export async function readRastersCapped(tiff, image, opts = {}, label = "This GeoTIFF") {
+  const fullW = image.getWidth(), fullH = image.getHeight(), bands = image.getSamplesPerPixel() || 1;
+  const [c0, r0, c1, r1] = opts.window || [0, 0, fullW, fullH];
+  const need = (c1 - c0) * (r1 - r0) * bands;
+  if (need <= MAX_DECODE_SAMPLES) return image.readRasters(opts);
+  let best = null;
+  const count = tiff ? await tiff.getImageCount() : 1;
+  for (let i = 1; i < count; i++) {
+    let ov;
+    try { ov = await tiff.getImage(i); } catch { continue; }
+    const fd = ov.fileDirectory || {};
+    if (fd.NewSubfileType != null && !(fd.NewSubfileType & 1)) continue; // a page, not a reduced-resolution copy
+    if (fd.NewSubfileType & 4) continue; // transparency mask
+    const f = ov.getWidth() / fullW;
+    if (!(f > 0 && f < 1) || Math.abs(ov.getHeight() / fullH - f) > 0.05) continue;
+    const win = [Math.floor(c0 * f), Math.floor(r0 * f), Math.max(Math.floor(c0 * f) + 1, Math.ceil(c1 * f)), Math.max(Math.floor(r0 * f) + 1, Math.ceil(r1 * f))];
+    const n = (win[2] - win[0]) * (win[3] - win[1]) * (ov.getSamplesPerPixel() || 1);
+    if (n <= MAX_DECODE_SAMPLES && (!best || n > best.n)) best = { ov, win, n };
+  }
+  if (best) return best.ov.readRasters({ ...opts, window: best.win });
+  throw new Error(`${label} is ${(c1 - c0).toLocaleString()} × ${(r1 - r0).toLocaleString()} px${bands > 1 ? ` × ${bands} bands` : ""} — over the ${(MAX_DECODE_SAMPLES / 1e6).toFixed(0)} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.`);
+}
+
 export async function parseGeoTIFF(file) {
   const buf = await file.arrayBuffer();
   let tiff, image;
@@ -105,7 +136,7 @@ export async function parseGeoTIFF(file) {
   const outW = Math.max(1, Math.round(srcW * scale));
   const outH = Math.max(1, Math.round(srcH * scale));
 
-  const rasters = await image.readRasters({ width: outW, height: outH });
+  const rasters = await readRastersCapped(tiff, image, { width: outW, height: outH }, `"${file.name}"`); // #561
   const bandCount = rasters.length;
 
   const canvas = document.createElement("canvas");
@@ -157,7 +188,7 @@ export async function parseGeoTIFF(file) {
     // file is first read at 4096 on its longest side by geotiff's own resampling (nearest), then averaged.
     const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
     const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
-    const [band] = rw === outW && rh === outH ? rasters : await image.readRasters({ width: rw, height: rh });
+    const [band] = rw === outW && rh === outH ? rasters : await readRastersCapped(tiff, image, { width: rw, height: rh }, `"${file.name}"`); // #561
     const pw = (bbox[2] - bbox[0]) / rw, ph = (bbox[3] - bbox[1]) / rh; // pixel-area file: values sit at pixel centres
     grid = makeValueGrid(band, rw, rh, bbox[0] + pw / 2, bbox[3] - ph / 2, pw, ph, (v) => !Number.isFinite(v) || (noData !== null && v === noData));
     grid.sourceSize = [srcW, srcH];
@@ -258,7 +289,7 @@ async function readDemTile(file, crop = null) {
   const scale = Math.min(1, DEM_READ_MAX / Math.max(winW, winH));
   const srcW = Math.max(2, Math.round(winW * scale)), srcH = Math.max(2, Math.round(winH * scale));
   const resampled = srcW !== winW || srcH !== winH;
-  const rasters = await image.readRasters({ window: [c0, r0, c1 + 1, r1 + 1], ...(resampled ? { width: srcW, height: srcH, resampleMethod: "bilinear" } : {}) });
+  const rasters = await readRastersCapped(tiff, image, { window: [c0, r0, c1 + 1, r1 + 1], ...(resampled ? { width: srcW, height: srcH, resampleMethod: "bilinear" } : {}) }, `"${file.name}"`); // #561
   if (!rasters.length) throw new Error(`"${file.name}" has no readable elevation band.`);
   const rawBand = rasters[0]; // DEMs are single-band; if given a multi-band file, just take the first
   // Node bbox of what was read: the window's nodes, or — resampled — the centres of srcW x srcH pixels
