@@ -280,6 +280,16 @@ def _validate_dcip2d(req):
     u = req.get("uncertainty") or {}
     if not ((isinstance(u.get("percent"), (int, float)) and u["percent"] > 0) or (isinstance(u.get("floor"), (int, float)) and u["floor"] > 0)):
         raise HTTPException(400, "uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+    # TASKS.csv #564 — chargeability uncertainty validated like resistivity's; a 0 mV/V reading needs a floor
+    # (a percent of 0 is 0: infinite weight, phi_d inf/NaN)
+    if req.get("chargeability") is not None:
+        iu = req.get("ipUncertainty") or {}
+        pct_ok = isinstance(iu.get("percent"), (int, float)) and iu["percent"] > 0
+        floor_ok = isinstance(iu.get("floor"), (int, float)) and iu["floor"] > 0
+        if not (pct_ok or floor_ok):
+            raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+        if not floor_ok and any((c is None) or (not isinstance(c, (int, float))) or c == 0 for c in req["chargeability"]):
+            raise HTTPException(400, "some chargeability readings are 0 mV/V: a percent alone gives them no uncertainty — add a floor in mV/V.")
     req["maxIter"] = int(min(40, max(1, int(req.get("maxIter", 20)))))
 
 

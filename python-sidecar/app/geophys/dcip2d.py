@@ -97,6 +97,11 @@ def run_job(req, progress):
     std = float(unc["percent"]) / 100.0 * np.abs(rho) + float(unc.get("floor", 0))
     if np.any(~np.isfinite(std)) or np.any(std <= 0):
         raise ValueError("Every reading needs a positive uncertainty.")
+    if charge is not None:  # #564 — checked here, before the DC inversion, not after it
+        _iu = req.get("ipUncertainty") or {}
+        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + float(_iu.get("floor", 0)) / 1000.0
+        if np.any(~np.isfinite(_ip_std)) or np.any(_ip_std <= 0):
+            raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
     dc_data = sdata.Data(survey, dobs=rho, standard_deviation=std)
 
     # ExpMap acts FIRST (maps compose right to left), so the air value is a conductivity, not a log: 1e-8 S/m.
@@ -147,7 +152,10 @@ def run_job(req, progress):
         ip_survey = _survey(idx, locs, "apparent_chargeability")
         ip_survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
         ip_unc = req.get("ipUncertainty") or {}
-        ip_std = float(ip_unc.get("percent", 5)) / 100.0 * np.abs(eta_obs) + float(ip_unc.get("floor", 1.0)) / 1000.0
+        # TASKS.csv #564 — no 5 % / 1 mV/V fallback (nothing physical is defaulted), and every std positive
+        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + float(ip_unc.get("floor", 0)) / 1000.0
+        if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
+            raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
         ip_data = sdata.Data(ip_survey, dobs=eta_obs, standard_deviation=ip_std)
         eta_map = maps.InjectActiveCells(mesh, active, 0.0)
         ip_sim = ip.Simulation2DNodal(mesh, survey=ip_survey, etaMap=eta_map, sigma=cmap * m_dc, storeJ=True)

@@ -123,7 +123,31 @@ def test_support_not_biased_against_conductors():
     assert abs(g_con - g_res) <= 0.15, (g_res, g_con)
 
 
+def test_ip_zero_reading_needs_a_floor():
+    """TASKS.csv #564 — a 0 mV/V reading with a percent-only uncertainty would get std 0 (infinite weight):
+    refused by the request validator and by run_job (before any inversion), accepted once a floor is given."""
+    from fastapi import HTTPException
+    from app.main import _validate_dcip2d
+    x = np.arange(20) * 10.0
+    rows = [[x[i], x[i] + 10, x[i] + 20 + n * 10, x[i] + 30 + n * 10] for i in range(20) for n in range(3) if x[i] + 30 + n * 10 <= x[-1]]
+    base = {"readings": rows, "rho": [100.0] * len(rows), "chargeability": [0.0] + [5.0] * (len(rows) - 1),
+            "mesh": {"cell": 5.0, "depth": 40.0}, "uncertainty": {"percent": 3}, "maxIter": 2}
+    for iu, ok in (({"percent": 5}, False), ({}, False), ({"percent": 5, "floor": 0.5}, True)):
+        req = dict(base, ipUncertainty=iu)
+        try:
+            _validate_dcip2d(req); valid = True
+        except HTTPException as e:
+            valid = False; print("  refused:", e.detail)
+        assert valid == ok, iu
+    try:
+        D.run_job(dict(base, ipUncertainty={"percent": 5}), lambda e: None)
+        raise AssertionError("run_job accepted a zero-std chargeability reading")
+    except ValueError as e:
+        print("  run_job:", e)
+
+
 if __name__ == "__main__":
+    test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
     test_dcip2d_recovers_block()
     test_support_not_biased_against_conductors()

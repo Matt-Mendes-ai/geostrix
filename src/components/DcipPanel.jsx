@@ -85,6 +85,8 @@ export default function DcipPanel({ pBtn, numInput }) {
     if (!(num(opts.cell) > 0) || !(num(opts.depth) > num(opts.cell))) problems.push("Enter the cell size and model depth.");
     if (!(num(opts.pct) > 0) && !(num(opts.floor) > 0)) problems.push("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading.");
     if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push("Enter the chargeability uncertainty (% and / or a floor in mV/V).");
+    // TASKS.csv #564 — a percent of 0 mV/V is 0: that reading would get zero uncertainty (infinite weight)
+    else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => !(Math.abs(v) > 0))) problems.push(`${parsed.ip.filter((v) => !(Math.abs(v) > 0)).length} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.`);
     let topo = null, groundNote = "";
     if (parsed && geom) {
       const pad = (parsed.span[1] - parsed.span[0]) * 0.5 + 50;
