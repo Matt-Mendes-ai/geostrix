@@ -550,19 +550,19 @@ export const TARGET_SCHEMAS = {
     { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme"] },
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
-    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi"] },
+    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi", "az", "brg", "bearing"] }, // az / brg / bearing: #546
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid"] },
     { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station"] },
-    { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az"] },
+    { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az", "azim", "brg", "bearing"] }, // brg / bearing: Datamine (#546)
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
   ], dipConvention: true },
   // TASKS.csv #600 — Lith_Code / Lith1_Code / Rock_Code before the generic "unit": a real ARIS export has
   // Lith_Code (filled) beside Lith_Group_Unit (blank on every row), and "unit" picked the blank one.
-  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "rock_code", "rock_type", "rocktype", "litho", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments"]) },
+  litho: { label: "Lithology", fields: intervalFields(["lithology", "lith_code", "lith1_code", "lith1_gf_code", "lithcode", "rock_code", "rock_type", "rocktype", "litho", "lith", "rock", "unit", "litho_unit"], null, false, ["description", "comments", "comment", "notes", "desc", "lith_desc", "lith1_local_comments"]) },
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
@@ -728,6 +728,11 @@ export function guessTarget(headers) {
   if (!has("from") && has("depth") && has("dip") && structy) return "structure";
   if (!has("from") && has("depth") && has("alpha")) return "structure"; // #427 — oriented-core alpha/beta logging
   if (has("azimuth") && has("depth") && !has("from")) return "survey";
+  // TASKS.csv #546 — Micromine (HOLE, DEPTH, AZI, DIP) and Datamine (BHID, AT, BRG, DIP) survey files: a short
+  // azimuth column and a depth / AT column, a dip, no from/to and nothing only a structure table has. They used to
+  // open as "Structure planes" and "Custom".
+  const shortAz = hasCol("azi") || hasCol("az") || hasCol("azim") || hasCol("brg") || hasCol("bearing");
+  if (!has("from") && shortAz && (has("depth") || hasCol("at") || hasCol("md")) && has("dip") && !structy) return "survey";
   // TASKS.csv #600 — interval logs from logging software, recognised by their PRIMARY column's name (the
   // header after any "Table." prefix): Alt1_Code / Alt_Assemblage, Min1_Code / Min_Code1, Vein1_Comp /
   // Vein_Type1, Ave_Reading / MagSus1, BulkDens_Calc / SG_D. They used to fall through to "litho" (a UnitCode

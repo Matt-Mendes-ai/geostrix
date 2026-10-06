@@ -262,3 +262,15 @@ test("#600 re-importing a survey file replaces its points instead of doubling th
   assert.equal(r.replaced, 2);
   assert.equal(replaceSurveyPoints(a, [{ value: 5, _src: "day3.xyz" }]).replaced, 0);
 });
+
+test("#546 Micromine / Datamine survey and litho headers are recognised", async () => {
+  const { guessTarget, guessMapping } = await import("../src/lib/layers.js");
+  assert.equal(guessTarget(["HOLE", "DEPTH", "AZI", "DIP"]), "survey"); // Micromine (was Structure planes)
+  assert.equal(guessTarget(["BHID", "AT", "BRG", "DIP"]), "survey"); // Datamine (was Custom)
+  assert.deepEqual(guessMapping("survey", ["BHID", "AT", "BRG", "DIP"]), { hole_id: "BHID", depth: "AT", azimuth: "BRG", dip: "DIP" });
+  assert.equal(guessTarget(["HOLEID", "DEPTH", "AZIMUTH", "DIP"]), "survey");
+  assert.equal(guessTarget(["HOLE", "DEPTH", "TYPE", "DIP", "DIPDIR"]), "structure"); // a structure table still is one
+  assert.equal(guessTarget(["HOLE", "EAST", "NORTH", "RL", "DEPTH", "AZI", "DIP"]), "collars");
+  assert.equal(guessMapping("litho", ["HOLE", "FROM", "TO", "ROCK"]).value, "ROCK");
+  assert.equal(guessMapping("litho", ["HOLE", "FROM", "TO", "LITH"]).value, "LITH");
+});
