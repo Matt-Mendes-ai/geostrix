@@ -2423,7 +2423,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     cameraRef.current?.__update?.();
     openingFitRef.current = { traces, radius: camState.current.radius, target: camState.current.target.clone() };
     pendingLegibilityRef.current = guessed ? { traces, radius: camState.current.radius } : null;
-    if (notify) setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Zoom to fit all (toolbar, or right-click the viewport) to frame the whole property."]);
+    if (notify) setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property."]); // #567
     return true;
   }, []);
 
@@ -8118,7 +8118,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
-            headline="Nothing loaded yet"
+            headline={mode === "modeling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
             actionLabel={sampleLoading ? "Loading sample project…" : "Load sample project (Harry property, 37 real holes)"}
             onAction={loadSampleProject}
             actionDisabled={sampleLoading}
@@ -8130,7 +8130,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a <b>collar</b> file.
               </div>
               <div style={{ marginBottom: 8 }}>
-                Use <b>Import ▸ Collars</b> in the panel on the left, or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
+                Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
               </div>
               <div style={{ marginBottom: 12 }}>
                 Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; grids, GeoTIFFs and survey lines in <b>Geophysics</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
@@ -8164,6 +8164,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ position: "absolute", top: 160, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>
           <button onClick={() => { camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>Top</button>
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>Bottom</button>
+          <button onClick={() => zoomToFitAll()} style={miniBtn} title="Zoom to fit all (also: right-click the view)" aria-label="Zoom to fit all">Fit</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor

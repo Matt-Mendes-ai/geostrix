@@ -853,9 +853,9 @@ export default function LayoutModule() {
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>Adding views</div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>
-          Use "Snapshot to Layout" in the 3D View toolbar, or in a cross-section pop-out, to drop a capture
-          of that view onto the page below — drag to place it, and use the width field to resize (aspect
-          ratio locks automatically).
+          Use <b>Current view</b> or <b>Theme view</b> on this tab's ribbon, <b>Snapshot</b> on the 3D View ribbon
+          (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it,
+          and use the width field to resize (aspect ratio locks automatically).
         </div>
       </div>
 
