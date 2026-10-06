@@ -511,6 +511,28 @@ const CRS_NAMED = [
   [4326, "WGS 84 (longitude / latitude)"], [4269, "NAD83 (longitude / latitude)"], [4617, "NAD83(CSRS) (longitude / latitude)"],
   [4267, "NAD27 (longitude / latitude) — ~10 m datum approximation"],
 ];
+// TASKS.csv #614 — the same CRS family one or two UTM zones east/west of epsg (same datum, same hemisphere):
+// the codes whose proj4 definition differs from epsg's only in +zone=. [] for anything that isn't UTM.
+export function neighbourUtmZones(epsg, reach = 1) {
+  const def = getProj4DefSync(epsg);
+  const m = def && /\+proj=utm\b.*?\+zone=(\d+)/.exec(def);
+  if (!m) return [];
+  const zone = Number(m[1]);
+  const out = [];
+  for (let d = 1; d <= reach; d++) {
+    for (const z of [zone - d, zone + d]) {
+      if (z < 1 || z > 60) continue;
+      const want = def.replace(/\+zone=\d+/, `+zone=${z}`);
+      // several families can share a definition (NAD83 and SIRGAS 2000 are both GRS80 with no shift): keep the same name
+      const same = listSupportedCrs().filter((c) => getProj4DefSync(c.code) === want);
+      const family = (crsName(epsg) || "").split(" / ")[0];
+      const hit = same.find((c) => c.name.split(" / ")[0] === family) || same[0];
+      if (hit) out.push({ code: hit.code, name: hit.name, zone: z });
+    }
+  }
+  return out;
+}
+
 export function listSupportedCrs() {
   const out = CRS_NAMED.map(([code, name]) => ({ code, name }));
   const listed = new Set(out.map((c) => c.code));

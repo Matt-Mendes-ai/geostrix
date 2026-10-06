@@ -21,8 +21,8 @@ import { saveFile } from "../lib/desktop.js";
 import { blockModelRows, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import InfoButton from "../components/InfoButton.jsx";
-import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
-import { toLonLat, reprojectXY, crsName } from "../lib/reproject.js";
+import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
+import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
@@ -399,9 +399,11 @@ export default function GeophysicsModule() {
     setSrtmPickerOpen(true);
   };
 
-  const runSrtmFetch = async (bboxLonLat) => {
+  const relabelNote = useRef(""); // #614
+  const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
-    if (terrain && !window.confirm(`Replace the current terrain ("${terrain.name}") with freshly-fetched SRTM for this area? Only one terrain surface is supported at a time.`)) {
+    const targetEpsg = epsgOverride || project.epsg; // #614 — a zone fix re-fetches before the new label reaches this closure
+    if (terrain && !epsgOverride && !window.confirm(`Replace the current terrain ("${terrain.name}") with freshly-fetched SRTM for this area? Only one terrain surface is supported at a time.`)) {
       return;
     }
     setSrtmPickerOpen(false);
@@ -409,9 +411,28 @@ export default function GeophysicsModule() {
     setSrtmProgress({ done: 0, total: 1 });
     try {
       const parsed = await fetchSRTMTerrain({
-        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg,
+        lonMin, latMin, lonMax, latMax, targetEpsg,
         onProgress: (done, total) => setSrtmProgress({ done, total }),
       });
+      // TASKS.csv #614 — collars hundreds of metres off the fetched ground: is the project in the wrong UTM zone?
+      const misfit = collarGroundMisfit(collars, parsed);
+      let misfitNote = "";
+      if (misfit && misfit.medianDz > 100) {
+        setSrtmProgress(null);
+        setTerrainError({ info: true, text: `The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain — checking whether the project's CRS is one UTM zone off…` });
+        const better = await findBetterUtmZone(collars, targetEpsg, misfit);
+        if (better && window.confirm(`The ${misfit.n} collars sit a median ${Math.round(misfit.medianDz)} m above or below the terrain fetched for ${crsName(targetEpsg) || `EPSG:${targetEpsg}`}, but read as ${better.name} they sit within ${Math.round(better.medianDz)} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as ${better.name} (EPSG:${better.code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.`)) {
+          setEpsg(better.code);
+          const T = pointTransform(better.code, 4326);
+          const [bx0, by0, bx1, by1] = parsed.bbox;
+          const c = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => T(x, y));
+          relabelNote.current = ` Project CRS relabelled from EPSG:${targetEpsg} to ${better.name} (EPSG:${better.code}): the collars sit on the ground there. Re-fetch any satellite imagery, hillshade or other online layer — those were fetched for the old zone.`;
+          return await runSrtmFetch([Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))], better.code);
+        }
+        misfitNote = better
+          ? ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain (in ${better.name} they would sit within ${Math.round(better.medianDz)} m) — kept as you chose.`
+          : ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).`;
+      }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = `Fetched and imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh covering ${(txmax - txmin).toFixed(0)}×${(tymax - tymin).toFixed(0)} world units for the area you drew.`;
@@ -419,6 +440,7 @@ export default function GeophysicsModule() {
       else if (parsed.reprojectNote) msg += ` Note: ${parsed.reprojectNote}`;
       if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to download — check your connection.`;
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
+      msg += misfitNote + relabelNote.current; relabelNote.current = ""; // #614
       setTerrainError({ info: true, text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });

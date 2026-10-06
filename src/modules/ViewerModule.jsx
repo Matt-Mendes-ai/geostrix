@@ -4108,7 +4108,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const meta = LAYER_META[groupKey];
         (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r)).forEach((row) => {
          try {
-          if (isNaN(row.from) || isNaN(row.to)) return;
+          if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
           const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
           const mid = pts.filter((p) => p.md >= row.from - 0.01 && p.md <= row.to + 0.01);
           const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)];

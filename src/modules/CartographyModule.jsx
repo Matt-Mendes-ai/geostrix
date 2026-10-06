@@ -19,7 +19,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { crsName, isMetricProjectedEpsg, pointTransform } from "../lib/reproject.js";
+import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync } from "../lib/reproject.js";
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
@@ -79,6 +79,7 @@ export default function CartographyModule() {
   }, [anchor, project.epsg]);
   const convergence = anchor ? trueNorthBearingInGridDeg(anchor.x, anchor.y, project.epsg) : null;
   const metric = isMetricProjectedEpsg(project.epsg);
+  const isGeographic = (epsg) => /\+proj=longlat/.test(getProj4DefSync(epsg) || ""); // #613
 
   // ---- project CRS pane ----
   const [newCrs, setNewCrs] = useState(null);
@@ -180,7 +181,15 @@ export default function CartographyModule() {
             <TaskPaneHeader icon={Globe2} title="Project CRS" />
             <div style={note}>Every file you import is reprojected into this CRS (its own <em>Source CRS</em> box says what the file is in). Current: <b>{nameOf(project.epsg)}</b>.</div>
             <div style={{ marginTop: 12 }}><CrsPicker label="Change to" value={newCrs || project.epsg} onChange={setNewCrs} /></div>
-            {changing && (
+            {changing && isGeographic(newCrs) && (
+              /* TASKS.csv #613 — a geographic CRS (WGS 84 lat/long, NAD83 geographic…) can't be the project CRS: the 3D
+                 scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
+                 traces hundreds of "degrees" long (Matt's WGS 84 test: all holes fanned out of one spot). */
+              <div role="alert" style={{ ...note, color: "var(--color-warning, #b45309)" }}>
+                {nameOf(newCrs)} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS — for British Columbia, NAD83 / UTM zone 9N or 10N, or NAD83 / BC Albers. To hand data to someone in WGS 84, use <b>A file</b> in the ribbon above: it writes a reprojected copy and leaves the project as it is.
+              </div>
+            )}
+            {changing && !isGeographic(newCrs) && (
               hasData ? (
                 <>
                   <div style={note}>The project already holds data in {nameOf(project.epsg)}. What should happen to it?</div>

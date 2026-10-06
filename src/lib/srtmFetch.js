@@ -18,7 +18,8 @@
 // Actual tile bytes are fetched via desktop.js's fetchSRTMTile (proxied through Electron's main
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
-import { getProj4Def, reprojectGrid, bilinearSample } from "./reproject.js";
+import { getProj4Def, reprojectGrid, bilinearSample, pointTransform, neighbourUtmZones } from "./reproject.js";
+import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #614
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
 const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requests/~1-2MB, not runaway
@@ -70,6 +71,48 @@ async function decodeTerrariumTile(z, x, y) {
     elevations[i] = r * 256 + g + b / 256 - 32768; // Terrarium encoding
   }
   return { data: elevations, width: bitmap.width, height: bitmap.height };
+}
+
+// TASKS.csv #614 — collars vs a freshly fetched terrain. GeoStrix fetches the terrain for wherever the project CRS
+// says the data is, so a project in the wrong UTM zone (a collar CSV carries no CRS; new projects default to
+// EPSG:3156, zone 9N) gets terrain from ~400 km away — Matt's Woodjam holes (zone 10N) floated ~950 m over coastal
+// sea level. Median |collar Z − ground| of a few metres to tens is normal (GPS, SRTM); hundreds means the
+// collars are not where the CRS puts them. Returns { n, medianDz } (null under 3 comparable collars).
+export function collarGroundMisfit(collars, terrain) {
+  const d = [];
+  const [x0, y0, x1, y1] = terrain?.bbox || [];
+  for (const c of collars || []) {
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(c.z)) continue;
+    if (!(c.x >= x0 && c.x <= x1 && c.y >= y0 && c.y <= y1)) continue; // sampling clamps to the edge outside
+    const g = sampleTerrainElevation(terrain, c.x, c.y);
+    if (Number.isFinite(g)) d.push(Math.abs(c.z - g));
+  }
+  if (d.length < 3) return null;
+  d.sort((a, b) => a - b);
+  return { n: d.length, medianDz: d[Math.floor(d.length / 2)] };
+}
+
+// When the misfit is large: re-reads the SAME coordinates as each neighbouring UTM zone of the same datum, fetches
+// a small terrain around the collars there, and returns the zone where they sit on the ground, or null. Only
+// called after a misfit, so a normal project never pays for the extra downloads.
+export async function findBetterUtmZone(collars, epsg, misfit) {
+  const pts = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z));
+  if (pts.length < 3) return null;
+  const xs = pts.map((c) => c.x), ys = pts.map((c) => c.y), pad = 300;
+  const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad];
+  let best = null;
+  for (const cand of neighbourUtmZones(epsg, 2)) {
+    const T = pointTransform(cand.code, 4326);
+    if (!T) continue;
+    const corners = [[box[0], box[1]], [box[2], box[1]], [box[0], box[3]], [box[2], box[3]]].map(([x, y]) => T(x, y));
+    const lons = corners.map((p) => p[0]), lats = corners.map((p) => p[1]);
+    let t;
+    try { t = await fetchSRTMTerrain({ lonMin: Math.min(...lons), latMin: Math.min(...lats), lonMax: Math.max(...lons), latMax: Math.max(...lats), targetEpsg: cand.code }); } catch { continue; }
+    const m = collarGroundMisfit(pts, t);
+    if (m && m.medianDz < 40 && m.medianDz < misfit.medianDz / 4 && (!best || m.medianDz < best.medianDz)) best = { ...cand, medianDz: m.medianDz, n: m.n };
+    if (best && best.medianDz < 15) break; // nearest zones first: a clear fit ends the search
+  }
+  return best;
 }
 
 // Fetches and mosaics elevation tiles covering [lonMin, latMin, lonMax, latMax] (WGS84 degrees),
