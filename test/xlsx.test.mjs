@@ -332,3 +332,19 @@ test("#545 survey QC uses dogleg severity: a near-vertical azimuth swing is fine
   assert.equal(sv[0].severity, "error");
   assert.match(sv[0].message, /Dogleg 23\.\d° over 3\.0 m .*\(69\.\d°\/30 m, rated over 10 m/);
 });
+
+test("#540 importCheckSummary names what is wrong with just-imported interval rows", async () => {
+  const { importCheckSummary } = await import("../src/lib/dataQC.js");
+  const collars = [{ hole_id: "DDH-01", length: 50 }];
+  const rows = [
+    { hole_id: "DDH-01", from: 0, to: 5 }, { hole_id: "DDH-01", from: 5, to: NaN }, { hole_id: "DDH-01", from: 10, to: 8 },
+    { hole_id: "DDH-01", from: -2, to: 1 }, { hole_id: "DDH-01", from: 49, to: 60 }, { hole_id: "ddh-01", from: 0, to: 1 }, { hole_id: "X9", from: 0, to: 1 },
+  ];
+  const m = importCheckSummary(rows, collars, [], "Lithology rows");
+  assert.match(m, /1 with a blank or non-numeric from\/to/);
+  assert.match(m, /1 with from > to/);
+  assert.match(m, /1 with a negative depth/);
+  assert.match(m, /1 past the end of their hole/);
+  assert.match(m, /2 hole id\(s\) with no collar \(ddh-01 — collar DDH-01 exists; X9\)/);
+  assert.equal(importCheckSummary([{ hole_id: "DDH-01", from: 0, to: 5 }], collars, []), "");
+});

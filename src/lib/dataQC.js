@@ -142,6 +142,36 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
 // TASKS.csv #600 — { gaps: false } for logs that are sparse by nature (veins, SG samples): on a real ARIS
 // database the gap note fired 1,054 times for veins and 591 for SG — noise burying the real findings. Every
 // other check (overlaps, from > to, past end of hole, no code) still runs on them.
+// TASKS.csv #540 — what is wrong with the rows an import just committed, in one line for its notice (rows with a
+// blank / non-numeric to, from > to, negative depths, past the end of the hole, or a hole with no collar). Import
+// stays non-blocking; Data QC has the per-row list. O(rows); collars / survey give hole lengths.
+export function importCheckSummary(rows, collars, survey, label = "rows") {
+  const collarIds = new Set((collars || []).map((c) => c.hole_id));
+  const len = new Map();
+  (collars || []).forEach((c) => { if (Number.isFinite(c.length)) len.set(c.hole_id, c.length); });
+  (survey || []).forEach((s) => { if (Number.isFinite(s.depth)) len.set(s.hole_id, Math.max(s.depth, len.get(s.hole_id) ?? -Infinity)); });
+  let noTo = 0, swapped = 0, negative = 0, pastEoh = 0;
+  const orphans = new Set();
+  for (const r of rows || []) {
+    if (collarIds.size && !collarIds.has(r.hole_id)) orphans.add(r.hole_id);
+    if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) { noTo++; continue; }
+    if (r.from > r.to) swapped++;
+    if (r.from < 0 || r.to < 0) negative++;
+    const L = len.get(r.hole_id);
+    if (Number.isFinite(L) && r.to > L + 0.5) pastEoh++;
+  }
+  const parts = [];
+  if (noTo) parts.push(`${noTo} with a blank or non-numeric from/to`);
+  if (swapped) parts.push(`${swapped} with from > to`);
+  if (negative) parts.push(`${negative} with a negative depth`);
+  if (pastEoh) parts.push(`${pastEoh} past the end of their hole`);
+  if (orphans.size) {
+    const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
+    parts.push(`${orphans.size} hole id(s) with no collar (${ex.join("; ")}${orphans.size > 3 ? "; …" : ""})`);
+  }
+  return parts.length ? `Check these ${label}: ${parts.join(", ")}. They were imported as they are — Data QC lists each one.` : "";
+}
+
 function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true } = {}) {
   const issues = [];
   const byHole = new Map();

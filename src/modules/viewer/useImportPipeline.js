@@ -15,24 +15,10 @@ import { fitSimilarity, parseControlPoints, transformImportRows } from "../../li
 import { loadSampleFiles } from "../../lib/desktop.js";
 import { dxfToBoundaries } from "../../lib/dxf.js";
 import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
-import { didYouMean } from "../../lib/holeIds.js"; // TASKS.csv #541
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
-
-// TASKS.csv #541 — [[file id, collar id]] for ids that miss the collars only by case / spaces / hyphens
-function nearMissHoleIds(rows, collars) {
-  const ids = new Set((collars || []).map((c) => c.hole_id));
-  if (!ids.size) return [];
-  const out = new Map();
-  for (const r of rows) {
-    if (ids.has(r.hole_id) || out.has(r.hole_id)) continue;
-    const m = /Did you mean "([^"]+)"/.exec(didYouMean(ids, r.hole_id));
-    if (m) out.set(r.hole_id, m[1]);
-  }
-  return [...out];
-}
 
 export function useImportPipeline(ctx) {
   const {
@@ -421,8 +407,12 @@ export function useImportPipeline(ctx) {
       setLayers((p) => ({ ...p, [target]: replaceRowsByHole(p[target], keepBatch(rows), keep).rows }));
       setLayerVisible((p) => ({ ...p, [target]: true }));
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
-      const nearIds = nearMissHoleIds(rows, importStateRef.current.collars); // #541
-      if (nearIds.length) setNotices((p) => [...p, `${fileName}: ${nearIds.length} hole id(s) match a collar only if case / spaces / hyphens are ignored (${nearIds.slice(0, 4).map(([a, b]) => `"${a}" → "${b}"`).join(", ")}${nearIds.length > 4 ? ", …" : ""}). They are kept as typed and won't attach to those holes until the ids are fixed in the file.`]);
+      // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
+      const liveAtImport = importStateRef.current;
+      import("../../lib/dataQC.js").then(({ importCheckSummary }) => {
+        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`);
+        if (msg) setNotices((p) => [...p, msg]);
+      }).catch(() => {});
       setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`
         + (replaced.length ? ` Replaced the earlier rows of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")]);
     }
