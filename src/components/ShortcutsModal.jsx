@@ -20,7 +20,7 @@ const SHORTCUT_GROUPS = [
       ["Ctrl/Cmd+O", "Open project…"],
       ["Ctrl/Cmd+S", "Save project (to its own file; asks where only the first time)"],
       ["Ctrl/Cmd+Shift+S", "Save project as…"], // #553
-      ["Ctrl/Cmd+I", "Import CSV…"],
+      ["Ctrl/Cmd+I", "Import (the current tab's main import: collars, assays, point survey or raster)"], // #565
       ["Ctrl/Cmd+P", "Export PDF (of the Layout page)"],
     ],
   },
@@ -36,15 +36,19 @@ const SHORTCUT_GROUPS = [
     title: "Navigation",
     items: [
       ["Ctrl/Cmd+1", "3D View"],
-      ["Ctrl/Cmd+2", "Geochem"],
-      ["Ctrl/Cmd+3", "Geophysics"],
-      ["Ctrl/Cmd+4", "Layout"],
+      ["Ctrl/Cmd+2", "3D Modeling"],
+      ["Ctrl/Cmd+3", "Geochem"],
+      ["Ctrl/Cmd+4", "Geophysics"],
+      ["Ctrl/Cmd+5", "Targeting"],
+      ["Ctrl/Cmd+6", "Raster"],
+      ["Ctrl/Cmd+7", "Cartography"],
+      ["Ctrl/Cmd+8", "Layout"], // #565 — in tab order
     ],
   },
   {
     title: "Tools",
     items: [
-      ["Ctrl/Cmd+Shift+C", "Open a cross-section pop-out"],
+      ["Ctrl/Cmd+Shift+C", "Draw a cross-section (click two points on the view)"], // #565
       ["Ctrl/Cmd+/", "This shortcuts reference"],
     ],
   },

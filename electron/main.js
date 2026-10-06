@@ -336,6 +336,14 @@ ipcMain.handle("updater-install", async () => {
   return { ok: true };
 });
 
+// TASKS.csv #565 — a menu item that opens a FILE DIALOG in the page: delivered with a user gesture
+// (executeJavaScript(…, true)), since Chromium shows a file chooser only on one; the page routes it through the same
+// handler as every other menu action (App.jsx onMenu).
+function sendMenuWithGesture(action) {
+  const wc = mainWindow?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.executeJavaScript(`window.dispatchEvent(new CustomEvent("geostrix-menu-gesture", { detail: ${JSON.stringify(action)} }))`, true).catch(() => {});
+}
 function resolveUrl(hashRoute) {
   if (isDev) return `http://localhost:5173/#${hashRoute}`;
   return `${APP_SCHEME}://${APP_HOST}/index.html#${hashRoute}`; // #562
@@ -935,9 +943,9 @@ function buildMenu() {
         { label: "Save Project", accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
         { label: "Save Project As…", accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
         { type: "separator" },
-        { label: "Import CSV…", accelerator: "CmdOrCtrl+I", click: () => mainWindow?.webContents.send("menu", "import-csv") },
-        { label: "Import Assays…", click: () => mainWindow?.webContents.send("menu", "import-assays") },
-        { label: "Import pXRF…", click: () => mainWindow?.webContents.send("menu", "import-pxrf") },
+        { label: "Import CSV…", accelerator: "CmdOrCtrl+I", click: () => sendMenuWithGesture("import-csv") }, // #565 — the current tab's import
+        { label: "Import Assays…", click: () => sendMenuWithGesture("import-assays") },
+        { label: "Import pXRF…", click: () => sendMenuWithGesture("import-pxrf") },
         { type: "separator" },
         { label: "Export PDF…", accelerator: "CmdOrCtrl+P", click: () => mainWindow?.webContents.send("menu", "export-pdf") },
         { type: "separator" },
@@ -965,10 +973,9 @@ function buildMenu() {
         // keyboard shortcut at all despite being the most-used navigation in the app; added now partly
         // because a "keyboard shortcuts reference" that only had 5 shortcuts to list would barely be
         // worth its own menu entry — these round it out into something actually useful to reference.
-        { label: "3D View", accelerator: "CmdOrCtrl+1", click: () => mainWindow?.webContents.send("menu", "module-viewer") },
-        { label: "Geochem", accelerator: "CmdOrCtrl+2", click: () => mainWindow?.webContents.send("menu", "module-geochem") },
-        { label: "Geophysics", accelerator: "CmdOrCtrl+3", click: () => mainWindow?.webContents.send("menu", "module-geophysics") },
-        { label: "Layout", accelerator: "CmdOrCtrl+4", click: () => mainWindow?.webContents.send("menu", "module-layout") },
+        // TASKS.csv #565 — Ctrl+1..8 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab)
+        ...[["3D View", "viewer"], ["3D Modeling", "modeling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Raster", "raster"], ["Cartography", "cartography"], ["Layout", "layout"]]
+          .map(([label, id], i) => ({ label, accelerator: `CmdOrCtrl+${i + 1}`, click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
         { type: "separator" },
         // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with
         // no prompt (a reload never fires the window close guard): every open workspace tab was thrown
@@ -981,7 +988,7 @@ function buildMenu() {
     {
       label: "Tools",
       submenu: [
-        { label: "Cross-section (pop-out)", accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") },
+        { label: "Draw a cross-section", accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") }, // #565 — starts Draw section
         { label: "Project CRS (Cartography)…", click: () => mainWindow?.webContents.send("menu", "set-epsg") },
       ],
     },

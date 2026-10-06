@@ -1,4 +1,5 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import React, { useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "../components/icons.js";
@@ -94,6 +95,7 @@ export default function RasterModule() {
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
+  useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
   // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we

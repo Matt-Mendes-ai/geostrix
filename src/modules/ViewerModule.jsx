@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
+import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
@@ -1344,6 +1345,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
+  // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
+  // starts drawing a section (it used to only switch to this tab)
+  useModuleAction(["import-collars", "draw-section"], (a) => {
+    if (a === "import-collars") { fileInputs.current.collar?.click(); return; }
+    setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode(true); sectionPts.current = []; setSectionPreview(null);
+  });
 
   // TASKS.csv #237 sub-item (3) — single resolver for every numeric-layer colour lookup, so the 3D
   // view, the cross-section payload and the legend can't drift apart. When the user has defined

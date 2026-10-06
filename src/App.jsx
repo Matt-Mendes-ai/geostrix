@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "./components/icons.js";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
@@ -72,6 +73,7 @@ export default function App() {
     layoutPages, activeLayoutPageId, // TASKS.csv #398 — PDF paper size
   } = store;
   const [active, setActive] = useState("viewer");
+  const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
   const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
   // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
   // so hopping to Geochem and back doesn't force a sidebar re-render for a `mode` swap that isn't
@@ -228,7 +230,14 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       if (action.startsWith("module-")) setActive(action.replace("module-", ""));
       else if (action === "export-pdf") doExportPdf();
       else if (action === "set-epsg") setActive("cartography"); // #485 — the CRS lives in Cartography now
-      else if (action === "cross-section") setActive("viewer");
+      // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
+      else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
+      else if (action === "import-csv") {
+        const target = { viewer: ["viewer", "import-collars"], modeling: ["modeling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], raster: ["raster", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
+        setActive(target[0]); requestModuleAction(target[1]);
+      }
+      else if (action === "import-assays") { setActive("geochem"); requestModuleAction("import-assays"); }
+      else if (action === "import-pxrf") { setActive("geochem"); requestModuleAction("import-pxrf"); }
       else if (action === "new-project") doNew();
       else if (action === "open-project") doOpen();
       else if (action === "save-project") doSave();

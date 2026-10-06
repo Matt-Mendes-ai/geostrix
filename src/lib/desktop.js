@@ -144,8 +144,12 @@ export async function autosaveClear() {
 }
 
 export function onMenu(cb) {
-  if (d) return d.onMenu(cb);
-  return () => {};
+  // TASKS.csv #565 — menu items that open a file dialog arrive as a window event carrying a user gesture
+  // (main.js sendMenuWithGesture), the rest over IPC; one callback for both
+  const onGesture = (e) => cb(e.detail);
+  if (typeof window !== "undefined") window.addEventListener("geostrix-menu-gesture", onGesture);
+  const offIpc = d ? d.onMenu(cb) : () => {};
+  return () => { if (typeof window !== "undefined") window.removeEventListener("geostrix-menu-gesture", onGesture); offIpc?.(); };
 }
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);

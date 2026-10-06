@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
@@ -163,6 +164,7 @@ export default function GeophysicsModule() {
   const [spatialOpen, setSpatialOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileInput = useRef(null);
+  useModuleAction(["import-points"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import CSV here
   const terrainInput = useRef(null);
   const ubcInput = useRef(null);
   const blockModelInput = useRef(null);

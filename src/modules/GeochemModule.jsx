@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
+import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layers.js"; // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
@@ -67,6 +68,8 @@ export default function GeochemModule() {
   const pxrfRef = useRef(null);
   const surfaceFileRef = useRef(null);
   const certRef = useRef(null); // TASKS.csv #601
+  // TASKS.csv #565 — File > Import CSV / Import Assays / Import pXRF
+  useModuleAction(["import-assays", "import-pxrf"], (a) => (a === "import-pxrf" ? pxrfRef : fileRef).current?.click());
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
