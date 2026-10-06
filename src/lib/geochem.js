@@ -841,6 +841,7 @@ export const DIAGRAMS = {
     caption: "Pearce element ratio — molar Al₂O₃ (immobile proxy) plotted against 3×molar K₂O. Unaltered rocks of one precursor fall on a line through the origin; departures above the fitted trend indicate K-metasomatism (sericite/K-feldspar addition), below indicates K loss.",
     requires: ["Al", "K"],
     xLabel: "Al₂O₃ (mol/100g)", yLabel: "3 × K₂O (mol/100g)",
+    mineralLines: [{ slope: 1, label: "muscovite / sericite" }, { slope: 3, label: "K-feldspar" }], // #531 — 3K/Al of each mineral
     xRange: [0, 0.4], yRange: [0, 0.3],
     dynamicRange: true, trendLine: true,
     project: (s, u) => {
@@ -853,10 +854,14 @@ export const DIAGRAMS = {
   },
   per_al_cana: {
     id: "per_al_cana",
-    label: "PER: Al₂O₃ vs CaO+3Na₂O (Stanley & Madeisky 1994)",
-    caption: "Pearce element ratio — molar Al₂O₃ vs molar (CaO+3Na₂O). Departure below the fitted trend indicates feldspar destruction (Ca/Na loss — sericitic/chloritic alteration); above indicates albitization or carbonate/epidote addition.",
+    // TASKS.csv #531 — was CaO + 3·Na₂O: albite then plotted on slope 3 and anorthite on slope 1, so plagioclase of
+    // different An content never shared a line. In cations the feldspar line is (2Ca + Na)/Al = 1, i.e. in molar
+    // oxides (CaO + Na₂O)/Al₂O₃ = 1 for both end-members (checked in test/geochem.test.mjs).
+    label: "PER: Al₂O₃ vs CaO+Na₂O (Stanley & Madeisky 1994)",
+    caption: "Pearce element ratio — molar Al₂O₃ vs molar (CaO+Na₂O). Plagioclase of any composition (albite to anorthite) plots on the slope-1 feldspar line. Departure below it indicates feldspar destruction (Ca/Na loss — sericitic/chloritic alteration); above indicates carbonate/epidote addition. The fitted trend is this dataset's own.",
     requires: ["Al", "Ca", "Na"],
-    xLabel: "Al₂O₃ (mol/100g)", yLabel: "CaO + 3 Na₂O (mol/100g)",
+    xLabel: "Al₂O₃ (mol/100g)", yLabel: "CaO + Na₂O (mol/100g)",
+    mineralLines: [{ slope: 1, label: "plagioclase (Ab–An)" }], // #531
     xRange: [0, 0.4], yRange: [0, 0.4],
     dynamicRange: true, trendLine: true,
     project: (s, u) => {
@@ -865,7 +870,7 @@ export const DIAGRAMS = {
       const molAl2O3 = toOxide(Al, "Al") / MOLAR_MASS.Al2O3;
       const molCaO = toOxide(Ca, "Ca") / MOLAR_MASS.CaO;
       const molNa2O = toOxide(Na, "Na") / MOLAR_MASS.Na2O;
-      return { x: molAl2O3, y: molCaO + 3 * molNa2O };
+      return { x: molAl2O3, y: molCaO + molNa2O }; // #531
     },
   },
 };

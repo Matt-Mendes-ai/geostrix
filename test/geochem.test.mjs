@@ -257,3 +257,16 @@ test("#600/#542 element columns: the complete column wins, over-limit re-assays 
   assert.equal(els.Fe.unit, "%");
   assert.equal(els.Au.overLimit, null);
 });
+
+test("#531 PER feldspar diagram: albite and anorthite both on slope 1; muscovite 1 and K-feldspar 3 on the K diagram", async () => {
+  const { DIAGRAMS } = await import("../src/lib/geochem.js");
+  const u = { Al: "%", Ca: "%", Na: "%", K: "%" };
+  // stoichiometric oxide wt% -> element wt% (Na2O/1.348, CaO/1.399, K2O/1.205, Al2O3/1.889)
+  const el = (ox) => ({ values: { Al: ox.Al2O3 / 1.889, Ca: (ox.CaO || 0) / 1.399, Na: (ox.Na2O || 0) / 1.348, K: (ox.K2O || 0) / 1.205 } });
+  const slope = (d, s) => { const p = DIAGRAMS[d].project(s, u); return p.y / p.x; };
+  assert.ok(Math.abs(slope("per_al_cana", el({ Na2O: 11.82, Al2O3: 19.44 })) - 1) < 0.01, "albite");
+  assert.ok(Math.abs(slope("per_al_cana", el({ CaO: 20.16, Al2O3: 36.65 })) - 1) < 0.01, "anorthite");
+  assert.ok(Math.abs(slope("per_al_k", el({ K2O: 11.81, Al2O3: 38.40 })) - 1) < 0.01, "muscovite");
+  assert.ok(Math.abs(slope("per_al_k", el({ K2O: 16.92, Al2O3: 18.32 })) - 3) < 0.03, "K-feldspar");
+  assert.deepEqual(DIAGRAMS.per_al_cana.mineralLines.map((m) => m.slope), [1]);
+});

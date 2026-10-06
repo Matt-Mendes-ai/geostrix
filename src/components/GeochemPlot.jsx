@@ -76,6 +76,17 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes }) {
       {/* boxplot alteration trend guides */}
       {diagram.boxplotOverlay && <BoxplotGuides sx={sx} sy={sy} boxes={altBoxes} />}
 
+      {/* TASKS.csv #531 — theoretical mineral lines through the origin (PER diagrams), drawn beside the fitted trend */}
+      {(diagram.mineralLines || []).map((ml, i) => {
+        const x2 = Math.min(xmax, ymax / ml.slope);
+        return (
+          <g key={`ml${i}`}>
+            <line x1={sx(0)} y1={sy(0)} x2={sx(x2)} y2={sy(ml.slope * x2)} stroke="#6b7a8c" strokeWidth="1" />
+            <text x={sx(x2 * 0.92)} y={sy(ml.slope * x2 * 0.92) - 5} fill="#6b7a8c" fontSize={fontSizes.xs} textAnchor="end">{ml.label} (slope {ml.slope})</text>
+          </g>
+        );
+      })}
+
       {/* PER-style trend line: OLS-through-origin fit of the currently plotted points, as a rough
           stand-in for a true "precursor line" (which properly needs a known unaltered rock suite —
           not something GeoStrix has a database of, so this fits the data itself and the caption
