@@ -284,3 +284,19 @@ test("#532 compositing counts each metre once: a conflicting re-assay no longer 
   assert.ok(Math.abs(c[0].avgGrade - (8 * 1 + 1 * 0.5) / 1.5) < 1e-9, String(c[0].avgGrade));
   assert.equal(c[0].conflictLength, 1);
 });
+
+test("#530 a corrected (re-split) assay file replaces the hole; a partial top-up on the same intervals does not ask", async () => {
+  const { holesWithChangedIntervals, dropHoleAssays, mergeAssayRows } = await import("../src/lib/geochem.js");
+  const prev = [{ hole_id: "A", from: 10, to: 12, source: "assay", values: { Au: 5 } }, { hole_id: "A", from: 12, to: 14, source: "assay", values: { Au: 0.1 } },
+    { hole_id: "A", from: 10, to: 12, source: "assay", sample_type: "duplicate", sample_id: "D1", values: { Au: 5.1 } }];
+  const corrected = [{ hole_id: "A", from: 10, to: 11.5, source: "assay", values: { Au: 5 } }, { hole_id: "A", from: 11.5, to: 12, source: "assay", values: { Au: 0.1 } }];
+  const ch = holesWithChangedIntervals(prev, corrected);
+  assert.deepEqual(ch.map((h) => [h.hole_id, h.example]), [["A", "10–12 m"]]);
+  const rows = mergeAssayRows(dropHoleAssays(prev, ch), corrected).rows;
+  assert.deepEqual(rows.filter((r) => !r.sample_type).map((r) => `${r.from}-${r.to}`), ["10-11.5", "11.5-12"]);
+  assert.equal(rows.filter((r) => r.sample_type === "duplicate").length, 1); // QC kept
+  // partial batch on identical boundaries (a Cu top-up of one sample): not a change
+  assert.deepEqual(holesWithChangedIntervals(prev, [{ hole_id: "A", from: 12, to: 14, source: "assay", values: { Cu: 50 } }]), []);
+  // new hole: nothing to compare
+  assert.deepEqual(holesWithChangedIntervals(prev, [{ hole_id: "B", from: 0, to: 1, source: "assay", values: { Au: 1 } }]), []);
+});

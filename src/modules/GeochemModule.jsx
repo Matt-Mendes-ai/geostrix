@@ -12,7 +12,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
+  isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -367,8 +367,23 @@ export default function GeochemModule() {
       skippedNoDepth = all.length - rows.length;
     }
     // TASKS.csv #336 — same hole/from/to merges into the existing row instead of duplicating it.
-    const { merged: mergedCount, repeatedInFile } = mergeAssayRows(assays, rows); // for the notice only
-    setAssays((prev) => mergeAssayRows(prev, rows).rows);
+    // TASKS.csv #530 — a corrected file whose intervals changed for some holes: replace those holes (asked), else
+    // the stale intervals stay beside the new ones and every intercept averages both
+    const changed = holesWithChangedIntervals(assays, rows);
+    let replaceHoles = [];
+    if (changed.length) {
+      const ok = window.confirm(
+        `${changed.length} hole(s) in this file have different sample intervals from the assays already loaded (e.g. ${changed.slice(0, 3).map((h) => `${h.hole_id}: old ${h.example} not in the file`).join("; ")}${changed.length > 3 ? "; …" : ""}).
+
+` +
+        `OK — REPLACE those holes' assays with this file's (a corrected or re-split file).
+` +
+        `Cancel — keep both (the old intervals stay beside the new ones; intercepts and statistics then see both).`);
+      if (ok) replaceHoles = changed;
+    }
+    const base = replaceHoles.length ? dropHoleAssays(assays, replaceHoles) : assays;
+    const { merged: mergedCount, repeatedInFile } = mergeAssayRows(base, rows); // for the notice only
+    setAssays((prev) => mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows);
     // Existing elements keep their unit (#334); only new symbols add an entry.
     setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
@@ -377,6 +392,8 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      replaceHoles.length ? `Replaced the assays of ${replaceHoles.length} hole(s) whose sample intervals changed (${replaceHoles.slice(0, 6).map((h) => h.hole_id).join(", ")}${replaceHoles.length > 6 ? ", …" : ""}).` : null, // #530
+      changed.length && !replaceHoles.length ? `${changed.length} hole(s) kept their old intervals beside this file's different ones (${changed.slice(0, 6).map((h) => h.hole_id).join(", ")}${changed.length > 6 ? ", …" : ""}) — Data QC lists the overlaps.` : null, // #530
       skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return `${sym} ${n} (at ${e.overLimit.limit} ${e.unit} in "${e.header}", from "${e.overLimit.header}")`; }).join("; ")}.` : null, // #600 / #542
       blankBdl.size ? `Empty cells read as below detection: ${[...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return `${sym} ${n} at <${L.limit} (${L.basis === "lt" ? "the lab's most common '<' limit in the file" : "the lowest value reported — no '<' limit in the file"})`; }).join("; ")}; stored at half the limit and flagged '<'.` : null, // #502

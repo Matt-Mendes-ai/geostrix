@@ -212,6 +212,37 @@ export function convertUnit(v, fromUnit, toUnit) {
 // the duplicate checks never saw them. Matching is by occurrence: the k-th incoming row of an interval
 // updates the k-th existing row of it, so re-importing such a file still replaces rather than duplicates.
 // `repeatedInFile` counts the extra same-interval rows in `incoming` (kept, for the notice).
+// TASKS.csv #530 — holes whose sample intervals in an incoming file DIFFER from the ones already loaded from the same
+// source (a corrected / re-split file: 10-12 m became 10-11.5 + 11.5-12). mergeAssayRows keys on the interval, so
+// those used to be ADDED beside the stale row, and intercepts averaged the two (10-12 m @ 4.39 g/t instead of
+// 10-11.5 m @ 5). Element top-ups on identical intervals are not listed. QC-marked rows are ignored on both sides.
+// Returns [{ hole_id, example }].
+export function holesWithChangedIntervals(prev, incoming) {
+  // A hole counts only when an interval NEW in the file overlaps an OLD interval the file no longer has (a re-split
+  // or a boundary fix). A partial batch on the same boundaries (a re-assay of a few samples) is a top-up, not this.
+  const ivKey = (r) => `${r.from}|${r.to}`;
+  const groupKey = (r) => `${r.hole_id}|${r.source || ""}`;
+  const inc = new Map();
+  for (const r of incoming) { if (isMarkedQcRow(r) || !Number.isFinite(r.from) || !Number.isFinite(r.to)) continue; (inc.get(groupKey(r)) || inc.set(groupKey(r), []).get(groupKey(r))).push(r); }
+  const old = new Map();
+  for (const r of prev || []) { if (isMarkedQcRow(r) || !inc.has(groupKey(r))) continue; (old.get(groupKey(r)) || old.set(groupKey(r), []).get(groupKey(r))).push(r); }
+  const out = [];
+  for (const [k, oldRows] of old) {
+    const newRows = inc.get(k);
+    const oldSet = new Set(oldRows.map(ivKey)), newSet = new Set(newRows.map(ivKey));
+    const newOnly = newRows.filter((r) => !oldSet.has(ivKey(r)));
+    const oldOnly = oldRows.filter((r) => !newSet.has(ivKey(r)));
+    const hit = oldOnly.find((o) => newOnly.some((n) => n.from < o.to - 1e-9 && n.to > o.from + 1e-9));
+    if (hit) out.push({ hole_id: hit.hole_id, source: hit.source || "", stale: oldOnly.length, example: `${hit.from}–${hit.to} m` });
+  }
+  return out;
+}
+// Drops the non-QC rows of these holes (same source) so a corrected file replaces them.
+export function dropHoleAssays(prev, holes) {
+  const keys = new Set(holes.map((h) => `${h.hole_id}|${h.source}`));
+  return (prev || []).filter((r) => isMarkedQcRow(r) || !keys.has(`${r.hole_id}|${r.source || ""}`));
+}
+
 export function mergeAssayRows(prev, incoming) {
   // #601 — a row marked as a QC sample keys on its own sample id too: a duplicate shares its original's interval
   // and must never be merged INTO the original (re-importing the same QC sample still merges with itself)
