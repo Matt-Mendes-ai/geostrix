@@ -231,3 +231,25 @@ test("#600 parseXYZ: the header is the '/' line matching the data's width, not t
   const geosoft = "/ XYZ EXPORT [03/14/2022]\n/ DATABASE [.\survey.gdb]\n/  X  Y  MAG\n/====  ====  ====\nLine 10\n 1 2 3\n";
   assert.deepEqual(parseXYZ(geosoft).columns, ["X", "Y", "MAG"]);
 });
+
+test("#600 guessXyzChannels: elevation for Z; a usable corrected / geophysics channel for Value", async () => {
+  const { parseXYZ, guessXyzChannels } = await import("../src/lib/geosoft.js");
+  const gem = parseXYZ("/X Y elev rawmag sq cormag sat\nline 1\n1 2 1391 56892.4 99 000000.00 8\n2 3 1392 56893.1 99 000000.00 8\n3 4 1390 56891.0 99 000000.00 8\n");
+  assert.deepEqual(guessXyzChannels(gem.columns, gem.rows), { z: "elev", value: "rawmag" }); // cormag is all zeros -> skipped
+  const gs = parseXYZ("/ X Y Z MAG_RAW TMI_LEV\nLine 1\n1 2 3 50010 50000\n2 3 4 50015 50002\n");
+  assert.deepEqual(guessXyzChannels(gs.columns, gs.rows), { z: "Z", value: "TMI_LEV" });
+});
+
+test("#600 point colours: default range is the 2nd-98th percentile, spikes clamp to the end colours", async () => {
+  const { robustRange, makeSurveyColorer } = await import("../src/lib/geophysSurveys.js");
+  const rows = Array.from({ length: 200 }, (_, i) => ({ value: 56000 + i, _src: "walk" }));
+  rows.push({ value: 132, _src: "walk" }, { value: 167445, _src: "walk" });
+  const r = robustRange(rows.map((x) => x.value));
+  assert.ok(r.min >= 56000 && r.max <= 56199, JSON.stringify(r));
+  const c = makeSurveyColorer(rows);
+  assert.equal(c.colorOf({ value: 167445, _src: "walk" }).t, 1);
+  assert.equal(c.colorOf({ value: 132, _src: "walk" }).t, 0);
+  assert.ok(c.colorOf({ value: 56100, _src: "walk" }).t > 0.3 && c.colorOf({ value: 56100, _src: "walk" }).t < 0.7); // real readings spread over the ramp
+  assert.deepEqual(robustRange([1, 2, 3]), { min: 1, max: 3 }); // small sets: plain min-max
+  assert.equal(makeSurveyColorer(rows, { min: 0, max: 200000 }).models.get("walk").min, 0); // a user range wins
+});

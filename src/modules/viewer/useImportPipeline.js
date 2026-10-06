@@ -513,9 +513,18 @@ export function useImportPipeline(ctx) {
   const handleDrop = async (e) => {
     e.preventDefault(); setDragOver(false);
     const grouped = groupShapefileParts(Array.from(e.dataTransfer.files || [])); // #600: loose .shp + .dbf/.prj
+    // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
+    // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modeling buttons
+    // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
+    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|dxf|obj)$/i.test(f.name));
+    for (const f of direct) { if (/\.obj$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605
-    const skipped = grouped.files.length - files.length + grouped.unmatched.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg or .kml/.kmz files can be dropped in directly."]); return; }
+    const skipped = grouped.files.length - files.length - direct.length + grouped.unmatched.length;
+    if (!files.length) {
+      if (!direct.length) setNotices((p) => [...p, "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly."]);
+      else if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
+      return;
+    }
     if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
     // TASKS.csv #605 — an Excel workbook becomes one CSV per non-empty sheet ("Book - Sheet.csv"), queued like
     // dropped CSVs: same detection (the sheet name is the hint), same dialogs.

@@ -62,6 +62,25 @@ export function parsePLYBoundary(text) {
 // column (parsed as a number, or null for "*"/unparseable) plus `_line` (the enclosing Line marker's
 // value, or null if a data row appears before any Line marker — real files always have one, but this
 // doesn't assume it).
+// TASKS.csv #600 (40958Z) — first guesses for the .xyz column picker. Z: an elevation-like channel. Value: a
+// corrected / levelled channel first (cormag, tmi, resid…), then any geophysics-looking one (mag, grav, k/th/u,
+// ip, res…), skipping a channel that is mostly empty or constant — a GEM walk-mag dump's "cormag" is all zeros
+// until the diurnal correction is run, so its raw reading ("rawmag") is the usable one there.
+export function guessXyzChannels(columns, rows) {
+  const lc = (c) => String(c).toLowerCase();
+  const sample = rows.length > 2000 ? rows.filter((_, i) => i % Math.ceil(rows.length / 2000) === 0) : rows;
+  const usable = (c) => {
+    const v = sample.map((r) => r[c]).filter((x) => Number.isFinite(x));
+    return v.length >= sample.length * 0.5 && new Set(v).size > 1;
+  };
+  const pick = (res, skip = () => false) => { for (const re of res) { const c = columns.find((col) => !skip(col) && re.test(lc(col)) && usable(col)); if (c) return c; } return ""; };
+  const z = pick([/^(z|elev|elevation|alt|altitude|height|dem|gps_?elev|elev_?m)$/, /elev|altitude/]);
+  // never a coordinate / time / quality channel ("elev" contains "lev", "station-x" contains "x"...)
+  const notValue = (c) => c === z || /^(x|y|z|e|n|east|north|easting|northing|lat|lon|long|latitude|longitude|line|fid|time|date|sat|sq|oper|unit|station.*)$|elev|alt/.test(lc(c));
+  const value = pick([/^cor|_cor|cor_|corr|level|lvl|tmi|resid|igrf|final/, /mag|grav|bouguer|^k$|^th$|^u$|^tc$|cps|ip_|^ip|res|chg|cond|vlf|value/], notValue);
+  return { z, value };
+}
+
 export function parseXYZ(text) {
   const lines = text.split(/\r\n|\r|\n/);
   let columns = null;

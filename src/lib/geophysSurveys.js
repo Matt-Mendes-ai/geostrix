@@ -4,7 +4,7 @@
 // its z values mean — is kept once per survey in the project's `geophysSurveys` map, not on 20,000 rows.
 // With more than one survey loaded, each is coloured on its OWN value range (a mag survey in nT and a
 // gravity survey in mGal on one ramp said nothing about either).
-import { colorForVoxelValue, minMax } from "./layers.js";
+import { colorForVoxelValue } from "./layers.js";
 
 export const SURVEY_METHODS = {
   mag: { label: "Magnetics (TMI)", units: "nT" },
@@ -41,20 +41,34 @@ export function surveyStats(rows) {
 // row -> { color, t } where t (0..1) is the row's place in its survey's range (drives the symbol size).
 // One survey: the user's legend (stops / colour mode / min / max) applies, as before. Several: each survey
 // on its own min/max with the default ramp — user stops are in ONE survey's units and would mislead others.
+// TASKS.csv #600 (40958Z) — the DEFAULT colour range is the 2nd–98th percentile, not min–max: one raw walk-mag
+// day (7,797 readings, real field ~56,000 nT) has spikes from 132 to 167,445 nT, and a min–max stretch put every
+// real reading on one flat colour. Values outside the range take the end colours. A range the user sets wins.
+export function robustRange(values, lo = 0.02, hi = 0.98) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return { min: NaN, max: NaN };
+  if (v.length < 20) return { min: v[0], max: v[v.length - 1] };
+  const q = (p) => v[Math.round(p * (v.length - 1))];
+  const r = { min: q(lo), max: q(hi) };
+  return r.max > r.min ? r : { min: v[0], max: v[v.length - 1] };
+}
+const tIn = (m, v) => (m.max > m.min ? Math.min(1, Math.max(0, (v - m.min) / (m.max - m.min))) : 0.3);
 export function makeSurveyColorer(rows, { stops, colorMode, min, max } = {}) {
   const keys = new Set((rows || []).map(surveyKey));
   if (keys.size <= 1) {
-    const mm = minMax((rows || []).map((r) => r.value).filter(Number.isFinite));
-    const model = { stops, colorMode, min: min ?? mm.min, max: max ?? mm.max };
-    return { perSurvey: false, models: new Map([[[...keys][0], model]]), colorOf: (r) => ({ color: colorForVoxelValue(model, r.value), t: mm.max > mm.min ? (r.value - mm.min) / (mm.max - mm.min) : 0.3 }) };
+    const rr = robustRange((rows || []).map((r) => r.value));
+    const model = { stops, colorMode, min: min ?? rr.min, max: max ?? rr.max };
+    return { perSurvey: false, models: new Map([[[...keys][0], model]]), colorOf: (r) => ({ color: colorForVoxelValue(model, r.value), t: tIn(model, r.value) }) };
   }
+  const values = new Map();
+  for (const r of rows) { const k = surveyKey(r); if (!values.has(k)) values.set(k, []); values.get(k).push(r.value); }
   const models = new Map();
-  for (const s of surveyStats(rows)) models.set(s.key, { min: s.min, max: s.max });
+  for (const [k, v] of values) models.set(k, robustRange(v));
   return {
     perSurvey: true, models,
     colorOf: (r) => {
       const m = models.get(surveyKey(r));
-      return { color: colorForVoxelValue(m, r.value), t: m.max > m.min ? (r.value - m.min) / (m.max - m.min) : 0.3 };
+      return { color: colorForVoxelValue(m, r.value), t: tIn(m, r.value) };
     },
   };
 }

@@ -24,7 +24,7 @@ import { fetchSRTMTerrain } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY, crsName } from "../lib/reproject.js";
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
-import { parsePLYBoundary, parseXYZ } from "../lib/geosoft.js";
+import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
@@ -630,14 +630,15 @@ export default function GeophysicsModule() {
     try {
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
+      const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column
       setXyzPending({
         fileName: file.name,
         columns,
         rows: parsedRows,
         xCol: guessColumn(columns, XY_NAME_HINTS.x),
         yCol: guessColumn(columns, XY_NAME_HINTS.y),
-        zCol: "",
-        valueCol: "",
+        zCol: g.z,
+        valueCol: g.value,
       });
     } catch (err) {
       setXyzError({ info: false, text: `Could not parse ${file.name}: ${err.message}` });
