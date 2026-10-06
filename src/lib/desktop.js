@@ -24,6 +24,13 @@ export async function saveFile({ suggestedName, filters, content, encoding }) {
   return { ok: true, fallback: true };
 }
 
+// TASKS.csv #553 — write to a path the user already chose this session (the project's own file); refused by the
+// main process otherwise ({ notAllowed }), and unavailable in a plain browser.
+export async function saveFileTo({ filePath, content, encoding }) {
+  if (!d?.saveFileTo) return { ok: false, notAllowed: true };
+  return d.saveFileTo({ filePath, content, encoding });
+}
+
 export async function openFile({ filters } = {}) {
   if (d) return d.openFile({ filters });
   // browser fallback: hidden file input

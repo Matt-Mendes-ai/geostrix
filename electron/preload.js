@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("desktop", {
   onSectionContacts: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-contacts", h); return () => ipcRenderer.removeListener("section-contacts", h); },
   exportPDF: (payload) => ipcRenderer.invoke("export-pdf", payload),
   saveFile: (payload) => ipcRenderer.invoke("save-file", payload),
+  saveFileTo: (payload) => ipcRenderer.invoke("save-file-to", payload), // TASKS.csv #553
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),
   fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
   fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),

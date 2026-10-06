@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
-import { saveFile, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
+import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 
 const StoreContext = createContext(null);
@@ -961,7 +961,9 @@ export function StoreProvider({ children }) {
   // set just to fix.
   const [activeTabDirty, setActiveTabDirty] = useState(false);
 
-  const saveProject = useCallback(async () => {
+  // TASKS.csv #553 — Save writes straight back to the project's own file (the path it was opened from or last saved
+  // to, kept per workspace tab); only a new project, Save As, or a path the main process won't allow asks where.
+  const saveProject = useCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
     if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?")) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
@@ -970,7 +972,9 @@ export function StoreProvider({ children }) {
     let res;
     try {
     const payload = snapshotCurrentPayload();
-    res = await saveFile({
+    const knownPath = !saveAs ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null;
+    if (knownPath) res = await saveFileTo({ filePath: knownPath, content: JSON.stringify(payload) });
+    if (!res || res.notAllowed) res = await saveFile({
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
       // in the filter list so old .geox.json project files the user already has on disk still show up
       // and open fine (JSON.parse doesn't care about the filename, and both extensions end in "json").
@@ -1000,7 +1004,7 @@ export function StoreProvider({ children }) {
       // live. Undo history deliberately still survives a save (you can undo past a save point, same
       // as most editors) — only the tab-dirty *indicator* resets here, tracked separately from undo
       // for exactly this reason.
-      setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false } : t)));
+      setWorkspaceTabs((tabs) => tabs.map((t) => (t.id === activeTabId ? { ...t, name: displayName, dirty: false, ...(res.filePath ? { filePath: res.filePath } : {}) } : t)));
     }
     return res;
   }, [workspaceTabs, activeTabId, project]);
@@ -1092,7 +1096,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       const displayName = fileNameToProjectName(openedFileName) || data.project?.name || "Untitled project";
       setWorkspaceTabs([
         ...workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)),
-        { id, name: displayName, payload: null, dirty: false },
+        { id, name: displayName, payload: null, dirty: false, filePath: res.filePath || null }, // #553
       ]);
       loadProjectPayload(data, displayName);
       setActiveTabId(id);

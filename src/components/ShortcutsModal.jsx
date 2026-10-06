@@ -18,7 +18,8 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+N", "New project"],
       ["Ctrl/Cmd+O", "Open project…"],
-      ["Ctrl/Cmd+S", "Save project…"],
+      ["Ctrl/Cmd+S", "Save project (to its own file; asks where only the first time)"],
+      ["Ctrl/Cmd+Shift+S", "Save project as…"], // #553
       ["Ctrl/Cmd+I", "Import CSV…"],
       ["Ctrl/Cmd+P", "Export PDF (of the Layout page)"],
     ],

@@ -158,8 +158,8 @@ export default function App() {
     return () => { cancelled = true; if (slowTimer) clearTimeout(slowTimer); window.removeEventListener("geostrix-sidecar-started", onStarted); };
   }, []);
 
-  const doSave = useCallback(async () => {
-    const res = await saveProject();
+  const doSave = useCallback(async (opts) => {
+    const res = await saveProject(opts); // #553 — opts.saveAs for Save As
     if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
     // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
     else if (res.error) window.alert(`The project could not be saved:
@@ -232,6 +232,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       else if (action === "new-project") doNew();
       else if (action === "open-project") doOpen();
       else if (action === "save-project") doSave();
+      else if (action === "save-project-as") doSave({ saveAs: true }); // #553
       else if (action === "shortcuts") setShortcutsTab("shortcuts");
       else if (action === "about") setShortcutsTab("about");
       else if (action === "undo") undo();
@@ -369,7 +370,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
         <button className="ge-tool-btn" onClick={doNew} title="New project" aria-label="New project"><FilePlus2 size={14} /> <span className="ge-tool-label-opt">New</span></button>
         <button className="ge-tool-btn" onClick={doOpen} title="Open project" aria-label="Open project"><FolderOpen size={14} /> <span className="ge-tool-label-opt">Open</span></button>
-        <button className="ge-tool-btn" onClick={doSave} title="Save project" aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
+        <button className="ge-tool-btn" onClick={() => doSave()} title="Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)" aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
         <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>

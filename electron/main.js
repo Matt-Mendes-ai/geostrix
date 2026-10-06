@@ -521,6 +521,24 @@ ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape }) 
 });
 
 // ---------- generic file save (csv / png / svg) ----------
+// TASKS.csv #553 — paths the USER chose in a save / open dialog this session. Ctrl+S writes straight back to the
+// project's file (save-file-to) only if its path is in here, so a renderer can never name an arbitrary file to
+// overwrite; after a restart the set is empty and the renderer falls back to the dialog.
+const userChosenPaths = new Set();
+const pathKey = (p) => path.normalize(String(p || "")).toLowerCase();
+async function writeChosenFile(filePath, content, encoding) {
+  // #341 — atomic write (see fileSafety.js); a project file's previous version is kept as .bak
+  let backup = null;
+  try { backup = await backupBeforeOverwrite(filePath); } catch (_) { backup = null; }
+  if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
+  else await writeFileAtomic(filePath, content, "utf8");
+  return backup;
+}
+ipcMain.handle("save-file-to", async (_ev, { filePath, content, encoding }) => {
+  if (!filePath || !userChosenPaths.has(pathKey(filePath))) return { ok: false, notAllowed: true, error: "Choose where to save first." };
+  const backup = await writeChosenFile(filePath, content, encoding);
+  return { ok: true, filePath, backup };
+});
 ipcMain.handle("save-file", async (ev, { suggestedName, filters, content, encoding }) => {
   const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
@@ -529,11 +547,8 @@ ipcMain.handle("save-file", async (ev, { suggestedName, filters, content, encodi
     filters: filters || [{ name: "All Files", extensions: ["*"] }],
   });
   if (canceled || !filePath) return { ok: false };
-  // #341 — atomic write (see fileSafety.js); a project file's previous version is kept as .bak
-  let backup = null;
-  try { backup = await backupBeforeOverwrite(filePath); } catch (_) { backup = null; }
-  if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
-  else await writeFileAtomic(filePath, content, "utf8");
+  userChosenPaths.add(pathKey(filePath)); // #553
+  const backup = await writeChosenFile(filePath, content, encoding);
   return { ok: true, filePath, backup };
 });
 
@@ -551,6 +566,7 @@ ipcMain.handle("open-file", async (ev, { filters }) => {
   const { size } = await fs.promises.stat(filePaths[0]);
   if (size > MAX_OPEN_BYTES) return { ok: false, error: `That file is ${Math.round(size / 1048576)} MB — larger than GeoStrix opens (512 MB).` };
   const content = await fs.promises.readFile(filePaths[0], "utf8");
+  userChosenPaths.add(pathKey(filePaths[0])); // #553 — an opened project can be saved back in place
   return { ok: true, filePath: filePaths[0], content, name: path.basename(filePaths[0]) };
 });
 
@@ -916,7 +932,8 @@ function buildMenu() {
       submenu: [
         { label: "New Project", accelerator: "CmdOrCtrl+N", click: () => mainWindow?.webContents.send("menu", "new-project") },
         { label: "Open Project…", accelerator: "CmdOrCtrl+O", click: () => mainWindow?.webContents.send("menu", "open-project") },
-        { label: "Save Project…", accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") },
+        { label: "Save Project", accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
+        { label: "Save Project As…", accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
         { type: "separator" },
         { label: "Import CSV…", accelerator: "CmdOrCtrl+I", click: () => mainWindow?.webContents.send("menu", "import-csv") },
         { label: "Import Assays…", click: () => mainWindow?.webContents.send("menu", "import-assays") },
