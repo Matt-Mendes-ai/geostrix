@@ -365,6 +365,9 @@ export async function isSidecarRunning() {
 
 // #391 follow-up — the README this used to point to isn't installed; the status bar's "Py" opens the in-app help
 const SIDECAR_UNREACHABLE = "GeoStrix's Python engine isn't reachable (not started, still starting, or blocked) — click \"Py\" in the status bar for what to check.";
+// TASKS.csv #563 — the pip advice only means something when running from source (no desktop bridge): the
+// installer ships the engine frozen, with no requirements.txt and no pip.
+const DEV_PIP_HINT = () => (d ? "" : " (Running from source: pip install -r python-sidecar/requirements.txt in python-sidecar's venv.)");
 async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, signal } = {}) {
   await ensureSidecarUp();
   try {
@@ -380,8 +383,12 @@ async function sidecarJson(path, { method = "GET", body, timeoutMs = 30000, sign
     if (!res.ok) return { ok: false, status: res.status, error: formatSidecarErrorDetail(data?.detail) || `Sidecar returned HTTP ${res.status}`, data }; // data: #515 (running_job)
     return { ok: true, status: res.status, data };
   } catch (err) {
-    if (err?.code === "SIDECAR_IDENTITY") return { ok: false, status: 0, error: err.message }; // #353
-    return { ok: false, status: 0, error: SIDECAR_UNREACHABLE };
+    // TASKS.csv #563 — say WHY: every failure used to read "isn't reachable", so a slow /result on a weak machine
+    // or a user cancel looked like a missing engine. reason: identity | aborted | timeout | unreachable.
+    if (err?.code === "SIDECAR_IDENTITY") return { ok: false, status: 0, reason: "identity", error: err.message }; // #353
+    if (signal?.aborted) return { ok: false, status: 0, reason: "aborted", error: "Cancelled." };
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") return { ok: false, status: 0, reason: "timeout", error: `GeoStrix's Python engine didn't answer within ${Math.round(timeoutMs / 1000)} s — it may still be busy (a first run, or a slower machine, takes longer). Try again in a moment.` };
+    return { ok: false, status: 0, reason: "unreachable", error: SIDECAR_UNREACHABLE + DEV_PIP_HINT() };
   }
 }
 
@@ -505,7 +512,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   };
   const start = await startSidecarJob("implicit", request); // #515
   if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
-  if (!start.ok) return { ok: false, error: start.status === 0 ? "Python sidecar not reachable, or gempy isn't installed there yet (pip install -r python-sidecar/requirements.txt)." : start.error };
+  if (!start.ok) return { ok: false, error: start.error }; // #563 — the real reason (identity / timeout / unreachable / HTTP), unchanged
   const id = start.data.id;
   const deadline = Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now
   const cancelled = () => opts.signal?.aborted;
@@ -592,7 +599,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
     if (err?.name === "TimeoutError" || err?.name === "AbortError") {
       return { ok: false, error: "Timed out after 5 minutes waiting on the sidecar. GemPy's first run after the sidecar starts is slow (importing its numba-backed dependencies alone can take a while) — if this was the first run this session, try again now that it's warmed up. If it keeps timing out, try a coarser resolution or fewer points/orientations." };
     }
-    return { ok: false, error: "Python sidecar not reachable, or gempy isn't installed there yet (pip install -r python-sidecar/requirements.txt — this pulls in gempy, a bigger install than the base sidecar)." };
+    return { ok: false, error: SIDECAR_UNREACHABLE + DEV_PIP_HINT() }; // #563
   }
 }
 

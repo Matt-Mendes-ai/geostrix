@@ -7072,7 +7072,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Models the top contact of one unit from litho intervals, via GemPy in the Python sidecar.
+          Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine.
           Uses structure dip/azimuth for orientation when available; if not, estimates one from the
           contact points themselves so it can still run.
         </div>
@@ -7109,7 +7109,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button
             onClick={() => runImplicitModel(implicitTarget)}
             disabled={!implicitTarget || implicitBusy}
-            title="Requires the Python sidecar (see status bar) with gempy installed"
+            title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
@@ -7242,7 +7242,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}
-          title="Requires the Python sidecar (see status bar) with gempy installed"
+          title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
         ><Layers3 size={14} /> {implicitBusy ? "Running…" : `Run stack (${stackUnits.length} unit${stackUnits.length === 1 ? "" : "s"})`}</button>
 
@@ -7289,7 +7289,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button
             onClick={() => runStructuralModel(structuralTarget)}
             disabled={!structuralTarget || implicitBusy}
-            title="Requires the Python sidecar (see status bar) with gempy installed"
+            title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
           >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
@@ -7304,7 +7304,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a
           0/1 "altered?" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the
           lithology/structural tools this makes no assumption about which way is "up" — a halo wraps its
-          conduit rather than draping like a contact. Runs in-app, no Python sidecar needed.
+          conduit rather than draping like a contact. Runs in-app, no Python engine needed.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
@@ -7345,7 +7345,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is
           interpolated over it; the hangingwall and footwall are that midplane offset by half the
           thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app,
-          no Python sidecar needed.
+          no Python engine needed.
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
@@ -7403,7 +7403,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Builds a wireframe envelope of everything at or above a cutoff grade directly from
           assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff.
-          Runs in-app, no Python sidecar needed.
+          Runs in-app, no Python engine needed.
           {/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour

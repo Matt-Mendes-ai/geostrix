@@ -88,3 +88,18 @@ test("#515 a job abandoned while the engine was unreachable is cancelled by the 
   assert.match(r2.error, /already running/);
   assert.equal(count(/cancel/), 0);
 });
+
+test("#563 implicit start failures keep their real reason; no pip advice in the installed app", async () => {
+  reset((p) => { if (p === "/v1/jobs") down(); return json({}, 404); }); // the start request times out
+  let r = await D.pythonImplicitModel([0, 1, 0, 1, 0, 1], [], {});
+  assert.equal(r.ok, false);
+  assert.match(r.error, /didn't answer within \d+ s/);
+  assert.doesNotMatch(r.error, /pip install|not reachable/);
+  reset((p) => { if (p === "/v1/jobs") throw new TypeError("fetch failed"); return json({}, 404); }); // nothing listening
+  r = await D.pythonImplicitModel([0, 1, 0, 1, 0, 1], [], {});
+  assert.match(r.error, /isn't reachable/);
+  assert.doesNotMatch(r.error, /pip install/); // window.desktop is set: an installed app has no pip
+  reset((p) => (p === "/v1/jobs" ? json({ detail: "gempy failed: bad orientation" }, 500) : json({}, 404)));
+  r = await D.pythonImplicitModel([0, 1, 0, 1, 0, 1], [], {});
+  assert.match(r.error, /bad orientation/); // an HTTP error's own detail is passed through
+});
