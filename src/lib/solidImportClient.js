@@ -5,12 +5,11 @@
 // If a worker can't be started at all (it fails before sending anything), the same streaming parser runs on
 // the UI thread instead: slower to feel, same result. A parse ERROR from the worker is reported as-is, not
 // retried.
-import { parseSolidFileStream } from "./solidImport.js";
 
 export function parseSolidInWorker(file, onProgress) {
   return new Promise((resolve, reject) => {
     let worker, heard = false;
-    const fallback = () => parseSolidFileStream(file, onProgress).then(resolve, reject);
+    const fallback = () => import("./solidImport.js").then(({ parseSolidFileStream }) => parseSolidFileStream(file, onProgress)).then(resolve, reject); // #552 — on demand
     try {
       worker = new Worker(new URL("./solidImport.worker.js", import.meta.url), { type: "module" });
     } catch {

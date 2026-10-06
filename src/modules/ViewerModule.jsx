@@ -16,15 +16,12 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { sectionStringsToRows, sectionStringsToDXF } from "../lib/sectionExport.js"; // TASKS.csv #409
 import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { openSectionWindow, saveFile } from "../lib/desktop.js";
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
-import { buildShapefileZip } from "../lib/shapefile.js";
-import { buildDXF } from "../lib/dxf.js"; // parseDXF: TASKS.csv #289; dxfToBoundaries: #408
-import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImport.js"; // TASKS.csv #148
+import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
@@ -78,7 +75,7 @@ import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 �
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, ESTIMATION_METHODS } from "../lib/estimation.js"; // SUPPORT_*: TASKS.csv #91/#92
+import { SUPPORT_COLORS, ESTIMATION_METHODS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
@@ -5585,10 +5582,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return { features: [], geomType: "point" };
   };
 
-  const exportVectorShapefile = (kind, key, label) => {
+  const exportVectorShapefile = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
     try {
+      const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const zipBytes = buildShapefileZip({ features, geomType, epsg: project?.epsg, baseName: label });
       saveFile({
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
@@ -5623,10 +5621,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #128 — DXF export, the CAD/GIS interop format surveyors and mine planners actually work
   // in day to day, alongside Shapefile/GeoPackage above. Same buildVectorFeatures() data path, just a
   // third output format — plan-view only (X/Y; Z dropped), per src/lib/dxf.js's own scope note.
-  const exportVectorDXF = (kind, key, label) => {
+  const exportVectorDXF = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
     try {
+      const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
       const dxfText = buildDXF({ features, geomType });
       saveFile({
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
@@ -6734,9 +6733,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string: one row per vertex with real x, y, z"
-                      onClick={async () => { const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>Strings CSV</span>
+                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>Strings CSV</span>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS"
-                      onClick={async () => { const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>DXF</span>
+                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>DXF</span>
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}

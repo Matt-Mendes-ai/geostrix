@@ -16,7 +16,7 @@ import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
-import { samplePointsFromIntervals, estimateDenseGrid, MAX_BLOCKS, SUPPORT_COLORS, summarizeSupport } from "../../lib/estimation.js";
+import { MAX_BLOCKS, SUPPORT_COLORS } from "../../lib/estimationMeta.js"; // #552 — the estimator itself loads in the run functions
 import { compositeDownhole } from "../../lib/geochem.js";
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice } from "../../lib/notices.js";
@@ -1004,6 +1004,7 @@ export function useModelling(ctx) {
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
+        const { samplePointsFromIntervals, estimateDenseGrid } = await import("../../lib/estimation.js"); // #552 — on demand
         const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
@@ -1305,6 +1306,7 @@ export function useModelling(ctx) {
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
+        const { samplePointsFromIntervals, estimateDenseGrid, summarizeSupport } = await import("../../lib/estimation.js"); // #552 — on demand
         // TASKS.csv #266 — QC inserts (standards/blanks/duplicates) are excluded by default here, the
         // same as Best Intercepts / Compositing / Grade Statistics already do. They used to reach the
         // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has

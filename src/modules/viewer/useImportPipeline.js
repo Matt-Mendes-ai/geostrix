@@ -9,12 +9,11 @@ import { useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
-import { azimuthToGridOffset, wrap360 } from "../../lib/azimuthRef.js";
+import { azimuthToGridOffset, wrap360, loadIgrf } from "../../lib/azimuthRef.js"; // loadIgrf: #552
 import { orientFromAlphaBeta } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
-import { dxfToBoundaries } from "../../lib/dxf.js";
-import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
+const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
@@ -129,6 +128,7 @@ export function useImportPipeline(ctx) {
     if (/\.dxf$/.test(name)) {
       try {
         // TASKS.csv #408 — one boundary per DXF layer, keeping Z; a face-only DXF is a solid.
+        const { dxfToBoundaries } = await import("../../lib/dxf.js"); // #552 — on demand
         const specs = dxfToBoundaries(await file.text(), file.name.replace(/\.dxf$/i, ""));
         specs.forEach((sp) => addBoundary({ ...sp, elevation: defaultElevation }));
         const n3d = specs.filter((sp) => sp.useVertexZ).length;
@@ -175,7 +175,7 @@ export function useImportPipeline(ctx) {
         const loc = locate(r);
         const key = loc ? `${Math.round(loc.x / 100)},${Math.round(loc.y / 100)}` : null; // 100 m cells: same offset to <0.01 deg
         let o = key ? cache.get(key) : null;
-        if (key && o === undefined) { o = azimuthToGridOffset(azimuthRef, loc.x, loc.y, epsg, azimuthDate); cache.set(key, o); }
+        if (key && o === undefined) { try { o = azimuthToGridOffset(azimuthRef, loc.x, loc.y, epsg, azimuthDate); } catch { o = null; } cache.set(key, o); }
         if (!o) { failed.add(r.hole_id); return r; }
         fixed++; if (!example) example = o;
         return { ...r, azimuth: wrap360(r.azimuth + o.offset) };
@@ -445,6 +445,7 @@ export function useImportPipeline(ctx) {
   const commitImport = async () => {
     if (!importModal) return;
     await askCrsForCollars(importModal); // #615
+    if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;
     const units = importModal.units || "m";
@@ -560,6 +561,7 @@ export function useImportPipeline(ctx) {
       for (const f of files) {
         if (!isXlsxName(f.name)) { expanded.push(f); continue; }
         try {
+          const { xlsxToCsvFiles } = await import("../../lib/xlsx.js"); // #552
           const sheets = await xlsxToCsvFiles(new Uint8Array(await f.arrayBuffer()), f.name);
           setNotices((p) => [...p, `${f.name}: ${sheets.length} sheet(s) with data — ${sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ")}. Each is imported like a CSV.`]);
           sheets.forEach((s) => expanded.push(new File([s.text], s.name, { type: "text/csv" })));

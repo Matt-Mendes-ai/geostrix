@@ -75,12 +75,13 @@ test("#450 approximate grid warp matches exact per-pixel projection", () => {
   assert.ok(maxd < 0.05, `max diff ${maxd}`);
 });
 
-import { azimuthToGridOffset } from "../src/lib/azimuthRef.js";
-test("#396 azimuth reference offsets at the Harry property", () => {
+import { azimuthToGridOffset, loadIgrf } from "../src/lib/azimuthRef.js";
+test("#396 azimuth reference offsets at the Harry property", async () => {
   const x = 463333, y = 6178148;
   assert.equal(azimuthToGridOffset("grid", x, y, 3156).offset, 0);
   const t = azimuthToGridOffset("true", x, y, 3156);
   assert.ok(Math.abs(t.offset - 0.483) < 0.01, `convergence ${t.offset}`); // textbook gamma = atan(tan(dlon) sin(lat)) -> 0.483
+  await loadIgrf();
   const m = azimuthToGridOffset("magnetic", x, y, 3156, "2026-09-01");
   assert.ok(m.declination > 17 && m.declination < 18, `declination ${m.declination}`);
   assert.equal(azimuthToGridOffset("magnetic", x, y, 3156, ""), null); // no date, no guess

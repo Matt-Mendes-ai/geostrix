@@ -2,10 +2,11 @@
 // GeoPackage / raster loaders), moved unchanged from the top of ViewerModule.jsx with their comments; used by
 // modules/viewer/useImportPipeline.js and ViewerModule.jsx.
 import { guessEpsgFromPrjWkt } from "../reproject.js";
-import { readKmlFile, kmlFeaturesToRows } from "../kml.js";
 import { isElementColumn } from "../geochem.js"; // TASKS.csv #600
-import { xlsxToCsvFiles } from "../xlsx.js"; // TASKS.csv #605
-import { parseShapefileZip, parseShapefileParts, shapefileFeaturesToRows } from "../shapefile.js";
+// TASKS.csv #552 — the KML / xlsx / shapefile readers load on first use (they were ~20 kB of startup JavaScript)
+const loadKml = () => import("../kml.js");
+const loadXlsx = () => import("../xlsx.js");
+const loadShapefile = () => import("../shapefile.js");
 import { num, isOverturnedValue, targetFromName, guessTargetFor } from "../layers.js";
 import { parseTableFile, parseTableText } from "../tabular.js";
 
@@ -155,6 +156,7 @@ export function groupShapefileParts(list) {
 }
 async function readLooseShapefile(file) {
   const parts = file.shpParts || {};
+  const { parseShapefileParts } = await loadShapefile();
   return parseShapefileParts({
     shp: new Uint8Array(await file.arrayBuffer()),
     dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null,
@@ -167,7 +169,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   // TASKS.csv #424 — KML/KMZ waypoints and tracks: lon/lat rows with the source CRS set to EPSG:4326
   // (KML is always WGS84), so the normal import step reprojects them to the project CRS.
   if (name.endsWith(".kml") || name.endsWith(".kmz")) {
-    readKmlFile(file).then(({ features, skipped }) => {
+    loadKml().then(({ readKmlFile, kmlFeaturesToRows }) => readKmlFile(file).then(({ features, skipped }) => ({ features, skipped, kmlFeaturesToRows }))).then(({ features, skipped, kmlFeaturesToRows }) => {
       if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
       const { rows, headers } = kmlFeaturesToRows(features);
       const nPts = features.filter((f) => f.geomType === "point").length;
@@ -181,7 +183,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   // through the same picker as a multi-layer .zip / .gpkg (#288), named by sheet. (A dropped workbook is
   // instead expanded into one queued file per sheet — useImportPipeline.handleDrop.)
   if (name.endsWith(".xlsx")) {
-    file.arrayBuffer().then((buf) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then((sheets) => {
+    Promise.all([file.arrayBuffer(), loadXlsx()]).then(([buf, { xlsxToCsvFiles }]) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then((sheets) => {
       if (!sheets.length) { onDone(null, "No sheet with a header row and data in this workbook."); return; }
       const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
       if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => ({ name: s.sheet, count: s.rows, unit: "row" })) }); return; }
@@ -215,9 +217,9 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   }
   if (name.endsWith(".zip") || name.endsWith(".shp")) {
     const reader = name.endsWith(".zip")
-      ? file.arrayBuffer().then((buf) => parseShapefileZip(buf, chosenLayer))
+      ? Promise.all([file.arrayBuffer(), loadShapefile()]).then(([buf, { parseShapefileZip }]) => parseShapefileZip(buf, chosenLayer))
       : readLooseShapefile(file);
-    reader.then((parsed) => {
+    Promise.all([reader, loadShapefile()]).then(([parsed, { shapefileFeaturesToRows }]) => {
       // TASKS.csv #288 — same "ask, don't silently take the first one" gate as the GeoPackage branch
       // above. parseShapefileZip now returns the real basenames, not just a count of the skipped ones.
       if (parsed.layerNames?.length > 1 && !chosenLayer) {

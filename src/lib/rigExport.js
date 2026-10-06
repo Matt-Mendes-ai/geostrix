@@ -6,7 +6,9 @@
 //
 // Pure: reprojection + IGRF, no UI. `trace(hole)` gives the hole's world polyline ({x, y, z}) for the toe.
 import { reprojectXY } from "./reproject.js";
-import { azimuthToGridOffset, wrap360 } from "./azimuthRef.js";
+import { azimuthToGridOffset, wrap360, setIgrfModule } from "./azimuthRef.js";
+import * as igrf from "./igrf.js"; // #552 — this module is loaded on demand, so it brings IGRF with it
+setIgrfModule(igrf);
 
 const r7 = (v) => (Number.isFinite(v) ? Number(v.toFixed(7)) : "");
 const r2 = (v) => (Number.isFinite(v) ? Number(v.toFixed(2)) : "");

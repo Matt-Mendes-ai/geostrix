@@ -12,7 +12,13 @@
 // Pure: reprojection + IGRF only, no UI. Returns null when the location can't be converted (no project
 // CRS, or a CRS proj4 doesn't know) so the caller can say so instead of guessing.
 import { reprojectXY } from "./reproject.js";
-import { igrfField, decimalYear } from "./igrf.js";
+// TASKS.csv #552 — IGRF (20 kB of coefficients) is needed only for MAGNETIC azimuths, so it isn't a static import:
+// loadIgrf() fetches it (the import pipeline awaits it before converting magnetic azimuths), and a lazily-loaded
+// module that imports igrf.js itself can hand it over with setIgrfModule(). Without it, a magnetic conversion throws
+// rather than silently returning a grid-only answer.
+let igrf = null;
+export const setIgrfModule = (mod) => { igrf = mod; };
+export const loadIgrf = () => (igrf ? Promise.resolve(igrf) : import("./igrf.js").then((m) => (igrf = m)));
 import { trueNorthBearingInGridDeg } from "./inversion.js";
 
 export const AZIMUTH_REFS = {
@@ -30,12 +36,13 @@ export function azimuthToGridOffset(ref, x, y, epsg, isoDate) {
   if (convergence == null || !Number.isFinite(convergence)) return null;
   if (ref === "true") return { offset: convergence, convergence };
   if (ref === "magnetic") {
-    const year = decimalYear(String(isoDate || ""));
+    if (!igrf) throw new Error("azimuthToGridOffset: magnetic north needs loadIgrf() first");
+    const year = igrf.decimalYear(String(isoDate || ""));
     if (!Number.isFinite(year)) return null;
     const ll = reprojectXY(x, y, epsg, 4326);
     if (!ll) return null;
     let f;
-    try { f = igrfField(ll.x, ll.y, 0, year); } catch { return null; } // outside IGRF's 1900-2030 range
+    try { f = igrf.igrfField(ll.x, ll.y, 0, year); } catch { return null; } // outside IGRF's 1900-2030 range
     return { offset: f.declination + convergence, declination: f.declination, convergence };
   }
   return null;

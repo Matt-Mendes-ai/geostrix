@@ -21,11 +21,12 @@
 // per DXF layer / OBJ object: { parts: [{ layer, positions: Float64Array (world e,n,z), indices: Uint32Array }],
 // triangleCount, vertexCount, format, note }. solidImport.worker.js runs parseSolidFileStream off the UI
 // thread; parseSolidFile(name, text) is the same thing for a string already in memory (tests).
+import { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds } from "./solidImportMeta.js"; // #552
+export { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds };
 import { createDXFMeshParser, lineFeeder } from "./dxf.js";
 
 // Above this the import asks first: fine on a gaming PC, slow to orbit on the modest laptops GeoStrix is
 // built for, and (until imported solids are stored compactly) tens of MB in every save.
-export const SOLID_FACE_WARN = 1_000_000;
 
 // OBJ: `v x y z` vertex lines and `f` face lines. Face vertex references may be `v`, `v/vt`, `v//vn`
 // or `v/vt/vn`, and may be NEGATIVE (relative to the end of the vertex list so far) — both handled,
@@ -85,7 +86,6 @@ export function createOBJMeshParser() {
 }
 export function parseOBJMesh(text) { const p = createOBJMeshParser(); p.feed(text); return p.finish(); }
 
-export const SOLID_IMPORT_EXTENSIONS = ".dxf,.obj";
 
 function parserFor(fileName) {
   const name = String(fileName || "").toLowerCase();
@@ -128,15 +128,6 @@ export async function parseSolidFileStream(file, onProgress) {
 // Axis-aligned bounding box of a parsed solid's parts, in world coordinates. The import UI reports this so a
 // user can immediately see whether the file landed on the property or 6,000 km away — the single most
 // common failure with CRS-less CAD hand-offs, and the reason this is surfaced rather than assumed.
-export function solidBounds(parts) {
-  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
-  for (const p of parts || []) {
-    const a = p.positions;
-    for (let i = 0; i < a.length; i += 3) for (let k = 0; k < 3; k++) { const v = a[i + k]; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
-  }
-  if (mn[0] === Infinity) return null;
-  return { min: { x: mn[0], y: mn[1], z: mn[2] }, max: { x: mx[0], y: mx[1], z: mx[2] } };
-}
 
 // TASKS.csv #483 — per-vertex normals of a part, in WORLD axes, computed in the solid worker so the UI thread
 // no longer spends ~400 ms in three.js computeVertexNormals after a 1M-face import. Same maths as three.js:
