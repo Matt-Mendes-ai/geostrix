@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layers.js"; // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
+import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -392,6 +393,11 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
       negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
       mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
+        const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
+        const near = new Map(); rows.forEach((r) => { if (ids.has(r.hole_id) || near.has(r.hole_id)) return; const m = /Did you mean "([^"]+)"/.exec(didYouMean(ids, r.hole_id)); if (m) near.set(r.hole_id, m[1]); });
+        return near.size ? `${near.size} hole id(s) match a collar only if case / spaces / hyphens are ignored (${[...near].slice(0, 4).map(([x, y]) => `"${x}" → "${y}"`).join(", ")}) — kept as typed; fix them in the file to attach these assays.` : null;
+      })(),
       replaceHoles.length ? `Replaced the assays of ${replaceHoles.length} hole(s) whose sample intervals changed (${replaceHoles.slice(0, 6).map((h) => h.hole_id).join(", ")}${replaceHoles.length > 6 ? ", …" : ""}).` : null, // #530
       changed.length && !replaceHoles.length ? `${changed.length} hole(s) kept their old intervals beside this file's different ones (${changed.slice(0, 6).map((h) => h.hole_id).join(", ")}${changed.length > 6 ? ", …" : ""}) — Data QC lists the overlaps.` : null, // #530
       skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508

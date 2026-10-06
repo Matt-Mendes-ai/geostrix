@@ -14,6 +14,9 @@ import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax } from "./arrayStats.js";
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 
+import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
+export { didYouMean };
+
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
 
 function pushIssue(issues, severity, category, holeId, message) {
@@ -71,7 +74,7 @@ function validateSurveyAndTrajectory(collars, survey) {
     byHole.get(s.hole_id).push(s);
   });
   survey.forEach((s) => {
-    if (!collarIds.has(s.hole_id)) pushIssue(issues, "error", "Survey", s.hole_id, `Survey row references hole "${s.hole_id}", which has no matching collar — this hole cannot be desurveyed and won't render.`);
+    if (!collarIds.has(s.hole_id)) pushIssue(issues, "error", "Survey", s.hole_id, `Survey row references hole "${s.hole_id}", which has no matching collar — this hole cannot be desurveyed and won't render.${didYouMean(collarIds, s.hole_id)}`);
     if (!Number.isFinite(s.depth) || s.depth < 0) pushIssue(issues, "error", "Survey", s.hole_id, `Survey station has an invalid depth (${s.depth}).`);
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey azimuth ${s.azimuth}° is outside 0–360° @ ${s.depth}m.`);
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey dip ${s.dip}° is outside -90–90° @ ${s.depth}m.`);
@@ -138,7 +141,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
   rows.forEach((r) => {
     if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
     byHole.get(r.hole_id).push(r);
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Interval references hole "${r.hole_id}", which has no matching collar.`);
+    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Interval references hole "${r.hole_id}", which has no matching collar.${didYouMean(collarIds, r.hole_id)}`);
     if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) {
       pushIssue(issues, "error", layerLabel, r.hole_id, `Interval has a non-numeric from/to (${r.from}–${r.to}).`);
     } else if (r.from > r.to) {
@@ -199,7 +202,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
 function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
   const issues = [];
   rows.forEach((r) => {
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Point references hole "${r.hole_id}", which has no matching collar.`);
+    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Point references hole "${r.hole_id}", which has no matching collar.${didYouMean(collarIds, r.hole_id)}`);
     const depth = r.depth ?? r.from;
     if (!Number.isFinite(depth) || depth < 0) pushIssue(issues, "error", layerLabel, r.hole_id, `Point has an invalid depth (${depth}).`);
     const maxDepth = holeLengths.get(r.hole_id);
@@ -235,7 +238,7 @@ function validateAssays(assays, collarIds, holeLengths) {
     if (isMarkedQcRow(a)) return; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
-    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval references hole "${a.hole_id}", which has no matching collar.`);
+    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval references hole "${a.hole_id}", which has no matching collar.${didYouMean(collarIds, a.hole_id)}`);
     if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) {
       pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval has a non-numeric from/to (${a.from}–${a.to}).`);
     } else if (a.from > a.to) {

@@ -274,3 +274,16 @@ test("#546 Micromine / Datamine survey and litho headers are recognised", async 
   assert.equal(guessMapping("litho", ["HOLE", "FROM", "TO", "ROCK"]).value, "ROCK");
   assert.equal(guessMapping("litho", ["HOLE", "FROM", "TO", "LITH"]).value, "LITH");
 });
+
+test("#541 Data QC names the collar an orphan id nearly matches (case / spaces / hyphens), without merging", async () => {
+  const { runDataQC, didYouMean } = await import("../src/lib/dataQC.js");
+  const ids = new Set(["DDH-01", "DDH-02"]);
+  assert.match(didYouMean(ids, "ddh-01"), /Did you mean "DDH-01"/);
+  assert.match(didYouMean(ids, "DDH 02"), /Did you mean "DDH-02"/);
+  assert.equal(didYouMean(ids, "DDH-03"), "");
+  assert.equal(didYouMean(ids, "DDH-01"), "");
+  const qc = runDataQC({ collars: [{ hole_id: "DDH-01", x: 0, y: 0, z: 0, length: 100 }], survey: [], layers: { litho: [{ hole_id: "ddh-01", from: 0, to: 5, value: "AND" }] }, assays: [] });
+  const msg = qc.issues.find((i) => /ddh-01/.test(i.message || i.msg || i.text || ""));
+  assert.ok(msg, JSON.stringify(qc.issues.slice(0, 3)));
+  assert.match(msg.message || msg.msg || msg.text, /Did you mean "DDH-01"/);
+});
