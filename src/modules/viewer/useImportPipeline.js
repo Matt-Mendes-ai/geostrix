@@ -17,6 +17,7 @@ import { dxfToBoundaries } from "../../lib/dxf.js";
 import { isXlsxName, xlsxToCsvFiles } from "../../lib/xlsx.js"; // TASKS.csv #605
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
+import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 
@@ -52,6 +53,14 @@ export function useImportPipeline(ctx) {
   // TASKS.csv #607 — an empty project may take the file's declared CRS (lib/adoptCrs.js). Returns the CRS to import into.
   const adoptCrsIfEmpty = (declared, fileName) => {
     const live = importStateRef.current;
+    // TASKS.csv #615 — a project whose CRS was never chosen simply takes the file's declared one
+    if (live.project?.crsSet === false && Number(declared) > 0 && crsName(declared) && live.setEpsg) {
+      const d = Number(declared);
+      live.setEpsg(d);
+      importStateRef.current = { ...live, project: { ...live.project, epsg: d, crsSet: true }, projectIsEmpty: false };
+      setNotices((p) => [...p, `Project CRS set to ${crsName(d)} (EPSG:${d}), the CRS ${fileName} declares.`]);
+      return d;
+    }
     const d = askAdoptCrs({ isEmpty: live.projectIsEmpty, currentEpsg: live.project?.epsg, declaredEpsg: declared, fileName });
     if (!d || !live.setEpsg) return Number(live.project?.epsg);
     live.setEpsg(d);
@@ -419,10 +428,23 @@ export function useImportPipeline(ctx) {
     return true;
   };
 
+  // TASKS.csv #615 — collar coordinates with no CRS of their own, into a project whose CRS was never chosen: ask
+  // which CRS they are in BEFORE they are placed (a CSV can't say, and the placeholder used to be taken as the
+  // answer). "Decide later" imports them anyway; the status bar keeps saying "CRS: not set".
+  const askCrsForCollars = async (m) => {
+    const live = importStateRef.current;
+    if (m.target !== "collars" || live.project?.crsSet !== false || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return;
+    const xc = m.mapping?.x, yc = m.mapping?.y;
+    const pts = xc && yc ? (m.allRows || []).map((r) => ({ x: parseFloat(String(r[xc]).replace(",", ".")), y: parseFloat(String(r[yc]).replace(",", ".")) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
+    const chosen = await requestProjectCrs(`${String(m.fileName).replace(/ \(\d+ more queued\)$/, "")}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`, pts);
+    if (chosen) importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true } };
+  };
+
   // Modal's "Import" button: commit whatever's currently in importModal state, then close it and
   // let the multi-file queue (if there is one) move on to the next file.
-  const commitImport = () => {
+  const commitImport = async () => {
     if (!importModal) return;
+    await askCrsForCollars(importModal); // #615
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
     let modalData = importModal;
     const units = importModal.units || "m";
@@ -503,8 +525,7 @@ export function useImportPipeline(ctx) {
       const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
         sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
       if (confident) {
-        commitImportData(modalData);
-        processImportQueue();
+        askCrsForCollars(modalData).then(() => { commitImportData(modalData); processImportQueue(); }); // #615
       } else {
         const remaining = importQueueRef.current.length;
         setImportModal({ ...modalData, fileName: remaining ? `${file.name} (${remaining} more queued)` : file.name });

@@ -52,7 +52,7 @@ function sampleLive() {
     else if (f.key === "layers") live[f.key] = { ...EMPTY_LAYERS, litho: [{ hole_id: "H1", from: 0, to: 2, value: "AND" }] };
     else if (f.key !== "project") live[f.key] = { a: 1 };
   }
-  live.project = { name: "Demo", epsg: 32609, desurveyMethod: "tangent" };
+  live.project = { name: "Demo", epsg: 32609, desurveyMethod: "tangent", crsSet: true }; // crsSet: #615
   live.geophysPtsMin = 0; // falsy but real: must survive (?? not ||)
   live.geophysPtsMax = 12.5;
   live.voxelModels = [{ id: "v1", source: "simpeg", cells: [{ x: 500000, y: 6200000, z: 1000, dx: 25, dy: 25, dz: 12.5, value: 0.5, support: 1 }] }];

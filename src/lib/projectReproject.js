@@ -242,7 +242,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   }
   if (live.layoutTemplates?.length) f.layoutTemplates = live.layoutTemplates.map((t) => (Array.isArray(t.elements) ? { ...t, elements: layoutEls(t.elements) } : t));
 
-  f.project = { ...live.project, epsg: Number(toEpsg) };
+  f.project = { ...live.project, epsg: Number(toEpsg), crsSet: true }; // #615
   if (maxRot > 0.005) notes.push(`Azimuths and dip directions were turned by up to ${maxRot.toFixed(2)}° so they still point the same way on the ground (grid north differs between the two CRSs).`);
   return { fields: f, report: { counts, notes, maxRotationDeg: maxRot } };
 }

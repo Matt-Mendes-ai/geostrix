@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
+import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "./components/icons.js";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
@@ -27,6 +28,7 @@ const CartographyModule = React.lazy(() => import("./modules/CartographyModule.j
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
 const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx")); // TASKS.csv #476
+const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
@@ -85,6 +87,11 @@ export default function App() {
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
   const [recovery, setRecovery] = useState(null); // { data, projectName, autosavedAt } | null
   const [recoveryNote, setRecoveryNote] = useState(null); // TASKS.csv #465 — where the recovered work went
+  // TASKS.csv #615 — one project-CRS dialog for every request (status bar, imports, online fetches); a second request
+  // while one is open is answered with the same choice
+  const [crsRequest, setCrsRequest] = useState(null); // { reason, resolvers: [] }
+  useEffect(() => onProjectCrsRequest(({ reason, points, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, resolvers: [resolve] }))), []);
+  const finishCrsRequest = (epsg) => setCrsRequest((cur) => { cur?.resolvers.forEach((r) => r(epsg)); return null; });
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
   // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
@@ -434,7 +441,8 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       </div>
       </RibbonSlotContext.Provider>
 
-      <StatusBar onEpsg={() => setActive("cartography")} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} onDone={finishCrsRequest} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {reportOpen && (
         <Suspense fallback={null}>
@@ -609,7 +617,10 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       <span className="spacer" />
       {/* TASKS.csv #485 — the old inline box relabelled the project without moving any data; the CRS is now set
           (and data optionally reprojected) in the Cartography tab. */}
-      <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to open Cartography (project CRS, reprojection tools)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>
+      {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
+      {project.crsSet === false
+        ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title="The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)" style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>CRS: <span className="val">not set</span></span>
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Cartography tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

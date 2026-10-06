@@ -91,8 +91,14 @@ export const FIELDS = [
   // name comes from the file name when there is one (#199), so load() takes the display name too. Its own
   // edits mark the project unsaved through extraDirtyValues (EPSG and desurvey method only — a rename is not).
   { key: "project", track: "view",
-    empty: () => ({ name: "Untitled project", epsg: 3156, desurveyMethod: DEFAULT_DESURVEY_METHOD }), // 3156 = NAD83 UTM 9N
-    load: (data, name) => ({ ...(data.project || { epsg: 3156 }), name: name || data.project?.name || "Untitled project" }) },
+    // TASKS.csv #615 — crsSet: did the USER choose the CRS? A new project still carries a number (97 call sites read
+    // project.epsg), but 3156 is only a placeholder until crsSet: the status bar says "CRS not set" and imports /
+    // online fetches ask. A file saved before #615 counts as chosen unless it holds the old silent default.
+    empty: () => ({ name: "Untitled project", epsg: 3156, crsSet: false, desurveyMethod: DEFAULT_DESURVEY_METHOD }), // 3156 = NAD83 UTM 9N (placeholder)
+    load: (data, name) => {
+      const p = data.project || { epsg: 3156 };
+      return { ...p, crsSet: p.crsSet ?? (p.epsg != null && Number(p.epsg) !== 3156), name: name || p.name || "Untitled project" };
+    } },
   { key: "collars", track: "undo", empty: list },
   { key: "survey", track: "undo", empty: list },
   { key: "layers", track: "undo", empty: () => ({ ...EMPTY_LAYERS }),

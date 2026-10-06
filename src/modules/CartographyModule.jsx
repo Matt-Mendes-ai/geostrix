@@ -179,18 +179,18 @@ export default function CartographyModule() {
         {pane === "crs" && (
           <>
             <TaskPaneHeader icon={Globe2} title="Project CRS" />
-            <div style={note}>Every file you import is reprojected into this CRS (its own <em>Source CRS</em> box says what the file is in). Current: <b>{nameOf(project.epsg)}</b>.</div>
+            <div style={note}>Every file you import is reprojected into this CRS (its own <em>Source CRS</em> box says what the file is in). Current: <b>{project.crsSet === false ? "not chosen yet" : nameOf(project.epsg)}</b>.{project.crsSet === false ? " Pick the CRS your coordinates are in — nothing is converted." : ""}</div>
             <div style={{ marginTop: 12 }}><CrsPicker label="Change to" value={newCrs || project.epsg} onChange={setNewCrs} /></div>
             {changing && isGeographic(newCrs) && (
               /* TASKS.csv #613 — a geographic CRS (WGS 84 lat/long, NAD83 geographic…) can't be the project CRS: the 3D
                  scene, depths, distances and grids are metres, so collars in degrees put every hole on one point with
                  traces hundreds of "degrees" long (Matt's WGS 84 test: all holes fanned out of one spot). */
-              <div role="alert" style={{ ...note, color: "var(--color-warning, #b45309)" }}>
+              <div role="alert" style={{ ...note, color: "var(--color-warn-text-strong)" }}>
                 {nameOf(newCrs)} is geographic (latitude/longitude in degrees). The 3D view, hole depths, distances and grids all work in metres, so the project needs a projected CRS — for British Columbia, NAD83 / UTM zone 9N or 10N, or NAD83 / BC Albers. To hand data to someone in WGS 84, use <b>A file</b> in the ribbon above: it writes a reprojected copy and leaves the project as it is.
               </div>
             )}
-            {changing && !isGeographic(newCrs) && (
-              hasData ? (
+            {(changing || project.crsSet === false) && newCrs && !isGeographic(newCrs) && (
+              hasData && project.crsSet !== false ? ( /* #615 — "reproject FROM" an unchosen placeholder means nothing: only set the label */
                 <>
                   <div style={note}>The project already holds data in {nameOf(project.epsg)}. What should happen to it?</div>
                   <label style={{ ...note, display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer" }}>

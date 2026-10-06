@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { X } from "./icons.js";
@@ -12,6 +13,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
+  const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const schema = TARGET_SCHEMAS[modal.target];
@@ -122,7 +124,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <SourceCrsField
                 value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })}
-                defaultText={`Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+                defaultText={crsUnset ? "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import" : `Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
               />
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>
                 If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or

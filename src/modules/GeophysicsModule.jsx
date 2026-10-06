@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
@@ -382,7 +383,15 @@ export default function GeophysicsModule() {
     return options.filter(Boolean);
   };
 
+  // TASKS.csv #615 — terrain is fetched for wherever the project CRS puts the data: a CRS never chosen is asked for
+  // first, then the picker re-opens on the next render (its area seeds read the project CRS from this render).
+  const openSrtmPickerRef = useRef(null);
   const openSrtmPicker = async () => {
+    if (project?.crsSet === false) {
+      const chosen = await ensureProjectCrs(project, "Terrain is downloaded for the place your coordinates point to, so the project needs its coordinate system first.");
+      if (chosen) setTimeout(() => openSrtmPickerRef.current?.(), 0);
+      return;
+    }
     if (!project?.epsg) {
       setTerrainError({ info: false, text: "Project EPSG isn't set — can't reproject fetched elevation into project coordinates." });
       return;
@@ -398,6 +407,7 @@ export default function GeophysicsModule() {
     setSrtmAreaOptions(await buildSrtmAreaOptions());
     setSrtmPickerOpen(true);
   };
+  openSrtmPickerRef.current = openSrtmPicker;
 
   const relabelNote = useRef(""); // #614
   const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
@@ -1351,7 +1361,11 @@ export default function GeophysicsModule() {
           Web layers (WMS / WFS)
           <InfoButton title="Web layers" text="Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer." />
         </div>
-        <button onClick={async () => { setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true); }} style={pBtn}>
+        <button onClick={async () => {
+          // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
+          if (project?.crsSet === false) { if (await ensureProjectCrs(project, "Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")) setWebLayerModalOpen(true); return; }
+          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true);
+        }} style={pBtn}>
           <Globe size={14} /> Add web layer (WMS / WFS)…
         </button>
 

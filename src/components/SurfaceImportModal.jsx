@@ -4,6 +4,7 @@
 // real exports use for downhole assays) — the only things genuinely shared with the assay importer are
 // the element-column auto-detection/unit-inference helpers (isElementColumn/inferUnit, both reused
 // as-is from geochem.js) and this same left-column-mapping/right-element-checklist layout.
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import React, { useState } from "react";
 import { X } from "./icons.js";
 import { inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
@@ -17,6 +18,7 @@ import { crsName } from "../lib/reproject.js";
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
 
 export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
+  const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel);
   useFocusTrap(); // TASKS.csv #238
   const checkedCount = modal.elements.filter((e) => e.checked).length;
@@ -94,7 +96,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           <div style={{ marginTop: 12 }}>
             <SourceCrsField
               value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })}
-              defaultText={`Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+              defaultText={crsUnset ? "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import" : `Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
             />
             {modal.sourceEpsgFrom && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>

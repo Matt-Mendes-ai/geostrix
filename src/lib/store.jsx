@@ -106,7 +106,7 @@ function fileNameToProjectName(fileName) {
 }
 
 export function StoreProvider({ children }) {
-  const [project, setProject] = useState({ name: "Untitled project", epsg: 3156 }); // 3156 = NAD83 UTM 9N (Golden Triangle)
+  const [project, setProject] = useState({ name: "Untitled project", epsg: 3156, crsSet: false }); // 3156 = NAD83 UTM 9N, a placeholder until crsSet (#615)
   // TASKS.csv #462 — baseline for the "saved but not undo-tracked" dirty watcher (see it near the undo
   // watcher below). null = take a fresh baseline on the next render (after a load / new project).
   const extraDirtyBaseline = useRef(null);
@@ -827,7 +827,7 @@ export function StoreProvider({ children }) {
   // Setters never change identity, so the first render's table is safe inside []-dependency callbacks.
   const setFields = (vals) => { for (const k of FIELD_KEYS) fieldState[k][1](vals[k]); };
 
-  const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg })), []);
+  const setEpsg = useCallback((epsg) => setProject((p) => ({ ...p, epsg, crsSet: true })), []); // #615 — any explicit choice sets it
   // TASKS.csv #485 — Cartography: move EVERYTHING in the open project into another CRS (projectReproject.js for
   // the coordinates, rasterImagesReproject.js for the drape pictures), then reload it through the normal load
   // path so the 3D view rebuilds every object (generated surfaces are only re-read from the store on a load).

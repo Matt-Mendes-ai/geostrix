@@ -1,4 +1,5 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import React, { useRef, useState } from "react";
@@ -159,7 +160,14 @@ export default function RasterModule() {
     return options.filter(Boolean);
   };
 
+  // TASKS.csv #615 — as the SRTM picker: a CRS never chosen is asked for first, then the picker re-opens
+  const openSatPickerRef = useRef(null);
   const openSatPicker = async () => {
+    if (project?.crsSet === false) {
+      const chosen = await ensureProjectCrs(project, "Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first.");
+      if (chosen) setTimeout(() => openSatPickerRef.current?.(), 0);
+      return;
+    }
     if (!project?.epsg) {
       setError({ info: false, text: "Project EPSG isn't set — can't reproject fetched imagery into project coordinates." });
       return;
@@ -171,6 +179,7 @@ export default function RasterModule() {
     setSatAreaOptions(await buildSatAreaOptions());
     setSatPickerOpen(true);
   };
+  openSatPickerRef.current = openSatPicker;
 
   const runSatFetch = async (bboxLonLat) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
