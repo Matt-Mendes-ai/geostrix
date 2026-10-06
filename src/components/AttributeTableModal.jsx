@@ -39,6 +39,8 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
   const [calcField, setCalcField] = useState("");
   const [calcExpr, setCalcExpr] = useState("");
   const [calcError, setCalcError] = useState("");
+  const [calcOnlyMatching, setCalcOnlyMatching] = useState(false); // #554 — only the rows the search shows
+  const [calcKeepExisting, setCalcKeepExisting] = useState(true); // #554 — a blank result keeps the row's value
 
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(search), SEARCH_DEBOUNCE_MS);
@@ -88,12 +90,27 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
     if (!calcExpr.trim()) { setCalcError("Expression is required."); return; }
     try {
       // Compiling throws on a bad expression before any row is touched, so the table stays as it was.
-      const calc = compileCalc(calcExpr, columns);
-      // A row whose inputs are missing gets a BLANK result, not a number computed from invented zeros.
-      const next = working.map((r) => { const v = calc(r); return { ...r, [field]: Number.isFinite(v) ? v : null }; });
+      const calc = compileCalc(calcExpr, columns, { allowText: true }); // #554 — if() / comparisons / 'text'
+      // TASKS.csv #554 — which rows, and what a blank result does. A row whose inputs are missing gets a BLANK result
+      // (never a number from invented zeros); with "keep existing" that row keeps what it had instead of being wiped.
+      const targets = calcOnlyMatching && searchDebounced ? new Set(filtered.map(([, i]) => i)) : null;
+      const exists = columns.includes(field);
+      if (exists) {
+        const n = working.filter((r, i) => (!targets || targets.has(i)) && r[field] != null && r[field] !== "").length;
+        if (n && !window.confirm(`"${field}" already exists and ${n} of the ${targets ? targets.size : working.length} row(s) being calculated have a value in it.\n\nOK — overwrite them with the formula's results${calcKeepExisting ? " (a row whose result is blank keeps its value)" : " (a blank result BLANKS the row)"}.\nCancel — change nothing.`)) return;
+      }
+      let changed = 0, blank = 0;
+      const next = working.map((r, i) => {
+        if (targets && !targets.has(i)) return r;
+        let v = calc(r);
+        if (typeof v === "boolean") v = v ? 1 : 0;
+        if (v == null || (typeof v === "number" && !Number.isFinite(v))) { blank++; if (calcKeepExisting && exists) return r; v = null; }
+        changed++;
+        return { ...r, [field]: v };
+      });
       setWorking(next);
       setDirty(true);
-      setCalcError("");
+      setCalcError(blank ? `${changed} row(s) calculated; ${blank} gave a blank result (a missing input)${calcKeepExisting && exists ? " and kept their existing value" : ""}.` : "");
     } catch (e) {
       setCalcError(e.message || "Invalid expression.");
     }
@@ -122,15 +139,19 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
               />
               <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>=</span>
               <input
-                placeholder="Expression, e.g. Au + Cu * 1.5  (columns are numeric variables)"
+                placeholder="Expression, e.g. Au + Cu * 1.5  or  if(Au >= 0.5, 'MIN', 'WASTE')"
                 value={calcExpr}
                 onChange={(e) => setCalcExpr(e.target.value)}
                 style={{ flex: 1, minWidth: 260, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
               />
-              <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>Apply to {working.length} rows</button>
+              <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>Apply to {calcOnlyMatching && searchDebounced ? filtered.length : working.length} rows</button>
+            </div>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+              <label title="Only the rows the search box shows"><input type="checkbox" checked={calcOnlyMatching} onChange={(e) => setCalcOnlyMatching(e.target.checked)} /> Only rows matching the search{searchDebounced ? ` (${filtered.length})` : ""}</label>
+              <label title="When the target column already exists: a row whose result is blank (a missing input) keeps its current value instead of being blanked"><input type="checkbox" checked={calcKeepExisting} onChange={(e) => setCalcKeepExisting(e.target.checked)} /> Keep the existing value when the result is blank</label>
             </div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-              Columns available as variables: {columns.join(", ") || "—"}. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10, exp; ^ for powers. A row with a missing or non-numeric input gets a blank result.
+              Columns: {columns.join(", ") || "—"} — write [Column name] for names with spaces or symbols. Arithmetic + - * / % ^, comparisons &lt; &lt;= &gt; &gt;= = !=, and / or / not, if(condition, then, else) and text in quotes, e.g. <code>if(Au &gt;= 0.5, 'MIN', 'WASTE')</code>. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10, exp. A row with a missing input gets a blank result.
             </div>
             {calcError && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon-strong)" }}>{calcError}</div>}
           </div>
