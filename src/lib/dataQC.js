@@ -66,7 +66,7 @@ function validateCollars(collars) {
 }
 
 // ---- Survey / trajectory ----
-function validateSurveyAndTrajectory(collars, survey) {
+function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegError = 10 } = {}) {
   const issues = [];
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const byHole = new Map();
@@ -86,20 +86,26 @@ function validateSurveyAndTrajectory(collars, survey) {
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i].depth === sorted[i - 1].depth) pushIssue(issues, "warning", "Survey", holeId, `Two survey stations at the same depth (${sorted[i].depth}m) — only one will be used.`);
     }
-    // "Impossible trajectory" heuristic: a single station-to-station swing of >45° in azimuth or
-    // >30° in dip over a short interval reads as a data-entry error far more often than a real
-    // drilling deviation — real holes drift gradually. Flagged as a warning, not an error, since
-    // some genuinely aggressive deviations do happen (deflections, wedges).
+    // TASKS.csv #545 — dogleg severity (°/30 m), the check Micromine and most packages use, replacing separate
+    // azimuth (>45°) and dip (>30°) jumps that ignored both inclination and interval length: a gyro-surveyed hole
+    // at dip 89° whose azimuth swung 10 -> 200° over 30 m (a true bend of 2°) was flagged, while az 90 -> 120 / dip
+    // 60 -> 45 over 3 m (a 23° bend, ~233°/30 m — a typo or a bad shot) was not. Same cos-dogleg formula as the
+    // minimum-curvature desurvey (desurvey.js); inclination from vertical = 90 - |dip|.
+    const rad = Math.PI / 180;
     for (let i = 1; i < sorted.length; i++) {
       const a = sorted[i - 1], b = sorted[i];
       if (!Number.isFinite(a.azimuth) || !Number.isFinite(b.azimuth) || !Number.isFinite(a.dip) || !Number.isFinite(b.dip)) continue;
-      const dz = b.depth - a.depth;
-      if (dz <= 0) continue;
-      let dAz = Math.abs(b.azimuth - a.azimuth);
-      if (dAz > 180) dAz = 360 - dAz; // shortest angular distance
-      const dDip = Math.abs(b.dip - a.dip);
-      if (dAz > 45) pushIssue(issues, "warning", "Survey", holeId, `Azimuth jumps ${dAz.toFixed(0)}° between ${a.depth}m and ${b.depth}m — check for a typo or a genuinely sharp deflection.`);
-      if (dDip > 30) pushIssue(issues, "warning", "Survey", holeId, `Dip jumps ${dDip.toFixed(0)}° between ${a.depth}m and ${b.depth}m — check for a typo or a genuinely sharp deflection.`);
+      const dMD = b.depth - a.depth;
+      if (!(dMD > 0)) continue;
+      const I1 = (90 - Math.abs(a.dip)) * rad, I2 = (90 - Math.abs(b.dip)) * rad, dAz = (b.azimuth - a.azimuth) * rad;
+      const cosDL = Math.min(1, Math.max(-1, Math.cos(I2 - I1) - Math.sin(I1) * Math.sin(I2) * (1 - Math.cos(dAz))));
+      const dl = Math.acos(cosDL) / rad;
+      // the rate over at least 10 m and only for a bend of >= 1°: stations a few cm or metres apart (repeat shots,
+      // tie-in readings) turned instrument noise into 15-25°/30 m "errors" on the real 41597Z and Copley surveys
+      const dls = (dl * 30) / Math.max(dMD, 10);
+      if (dl >= 1 && dls > doglegWarn) {
+        pushIssue(issues, dls > doglegError ? "error" : "warning", "Survey", holeId, `Dogleg ${dl.toFixed(1)}° over ${dMD.toFixed(1)} m between ${a.depth} m and ${b.depth} m (${dls.toFixed(1)}°/30 m${dMD < 10 ? ", rated over 10 m" : ""}, over ${dls > doglegError ? doglegError : doglegWarn}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).`);
+      }
     }
   });
   const noSurvey = collars.filter((c) => !byHole.has(c.hole_id));
@@ -401,7 +407,7 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   return issues;
 }
 
-export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15 }) {
+export function runDataQC({ project, collars, survey, layers, boundaries, assays, terrain = null, terrainThreshold = 15, doglegWarn = 3, doglegError = 10 }) {
   const collarIds = new Set(collars.map((c) => c.hole_id));
   const holeLengths = new Map();
   collars.forEach((c) => { if (Number.isFinite(c.length)) holeLengths.set(c.hole_id, c.length); });
@@ -420,7 +426,7 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validateProject(project),
     ...validateCollars(collars),
     ...validateCollarsVsTerrain(collars, terrain, terrainThreshold), // #558
-    ...validateSurveyAndTrajectory(collars, survey),
+    ...validateSurveyAndTrajectory(collars, survey, { doglegWarn, doglegError }), // #545
     ...validateIntervalLayer(layers.litho || [], "Lithology", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt || [], "Alteration", collarIds, holeLengths),
     ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),

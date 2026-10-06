@@ -318,3 +318,17 @@ test("#526 surveyAzimuthDipAt holds the last station's attitude below it (no cho
   const mid = surveyAzimuthDipAt(collar, survey, 150);
   assert.ok(Math.abs(Math.abs(mid.dip) - 65) < 1e-6 && Math.abs(mid.azimuth - 105) < 1e-6, JSON.stringify(mid));
 });
+
+test("#545 survey QC uses dogleg severity: a near-vertical azimuth swing is fine, a short sharp kink is flagged", async () => {
+  const { runDataQC } = await import("../src/lib/dataQC.js");
+  const collars = [{ hole_id: "V1", x: 0, y: 0, z: 0, length: 100 }, { hole_id: "K1", x: 50, y: 0, z: 0, length: 100 }];
+  const survey = [
+    { hole_id: "V1", depth: 0, azimuth: 10, dip: -89 }, { hole_id: "V1", depth: 30, azimuth: 200, dip: -89 },
+    { hole_id: "K1", depth: 0, azimuth: 90, dip: -60 }, { hole_id: "K1", depth: 3, azimuth: 120, dip: -45 },
+  ];
+  const qc = runDataQC({ collars, survey, layers: {}, assays: [] });
+  const sv = qc.issues.filter((i) => i.category === "Survey" && /Dogleg|jumps/.test(i.message));
+  assert.deepEqual(sv.map((i) => i.holeId), ["K1"], JSON.stringify(sv));
+  assert.equal(sv[0].severity, "error");
+  assert.match(sv[0].message, /Dogleg 23\.\d° over 3\.0 m .*\(69\.\d°\/30 m, rated over 10 m/);
+});
