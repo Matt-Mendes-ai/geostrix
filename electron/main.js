@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell } = require("electron"); // session: TASKS.csv #300; shell: TASKS.csv #310
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol } = require("electron"); // session: TASKS.csv #300; shell: TASKS.csv #310; protocol: #562
 // User-reported bug: "there's a bug on the app that won't let me close it. I can only close it ending
 // the task" — App.jsx's beforeunload handler correctly calls e.preventDefault() when a tab has unsaved
 // changes (the standard web pattern, meant to trigger a native "leave site?" confirm), but Electron
@@ -48,15 +48,64 @@ const PY_SIDECAR_PORT = 8765;
 // contents, every window gets the same "external links go to the OS browser" handler, and every
 // ipcMain.handle / ipcMain.on handler (wrapped once, here, before any is registered) rejects a call whose
 // sending frame isn't the app itself.
-const APP_INDEX_FILE = path.join(__dirname, "../dist/index.html");
+// TASKS.csv #562 (security) — the built app is served from app://geostrix/, a privileged custom scheme whose
+// handler (registerAppProtocol) answers ONLY with files inside dist/. It used to load file://…/dist/index.html,
+// and a file: origin plus the default-on grantFileProtocolExtraPrivileges fuse let any script in the window
+// fetch() any local file (verified: C:\Windows\win.ini and the hosts file read from the renderer), bypassing
+// #346's fs-read-file allow-list and size cap. CSP 'self' is now app://geostrix, and an app:// page cannot
+// fetch file: URLs (verified in the packaged build). localStorage moves origin with it: readFileOriginStorage +
+// loadMainWindow carry it over once. The grantFileProtocolExtraPrivileges fuse is LEFT ON for now: with it off,
+// the hidden file:// reader sees an empty localStorage (verified packaged), so updating users would lose their
+// settings. No app page is file: any more and navigation to file: is refused (isAppUrl), so it guards nothing
+// here; switch it off in a later release, once installs have migrated (TASKS.csv #562 follow-up).
+const APP_SCHEME = "app", APP_HOST = "geostrix";
+const DIST_DIR = path.normalize(path.join(__dirname, "../dist"));
+protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, codeCache: true } }]);
 function isAppUrl(url) {
   try {
     const u = new URL(url);
     if (isDev) return u.origin === "http://localhost:5173";
-    if (u.protocol !== "file:") return false;
-    return path.normalize(require("url").fileURLToPath(u)).toLowerCase() === path.normalize(APP_INDEX_FILE).toLowerCase();
+    return u.protocol === `${APP_SCHEME}:` && u.host === APP_HOST && (u.pathname === "/index.html" || u.pathname === "/");
   } catch { return false; }
 }
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".wasm": "application/wasm", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".ico": "image/x-icon", ".webp": "image/webp", ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".map": "application/json", ".txt": "text/plain; charset=utf-8" };
+const MIGRATE_PAGE = "/__storage-migrate.html";
+function registerAppProtocol() {
+  protocol.handle(APP_SCHEME, async (req) => {
+    try {
+      const u = new URL(req.url);
+      if (u.host !== APP_HOST) return new Response("Not found", { status: 404 });
+      if (u.pathname === MIGRATE_PAGE) return new Response("<!doctype html><title>GeoStrix</title>", { headers: { "content-type": "text/html; charset=utf-8" } });
+      const rel = decodeURIComponent(u.pathname === "/" ? "/index.html" : u.pathname);
+      const file = path.normalize(path.join(DIST_DIR, rel));
+      if (!file.toLowerCase().startsWith(DIST_DIR.toLowerCase() + path.sep)) return new Response("Forbidden", { status: 403 }); // no ../ out of dist
+      const data = await fs.promises.readFile(file);
+      return new Response(data, { headers: { "content-type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream" } });
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  });
+}
+// Reads what the app kept in localStorage under its OLD file:// origin (base map, Tracestrack key, saved SQL
+// queries, Browser favorites, panel sizes, the no-desktop autosave fallback) from a hidden blank file:// page.
+// Once only: a flag file in userData records it. Returns the entries, or null.
+async function readFileOriginStorage() {
+  const flag = path.join(app.getPath("userData"), "storage-origin-migrated.json");
+  if (fs.existsSync(flag)) return null;
+  const blank = path.join(app.getPath("userData"), "storage-migrate-blank.html");
+  let entries = [];
+  const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  try {
+    fs.writeFileSync(blank, "<!doctype html><title>.</title>");
+    await w.loadURL(require("url").pathToFileURL(blank).href);
+    entries = JSON.parse(await w.webContents.executeJavaScript("JSON.stringify(Object.entries(localStorage))"));
+  } catch { entries = []; } finally {
+    w.destroy();
+    try { fs.unlinkSync(blank); } catch { /* best effort */ }
+  }
+  return { flag, entries: Array.isArray(entries) ? entries : [] };
+}
+
 function isTrustedSender(e) {
   const frame = e && e.senderFrame;
   return !!frame && isAppUrl(frame.url);
@@ -289,7 +338,23 @@ ipcMain.handle("updater-install", async () => {
 
 function resolveUrl(hashRoute) {
   if (isDev) return `http://localhost:5173/#${hashRoute}`;
-  return `file://${path.join(__dirname, "../dist/index.html")}#${hashRoute}`;
+  return `${APP_SCHEME}://${APP_HOST}/index.html#${hashRoute}`; // #562
+}
+// #562 — the old file:// localStorage written into the app:// origin BEFORE the app boots (keys the new origin
+// already has are left alone), then the flag file so it happens once.
+async function loadMainWindow(win) {
+  // read while this window exists: the hidden reader closing as the ONLY window used to trip window-all-closed
+  // and quit the app at startup
+  let m = null;
+  if (!isDev) { try { m = await readFileOriginStorage(); } catch { m = null; } }
+  if (m && !win.isDestroyed()) {
+    try {
+      await win.loadURL(`${APP_SCHEME}://${APP_HOST}${MIGRATE_PAGE}`);
+      if (m.entries.length) await win.webContents.executeJavaScript(`(() => { const e = ${JSON.stringify(m.entries)}; let n = 0; for (const [k, v] of e) if (localStorage.getItem(k) === null) { localStorage.setItem(k, v); n++; } return n; })()`);
+      fs.writeFileSync(m.flag, JSON.stringify({ migratedAt: new Date().toISOString(), keys: m.entries.map(([k]) => k) }));
+    } catch (err) { console.error("[storage migration]", err); }
+  }
+  if (!win.isDestroyed()) return win.loadURL(resolveUrl("/")).catch((err) => console.error("[load]", err));
 }
 
 function createMainWindow() {
@@ -316,7 +381,7 @@ function createMainWindow() {
       sandbox: true,
     },
   });
-  mainWindow.loadURL(resolveUrl("/"));
+  loadMainWindow(mainWindow); // #562 — app:// (and the one-time localStorage move)
   // TASKS.csv #310 — external links (the repository / licence links on the About tab, and the
   // existing "get a Tracestrack key" link in LayerPicker) must open in the user's OWN browser, not
   // in a chromeless second Electron window. Electron's default for an unhandled window.open /
@@ -948,8 +1013,9 @@ function setTileUserAgent() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   setTileUserAgent(); // TASKS.csv #300 — before any window exists, so the first tile request carries it
+  if (!isDev) registerAppProtocol(); // #562
   createMainWindow();
   // TASKS.csv #440 — the Python sidecar is started on first use (see startPythonSidecar), not here.
   setupAutoUpdater();
