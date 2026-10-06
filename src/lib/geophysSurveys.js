@@ -44,6 +44,15 @@ export function surveyStats(rows) {
 // TASKS.csv #600 (40958Z) — the DEFAULT colour range is the 2nd–98th percentile, not min–max: one raw walk-mag
 // day (7,797 readings, real field ~56,000 nT) has spikes from 132 to 167,445 nT, and a min–max stretch put every
 // real reading on one flat colour. Values outside the range take the end colours. A range the user sets wins.
+// TASKS.csv #600 (40958Z) — importing a survey file again REPLACES its earlier points (same survey key, i.e. the
+// same file name) instead of adding a second copy: re-importing one walk-mag day doubled it to 15,594 points.
+// Same rule as interval layers (#336). Returns { rows, replaced } (replaced = how many old points went).
+export function replaceSurveyPoints(prev, incoming) {
+  const keys = new Set(incoming.map(surveyKey));
+  const kept = (prev || []).filter((r) => !keys.has(surveyKey(r)));
+  return { rows: [...kept, ...incoming], replaced: (prev || []).length - kept.length };
+}
+
 export function robustRange(values, lo = 0.02, hi = 0.98) {
   const v = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!v.length) return { min: NaN, max: NaN };

@@ -253,3 +253,12 @@ test("#600 point colours: default range is the 2nd-98th percentile, spikes clamp
   assert.deepEqual(robustRange([1, 2, 3]), { min: 1, max: 3 }); // small sets: plain min-max
   assert.equal(makeSurveyColorer(rows, { min: 0, max: 200000 }).models.get("walk").min, 0); // a user range wins
 });
+
+test("#600 re-importing a survey file replaces its points instead of doubling them", async () => {
+  const { replaceSurveyPoints } = await import("../src/lib/geophysSurveys.js");
+  const a = [{ value: 1, _src: "day1.xyz" }, { value: 2, _src: "day1.xyz" }, { value: 9, _src: "day2.xyz" }];
+  const r = replaceSurveyPoints(a, [{ value: 3, _src: "day1.xyz" }]);
+  assert.deepEqual(r.rows.map((x) => x.value), [9, 3]);
+  assert.equal(r.replaced, 2);
+  assert.equal(replaceSurveyPoints(a, [{ value: 5, _src: "day3.xyz" }]).replaced, 0);
+});

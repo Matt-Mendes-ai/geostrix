@@ -9,7 +9,7 @@ import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "../components/icons.js";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
-import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation } from "../lib/geophysSurveys.js"; // TASKS.csv #451
+import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints } from "../lib/geophysSurveys.js"; // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -78,7 +78,7 @@ export default function GeophysicsModule() {
   const [geoPane, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const {
-    layers, mergeLayer, replaceLayer, goToModule, collars, rasters, addRaster, project,
+    layers, replaceLayer, goToModule, collars, rasters, addRaster, project,
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
@@ -232,7 +232,9 @@ export default function GeophysicsModule() {
             ? ` Couldn't resolve a proj4 definition for EPSG:${srcEpsg} or EPSG:${project.epsg} — no reprojection happened.`
             : ` Reprojected from EPSG:${srcEpsg}${!geophysSourceEpsg && cols.geographic ? " (longitude/latitude columns)" : ""} to the project's EPSG:${project.epsg}.`;
         }
-        mergeLayer("geophys_pts", good);
+        const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
+        setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
+        if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
         const zNote = noZ ? ` ${noZ} point(s) have no elevation: they are kept for modelling with "sensor at a fixed height above terrain", and are not drawn in 3D.` : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
         const others = cols.valueCandidates.filter((c) => c !== cols.value);
@@ -681,7 +683,9 @@ export default function GeophysicsModule() {
         ? ` Couldn't resolve a proj4 definition for EPSG:${geophysSourceEpsg} or EPSG:${project.epsg} — no reprojection happened.`
         : ` Reprojected from EPSG:${geophysSourceEpsg} to the project's EPSG:${project.epsg}.`;
     }
-    mergeLayer("geophys_pts", mapped);
+    const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
+    setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
+    if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
     const skipped = parsedRows.length - mapped.length;
     setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}` });
     setXyzPending(null);
