@@ -270,3 +270,17 @@ test("#531 PER feldspar diagram: albite and anorthite both on slope 1; muscovite
   assert.ok(Math.abs(slope("per_al_k", el({ K2O: 16.92, Al2O3: 18.32 })) - 3) < 0.03, "K-feldspar");
   assert.deepEqual(DIAGRAMS.per_al_cana.mineralLines.map((m) => m.slope), [1]);
 });
+
+test("#532 compositing counts each metre once: a conflicting re-assay no longer doubles coverage", async () => {
+  const { compositeDownhole } = await import("../src/lib/geochem.js");
+  const u = { Au: "ppm" };
+  const rows = [{ hole_id: "A", from: 0, to: 1, values: { Au: 10 } }, { hole_id: "A", from: 0, to: 1, values: { Au: 6 } }, { hole_id: "A", from: 1.5, to: 2, values: { Au: 1 } }];
+  // 0-2 m: 0-1 conflicted (mean 8), 1-1.5 no core, 1.5-2 @1 -> covered 1.5 of 2 m
+  let c = compositeDownhole(rows.slice(0, 2).concat([{ hole_id: "A", from: 1.99, to: 2, values: { Au: 0 } }]), "Au", "ppm", u, { length: 2, minCoverage: 0.75 });
+  assert.equal(c.length, 0, JSON.stringify(c)); // only ~1 of 2 m sampled -> dropped at 0.75 (was coverage 1.0 and kept)
+  c = compositeDownhole(rows, "Au", "ppm", u, { length: 2, minCoverage: 0.5 });
+  assert.equal(c.length, 1);
+  assert.ok(Math.abs(c[0].coverage - 0.75) < 1e-9, String(c[0].coverage));
+  assert.ok(Math.abs(c[0].avgGrade - (8 * 1 + 1 * 0.5) / 1.5) < 1e-9, String(c[0].avgGrade));
+  assert.equal(c[0].conflictLength, 1);
+});

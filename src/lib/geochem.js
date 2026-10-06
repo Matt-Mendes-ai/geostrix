@@ -637,6 +637,8 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   const composites = [];
   byHole.forEach((rows, hole_id) => {
     const sorted = rows.slice().sort((a, b) => a.from - b.from);
+    const segs = resolveAssaySegments(sorted, symbol, unit, elementUnits, null); // #532
+    let segIdx = 0;
     const holeStart = sorted[0].from;
     const holeEnd = sorted.reduce((m, r) => Math.max(m, r.to), sorted[0].to);
     const domRows = domainByHole.get(hole_id) || null;
@@ -674,18 +676,21 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // but guard anyway) — clip to `length` from `from` if so.
       if (to - from > length + EPS) to = from + length;
 
-      const overlapping = sorted.filter((r) => r.from < to - EPS && r.to > from + EPS);
-      let gradeLen = 0, coveredLen = 0;
-      overlapping.forEach((r) => {
-        const ovFrom = Math.max(r.from, from), ovTo = Math.min(r.to, to);
-        const ov = ovTo - ovFrom;
-        if (ov <= EPS) return;
-        let v = valueIn(r, symbol, unit, elementUnits);
-        if (v == null) return;
-        if (capValue != null && v > capValue) v = capValue;
+      // TASKS.csv #532 — from the hole's resolved segments (resolveAssaySegments, as intercepts since #331): every metre
+      // counted once, conflicting results averaged and their metres reported. Summing every overlapping row counted
+      // a re-assay's metre twice: rows 0-1 @10 and 0-1 @6, no core 1-2 -> composite 0-2 had coverage 1.0 and passed
+      // any minCoverage with 1 of 2 m sampled.
+      while (segIdx < segs.length && segs[segIdx].to <= from + EPS) segIdx++;
+      let gradeLen = 0, coveredLen = 0, conflictLen = 0;
+      for (let k = segIdx; k < segs.length && segs[k].from < to - EPS; k++) {
+        const g = segs[k];
+        const ov = Math.min(g.to, to) - Math.max(g.from, from);
+        if (ov <= EPS || g.value == null) continue;
+        const v = capValue != null && g.value > capValue ? capValue : g.value;
         gradeLen += v * ov;
         coveredLen += ov;
-      });
+        if (g.conflict) conflictLen += ov;
+      }
       const segLen = to - from;
       const coverage = segLen > 0 ? Math.min(1, coveredLen / segLen) : 0;
       if (coverage < minCoverage - EPS) continue; // too little real sample material in this segment
@@ -699,6 +704,7 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
         hole_id, from, to, length: segLen,
         avgGrade: coveredLen > 0 ? gradeLen / coveredLen : 0,
         coverage,
+        conflictLength: conflictLen, // #532 — metres where overlapping rows disagreed (averaged)
         domain: domRows ? domainAt(domRows, (from + to) / 2) : null,
       });
     }

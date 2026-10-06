@@ -80,6 +80,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       hole_id: r.hole_id, from: r.from.toFixed(2), to: r.to.toFixed(2), length_m: r.length.toFixed(2),
       [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
       coverage_pct: (r.coverage * 100).toFixed(0),
+      conflict_m: (r.conflictLength || 0).toFixed(2), // #532 — metres where overlapping assays disagreed (averaged)
       ...(() => { // #411 — XYZ; blank when the hole has no collar/trace
         const p = intervalXYZ(tracesByHole.get(r.hole_id), r.from, r.to);
         const f = (v) => (p ? v.toFixed(2) : "");
@@ -94,6 +95,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
+      "Overlapping assays: each metre counted once; where overlapping results disagree they are averaged and the metres reported in conflict_m (#532)",
       ASSAY_READING_RULES,
       `Composites: ${results.length}`,
     ] });
@@ -121,7 +123,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                 <div>{dupInfo.exactDuplicates} exact-duplicate raw interval{dupInfo.exactDuplicates === 1 ? " was" : "s were"} found in this assay table (same hole, same from/to, same results — the classic double-import). {dupInfo.exactDuplicates === 1 ? "It was" : "They were"} counted once, not twice, so {dupInfo.exactDuplicates === 1 ? "it doesn't" : "they don't"} double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.</div>
               )}
               {dupInfo.conflictingIntervals > 0 && (
-                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{dupInfo.conflictingIntervals} interval{dupInfo.conflictingIntervals === 1 ? "" : "s"} appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import, so compositing left them alone — every copy is still being length-weighted in. Resolve them in the source data before using these composites for estimation.</div>
+                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{dupInfo.conflictingIntervals} interval{dupInfo.conflictingIntervals === 1 ? "" : "s"} appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve them in the source data before using these composites for estimation.</div>
               )}
             </div>
           )}
