@@ -1,8 +1,6 @@
 # GeoStrix
 
-Desktop 3D drillhole & geochemistry explorer (Electron + React + three.js). Formerly developed
-under the working name "GeoExplorer" — some file/type names (`.geox.json`, internal module names)
-still reflect that and are not worth churning just for the rename.
+Lightweight, open-source 3D software for mineral exploration: drillholes, geochemistry, geophysics, modelling and drill planning in one place.
 
 ## What GeoStrix is not
 
