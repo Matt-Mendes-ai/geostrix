@@ -68,8 +68,49 @@ jobs:
       - name: Sidecar physics tests
         working-directory: python-sidecar
         run: venv\Scripts\python.exe tests/test_potential.py
+      # TASKS.csv #557 — the release gate used to run only the potential-field tests; the GemPy fault / onlap
+      # and DC/IP tests ran only in sidecar.yml (path-filtered), so a release could ship them untested.
+      - name: Sidecar fault, onlap and DC/IP tests
+        working-directory: python-sidecar
+        run: |
+          venv\Scripts\python.exe tests/test_implicit_faults.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          venv\Scripts\python.exe tests/test_implicit_dedupe.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          venv\Scripts\python.exe tests/test_dcip2d.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Freeze the Python sidecar
         run: npm run build:sidecar
+      # TASKS.csv #557 — run the FROZEN engine, not just the venv it was built from. Freeze-only failures are
+      # real: #321's first frozen build reported "simpeg: null" (missing package metadata), and a stale local
+      # build had no DC/IP engine at all. Start the exe exactly as the app does (port 8765 is fixed in
+      # run_frozen.py, a per-run token in GEOSTRIX_SIDECAR_TOKEN), then: one small job of every kind must
+      # finish (tests/smoke_jobs.py), and the live API checks must pass (token / host guards, 409, cancel,
+      # result shape: tests/test_jobs_api.py). Checked locally: a build without --copy-metadata simpeg fails it.
+      - name: Smoke-test the frozen Python engine
+        run: |
+          $env:GEOSTRIX_SIDECAR_TOKEN = [guid]::NewGuid().ToString("N")
+          $log = Join-Path $env:RUNNER_TEMP "sidecar"
+          $p = Start-Process -FilePath python-sidecar\dist\geostrix-sidecar\geostrix-sidecar.exe -PassThru -NoNewWindow -RedirectStandardOutput "$log.out" -RedirectStandardError "$log.err"
+          $failed = $false
+          try {
+            python-sidecar\venv\Scripts\python.exe python-sidecar\tests\smoke_jobs.py 8765 $env:GEOSTRIX_SIDECAR_TOKEN
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+            if (-not $failed) {
+              python-sidecar\venv\Scripts\python.exe python-sidecar\tests\test_jobs_api.py 8765 $env:GEOSTRIX_SIDECAR_TOKEN
+              if ($LASTEXITCODE -ne 0) { $failed = $true }
+            }
+          } finally {
+            # a job's worker process can be exiting at the same moment (taskkill then reports it could not end
+            # it): ignore taskkill's own result and sweep up anything left by name
+            taskkill /PID $p.Id /T /F 2>&1 | Out-Null
+            Start-Sleep -Seconds 2
+            Get-Process geostrix-sidecar -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Write-Host "--- frozen engine log (tail) ---"
+            Get-Content "$log.err", "$log.out" -Tail 40 -ErrorAction SilentlyContinue
+          }
+          if ($failed) { Write-Error "The frozen Python engine failed its smoke test - not releasing it."; exit 1 }
+          exit 0 # the result is the tests', never the cleanup's (Actions would otherwise exit with taskkill's code)
       - name: Build the web bundle
         # BUG (v0.1.1/v0.1.2 both shipped without this): electron-builder's `files` config packages
         # dist/**/* into app.asar, but nothing had ever actually built dist/ in THIS workflow — the

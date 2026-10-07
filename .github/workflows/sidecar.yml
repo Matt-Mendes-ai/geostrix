@@ -38,3 +38,29 @@ jobs:
       - name: DC/IP 2D tests (#322)
         working-directory: python-sidecar
         run: python tests/test_dcip2d.py
+      - name: Onlap orientation tests (#512)
+        working-directory: python-sidecar
+        run: python tests/test_implicit_dedupe.py
+      # TASKS.csv #557 — the live API checks (token / host guards, 409, cancel, result shape) ran nowhere, and
+      # nothing ran one job of each kind through the HTTP + job-process path. A server from source here; the
+      # release workflow runs the same two scripts against the frozen exe.
+      - name: Live engine checks (jobs API + one job of each kind)
+        working-directory: python-sidecar
+        run: |
+          $env:GEOSTRIX_SIDECAR_TOKEN = [guid]::NewGuid().ToString("N")
+          $log = Join-Path $env:RUNNER_TEMP "sidecar"
+          $p = Start-Process -FilePath python -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8799" -PassThru -NoNewWindow -RedirectStandardOutput "$log.out" -RedirectStandardError "$log.err"
+          $failed = $false
+          try {
+            python tests/smoke_jobs.py 8799 $env:GEOSTRIX_SIDECAR_TOKEN
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+            if (-not $failed) {
+              python tests/test_jobs_api.py 8799 $env:GEOSTRIX_SIDECAR_TOKEN
+              if ($LASTEXITCODE -ne 0) { $failed = $true }
+            }
+          } finally {
+            taskkill /PID $p.Id /T /F 2>&1 | Out-Null # may race a job worker that is already exiting: result ignored
+            Get-Content "$log.err" -Tail 40 -ErrorAction SilentlyContinue
+          }
+          if ($failed) { exit 1 }
+          exit 0
