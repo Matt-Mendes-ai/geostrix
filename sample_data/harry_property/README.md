@@ -28,8 +28,8 @@ methodology as the original `sample_data/` set — not random):** `alt.csv`, `ve
 vein, geotechnical, mineralization-point, magnetic-susceptibility, or structural-orientation tables
 at all — only collars, lithology, and assays. Alteration/vein/mineralization zones were placed
 around each hole's own real assay anomalies (not arbitrary depths): intervals scoring high on a
-simple Au/Cu/Pb/Zn-weighted anomaly score got a QSP/SIL alteration halo, nearby quartz-sulfide
-veining, and mineralization points with the sulfide chosen by whichever base metal actually
+simple Au/Cu/Pb/Zn-weighted anomaly score got a QSP/SIL alteration halo, nearby quartz-sulphide
+veining, and mineralization points with the sulphide chosen by whichever base metal actually
 dominates that interval's real assays (Cu-dominant → chalcopyrite, Pb-dominant → galena, etc.).
 Geotech RQD is lower through overburden and through those same anomalous zones. Magnetic
 susceptibility is lower in the synthesized alteration and higher in the real mafic units (BSL/MINT/
@@ -59,7 +59,7 @@ the real assay results, the same way `alt.csv`/`vein.csv`/etc. were synthesized 
   `magsusc.csv` already uses. `z` sits near the real collars' average elevation (~1150 m) with
   small jitter, i.e. a ground survey rather than an airborne one flown well above terrain.
 - `geophys_resistivity.tif` — a matching synthetic apparent-resistivity grid (220×200 cells,
-  ohm-m), same five anomaly centers but as conductivity LOWS (resistivity lows) — sulfide
+  ohm-m), same five anomaly centres but as conductivity LOWS (resistivity lows) — sulphide
   mineralization is conductive, so this is the complementary IP/resistivity signature a real crew
   would expect to see coincide with the magnetic lows above. Built with Python's `tifffile`
   (ModelPixelScale/ModelTiepoint tags only — no full GeoKey CRS block, same as the app's own

@@ -195,7 +195,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {part !== "structures" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
         Map layers (GeoPackage / shapefile)
-        <InfoButton title="Map layers" text={`Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG (${project?.epsg ?? "?"}). Mapped contacts between units can be projected underground from the 3D Modeling tab.`} />
+        <InfoButton title="Map layers" text={`Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG (${project?.epsg ?? "?"}). Mapped contacts between units can be projected underground from the 3D Modelling tab.`} />
       </div>
       <SourceCrsField
         value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))}
@@ -293,7 +293,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {part !== "maps" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
         Surface structures (outcrop measurements)
-        <InfoButton title="Surface structures" text="Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modeling tab uses to set the dip when projecting mapped contacts underground." />
+        <InfoButton title="Surface structures" text="Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground." />
       </div>
       <button onClick={() => structInput.current.click()} style={pBtn}>
         <Compass size={14} /> Import structure measurements (.csv)…

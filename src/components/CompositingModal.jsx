@@ -142,8 +142,8 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
             <label style={fieldLabel}>Composite length (m)
               <input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Honor a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.">
-              Honor domain
+            <label style={fieldLabel} title="Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.">
+              Honour domain
               <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">— none —</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}

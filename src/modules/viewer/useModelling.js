@@ -413,10 +413,10 @@ export function useModelling(ctx) {
       const n = Math.max(1, Math.floor(ens.n));
       const estPerRun = Math.max(0.2, baseSolveSeconds);
       if (ens.budgetS < 3 * estPerRun * 0.7) {
-        setNotices((p) => [...p, `Sensitivity not run: the base run took ${estPerRun.toFixed(1)} s, so a ${ens.budgetS} s budget cannot fit even 3 realisations, and a spread from 1-2 runs means nothing. Raise the time budget, or lower the model resolution.`]);
+        setNotices((p) => [...p, `Sensitivity not run: the base run took ${estPerRun.toFixed(1)} s, so a ${ens.budgetS} s budget cannot fit even 3 realizations, and a spread from 1-2 runs means nothing. Raise the time budget, or lower the model resolution.`]);
         return;
       }
-      setNotices((p) => [...p, `Sensitivity: running up to ${n} realisations of "${ensembleBase.spec.label}" within ${ens.budgetS} s (the base run took ${estPerRun.toFixed(1)} s; the first run is usually the slowest).`]);
+      setNotices((p) => [...p, `Sensitivity: running up to ${n} realizations of "${ensembleBase.spec.label}" within ${ens.budgetS} s (the base run took ${estPerRun.toFixed(1)} s; the first run is usually the slowest).`]);
       const seed = Number.isFinite(ens.seed) ? ens.seed : (Date.now() % 2147483647);
       const rng = makeRng(seed);
       const ac = new AbortController();
@@ -468,7 +468,7 @@ export function useModelling(ctx) {
       setTaskProgress?.(null);
       const elapsed = (performance.now() - tStart) / 1000;
       if (distances.length < 3) {
-        setNotices((p) => [...p, `Sensitivity for "${bSpec.label}" ${cancelled ? "cancelled" : "stopped"} after ${distances.length} usable realisation(s)${failed ? ` (${failed} failed in GemPy)` : ""} — at least 3 are needed, so no spread was produced.`]);
+        setNotices((p) => [...p, `Sensitivity for "${bSpec.label}" ${cancelled ? "cancelled" : "stopped"} after ${distances.length} usable realization(s)${failed ? ` (${failed} failed in GemPy)` : ""} — at least 3 are needed, so no spread was produced.`]);
         return;
       }
       const summary = spreadSummary(distances); // over the ON-SURFACE vertices only (see `measured`)
@@ -498,8 +498,8 @@ export function useModelling(ctx) {
       const smesh = new THREE.Mesh(geo, mat);
       const fmt = (v) => (v == null ? "n/a" : v < 10 ? v.toFixed(1) : Math.round(v).toString());
       const perPick = bSpec.points.filter((q) => Number.isFinite(q.sigma)).length;
-      const name = `Spread: ${bSpec.label} (${distances.length} realisations)`;
-      smesh.userData = { tip: `${name}\nRMS distance each realisation's surface lies from this one, under the input sigmas you entered\nmedian ${fmt(stats.median)} m, 90th pct ${fmt(stats.p90)} m` };
+      const name = `Spread: ${bSpec.label} (${distances.length} realizations)`;
+      smesh.userData = { tip: `${name}\nRMS distance each realization's surface lies from this one, under the input sigmas you entered\nmedian ${fmt(stats.median)} m, 90th pct ${fmt(stats.p90)} m` };
       implicitGroupRef.current?.add(smesh);
       ensembleBase.mesh.visible = false; // the spread copy sits exactly on it; showing both z-fights
       const sid = `impl_${Date.now()}_spread`;
@@ -514,18 +514,18 @@ export function useModelling(ctx) {
           spread: rms.map((v, k) => (v == null || missing[k] ? null : Math.round(v * 10) / 10)),
           spreadScaleMax: scaleMax,
           params: {
-            tool: "sensitivity spread (GemPy realisations)",
+            tool: "sensitivity spread (GemPy realizations)",
             of: bSpec.label, realisations: distances.length, realisationsRequested: ens.n, failedRealisations: failed, cancelled, stoppedByTimeBudget: budgetStopped, timeBudgetS: ens.budgetS, baseRunSeconds: +baseSolveSeconds.toFixed(1),
             pointSigmaM: ens.sigmaPos, orientationSigmaDeg: ens.sigmaDeg, perPickSigmas: perPick,
             seed, secondsPerRealisation: +(elapsed / Math.max(1, distances.length + failed)).toFixed(2),
             spreadMedianM: stats.median, spreadP90M: stats.p90, spreadMaxM: stats.max, verticesNotReproduced: stats.verticesNotReproduced,
             pctMovedMoreThanPositionSigma: +amplifiedPct.toFixed(1),
-            measure: "per-vertex RMS of the distance from this surface to each realisation's surface",
+            measure: "per-vertex RMS of the distance from this surface to each realization's surface",
             generatedAt: new Date().toISOString(),
           },
         },
       ]);
-      setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
+      setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realizations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realization produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
     }
   }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, clipToTopo, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
 
@@ -702,10 +702,10 @@ export function useModelling(ctx) {
     // TASKS.csv #85 — drop control points too isolated (along the declared structural trend) to trust.
     const supportedPoints = filterBySearchSupport(points, searchEllipsoid);
     if (searchEllipsoid.enabled && supportedPoints.length < points.length && !silent) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${points.length - supportedPoints.length} of ${points.length} "${unitName}" point(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, `Search ellipsoid: excluded ${points.length - supportedPoints.length} of ${points.length} "${unitName}" point(s) with fewer than ${searchEllipsoid.minSamples} neighbour(s) along the declared trend.`]);
     }
     if (!supportedPoints.length) {
-      if (!silent) setNotices((p) => [...p, `All "${unitName}" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]);
+      if (!silent) setNotices((p) => [...p, `All "${unitName}" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbour count.`]);
       return null;
     }
     points.length = 0; points.push(...supportedPoints);
@@ -775,7 +775,7 @@ export function useModelling(ctx) {
     const preSearchCount = structRows.length;
     structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && structRows.length < preSearchCount && !silent) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbour(s) along the declared trend.`]);
     }
     let orientations = structureRowsToOrientations(structRows, traces);
     // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
@@ -929,9 +929,9 @@ export function useModelling(ctx) {
     const preEllipsoid = rows.length;
     rows = filterRowsBySearchEllipsoid(rows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && rows.length < preEllipsoid) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preEllipsoid - rows.length} of ${preEllipsoid} "${structType}" pick(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, `Search ellipsoid: excluded ${preEllipsoid - rows.length} of ${preEllipsoid} "${structType}" pick(s) with fewer than ${searchEllipsoid.minSamples} neighbour(s) along the declared trend.`]);
     }
-    if (!rows.length) { setNotices((p) => [...p, `All "${structType}" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]); return; }
+    if (!rows.length) { setNotices((p) => [...p, `All "${structType}" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbour count.`]); return; }
 
     // TASKS.csv #362 — one surface per named structure. Picks carrying a structure_id are modelled per ID;
     // picks without one form their own group. Without any IDs, all picks of the type are still one surface
@@ -1483,7 +1483,7 @@ export function useModelling(ctx) {
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
         // the shell surface itself, and point at the sidebar toggle that draws it.
         if (grid.supportCounts) setNotices((p) => [...p, `"${label}" data support — grid: ${summarizeSupport(grid.supportCounts)}. Shell surface vertices: ${summarizeSupport(surfCounts)}. Only "interpolated" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use "Colour by data support" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.`]);
-        if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
+        if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualization of where grades might extend, not a measured volume.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
         setNotices((p) => [...p, errorNotice(`Numeric model failed: ${e.message || e}`)]);

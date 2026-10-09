@@ -183,7 +183,7 @@ export default function DcipPanel({ pBtn, numInput }) {
           <div style={row} title="Horizontal cell size; half the smallest electrode spacing is a good start (vertical cells are half this)."><span style={lbl}>Cell / depth (m)</span><input type="number" value={opts.cell} onChange={(e) => setOpts((o) => ({ ...o, cell: e.target.value }))} style={inp} aria-label="Cell size" /><input type="number" value={opts.depth} onChange={(e) => setOpts((o) => ({ ...o, depth: e.target.value }))} style={inp} aria-label="Model depth" /></div>
           <div style={row} title="How far you trust each reading. No default: too small and the model invents detail, too large and it smooths real bodies away."><span style={lbl}>Resistivity ± %, floor</span><input type="number" value={opts.pct} onChange={(e) => setOpts((o) => ({ ...o, pct: e.target.value }))} style={inp} aria-label="Resistivity uncertainty percent" /><input type="number" value={opts.floor} onChange={(e) => setOpts((o) => ({ ...o, floor: e.target.value }))} style={inp} aria-label="Resistivity uncertainty floor" /></div>
           {parsed?.ip && <div style={row}><span style={lbl}>Chargeability ± %, floor mV/V</span><input type="number" value={opts.ipPct} onChange={(e) => setOpts((o) => ({ ...o, ipPct: e.target.value }))} style={inp} aria-label="Chargeability uncertainty percent" /><input type="number" value={opts.ipFloor} onChange={(e) => setOpts((o) => ({ ...o, ipFloor: e.target.value }))} style={inp} aria-label="Chargeability uncertainty floor" /></div>}
-          <div style={row} title="Cells whose normalised sensitivity is below this are greyed in the section and hidden in 3D: the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
+          <div style={row} title="Cells whose normalized sensitivity is below this are greyed in the section and hidden in 3D: the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={run} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Play size={13} /> Invert</button>
             {running && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>Cancel</button>}
@@ -267,7 +267,7 @@ function exportCsv(last, epsg) {
   const stamp = stampLines({ tool: "2D DC resistivity / IP inversion (SimPEG) — section cells", version: APP_VERSION, epsg, params: [
     `Line: ${last.name}; azimuth ${last.geom.azimuth.toFixed(2)} deg (grid); distance 0 at the line start`,
     `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / r.target).toFixed(2)}x` : ""}`,
-    "support = normalised sensitivity (how much the data see the cell); low-support cells are poorly constrained",
+    "support = normalized sensitivity (how much the data see the cell); low-support cells are poorly constrained",
   ] });
   saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(sectionTableRows(r, last.geom)), stamp) });
 }

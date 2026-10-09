@@ -21,7 +21,7 @@ that changes.
 | --- | --- |
 | Maintainer / project lead | Matt Mendes ([@Matt-Mendes-ai](https://github.com/Matt-Mendes-ai)) |
 | Reviewer | Matt Mendes |
-| Approver (authorises each signing request) | Matt Mendes |
+| Approver (authorizes each signing request) | Matt Mendes |
 
 ## How releases are built
 
@@ -44,7 +44,7 @@ same review as application code.
 ## Approval
 
 Every signing request requires manual approval by an Approver listed above. Signing is not automatic
-on tag push: a release is built and submitted, and a human authorises the signature.
+on tag push: a release is built and submitted, and a human authorizes the signature.
 
 ## Verifying a download
 

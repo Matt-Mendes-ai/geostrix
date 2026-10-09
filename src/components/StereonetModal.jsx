@@ -301,7 +301,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
                 domains the Modeling tab's tools use, so "Fault block A" means one thing app-wide. */}
             {domainFilter && domains.length > 0 && (
-              <label style={rowLabel} title="Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modeling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.">
+              <label style={rowLabel} title="Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.">
                 Structural domain
                 <select value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
                   <option value="">Whole property</option>
@@ -441,7 +441,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                     onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
-                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Copy this mean plane into the Modeling tab's anisotropy trend fields"}
+                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Copy this mean plane into the Modelling tab's anisotropy trend fields"}
                   >Use as anisotropy trend</button>
                 )}
               </div>

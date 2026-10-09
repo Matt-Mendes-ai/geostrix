@@ -36,7 +36,7 @@ const SHORTCUT_GROUPS = [
     title: "Navigation",
     items: [
       ["Ctrl/Cmd+1", "3D View"],
-      ["Ctrl/Cmd+2", "3D Modeling"],
+      ["Ctrl/Cmd+2", "3D Modelling"],
       ["Ctrl/Cmd+3", "Geochem"],
       ["Ctrl/Cmd+4", "Geophysics"],
       ["Ctrl/Cmd+5", "Targeting"],
@@ -99,7 +99,7 @@ function PythonHelp({ pyStatus }) {
       <p style={p}><b style={{ color: "var(--color-text)" }}>Status:</b> {PY_STATUS_TEXT[pyStatus] || PY_STATUS_TEXT.unavailable}</p>
       <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>Features that use it</div>
       <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
-        <li>Implicit geological modelling (GemPy) — 3D Modeling tab</li>
+        <li>Implicit geological modelling (GemPy) — 3D Modelling tab</li>
         <li>Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion</li>
         <li>2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP</li>
       </ul>

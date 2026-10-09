@@ -9,7 +9,7 @@ are scarce: free, open source, offline, and with no account or licence to buy.
 
 - **Focused on mineral exploration.** Built for exploration geologists, not adapted from general CAD or GIS:
   drillholes, geochemistry and geophysics come together to answer one question — where to drill next.
-- **Easy to use.** Drop in your files and GeoStrix recognises them, checks the data, and explains what it
+- **Easy to use.** Drop in your files and GeoStrix recognizes them, checks the data, and explains what it
   did in plain language.
 - **Light enough for a cheap computer.** It runs on an ordinary laptop with no special hardware or internet
   connection.

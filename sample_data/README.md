@@ -1,8 +1,8 @@
 # Sample drillhole dataset
 
 A small synthetic dataset (6 holes, `OR-26-01` through `OR-26-06`) built to exercise every import
-type in GeoStrix at once. It's a plausible VMS-style property: a silicified/sulfide-bearing breccia
-target (`SILBX`) with a QSP/CHL/SIL alteration halo, quartz-sulfide veining, elevated Au-Ag-Cu-Zn-Pb-As
+type in GeoStrix at once. It's a plausible VMS-style property: a silicified/sulphide-bearing breccia
+target (`SILBX`) with a QSP/CHL/SIL alteration halo, quartz-sulphide veining, elevated Au-Ag-Cu-Zn-Pb-As
 assays, lower RQD in the broken breccia, a magnetic-susceptibility low through the altered zone
 (magnetite destruction), and structural picks (contacts, a fault + shear zone in the graphitic
 argillite, foliation, veins). Not real assay data — don't use it for anything but testing the app.

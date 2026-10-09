@@ -581,7 +581,7 @@ export default function LayoutModule() {
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Size
                     <input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Colour
                     <input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
                   </label>
                 </div>
@@ -589,7 +589,7 @@ export default function LayoutModule() {
                   <ToolIconBtn icon={<Bold size={14} />} title="Bold" onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
                   <ToolIconBtn icon={<Italic size={14} />} title="Italic" onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
                   <ToolIconBtn icon={<AlignLeft size={14} />} title="Align left" onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
-                  <ToolIconBtn icon={<AlignCenter size={14} />} title="Align center" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
+                  <ToolIconBtn icon={<AlignCenter size={14} />} title="Align centre" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
                   <ToolIconBtn icon={<AlignRight size={14} />} title="Align right" onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
                 </div>
               </div>
@@ -767,7 +767,7 @@ export default function LayoutModule() {
                     <input type="number" value={sel.angle} onChange={(e) => updateSelected({ angle: Number(e.target.value) || 0 })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
-                <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <ColorRow label="Colour" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
                   <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
@@ -784,7 +784,7 @@ export default function LayoutModule() {
             )}
             {sel.type === "freehand" && (
               <>
-                <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <ColorRow label="Colour" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
                   <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
@@ -1157,7 +1157,7 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
           <input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Colour
           <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
@@ -1396,7 +1396,7 @@ function FrameControls({ sel, updateSelected }) {
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
           <input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Colour
           <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>

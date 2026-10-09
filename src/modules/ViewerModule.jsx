@@ -6227,7 +6227,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {/* TASKS.csv #458 — 3D Modeling ribbon: each modelling tool opens as a pane at the top of the sidebar
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modeling" && (
-        <Ribbon show={visible} label="3D Modeling tools">
+        <Ribbon show={visible} label="3D Modelling tools">
           <RibbonGroup label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
@@ -6804,7 +6804,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             1x in RasterModule, and 0x here until now), which opens on hover OR click. */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span>Domain</span>
-          <InfoButton title="Domain" width={280} text={`Restricts every tool below to one side of one or more faults — build domains in "Domains" further down first, then pick one here. Applies to all four tools; "Whole property" is the original, undomained behavior.`} />
+          <InfoButton title="Domain" width={280} text={`Restricts every tool below to one side of one or more faults — build domains in "Domains" further down first, then pick one here. Applies to all four tools; "Whole property" is the original, undomained behaviour.`} />
         </div>
         <select value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">Whole property</option>
@@ -6896,7 +6896,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             Search ellipsoid
-            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. Same trend the anisotropy layer below reuses.`} />
+            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. Same trend the anisotropy layer below reuses.`} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
@@ -6923,7 +6923,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <input type="number" value={searchEllipsoid.minor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
               </label>
             </div>
-            <label style={miniField}>Min. neighbors required
+            <label style={miniField}>Min. neighbours required
               <input type="number" value={searchEllipsoid.minSamples} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minSamples: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...smallSel, width: 70 }} />
             </label>
           </div>
@@ -7008,7 +7008,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
           Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one
           modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their
-          own colors in 3D.
+          own colours in 3D.
         </div>
         {lithoGroups.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>No groups yet.</div>
@@ -7024,7 +7024,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
                   {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
-                <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend color for this group"
+                <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend colour for this group"
                   style={{ width: 20, height: 18, padding: 0, border: "1px solid var(--color-border)", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
                   onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title="Click to rename">
@@ -7123,8 +7123,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
-          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sensitivity: spread across realisations
-          <InfoButton title="Sensitivity spread" width={380} text={"Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realisations land from it (RMS distance per vertex).\n\nPale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realisation produced no surface there at all.\n\nIt is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick.\n\nCost: each realisation is a full GemPy run. The base run is timed first and the number of realisations is cut to fit your time budget."} />
+          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sensitivity: spread across realizations
+          <InfoButton title="Sensitivity spread" width={380} text={"Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realizations land from it (RMS distance per vertex).\n\nPale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realization produced no surface there at all.\n\nIt is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick.\n\nCost: each realization is a full GemPy run. The base run is timed first and the number of realizations is cut to fit your time budget."} />
         </div>
         {sensOpen && (
           <div style={{ padding: "8px 9px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -7139,7 +7139,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
             ))}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-              <span style={{ width: 108, flexShrink: 0 }}>Realisations</span>
+              <span style={{ width: 108, flexShrink: 0 }}>Realizations</span>
               <input type="number" min={3} max={50} value={sensN} onChange={(e) => setSensN(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
@@ -7154,7 +7154,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 <button
                   onClick={() => runImplicitModel(implicitTarget, { ensemble: { n: Math.min(50, Math.max(3, Number(sensN) || 8)), sigmaPos: sp, sigmaDeg: sd, budgetS: Math.max(10, Number(sensBudget) || 300) } })}
                   disabled={!ready}
-                  title={!implicitTarget ? "Choose a unit above first" : (sensSigmaPos === "" || sensSigmaDeg === "") ? "Enter both sigmas — there is deliberately no default" : "Run the model, then the realisations"}
+                  title={!implicitTarget ? "Choose a unit above first" : (sensSigmaPos === "" || sensSigmaDeg === "") ? "Enter both sigmas — there is deliberately no default" : "Run the model, then the realizations"}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
                 >Run with sensitivity spread</button>
               );
@@ -7403,7 +7403,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             tonnages with zero classification context. This is the fix — framing, not features. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
-          visualise and target mineralisation. It has no anisotropy, no variogram, no classification and
+          visualize and target mineralization. It has no anisotropy, no variogram, no classification and
           no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
           it must not be reported publicly as one.
         </div>
@@ -7493,7 +7493,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies
                     ~25 of them inside a 50 m radius, so it can never express "at least two holes must
                     see this cell". This can. */}
-                <label style={{ ...miniField }} title="A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralisation' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.">Min holes
+                <label style={{ ...miniField }} title="A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralization' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.">Min holes
                   <input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
@@ -7745,7 +7745,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                           <strong>This shell was closed artificially.</strong> Part of its boundary is not a
                           grade boundary — it is where the search radius ran out of samples. The volume
                           therefore depends on your search radius, not only on the data: doubling the search
-                          radius roughly multiplies the volume by eight. Treat it as a visualisation of where
+                          radius roughly multiplies the volume by eight. Treat it as a visualization of where
                           grades might extend, not a measured volume.
                         </div>
                       )}
@@ -8251,7 +8251,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <span>Background color</span>
+                <span>Background colour</span>
                 <input
                   id="viewport-bg-color-picker"
                   type="color"
@@ -8585,7 +8585,7 @@ function ViewToolbar({
     <Ribbon show={show} label="3D View tools">
       <RibbonGroup label="View">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
+          <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-pressed={!!(openPopover === "grid")} onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
@@ -8603,7 +8603,7 @@ function ViewToolbar({
               <div style={{ display: "flex", gap: 6 }}>
                 <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
                 <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-                <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+                <input type="color" title="Grid colour" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
               </div>
               {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
                   kind of reference-furniture decision as the grid. Off by default now (they sit at the
@@ -8738,7 +8738,7 @@ function ViewToolbar({
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling."}>
+          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling."}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Data QC</span></button>
           </HoverToolInfo>
         </div>

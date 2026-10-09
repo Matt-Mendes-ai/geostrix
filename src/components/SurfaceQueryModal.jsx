@@ -152,7 +152,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
         {!surfaces.length ? (
           <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>
             No generated surfaces to query yet. Build one with the implicit-modelling tools on the
-            Modeling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear
+            Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear
             in this list.
           </div>
         ) : (

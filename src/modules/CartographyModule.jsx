@@ -33,7 +33,7 @@ const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(-
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 8 };
 const box = (ok) => ({ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", lineHeight: 1.5, background: ok ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${ok ? "var(--color-border)" : "var(--color-danger-border)"}`, color: ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" });
 const selectStyle = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const nameOf = (epsg) => `${crsName(epsg) || "Unrecognised CRS"} (EPSG:${epsg})`;
+const nameOf = (epsg) => `${crsName(epsg) || "Unrecognized CRS"} (EPSG:${epsg})`;
 
 function reportText(report, verb) {
   const parts = Object.entries(report.counts || {}).map(([k, n]) => `${n.toLocaleString()} ${k}`);
@@ -250,7 +250,7 @@ export default function CartographyModule() {
             {file?.kind === "shp" && (
               <>
                 <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-                  {file.layers.map((l) => <li key={l.name}>{l.name}: {l.features.length.toLocaleString()} {l.geomType} feature(s) · {l.epsg ? nameOf(l.epsg) : l.hasPrj ? ".prj not recognised" : "no .prj"}</li>)}
+                  {file.layers.map((l) => <li key={l.name}>{l.name}: {l.features.length.toLocaleString()} {l.geomType} feature(s) · {l.epsg ? nameOf(l.epsg) : l.hasPrj ? ".prj not recognized" : "no .prj"}</li>)}
                 </ul>
                 <div style={{ marginTop: 10 }}>
                   <SourceCrsField label="From" value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : Number(c))}
@@ -290,7 +290,7 @@ export default function CartographyModule() {
 
       {/* main area: the project's CRS at a glance, and what is loaded */}
       <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px", color: "var(--color-text)" }}>
-        <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{crsName(project.epsg) || "Unrecognised CRS"}</div>
+        <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{crsName(project.epsg) || "Unrecognized CRS"}</div>
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>EPSG:{project.epsg} · {metric === true ? "projected, metres" : metric === false ? "geographic (degrees) — distances, volumes and grids need a projected CRS" : "GeoStrix has no definition for this code: imports cannot be reprojected into it"}</div>
         {lonLat && (
           <div style={{ ...note, fontSize: "var(--font-size-base)" }}>

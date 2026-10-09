@@ -18,7 +18,7 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--font-size-sm)" }}>
         <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{label}</span>
         <span style={{ flex: 1, minWidth: 0, color: set ? "var(--color-text)" : "var(--color-text-secondary)" }}>
-          {set ? <>{name || "Unrecognised CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : defaultText}
+          {set ? <>{name || "Unrecognized CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : defaultText}
         </span>
         {set && <button type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title="Back to the default">Reset</button>}
         <button type="button" style={linkBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Close" : "Change"}</button>

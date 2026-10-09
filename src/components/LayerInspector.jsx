@@ -97,7 +97,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   <button onClick={onHideAll} style={miniBtn}>Hide all</button>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title="Save this legend's colors/labels as a reusable file"><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Export style</button>
+                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title="Save this legend's colours/labels as a reusable file"><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Export style</button>
                   <button onClick={() => styleFileInput.current.click()} style={miniBtn} title="Apply a previously-exported style file to this legend"><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Import style</button>
                   <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
                 </div>

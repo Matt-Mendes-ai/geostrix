@@ -52,7 +52,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // standing in for an invitation to act. The text is unchanged (it is accurate and hard-won — the
 // "no public spec" notes in particular are the outcome of real investigation); only its placement
 // moved, behind the InfoButton disclosure this module already uses eight times for exactly this job.
-const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) plus a value (mag, TMI, gravity, reading...); headers like Easting_X or Raw_Mag_nT are recognised, and anything unclear opens a column picker. "
+const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) plus a value (mag, TMI, gravity, reading...); headers like Easting_X or Raw_Mag_nT are recognized, and anything unclear opens a column picker. "
   + "GeoTIFF: any georeferenced grid, orthophoto, or elevation/DEM — a filename with \"dem\"/\"srtm\"/\"elev\"/"
   + "\"terrain\"/\"topo\" in it is treated as elevation data, otherwise it's imported as a flat raster drape. "
   + ".gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column "
@@ -1099,11 +1099,11 @@ export default function GeophysicsModule() {
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
                 {/* TASKS.csv #372 — colour stretch */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalise: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Colours</span>
                   <select value={idwStretch} onChange={(e) => setIdwStretch(e.target.value)} style={{ ...numInput, flex: 1 }} aria-label="Colour stretch">
                     <option value="p2-98">2-98% percentile clip</option>
-                    <option value="equalise">Histogram equalised</option>
+                    <option value="equalise">Histogram equalized</option>
                     <option value="linear">Linear min-max</option>
                   </select>
                 </div>
@@ -1145,7 +1145,7 @@ export default function GeophysicsModule() {
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Terrain (SRTM/DEM)
-          <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
+          <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighbouring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
         </div>
         {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
         <SourceCrsField
@@ -1220,7 +1220,7 @@ export default function GeophysicsModule() {
               <Trash2 aria-label={`Remove terrain "${terrain.name}"`} title={`Remove terrain "${terrain.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Colour</span>
               <input type="color" value={terrain.color || "#8a7f68"} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
@@ -1342,7 +1342,7 @@ export default function GeophysicsModule() {
               <input type="number" value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(e) => updateBoundary(b.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Colour</span>
               <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1374,7 +1374,7 @@ export default function GeophysicsModule() {
         <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Mineral claims / tenure
-          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
+          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
           <Flag size={14} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…
@@ -1436,7 +1436,7 @@ export default function GeophysicsModule() {
               <input type="number" value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(e) => updateBoundary(c.id, { elevation: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Colour</span>
               <input type="color" value={c.color || claimStatusColor(c.status)} onChange={(e) => updateBoundary(c.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1504,7 +1504,7 @@ export default function GeophysicsModule() {
               <Trash2 aria-label={`Remove "${o.name}"`} title={`Remove "${o.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Colour</span>
               <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "#5a9bd4"} onChange={(e) => updateOmfObject(o.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1653,7 +1653,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage 
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
-        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit colour legend / range / classification" />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
         {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Evaluate block model "${model.name}" onto the drillholes`} title="Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log" onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
@@ -1745,7 +1745,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
 
       <div style={{ marginTop: 8 }}>
         <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>
-          Color legend {stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : "(default gradient — no custom stops yet)"}
+          Colour legend {stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : "(default gradient — no custom stops yet)"}
         </div>
         {stops.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
@@ -1773,13 +1773,13 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Color palette</div>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Colour palette</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }}>
             {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}
           </select>
           {stops.length > 0 && (
-            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title="Re-color the existing stops with this palette, keeping their current values">Recolor</button>
+            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title="Re-colour the existing stops with this palette, keeping their current values">Recolor</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 2, marginTop: 4, height: 10, borderRadius: 3, overflow: "hidden" }}>

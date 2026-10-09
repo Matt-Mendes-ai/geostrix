@@ -653,7 +653,7 @@ export default function GeochemModule() {
             <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", msg: null }))} />
             <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
-          <RibbonGroup label="Analyse">
+          <RibbonGroup label="Analyze">
             <RibbonButton icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />

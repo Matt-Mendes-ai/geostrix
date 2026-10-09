@@ -38,7 +38,7 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Project coordinate system</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {project.crsSet ? <>Now: {crsName(project.epsg) || "Unrecognised CRS"} · EPSG:{project.epsg}</> : "Not set yet. Choose the CRS your collar coordinates are in."}
+              {project.crsSet ? <>Now: {crsName(project.epsg) || "Unrecognized CRS"} · EPSG:{project.epsg}</> : "Not set yet. Choose the CRS your collar coordinates are in."}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />

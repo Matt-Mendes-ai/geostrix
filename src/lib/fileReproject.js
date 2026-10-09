@@ -24,7 +24,7 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
   const files = [], report = [];
   for (const layer of layers) {
     const from = fromEpsg ? Number(fromEpsg) : layer.epsg;
-    if (!from) throw new Error(`"${layer.name}" has ${layer.hasPrj ? "a .prj GeoStrix doesn't recognise" : "no .prj"} — choose its CRS under "From".`);
+    if (!from) throw new Error(`"${layer.name}" has ${layer.hasPrj ? "a .prj GeoStrix doesn't recognize" : "no .prj"} — choose its CRS under "From".`);
     const T = pointTransform(from, toEpsg);
     if (!T) throw new Error(`Can't convert from EPSG:${from} to EPSG:${toEpsg}.`);
     let vertices = 0, failed = 0;

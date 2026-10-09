@@ -442,7 +442,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
             <strong>Not a resource estimate.</strong> This is an interpolated block model to help you
-            visualise and target mineralisation. Nothing it produces is a Mineral Resource under
+            visualize and target mineralization. Nothing it produces is a Mineral Resource under
             NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate
             prepared by a Qualified Person.
           </div>
