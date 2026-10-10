@@ -6,6 +6,8 @@
 // export (airborne geophysics, ground surveys, etc.), both plain text with no public spec beyond
 // "what real exported files actually look like".
 
+import { parseClock } from "./diurnal.js";
+
 // ---------------------------------------------------------------------------------------------
 // .ply — Geosoft boundary/polygon format. Real samples show two shapes: (1) an optional block of
 // "/#KEY=value" metadata comment lines (CoordinateSystem/Datum/Projection/Units/LocalDatum) followed
@@ -114,7 +116,8 @@ export function parseXYZ(text) {
     for (let i = 0; i < columns.length; i++) {
       const tok = toks[i];
       if (tok === undefined || tok === "*") { row[columns[i]] = null; continue; }
-      const v = parseFloat(tok);
+      // TASKS.csv #610 — a clock time ("10:46:26.0") is seconds of the day; parseFloat read it as the hour (10)
+      const v = tok.includes(":") ? parseClock(tok) : parseFloat(tok);
       row[columns[i]] = Number.isFinite(v) ? v : null;
     }
     rows.push(row);

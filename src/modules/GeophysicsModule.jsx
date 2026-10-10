@@ -27,6 +27,8 @@ import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
+import { gemHeaderInfo } from "../lib/diurnal.js";
+import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
 import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
@@ -680,6 +682,7 @@ export default function GeophysicsModule() {
         yCol: guessColumn(columns, XY_NAME_HINTS.y),
         zCol: g.z,
         valueCol: g.value,
+        header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
       });
     } catch (err) {
       setXyzError({ info: false, text: `Could not parse ${file.name}: ${err.message}` });
@@ -726,7 +729,8 @@ export default function GeophysicsModule() {
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
     const skipped = parsedRows.length - mapped.length;
-    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}` });
+    const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
+    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}${dcNote}` });
     setXyzPending(null);
     if (xyzPending.source === "csv") setError(null);
   };
@@ -1017,13 +1021,14 @@ export default function GeophysicsModule() {
                 <select
                   value={xyzPending[key]}
                   onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
-                  style={{ ...numInput, width: "auto", flex: 1 }}
+                  style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                 >
                   <option value="">{key === "zCol" ? "(none — elevation not recorded)" : "(choose a column)"}</option>
                   {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             ))}
+            {xyzPending.source !== "csv" && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 <Upload size={14} /> Import
