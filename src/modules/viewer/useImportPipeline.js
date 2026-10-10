@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
 import { azimuthToGridOffset, wrap360, loadIgrf } from "../../lib/azimuthRef.js"; // loadIgrf: #552
-import { orientFromAlphaBeta } from "../../lib/coreOrientation.js";
+import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
@@ -216,6 +216,23 @@ export function useImportPipeline(ctx) {
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
     if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
+    // TASKS.csv #548 — alpha/beta picks were oriented from the survey present at THEIR import; a new survey or
+    // collar for those holes re-derives them (logged dip / dip direction and calculator results are left alone).
+    const reorientAfter = (holeIds, newSurvey, newCollars, srcName) => {
+      const st = importStateRef.current.layers?.structure;
+      if (!st?.length) return;
+      const survey = newSurvey || importStateRef.current.survey || [];
+      const byHole = new Map();
+      survey.forEach((sv) => { if (!byHole.has(sv.hole_id)) byHole.set(sv.hole_id, []); byHole.get(sv.hole_id).push(sv); });
+      const cm = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c]));
+      (newCollars || []).forEach((c) => cm.set(c.hole_id, { ...(cm.get(c.hole_id) || {}), ...c }));
+      const res = reorientAlphaBetaPicks(st, (h) => cm.get(h) || null, byHole, holeIds, surveyAzimuthDipAt);
+      if (!res.derived) return;
+      if (res.changed) setLayers((p) => ({ ...p, structure: reorientAlphaBetaPicks(p.structure, (h) => cm.get(h) || null, byHole, holeIds, surveyAzimuthDipAt).rows }));
+      const moved = res.changed - res.newlyOriented, src = newSurvey ? "survey" : "collars";
+      const said = [res.newlyOriented ? `oriented ${res.newlyOriented} alpha/beta structure pick(s) that had no hole direction until this ${src}` : "", moved ? `re-oriented ${moved} alpha/beta pick(s) from the new ${src} (largest change ${res.maxChangeDeg.toFixed(1)}°)` : ""].filter(Boolean).join("; ");
+      if (said || res.failed.length) setNotices((p) => [...p, `${srcName}: ${said || "no alpha/beta pick changed"}${res.failed.length ? `; ${res.failed.length} still could not be oriented (kept as they were): ${res.failed.slice(0, 4).join("; ")}${res.failed.length > 4 ? "; …" : ""}` : ""}.`]);
+    };
 
     if (target === "collars") {
       const ranked = pickRankedCollarRows(allRows, mapping.hole_id, allRows.length ? Object.keys(allRows[0]) : []); // #600
@@ -327,6 +344,7 @@ export function useImportPipeline(ctx) {
       const prevById = new Map(liveCollars.map((c) => [c.hole_id, c]));
       const applied = rows.map((r) => (prevById.has(r.hole_id) ? mergeCollar(prevById.get(r.hole_id), r, overwriteExisting) : r));
       setCollars((prev) => Array.from(new Map([...prev, ...applied].map((c) => [c.hole_id, c])).values()));
+      reorientAfter(new Set(applied.map((r) => r.hole_id)), null, applied, fileName); // #548 — a collar's az / dip orients a hole without a survey
       setVisibleHoles((prev) => ({ ...prev, ...Object.fromEntries(applied.map((r) => [r.hole_id, true])) }));
       // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
       // different coordinates and were updated") rather than a bare "Loaded N collars".
@@ -350,6 +368,7 @@ export function useImportPipeline(ctx) {
       const keep = batchRowsRef.current;
       const replaced = replaceRowsByHole(importStateRef.current.survey, rows, keep).replacedHoles; // for the notice only
       setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
+      reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep).rows, null, fileName); // #548
       setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
         + (replaced.length ? ` Replaced the earlier survey of ${replaced.length} hole(s) (${replaced.slice(0, 6).join(", ")}${replaced.length > 6 ? ", …" : ""}) — Ctrl+Z to undo.` : "")
         + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
@@ -370,9 +389,9 @@ export function useImportPipeline(ctx) {
           const collar = liveCollarAt(r);
           const att = collar ? surveyAzimuthDipAt(collar, surveyByHole.get(r.hole_id) || [], r.depth) : null;
           const o = att ? orientFromAlphaBeta({ alphaDeg: r.alpha, betaDeg: r.beta, holeAzDeg: att.azimuth, holeDipDeg: att.dip, useTop: betaRefLine === "top" }) : { error: "no collar/survey for this hole" };
-          if (o.error) { abFailed.push(`${r.hole_id}@${r.depth} (${o.error})`); return r; }
+          if (o.error) { abFailed.push(`${r.hole_id}@${r.depth} (${o.error})`); return { ...r, abRef: betaRefLine === "top" ? "top" : "bottom" }; } // #548 — oriented later, when its survey / collar arrives
           abDone++;
-          return { ...r, dip: o.dipDeg, azimuth: o.dipDirDeg, orientedFrom: `alpha/beta, ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line`, _abGrid: true };
+          return { ...r, dip: o.dipDeg, azimuth: o.dipDirDeg, orientedFrom: `alpha/beta, ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line`, abRef: betaRefLine === "top" ? "top" : "bottom", _abGrid: true }; // #548 — abRef: re-derived when the survey changes
         });
       }
       const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
@@ -442,8 +461,16 @@ export function useImportPipeline(ctx) {
 
   // Modal's "Import" button: commit whatever's currently in importModal state, then close it and
   // let the multi-file queue (if there is one) move on to the next file.
+  // TASKS.csv #548 (found testing) — a second click on Import while the first was still awaiting (the CRS prompt,
+  // the IGRF chunk) committed the SAME file again and advanced the queue once per click: four clicks imported the
+  // collars four times and silently skipped the next three queued files (headers, survey). One commit at a time.
+  const commitBusyRef = useRef(false);
   const commitImport = async () => {
-    if (!importModal) return;
+    if (!importModal || commitBusyRef.current) return;
+    commitBusyRef.current = true;
+    try { await commitImportOnce(); } finally { commitBusyRef.current = false; }
+  };
+  const commitImportOnce = async () => {
     await askCrsForCollars(importModal); // #615
     if (importModal.azimuthRef === "magnetic") { try { await loadIgrf(); } catch { /* offline chunk load failed: the conversion reports the holes it couldn't convert */ } } // #552
     // TASKS.csv #412 — feet and local mine grid are applied to the raw rows before the normal import.
