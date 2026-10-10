@@ -161,3 +161,46 @@ test("#491 sceneVertsToWorldFlat gives exactly sceneVertsToWorld's numbers, flat
     assert.ok(Array.isArray(flat.indices) && Array.isArray(flat.vertices));
   }
 });
+
+// TASKS.csv #550 — R12 2D polyline elevation, zero elevations, CIRCLE / ARC, skipped entity counts
+import { dxfSkippedText } from "../src/lib/dxf.js";
+const contour = (z, x0) => ["0", "POLYLINE", "8", "CONTOURS", "66", "1", "70", "0", "10", "0", "20", "0", "30", String(z),
+  "0", "VERTEX", "8", "CONTOURS", "10", String(x0), "20", "0", "30", "0",
+  "0", "VERTEX", "8", "CONTOURS", "10", String(x0 + 50), "20", "40", "30", "0", "0", "SEQEND"];
+const lwAt = (elev) => ["0", "LWPOLYLINE", "8", "DESIGN", "38", String(elev), "90", "2", "70", "0", "10", "5", "20", "5", "10", "25", "20", "5"];
+
+test("#550 a 2D POLYLINE takes the header's elevation (R12 contours); a 0 among real elevations is real", () => {
+  const r = parseDXF(dxf([...contour(450, 0), ...contour(460, 100), ...lwAt(0)]));
+  assert.deepEqual(r.polylines.map((pl) => pl.map((q) => q.z)), [[450, 450], [460, 460], [0, 0]]);
+  assert.equal(r.has3D, true);
+  assert.equal(r.zerosDropped, false);
+});
+
+test("#550 a file whose strings are ALL at 0 is a 2D plan (no elevation), and says so", () => {
+  const r = parseDXF(dxf([...contour(0, 0), ...lwAt(0), ...lw]));
+  assert.ok(r.polylines.every((pl) => pl.every((q) => q.z === undefined)));
+  assert.equal(r.has3D, false);
+  assert.equal(r.zerosDropped, true);
+});
+
+test("#550 CIRCLE and ARC become polylines; TEXT / INSERT / MTEXT are counted, not silently dropped", () => {
+  const body = [
+    "0", "CIRCLE", "8", "COLLARS", "10", "100", "20", "200", "30", "950", "40", "2",
+    "0", "ARC", "8", "PIT", "10", "0", "20", "0", "30", "900", "40", "10", "50", "0", "51", "90",
+    "0", "TEXT", "8", "LABELS", "10", "100", "20", "200", "1", "DDH-01",
+    "0", "TEXT", "8", "LABELS", "10", "110", "20", "200", "1", "DDH-02",
+    "0", "INSERT", "8", "COLLARS", "2", "CROSS", "10", "100", "20", "200",
+    "0", "MTEXT", "8", "NOTES", "1", "note",
+  ];
+  const r = parseDXF(dxf(body));
+  assert.equal(r.polylines.length, 2);
+  const circle = r.polylines[0], arc = r.polylines[1];
+  assert.equal(r.closed[0], true);
+  assert.ok(circle.every((q) => Math.abs(Math.hypot(q.x - 100, q.y - 200) - 2) < 1e-9 && q.z === 950));
+  assert.equal(r.closed[1], false);
+  assert.ok(Math.abs(arc[0].x - 10) < 1e-9 && Math.abs(arc[0].y) < 1e-9); // starts at 0 degrees
+  assert.ok(Math.abs(arc[arc.length - 1].x) < 1e-9 && Math.abs(arc[arc.length - 1].y - 10) < 1e-9); // ends at 90
+  assert.deepEqual(r.skipped, { TEXT: 2, INSERT: 1, MTEXT: 1 });
+  assert.match(dxfSkippedText(r.skipped), /^skipped 2 TEXT, 1 INSERT, 1 MTEXT/);
+  assert.equal(dxfSkippedText({}), "");
+});

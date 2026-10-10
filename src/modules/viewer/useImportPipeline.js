@@ -128,11 +128,11 @@ export function useImportPipeline(ctx) {
     if (/\.dxf$/.test(name)) {
       try {
         // TASKS.csv #408 — one boundary per DXF layer, keeping Z; a face-only DXF is a solid.
-        const { dxfToBoundaries } = await import("../../lib/dxf.js"); // #552 — on demand
+        const { dxfToBoundaries, dxfSkippedText } = await import("../../lib/dxf.js"); // #552 — on demand; dxfSkippedText: #550
         const specs = dxfToBoundaries(await file.text(), file.name.replace(/\.dxf$/i, ""));
         specs.forEach((sp) => addBoundary({ ...sp, elevation: defaultElevation }));
         const n3d = specs.filter((sp) => sp.useVertexZ).length;
-        setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.`]);
+        setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.${specs[0]?.dxfZerosDropped ? " Every string had elevation 0, so the file was read as a 2D plan (no elevation)." : ""}${dxfSkippedText(specs[0]?.dxfSkipped) ? ` ${dxfSkippedText(specs[0].dxfSkipped)[0].toUpperCase()}${dxfSkippedText(specs[0].dxfSkipped).slice(1)}.` : ""}`]); // #550
       } catch (err) {
         if (err.facesOnly) { importSolidFile(file); return; } // #408 — 3DFACE / polyface only: import as a solid
         setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]);

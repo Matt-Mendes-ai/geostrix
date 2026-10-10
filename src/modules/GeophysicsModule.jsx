@@ -27,7 +27,7 @@ import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject
 import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
-import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
+import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
@@ -508,13 +508,16 @@ export default function GeophysicsModule() {
     if (!files.length) return;
     setBoundaryError(null);
     let imported = 0;
-    const failed = [];
+    const failed = [], dxfNotes = []; // dxfNotes: #550
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
         if (!shapePolylines && /\.dxf$/i.test(file.name)) {
           // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
-          dxfToBoundaries(await file.text(), file.name).forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          const specs = dxfToBoundaries(await file.text(), file.name);
+          specs.forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          const sk = dxfSkippedText(specs[0]?.dxfSkipped); // #550 — say what was left out
+          if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
         }
         let polylines;
@@ -531,6 +534,7 @@ export default function GeophysicsModule() {
       }
     }
     let msg = imported ? `Imported ${imported} boundary file(s) (${boundaries.length + imported} total).` : "";
+    if (dxfNotes.length) msg += ` ${dxfNotes.join(" ")}.`; // #550
     if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
