@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
-import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
+import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
@@ -64,6 +64,8 @@ export default function SectionWindow() {
 
   useEffect(() => {
     const off = onSectionData((d) => { setData(d); setContacts(d.contacts || []); });
+    // TASKS.csv #617 — ask for the data too: the push from main can arrive before this lazy component listens
+    getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); } }).catch(() => {});
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
     if (id) {

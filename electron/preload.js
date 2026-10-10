@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld("desktop", {
   autosaveQuarantine: () => ipcRenderer.invoke("autosave-quarantine"), // TASKS.csv #475
   autosaveClear: () => ipcRenderer.invoke("autosave-clear"),
   setDirtyState: (dirty) => ipcRenderer.send("set-dirty-state", dirty),
+  getSectionData: () => ipcRenderer.invoke("get-section-data"), // TASKS.csv #617
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },
 });

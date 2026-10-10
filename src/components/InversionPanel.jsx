@@ -392,7 +392,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 {[["strength", "Strength (nT)"], ["inclination", "Inclination (°)"], ["declination", "Declination (° true)"]].map(([k, l]) => (
                   <div key={k} style={row}><span style={lbl}>{l}</span><input type="number" value={field[k]} onChange={(e) => setField((p) => ({ ...p, [k]: e.target.value, source: "entered by user" }))} style={inp} /></div>
                 ))}
-                <button onClick={computeIgrf} disabled={!field.date} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date ? 1 : 0.5 }} title="Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.">
+                <button onClick={computeIgrf} disabled={!field.date || !rows.length} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date && rows.length ? 1 : 0.5 }} title="Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.">
                   <Compass size={13} /> Compute from IGRF-14 for the survey date
                 </button>
                 {field.source && <div style={{ ...small, marginTop: 4 }}>Source: {field.source}</div>}

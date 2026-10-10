@@ -434,6 +434,13 @@ function createMainWindow() {
 ipcMain.on("set-dirty-state", (_e, dirty) => { rendererDirty = !!dirty; });
 
 // ---------- cross-section pop-out window ----------
+// TASKS.csv #617 — the section window's renderer (lazy SectionWindow chunk) starts listening for "section-data"
+// AFTER did-finish-load, so the one push sent there could arrive before anyone listened and the window sat on
+// "Waiting for section data..." forever (every time in dev; a race in packaged builds). Each window's latest
+// payload is kept here and the window ASKS for it once it is listening ("get-section-data"); pushes still
+// deliver later updates.
+const sectionPayloads = new Map(); // webContents.id -> latest payload
+ipcMain.handle("get-section-data", (ev) => sectionPayloads.get(ev.sender.id) || null);
 ipcMain.handle("open-section-window", (_e, payload) => {
   // TASKS.csv — cross-section contact drawing: the caller (ViewerModule) now supplies a stable id
   // (matching the section's entry in store.sections) so contacts drawn in this pop-out can be relayed
@@ -451,6 +458,7 @@ ipcMain.handle("open-section-window", (_e, payload) => {
   // drifted apart. Now it just focuses the existing window and re-sends fresh data instead.
   const existing = childWindows.get(id);
   if (existing && !existing.isDestroyed()) {
+    sectionPayloads.set(existing.webContents.id, { id, ...payload });
     existing.webContents.send("section-data", { id, ...payload });
     if (existing.isMinimized()) existing.restore();
     existing.focus();
@@ -475,11 +483,13 @@ ipcMain.handle("open-section-window", (_e, payload) => {
       sandbox: true,
     },
   });
+  const wcId = win.webContents.id;
+  sectionPayloads.set(wcId, { id, ...payload });
   win.loadURL(resolveUrl("/section"));
   win.webContents.once("did-finish-load", () => {
     win.webContents.send("section-data", { id, ...payload });
   });
-  win.on("closed", () => childWindows.delete(id));
+  win.on("closed", () => { childWindows.delete(id); sectionPayloads.delete(wcId); });
   childWindows.set(id, win);
   return { id };
 });

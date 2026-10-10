@@ -601,6 +601,16 @@ export function useImportPipeline(ctx) {
     setSampleLoading(true);
     try {
       const files = await loadSampleFiles("harry_property", SAMPLE_FILES);
+      // TASKS.csv #617 — the sample's CRS is known (EPSG:3156, sample_data/harry_property/README.md): set it when the
+      // project's CRS was never chosen, instead of stopping on #615's "which CRS are these collars in?" dialog
+      const live = importStateRef.current;
+      if (live.project?.crsSet === false && live.setEpsg) {
+        live.setEpsg(3156);
+        importStateRef.current = { ...live, project: { ...live.project, epsg: 3156, crsSet: true } };
+        setNotices((p) => [...p, "Project CRS set to NAD83(CSRS) / UTM zone 9N (EPSG:3156), the sample project's coordinate system."]);
+      } else if (live.project?.epsg && Number(live.project.epsg) !== 3156) {
+        setNotices((p) => [...p, `The sample project's coordinates are EPSG:3156 (NAD83(CSRS) / UTM zone 9N), but this project is EPSG:${live.project.epsg}: the holes will not line up with anything else in it. Load the sample into a new project.`]);
+      }
       setNotices((p) => [...p, `Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Assays for these holes can be imported from the Geochem tab (sample_data/harry_property/assay_wide.csv).`]);
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605

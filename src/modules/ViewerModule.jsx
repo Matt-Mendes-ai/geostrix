@@ -1340,6 +1340,27 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     dragRef.current = { dragging: false, panning: false, lastX: 0, lastY: 0 };
   }, [mode]);
 
+  // TASKS.csv #617 — Escape. Nothing in the 3D view listened for it: a right-click menu, a layer menu or a popover
+  // stayed open, and an armed tool (Draw section, Measure, rectangle zoom, pick a hole, modelling-code pick) could
+  // only be left by clicking its button again. Escape now closes the open menu first, else disarms the tool.
+  // Left alone while typing in a field or when a dialog is open (dialogs handle their own Escape).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape" || !visibleRef.current) return;
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (document.querySelector("[role=dialog], [aria-modal=true]")) return;
+      if (contextMenu || layerContextMenu || openPopover) { setContextMenu(null); setLayerContextMenu(null); setOpenPopover(null); return; }
+      if (rectZoomMode) { setRectZoomMode(false); setRectVisual(null); rectDragRef.current = null; return; }
+      if (sectionMode) { setSectionMode(false); sectionPts.current = []; setSectionPreview(null); return; }
+      if (pickHoleMode) { setPickHoleMode(false); return; }
+      if (mcConnectFrom) { setMcConnectFrom(null); return; }
+      if (measureMode) { setMeasureMode(null); setMeasurePts([]); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [contextMenu, layerContextMenu, openPopover, rectZoomMode, sectionMode, pickHoleMode, mcConnectFrom, measureMode]);
+
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
   // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
@@ -5685,6 +5706,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   };
 
   // ---------- cross-section (plan-view draw -> pop-out window) ----------
+  // TASKS.csv #617 — which clicks place a section / measure / pick-hole / modelling-code / sculpt point. All five
+  // handlers hang off the 3D view's container, so before this (reproduced with real mouse input in the Electron app):
+  //   * ending an orbit or pan DRAG fired a click -> a measure point (or section end) wherever the mouse stopped;
+  //   * clicking a control drawn OVER the view (Fit / Top / Bottom, the legend, the measure panel's Clear and
+  //     Distance/Area pills) bubbled here -> a point under the button (Clear then immediately re-added one);
+  //   * snapping the view with the compass (drawn on the canvas) did the same.
+  // A pick is now a click on the canvas itself, not on the compass, with the pointer within 4 px of where it went down.
+  const isViewClick = (e) => {
+    const canvas = rendererRef.current?.domElement;
+    if (!canvas || e.target !== canvas) return false;
+    const d = mcDownRef.current;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return false;
+    const mount = mountRef.current, compass = compassRef.current;
+    if (mount && compass?.isOver) { const r = mount.getBoundingClientRect(); if (compass.isOver(mount, e.clientX - r.left, e.clientY - r.top)) return false; }
+    return true;
+  };
   const onSectionClick = useCallback((e) => {
     if (!sectionMode) return;
     const rect = mountRef.current.getBoundingClientRect();
@@ -8077,7 +8114,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modeling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modeling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is

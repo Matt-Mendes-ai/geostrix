@@ -43,6 +43,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits, undefined, { minMean: Number(dupMin) || 0 }), [assays, symbol, elementUnits, dupMin]);
   const dupSummary = useMemo(() => duplicateSummary(dups, 20), [dups]);
 
+  const exportCount = tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
     let rows, name;
     if (tab === "standards" && activeGroup) {
@@ -188,7 +189,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             QC samples are recognised from a sample-type column when the assay file has one (standards grouped by a CRM / standard-name column if present), otherwise from the hole_id (standards "std"/"crm"/"oreas"…, blanks "blank"/"blk", duplicates "dup"); a hole in the collar table is never QC. Duplicates pair by parent sample id, else the same hole and interval, else the name. Certified limits come from the values you enter from each CRM's certificate.
           </div>
 
-          <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
+          {/* TASKS.csv #617 — with nothing in the current view, Export used to do nothing at all when clicked */}
+          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? `Export the ${exportCount} row(s) in this view` : `Nothing to export: this view has no ${tab === "standards" ? "standard results" : tab}`} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
             <Download size={14} /> Export current view (CSV)
           </button>
         </div>

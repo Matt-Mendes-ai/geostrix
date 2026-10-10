@@ -151,6 +151,10 @@ export function onMenu(cb) {
   const offIpc = d ? d.onMenu(cb) : () => {};
   return () => { if (typeof window !== "undefined") window.removeEventListener("geostrix-menu-gesture", onGesture); offIpc?.(); };
 }
+// TASKS.csv #617 — the payload this section window was opened with (null in a browser / before main has one)
+export async function getSectionData() {
+  return d?.getSectionData ? d.getSectionData() : null;
+}
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);
   return () => {};

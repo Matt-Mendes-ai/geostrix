@@ -919,6 +919,15 @@ export default function GeophysicsModule() {
             {rasterError.text}
           </div>
         )}
+        {/* TASKS.csv #617 — the point-survey file input lives OUTSIDE the pane: the empty-state "Import CSV…" and
+            File > Import CSV (Ctrl+I) click it too, and did nothing whenever another pane (Terrain, Inversion…) was open */}
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
+        />
         {geoPane === "points" && (<>
         <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -937,13 +946,6 @@ export default function GeophysicsModule() {
         <button onClick={() => fileInput.current.click()} style={pBtn}>
           <Upload size={14} /> Import CSV…
         </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".csv"
-          style={{ display: "none" }}
-          onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
-        />
 
         {/* Geosoft .xyz line/profile import — its column layout isn't fixed like the CSV importer
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
