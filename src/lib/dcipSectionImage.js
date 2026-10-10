@@ -6,6 +6,7 @@ import { colors } from "./theme.js";
 import { colorForVoxelValue } from "./layers.js";
 import { logStops, sequentialStops, fitVerdict } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
+import { canvasHatch, HATCH } from "./supportHatch.js"; // TASKS.csv #535
 
 // 1, 2, 5 x 10^n step giving about `n` ticks over [lo, hi]
 export function niceStep(lo, hi, n = 6) {
@@ -33,8 +34,9 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillStyle = colors.bg; g.fillRect(0, 0, width, height);
   const X = (s) => L + (s - s0) * sx, Y = (z) => T + (z1 - z) * sz;
   // cells (a hair of overlap hides anti-aliasing seams between neighbours)
+  const hatch = canvasHatch(g, 8); // #535 — low support hatched, never a ramp-like flat grey
   for (let i = 0; i < vals.length; i++) {
-    g.fillStyle = c.support[i] < cutoff ? "#d6d9de" : colorForVoxelValue(model, vals[i]);
+    g.fillStyle = c.support[i] < cutoff ? hatch : colorForVoxelValue(model, vals[i]);
     g.fillRect(X(c.s[i] - c.ds[i] / 2), Y(c.z[i] + c.dz[i] / 2), c.ds[i] * sx + 0.6, c.dz[i] * sz + 0.6);
   }
   g.fillStyle = colors.text;
@@ -60,7 +62,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillText(`${isRho ? "Resistivity" : "Chargeability"} — DC/IP line ${name}`, L, 32);
   g.font = font(14); g.fillStyle = colors.textSecondary;
   const chi = isRho ? fitVerdict(result).chi : result.ip ? result.ip.phi_d / result.target : NaN;
-  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · grey = barely seen by the data (support < ${cutoff})`, L, 54);
+  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = barely seen by the data (support < ${cutoff})`, L, 54);
   // colour bar
   const by = T + plotH + 62, bw = Math.min(520, plotW), bh = 16;
   const lo = isRho ? arrMin(vals) : 0, hi = arrMax(vals);
@@ -73,6 +75,14 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillStyle = colors.textSecondary; g.font = font(14); g.textBaseline = "top";
   g.textAlign = "left"; g.fillText(lo.toPrecision(3), L, by + bh + 5);
   g.textAlign = "right"; g.fillText(hi.toPrecision(3), L + bw, by + bh + 5);
-  g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale)" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5);
+  g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale) — dark = conductive" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5);
+  // #535 — the hatch in the legend, next to the colour bar
+  if (cutoff > 0 && L + bw + 40 + 200 < width) {
+    const hx = L + bw + 40;
+    g.fillStyle = hatch; g.fillRect(hx, by, 34, bh);
+    g.strokeStyle = HATCH.line; g.strokeRect(hx, by, 34, bh);
+    g.fillStyle = colors.textSecondary; g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillText(`barely seen by the data (support < ${cutoff})`, hx + 42, by + bh / 2);
+  }
   return { dataUrl: cv.toDataURL("image/png"), width, height, verticalExaggeration: ve };
 }

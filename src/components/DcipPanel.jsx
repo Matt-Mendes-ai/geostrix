@@ -2,7 +2,7 @@
 // Import a line CSV (electrode positions along the line + apparent resistivity [+ chargeability]), place the
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
@@ -16,6 +16,7 @@ import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "..
 import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
+import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 
@@ -318,6 +319,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
   const [note, setNote] = useState(null);
   const c = result.cells;
   const [field, setField] = useState("resistivity");
+  const hatchId = `dcipHatch${useId().replace(/:/g, "")}`; // #535 — one pattern per section on the page
   const vals = c[field];
   const verdict = fitVerdict(result);
   const W = 320, H = 150;
@@ -334,15 +336,17 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
           {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? "Resistivity" : "Chargeability"}</button>)}
         </div>
       )}
-      <svg width={W} height={H} role="img" aria-label={`Inverted ${field} section`} style={{ display: "block", marginTop: 4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Inverted ${field} section`} style={{ display: "block", marginTop: 4, width: "100%", maxWidth: W, height: "auto" }}>
+        {/* TASKS.csv #535 — low-support cells hatched (a flat grey matched mid-range resistivity) */}
+        <defs><pattern id={hatchId} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill={HATCH.bg} /><line x1="0" y1="0" x2="0" y2="5" stroke={HATCH.line} strokeWidth="1.2" /></pattern></defs>
         {vals.map((v, i) => {
           const weak = c.support[i] < cutoff;
-          return <rect key={i} x={5 + (c.s[i] - c.ds[i] / 2 - s0) * sx} y={5 + (z1 - c.z[i] - c.dz[i] / 2) * sz} width={c.ds[i] * sx + 0.5} height={c.dz[i] * sz + 0.5} fill={weak ? "#d6d9de" : colorForVoxelValue(model, v)} />;
+          return <rect key={i} x={5 + (c.s[i] - c.ds[i] / 2 - s0) * sx} y={5 + (z1 - c.z[i] - c.dz[i] / 2) * sz} width={c.ds[i] * sx + 0.5} height={c.dz[i] * sz + 0.5} fill={weak ? `url(#${hatchId})` : colorForVoxelValue(model, v)} />;
         })}
         {result.electrodes.map((e, i) => <circle key={i} cx={5 + (e[0] - s0) * sx} cy={5 + (z1 - e[1]) * sz} r={1.6} fill="#1a2028" />)}
       </svg>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: red conductive, blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · grey = barely seen by the data. {last.restored ? `Inverted ${last.restored.slice(0, 10)} (kept in the project).` : "Added to Block models (3D, along the line)."}
+        {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: dark red conductive → light blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · <svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg> hatched = barely seen by the data. {last.restored ? `Inverted ${last.restored.slice(0, 10)} (kept in the project).` : "Added to Block models (3D, along the line)."}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg)} style={{ ...pBtn, width: "auto", flex: 1 }} title="Every section cell: distance, x / y (project CRS), elevation, size, values, support"><Download size={13} /> CSV</button>

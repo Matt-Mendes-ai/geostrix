@@ -176,7 +176,12 @@ function labStops(anchors, values) {
 // the strongest cells are the most salient on GeoStrix's light viewport, same logic as #306's grade ramp.
 // TASKS.csv #322 — resistivity: log-spaced stops (it spans decades), conductive = warm / dark red, resistive =
 // blue, the convention DC/IP sections are read in.
-export const RESISTIVITY_ANCHORS = ["#8a1d1d", "#e0885c", "#f4f4f2", "#5b8fc9", "#1d3f7a"];
+// TASKS.csv #535 — SEQUENTIAL, not diverging: the old dark red -> #f4f4f2 -> dark blue ramp put a near-white neutral
+// (ΔE00 2.5 from the page) at the geometric middle of min..max, so mid-resistivity cells read as blank paper, the
+// "neutral" moved with the data's extremes, and the low-support grey matched ~150-200 ohm·m. Now lightness rises
+// monotonically with resistivity (L* 15 -> 83): conductive (the target) darkest and most salient, as the chargeability
+// and susceptibility ramps do for their strong values; nowhere closer than ΔE00 11.5 to page white.
+export const RESISTIVITY_ANCHORS = ["#4d0a12", "#a8262a", "#dd6a3a", "#e9b27c", "#b9d3e6"];
 export function logStops(min, max, anchors = RESISTIVITY_ANCHORS, n = 17) {
   const lo = Math.log10(min > 0 ? min : 1), hi = Math.log10(max > min ? max : (min > 0 ? min : 1) * 10);
   return labStops(anchors, Array.from({ length: n }, (_, i) => 10 ** (lo + ((hi - lo) * i) / (n - 1))));
