@@ -6,6 +6,8 @@
 // to the store directly, the same way AddWebLayerModal does.
 import React, { useRef, useState } from "react";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
+import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
+import { bearingsToGrid, northRefText, loadIgrf } from "../lib/azimuthRef.js";
 import Papa from "papaparse";
 import { Eye, EyeOff, Trash2, Map as MapIcon, Compass, ChevronDown, ChevronRight, Palette } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
@@ -138,9 +140,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     setPendingStruct({ name: file.name.replace(/\.[^.]+$/, ""), rows: res.data, headers, cols, sourceEpsg: project?.epsg ? String(project.epsg) : "" });
   };
 
-  const commitStructs = () => {
+  const commitStructs = async () => {
     const p = pendingStruct;
     if (!p) return;
+    const north = p.north || { ref: "grid", date: "" }; // #547
+    if (north.ref === "magnetic" && !north.date) { setStructMsg({ ok: false, text: "Enter the date the measurements were taken — the magnetic declination depends on it." }); return; }
     if (!p.cols.x || !p.cols.y || !p.cols.dip || (!p.cols.dipDir && !p.cols.strike)) {
       setStructMsg({ ok: false, text: "Pick at least easting, northing, dip, and either dip direction or strike." });
       return;
@@ -150,6 +154,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const src = Number(p.sourceEpsg), dst = Number(project?.epsg);
     let crsNote = "";
     if (src && dst && src !== dst) {
+      // #547 — a true / magnetic bearing doesn't depend on the CRS: only grid bearings are turned with the grid
+      const gridNorth = north.ref === "grid";
       if (!getProj4DefSync(src) || !getProj4DefSync(dst)) { setStructMsg({ ok: false, text: `EPSG:${src} isn't a CRS GeoStrix can reproject from — leave it as the project's EPSG:${dst} if the coordinates are already in it.` }); return; }
       // TASKS.csv #490 — dip directions are relative to the file's grid north: turn them (and the strike, by the
       // same angle) with the convergence difference, as a project CRS change does.
@@ -158,7 +164,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       out.rows.forEach((r) => {
         const t = reprojectXY(r.x, r.y, src, dst);
         if (!t) return;
-        if (Number.isFinite(r.dipDir)) {
+        if (gridNorth && Number.isFinite(r.dipDir)) {
           const d = turnGridBearing(T, r.x, r.y, r.dipDir), turn = bearingTurn(r.dipDir, d);
           maxTurn = Math.max(maxTurn, Math.abs(turn));
           if (Number.isFinite(r.strike)) r.strike = Math.round(((r.strike + turn) % 360 + 360) % 360 * 100) / 100;
@@ -166,9 +172,18 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         }
         r.x = t.x; r.y = t.y;
       });
-      crsNote = ` Reprojected EPSG:${src} → EPSG:${dst}; dip directions turned to the project grid (up to ${maxTurn.toFixed(2)}°).`;
+      crsNote = ` Reprojected EPSG:${src} → EPSG:${dst}${gridNorth ? `; dip directions turned to the project grid (up to ${maxTurn.toFixed(2)}°)` : ""}.`;
     }
-    addSurfaceStructureSet({ name: p.name, rows: out.rows, snapToTerrain: true });
+    // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
+    let northNote = "", rows = out.rows;
+    if (north.ref !== "grid") {
+      if (!dst) { setStructMsg({ ok: false, text: "The project has no coordinate system yet, so true / magnetic north can't be converted to grid north. Choose the project CRS first." }); return; }
+      if (north.ref === "magnetic") { try { await loadIgrf(); } catch { setStructMsg({ ok: false, text: "Couldn't load the magnetic field model (IGRF) — nothing was imported." }); return; } }
+      const c = bearingsToGrid(out.rows, north.ref, dst, north.date);
+      rows = c.rows;
+      northNote = ` ${c.converted} dip direction(s) converted from ${northRefText(north.ref, north.date, c.example)} to grid north${c.failed ? `; ${c.failed} could not be converted and were left as they were` : ""}.`;
+    }
+    addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     setStructMsg({
       ok: !out.skipped,
@@ -177,7 +192,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.derivedFromStrike ? ` ${out.derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.` : "")
         + (out.rhrMismatches ? ` ${out.rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.` : "")
         + (noZ ? ` ${noZ} had no elevation and sit on the terrain${terrain ? "" : " once one is loaded"}.` : "")
-        + crsNote,
+        + crsNote + northNote,
     });
     setPendingStruct(null);
   };
@@ -317,6 +332,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             defaultText={`Same as project — ${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`}`}
             title="The CRS of this file's easting/northing. It is reprojected into the project CRS on import."
           />
+          <AzimuthRefPicker value={pendingStruct.north} onChange={(n) => setPendingStruct((p) => ({ ...p, north: n }))} selectStyle={select} labelStyle={lbl} rowStyle={row} />
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
             <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Import</button>
             <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Cancel</button>
@@ -334,7 +350,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {s.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{s.rows.length}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={s.azimuthRef && s.azimuthRef !== "grid" ? `Measured from ${s.azimuthRef} north${s.azimuthDate ? ` on ${s.azimuthDate}` : ""}; converted to grid north at import (#547)` : "Dip directions in project grid north"}>{s.rows.length}{s.azimuthRef === "magnetic" ? " · MN" : s.azimuthRef === "true" ? " · TN" : ""}</span>
               <Trash2 aria-label={`Remove structure set "${s.name}"`} title={`Remove structure set "${s.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${s.name}"?`)) removeSurfaceStructureSet(s.id); }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>

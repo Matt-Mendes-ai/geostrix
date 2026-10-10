@@ -6,6 +6,9 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
+import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js";
+import { useStore } from "../lib/store.jsx";
 
 // User request: "we need to find a way to calculate the beta angle for non-oriented drilling based on
 // field structural measurements." Core-logging reality: alpha (the acute angle between the core axis
@@ -37,6 +40,32 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
   const [unkLabel, setUnkLabel] = useState("");
 
   const [newRefLabel, setNewRefLabel] = useState("");
+  const [newRefNorth, setNewRefNorth] = useState({ ref: "grid", date: "" }); // #547
+  const [newRefMsg, setNewRefMsg] = useState(null);
+  const { project } = useStore();
+  // TASKS.csv #547 — a field reference measured with a compass is a MAGNETIC dip direction; the library had no way to
+  // say so, so it was used as a grid bearing (~17° off in northern BC). True / magnetic are converted to grid north at
+  // the selected hole's collar (references are used for holes nearby; declination changes < 0.1° over a few km) and
+  // the raw value, the convention and the place are kept on the reference.
+  const addReference = async () => {
+    setNewRefMsg(null);
+    if (newRefDipDir === "" || newRefDip === "" || isNaN(Number(newRefDipDir)) || isNaN(Number(newRefDip))) return;
+    const raw = Number(newRefDipDir);
+    let dipDirDeg = raw, extra = {};
+    if (newRefNorth.ref !== "grid") {
+      const c = collars.find((x) => x.hole_id === holeId);
+      if (!c) { setNewRefMsg("Pick a hole above first — a true / magnetic bearing is converted to grid north at its collar."); return; }
+      if (newRefNorth.ref === "magnetic" && !newRefNorth.date) { setNewRefMsg("Enter the date the reference was measured (the declination depends on it)."); return; }
+      let o = null;
+      try { if (newRefNorth.ref === "magnetic") await loadIgrf(); o = azimuthToGridOffset(newRefNorth.ref, c.x, c.y, project?.epsg, newRefNorth.date); } catch { o = null; }
+      if (!o) { setNewRefMsg("Couldn't convert to grid north here (no project CRS, or a date outside IGRF's range)."); return; }
+      dipDirDeg = Math.round(wrap360(raw + o.offset) * 10) / 10;
+      extra = { rawDipDirDeg: raw, azimuthRef: newRefNorth.ref, ...(newRefNorth.ref === "magnetic" ? { azimuthDate: newRefNorth.date } : {}), convertedAt: holeId, gridOffsetDeg: Math.round(o.offset * 100) / 100 };
+    }
+    addFieldRef({ label: newRefLabel, dipDirDeg, dipDeg: Number(newRefDip), ...extra });
+    if (extra.azimuthRef) setNewRefMsg(`Saved at ${dipDirDeg}° grid (${raw}° ${extra.azimuthRef} ${o_sign(extra.gridOffsetDeg)} at ${holeId}).`);
+    setNewRefLabel(""); setNewRefDipDir(""); setNewRefDip("");
+  };
   const [newRefDipDir, setNewRefDipDir] = useState("");
   const [newRefDip, setNewRefDip] = useState("");
 
@@ -202,7 +231,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 110, overflowY: "auto", marginBottom: 6 }}>
               {fieldStructuralRefs.map((r) => (
                 <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°{r.notes ? ` · ${r.notes}` : ""}</span>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.azimuthRef ? `Measured ${r.rawDipDirDeg}° from ${r.azimuthRef} north${r.azimuthDate ? ` on ${r.azimuthDate}` : ""}; ${r.dipDirDeg}° grid, converted at ${r.convertedAt}` : "Grid north"}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°{r.azimuthRef ? ` (from ${r.rawDipDirDeg}° ${r.azimuthRef === "magnetic" ? "MN" : "TN"})` : ""}{r.notes ? ` · ${r.notes}` : ""}</span>
                   <Trash2 aria-label={`Remove reference "${r.label}"`} title={`Remove reference "${r.label}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
                 </div>
               ))}
@@ -214,15 +243,10 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div style={row}>
               <input type="number" placeholder="Dip-dir (°)" value={newRefDipDir} onChange={(e) => setNewRefDipDir(e.target.value)} style={num} />
               <input type="number" placeholder="Dip (°)" value={newRefDip} onChange={(e) => setNewRefDip(e.target.value)} style={num} />
-              <button
-                onClick={() => {
-                  if (newRefDipDir === "" || newRefDip === "" || isNaN(Number(newRefDipDir)) || isNaN(Number(newRefDip))) return;
-                  addFieldRef({ label: newRefLabel, dipDirDeg: Number(newRefDipDir), dipDeg: Number(newRefDip) });
-                  setNewRefLabel(""); setNewRefDipDir(""); setNewRefDip("");
-                }}
-                style={{ ...saveBtn, padding: "6px 8px" }}
-              ><Plus size={12} /></button>
+              <button onClick={addReference} title="Add to the library" aria-label="Add field reference" style={{ ...saveBtn, padding: "6px 8px" }}><Plus size={12} /></button>
             </div>
+            <AzimuthRefPicker value={newRefNorth} onChange={setNewRefNorth} selectStyle={sel} labelStyle={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 80, flexShrink: 0, alignSelf: "center" }} rowStyle={row} />
+            {newRefMsg && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{newRefMsg}</div>}
           </div>
         </div>
       </div>
@@ -233,6 +257,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: 720, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxHeight: "85vh", overflowY: "auto" };
 const row = { display: "flex", gap: 6, marginBottom: 6 };
+const o_sign = (v) => `${v >= 0 ? "+" : ""}${v}°`;
 const sel = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 const num = { flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 const saveBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, fontSize: "var(--font-size-sm)", padding: "6px 10px" };

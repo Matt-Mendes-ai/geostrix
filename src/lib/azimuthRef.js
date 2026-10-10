@@ -49,3 +49,32 @@ export function azimuthToGridOffset(ref, x, y, epsg, isoDate) {
 }
 
 export const wrap360 = (a) => ((a % 360) + 360) % 360;
+
+// TASKS.csv #547 — outcrop measurements (dip direction + strike, with their own project-CRS x / y) converted from
+// true or magnetic north to grid north, per location (100 m cells share an offset, < 0.01° apart). Mutates nothing:
+// returns { rows, converted, failed, example } where example = the first location's { offset, declination?, convergence }.
+// Magnetic needs loadIgrf() first (azimuthToGridOffset throws otherwise).
+export function bearingsToGrid(rows, ref, epsg, isoDate) {
+  if (!ref || ref === "grid") return { rows, converted: 0, failed: 0, example: null };
+  const cache = new Map();
+  let converted = 0, failed = 0, example = null;
+  const out = rows.map((r) => {
+    if (!Number.isFinite(r.dipDir) && !Number.isFinite(r.strike)) return r;
+    const key = `${Math.round(r.x / 100)},${Math.round(r.y / 100)}`;
+    let o = cache.get(key);
+    if (o === undefined) { o = azimuthToGridOffset(ref, r.x, r.y, epsg, isoDate); cache.set(key, o); }
+    if (!o) { failed++; return r; }
+    converted++; if (!example) example = o;
+    const turn = (a) => (Number.isFinite(a) ? Math.round(wrap360(a + o.offset) * 100) / 100 : a);
+    return { ...r, dipDir: turn(r.dipDir), strike: turn(r.strike) };
+  });
+  return { rows: out, converted, failed, example };
+}
+
+// "magnetic north (IGRF-14 at 2021-06-19: declination +16.9°, grid convergence -1.2°)" for notices
+export function northRefText(ref, isoDate, example) {
+  const s = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}°`;
+  if (ref === "magnetic") return `magnetic north (IGRF-14 at ${isoDate}${example ? `: declination ${s(example.declination)}, grid convergence ${s(example.convergence)}` : ""})`;
+  if (ref === "true") return `true north${example ? ` (grid convergence ${s(example.convergence)})` : ""}`;
+  return "grid north";
+}
