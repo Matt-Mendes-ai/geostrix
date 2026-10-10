@@ -3836,6 +3836,123 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     [voxelModels]
   );
 
+  // ---------- TASKS.csv #551 — assay spheres, geophysics points and surface samples: their own builders ----------
+  // These used to be built inside the big rebuild effect below, which listed assayStyle, the assay element picks,
+  // the four geophysics legend settings and surface-sample visibility as dependencies — so changing one assay
+  // colour or dragging a geophysics legend stop disposed and re-desurveyed EVERY drillhole and rebuilt every
+  // litho / alteration / vein tube. Each builder clears and batches only its own group, from the traces
+  // (tracesRef) and origin (originRef) the big effect last built. The big effect calls all three at the end of a
+  // real rebuild; each small effect re-runs its builder only when its own inputs change (and skips the first run
+  // after the big effect already built with the same inputs).
+  const sameInputs = (a, b) => !!a && a.length === b.length && a.every((v, i) => v === b[i]);
+  const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
+  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars];
+  const assayBuiltRef = useRef(null);
+  const buildAssaySpheres = () => {
+    const g = layerGroupsRef.current.assay;
+    if (!g) return;
+    assayBuiltRef.current = assayInputs;
+    clearGroup(g);
+    if (!assayVisible || !assayDisplayElements.length || !collars.length) return;
+    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+    const byHole = new Map();
+    assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's
+    // one size range PER element across all holes (Au in g/t and Cu in % share no scale); p50/p90 for #306's quantile sizes
+    const ranges = {};
+    assayDisplayElements.forEach((sym) => {
+      const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
+      const finite = vals.filter(Number.isFinite).sort((x, y) => x - y);
+      const q = (pp) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(pp * (finite.length - 1)))] : undefined);
+      ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) };
+    });
+    const traceOf = new Map(tracesRef.current.map((t) => [t.hole_id, t.pts]));
+    const n = assayDisplayElements.length;
+    const errors = [];
+    collars.forEach((c) => {
+      const pts = traceOf.get(c.hole_id);
+      if (!pts?.length) return;
+      try {
+        // each selected element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one
+        // depth stay separately visible (one element: no offset)
+        assayDisplayElements.forEach((sym, idx) => {
+          const style = assayStyle[sym];
+          const angle = (2 * Math.PI * idx) / n;
+          const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
+          (byHole.get(c.hole_id) || []).forEach((a) => {
+            const v = a.values[sym];
+            if (v == null || !assayPassesCutoff(v, style)) return;
+            const pt = findOnTrace(pts, (a.from + a.to) / 2);
+            if (!pt) return;
+            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style) })); // #312 — shared prototype + scale
+            mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
+            mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
+            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
+            g.add(mesh);
+          });
+        });
+      } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} hole(s) failed to draw assay markers: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildAssaySpheresRef = useRef(buildAssaySpheres);
+  buildAssaySpheresRef.current = buildAssaySpheres;
+
+  const geophysInputs = [layers.geophys_pts, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, isRowVisibleForBuild];
+  const geophysBuiltRef = useRef(null);
+  const buildGeophysPts = () => {
+    const g = layerGroupsRef.current.geophys_pts;
+    if (!g) return;
+    geophysBuiltRef.current = geophysInputs;
+    clearGroup(g);
+    // scene x = world x - ox, scene y = elevation - oz, scene z = -(northing - oy): the drillholes' convention
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const rows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
+    if (!rows.length) return;
+    const colorer = makeSurveyColorer(rows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several; #122 class breaks
+    const errors = [];
+    rows.forEach((row) => {
+      try {
+        const { color, t } = colorer.colorOf(row);
+        const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // #312
+        mesh.scale.setScalar(1.4 + 2.8 * t);
+        mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
+        mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+        g.add(mesh);
+      } catch (err) { errors.push(err.message); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} geophysics point(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildGeophysPtsRef = useRef(buildGeophysPts);
+  buildGeophysPtsRef.current = buildGeophysPts;
+
+  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples];
+  const surfaceBuiltRef = useRef(null);
+  const buildSurfaceSamples = () => {
+    const g = layerGroupsRef.current.surface_samples;
+    if (!g) return;
+    surfaceBuiltRef.current = surfaceInputs;
+    clearGroup(g);
+    // #228 — soil / rock-chip / stream-sediment samples, coloured by medium (one gradient would blend the media)
+    if (!layerVisible.surface_samples || !placedSurfaceSamples.length) return;
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const errors = [];
+    placedSurfaceSamples.forEach((row) => {
+      try {
+        const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // #312
+        mesh.scale.setScalar(1.8);
+        mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
+        mesh.userData = { tip: surfaceSampleTip(row) };
+        g.add(mesh);
+      } catch (err) { errors.push(err.message); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} surface sample(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildSurfaceSamplesRef = useRef(buildSurfaceSamples);
+  buildSurfaceSamplesRef.current = buildSurfaceSamples;
+
   // ---------- rebuild all geometry ----------
   useEffect(() => {
     const groups = layerGroupsRef.current;
@@ -3952,45 +4069,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           new THREE.Vector3(bxmax - rox, ezMax - roz, -(bymin - roy)),
         );
         fitBox(box, 1.3);
-        // TASKS.csv #228 — build the geophys_pts group here too (same rendering as the main per-collar
-        // path below, just using this branch's own rox/roy/roz and a local buildErrors since the main
-        // one isn't declared until after this early return). Without this, the anchor-bbox fit above
-        // would correctly frame the camera on the right spot, but nothing would actually be drawn there.
-        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
-        if (geophysPtsRows.length) {
-          const gBuildErrors = [];
-          const colorer = makeSurveyColorer(geophysPtsRows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several
-          geophysPtsRows.forEach((row) => {
-            try {
-              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const { color, t } = colorer.colorOf(row);
-              const size = 1.4 + 2.8 * t;
-              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-              mesh.scale.setScalar(size);
-              mesh.position.set(x, y, z);
-              mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
-              groups.geophys_pts.add(mesh);
-            } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
-          });
-          if (gBuildErrors.length) setNotices((p) => [...p, errorNotice(`${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`)]);
-        }
-        // TASKS.csv #228 — surface geochemistry samples, same zero-collar-anchor reasoning as the
-        // geophys_pts block right above: a surface-geochem-only project (no drillholes at all — the
-        // exact "before ever drilling" workflow this feature targets) must still render here.
-        if (layerVisible.surface_samples && placedSurfaceSamples.length) {
-          const sBuildErrors = [];
-          placedSurfaceSamples.forEach((row) => {
-            try {
-              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
-              mesh.scale.setScalar(1.8);
-              mesh.position.set(x, y, z);
-              mesh.userData = { tip: surfaceSampleTip(row) };
-              groups.surface_samples.add(mesh);
-            } catch (err) { sBuildErrors.push(`surface sample: ${err.message}`); }
-          });
-          if (sBuildErrors.length) setNotices((p) => [...p, errorNotice(`${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`)]);
-        }
       }
       // TASKS.csv #312 — this no-collars branch builds geophys_pts/surface_samples itself and then
       // returns before the main path's own buildLayerBatches pass at the end of this effect, so it
@@ -3998,6 +4076,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // soil-sample grid, which can easily be thousands of point markers) would keep paying one draw
       // call per point. Same call, same semantics as the main path's.
       Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+      // TASKS.csv #551 — geophysics points and surface samples are built by their own builders (below the
+      // big effect's own groups), here for a project with no drillholes yet
+      buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current(); buildAssaySpheresRef.current();
       return;
     }
 
@@ -4008,7 +4089,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     syncImplicitOrigin(); // #407 — re-base surfaces/solids built against an earlier origin
 
     const allTraces = [];
-    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
 
     // Perf (user report: "the app is getting a bit heavy on my laptop") — every builder below used to
     // do `rows.filter(r => r.hole_id === c.hole_id)` INSIDE the per-collar loop, i.e. a full scan of
@@ -4035,7 +4115,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
       recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), // #608
     };
-    const assaysByHole = groupByHole(assays.filter((a) => !isMarkedQcRow(a))); // #601 — a standard's grade is not the rock's
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
     // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
     // litho/alt/etc., just never extended to survey: `survey.filter(s => s.hole_id === c.hole_id)`
@@ -4063,23 +4142,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // (which would render almost every real SG value, ~2-5, as a near-identical dark red).
       sg: numericRangeFor("sg", layers.sg),
     };
-    // Same per-hole-scale bug for the assay spheres below — now one range PER selected element (each
-    // element gets its own size scale, since e.g. Au in g/t and Cu in % are on totally different
-    // numeric scales and sharing one min/max would flatten one of them to barely-visible dots).
-    const globalAssayRanges = {};
-    if (assayVisible) {
-      assayDisplayElements.forEach((sym) => {
-        const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
-        // TASKS.csv #306 — p50/p90 as well, so assaySizeFor's quantile map has the distribution it
-        // needs. Same shape (and same computation) as the component-level globalAssayRanges memo
-        // above; kept computed separately here for the reason that memo's own comment gives, but the
-        // two must stay shape-compatible since seedBreaks and assaySizeFor both read this shape.
-        const finite = vals.filter(Number.isFinite).sort((a, b) => a - b);
-        const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
-        globalAssayRanges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) }; // not Math.min/max(...) — see layers.js's minMax comment
-      });
-    }
-
     const buildErrors = [];
     collars.forEach((c) => {
      try {
@@ -4269,37 +4331,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         groups.structure.add(disc);
       });
 
-      if (assayVisible && assayDisplayElements.length) {
-        // Multi-element display (user request): each selected element gets its own fixed hue (not a
-        // value-driven gradient — with several elements on screen at once, distinguishing "which
-        // color is which element" matters more than each one's own gradient) and its own small radial
-        // offset around the hole trace, fanned out by pick order, so e.g. Au/Cu/Zn markers at the same
-        // depth render as separate visible spheres instead of one totally occluding the others. A
-        // single selected element gets no offset (offX/offZ both 0) — sits exactly on the trace, same
-        // as the old single-element behavior.
-        const n = assayDisplayElements.length;
-        assayDisplayElements.forEach((sym, idx) => {
-          const style = assayStyle[sym];
-          const holeAssays = (assaysByHole.get(c.hole_id) || []).filter((a) => a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
-          const angle = (2 * Math.PI * idx) / n;
-          const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
-          holeAssays.forEach((a) => {
-            const mid = (a.from + a.to) / 2;
-            const p = findOnTrace(pts, mid);
-            if (!p) return;
-            const v = a.values[sym];
-            const size = assaySizeFor(v, globalAssayRanges[sym], style); // TASKS.csv #306 — takes the whole range (needs its percentiles), not just min/max
-            const color = assayColorFor(v, idx, style);
-            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-            mesh.scale.setScalar(size);
-            mesh.position.set(p.x + offX, p.y, p.z + offZ);
-            const unit = elementUnits[sym] || "";
-            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${unit}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
-            groups.assay.add(mesh);
-          });
-        });
-      }
-
       customLayers.forEach((layer) => {
         // TASKS.csv #227 — geometry is now built regardless of customVisible (visibility is toggled
         // cheaply afterward via the layer's own group.visible, see the small effect near layerVisible's
@@ -4327,51 +4358,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
      }
     });
 
-    // Geophysics point cloud (TASKS.csv #25) — unlike everything above, these aren't hole-relative
-    // (no hole_id/depth to desurvey against): they're raw x/y/z survey points from a geophysics
-    // instrument (mag, IP, gravity, whatever). Rendered once here, outside the per-hole loop, using
-    // the same origin-recentering (ox/oy/oz) and axis convention as everything else in the scene
-    // (scene x = world x - ox, scene y = world z - oz [elevation], scene z = -(world y - oy)
-    // [-northing]) so they line up correctly with drillholes rather than needing their own transform.
-    const geophysPts = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365
-    if (geophysPts.length) {
-      const colorer = makeSurveyColorer(geophysPts, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // TASKS.csv #451 — per survey when several
-      // TASKS.csv #122 — graduated/classed symbology: honor the user-defined class breaks/palette set
-      // via GeophysicsModule's VoxelLegendEditor (geophysPtsStops/geophysPtsColorMode/geophysPtsMin/
-      // geophysPtsMax), falling back to the original 2-color magColor gradient when no stops have been
-      // set yet — same "model" shape colorForVoxelValue already expects, just built from these flat
-      // store fields instead of a real voxel model object.
-      geophysPts.forEach((row) => {
-        try {
-          const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const { color, t } = colorer.colorOf(row);
-          const size = 1.4 + 2.8 * t;
-          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-          mesh.scale.setScalar(size);
-          mesh.position.set(x, y, z);
-          mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
-          groups.geophys_pts.add(mesh);
-        } catch (err) { buildErrors.push(`geophys_pts point: ${err.message}`); }
-      });
-    }
-
-    // TASKS.csv #228 — surface geochemistry samples (soil/rock-chip/stream-sediment/talus-fines), same
-    // "raw world x/y/z, no hole to desurvey against" rendering as the geophys_pts block just above —
-    // colored by sampling medium (colorForMedium) rather than by value, since a surface program often
-    // mixes media (a soil grid plus a few rock-chip grabs) that shouldn't be blended into one gradient.
-    if (layerVisible.surface_samples && placedSurfaceSamples.length) {
-      placedSurfaceSamples.forEach((row) => {
-        try {
-          const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
-          mesh.scale.setScalar(1.8);
-          mesh.position.set(x, y, z);
-          mesh.userData = { tip: surfaceSampleTip(row) };
-          groups.surface_samples.add(mesh);
-        } catch (err) { buildErrors.push(`surface sample: ${err.message}`); }
-      });
-    }
-
     // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
     // already had drillholes loaded, and it just never appeared, no matter how they panned/zoomed).
     // Root cause: this auto-fit only ever looked at drillhole trace points (`allTraces` above) — a
@@ -4398,6 +4384,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // must run BEFORE the applyCategoryVisibility/applyLegendOverrideColors calls below, since both
     // of those mirror their per-object changes into the batches they find.
     Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+    // TASKS.csv #551 — assay spheres, geophysics points and surface samples have their own builders (each clears and
+    // batches only its own group): run them on the traces and origin just built
+    buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();
 
     lastTracesRef.current = allTraces;
     if (buildErrors.length) setNotices((p) => [...p, errorNotice(`${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`)]);
@@ -4423,7 +4412,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, placedSurfaceSamples /* #606 */, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, holeLabelMode]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
+  useEffect(() => { if (!sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
+  useEffect(() => { if (!sameInputs(geophysBuiltRef.current, geophysInputs)) buildGeophysPtsRef.current(); }, geophysInputs);
+  useEffect(() => { if (!sameInputs(surfaceBuiltRef.current, surfaceInputs)) buildSurfaceSamplesRef.current(); }, surfaceInputs);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //
