@@ -84,7 +84,7 @@ export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
   if (!fromDef || !toDef) throw new Error(`Can't convert from EPSG:${from} to EPSG:${toEpsg}.`);
   if (w * h * nb > GEOTIFF_REPROJECT_MAX_SAMPLES) throw new Error(`This GeoTIFF is ${w.toLocaleString()} × ${h.toLocaleString()} × ${nb} band(s) — over the ${(GEOTIFF_REPROJECT_MAX_SAMPLES / 1e6).toFixed(0)} million-value limit for reprojecting in GeoStrix. Use QGIS / gdalwarp for a file this size.`);
   let nodes;
-  try { nodes = demNodeBbox(image); } catch { throw new Error("This GeoTIFF has no georeferencing (bounding box)."); }
+  try { nodes = demNodeBbox(image); } catch (err) { if (/rotated or sheared/.test(err.message)) throw err; throw new Error("This GeoTIFF has no georeferencing (bounding box)."); } // #560
   const [xmin, ymin, xmax, ymax] = nodes;
   const src = await image.readRasters(); // one typed array per band
   const Ctor = src[0].constructor;

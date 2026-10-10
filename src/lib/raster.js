@@ -96,8 +96,9 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
     let ov;
     try { ov = await tiff.getImage(i); } catch { continue; }
     const fd = ov.fileDirectory || {};
-    if (fd.NewSubfileType != null && !(fd.NewSubfileType & 1)) continue; // a page, not a reduced-resolution copy
-    if (fd.NewSubfileType & 4) continue; // transparency mask
+    const nst = tiffTag(ov, "NewSubfileType") ?? fd.NewSubfileType; // #560 — geotiff.js 3: tags behind getValue
+    if (nst != null && !(nst & 1)) continue; // a page, not a reduced-resolution copy
+    if (nst & 4) continue; // transparency mask
     const f = ov.getWidth() / fullW;
     if (!(f > 0 && f < 1) || Math.abs(ov.getHeight() / fullH - f) > 0.05) continue;
     const win = [Math.floor(c0 * f), Math.floor(r0 * f), Math.max(Math.floor(c0 * f) + 1, Math.ceil(c1 * f)), Math.max(Math.floor(r0 * f) + 1, Math.ceil(r1 * f))];
@@ -118,9 +119,10 @@ export async function parseGeoTIFF(file) {
     throw new Error(`Not a readable GeoTIFF (${err.message}).`);
   }
 
+  assertNorthUp(image, `"${file.name}"`); // #560 — refuse rather than stretch a rotated GeoTIFF
   let bbox;
   try {
-    bbox = image.getBoundingBox(); // [xmin, ymin, xmax, ymax] in the file's own coordinate tags
+    bbox = rasterAreaBbox(image); // [xmin, ymin, xmax, ymax], pixel-area extent; #560: PixelIsPoint honoured
   } catch (err) {
     // geotiff.js throws rather than returning null/undefined when there's no affine transform at
     // all (a plain, non-georeferenced TIFF) — caught here so the message stays specific to what's
@@ -273,7 +275,7 @@ async function readDemTile(file, crop = null) {
     throw new Error(`"${file.name}" is not a readable GeoTIFF (${err.message}).`);
   }
   let bbox;
-  try { bbox = demNodeBbox(image); } catch (err) { bbox = null; }
+  try { bbox = demNodeBbox(image); } catch (err) { if (/rotated or sheared/.test(err.message)) throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
     throw new Error(`"${file.name}" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.`);
   }
@@ -699,7 +701,37 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
 // W/(gridW-1) and the tiepoint half a pixel outside the first node, so each pixel's centre is its node.
 // demNodeBbox is the inverse on import (it was treating a GeoTIFF's pixel-area bounds as node positions,
 // the same half-cell error the other way), so an export re-imports to exactly the same nodes.
+// TASKS.csv #560 — geotiff.js 3 keeps TIFF tags behind fileDirectory.getValue(name); older code read fd[name] directly
+// (always undefined there). One reader for both.
+export function tiffTag(image, name) {
+  const fd = image?.fileDirectory || {};
+  try { if (typeof fd.getValue === "function") { const v = fd.getValue(name); if (v !== undefined) return v; } } catch { /* tag absent */ }
+  return fd[name];
+}
+// TASKS.csv #560 — a rotated or sheared GeoTIFF (a ModelTransformation with rotation terms: a scan georeferenced with a
+// rotation, a mine-grid export) has no north-up pixel grid: getBoundingBox returns the axis-aligned box of its rotated
+// corners and every raster path would stretch the image into it without a word. Refused, with what to do instead.
+export function assertNorthUp(image, label = "This GeoTIFF") {
+  const t = tiffTag(image, "ModelTransformation");
+  if (!t || t.length < 8) return;
+  const size = Math.max(Math.abs(t[0]), Math.abs(t[5]), 1e-12);
+  if (Math.abs(t[1]) > 1e-9 * size || Math.abs(t[4]) > 1e-9 * size) {
+    throw new Error(`${label} is rotated or sheared (its ModelTransformation has rotation terms). GeoStrix places north-up rasters only, and this one would be stretched into the wrong place. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.`);
+  }
+}
+// TASKS.csv #560 — the raster's PIXEL-AREA extent (what an image drape spans). geotiff.js's getBoundingBox treats the
+// tie point as the corner of the first pixel, which is right for PixelIsArea (the default) but, for PixelIsPoint
+// (common for gridded geophysics and some DEM exports), the tie point is the CENTRE of the first pixel: the whole
+// grid then sat half a cell off (12.5 m on a 25 m mag grid).
+export function rasterAreaBbox(image) {
+  const [b0, b1, b2, b3] = image.getBoundingBox();
+  if (image.getGeoKeys?.()?.GTRasterTypeGeoKey !== 2) return [b0, b1, b2, b3];
+  const [rx, ry] = image.getResolution();
+  const ax = Math.abs(rx), ay = Math.abs(ry);
+  return [b0 - ax / 2, b1 + ay / 2, b2 - ax / 2, b3 + ay / 2];
+}
 export function demNodeBbox(image) {
+  assertNorthUp(image); // #560
   const [b0, b1, b2, b3] = image.getBoundingBox();
   const [rx, ry] = image.getResolution();
   const ax = Math.abs(rx), ay = Math.abs(ry);
