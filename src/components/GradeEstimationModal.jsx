@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Play } from "./icons.js";
-import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
+import { compositeDownhole, PRECIOUS_METALS, capAudit } from "../lib/geochem.js";
+import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
@@ -171,7 +172,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
           minSamples, maxSamples, minHoles,
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
-          capValue: Number.isFinite(cap) ? cap : null, includeQAQC, domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
+          capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533 domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
         };
         setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
@@ -254,6 +255,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               <input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
           </div>
+          {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
+          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}

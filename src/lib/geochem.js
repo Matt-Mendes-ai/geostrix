@@ -745,6 +745,58 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   return composites;
 }
 
+// ---------- TASKS.csv #533 — capping audit ----------
+// A cap value means nothing to a reviewer without the standard figures: how many samples it cut and what share of the
+// metal (grade x length) it removed. Both are measured on the RAW samples the cap is applied to (compositeDownhole caps
+// each raw sample before averaging), as resolved segments (#331: overlapping rows counted once, negative lab codes not
+// assayed, exact duplicate rows dropped), so the figures match what compositing / estimation actually used.
+function rawSegments(assays, symbol, unit, elementUnits) {
+  const byHole = new Map(), seen = new Set();
+  (assays || []).forEach((a) => {
+    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
+    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    let arr = byHole.get(a.hole_id);
+    if (!arr) byHole.set(a.hole_id, (arr = []));
+    arr.push(a);
+  });
+  const out = [];
+  byHole.forEach((rows) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) out.push({ value: s.value, len: s.to - s.from }); }));
+  return out;
+}
+export function capAudit(assays, symbol, unit, elementUnits, capValue) {
+  const segs = rawSegments(assays, symbol, unit, elementUnits);
+  let metalBefore = 0, metalAfter = 0, nCapped = 0, lenCapped = 0;
+  for (const s of segs) {
+    metalBefore += s.value * s.len;
+    const capped = capValue != null && s.value > capValue;
+    if (capped) { nCapped++; lenCapped += s.len; }
+    metalAfter += (capped ? capValue : s.value) * s.len;
+  }
+  const nSamples = segs.length;
+  return {
+    capValue: capValue ?? null, nSamples, nCapped, lenCapped,
+    pctCapped: nSamples ? (100 * nCapped) / nSamples : 0,
+    metalBefore, metalAfter, pctMetalRemoved: metalBefore > 0 ? (100 * (metalBefore - metalAfter)) / metalBefore : 0,
+  };
+}
+// the grade below which p% of the sampled LENGTH lies (a 10 m sample counts ten times a 1 m one) — what "cap at the
+// 97.5th percentile" means for unequal sample lengths. null when nothing is assayed.
+export function lengthWeightedPercentile(assays, symbol, unit, elementUnits, p) {
+  const segs = rawSegments(assays, symbol, unit, elementUnits).sort((a, b) => a.value - b.value);
+  const total = segs.reduce((t, s) => t + s.len, 0);
+  if (!total) return null;
+  const target = (p / 100) * total;
+  let acc = 0;
+  for (const s of segs) { acc += s.len; if (acc >= target - 1e-9) return s.value; }
+  return segs[segs.length - 1].value;
+}
+export function capAuditText(a, unitLabel = "") {
+  if (!a || a.capValue == null) return "";
+  return `cap ${a.capValue}${unitLabel ? ` ${unitLabel}` : ""}: ${a.nCapped} of ${a.nSamples} samples capped (${a.pctCapped.toFixed(1)}%), ${a.pctMetalRemoved.toFixed(1)}% of the metal (grade x length) removed`;
+}
+
 // ---------- diagram definitions ----------
 // Each: id, label, requires[], xLabel, yLabel, log{x,y}, project(sample, units) -> {x,y} | null,
 // fields[] (polygon boundaries drawn as reference), and optional axis ranges.

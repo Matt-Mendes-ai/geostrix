@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import Papa from "papaparse";
-import { compositeDownhole, countDuplicateAssayIntervals } from "../lib/geochem.js";
+import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
+import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole, intervalXYZ } from "../lib/desurvey.js"; // TASKS.csv #411
@@ -92,6 +93,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
     const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: project?.epsg, params: [
       `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
       `Element: ${symbol} (${unit}) | composite length: ${length} m | min coverage: ${Math.round(minCoverage * 100)}% | high-grade cap: ${capValue === "" ? "none" : `${capValue} ${unit} (applied to raw intervals before compositing)`}`,
+      ...(capValue === "" ? [] : [`Capping audit: ${capAuditText(capAudit(compAssays, symbol, unit, elementUnits, Number(capValue)), unit)}`]), // #533
       `Domain boundaries honoured: ${domainKey ? domainMeta.label : "no"}`,
       `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
       dupInfo?.exactDuplicates ? `Exact-duplicate raw intervals dropped before weighting: ${dupInfo.exactDuplicates}` : null,
@@ -153,6 +155,9 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
               High-grade cap ({unit})
               <input type="number" step="any" min="0" placeholder="none" value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
             </label>
+            <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
+              <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={capValue === "" ? null : Number(capValue)} onSetCap={(v) => setCapValue(String(Number(v.toPrecision(4))))} />
+            </div>
             <label style={fieldLabel} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.">
               Min coverage (%)
               <input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
