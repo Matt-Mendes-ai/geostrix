@@ -23,6 +23,7 @@ import math
 import time
 
 import numpy as np
+from . import fit_target  # TASKS.csv #536
 
 SENS_BYTES = 4  # float32 — SimPEG 0.25.2 potential_fields sensitivity_dtype default
 
@@ -556,9 +557,11 @@ def run_job(req, progress, ram_cap_bytes):
             progress({"stage": "iterating", "iter": h["iter"], "maxIter": max_iter, "phi_d": h["phi_d"],
                       "target": float(len(dobs)), "beta": h["beta"]})
 
+    track = fit_target.Track(len(dobs))  # TASKS.csv #536
     dir_list = [
         directives.UpdateSensitivityWeights(every_iteration=False),
         directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
+        fit_target.track_directive(directives, track),  # before BetaSchedule: sees the beta this iterate used
         directives.BetaSchedule(coolingFactor=2.0, coolingRate=1),
         directives.UpdatePreconditioner(),
         directives.TargetMisfit(chifact=1.0),
@@ -571,6 +574,17 @@ def run_job(req, progress, ram_cap_bytes):
     m0 = np.clip(m0, lo_opt, up_opt)
     progress({"stage": "iterating", "iter": 0, "maxIter": max_iter, "message": "Estimating the starting trade-off"})
     rec = inv.run(m0)
+
+    # TASKS.csv #536 — the iterate that fits to the stated uncertainty, not the one beta-cooling overshot to
+    def refine(m_start, beta):
+        o = optimization.ProjectedGNCG(maxIter=1, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
+        p = inverse_problem.BaseInvProblem(dmis, reg, o, print_version=False)
+        p.beta = beta
+        m = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m_start)
+        return m, float(np.sum(((dobs - sim.dpred(m)) / std) ** 2))
+    choice = fit_target.choose(track, refine)
+    if choice is not None:
+        rec = choice["model"]
     pred_sim = sim.dpred(rec)
     phi_d = float(np.sum(((dobs - pred_sim) / std) ** 2))
     pred = _to_user(method, pred_sim)
@@ -623,7 +637,7 @@ def run_job(req, progress, ram_cap_bytes):
                   "value": f32(full_model[keep]).tolist(), "support": np.round(full_sens[keep], 4).tolist()},
         "predicted": pred.tolist(), "standardDeviation": std.tolist(),
         "phi_d": phi_d, "target": float(len(dobs)), "reachedTarget": phi_d <= 1.05 * len(dobs),
-        "iterations": len(history), "maxIter": max_iter, "history": history,
+        "iterations": len(history), "maxIter": max_iter, "history": history, "fitChoice": fit_target.fit_report(choice),
         "mesh": {"type": mesh_type, "shape": spec["n"], "coreCell": req["mesh"]["coreCell"], "nActive": n_act, "nCoreActive": int(keep.sum()),
                  **({"nCells": spec["nCells"], "cellSizes": spec["cellSizes"], "octree": {**OCTREE_DEFAULTS, **(req["mesh"].get("octree") or {})}} if mesh_type == "octree" else {}),
                  "padCells": req["mesh"].get("padCells", 6), "padFactor": req["mesh"].get("padFactor", 1.3), "depth": req["mesh"]["depth"]},

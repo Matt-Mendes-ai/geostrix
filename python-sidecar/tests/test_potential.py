@@ -368,6 +368,8 @@ def test_octree_inversion_recovers_block():
     assert abs(vol - core_vol) < 1e-6 * core_vol
     assert out["reachedTarget"]
     assert abs(err[0]) <= 25 and abs(err[1]) <= 25 and abs(err[2]) <= 50
+    # TASKS.csv #536 — the iterate at the target, not the overshoot (was 71/225 = 0.32x)
+    assert 0.7 <= out["phi_d"] / out["target"] <= 1.05, out["fitChoice"]
 
 
 def test_octree_settings():

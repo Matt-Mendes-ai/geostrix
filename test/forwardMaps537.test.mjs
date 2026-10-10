@@ -20,3 +20,12 @@ test("#537 residual colour range: ±3σ with σ, else the 98th percentile of |re
   const r = Array.from({ length: 100 }, (_, i) => (i % 2 ? 1 : -1) * (i + 1));
   assert.equal(residualScale(r, false), 98);
 });
+
+import { fitVerdict } from "../src/lib/inversion.js";
+test("#536 an overshoot is reported as the solver's step, and a chosen earlier iterate is named", () => {
+  const over = fitVerdict({ phi_d: 71.5, target: 225, iterations: 8, fitChoice: { how: "last", overshot: true, lastPhi: 71.5 } });
+  assert.match(over.text, /last step overshot/); assert.doesNotMatch(over.text, /uncertainty may be set too large/);
+  assert.match(fitVerdict({ phi_d: 71.5, target: 225, iterations: 8 }).text, /uncertainty may be set too large/); // no overshoot info: as before
+  const ok = fitVerdict({ phi_d: 230, target: 225, iterations: 8, reachedTarget: true, fitChoice: { how: "earlier", overshot: true, lastPhi: 71.5, iteration: 7 } });
+  assert.equal(ok.level, "ok"); assert.match(ok.text, /overshot to 0\.32x, so the model from iteration 7 is used/);
+});

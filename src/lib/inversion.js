@@ -120,13 +120,18 @@ export const formatBytes = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b >
 export function fitVerdict(result) {
   const chi = result.phi_d / result.target;
   if (chi > 1.5) return { chi, level: "under", text: `Did not reach the target fit (misfit ${chi.toFixed(2)}x the target) — the model does not explain the data to the uncertainty you entered. Treat it as unfinished.` };
+  // TASKS.csv #536 — an overshoot by the solver's last step (beta halved past the target) is not the user's
+  // uncertainty: the engine now returns an in-band iterate when it has one and says so in fitChoice.
+  const fc = result.fitChoice;
+  const picked = fc && (fc.how === "earlier" || fc.how === "refined") ? ` The final solver step overshot to ${(fc.lastPhi / result.target).toFixed(2)}x, so the ${fc.how === "refined" ? "step was redone with a smaller one" : `model from iteration ${fc.iteration} is used`} instead.` : "";
+  if (chi < 0.5 && fc?.overshot) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) because the solver's last step overshot the target — not necessarily a sign that the uncertainty is too large. The model is rougher than the data need; treat fine detail with caution.` };
   if (chi < 0.5) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) — likely fitting noise; the uncertainty may be set too large.` };
   // TASKS.csv #507 — "Reached" only when the run did reach it: the sidecar's reachedTarget (phi_d <= 1.05 N);
   // results without the flag (older saved sections) use the same test. A run that stopped at its iteration
   // limit at 1.05-1.5x used to be reported — and stored in provenance — as converged.
   const reached = result.reachedTarget ?? chi <= 1.05;
   if (!reached) return { chi, level: "close", text: `Stopped after ${result.iterations} iteration${result.iterations === 1 ? "" : "s"} before reaching the target fit (misfit ${chi.toFixed(2)}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered.` };
-  return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.` };
+  return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
 }
 
 // Sidecar result -> a GeoStrix voxel model (only core, below-ground cells are ever sent). `supportCutoff`

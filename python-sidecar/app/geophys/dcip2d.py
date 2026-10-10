@@ -21,6 +21,7 @@ say more about the regularisation than the ground), predicted data and misfit hi
 import time
 
 import numpy as np
+from . import fit_target  # TASKS.csv #536
 
 
 def _mesh(stations_s, topo_sz, cell, depth, pad=8, factor=1.3):
@@ -111,8 +112,9 @@ def run_job(req, progress):
     sim = dc.Simulation2DNodal(mesh, survey=survey, sigmaMap=cmap, storeJ=True)
     max_iter = int(req.get("maxIter", 20))
 
-    def inv_run(dmis, reg, opt, m_start, label, target):
+    def inv_run(dmis, reg, opt, m_start, label, target, phi_fn=None, opt_factory=None):
         history = []
+        track = fit_target.Track(target)  # TASKS.csv #536
 
         class Progress(directives.InversionDirective):
             def endIter(self):
@@ -122,9 +124,19 @@ def run_job(req, progress):
 
         prob = inverse_problem.BaseInvProblem(dmis, reg, opt)
         dirs = [directives.UpdateSensitivityWeights(), directives.BetaEstimate_ByEig(beta0_ratio=1.0, random_seed=1),
+                fit_target.track_directive(directives, track),  # #536 — before BetaSchedule
                 directives.BetaSchedule(coolingFactor=2.0, coolingRate=1), directives.TargetMisfit(chifact=1.0),
                 directives.UpdatePreconditioner(), Progress()]
-        return inversion.BaseInversion(prob, directiveList=dirs).run(m_start), history
+        m = inversion.BaseInversion(prob, directiveList=dirs).run(m_start)
+
+        # #536 — the iterate that fits to the stated uncertainty, not the one beta-cooling overshot to
+        def refine(m0_, beta):
+            p = inverse_problem.BaseInvProblem(dmis, reg, opt_factory())
+            p.beta = beta
+            mm = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m0_)
+            return mm, phi_fn(mm)
+        choice = fit_target.choose(track, refine if (phi_fn and opt_factory) else None)
+        return (choice["model"] if choice else m), history, fit_target.fit_report(choice)
 
     progress({"stage": "dc", "iter": 0, "maxIter": max_iter, "message": "Inverting resistivity"})
     reg = regularization.WeightedLeastSquares(mesh, active_cells=active, reference_model=m0)
@@ -132,7 +144,9 @@ def run_job(req, progress):
     # absurd conductivity during the line search and make the forward matrix singular ("Factor is exactly
     # singular" — hit on the synthetic test before these bounds). Real rocks are well inside them.
     opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30)
-    m_dc, hist_dc = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg, opt, m0, "dc", float(len(rho)))
+    m_dc, hist_dc, fit_dc = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg, opt, m0, "dc", float(len(rho)),
+                                    phi_fn=lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2)),
+                                    opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
     pred = sim.dpred(m_dc)
     phi_d = float(np.sum(((rho - pred) / std) ** 2))
     J = sim.getJ(m_dc)
@@ -161,10 +175,12 @@ def run_job(req, progress):
         ip_sim = ip.Simulation2DNodal(mesh, survey=ip_survey, etaMap=eta_map, sigma=cmap * m_dc, storeJ=True)
         ip_reg = regularization.WeightedLeastSquares(mesh, active_cells=active, mapping=maps.IdentityMap(nP=n_act))
         ip_opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=0.0, upper=1.0, cg_maxiter=30)
-        m_ip, hist_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(len(eta_obs)))
+        m_ip, hist_ip, fit_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(len(eta_obs)),
+                                        phi_fn=lambda m: float(np.sum(((eta_obs - ip_sim.dpred(m)) / ip_std) ** 2)),
+                                        opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=0.0, upper=1.0, cg_maxiter=30))
         ip_pred = ip_sim.dpred(m_ip)
         out_ip = {"model": m_ip, "predicted": (ip_pred * 1000).tolist(), "phi_d": float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2)),
-                  "history": hist_ip, "standardDeviation": (ip_std * 1000).tolist()}
+                  "history": hist_ip, "standardDeviation": (ip_std * 1000).tolist(), "fitChoice": fit_ip}
 
     keep_full = core & np.isin(np.arange(mesh.n_cells), np.flatnonzero(active))
     act_index = np.full(mesh.n_cells, -1)
@@ -181,7 +197,7 @@ def run_job(req, progress):
                   **({"chargeability": f32(out_ip["model"][ai] * 1000)} if out_ip else {})},
         "electrodes": np.round(survey.unique_electrode_locations, 3).tolist(),
         "predicted": pred.tolist(), "standardDeviation": std.tolist(), "phi_d": phi_d, "target": float(len(rho)),
-        "reachedTarget": phi_d <= 1.05 * len(rho), "history": hist_dc, "iterations": len(hist_dc),
+        "reachedTarget": phi_d <= 1.05 * len(rho), "history": hist_dc, "iterations": len(hist_dc), "fitChoice": fit_dc,
         "ip": ({k: v for k, v in out_ip.items() if k != "model"} if out_ip else None),
         "mesh": {"shape": list(mesh.shape_cells), "cell": cell, "depth": depth, "nActive": n_act, "nCore": int(keep_full.sum())},
         "seconds": time.time() - t0,
