@@ -2,7 +2,7 @@
 // layer in the zip) is read, every vertex moved from one CRS to another, and written back as a new zip with
 // a .prj for the new CRS. Nothing is imported into the project. Heights (z) are unchanged, as everywhere in
 // GeoStrix (no vertical datum model). Pure apart from the zip / DBF work in shapefile.js.
-import { parseShapefileZip, shapefileZipFiles, buildZip } from "./shapefile.js";
+import { parseShapefileZip, buildZip, readZipEntries, prjWktFor } from "./shapefile.js";
 import { guessEpsgFromPrjWkt, pointTransform, crsName, getProj4DefSync, reprojectGrid } from "./reproject.js";
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { demNodeBbox } from "./raster.js";
@@ -18,30 +18,92 @@ export async function readShapefileLayers(zipBytes) {
   return { layers };
 }
 
-// fromEpsg: null = each layer's own .prj. Returns { bytes (the new zip), report: [{ name, from, features, vertices, failed }] }.
+// TASKS.csv #549 — a reprojection changes the coordinates and NOTHING else. This used to read every layer into
+// GeoStrix's feature model and write a new shapefile from it, which changed the schema: 2D shapes came back as Z
+// (POINT -> POINTZ, z = 0), N(10,0) tenure numbers as N(19,6) reals, D dates and L booleans as text, MultiPoint
+// records split into one feature per point, M values dropped. Now the .shp record bytes are copied and only the
+// X / Y doubles (and the record / file bounding boxes) are rewritten; the .dbf, .cpg and .qml are copied byte for
+// byte; the .shx gets the new file bounding box (its offsets don't change); the .prj is replaced. Spatial-index
+// sidecars (.sbn / .sbx / .qix) are left out — they index the old coordinates and GIS software rebuilds them.
+// Z, M, part structure, shape type, record order and null shapes are untouched.
+//
+// Returns { shp: Uint8Array, records, vertices, failed, unsupported } — `T(x, y)` -> [x, y].
+export function reprojectShpBytes(shpBytes, T) {
+  const shp = new Uint8Array(shpBytes); // a copy
+  const dv = new DataView(shp.buffer, shp.byteOffset, shp.byteLength);
+  if (shp.length < 100 || dv.getInt32(0, false) !== 9994) throw new Error("Not a shapefile .shp (bad file code).");
+  let records = 0, vertices = 0, failed = 0, unsupported = 0;
+  let fx0 = Infinity, fy0 = Infinity, fx1 = -Infinity, fy1 = -Infinity;
+  // moves n points starting at byte `at`; returns the bbox of the (moved) points
+  const movePoints = (at, n) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const o = at + i * 16;
+      let x = dv.getFloat64(o, true), y = dv.getFloat64(o + 8, true);
+      const q = Number.isFinite(x) && Number.isFinite(y) ? T(x, y) : null;
+      if (q && Number.isFinite(q[0]) && Number.isFinite(q[1])) { x = q[0]; y = q[1]; dv.setFloat64(o, x, true); dv.setFloat64(o + 8, y, true); vertices++; }
+      else failed++;
+      if (Number.isFinite(x) && Number.isFinite(y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    return [x0, y0, x1, y1];
+  };
+  const grow = (b) => { if (b[0] < fx0) fx0 = b[0]; if (b[1] < fy0) fy0 = b[1]; if (b[2] > fx1) fx1 = b[2]; if (b[3] > fy1) fy1 = b[3]; };
+  const setBox = (at, b) => { if (Number.isFinite(b[0])) b.forEach((v, k) => dv.setFloat64(at + k * 8, v, true)); };
+  let off = 100;
+  while (off + 12 <= shp.length) {
+    const words = dv.getInt32(off + 4, false), rec = off + 8, end = rec + words * 2;
+    if (words < 2 || end > shp.length) break;
+    records++;
+    const type = dv.getInt32(rec, true);
+    if (type === 1 || type === 11 || type === 21) grow(movePoints(rec + 4, 1));
+    else if (type === 8 || type === 18 || type === 28) { const b = movePoints(rec + 40, dv.getInt32(rec + 36, true)); setBox(rec + 4, b); grow(b); }
+    else if ([3, 5, 13, 15, 23, 25, 31].includes(type)) {
+      const np = dv.getInt32(rec + 36, true), n = dv.getInt32(rec + 40, true);
+      const b = movePoints(rec + 44 + np * (type === 31 ? 8 : 4), n); // a MultiPatch also has a part-type per part
+      setBox(rec + 4, b); grow(b);
+    } else if (type !== 0) unsupported++;
+    off = end;
+  }
+  if (Number.isFinite(fx0)) setBox(36, [fx0, fy0, fx1, fy1]);
+  return { shp, records, vertices, failed, unsupported };
+}
+
+// The .shx for a .shp: the original's records with the new file bbox, or rebuilt from the .shp when the zip had none.
+function shxFor(shp, shxBytes) {
+  const header = shp.subarray(0, 100);
+  if (shxBytes && shxBytes.length >= 100) { const shx = new Uint8Array(shxBytes); shx.set(header.subarray(36, 100), 36); return shx; }
+  const dv = new DataView(shp.buffer, shp.byteOffset, shp.byteLength), idx = [];
+  for (let off = 100; off + 8 <= shp.length;) { const words = dv.getInt32(off + 4, false); idx.push([off / 2, words]); off += 8 + words * 2; }
+  const shx = new Uint8Array(100 + idx.length * 8);
+  shx.set(header);
+  const sv = new DataView(shx.buffer);
+  sv.setInt32(24, shx.length / 2, false);
+  idx.forEach(([o, w], i) => { sv.setInt32(100 + i * 8, o, false); sv.setInt32(104 + i * 8, w, false); });
+  return shx;
+}
+
+// fromEpsg: null = each layer's own .prj. Returns { bytes (the new zip), report: [{ name, from, features, vertices, failed, unsupported }] }.
 export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
-  const { layers } = await readShapefileLayers(zipBytes);
+  const entries = await readZipEntries(zipBytes);
+  const names = Object.keys(entries);
+  const bases = [...new Set(names.filter((n) => /\.shp$/i.test(n)).map((n) => n.replace(/\.shp$/i, "")))];
+  if (!bases.length) throw new Error("No .shp file found inside this .zip.");
+  const entry = (base, ext) => { const k = names.find((n) => n.toLowerCase() === `${base}.${ext}`.toLowerCase()); return k && entries[k] ? { name: k, data: entries[k] } : null; };
+  const wkt = prjWktFor(toEpsg);
   const files = [], report = [];
-  for (const layer of layers) {
-    const from = fromEpsg ? Number(fromEpsg) : layer.epsg;
-    if (!from) throw new Error(`"${layer.name}" has ${layer.hasPrj ? "a .prj GeoStrix doesn't recognise" : "no .prj"} — choose its CRS under "From".`);
+  for (const base of bases) {
+    const prj = entry(base, "prj");
+    const epsg = prj ? guessEpsgFromPrjWkt(new TextDecoder().decode(prj.data)) : null;
+    const from = fromEpsg ? Number(fromEpsg) : epsg;
+    if (!from) throw new Error(`"${base}" has ${prj ? "a .prj GeoStrix doesn't recognise" : "no .prj"} — choose its CRS under "From".`);
     const T = pointTransform(from, toEpsg);
     if (!T) throw new Error(`Can't convert from EPSG:${from} to EPSG:${toEpsg}.`);
-    let vertices = 0, failed = 0;
-    const move = (pt) => {
-      const [x, y, z] = pt;
-      if (!Number.isFinite(x) || !Number.isFinite(y)) { failed++; return pt; }
-      const [nx, ny] = T(x, y);
-      if (!Number.isFinite(nx) || !Number.isFinite(ny)) { failed++; return pt; }
-      vertices++;
-      return [nx, ny, z];
-    };
-    const features = layer.features.map((f) => {
-      const parts = (f.parts?.length ? f.parts : [f.geometry]).map((part) => part.map(move));
-      return { geometry: parts[0], parts, attributes: f.attributes };
-    });
-    files.push(...shapefileZipFiles({ features, geomType: layer.geomType, epsg: toEpsg, baseName: layer.name, keepFieldCase: true }));
-    report.push({ name: layer.name, from, features: features.length, vertices, failed, skipped: layer.skipped });
+    const r = reprojectShpBytes(entry(base, "shp").data, T);
+    files.push({ name: `${base}.shp`, data: r.shp }, { name: `${base}.shx`, data: shxFor(r.shp, entry(base, "shx")?.data) });
+    for (const ext of ["dbf", "cpg", "qml"]) { const e = entry(base, ext); if (e) files.push({ name: e.name, data: e.data }); }
+    if (wkt) files.push({ name: `${base}.prj`, data: new TextEncoder().encode(wkt) });
+    else files.push({ name: `${base}_READ_ME.txt`, data: new TextEncoder().encode(`No .prj was generated — EPSG:${toEpsg} isn't one of the codes GeoStrix has a built-in projection definition for. The coordinates are in EPSG:${toEpsg}; set that as the layer's CRS in your GIS software.`) });
+    report.push({ name: base, from, features: r.records, vertices: r.vertices, failed: r.failed, unsupported: r.unsupported, noDbf: !entry(base, "dbf") });
   }
   return { bytes: buildZip(files), report };
 }
@@ -49,8 +111,8 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
 export function reportShapefileText(report, toEpsg) {
   const lines = report.map((r) => `${r.name}: ${r.features.toLocaleString()} feature(s), ${r.vertices.toLocaleString()} vertices from ${crsName(r.from) || `EPSG:${r.from}`}`
     + (r.failed ? `; ${r.failed} vertices could not be converted and were kept as they were` : "")
-    + (r.skipped ? `; ${r.skipped} feature(s) of a shape type GeoStrix doesn't read were left out` : ""));
-  return `Saved ${report.length} layer(s) in ${crsName(toEpsg) || `EPSG:${toEpsg}`}, each with a new .prj and a UTF-8 .dbf. ${lines.join(". ")}.`;
+    + (r.unsupported ? `; ${r.unsupported} record(s) of a shape type GeoStrix doesn't know were copied unchanged` : ""));
+  return `Saved ${report.length} layer(s) in ${crsName(toEpsg) || `EPSG:${toEpsg}`}, each with a new .prj. Only the coordinates changed: shape types, Z / M, parts and the attribute table (.dbf, field types and encoding) are as they were. ${lines.join(". ")}.`;
 }
 
 // ---------------------------------------------------------------------------------------------
