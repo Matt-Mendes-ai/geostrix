@@ -1004,7 +1004,8 @@ export function useModelling(ctx) {
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
-        const { samplePointsFromIntervals, estimateDenseGrid } = await import("../../lib/estimation.js"); // #552 — on demand
+        const { samplePointsFromIntervals } = await import("../../lib/estimation.js"); // #552 — on demand
+        const { runEstimation } = await import("../../lib/estimationClient.js"); // #520 — the grid runs in a worker
         const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
@@ -1073,10 +1074,12 @@ export function useModelling(ctx) {
         let coarsened = false;
         while (cellsAt(cell) > MAX_BLOCKS * 0.75) { cell *= 1.5; coarsened = true; }
 
-        const grid = estimateDenseGrid(gridPts, {
+        // TASKS.csv #520 — the grid runs in a worker: progress + Cancel on the status bar, the window keeps painting
+        const ac = new AbortController();
+        const grid = await runEstimation("dense", gridPts, {
           bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
           searchRadius: radius, minSamples: 1, maxSamples: 16, minHoles: 1,
-        });
+        }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
         if (!grid.estimated) throw new Error("No grid cell had an alteration sample within the search radius — increase the search radius.");
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
@@ -1123,7 +1126,7 @@ export function useModelling(ctx) {
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the ${Math.round(radius)} m search radius, not the data.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, errorNotice(`Alteration halo failed: ${e.message || e}`)]);
+        setNotices((p) => [...p, e?.cancelled ? `Alteration halo cancelled.` : errorNotice(`Alteration halo failed: ${e.message || e}`)]);
       }
       setTaskProgress?.(null);
       setAlterationBusy(false);
@@ -1306,7 +1309,8 @@ export function useModelling(ctx) {
     setTimeout(async () => {
       try {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
-        const { samplePointsFromIntervals, estimateDenseGrid, summarizeSupport } = await import("../../lib/estimation.js"); // #552 — on demand
+        const { samplePointsFromIntervals, summarizeSupport } = await import("../../lib/estimation.js"); // #552 — on demand
+        const { runEstimation } = await import("../../lib/estimationClient.js"); // #520 — the grid runs in a worker
         // TASKS.csv #266 — QC inserts (standards/blanks/duplicates) are excluded by default here, the
         // same as Best Intercepts / Compositing / Grade Statistics already do. They used to reach the
         // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has
@@ -1379,12 +1383,13 @@ export function useModelling(ctx) {
           (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
         );
         const effectiveRadius = numericSearchRadius > 0 ? numericSearchRadius : gridDiagonal;
-        const grid = estimateDenseGrid(gridPoints, {
+        const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
+        const grid = await runEstimation("dense", gridPoints, {
           bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
           searchRadius: effectiveRadius, minSamples: 1, maxSamples: 16,
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
-        });
+        }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
         if (!grid.estimated) throw new Error(numericMinHoles > 1
           ? `No grid cell had samples from at least ${numericMinHoles} distinct holes within the search radius — widen the search, or lower "Min holes".`
           : "No grid cell had a sample within the search radius — widen it.");
@@ -1486,7 +1491,7 @@ export function useModelling(ctx) {
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, errorNotice(`Numeric model failed: ${e.message || e}`)]);
+        setNotices((p) => [...p, e?.cancelled ? `Numeric model cancelled.` : errorNotice(`Numeric model failed: ${e.message || e}`)]);
       }
       setTaskProgress?.(null);
       setNumericBusy(false);

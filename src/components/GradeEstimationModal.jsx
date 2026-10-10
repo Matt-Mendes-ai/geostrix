@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { X, Play } from "./icons.js";
 import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, estimateBlockModel, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -111,8 +112,12 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
   const overLimit = totalBlocksPreview > MAX_BLOCKS;
 
+  // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
+  const [progress, setProgress] = useState(null); // 0..1 while running
+  const abortRef = useRef(null);
+  const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null);
+    setError(""); setResult(null); setProgress(0);
     if (!collars.length) { setError("No collars loaded — nothing to estimate from."); return; }
     if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one (TASKS #265)."); return; }
     setRunning(true);
@@ -126,7 +131,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     // timer for the same reason; this modal kept the rAF and had the same latent bug, confirmed live
     // during #258's verification (the run sat on "Running…" indefinitely in a hidden preview pane and
     // completed the moment the same code ran under a timer).
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const cap = Number.isFinite(capValue) && capValue > 0 ? capValue : null; // TASKS.csv #259
         let intervals;
@@ -151,13 +156,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         const gridDiagonal = Math.sqrt(
           (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
         );
-        const est = estimateBlockModel(points, {
+        const ac = new AbortController(); abortRef.current = ac;
+        const est = await runEstimation("block", points, {
           bounds, cellSize: { dx: cellSize, dy: cellSize, dz: cellSize },
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples,
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
-        });
+        }, { onProgress: setProgress, signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         const params = {
@@ -171,8 +177,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); // a fresh run invalidates both "Added ✓" states
       } catch (e) {
-        setError(e.message || "Estimation failed.");
+        setError(e.cancelled ? "Estimation cancelled." : (e.message || "Estimation failed."));
       }
+      abortRef.current = null; setProgress(null);
       setRunning(false);
     }, 40);
   };
@@ -344,8 +351,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           {searchRadius === 0 && totalBlocksPreview > 25000 && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
               With no search radius, every one of these {totalBlocksPreview.toLocaleString()} blocks gets
-              estimated from the whole dataset — this run can take a minute or more and the window will be
-              unresponsive while it does. It is also rarely what you want: a block with no sample anywhere
+              estimated from the whole dataset — this run can take a minute or more (it runs in the background
+              with a progress count, and Cancel stops it). It is also rarely what you want: a block with no sample anywhere
               near it still gets a grade. Set a real search radius (50 m is the default) unless you
               specifically want an unbounded first pass.
             </div>
@@ -375,8 +382,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? "Running…" : "Run estimation"}
+            <Play size={14} /> {running ? `Running… ${progress != null ? Math.round(progress * 100) + "%" : ""}` : "Run estimation"}
           </button>
+          {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>Cancel</button>}
 
           {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-icon-strong)" }}>{error}</div>}
 

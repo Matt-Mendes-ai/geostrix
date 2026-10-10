@@ -124,6 +124,7 @@ export function estimateBlockModel(samplePoints, opts) {
         cells.push(cell);
       }
     }
+    opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
   }
   return { cells, blocksEstimated: cells.length, blocksSkipped, singleHoleCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null };
 }
@@ -718,6 +719,7 @@ export function estimateDenseGrid(samplePoints, opts) {
         estimated++;
       }
     }
+    opts.onProgress?.((iz + 1) / nz); // #520
   }
   out.estimated = estimated;
   out.skipped = totalBlocks - estimated;
