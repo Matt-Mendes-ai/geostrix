@@ -21,6 +21,7 @@ import { igrfField, decimalYear } from "../lib/igrf.js";
 import {
   gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
   fitVerdict, resultToVoxelModel, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
+  forwardMapValues, residualScale, // TASKS.csv #537
 } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
@@ -530,7 +531,8 @@ function FitView({ last, method }) {
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {Math.round((runs[0].volumeRatio || 0) * 100)}% of the plate's true volume{runs.length > 1 ? ` at ${runs[0].dip}°` : ""}).</div>}
         {runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100)}%) — those responses are for a smaller body than the one entered.</div>}
-        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={runs[0].predicted} unit={unit} />}
+        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} />}
+        {runs.length === 1 && Number.isFinite(runs[0].baseLevel) && <div style={small}>Predicted map shown with the base level ({runs[0].baseLevel.toFixed(2)} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.</div>}
       </div>
     );
   }
@@ -597,7 +599,8 @@ function DipSweep({ runs, unit }) {
 // fixed at +-3 (visual-design review). Stations are drawn as dots, never gridded, so gaps stay visible.
 function PointMaps({ stations, observed, predicted, std, unit }) {
   const refs = [useRef(null), useRef(null), useRef(null)];
-  const resid = observed.map((o, i) => (std ? (o - predicted[i]) / std[i] : o - predicted[i]));
+  const resid = useMemo(() => observed.map((o, i) => (std ? (o - predicted[i]) / std[i] : o - predicted[i])), [observed, predicted, std]);
+  const rScale = useMemo(() => residualScale(resid, !!std), [resid, std]); // #537 — ±3σ, or ±P98 |residual| in data units
   useEffect(() => {
     const xs = stations.map((p) => p[0]), ys = stations.map((p) => p[1]);
     const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
@@ -607,7 +610,7 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
     const seq = sequentialStops(lo, hi, 9).map((s) => s.color);
     const div = divergingStops(3, 9).map((s) => s.color);
     const seqC = (v) => seq[Math.max(0, Math.min(8, Math.round(((v - lo) / (hi - lo || 1)) * 8)))];
-    const divC = (v) => div[Math.max(0, Math.min(8, Math.round(((v + 3) / 6) * 8)))];
+    const divC = (v) => div[Math.max(0, Math.min(8, Math.round(((v + rScale) / (2 * rScale)) * 8)))];
     [[observed, seqC], [predicted, seqC], [resid, divC]].forEach(([vals, col], k) => {
       const c = refs[k].current;
       if (!c) return;
@@ -616,12 +619,12 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
       const r = Math.max(1, Math.min(3, 200 / Math.sqrt(stations.length)));
       stations.forEach((p, i) => { ctx.fillStyle = col(vals[i]); ctx.beginPath(); ctx.arc(pad + (p[0] - x0) * sc, S - pad - (p[1] - y0) * sc, r, 0, Math.PI * 2); ctx.fill(); });
     });
-  }, [stations, observed, predicted]);
+  }, [stations, observed, predicted, resid, rScale]); // #537 — std (via resid) was missing
   const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" };
   return (
     <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-      {[["Observed", `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], ["Predicted", `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? "Residual / σ" : "Residual", std ? `RMS ${rms(resid).toFixed(2)}, ±3 scale` : `RMS ${rms(resid).toFixed(2)} ${unit}`]].map(([t, cap], k) => (
+      {[["Observed", `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], ["Predicted", `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? "Residual / σ" : "Residual", std ? `RMS ${rms(resid).toFixed(2)}, ±3 scale` : `RMS ${rms(resid).toFixed(2)} ${unit}, ±${rScale.toPrecision(2)} scale`]].map(([t, cap], k) => (
         <figure key={t} style={{ margin: 0, textAlign: "center" }}>
           <canvas ref={refs[k]} width={78} height={78} role="img" aria-label={`${t} map: ${cap}`} style={{ border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }} />
           <figcaption style={small}>{t}<br />{cap}</figcaption>

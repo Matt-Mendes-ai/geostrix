@@ -190,3 +190,21 @@ export function divergingStops(absMax, n = 17) {
   const m = Number.isFinite(absMax) && absMax > 0 ? absMax : 1;
   return labStops(DIVERGING_ANCHORS, Array.from({ length: n }, (_, i) => -m + (2 * m * i) / (n - 1)));
 }
+
+// TASKS.csv #537 — what the forward-model maps show. The engine scores a forward run as obs − pred − b, with b the
+// best-fit base level (#366), but the maps were given raw obs and pred: with an IGRF-removed level of ~150 nT the
+// residual map was one flat colour, its RMS ≈ the base level (contradicting the "RMS left over" sentence above
+// it), and the shared observed / predicted colour scale was stretched across both offsets. The predicted map is
+// shown with b added (same level as the data), so residual = obs − (pred + b) and its RMS = the engine's.
+export function forwardMapValues(observed, run) {
+  const b = Number.isFinite(run?.baseLevel) ? run.baseLevel : 0;
+  const predicted = (run?.predicted || []).map((p) => p + b);
+  return { predicted, baseLevel: b };
+}
+// a symmetric colour range for a residual map without per-datum σ: the 98th percentile of |residual| (so one spike
+// doesn't wash out the rest); with σ the residual is in σ units and ±3 is the scale
+export function residualScale(resid, hasStd) {
+  if (hasStd) return 3;
+  const a = resid.map(Math.abs).filter(Number.isFinite).sort((x, y) => x - y);
+  return a.length ? Math.max(a[Math.min(a.length - 1, Math.floor(0.98 * (a.length - 1)))], 1e-9) : 1;
+}
