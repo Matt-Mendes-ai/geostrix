@@ -84,12 +84,16 @@ export function parseDcipRows(rows, mapping) {
   return { readings, rho, ip: useIp ? ip : null, skipped, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
 }
 
-export function lineGeometry(start, end) {
+// TASKS.csv #602 — `scale` = ground metres per file metre (the chaining scale fitted from the stations, e.g.
+// 0.985): the 3D placement of distance s is start + u·s·scale, so the section lines up with the surveyed stations
+// end to end. The inversion itself still works in the file's distances (they are what the readings were computed in).
+export function lineGeometry(start, end, scale = 1) {
   const dx = end[0] - start[0], dy = end[1] - start[1], len = Math.hypot(dx, dy);
   if (!(len > 0)) return null;
   const u = [dx / len, dy / len];
+  const k = Number.isFinite(scale) && scale > 0 ? scale : 1;
   const azimuth = ((Math.atan2(u[0], u[1]) * 180) / Math.PI + 360) % 360;
-  return { u, length: len, azimuth, at: (s) => [start[0] + u[0] * s, start[1] + u[1] * s] };
+  return { u, length: len, azimuth, scale: k, at: (s) => [start[0] + u[0] * s * k, start[1] + u[1] * s * k] };
 }
 
 // Ground profile along the line from the terrain, from s0 to s1 (m along the line), for the mesh's air/ground

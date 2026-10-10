@@ -16,6 +16,8 @@ import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "..
 import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
+import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
+import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"]];
@@ -24,10 +26,13 @@ export default function DcipPanel({ pBtn, numInput }) {
   const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
+  const stationRef = useRef(null);
+  const [stationFile, setStationFile] = useState(null); // #602 — { name, lines, epsg, crsNote, other } awaiting a line choice
   const [engine, setEngine] = useState(null);
   const [file, setFile] = useState(null); // { name, headers, rows }
   const [mapping, setMapping] = useState({});
-  const [line, setLine] = useState({ x0: "", y0: "", x1: "", y1: "", ground: "" });
+  // #602 — scale: chaining scale ("" = 1); stations: { file, line, list: [{s, x, y, z}] } from a station / GPS file
+  const [line, setLine] = useState({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
   const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02 });
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
@@ -42,7 +47,7 @@ export default function DcipPanel({ pBtn, numInput }) {
   }, []);
 
   const parsed = useMemo(() => (file && mapping.a && mapping.m && mapping.rho ? parseDcipRows(file.rows, mapping) : null), [file, mapping]);
-  const geom = useMemo(() => { const g = [line.x0, line.y0, line.x1, line.y1].map(num); return g.every(Number.isFinite) ? lineGeometry([g[0], g[1]], [g[2], g[3]]) : null; }, [line]);
+  const geom = useMemo(() => { const g = [line.x0, line.y0, line.x1, line.y1].map(num); return g.every(Number.isFinite) ? lineGeometry([g[0], g[1]], [g[2], g[3]], num(line.scale) || 1) : null; }, [line]);
   const running = job?.status?.state === "running";
 
   const onFile = async (f) => {
@@ -71,11 +76,48 @@ export default function DcipPanel({ pBtn, numInput }) {
     const e = dcipLines.find((l) => l.id === id);
     if (!e) return;
     const { file: f, mapping: m } = savedLineToFile(e);
-    setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
+    setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
     const sl = e.section?.line;
-    const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number)) : null;
+    const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number), Number(sl.scale) || 1) : null;
     setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt } : null);
     setMsg({ ok: true, text: `${e.name}: ${e.readings.length} readings from the project${e.section ? ", with its last inverted section" : ""}.` });
+  };
+
+  // TASKS.csv #602 — a station / GPS file: pick this line's stations, reproject them into the project CRS when the file
+  // names its own (GPS Utility: UTM zone + WGS 84), fit the line (start / end / chaining scale) and keep the
+  // elevations as the ground profile.
+  const applyStations = (sf, lineKey) => {
+    setStationFile(null);
+    let list = sf.lines[lineKey].map((p) => ({ s: p.s, x: p.x, y: p.y, z: p.z }));
+    let crsText = sf.crsNote ? ` (${sf.crsNote})` : "";
+    const dst = Number(project?.epsg);
+    if (sf.epsg && dst && sf.epsg !== dst) {
+      if (getProj4DefSync(sf.epsg) && getProj4DefSync(dst)) {
+        list = list.map((p) => { const q = reprojectXY(p.x, p.y, sf.epsg, dst); return q ? { ...p, x: q.x, y: q.y } : p; });
+        crsText = ` (reprojected EPSG:${sf.epsg} → EPSG:${dst})`;
+      } else crsText = ` (EPSG:${sf.epsg} could not be reprojected — taken as EPSG:${dst})`;
+    }
+    const fit = fitStationLine(list);
+    if (!fit) { setMsg({ ok: false, text: `${sf.name}: line ${lineKey} needs at least two stations at different distances to place it.` }); return; }
+    const r1 = (v) => String(+v.toFixed(1));
+    const scale = Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "";
+    setLine((l) => ({ ...l, x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), scale, stations: { file: sf.name, line: lineKey, list } }));
+    const zs = list.filter((p) => Number.isFinite(p.z)).map((p) => p.z);
+    const scaleText = scale ? ` Chaining scale ${scale}: the file's distances are ${Math.abs((1 / fit.scale - 1) * 100).toFixed(1)}% ${fit.scale < 1 ? "longer" : "shorter"} than the ground between the stations (slope chaining?) — applied to the 3D placement only.` : "";
+    const sp = parsed?.span;
+    const reach = sp && (sp[0] < list[0].s || sp[1] > list[list.length - 1].s) ? ` Electrodes ${sp[0]}–${sp[1]} m reach past the stations (${list[0].s}–${list[list.length - 1].s} m).` : "";
+    setMsg({ ok: true, text: `${sf.name}: line ${lineKey}, ${list.length} stations ${list[0].s}–${list[list.length - 1].s} m${crsText}. Placed by a best fit, azimuth ${fit.azimuth.toFixed(1)}°; stations sit within ${fit.maxAcross.toFixed(1)} m of the line.${scaleText}${zs.length >= 2 ? ` Ground profile from ${zs.length} station elevations (${arrMin(zs).toFixed(1)}–${arrMax(zs).toFixed(1)} m).` : " The file has no elevations — terrain or the flat ground is used."}${reach}${sf.other?.length ? ` Not stations: ${sf.other.map((o) => o.name).join(", ")}.` : ""}` });
+  };
+  const onStationFile = async (f) => {
+    if (!f) return;
+    try {
+      const sf = { name: f.name, ...parseStationFile(decodeTableBytes(await f.arrayBuffer()).text, f.name) };
+      const keys = Object.keys(sf.lines);
+      const hints = [lineName, ...(file?.rows || []).slice(0, 3).flatMap((r) => Object.values(r))];
+      const k = matchStationLine(keys, ...hints);
+      if (k != null) applyStations(sf, k);
+      else { setStationFile(sf); setMsg({ ok: true, text: `${f.name} has ${keys.length} lines and none is named like "${lineName}" — choose this line's stations.` }); }
+    } catch (e) { setMsg({ ok: false, text: e.message }); }
   };
 
   const run = async () => {
@@ -90,8 +132,16 @@ export default function DcipPanel({ pBtn, numInput }) {
     let topo = null, groundNote = "";
     if (parsed && geom) {
       const pad = (parsed.span[1] - parsed.span[0]) * 0.5 + 50;
-      topo = terrain ? terrainProfile(terrain, geom, parsed.span[0] - pad, parsed.span[1] + pad) : null;
-      if (topo) groundNote = "ground from the terrain along the line";
+      // #602 — the surveyed station elevations first (they are the ground the electrodes sat on), then terrain
+      const st = line.stations?.list || [];
+      topo = stationGroundProfile(st, parsed.span[0] - pad, parsed.span[1] + pad);
+      if (topo) {
+        const zs = st.filter((p) => Number.isFinite(p.z)), s0 = zs[0].s, s1 = zs[zs.length - 1].s;
+        const beyond = parsed.span[0] < s0 || parsed.span[1] > s1 ? `; electrodes ${parsed.span[0]}–${parsed.span[1]} m reach past the stations (${s0}–${s1} m), held at the end elevations there` : "";
+        groundNote = `ground from ${zs.length} station elevations (${line.stations.file}, line ${line.stations.line})${beyond}`;
+      }
+      if (!topo) topo = terrain ? terrainProfile(terrain, geom, parsed.span[0] - pad, parsed.span[1] + pad) : null;
+      if (topo && !groundNote) groundNote = "ground from the terrain along the line";
       else if (Number.isFinite(num(line.ground))) { topo = [[parsed.span[0] - pad, num(line.ground)], [parsed.span[1] + pad, num(line.ground)]]; groundNote = `flat ground at ${num(line.ground)} m (entered)`; }
       else problems.push(terrain ? "The line leaves the terrain surface — enter a flat ground elevation instead." : "Load a terrain (Geophysics > Terrain) or enter a flat ground elevation for the line.");
     }
@@ -110,6 +160,7 @@ export default function DcipPanel({ pBtn, numInput }) {
     const params = {
       tool: "2D DC resistivity / IP inversion (SimPEG)", line: name, readings: parsed.readings.length, array: parsed.array,
       lineStart: [num(line.x0), num(line.y0)], lineEnd: [num(line.x1), num(line.y1)], lineAzimuth: +lineGeom.azimuth.toFixed(2), ground: groundNote,
+      ...(lineGeom.scale !== 1 ? { chainingScale: lineGeom.scale } : {}), ...(line.stations ? { stations: `${line.stations.list.length} from ${line.stations.file} (line ${line.stations.line})` } : {}),
       mesh: { cellM: num(opts.cell), depthM: num(opts.depth), verticalCellM: num(opts.cell) / 2 },
       uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: "entered by user" },
       crs: `EPSG:${project?.epsg}`, interpretation: "One smooth model that fits the data to the stated uncertainty (2.5D: the ground is assumed not to change along strike, across the line). Deep and edge cells are poorly constrained — see the support.",
@@ -140,8 +191,8 @@ export default function DcipPanel({ pBtn, numInput }) {
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   const row = { display: "flex", alignItems: "center", gap: 6, marginTop: 5 };
-  const lbl = { width: 112, flexShrink: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
-  const inp = { ...numInput, width: 78, flex: "none" };
+  const lbl = { width: 104, flexShrink: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
+  const inp = { ...numInput, width: 78, flex: "0 1 78px", minWidth: 0 }; // #602 — shrinks in a narrow sidebar (two of them overflowed it)
 
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
@@ -178,7 +229,25 @@ export default function DcipPanel({ pBtn, numInput }) {
           <div style={row}><span style={lbl}>Start x / y</span><input type="number" value={line.x0} onChange={(e) => setLine((l) => ({ ...l, x0: e.target.value }))} style={inp} aria-label="Line start x" /><input type="number" value={line.y0} onChange={(e) => setLine((l) => ({ ...l, y0: e.target.value }))} style={inp} aria-label="Line start y" /></div>
           <div style={row}><span style={lbl}>End x / y</span><input type="number" value={line.x1} onChange={(e) => setLine((l) => ({ ...l, x1: e.target.value }))} style={inp} aria-label="Line end x" /><input type="number" value={line.y1} onChange={(e) => setLine((l) => ({ ...l, y1: e.target.value }))} style={inp} aria-label="Line end y" /></div>
           {geom && <div style={small}>Line {Math.round(geom.length)} m long, azimuth {geom.azimuth.toFixed(1)}° (grid). Distances in the file are measured from the start.</div>}
-          <div style={row} title="Used when there is no terrain under the line."><span style={lbl}>Flat ground (m)</span><input type="number" value={line.ground} onChange={(e) => setLine((l) => ({ ...l, ground: e.target.value }))} style={inp} aria-label="Flat ground elevation" /><span style={small}>{terrain ? "only if the line leaves the terrain" : "no terrain loaded"}</span></div>
+          <div style={row} title="Ground metres per metre of the file's distances (from a station fit; blank = 1). Moves the section in 3D only — the inversion uses the file's distances."><span style={lbl}>Chaining scale</span><input type="number" step={0.001} value={line.scale} placeholder="1" onChange={(e) => setLine((l) => ({ ...l, scale: e.target.value }))} style={inp} aria-label="Chaining scale" /></div>
+          <button onClick={() => stationRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title="GPS waypoints named '<line> <station>' (e.g. GPS Utility '8575E 750N'), or a table with station, X, Y and optionally elevation: places the line and gives the ground profile"><Upload size={14} /> Line stations (GPS / station file)…</button>
+          <input ref={stationRef} type="file" accept=".txt,.csv,.dat,.gpx,.wpt,.xyz" style={{ display: "none" }} onChange={(e) => { onStationFile(e.target.files[0]); e.target.value = ""; }} />
+          {stationFile && (
+            <div style={row}>
+              <span style={lbl}>Which line?</span>
+              <select value="" onChange={(e) => e.target.value && applyStations(stationFile, e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Station file line">
+                <option value="">{Object.keys(stationFile.lines).length} lines in {stationFile.name}…</option>
+                {Object.entries(stationFile.lines).map(([k, v]) => <option key={k} value={k}>{k || "(no line name)"} — {v.length} stations</option>)}
+              </select>
+            </div>
+          )}
+          {line.stations && (
+            <div style={{ ...small, display: "flex", gap: 6, alignItems: "baseline" }}>
+              <span style={{ flex: 1 }}>Stations: {line.stations.list.length} from {line.stations.file} (line {line.stations.line}){line.stations.list.some((p) => Number.isFinite(p.z)) ? " — used as the ground profile" : " — no elevations"}.</span>
+              <button onClick={() => setLine((l) => ({ ...l, stations: null }))} style={{ ...pBtn, width: "auto", padding: "2px 6px", marginBottom: 0 }} title="Stop using the station elevations (the placement stays)">Clear</button>
+            </div>
+          )}
+          <div style={row} title="Used when there are no station elevations and no terrain under the line."><span style={lbl}>Flat ground (m)</span><input type="number" value={line.ground} onChange={(e) => setLine((l) => ({ ...l, ground: e.target.value }))} style={inp} aria-label="Flat ground elevation" /><span style={small}>{line.stations?.list.some((p) => Number.isFinite(p.z)) ? "not used — station elevations" : terrain ? "only if the line leaves the terrain" : "no terrain loaded"}</span></div>
           <div className="ge-section-label" style={{ marginTop: 10 }}>Inversion</div>
           <div style={row} title="Horizontal cell size; half the smallest electrode spacing is a good start (vertical cells are half this)."><span style={lbl}>Cell / depth (m)</span><input type="number" value={opts.cell} onChange={(e) => setOpts((o) => ({ ...o, cell: e.target.value }))} style={inp} aria-label="Cell size" /><input type="number" value={opts.depth} onChange={(e) => setOpts((o) => ({ ...o, depth: e.target.value }))} style={inp} aria-label="Model depth" /></div>
           <div style={row} title="How far you trust each reading. No default: too small and the model invents detail, too large and it smooths real bodies away."><span style={lbl}>Resistivity ± %, floor</span><input type="number" value={opts.pct} onChange={(e) => setOpts((o) => ({ ...o, pct: e.target.value }))} style={inp} aria-label="Resistivity uncertainty percent" /><input type="number" value={opts.floor} onChange={(e) => setOpts((o) => ({ ...o, floor: e.target.value }))} style={inp} aria-label="Resistivity uncertainty floor" /></div>
@@ -207,7 +276,7 @@ function Pseudosection({ parsed }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Data (pseudosection): apparent resistivity {arrMin(parsed.rho).toPrecision(3)}–{arrMax(parsed.rho).toPrecision(3)} ohm·m</div>
-      <svg width={W} height={H} role="img" aria-label="Apparent resistivity pseudosection" style={{ display: "block", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Apparent resistivity pseudosection" style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
         {pts.map((p, i) => <circle key={i} cx={x(p.s)} cy={y(p.depth)} r={2.6} fill={colorForVoxelValue(model, parsed.rho[i])} />)}
       </svg>
     </div>
