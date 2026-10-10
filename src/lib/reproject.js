@@ -32,7 +32,6 @@
 // relevant CSRS zones (7N-11N, covering all of BC including the Golden Triangle) are included; an
 // unrecognized target EPSG falls back to the existing "no reprojection, here's why" warning message.
 import proj4 from "proj4";
-import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 
 // TASKS.csv #416 — proj4(fromDef, toDef, point) re-parses BOTH definition strings on every call: 31.5 us
 // per point vs 1.76 us with a converter built once (18x). The image/grid warps below call it once per
@@ -432,14 +431,28 @@ function nearestSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {
   const c = Math.round(((x - xmin) / (xmax - xmin)) * (w - 1)), r = Math.round(((ymax - y) / (ymax - ymin)) * (h - 1));
   return band[r * w + c];
 }
+// TASKS.csv #559 — the target-CRS extent of a source rectangle, from points ALONG its edges, not just its 4 corners. In
+// Transverse Mercator a parallel bows away from the corners' line, so a geographic tile straddling the central meridian
+// has its true southern edge below the corners' lowest y: a corner-only box cropped it (4326 -> UTM 9N at 56-57 N:
+// 113 m for a 1-degree tile, 451 m for 2 degrees, 1.8 km for 4). Same edge sampling gdalwarp does.
+export function projectedBounds(fromDef, toDef, xmin, ymin, xmax, ymax, perEdge = 32) {
+  const fwd = converter(fromDef, toDef);
+  let txmin = Infinity, tymin = Infinity, txmax = -Infinity, tymax = -Infinity;
+  const add = (x, y) => {
+    const [tx, ty] = fwd.forward([x, y]);
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return;
+    if (tx < txmin) txmin = tx; if (tx > txmax) txmax = tx; if (ty < tymin) tymin = ty; if (ty > tymax) tymax = ty;
+  };
+  for (let i = 0; i <= perEdge; i++) {
+    const f = i / perEdge, x = xmin + f * (xmax - xmin), y = ymin + f * (ymax - ymin);
+    add(x, ymin); add(x, ymax); add(xmin, y); add(xmax, y);
+  }
+  return [txmin, tymin, txmax, tymax];
+}
+
 export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, bands }, fromDef, toDef, outW, outH, opts = {}) {
   const sample = opts.nearest ? nearestSample : bilinearSample;
-  const corners = [
-    [xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax],
-  ].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
-  const txs = corners.map((c) => c[0]), tys = corners.map((c) => c[1]);
-  const txmin = arrMin(txs), txmax = arrMax(txs);
-  const tymin = arrMin(tys), tymax = arrMax(tys);
+  const [txmin, tymin, txmax, tymax] = projectedBounds(fromDef, toDef, xmin, ymin, xmax, ymax); // #559 — edges, not corners
 
   const srcBands = bands || [band];
   const outs = srcBands.map(() => new Float32Array(outW * outH));
@@ -478,10 +491,7 @@ export function reprojectGrid({ xmin, ymin, xmax, ymax, gridW, gridH, band, band
 // fully transparent, so the reprojected drape shows the true skewed footprint rather than stretched
 // edge pixels.
 export function reprojectImageRGBA({ xmin, ymin, xmax, ymax, width, height, data }, fromDef, toDef, outW, outH) {
-  const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]].map(([x, y]) => converter(fromDef, toDef).forward([x, y]));
-  const txs = corners.map((c) => c[0]), tys = corners.map((c) => c[1]);
-  const txmin = arrMin(txs), txmax = arrMax(txs);
-  const tymin = arrMin(tys), tymax = arrMax(tys);
+  const [txmin, tymin, txmax, tymax] = projectedBounds(fromDef, toDef, xmin, ymin, xmax, ymax); // #559 — edges, not corners
 
   const out = new Uint8ClampedArray(outW * outH * 4);
   const inv = converter(toDef, fromDef); // #416 — once, not per pixel
