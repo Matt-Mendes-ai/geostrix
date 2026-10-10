@@ -18,6 +18,7 @@ import {
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
 import GeochemPlot from "../components/GeochemPlot.jsx";
+import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
@@ -47,7 +48,10 @@ export default function GeochemModule() {
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useState("boxplot");
-  const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
+  const [colorMode, setColorMode] = useState("hole"); // hole | element | lithology (#619) | uniform
+  // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
+  const [lithFilter, setLithFilter] = useState(null); // null | Set of codes (NOT_LOGGED = samples with no log)
+  const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useState(null);
   const [assayModal, setAssayModal] = useState(null);
   const [certReview, setCertReview] = useState(null); // TASKS.csv #601
@@ -80,14 +84,35 @@ export default function GeochemModule() {
     return map;
   }, [assays]);
 
+  // TASKS.csv #619 — each sample's logged lithology (largest overlap with the 3D View's lithology log)
+  const sampleLith = useMemo(() => lithologyBySample(assays, layers?.litho), [assays, layers?.litho]);
+  const lithCounts = useMemo(() => lithologyCounts(sampleLith), [sampleLith]);
+  const hasLithLog = (layers?.litho || []).length > 0;
+  const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k], i) => [k, k === NOT_LOGGED ? "#b8bec7" : `hsl(${(i * 137) % 360}, 60%, 50%)`])), [lithCounts]);
+  const plotted = useMemo(() => (lithFilter ? assays.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : assays), [assays, lithFilter, sampleLith]);
+  const describeSample = (sm) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace(/\.?0+$/, "") : "?");
+    return [
+      `${sm.hole_id}  ${num(sm.from)}–${num(sm.to)} m`,
+      `Sample ID: ${sm.sample_id || "— (none in the assay file)"}`,
+      `Lithology (logged): ${hasLithLog ? sampleLith.get(sm) ?? "not logged here" : "no lithology log loaded"}`,
+    ];
+  };
+  // TASKS.csv #619 (#618 click review) — the element colour range was recomputed over ALL assays for EVERY point
+  // (6,297 samples: ~40 million value lookups per redraw, enough to freeze the tab); now once per change
+  const colorRange = useMemo(() => {
+    if (colorMode !== "element" || !colorElement) return null;
+    const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
+    return vals.length ? { min: arrMin(vals), max: arrMax(vals) } : null;
+  }, [colorMode, colorElement, assays, elementUnits]);
   const colorBy = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
+    if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
     if (colorMode === "element" && colorElement) {
       const v = valueIn(sample, colorElement, "ppm", elementUnits);
-      if (v == null) return "#eef1f4";
-      const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
-      const min = arrMin(vals), max = arrMax(vals);
+      if (v == null || !colorRange) return "#eef1f4";
+      const { min, max } = colorRange;
       const t = max > min ? (v - min) / (max - min) : 0.5;
       const lo = [70, 110, 190], hi = [220, 70, 60];
       return `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`;
@@ -744,12 +769,45 @@ export default function GeochemModule() {
             <select value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">by hole</option>
               <option value="element">by element</option>
+              <option value="lithology" disabled={!hasLithLog}>by logged lithology</option>
               <option value="uniform">uniform</option>
             </select>
             {colorMode === "element" && (
               <select value={colorElement || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
                 {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
               </select>
+            )}
+          </div>
+          {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
+          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>
+            Lithology:
+            <button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+              title={hasLithLog ? "Plot only samples from the chosen logged lithologies" : "Load a lithology log in the 3D View to filter by it"}
+              style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
+              {!hasLithLog ? "no log loaded" : !lithFilter ? `all (${lithCounts.length})` : `${lithFilter.size} of ${lithCounts.length} selected`} ▾
+            </button>
+            {lithMenuOpen && hasLithLog && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 20 }} onClick={() => setLithMenuOpen(false)} />
+                <div role="menu" onKeyDown={(e) => { if (e.key === "Escape") setLithMenuOpen(false); }} style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 21, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.15)", padding: 8, minWidth: 220, maxHeight: 360, overflowY: "auto" }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>All</button>
+                    <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>None</button>
+                  </div>
+                  {lithCounts.map(([code, n]) => {
+                    const on = !lithFilter || lithFilter.has(code);
+                    const toggle = () => setLithFilter((prev) => { const next = new Set(prev || lithCounts.map(([k]) => k)); if (next.has(code)) next.delete(code); else next.add(code); return next.size === lithCounts.length ? null : next; });
+                    return (
+                      <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: 12, color: "var(--color-text)" }}>
+                        <input type="checkbox" checked={on} onChange={toggle} />
+                        <span style={{ width: 9, height: 9, borderRadius: 2, background: lithColors[code], flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? "not logged" : code}</span>
+                        <span style={{ color: "var(--color-text-muted)" }}>{n}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -792,11 +850,12 @@ export default function GeochemModule() {
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>
-            <GeochemPlot diagramId={diagramId} samples={assays} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} />
+            <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
               {diagram.spider
-                ? `${assays.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
-                : `${assays.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}
+                ? `${plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
+                : `${plotted.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}
+              {lithFilter ? ` ${assays.length - plotted.length} hidden by the lithology filter.` : ""}
               {" "}Below-detection values substituted at half the detection limit.
             </div>
           </div>
