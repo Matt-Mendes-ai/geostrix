@@ -33,7 +33,7 @@ import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput } from "../lib/idw.js";
+import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
 import { hillshadeToRasterInput } from "../lib/hillshade.js";
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
@@ -148,6 +148,8 @@ export default function GeophysicsModule() {
   const [idwCellSize, setIdwCellSize] = useState(25);
   const [idwPower, setIdwPower] = useState(2);
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
+  const [idwSurvey, setIdwSurvey] = useState(""); // TASKS.csv #538 — one survey at a time ("" = the only / first one)
+  const [idwBlank, setIdwBlank] = useState(""); // #538 — blanking distance (m); "" = the suggested default
   const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
   // TASKS.csv #237 sub-item (2) — terrain contours. 50 m default interval: a sensible starting point
   // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
@@ -177,6 +179,11 @@ export default function GeophysicsModule() {
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #538 — gridding used EVERY imported survey at once (a mag survey in nT blended with a gravity or
+  // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
+  const idwKey = surveyList.some((s) => s.key === idwSurvey) ? idwSurvey : surveyList[0]?.key || "";
+  const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
+  const idwSuggest = useMemo(() => (idwRows.length ? suggestBlankingDistance(idwRows) : null), [idwRows]);
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -709,6 +716,10 @@ export default function GeophysicsModule() {
         _src: fileName,
       }))
       .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value));
+    // TASKS.csv #538 (found testing) — a GPS rover logs X = Y = 0 while it has no fix (Lawyers 2021-06-19: 5 readings,
+    // 0 satellites); taken as real they sat 6,000 km from the survey and made its extent (and any grid) absurd.
+    const noFix = mapped.filter((r) => r.x === 0 && r.y === 0).length;
+    if (noFix) mapped = mapped.filter((r) => !(r.x === 0 && r.y === 0));
     if (!mapped.length) {
       setXyzError({ info: false, text: `None of the ${parsedRows.length} row(s) had usable values in the chosen columns (likely all "*"/no-data for this combination) — try different columns.` });
       return;
@@ -728,7 +739,8 @@ export default function GeophysicsModule() {
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
-    const skipped = parsedRows.length - mapped.length;
+    const skipped = parsedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately
+    if (noFix) reprojectNote += ` Left out ${noFix} reading(s) at X = 0, Y = 0 (no GPS fix).`;
     const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
     setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}${dcNote}` });
     setXyzPending(null);
@@ -1110,6 +1122,20 @@ export default function GeophysicsModule() {
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
+                {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
+                {surveyList.length > 1 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Survey</span>
+                    <select value={idwKey} onChange={(e) => setIdwSurvey(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Survey to grid">
+                      {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
+                    </select>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title="Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.">
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Blank &gt; (m)</span>
+                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label="Blanking distance" />
+                </div>
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>Default {Math.round(idwSuggest.distance)} m: median {idwSuggest.basis} {idwSuggest.spacing.toFixed(1)} m.</div>}
                 {/* TASKS.csv #372 — colour stretch */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalise: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Colours</span>
@@ -1121,13 +1147,19 @@ export default function GeophysicsModule() {
                 </div>
                 <button
                   onClick={() => {
-                    const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
+                    const pts = idwRows;
+                    if (!pts.length) return;
+                    const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
-                    const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, name: `geophys_pts_idw_${idwCellSize}m_${idwStretch}` });
-                    addRaster({ ...raster, elevation: defaultElevation });
-                    setError(null);
+                    const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
+                    const label = String(idwKey).replace(/\.[^.]+$/, "");
+                    const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
+                      name: `${label} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` });
+                    addRaster({ ...raster, elevation: defaultElevation, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
+                    const cells = raster.grid.nx * raster.grid.ny;
+                    setError({ info: true, text: `Gridded "${idwKey}" (${pts.length.toLocaleString()} points) at ${idwCellSize} m: ${raster.grid.valid.toLocaleString()} of ${cells.toLocaleString()} cells have a value${Number.isFinite(blank) ? `; cells more than ${Math.round(blank)} m from any point are left empty` : ""}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.` });
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
