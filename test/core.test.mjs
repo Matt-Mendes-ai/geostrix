@@ -548,7 +548,7 @@ test("#400 certified CRM limits and bias; duplicates pair by parent id / same in
   ];
   const pairs = duplicatePairs(rows, "Au", units, undefined, { minMean: 0.05 });
   assert.deepEqual(pairs.map((p) => [p.how, +p.rpd.toFixed(1), p.belowLimit]), [["parent id", 9.5, false], ["same interval", 66.7, true]]);
-  assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100 });
+  assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100, byKind: { field: { used: 1, within: 1, limit: 20 } } }); // byKind: #534
   assert.equal(blankRows(rows, "Au", units, 0.01)[0].flagged, true); // a sample_type blank under a real hole id
 });
 

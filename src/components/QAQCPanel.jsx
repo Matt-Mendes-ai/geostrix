@@ -2,7 +2,9 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
-import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary } from "../lib/qaqc.js";
+import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
+import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
+import { version as APP_VERSION } from "../../package.json";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #400 — certified values live in the project
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -24,8 +26,18 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const [tab, setTab] = useState("standards");
   const [blankThreshold, setBlankThreshold] = useState(0.1);
   const [selectedStdId, setSelectedStdId] = useState(null);
-  const { crmCertificates = {}, setCrmCertificate } = useStore() || {}; // #400
+  const { crmCertificates = {}, setCrmCertificate, setAssayElements, project } = useStore() || {}; // #400
   const [dupMin, setDupMin] = useState(""); // #400 — ignore pairs whose mean is below this (~10x detection limit)
+  // TASKS.csv #534 — a detection limit PER ELEMENT, saved with the element list (assayElements[].detectionLimit, so the
+  // project format does not change). The blank limit becomes a multiple of it (default 5x DL) and the duplicate pair
+  // floor defaults to 10x DL; without a DL the old manual threshold applies. Units: the element's own.
+  const unit = elementUnits[symbol] || "ppm";
+  const dl = assayElements.find((e) => e.symbol === symbol)?.detectionLimit ?? null;
+  const dlSuggestion = useMemo(() => suggestDetectionLimit(assays, symbol), [assays, symbol]);
+  const setDetectionLimit = (v) => setAssayElements?.((prev) => prev.map((e) => (e.symbol === symbol ? { ...e, detectionLimit: v > 0 ? v : null } : e)));
+  const [blankMult, setBlankMult] = useState(5);
+  const blankLimit = dl ? blankMult * dl : blankThreshold;
+  const pairFloor = dupMin !== "" ? Number(dupMin) || 0 : dl ? 10 * dl : 0;
 
   const counts = useMemo(() => {
     const c = { standard: 0, blank: 0, duplicate: 0, regular: 0 };
@@ -37,11 +49,14 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const excludedIds = useMemo(() => excludedQAQCIds(assays), [assays]); // TASKS.csv #400
   const activeGroup = groups.find((g) => g.id === selectedStdId) || groups[0] || null;
   const cert = activeGroup ? crmCertificates[activeGroup.id]?.[symbol] : null;
-  const series = useMemo(() => (activeGroup ? standardSeries(activeGroup.rows, symbol, elementUnits, cert) : { points: [], limits: null }), [activeGroup, symbol, elementUnits, cert]);
+  // #534 — chart in sample-id order (the order the lab received them) when every insertion has an id
+  const ordered = useMemo(() => orderForControlChart(activeGroup?.rows || []), [activeGroup]);
+  const series = useMemo(() => (activeGroup ? standardSeries(ordered.rows, symbol, elementUnits, cert) : { points: [], limits: null }), [activeGroup, ordered, symbol, elementUnits, cert]);
 
-  const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankThreshold), [assays, symbol, elementUnits, blankThreshold]);
-  const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits, undefined, { minMean: Number(dupMin) || 0 }), [assays, symbol, elementUnits, dupMin]);
-  const dupSummary = useMemo(() => duplicateSummary(dups, 20), [dups]);
+  const blanks = useMemo(() => blankRows(assays, symbol, elementUnits, blankLimit), [assays, symbol, elementUnits, blankLimit]);
+  const dups = useMemo(() => duplicatePairs(assays, symbol, elementUnits, undefined, { minMean: pairFloor }), [assays, symbol, elementUnits, pairFloor]);
+  const dupSummary = useMemo(() => duplicateSummary(dups, DUP_RPD_LIMITS), [dups]); // #534 — per duplicate type
+  const dupLimit = (d) => DUP_RPD_LIMITS[d.kind] ?? DUP_RPD_LIMITS.unknown;
 
   const exportCount = tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
@@ -50,14 +65,22 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
       rows = series.points.map((p) => ({ standard: activeGroup.id, hole_id: p.hole_id, from: p.from, to: p.to, [symbol]: p.value, outside_2sd: p.outside2sd, outside_3sd: p.outside3sd }));
       name = `qaqc_standard_${activeGroup.id}_${symbol}.csv`;
     } else if (tab === "blanks") {
-      rows = blanks.map((b) => ({ hole_id: b.hole_id, from: b.from, to: b.to, [symbol]: b.value, threshold: blankThreshold, flagged: b.flagged }));
+      rows = blanks.map((b) => ({ hole_id: b.hole_id, from: b.from, to: b.to, [symbol]: b.value, threshold: blankLimit, flagged: b.flagged }));
       name = `qaqc_blanks_${symbol}.csv`;
     } else {
-      rows = dups.map((d) => ({ original_hole: d.original_hole, duplicate_hole: d.duplicate_hole, from: d.from, to: d.to, original_value: d.v1, duplicate_value: d.v2, rpd_pct: d.rpd.toFixed(2) }));
+      rows = dups.map((d) => ({ original_hole: d.original_hole, duplicate_hole: d.duplicate_hole, from: d.from, to: d.to, original_value: d.v1, duplicate_value: d.v2, rpd_pct: d.rpd.toFixed(2), duplicate_type: DUP_KIND_LABELS[d.kind], rpd_limit_pct: dupLimit(d), counted: !d.belowLimit, within_limit: !d.belowLimit && d.rpd <= dupLimit(d) }));
       name = `qaqc_duplicates_${symbol}.csv`;
     }
     if (!rows || !rows.length) return;
-    saveFile({ suggestedName: name, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
+    // TASKS.csv #534 — what these figures were judged against travels with them
+    const stamp = stampLines({ tool: "QAQC", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Element: ${symbol} (${unit}) | detection limit: ${dl ? `${dl} ${unit}` : "not set"}`,
+      tab === "standards" && activeGroup ? `Standard ${activeGroup.id}: ${series.limits?.certified ? `certified mean ${series.limits.mean} ± ${series.limits.sd} (1 SD, from the certificate)` : "no certificate values: self-referencing mean ± 2SD/3SD"} | order: ${ordered.bySampleId ? "sample id" : "import order (no sample ids)"}` : "",
+      tab === "blanks" ? `Blank limit: ${dl ? `${blankMult} x DL = ${blankLimit} ${unit}` : `${blankThreshold} ${unit} (manual; no detection limit set)`}` : "",
+      tab === "duplicates" ? `RPD limits by duplicate type: field ${DUP_RPD_LIMITS.field}%, coarse reject ${DUP_RPD_LIMITS.coarse}%, pulp ${DUP_RPD_LIMITS.pulp}%, type not stated ${DUP_RPD_LIMITS.unknown}% | pairs with a mean below ${pairFloor} ${unit} not counted` : "",
+      `QC recognised from a sample-type column when present, else hole_id patterns: ${Object.entries(DEFAULT_QAQC_PATTERNS || {}).map(([k, v]) => `${k} ${Array.isArray(v) ? v.join("/") : v}`).join("; ")}`,
+    ] });
+    saveFile({ suggestedName: name, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
   };
 
   return (
@@ -90,6 +113,15 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                 {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
+            {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.">Detection limit ({unit})
+              <input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder="not set" onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Detection limit" />
+            </label>
+            {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
+              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? `The lab reported ${dlSuggestion.n} result(s) as '<${dlSuggestion.limit}'` : "No '<x' results: the lowest reported value (an upper bound on the limit)"}>
+                {dlSuggestion.basis === "lt" ? `Use the lab's <${dlSuggestion.limit}` : `Use the lowest value ${dlSuggestion.limit}`}
+              </button>
+            )}
             <div style={{ display: "flex", gap: 4 }}>
               {TABS.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
@@ -119,6 +151,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
                     <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={elementUnits[symbol] || "ppm"} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Plotted in {ordered.bySampleId ? "sample-id order" : "the order the rows were imported (no sample ids: re-imports and merges can reorder them)"}.</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                       {series.limits.certified
                         ? <>Certified {series.limits.mean} ± {series.limits.sd} · observed mean {series.observed.mean.toFixed(3)} (SD {series.observed.sd.toFixed(3)}, n={series.observed.n}) · <b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>bias {series.biasPct >= 0 ? "+" : ""}{series.biasPct.toFixed(1)}%</b>{Math.abs(series.biasPct) > 5 ? " (over ±5%)" : ""}</>
@@ -133,9 +166,18 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
           {tab === "blanks" && (
             <>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Contamination threshold ({elementUnits[symbol] || "ppm"})
-                <input type="number" step="0.01" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
-              </label>
+              {dl ? (
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Contamination limit: multiple of the detection limit ({dl} {unit})
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label="Blank limit as a multiple of the detection limit" />
+                    × DL = <b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
+                  </span>
+                </label>
+              ) : (
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)
+                  <input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                </label>
+              )}
               {blanks.length === 0 ? (
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No blanks found (hole_id containing "blank"/"blk"), or none have a {symbol} value.</div>
               ) : (
@@ -161,26 +203,27 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             ) : (
               <>
                 <div style={label}>Relative % difference (RPD) — {symbol}, {dups.length} pair{dups.length === 1 ? "" : "s"}</div>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="RPD near the detection limit is meaningless: set this to about 10 x the detection limit. Pairs below it are greyed and not counted.">Ignore pairs with a mean below ({elementUnits[symbol] || "ppm"}, e.g. 10× detection limit)
-                  <input type="number" min={0} step="any" value={dupMin} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Minimum pair mean" />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.">Ignore pairs with a mean below ({unit}){dl ? ` — default 10 × DL = ${Number((10 * dl).toPrecision(4))}` : ", e.g. 10× detection limit"}
+                  <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Minimum pair mean" />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-                  {dupSummary.used ? `${dupSummary.within} of ${dupSummary.used} counted pairs (${dupSummary.pctWithin.toFixed(0)}%) within 20% RPD` : "No pairs above the limit"}{dupSummary.below ? ` · ${dupSummary.below} below the limit, not counted` : ""}.
+                  {dupSummary.used ? `${dupSummary.within} of ${dupSummary.used} counted pairs (${dupSummary.pctWithin.toFixed(0)}%) within their limit` : "No pairs above the limit"}{dupSummary.below ? ` · ${dupSummary.below} below the limit, not counted` : ""}.
+                  {Object.entries(dupSummary.byKind || {}).map(([k, b]) => <span key={k} style={{ marginLeft: 8, color: "var(--color-text-secondary)" }}>{DUP_KIND_LABELS[k]} (≤{b.limit}%): {b.within}/{b.used}</span>)}
                 </div>
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                  <thead><tr><th style={th}>Original</th><th style={th}>Duplicate</th><th style={th}>Interval</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>RPD %</th></tr></thead>
+                  <thead><tr><th style={th}>Original</th><th style={th}>Duplicate</th><th style={th}>Type</th><th style={th}>Interval</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>RPD %</th></tr></thead>
                   <tbody>
                     {dups.map((d, i) => (
-                      <tr key={i} style={d.belowLimit ? { opacity: 0.45 } : d.rpd > 20 ? { background: "var(--color-danger-bg)" } : undefined} title={`paired by ${d.how}${d.belowLimit ? "; below the limit, not counted" : ""}`}>
-                        <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td>
+                      <tr key={i} style={d.belowLimit ? { opacity: 0.45 } : d.rpd > dupLimit(d) ? { background: "var(--color-danger-bg)" } : undefined} title={`paired by ${d.how}${d.belowLimit ? "; below the limit, not counted" : ""}`}>
+                        <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td><td style={td}>{DUP_KIND_LABELS[d.kind]} (≤{dupLimit(d)}%)</td>
                         <td style={td}>{d.from}–{d.to}</td>
                         <td style={td}>{d.v1.toFixed(4)}</td><td style={td}>{d.v2.toFixed(4)}</td>
-                        <td style={{ ...td, color: d.rpd > 20 ? "var(--color-danger-fg)" : "var(--color-text)" }}>{d.rpd.toFixed(1)}{d.rpd > 20 ? " ⚠" : ""}</td>
+                        <td style={{ ...td, color: d.rpd > dupLimit(d) ? "var(--color-danger-fg)" : "var(--color-text)" }}>{d.rpd.toFixed(1)}{d.rpd > dupLimit(d) ? " ⚠" : ""}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Flagged at RPD &gt; 20%, a common industry rule-of-thumb precision threshold — not a certified/regulatory limit.</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Flagged above the usual precision limit for the duplicate's type, read from its sample type: field {DUP_RPD_LIMITS.field}%, coarse reject {DUP_RPD_LIMITS.coarse}%, pulp {DUP_RPD_LIMITS.pulp}% ({DUP_RPD_LIMITS.unknown}% when the type isn't stated) — industry rules of thumb, not certified or regulatory limits.</div>
               </>
             )
           )}

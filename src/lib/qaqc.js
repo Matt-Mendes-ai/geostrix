@@ -38,7 +38,9 @@ let registeredHoles = null;
 export function setKnownHoleIds(ids) { registeredHoles = ids && ids.size !== 0 ? new Set(ids) : null; }
 const TYPE_RULES = [
   ["blank", /^(blk|blank|bl)\b|^(field_?blank|coarse_?blank|pulp_?blank)/],
-  ["duplicate", /^(dup|duplicate|fd|cd|pd|rep|repeat|field_?dup|coarse_?dup|pulp_?dup|twin)/],
+  // #534 — also the coarse-reject / prep / lab labels exports use ("Coarse reject dup", "Prep Duplicate", "CRD", "Lab rep"): unrecognised,
+  // such a row on its original's interval was read as a drill sample (counted twice in grades, missing from QAQC)
+  ["duplicate", /^(dup|duplicate|fd|cd|pd|crd|rep|repeat|field_?dup|coarse_?(dup|rej|reject)|pulp_?(dup|rep)|prep_?dup|lab_?(dup|rep)|rej(ect)?_?dup|twin)/],
   ["standard", /^(std|standard|crm|srm|ref|reference|oreas|cert)/],
   ["regular", /^(sample|samp|core|rc|dd|reg|regular|primary|prim|original|orig|routine|drill|norm|normal|assay)/],
 ];
@@ -193,14 +195,55 @@ export function duplicatePairs(assays, symbol, elementUnits, patterns = DEFAULT_
     if (v1 == null || v2 == null) return;
     const mean = (v1 + v2) / 2;
     const rpd = mean !== 0 ? (Math.abs(v1 - v2) / mean) * 100 : 0;
-    pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd, how, belowLimit: minMean > 0 && mean < minMean });
+    pairs.push({ original_hole: orig.hole_id, duplicate_hole: a.hole_id, from: a.from, to: a.to, v1, v2, rpd, how, belowLimit: minMean > 0 && mean < minMean, kind: duplicateKind(a), sample_id: a.sample_id ?? null });
   });
   return pairs;
 }
 
-// share of the counted pairs (not below the limit) within `threshold` % RPD
-export function duplicateSummary(pairs, threshold = 20) {
+// share of the counted pairs (not below the limit) within their RPD limit. `limits` is one number for every pair (the
+// old behaviour) or a per-kind table (TASKS.csv #534: DUP_RPD_LIMITS), with a per-kind breakdown.
+export function duplicateSummary(pairs, limits = 20) {
+  const limitOf = (p) => (typeof limits === "number" ? limits : limits[p.kind] ?? limits.unknown ?? 20);
   const used = pairs.filter((p) => !p.belowLimit);
-  const within = used.filter((p) => p.rpd <= threshold).length;
-  return { used: used.length, below: pairs.length - used.length, within, pctWithin: used.length ? (100 * within) / used.length : null };
+  const within = used.filter((p) => p.rpd <= limitOf(p)).length;
+  const byKind = {};
+  used.forEach((p) => { const k = p.kind || "unknown"; const b = byKind[k] || (byKind[k] = { used: 0, within: 0, limit: limitOf(p) }); b.used++; if (p.rpd <= limitOf(p)) b.within++; });
+  return { used: used.length, below: pairs.length - used.length, within, pctWithin: used.length ? (100 * within) / used.length : null, byKind };
+}
+
+// ---------- TASKS.csv #534 — limits that suit the element and the duplicate type ----------
+// Usual precision limits differ by how far down the preparation chain the duplicate was split: a field (core) duplicate
+// carries the geological and sampling variance (~30% RPD), a coarse reject the preparation variance (~20%), a pulp only
+// the analytical (~10%). The kind is read from the sample-type / QC-code text; unrecognised types keep the old 20%.
+export const DUP_RPD_LIMITS = { field: 30, coarse: 20, pulp: 10, unknown: 20 };
+export const DUP_KIND_LABELS = { field: "field", coarse: "coarse reject", pulp: "pulp", unknown: "type not stated" };
+export function duplicateKind(row) {
+  const t = `${row?.sample_type ?? ""} ${row?.qc_code ?? ""}`.toLowerCase();
+  if (/pulp|lab\s*(rep|dup)|repeat|replicate|^pd\b/.test(t)) return "pulp";
+  if (/coarse|reject|crush|prep|^c(r)?d\b/.test(t)) return "coarse";
+  if (/field|quarter|half|core|twin|rig|^fd\b/.test(t)) return "field";
+  return "unknown";
+}
+// The lab's detection limit for an element, from the data: a '<x' result is stored at x/2 with qualifier '<', so the
+// most common doubled value among those IS the reported limit ({ basis: "lt" }); with none, the lowest positive value
+// is an upper bound on it ({ basis: "min" }). In the element's own unit. { limit: null } when nothing is assayed.
+export function suggestDetectionLimit(assays, symbol) {
+  const counts = new Map();
+  let minPos = Infinity;
+  for (const a of assays || []) {
+    const v = a?.values?.[symbol];
+    if (typeof v !== "number" || !(v > 0)) continue;
+    if (a.qualifiers?.[symbol] === "<") { const dl = Math.round(v * 2 * 1e9) / 1e9; counts.set(dl, (counts.get(dl) || 0) + 1); }
+    else if (v < minPos) minPos = v;
+  }
+  if (counts.size) { let best = null, n = -1; counts.forEach((c, x) => { if (c > n || (c === n && x < best)) { best = x; n = c; } }); return { limit: best, basis: "lt", n }; }
+  return Number.isFinite(minPos) ? { limit: minPos, basis: "min" } : { limit: null, basis: null };
+}
+// Control-chart order: by sample id (natural order: S9 before S10) when every insertion has one — the order the lab
+// received them — otherwise the order the rows were imported in. Returns { rows, bySampleId }.
+export function orderForControlChart(rows) {
+  const all = (rows || []).every((r) => r.sample_id != null && r.sample_id !== "");
+  if (!all || !rows.length) return { rows: rows || [], bySampleId: false };
+  const coll = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+  return { rows: rows.slice().sort((a, b) => coll.compare(String(a.sample_id), String(b.sample_id))), bySampleId: true };
 }
