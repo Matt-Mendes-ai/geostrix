@@ -174,3 +174,53 @@ export function sectionTableRows(result, geom) {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------------------------
+// TASKS.csv #539 — electrode positions chained ALONG THE GROUND (slope distance) instead of horizontally. The engine
+// puts each electrode at x = its distance (horizontal) and drapes it onto the ground; on a 30° slope a position
+// chained 400 m down the line is only 346 m out horizontally, so it was placed 54 m too far, and the geometric
+// factors and the section geometry inherited that. These map a slope distance s (from the line start, distance 0)
+// to the horizontal distance h. Both return f(s) -> h, monotonic, identity-slope (1) beyond the data.
+
+// From a ground profile [[h, z]] in horizontal distance (a terrain profile): L(h) = ∫ sqrt(1 + z'²) dh from h = 0.
+export function slopeToHorizontalFromProfile(profile) {
+  const p = (profile || []).filter(([h, z]) => Number.isFinite(h) && Number.isFinite(z)).sort((a, b) => a[0] - b[0]);
+  if (p.length < 2) return (s) => s;
+  const L = [0];
+  for (let i = 1; i < p.length; i++) L.push(L[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
+  // slope length at h = 0 (the line start), so s is measured from there
+  const L0 = interp1(p.map((q) => q[0]), L, 0);
+  return (s) => interp1(L.map((v) => v - L0), p.map((q) => q[0]), s);
+}
+
+// From surveyed stations: each station's file distance s_i and its TRUE horizontal distance along the fitted line,
+// h_i = (station − start) · u. Piecewise linear between stations; beyond them, the end segments' ratio.
+export function slopeToHorizontalFromStations(stations, start, u) {
+  const pts = (stations || []).filter((p) => Number.isFinite(p.s) && Number.isFinite(p.x) && Number.isFinite(p.y))
+    .map((p) => [p.s, (p.x - start[0]) * u[0] + (p.y - start[1]) * u[1]]).sort((a, b) => a[0] - b[0]);
+  if (pts.length < 2) return null;
+  const S = pts.map((q) => q[0]), H = pts.map((q) => q[1]);
+  return (s) => {
+    if (s <= S[0]) { const r = (H[1] - H[0]) / (S[1] - S[0] || 1); return H[0] + (s - S[0]) * r; }
+    if (s >= S[S.length - 1]) { const n = S.length - 1, r = (H[n] - H[n - 1]) / (S[n] - S[n - 1] || 1); return H[n] + (s - S[n]) * r; }
+    return interp1(S, H, s);
+  };
+}
+
+// linear interpolation in a sorted x array, linear (slope 1 in the caller's sense) extrapolation using the end values
+function interp1(xs, ys, x) {
+  const n = xs.length;
+  if (x <= xs[0]) return ys[0] + (x - xs[0]);
+  if (x >= xs[n - 1]) return ys[n - 1] + (x - xs[n - 1]);
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (xs[m] <= x) lo = m; else hi = m; }
+  const t = (x - xs[lo]) / (xs[hi] - xs[lo] || 1);
+  return ys[lo] + t * (ys[hi] - ys[lo]);
+}
+
+// readings [[a, b|null, m, n|null]] through f; returns { readings, maxShift }
+export function readingsToHorizontal(readings, f) {
+  let maxShift = 0;
+  const conv = (v) => { if (v == null) return v; const h = +f(v).toFixed(3); maxShift = Math.max(maxShift, Math.abs(v - h)); return h; };
+  return { readings: readings.map((r) => r.map(conv)), maxShift };
+}

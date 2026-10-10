@@ -7,7 +7,7 @@ import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, terrainProfile, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -129,37 +129,59 @@ export default function DcipPanel({ pBtn, numInput }) {
     if (parsed?.ip && !(num(opts.ipPct) > 0) && !(num(opts.ipFloor) > 0)) problems.push("Enter the chargeability uncertainty (% and / or a floor in mV/V).");
     // TASKS.csv #564 — a percent of 0 mV/V is 0: that reading would get zero uncertainty (infinite weight)
     else if (parsed?.ip && !(num(opts.ipFloor) > 0) && parsed.ip.some((v) => !(Math.abs(v) > 0))) problems.push(`${parsed.ip.filter((v) => !(Math.abs(v) > 0)).length} chargeability reading(s) are 0 mV/V: a percent alone gives them no uncertainty. Enter a floor in mV/V as well.`);
-    let topo = null, groundNote = "";
+    let topo = null, groundNote = "", readingsH = parsed?.readings, posNote = "", lineGeom = geom;
     if (parsed && geom) {
-      const pad = (parsed.span[1] - parsed.span[0]) * 0.5 + 50;
-      // #602 — the surveyed station elevations first (they are the ground the electrodes sat on), then terrain
       const st = line.stations?.list || [];
-      topo = stationGroundProfile(st, parsed.span[0] - pad, parsed.span[1] + pad);
-      if (topo) {
-        const zs = st.filter((p) => Number.isFinite(p.z)), s0 = zs[0].s, s1 = zs[zs.length - 1].s;
-        const beyond = parsed.span[0] < s0 || parsed.span[1] > s1 ? `; electrodes ${parsed.span[0]}–${parsed.span[1]} m reach past the stations (${s0}–${s1} m), held at the end elevations there` : "";
-        groundNote = `ground from ${zs.length} station elevations (${line.stations.file}, line ${line.stations.line})${beyond}`;
+      // TASKS.csv #539 — positions chained along the ground: convert them to horizontal distance first (from the
+      // surveyed stations' true positions when there are any, else by integrating along the terrain profile); the
+      // 3D placement then uses horizontal metres directly (scale 1 — the conversion replaces the chaining scale).
+      let fSt = null;
+      if (line.positions === "slope") {
+        lineGeom = lineGeometry([num(line.x0), num(line.y0)], [num(line.x1), num(line.y1)], 1);
+        let f = st.length >= 2 ? slopeToHorizontalFromStations(st, [num(line.x0), num(line.y0)], lineGeom.u) : null;
+        if (f) { fSt = f; posNote = "slope distances converted to horizontal from the surveyed stations"; }
+        else if (terrain) {
+          const a = Math.min(0, parsed.span[0]) - 50, b = parsed.span[1] + 50;
+          const prof = terrainProfile(terrain, lineGeom, a, b, 400);
+          if (prof) { f = slopeToHorizontalFromProfile(prof); posNote = "slope distances converted to horizontal along the terrain"; }
+        }
+        if (!f) problems.push("Positions chained along the ground need the ground's shape to convert them: load the line stations (with coordinates) or a terrain under the line.");
+        else { const c = readingsToHorizontal(parsed.readings, f); readingsH = c.readings; posNote += ` (largest shift ${c.maxShift.toFixed(1)} m)`; }
       }
-      if (!topo) topo = terrain ? terrainProfile(terrain, geom, parsed.span[0] - pad, parsed.span[1] + pad) : null;
-      if (topo && !groundNote) groundNote = "ground from the terrain along the line";
-      else if (Number.isFinite(num(line.ground))) { topo = [[parsed.span[0] - pad, num(line.ground)], [parsed.span[1] + pad, num(line.ground)]]; groundNote = `flat ground at ${num(line.ground)} m (entered)`; }
-      else problems.push(terrain ? "The line leaves the terrain surface — enter a flat ground elevation instead." : "Load a terrain (Geophysics > Terrain) or enter a flat ground elevation for the line.");
+      const flatH = readingsH.flat().filter((v) => v != null);
+      const spanH = [arrMin(flatH), arrMax(flatH)];
+      const pad = (spanH[1] - spanH[0]) * 0.5 + 50;
+      // #602 — the surveyed station elevations first (the ground the electrodes sat on), then terrain, then flat
+      const stH = fSt ? st.map((p) => ({ ...p, s: fSt(p.s) })) : st;
+      const stTopo = stationGroundProfile(stH, spanH[0] - pad, spanH[1] + pad);
+      if (stTopo) {
+        topo = stTopo;
+        const zs = stH.filter((p) => Number.isFinite(p.z)), s0 = Math.round(zs[0].s), s1 = Math.round(zs[zs.length - 1].s);
+        const beyond = spanH[0] < s0 || spanH[1] > s1 ? `; electrodes ${Math.round(spanH[0])}–${Math.round(spanH[1])} m reach past the stations (${s0}–${s1} m), held at the end elevations there` : "";
+        groundNote = `ground from ${zs.length} station elevations (${line.stations.file}, line ${line.stations.line})${beyond}`;
+      } else if (terrain && (topo = terrainProfile(terrain, lineGeom, spanH[0] - pad, spanH[1] + pad))) {
+        groundNote = "ground from the terrain along the line";
+      } else if (Number.isFinite(num(line.ground))) {
+        topo = [[spanH[0] - pad, num(line.ground)], [spanH[1] + pad, num(line.ground)]];
+        groundNote = `flat ground at ${num(line.ground)} m (entered)`;
+      } else problems.push(terrain ? "The line leaves the terrain surface — enter a flat ground elevation instead." : "Load a terrain (Geophysics > Terrain), the line stations, or enter a flat ground elevation for the line.");
+      if (posNote) groundNote += `; ${posNote}`;
     }
     if (problems.length) { setMsg({ ok: false, text: problems.join(" ") }); return; }
     const request = {
-      readings: parsed.readings, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo,
+      readings: readingsH, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo, // #539 — horizontal positions
       mesh: { cell: num(opts.cell), depth: num(opts.depth) }, maxIter: Number(opts.maxIter) || 20,
       uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0 },
       ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0 } } : {}),
     };
     const name = lineName;
     keepLine();
-    const lineAtRun = { ...line }, ranOpts = { ...opts };
+    const lineAtRun = { ...line, ...(line.positions === "slope" ? { scale: "" } : {}) }, ranOpts = { ...opts }; // #539 — the section is in horizontal metres
     const meta = { label: `DC/IP inversion (${name})` };
-    const lineGeom = geom;
     const params = {
       tool: "2D DC resistivity / IP inversion (SimPEG)", line: name, readings: parsed.readings.length, array: parsed.array,
       lineStart: [num(line.x0), num(line.y0)], lineEnd: [num(line.x1), num(line.y1)], lineAzimuth: +lineGeom.azimuth.toFixed(2), ground: groundNote,
+      positions: line.positions === "slope" ? "chained along the ground (slope), converted to horizontal" : "horizontal distances", // #539
       ...(lineGeom.scale !== 1 ? { chainingScale: lineGeom.scale } : {}), ...(line.stations ? { stations: `${line.stations.list.length} from ${line.stations.file} (line ${line.stations.line})` } : {}),
       mesh: { cellM: num(opts.cell), depthM: num(opts.depth), verticalCellM: num(opts.cell) / 2 },
       uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: "entered by user" },
@@ -229,7 +251,13 @@ export default function DcipPanel({ pBtn, numInput }) {
           <div style={row}><span style={lbl}>Start x / y</span><input type="number" value={line.x0} onChange={(e) => setLine((l) => ({ ...l, x0: e.target.value }))} style={inp} aria-label="Line start x" /><input type="number" value={line.y0} onChange={(e) => setLine((l) => ({ ...l, y0: e.target.value }))} style={inp} aria-label="Line start y" /></div>
           <div style={row}><span style={lbl}>End x / y</span><input type="number" value={line.x1} onChange={(e) => setLine((l) => ({ ...l, x1: e.target.value }))} style={inp} aria-label="Line end x" /><input type="number" value={line.y1} onChange={(e) => setLine((l) => ({ ...l, y1: e.target.value }))} style={inp} aria-label="Line end y" /></div>
           {geom && <div style={small}>Line {Math.round(geom.length)} m long, azimuth {geom.azimuth.toFixed(1)}° (grid). Distances in the file are measured from the start.</div>}
-          <div style={row} title="Ground metres per metre of the file's distances (from a station fit; blank = 1). Moves the section in 3D only — the inversion uses the file's distances."><span style={lbl}>Chaining scale</span><input type="number" step={0.001} value={line.scale} placeholder="1" onChange={(e) => setLine((l) => ({ ...l, scale: e.target.value }))} style={inp} aria-label="Chaining scale" /></div>
+          <div style={row} title="How the electrode distances in the file were measured. Chained along the ground on a slope, they are longer than the horizontal distance (cos 30° = 0.87): converted using the line stations, or the terrain."><span style={lbl}>Positions are</span>
+            <select value={line.positions || "horizontal"} onChange={(e) => setLine((l) => ({ ...l, positions: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Electrode position convention">
+              <option value="horizontal">horizontal distances</option>
+              <option value="slope">chained along the ground (slope)</option>
+            </select>
+          </div>
+          <div style={row} title="Ground metres per metre of the file's distances (from a station fit; blank = 1). Moves the section in 3D only — the inversion uses the file's distances."><span style={lbl}>Chaining scale</span><input type="number" step={0.001} value={line.scale} placeholder="1" disabled={line.positions === "slope"} onChange={(e) => setLine((l) => ({ ...l, scale: e.target.value }))} style={inp} aria-label="Chaining scale" />{line.positions === "slope" && <span style={small}>not used — slope positions are converted</span>}</div>
           <button onClick={() => stationRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title="GPS waypoints named '<line> <station>' (e.g. GPS Utility '8575E 750N'), or a table with station, X, Y and optionally elevation: places the line and gives the ground profile"><Upload size={14} /> Line stations (GPS / station file)…</button>
           <input ref={stationRef} type="file" accept=".txt,.csv,.dat,.gpx,.wpt,.xyz" style={{ display: "none" }} onChange={(e) => { onStationFile(e.target.files[0]); e.target.value = ""; }} />
           {stationFile && (
