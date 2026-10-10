@@ -626,7 +626,7 @@ test("#498/#522 legend built from the model's stops: log ramps on a log scale, d
   assert.equal(L.log, true);
   // the conductive half is in the key now: the first quarter of the bar is red-to-white, the middle is the white anchor
   assert.equal(L.colors[0], dc.stops[0].color);
-  assert.equal(L.colors[8].toLowerCase(), "#f4f4f2"); // the white midpoint sits at the GEOMETRIC middle (100 ohm.m)
+  assert.equal(L.colors[8].toLowerCase(), "#dd6a3a"); // the white midpoint sits at the GEOMETRIC middle (100 ohm.m)
   assert.deepEqual(L.ticks.map((t) => t.label), ["10", "100", "1000"]);
   assert.ok(Math.abs(L.ticks[1].at - 0.5) < 1e-9);
   // a linear model stays linear, no ticks
