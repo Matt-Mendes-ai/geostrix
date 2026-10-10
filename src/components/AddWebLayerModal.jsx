@@ -3,7 +3,9 @@ import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, inp, btn } from "../lib/modalStyles.js";
-import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary } from "../lib/webLayers.js";
+import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary, defaultWmsArea, wfsTruncationText, pickWfsStyleField } from "../lib/webLayers.js";
+import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
+import { autoCategories } from "../lib/mapLayers.js";
 import BasemapView from "./BasemapView.jsx";
 
 // TASKS.csv #127 — "many exploration geologists pull government geological/geophysical WMS layers
@@ -16,7 +18,7 @@ import BasemapView from "./BasemapView.jsx";
 // WMS -> one rendered image for a chosen area, imported as a raster drape (addRaster). WFS -> real
 // vector features, imported as a boundary polylines layer (addBoundary). Both go through
 // src/lib/webLayers.js, which does the actual GetCapabilities/GetMap/GetFeature work.
-export default function AddWebLayerModal({ onClose, addRaster, addBoundary, projectEpsg, defaultBboxLonLat, collarsLoaded }) {
+export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat, collarsLoaded }) {
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [service, setService] = useState("wms"); // "wms" | "wfs"
@@ -30,6 +32,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
   const [areaPickerOpen, setAreaPickerOpen] = useState(false);
   const [bboxLonLat, setBboxLonLat] = useState(null); // WMS only
   const [clipToArea, setClipToArea] = useState(true); // WFS only
+  const [wfsAs, setWfsAs] = useState("map"); // TASKS.csv #544 — "map": Map layer with attributes | "lines": boundary lines
 
   const selectedLayer = layers?.find((l) => l.name === selectedName) || null;
 
@@ -42,7 +45,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
       setLayers(found);
       if (service === "wms") {
         const first = found[0];
-        setBboxLonLat(first.bboxLonLat || defaultBboxLonLat || null);
+        setBboxLonLat(defaultWmsArea(first.bboxLonLat, defaultBboxLonLat)); // #543 — the project area first
       }
     } catch (err) {
       setCapsError(err.message);
@@ -55,7 +58,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
     setSelectedName(name);
     if (service === "wms") {
       const l = layers.find((x) => x.name === name);
-      setBboxLonLat(l?.bboxLonLat || defaultBboxLonLat || null);
+      setBboxLonLat(defaultWmsArea(l?.bboxLonLat, defaultBboxLonLat)); // #543
     }
   };
 
@@ -71,9 +74,25 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
       } else {
         const clip = clipToArea && defaultBboxLonLat ? defaultBboxLonLat : null;
         const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip });
-        addBoundary({ name: `WFS: ${selectedLayer.title || selectedLayer.name}`, polylines: boundary.polylines });
-        const clipNote = boundary.clippedCount ? ` (${boundary.clippedCount} of ${boundary.totalFeatures} feature(s) outside the project area were skipped)` : "";
-        setResult({ ok: true, text: `Imported ${boundary.polylines.length} feature part(s) as a boundary layer${clipNote}.` });
+        const title = selectedLayer.title || selectedLayer.name;
+        const clipNote = boundary.clippedCount ? ` (${boundary.clippedCount} part(s) outside the project area were skipped)` : "";
+        const more = wfsTruncationText(boundary); // #544
+        // #544 — polygons / lines come in as a Map layer that keeps every attribute (tenure number, owner...); points,
+        // mixed geometry, or the user's choice go to boundary lines as before
+        const layer = wfsAs === "map" && boundary.geomType && addMapLayer
+          ? buildLayer({ name: `WFS: ${title}`, geomType: boundary.geomType, features: boundary.mapFeatures, epsg: projectEpsg }, { sourceName: `WFS: ${title}`, projectEpsg, qml: null, sourceOverride: null })
+          : null;
+        if (layer) {
+          // #544 — a WFS layer's first field is usually its id (one colour per claim is no colouring at all)
+          const field = pickWfsStyleField(layer.features, layer.fields, layer.styleField);
+          if (field !== layer.styleField) { layer.styleField = field; layer.categories = autoCategories(layer.features, field, autoColorFor()); }
+          addMapLayer(layer);
+          setResult({ ok: !more, warn: !!more, text: `Imported ${layer.features.length} feature(s) as a Map layer with ${layer.fields.length} attribute field(s)${layer.styleField ? `, coloured by ${layer.styleField}` : ""}${clipNote}.${more ? " " + more : ""}` });
+        } else {
+          addBoundary({ name: `WFS: ${title}`, polylines: boundary.polylines });
+          const why = wfsAs === "map" && !boundary.geomType ? " (points or mixed geometry — Map layers take polygons or lines)" : "";
+          setResult({ ok: !more, warn: !!more, text: `Imported ${boundary.polylines.length} feature part(s) as boundary lines${why}${clipNote}.${more ? " " + more : ""}` });
+        }
       }
     } catch (err) {
       setResult({ ok: false, text: err.message });
@@ -144,8 +163,17 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, proj
               Limit to the current project area (recommended for province/country-wide layers)
             </label>
           )}
+          {selectedLayer && service === "wfs" && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
+              Import as
+              <select value={wfsAs} onChange={(e) => setWfsAs(e.target.value)} style={{ ...sel, width: "auto" }}>
+                <option value="map">Map layer (keeps attributes)</option>
+                <option value="lines">Boundary lines (3D outlines only)</option>
+              </select>
+            </label>
+          )}
 
-          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
+          {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : result.warn ? "var(--color-warn-text)" : "var(--color-danger-solid)" }}>{result.text}</div>}
 
           {selectedLayer && (
             <button onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.6 : 1 }}>

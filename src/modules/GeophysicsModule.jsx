@@ -91,6 +91,7 @@ export default function GeophysicsModule() {
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     projectIsEmpty, setEpsg, // TASKS.csv #607
+    addMapLayer, // TASKS.csv #544 — WFS polygons/lines with their attributes
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
@@ -1192,16 +1193,6 @@ export default function GeophysicsModule() {
             onConfirm={runSrtmFetch}
           />
         )}
-        {webLayerModalOpen && (
-          <AddWebLayerModal
-            onClose={() => setWebLayerModalOpen(false)}
-            addRaster={addRaster}
-            addBoundary={addBoundary}
-            projectEpsg={project?.epsg}
-            defaultBboxLonLat={webLayerDefaultBbox}
-            collarsLoaded={collars.length > 0}
-          />
-        )}
         <input
           ref={terrainInput}
           type="file"
@@ -1362,6 +1353,18 @@ export default function GeophysicsModule() {
 
         </>)}
         {geoPane === "web" && (<>
+        {/* TASKS.csv #543 — this dialog sat inside the Terrain pane, so "Add web layer" in this pane never showed it */}
+        {webLayerModalOpen && (
+          <AddWebLayerModal
+            onClose={() => setWebLayerModalOpen(false)}
+            addRaster={addRaster}
+            addBoundary={addBoundary}
+            addMapLayer={addMapLayer}
+            projectEpsg={project?.epsg}
+            defaultBboxLonLat={webLayerDefaultBbox}
+            collarsLoaded={collars.length > 0}
+          />
+        )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Web layers (WMS / WFS)
