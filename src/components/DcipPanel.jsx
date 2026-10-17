@@ -17,6 +17,7 @@ import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
+import { supportEnvelope } from "../lib/supportEnvelope.js"; // TASKS.csv #641
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 
@@ -227,13 +228,18 @@ export default function DcipPanel({ pBtn, numInput }) {
         saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
         const thick = num(opts.cell);
         const rc = sectionCells(result, lineGeom, "resistivity", thick);
-        const rv = rc.map((c) => c.value);
+        // TASKS.csv #641 — the colour range from the cells that are shown: a few deep, unseen cells pinned at the
+        // inversion's bounds (1000 mV/V on Woodjam 115N) made the whole visible line one pale colour
+        const cut = Number(opts.supportCutoff) || 0;
+        const seen = cut > 0 ? supportEnvelope(result.cells.s, result.cells.z, result.cells.support).map((v) => v >= cut) : null;
+        const shownVals = (cells) => { const v = cells.filter((_, i) => !seen || seen[i]).map((c) => c.value); return v.length ? v : cells.map((c) => c.value); };
+        const rv = shownVals(rc);
         const common = { source: "simpeg", colorMode: "continuous", supportCutoff: Number(opts.supportCutoff) || 0,
           params: { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) } };
         addVoxelModelToTab(token, { ...common, name: `Resistivity (ohm·m) — DC line ${name}`, property: "Resistivity (ohm·m)", method: "dc", cells: rc, stops: logStops(arrMin(rv), arrMax(rv)) });
         if (result.cells.chargeability) {
           const cc = sectionCells(result, lineGeom, "chargeability", thick);
-          const cv = cc.map((c) => c.value);
+          const cv = shownVals(cc);
           addVoxelModelToTab(token, { ...common, name: `Chargeability (mV/V) — IP line ${name}`, property: "Chargeability (mV/V)", method: "ip", cells: cc, stops: sequentialStops(0, arrMax(cv)),
             params: { ...common.params, fit: { ...common.params.fit, ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } } }); // #581 — its own verdict
         }
@@ -369,6 +375,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
   const [field, setField] = useState("resistivity");
   const hatchId = `dcipHatch${useId().replace(/:/g, "")}`; // #535 — one pattern per section on the page
   const vals = c[field];
+  const env = useMemo(() => supportEnvelope(c.s, c.z, c.support), [c]); // TASKS.csv #641
   const verdict = fitVerdict(result);
   const W = 320, H = 150;
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
@@ -390,7 +397,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
         {/* TASKS.csv #535 — low-support cells hatched (a flat grey matched mid-range resistivity) */}
         <defs><pattern id={hatchId} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill={HATCH.bg} /><line x1="0" y1="0" x2="0" y2="5" stroke={HATCH.line} strokeWidth="1.2" /></pattern></defs>
         {vals.map((v, i) => {
-          const weak = c.support[i] < cutoff;
+          const weak = env[i] < cutoff; // #641 — below the depth of investigation, not single cells
           return <rect key={i} x={5 + (c.s[i] - c.ds[i] / 2 - s0) * sx} y={5 + (z1 - c.z[i] - c.dz[i] / 2) * sz} width={c.ds[i] * sx + 0.5} height={c.dz[i] * sz + 0.5} fill={weak ? `url(#${hatchId})` : colorForVoxelValue(model, v)} />;
         })}
         {result.electrodes.map((e, i) => <circle key={i} cx={5 + (e[0] - s0) * sx} cy={5 + (z1 - e[1]) * sz} r={1.6} fill="#1a2028" />)}

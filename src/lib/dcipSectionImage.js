@@ -9,6 +9,7 @@ import { colorForVoxelValue } from "./layers.js";
 import { logStops, sequentialStops, fitVerdict } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
 import { canvasHatch, HATCH } from "./supportHatch.js"; // TASKS.csv #535
+import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #641
 
 // 1, 2, 5 x 10^n step giving about `n` ticks over [lo, hi]
 export function niceStep(lo, hi, n = 6) {
@@ -41,9 +42,10 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillStyle = colors.bg; g.fillRect(0, 0, width, height);
   const X = (s) => L + (s - s0) * sx, Y = (z) => T + (z1 - z) * sz;
   // cells (a hair of overlap hides anti-aliasing seams between neighbours)
+  const env = supportEnvelope(c.s, c.z, c.support);
   const hatch = canvasHatch(g, 8); // #535 — low support hatched, never a ramp-like flat grey
   for (let i = 0; i < vals.length; i++) {
-    g.fillStyle = c.support[i] < cutoff ? hatch : colorForVoxelValue(model, vals[i]);
+    g.fillStyle = env[i] < cutoff ? hatch : colorForVoxelValue(model, vals[i]);
     g.fillRect(X(c.s[i] - c.ds[i] / 2), Y(c.z[i] + c.dz[i] / 2), c.ds[i] * sx + 0.6, c.dz[i] * sz + 0.6);
   }
   g.fillStyle = colors.text;

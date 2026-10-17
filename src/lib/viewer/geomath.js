@@ -1,3 +1,4 @@
+import { cellSupportEnvelope } from "../supportEnvelope.js"; // TASKS.csv #641
 // TASKS.csv #445 step 1 — moved out of ViewerModule.jsx unchanged (pure maths, no three.js / DOM), so it
 // can be tested on its own (test/core.test.mjs #445). The comments are the originals.
 const toRad = (d) => (d * Math.PI) / 180;
@@ -225,8 +226,12 @@ export function spatialClusters(points, threshold) {
 // much the data can see that cell). Cells below the model's supportCutoff are hidden everywhere a voxel
 // model is drawn or sampled, because their value reflects the regularisation, not the rock. Imported
 // models have no `support` and are unaffected.
+// TASKS.csv #641 — a 2D DC/IP line (method "dc" / "ip") uses the column envelope: hidden only below its depth of
+// investigation, never as holes through the shallow band.
 export function voxelCellSupported(model, c) {
-  return !(model.supportCutoff > 0 && c.support != null && c.support < model.supportCutoff);
+  if (!(model.supportCutoff > 0 && c.support != null)) return true;
+  const s = model.method === "dc" || model.method === "ip" ? cellSupportEnvelope(model.cells).get(c) ?? c.support : c.support;
+  return !(s < model.supportCutoff);
 }
 
 export function sampleTerrainElevation(terrain, x, y) {
