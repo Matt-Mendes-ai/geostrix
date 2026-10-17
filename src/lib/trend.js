@@ -115,3 +115,22 @@ function invert3(m) {
 }
 
 export const describeTrend = (t) => { const c = cleanTrend(t); return `dip ${c.dip.toFixed(0)}° → ${c.dipAzimuth.toFixed(0)}°, pitch ${c.pitch.toFixed(0)}°, ${+c.ratios.max.toFixed(2)} : ${+c.ratios.int.toFixed(2)} : ${+c.ratios.min.toFixed(2)}`; };
+
+// TASKS.csv #650 — the same trend in geoML's terms (geoml.transform.Anisotropy3D): its azimuth / dip are the plunge
+// direction and plunge of the MAXIMUM axis (dip 0-90, down), rake (-90..90) spins the intermediate and minimum axes
+// about it, and the ranges are fractions (intermediate / maximum, minimum / intermediate). Derived from its
+// refresh(): axes = Rz(azimuth) Rx(-dip) Ry(rake) [e_x mid, e_y max, e_z min]; checked against the real class.
+export function trendToGeoml(t) {
+  const c = cleanTrend(t), b = trendBasis(c);
+  let m = b.major, s = b.semiMajor;
+  if (m.z > 0) m = { x: -m.x, y: -m.y, z: -m.z }; // the plunge points down
+  const dip = Math.asin(Math.min(1, -m.z)) * deg;
+  const az = Math.abs(dip - 90) < 1e-9 ? 0 : norm360(Math.atan2(m.x, m.y) * deg);
+  const a = az * rad, d = dip * rad;
+  const mid0 = { x: Math.cos(a), y: -Math.sin(a), z: 0 };
+  const min0 = { x: Math.sin(a) * Math.sin(d), y: Math.cos(a) * Math.sin(d), z: Math.cos(d) };
+  // mid = cos(r) mid0 - sin(r) min0; the intermediate axis has no sign, so r is folded into -90..90
+  let r = Math.atan2(-(s.x * min0.x + s.y * min0.y + s.z * min0.z), s.x * mid0.x + s.y * mid0.y + s.z * mid0.z) * deg;
+  if (r > 90) r -= 180; else if (r < -90) r += 180;
+  return { azimuth: az, dip, rake: r, midFct: c.ratios.int / c.ratios.max, minFct: c.ratios.min / c.ratios.int };
+}

@@ -65,3 +65,13 @@ test("block estimation: a trend turns the search into an ellipsoid (major = the 
   assert.equal(along.nHoles, 1);  // ... the ones across it would need 300 x 1/3 = 100 m
   assert.equal(run({ trend, searchRadius: 200 }), undefined); // beyond the major radius: nothing
 });
+
+test("geoML terms: a down-dip trend is azimuth = dip azimuth, dip = dip, rake 0; fractions from the ratios", async () => {
+  const { trendToGeoml } = await import("../src/lib/trend.js");
+  const g = trendToGeoml({ dip: 60, dipAzimuth: 135, pitch: 90, ratios: { max: 4, int: 2, min: 1 } });
+  assert.ok(close(g.azimuth, 135, 1e-9) && close(g.dip, 60, 1e-9) && close(g.rake, 0, 1e-9), JSON.stringify(g));
+  assert.equal(g.midFct, 0.5); assert.equal(g.minFct, 0.5);
+  const s = trendToGeoml({ dip: 60, dipAzimuth: 135, pitch: 0 }); // along strike: horizontal major axis
+  assert.ok(close(s.dip, 0, 1e-9) && (close(s.azimuth, 45, 1e-9) || close(s.azimuth, 225, 1e-9)), JSON.stringify(s));
+  assert.ok(Math.abs(s.rake) <= 90);
+});

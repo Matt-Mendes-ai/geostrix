@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-ADDON_VERSION = "0.1.0"
+ADDON_VERSION = "0.1.1"
 _TOKEN = os.environ.get("GEOSTRIX_ADDON_TOKEN") or None
 MAX_BODY_BYTES = 60 * 1024 * 1024
 _CORS = {"Access-Control-Allow-Origin": "*"}

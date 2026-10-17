@@ -29,6 +29,23 @@ def _holes(geoml, p):
     return geoml.data.DrillholeData(collar, survey=survey if len(survey) else None, **kw)
 
 
+def _anisotropy(geoml, p, rng):
+    """TASKS.csv #650 — the model's anisotropy. With a structural trend from GeoStrix (p["trend"]: azimuth / dip of the
+    maximum axis, rake, midFct = int / max, minFct = min / int — lib/trend.js trendToGeoml) the orientation and the
+    ratios are the geologist's and are held fixed while training; only the overall range is learnt. Without one,
+    the add-on's earlier behaviour (orientation 0 / 0, isotropic ratios, everything trainable)."""
+    t = p.get("trend")
+    if not t:
+        return geoml.transform.Anisotropy3D(rng, float(p.get("ratio_y", 1.0)), float(p.get("ratio_z", 1.0)),
+                                            azimuth=float(p.get("azimuth", 0.0)), dip=float(p.get("dip", 0.0)))
+    clamp = lambda v, lo, hi: min(hi, max(lo, float(v)))
+    tr = geoml.transform.Anisotropy3D(rng, clamp(t["midFct"], 0.05, 1.0), clamp(t["minFct"], 0.01, 1.0),
+                                      azimuth=float(t["azimuth"]) % 360, dip=clamp(t["dip"], 0.0, 90.0), rake=clamp(t["rake"], -90.0, 90.0))
+    for k in ("azimuth", "dip", "rake", "midrange_fct", "minrange_fct"):
+        tr.parameters[k].fix()
+    return tr
+
+
 def _grid(lo, hi, cell, max_cells):
     """A regular block grid over [lo, hi] with cubic cells of at least `cell`, grown until it fits max_cells."""
     lo, hi = np.asarray(lo, float), np.asarray(hi, float)
@@ -72,8 +89,7 @@ def run_domain(p, progress):
 
     rng = float(p.get("range", 400.0))
     inp = geoml.latent.BasicInput(inducing_points=sparse, center=True,
-                                  transform=geoml.transform.Anisotropy3D(rng, float(p.get("ratio_y", 1.0)), float(p.get("ratio_z", 1.0)),
-                                                                         azimuth=float(p.get("azimuth", 0.0)), dip=float(p.get("dip", 0.0))))
+                                  transform=_anisotropy(geoml, p, rng))
     deep = p.get("model") == "deep"
     if deep:  # chapter 17: a vector field moves the coordinates so one stationary field can follow folds
         walked = geoml.latent.GPWalk(geoml.latent.BasicGP(inp, size=3), n_steps=5)
@@ -152,8 +168,7 @@ def run_grade(p, progress):
     inducing = geoml.data.inducing.from_kmeans(pts, n_ind)
     rng = float(p.get("range", 150.0))
     root = geoml.latent.BasicInput(inducing, center=True,
-                                   transform=geoml.transform.Anisotropy3D(rng, float(p.get("ratio_y", 1.0)), float(p.get("ratio_z", 1.0)),
-                                                                          azimuth=float(p.get("azimuth", 0.0)), dip=float(p.get("dip", 0.0))))
+                                   transform=_anisotropy(geoml, p, rng))
     gp = geoml.latent.BasicGP(root, size=1)
     vals = np.asarray(pts.values(f"{name}/measurements")) if f"{name}/measurements" in str(pts.tree()) else a[name].to_numpy(float)
     positive = vals[vals > 0]

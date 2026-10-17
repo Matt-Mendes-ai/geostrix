@@ -8562,7 +8562,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {sidebarTab === "predictive" && ( // TASKS.csv #638
           <Suspense fallback={null}>
-            <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod}
+            <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
               addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
           </Suspense>
         )}

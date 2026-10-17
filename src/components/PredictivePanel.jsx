@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob } from "../lib/geomlAddon.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
+import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -14,7 +15,7 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = [{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }];
 
-export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, addVoxelModel, addSurface, setNotices }) {
+export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
   const [st, setSt] = useState(null);
   const [inst, setInst] = useState(null); // install progress { phase, got, total } | { error }
   const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
@@ -65,9 +66,12 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     setJob({ label, progress: 0, message: "Starting the add-on" });
     const t0 = Date.now();
     try {
-      await addonReady((s) => setJob((j) => j && { ...j, message: `Starting the add-on (${s} s — the first start is slower)` }));
+      const health = await addonReady((s) => setJob((j) => j && { ...j, message: `Starting the add-on (${s} s — the first start is slower)` }));
+      // TASKS.csv #650 — the structural trend chosen for geoML (Model settings → Structural trends); add-on 0.1.0 ignores it
+      const oldAddon = /^0\.1\.0$/.test(String(health?.version || ""));
+      if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => setJob((j) => j && { ...j, progress: s.progress, message: s.message, elapsed: s.elapsed }), ctrl.signal);
-      const note = await onResult(res);
+      const note = `${await onResult(res)}${trend ? (oldAddon ? ` — the trend "${trend.name}" was NOT applied: this add-on version (0.1.0) predates trends; update it (Remove the add-on, then install again)` : `; following the trend "${trend.name}"`) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
       setNotices((p) => [...p, `geoML — ${label}: ${note} (${secs} s).`]);
