@@ -3,7 +3,7 @@ import { X, Keyboard, Info, Cpu } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { version as APP_VERSION } from "../../package.json";
+import { version as APP_VERSION, description as APP_TAGLINE } from "../../package.json"; // #648 — one tagline: About + Windows app details
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
@@ -172,7 +172,7 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
                     straight from package.json (a plain Vite JSON import, works identically in the desktop
                     build and the browser-fallback dev path — no IPC needed for a value this static). */}
                 <div style={{ color: "var(--color-text-muted)" }}>Version {APP_VERSION}</div>
-                <div style={{ color: "var(--color-text-muted)" }}>3D drillhole & geochemistry explorer</div>
+                <div style={{ color: "var(--color-text-muted)" }}>{APP_TAGLINE}</div>
                 {/* TASKS.csv #647 — the author, linked to his LinkedIn (opens in the real browser, like the links below) */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, color: "var(--color-text-muted)" }}>
                   by
@@ -182,7 +182,11 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
                 </div>
               </div>
             </div>
-            <div>MIT-licensed, built for smaller mineral exploration teams — drillhole visualization, geochemistry, geophysics, layout, and implicit geological modelling in one desktop app.</div>
+            {/* TASKS.csv #648 — refreshed: what GeoStrix covers today, who it is for, and credit for geoML */}
+            <div>Made for exploration geologists, especially small teams on modest budgets and ordinary laptops: drillholes and geochemistry, geophysics and inversions, implicit and predictive 3D modelling, targeting, maps and print-ready layouts, in one free desktop app that works offline.</div>
+            <div style={{ marginTop: 8, color: "var(--color-text-muted)" }}>
+              Predictive modelling is powered by <a href={GEOML_URL} target="_blank" rel="noreferrer" style={link}>geoML</a>, created by Ítalo Gonçalves (optional add-on, GPL-3.0).
+            </div>
             {/* TASKS.csv #310 — the licence and the repository were mentioned in prose but not reachable.
                 electron/main.js's setWindowOpenHandler (added in the same row) sends these to the user's
                 real browser instead of a chromeless Electron window; in the browser-fallback dev path
@@ -210,6 +214,7 @@ function TabBtn({ active, onClick, icon, label }) {
 // same URL electron/main.js already bakes into the SRTM fetch User-Agent and README links to.
 const REPO_URL = "https://github.com/Matt-Mendes-ai/geostrix";
 const AUTHOR_URL = "https://www.linkedin.com/in/matt-mendes-83639737/";
+const GEOML_URL = "https://github.com/italo-goncalves/geoML";
 // LinkedIn's "in" mark, drawn inline (brand blue; 16 px). Decorative: the link's text and title name it.
 function LinkedInMark() {
   return (

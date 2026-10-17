@@ -1,7 +1,7 @@
 {
   "name": "geostrix",
   "version": "0.1.45",
-  "description": "3D drillhole & geochemistry explorer",
+  "description": "Mineral exploration workspace: drillholes, geochemistry, geophysics and 3D modelling",
   "author": "Matt Mendes",
   "license": "MIT",
   "main": "electron/main.js",
