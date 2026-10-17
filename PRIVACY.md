@@ -3,7 +3,7 @@
 GeoStrix is a desktop application that runs on your own machine. It has no accounts, no sign-in, and
 no analytics or telemetry of any kind.
 
-This policy describes the application's behaviour as of version 0.1.42. It is published here because
+This policy describes the application's behaviour as of version 0.1.43. It is published here because
 SignPath Foundation requires participating projects to have a privacy policy.
 
 ## What is collected
@@ -39,6 +39,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | You add a basemap | `tile.openstreetmap.org`, `tile.tracestrack.com`, `tiles.maps.eox.at` | Fetch map tiles for display |
 | You fetch terrain | `s3.amazonaws.com/elevation-tiles-prod` | Download public SRTM/Terrarium elevation tiles |
 | On startup (can be turned off in the Help menu), and via *Help → Check for Updates* | `github.com` / `api.github.com` | Check whether a newer release exists, and download it if you choose to update |
+| You click *Install* in the Predictive tab | `github.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
 | You connect to a database | The host **you** enter | Query your own PostgreSQL database |
 | You add a WMS / WMTS / WFS layer | The server **you** enter | Fetch the layer you requested |
 
@@ -47,13 +48,15 @@ These requests necessarily reveal your IP address to the operator of the service
 does. Those third parties have their own privacy policies, which this project does not control. No
 identifier for you or your project is attached to any of these requests.
 
-If you never use basemaps, terrain, updates, databases or WMS layers, GeoStrix makes no network
+If you never use basemaps, terrain, updates, the add-on download, databases or WMS layers, GeoStrix makes no network
 connections at all.
 
 ## The Python sidecar
 
 The optional Python sidecar used for implicit modelling runs locally and binds to `127.0.0.1` only. It
-is not reachable from other machines and does not make outbound connections.
+is not reachable from other machines and does not make outbound connections. The same holds for the optional
+predictive-modelling add-on once installed: it runs on your computer, listens only on `127.0.0.1`, and makes no
+outbound connections.
 
 ## Changes
 

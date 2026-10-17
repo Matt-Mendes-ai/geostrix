@@ -24,7 +24,7 @@
     <section>
       <div class="wrap prose">
         <h1>Privacy</h1>
-        <p>GeoStrix is a desktop application that runs on your own computer. It has no accounts, no sign-in, and no analytics or telemetry of any kind. This page describes GeoStrix 0.1.42 and this website.</p>
+        <p>GeoStrix is a desktop application that runs on your own computer. It has no accounts, no sign-in, and no analytics or telemetry of any kind. This page describes GeoStrix 0.1.43 and this website.</p>
 
         <h2>What GeoStrix collects</h2>
         <p><strong>Nothing.</strong> GeoStrix does not collect, send or store personal information, usage data, crash reports or telemetry. There is no analytics code in the application and no server run by this project that receives data from it.</p>
@@ -41,11 +41,12 @@
           <tr><td>You add a basemap</td><td>tile.openstreetmap.org, tile.tracestrack.com, tiles.maps.eox.at</td><td>Map tiles for display</td></tr>
           <tr><td>You fetch terrain</td><td>s3.amazonaws.com (public elevation tiles)</td><td>SRTM / Terrarium elevation</td></tr>
           <tr><td>At startup (can be turned off in the Help menu), and Help → Check for Updates</td><td>github.com, api.github.com</td><td>Check for a newer version, and download it if you choose to update</td></tr>
+          <tr><td>You click Install in the Predictive tab</td><td>github.com</td><td>Download the optional predictive-modelling add-on (its checksum is checked before it is installed)</td></tr>
           <tr><td>You connect to a database</td><td>The server you enter</td><td>Query your own database</td></tr>
           <tr><td>You add a WMS / WMTS / WFS layer</td><td>The server you enter</td><td>Fetch the layer you asked for</td></tr>
         </table>
         <p>Like visiting any website, these requests show your IP address to the service contacted, which has its own privacy policy. No identifier for you or your project is sent. If you use none of these features, GeoStrix makes no network connections at all.</p>
-        <p>The Python engine used for modelling and inversions runs on your computer, listens only to <code>127.0.0.1</code>, and makes no outbound connections.</p>
+        <p>The Python engine used for modelling and inversions, and the optional predictive-modelling add-on, run on your computer, listen only to <code>127.0.0.1</code>, and make no outbound connections.</p>
 
         <h2>This website</h2>
         <p>geostrix.com sets no cookies. It is a static site hosted by Cloudflare; the web host necessarily sees your IP address when your browser asks for a page, as with any website. The download button asks GitHub's public API which installer is newest, so your browser also contacts api.github.com.</p>
