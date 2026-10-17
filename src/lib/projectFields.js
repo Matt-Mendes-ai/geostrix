@@ -29,7 +29,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v8 (TASKS.csv #599) adds modellingCodes (per-interval modelling codes, the code list, correlation ties).
 // v9 (TASKS.csv #503) adds alterationBoxes (the user's least-altered box limits + litho code -> protolith map).
 // v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
-export const PROJECT_VERSION = 11; // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v12 (TASKS.csv #650) adds structuralTrends (named trends + which trend each model uses).
+export const PROJECT_VERSION = 12; // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -130,6 +131,10 @@ export const FIELDS = [
   { key: "alterationBoxes", track: "dirty", empty: () => null, load: (data) => data.alterationBoxes ?? null },
   { key: "modellingCodes", track: "undo", empty: () => ({ codes: [], assign: {}, ties: [] }),
     load: (data) => ({ codes: [], assign: {}, ties: [], ...(data.modellingCodes || {}) }) }, // TASKS.csv #322 — DC/IP line data (+ last section) kept with the project
+  // TASKS.csv #650 — named structural trends ({ id, name, dip, dipAzimuth, pitch, ratios }, lib/trend.js) and which one
+  // each model uses: use = { implicit, alteration, gradeShell, estimation, geoml } -> trend id | undefined (none)
+  { key: "structuralTrends", track: "undo", empty: () => ({ trends: [], use: {} }),
+    load: (data) => ({ trends: [], use: {}, ...(data.structuralTrends || {}) }) },
   { key: "omfObjects", track: "undo", empty: list },
   { key: "terrain", track: "dirty", empty: () => null },
   // Geophysics point-cloud legend (pre-#122 files have none): display preferences.
