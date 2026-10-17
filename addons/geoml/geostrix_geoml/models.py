@@ -22,7 +22,7 @@ def _holes(geoml, p):
     collar = pd.DataFrame(p["collars"])
     survey = pd.DataFrame(p.get("survey") or [])
     kw = dict(hole="hole_id", x="x", y="y", z="z", length="length", dip="dip", azimuth="azimuth", depth="depth",
-              dip_positive_down=False)  # GeoStrix stores dips negative-down
+              dip_positive_down=False)  # the API takes dips negative-down; GeoStrix (positive-down inside) negates them when sending (#644)
     collar["hole_id"] = collar["hole_id"].astype(str)
     if len(survey):
         survey["hole_id"] = survey["hole_id"].astype(str)

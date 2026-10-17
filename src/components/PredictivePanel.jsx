@@ -39,9 +39,14 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const [element, setElement] = useState("");
   useEffect(() => { if (!element && elements.length) setElement(elements.includes("Cu") ? "Cu" : elements.includes("Au") ? "Au" : elements[0]); }, [elements.join(",")]);
 
+  // TASKS.csv #644 — GeoStrix stores dips as degrees BELOW horizontal (positive down: importHelpers turns a
+  // "-70" into 70); the add-on's API takes them negative-down (dip_positive_down=False). Sent as stored, every
+  // hole was traced upward and the models came out mirrored above the collars (Woodjam MT23-118: toe at
+  // 1,395 m instead of 536 m).
+  const downDip = (d) => (Number.isFinite(d) ? -d : -90);
   const holes = () => ({
-    collars: collars.map((c) => ({ hole_id: String(c.hole_id), x: c.x, y: c.y, z: c.z, azimuth: c.azimuth ?? 0, dip: c.dip ?? -90, length: c.length ?? null })),
-    survey: (survey || []).filter((s) => Number.isFinite(s.depth)).map((s) => ({ hole_id: String(s.hole_id), depth: s.depth, azimuth: s.azimuth, dip: s.dip })),
+    collars: collars.map((c) => ({ hole_id: String(c.hole_id), x: c.x, y: c.y, z: c.z, azimuth: c.azimuth ?? 0, dip: downDip(c.dip), length: c.length ?? null })),
+    survey: (survey || []).filter((s) => Number.isFinite(s.depth) && Number.isFinite(s.dip)).map((s) => ({ hole_id: String(s.hole_id), depth: s.depth, azimuth: s.azimuth, dip: -s.dip })),
   });
 
   const run = async (label, kind, params, onResult) => {
