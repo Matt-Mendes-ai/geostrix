@@ -12,7 +12,7 @@
 // plane's normal. The old two-angle anisotropy (major plunging `dip` towards `azimuth`, semi-major horizontal)
 // is exactly { dip, dipAzimuth: azimuth, pitch: 90 } — fromLegacyAnisotropy.
 const rad = Math.PI / 180, deg = 180 / Math.PI;
-const norm360 = (a) => ((a % 360) + 360) % 360;
+const norm360 = (a) => (a >= 0 && a < 360 ? a : ((a % 360) + 360) % 360); // untouched when already in range (no float noise)
 const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 
 export const DEFAULT_TREND = { name: "Trend", dip: 45, dipAzimuth: 90, pitch: 90, ratios: { max: 3, int: 2, min: 1 } };

@@ -58,6 +58,8 @@ const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  /
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
+const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
+import { cleanTrend, trendBasis, trendScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
 const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
 const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
@@ -681,6 +683,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     modellingCodes, setModellingCodes, // TASKS.csv #599
+    structuralTrends, setStructuralTrends, // TASKS.csv #650
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
@@ -1375,7 +1378,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
   // the same real-world structural trend — "Copy from search ellipsoid" in the UI covers that overlap
   // without forcing the two to always move together.
-  const [anisotropy, setAnisotropy] = useState({ enabled: false, azimuth: 45, dip: 60, major: 300, semiMajor: 150, minor: 50 });
+  // TASKS.csv #650 — the old single, unsaved anisotropy is replaced by named trends saved with the project; each
+  // model type asks for its own (structuralTrends.use[tool]) and gets the warp the existing code already used.
+  const trendFor = useCallback((tool) => {
+    const id = structuralTrends?.use?.[tool];
+    const t = id && (structuralTrends.trends || []).find((x) => x.id === id);
+    return t ? cleanTrend(t) : null;
+  }, [structuralTrends]);
+  const [trendPreviewId, setTrendPreviewId] = useState(null); // #650 — the trend shown in 3D ("View")
+  const trendWarp = useCallback((tool) => {
+    const t = trendFor(tool);
+    if (!t) return { enabled: false };
+    return { enabled: true, trend: t, basis: trendBasis(t), scales: trendScales(t),
+      params: { trend: t.name, dip: t.dip, dipAzimuth: t.dipAzimuth, pitch: t.pitch, ratios: t.ratios } };
+  }, [trendFor]);
 
   // ---- Saved themes (TASKS.csv #45) ----
   const [themeNameDraft, setThemeNameDraft] = useState("");
@@ -2692,6 +2708,34 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     gridGroupRef.current = group;
   }, [gridConfig]);
 
+  // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
+  const trendPreviewRef = useRef(null);
+  const trendPreview = useMemo(() => (structuralTrends?.trends || []).find((t) => t.id === trendPreviewId) || null, [structuralTrends, trendPreviewId]);
+  useEffect(() => {
+    const scene = sceneRef.current; if (!scene) return;
+    if (trendPreviewRef.current) { scene.remove(trendPreviewRef.current); disposeThreeGroup(trendPreviewRef.current); trendPreviewRef.current = null; }
+    if (!trendPreview) return;
+    // at the centre of the current view and a third of the camera distance across, so it is in sight whatever the
+    // project's extent (Woodjam's holes span ~5 km: sized from the drilling it engulfed the camera)
+    const cs = camState.current;
+    if (!cs?.target) return;
+    const size = Math.max(10, 0.3 * (cs.radius || 300));
+    const t = cleanTrend(trendPreview), b = trendBasis(t);
+    const toScene = (v) => new THREE.Vector3(v.x, v.z, -v.y); // (east, north, up) -> scene; a proper rotation
+    const basis = new THREE.Matrix4().makeBasis(toScene(b.major), toScene(b.semiMajor), toScene(b.minor));
+    const placed = (obj, sxyz) => { obj.matrixAutoUpdate = false; obj.matrix.copy(basis).multiply(new THREE.Matrix4().makeScale(...sxyz)); return obj; };
+    const group = new THREE.Group();
+    group.add(placed(new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20), new THREE.MeshLambertMaterial({ color: 0xd9601a, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })),
+      [size, size * t.ratios.int / t.ratios.max, size * t.ratios.min / t.ratios.max]));
+    group.add(placed(new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: 0x2266cc, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })), [size * 1.4, size * 1.4, 1]));
+    group.add(placed(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1, 0, 0), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: 0x8f1f3d })), [size * 1.6, 1, 1]));
+    group.position.copy(cs.target);
+    group.userData = { tip: `${t.name}
+${describeTrend(t)}` };
+    scene.add(group);
+    trendPreviewRef.current = group;
+  }, [trendPreview, sceneReady]);
+
   // ---------- TASKS.csv #16: snapshot the live 3D viewport into a Layout page image ----------
   const snapshotToLayout = useCallback(() => {
     const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
@@ -3425,7 +3469,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     activeInterceptSetRef,
     alterationCellSize,
     alterationSearchRadius,
-    anisotropy,
+    trendWarp, // TASKS.csv #650
     apiToScene,
     assayElements,
     assays,
@@ -7417,7 +7461,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             Search ellipsoid
-            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. Same trend the anisotropy layer below reuses.`} />
+            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately (TASKS.csv #650).`} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
@@ -7450,45 +7494,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Anisotropy</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-            <input type="checkbox" checked={anisotropy.enabled} onChange={(e) => setAnisotropy((p) => ({ ...p, enabled: e.target.checked }))} /> On
-          </label>
-        </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Warps every coordinate into a normalized space where this ellipsoid becomes a sphere before
-          the surface is fit, then warps the result back — the standard way to get directional
-          continuity (a vein behaving very differently along strike than across it) out of an
-          interpolator that's otherwise isotropic. Same azimuth/dip idea as the search
-          ellipsoid above — usually the same real structural trend.
-        </div>
-        {anisotropy.enabled && (
-          <div style={{ marginBottom: 8 }}>
-            <button onClick={() => setAnisotropy((p) => ({ ...p, azimuth: searchEllipsoid.azimuth, dip: searchEllipsoid.dip, major: searchEllipsoid.major, semiMajor: searchEllipsoid.semiMajor, minor: searchEllipsoid.minor }))} style={{ ...pBtn, padding: "5px 8px", fontSize: "var(--font-size-sm)", marginBottom: 8 }}>
-              Copy from search ellipsoid
-            </button>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Azimuth°
-                <input type="number" value={anisotropy.azimuth} onChange={(e) => setAnisotropy((p) => ({ ...p, azimuth: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Dip°
-                <input type="number" value={anisotropy.dip} onChange={(e) => setAnisotropy((p) => ({ ...p, dip: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-            </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Major (m)
-                <input type="number" value={anisotropy.major} onChange={(e) => setAnisotropy((p) => ({ ...p, major: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Semi-major (m)
-                <input type="number" value={anisotropy.semiMajor} onChange={(e) => setAnisotropy((p) => ({ ...p, semiMajor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Minor (m)
-                <input type="number" value={anisotropy.minor} onChange={(e) => setAnisotropy((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-            </div>
-          </div>
-        )}
+        {/* TASKS.csv #650 — named structural trends (replaces the single unsaved "Anisotropy" on/off) */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Structural trends</div>
+        <Suspense fallback={null}>
+          <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
+            structurePicks={structurePicksWithHoleAttitude}
+            surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
+            surfacePoints={(id) => {
+              const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return [];
+              const { vertices } = sceneVertsToWorldFlat(geo, originRef.current);
+              const pts = []; for (let i = 0; i < vertices.length; i += 3) pts.push({ x: vertices[i], y: vertices[i + 1], z: vertices[i + 2] });
+              return pts;
+            }}
+            onView={(t) => setTrendPreviewId(t ? t.id : null)} viewingId={trendPreviewId}
+            small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}
+            inputStyle={smallSel} btnStyle={pBtn} />
+        </Suspense>
 
         </>)}
         {toolPane === "gradeEst" && (<>
@@ -7860,8 +7881,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          0 = auto (derived from your own hole spacing). The model domain and the anisotropy trend are
-          honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
+          0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for
+          alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
           under-supported contact picks, which a closed envelope has none of.
         </div>
         {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
@@ -7942,7 +7963,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
               for the user to discover. */}
-          {" "}It honours the model domain and the anisotropy trend set above. It does <strong>not</strong>{" "}
+          {" "}It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does <strong>not</strong>{" "}
           apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported
           contact picks, and dropping isolated assays would delete grade rather than improve the shell.
         </div>
@@ -9040,10 +9061,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
           onUseAsTrend={({ azimuth, dip }) => {
-            setAnisotropy((p) => ({ ...p, enabled: true, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10 }));
+            // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour)
+            const t = { ...cleanTrend({ name: `Stereonet mean (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
+            setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
             goToModule("modeling");
-            setNotices((p) => [...p, `Anisotropy trend set from the stereonet mean orientation (dip ${dip.toFixed(1)}° / dipdir ${azimuth.toFixed(1)}°).`]);
+            setNotices((p) => [...p, `Trend "${t.name}" added from the stereonet mean orientation — choose which models use it in 3D Modeling → Model settings → Structural trends.`]);
           }}
         />
       )}

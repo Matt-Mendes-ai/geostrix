@@ -20,7 +20,7 @@ import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice } from "../../lib/notices.js";
-import { searchEllipsoidBasis, filterBySearchSupport, anisoScales, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js"; // TASKS.csv #568
@@ -31,7 +31,7 @@ export function useModelling(ctx) {
     activeInterceptSetRef,
     alterationCellSize,
     alterationSearchRadius,
-    anisotropy,
+    trendWarp, // TASKS.csv #650 — (tool) => { enabled, basis, scales, params } from the trend that model uses
     apiToScene,
     assayElements,
     assays,
@@ -110,6 +110,7 @@ export function useModelling(ctx) {
   } = ctx;
 
   const runSurfaceStack = useCallback(async (rawSpecs, stackOpts = {}) => {
+    const anisotropy = trendWarp("implicit"); // TASKS.csv #650 — the trend chosen for geology models
     const relation = stackOpts.relation === "onlap" ? "onlap" : "erode";
     const traces = tracesRef.current;
     // TASKS.csv #187 — bug fix: a real user hit "Stratigraphic stack (DACT, VCL, SED) failed:
@@ -158,8 +159,8 @@ export function useModelling(ctx) {
     // anisoWarp*/anisoScales module functions' own comments for why. `center` is the centroid of all
     // hole-trace points (not just this run's own control points) so the warp is anchored consistently
     // across different tools/runs rather than drifting per-request.
-    const anisoBasis = anisotropy.enabled ? searchEllipsoidBasis(anisotropy.azimuth, anisotropy.dip) : null;
-    const anisoScl = anisotropy.enabled ? anisoScales(anisotropy) : null;
+    const anisoBasis = anisotropy.enabled ? anisotropy.basis : null;
+    const anisoScl = anisotropy.enabled ? anisotropy.scales : null;
     const anisoCenter = anisotropy.enabled && allApiPts.length
       ? { x: allApiPts.reduce((s, p) => s + p.x, 0) / allApiPts.length, y: allApiPts.reduce((s, p) => s + p.y, 0) / allApiPts.length, z: allApiPts.reduce((s, p) => s + p.z, 0) / allApiPts.length }
       : null;
@@ -328,7 +329,7 @@ export function useModelling(ctx) {
         relation, resolution: [modelResolution, modelResolution, modelResolution],
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null,
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
-        anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+        anisotropy: anisotropy.enabled ? anisotropy.params : null,
         searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
         domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
         clippedToDomain: !!clipDomain,
@@ -532,7 +533,7 @@ export function useModelling(ctx) {
       ]);
       setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
     }
-  }, [fitBox, setTaskProgress, anisotropy, clipToDomainBoundary, clipToTopo, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
+  }, [fitBox, setTaskProgress, trendWarp, clipToDomainBoundary, clipToTopo, domains, modelDomainId, modelResolution, rangeMultiplier, searchEllipsoid]);
 
   // Thin single-surface wrapper for the three single-unit tools below.
   const runSurfaceModel = useCallback((spec, opts) => runSurfaceStack([spec], opts), [runSurfaceStack]);
@@ -1003,6 +1004,7 @@ export function useModelling(ctx) {
   // the anisotropy trend IS honoured, by warping into the same normalized space runSurfaceStack uses;
   // (c) the model domain still restricts which sample points are used.
   const runAlterationModel = useCallback((altValue) => {
+    const anisotropy = trendWarp("alteration"); // TASKS.csv #650
     if (!altValue) return;
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the alteration model."]); return; }
@@ -1066,8 +1068,8 @@ export function useModelling(ctx) {
         // space where the declared anisotropy ellipsoid is a sphere, grid/isosurface there with an
         // isotropic search, then un-warp the resulting mesh vertices. An isotropic interpolator in
         // warped space IS an anisotropic one in real space.
-        const basis = anisotropy.enabled ? searchEllipsoidBasis(anisotropy.azimuth, anisotropy.dip) : null;
-        const scl = anisotropy.enabled ? anisoScales(anisotropy) : null;
+        const basis = anisotropy.enabled ? anisotropy.basis : null;
+        const scl = anisotropy.enabled ? anisotropy.scales : null;
         const center = anisotropy.enabled
           ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length, z: pts.reduce((s, p) => s + p.z, 0) / pts.length }
           : null;
@@ -1124,7 +1126,7 @@ export function useModelling(ctx) {
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
           cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
           paddingM: pad, closure, holeSpacingM: auto.spacing,
-          anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+          anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
@@ -1144,7 +1146,7 @@ export function useModelling(ctx) {
       setTaskProgress?.(null);
       setAlterationBusy(false);
     }, 40);
-  }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, anisotropy, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
+  }, [layers.alt, collars, survey, domains, modelDomainId, excludedIntercepts, interceptInActiveSet /* #52 (c) */, trendWarp, alterationCellSize, alterationSearchRadius, fitBox, setTaskProgress]);
 
   // TASKS.csv #144 — vein/dyke hangingwall–footwall modelling.
   //
@@ -1310,6 +1312,7 @@ export function useModelling(ctx) {
   // forever in a background preview tab), which would silently strand a run started right before
   // the user alt-tabs away.
   const runNumericModel = useCallback(() => {
+    const anisotropy = trendWarp("gradeShell"); // TASKS.csv #650
     const symbol = numericSymbol || assayElements[0]?.symbol;
     if (!symbol) { setNotices((p) => [...p, "No assay elements loaded — import assays before running the numeric model."]); return; }
     if (!collars.length) { setNotices((p) => [...p, "Load collars/survey data before running the numeric model."]); return; }
@@ -1372,8 +1375,8 @@ export function useModelling(ctx) {
         // un-warp the mesh vertices. World coordinates are (east, north, up), the same axis order
         // searchEllipsoidBasis/anisoWarpPoint are defined in, and the warp is centred on the samples'
         // own centroid, so it can be applied to world coordinates directly with no api round-trip.
-        const gsBasis = anisotropy.enabled ? searchEllipsoidBasis(anisotropy.azimuth, anisotropy.dip) : null;
-        const gsScl = anisotropy.enabled ? anisoScales(anisotropy) : null;
+        const gsBasis = anisotropy.enabled ? anisotropy.basis : null;
+        const gsScl = anisotropy.enabled ? anisotropy.scales : null;
         const gsCenter = anisotropy.enabled
           ? { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length, z: points.reduce((s, p) => s + p.z, 0) / points.length }
           : null;
@@ -1493,7 +1496,7 @@ export function useModelling(ctx) {
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,
           minHoles: Math.max(1, numericMinHoles), includeQAQC: numericIncludeQAQC,
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
-          anisotropy: anisotropy.enabled ? { azimuth: anisotropy.azimuth, dip: anisotropy.dip, major: anisotropy.major, semiMajor: anisotropy.semiMajor, minor: anisotropy.minor } : null,
+          anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: gradeDomain ? gradeDomain.name : null,
           samplePoints: points.length, cellsEstimated: grid.estimated,
           singleHoleCells: grid.singleHoleCells, meanGradeInShell,
@@ -1522,7 +1525,7 @@ export function useModelling(ctx) {
       setTaskProgress?.(null);
       setNumericBusy(false);
     }, 40);
-  }, [numericSymbol, assayElements, assays, collars, survey, numericCutoff, numericCellSize, numericMaxBlocks, numericSearchRadius, numericMethod, numericUseComposites, numericCompositeLength, numericMinCoverage, numericCloseShell, numericPadding, numericCapValue, numericMinHoles, numericIncludeQAQC, fitBox, setTaskProgress, anisotropy, domains, modelDomainId]); // anisotropy/domains/modelDomainId: TASKS.csv #273
+  }, [numericSymbol, assayElements, assays, collars, survey, numericCutoff, numericCellSize, numericMaxBlocks, numericSearchRadius, numericMethod, numericUseComposites, numericCompositeLength, numericMinCoverage, numericCloseShell, numericPadding, numericCapValue, numericMinHoles, numericIncludeQAQC, fitBox, setTaskProgress, trendWarp, domains, modelDomainId]); // anisotropy/domains/modelDomainId: TASKS.csv #273
 
   return { addStackUnit, computeIntercepts, faultCandidates, moveStackUnit, removeStackUnit, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel };
 }
