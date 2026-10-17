@@ -9031,6 +9031,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           collars={collars}
           survey={survey}
           volumeShells={closedShellsForEstimation()}
+          trend={trendFor("estimation")} // TASKS.csv #650
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, `Added block model "${model.name}" (${model.cells.length.toLocaleString()} cells).`]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />

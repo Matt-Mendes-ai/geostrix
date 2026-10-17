@@ -93,6 +93,28 @@ export function samplePointsFromAssays(assays, symbol, unit, elementUnits, colla
 // renders through the exact same voxel viewer with no separate code path. A block with fewer than
 // `minSamples` points inside its search radius gets NO cell at all (rather than an extrapolated/zero
 // value) — an empty region of the grid should read as "not estimated", not "estimated at zero grade".
+// TASKS.csv #650 — a structural trend turns the spherical search into an ellipsoid: samples and each query point
+// are expressed in the trend's own axes and scaled (opts.trend = { basis: { major, semiMajor, minor }, scales }, from
+// lib/trend.js trendBasis + trendSearchScales: major 1, so the search radius is the major semi-axis and the
+// others are radius x int / max and radius x min / max). Distances, and therefore the neighbour search, the
+// IDW weights and the MLS fit, all happen in that frame; blocks stay on their real grid.
+function trendFrame(trend, center) {
+  if (!trend?.basis || !trend?.scales) return null;
+  const { major: a, semiMajor: b, minor: c } = trend.basis, s = trend.scales;
+  return (x, y, z) => {
+    const dx = x - center.x, dy = y - center.y, dz = z - center.z;
+    return [(dx * a.x + dy * a.y + dz * a.z) * s.major, (dx * b.x + dy * b.y + dz * b.z) * s.semiMajor, (dx * c.x + dy * c.y + dz * c.z) * s.minor];
+  };
+}
+function withTrend(samplePoints, opts) {
+  if (!opts.trend || !samplePoints.length) return { pts: samplePoints, q: null };
+  const n = samplePoints.length;
+  const center = samplePoints.reduce((m, p) => ({ x: m.x + p.x / n, y: m.y + p.y / n, z: m.z + p.z / n }), { x: 0, y: 0, z: 0 });
+  const f = trendFrame(opts.trend, center);
+  if (!f) return { pts: samplePoints, q: null };
+  return { pts: samplePoints.map((p) => { const [x, y, z] = f(p.x, p.y, p.z); return { ...p, x, y, z }; }), q: f };
+}
+
 export function estimateBlockModel(samplePoints, opts) {
   const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, lengthWeight = true, restrictToDomain = false } = opts;
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks); // maxBlocks: #626
@@ -102,7 +124,9 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
-  const est = makeCellEstimator(samplePoints, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2 });
+  const tw = withTrend(samplePoints, opts); // #650
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2 });
+  const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
   const cells = [];
   let blocksSkipped = 0;
@@ -816,7 +840,9 @@ export function estimateDenseGrid(samplePoints, opts) {
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
   // by support with no second interpolation pass and no risk of the two disagreeing.
   const wantSupport = !!opts.support;
-  const est = makeCellEstimator(samplePoints, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
+  const tw = withTrend(samplePoints, opts); // #650
+  const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
+  const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const supportCode = wantSupport ? new Uint8Array(totalBlocks) : null; // 0 unsupported / 1 extrapolated / 2 interpolated
   const supportIdx = wantSupport ? new Float32Array(totalBlocks) : null;
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };

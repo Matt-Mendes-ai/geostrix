@@ -15,6 +15,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -23,7 +24,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [] }) {
+export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
@@ -209,6 +210,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
+          ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
         }, { onProgress: setProgress, signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
@@ -217,6 +219,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
           minSamples, maxSamples, minHoles,
+          searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
@@ -292,6 +295,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang (TASKS #292).">
               Search radius (m, 0 = no limit)
               <input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+              {trend && searchRadius > 0 && (
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>
+                  Along trend "{trend.name}": an ellipsoid of {searchRadius} × {Math.round((searchRadius * trend.ratios.int) / trend.ratios.max)} × {Math.round((searchRadius * trend.ratios.min) / trend.ratios.max)} m ({describeTrend(trend)})
+                </span>
+              )}
             </label>
             <label style={fieldLabel} title="Counts sample POINTS, not holes — one hole composited at 2m supplies ~25 of them inside a 50m radius, so this alone can never express 'more than one hole must see this block'. Use Min distinct holes for that.">Min samples/block
               <input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
@@ -552,7 +560,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — kriging needs a fitted variogram (nugget/sill/range) as a genuine prerequisite, which isn't built yet. A block with no sample inside its search radius is left un-estimated rather than guessed at.
-            {" "}The search is <strong>isotropic</strong> (a plain sphere — no anisotropy or trend), there is
+            {" "}{trend
+              ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modeling → Model settings → Structural trends), there is</>
+              : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modeling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
             no declustering, no variogram, and no classification. Domain control applies only if you both
             select a domain layer and tick "restrict the interpolation search"; high-grade capping applies
             only if you enter a cap. Every one of those is an assumption you are making, not a property

@@ -45,3 +45,23 @@ test("set from plane: mean of poles, and a best-fit plane through points", () =>
   const q = planeFromPoints(pts);
   assert.ok(Math.abs(q.dip - 35) < 0.5 && Math.abs(q.dipAzimuth - 310) < 0.5, JSON.stringify(q));
 });
+
+test("block estimation: a trend turns the search into an ellipsoid (major = the search radius)", async () => {
+  const { estimateBlockModel } = await import("../src/lib/estimation.js");
+  // a vertical E-W plane (dip 90 towards north) with pitch 0: the major axis runs east-west
+  const t = { dip: 90, dipAzimuth: 0, pitch: 0, ratios: { max: 3, int: 1, min: 1 } };
+  const { trendSearchScales } = await import("../src/lib/trend.js");
+  const trend = { basis: trendBasis(t), scales: trendSearchScales(t) };
+  const pts = [
+    ...[0, 1, 2].map((i) => ({ x: 250, y: 0, z: i, value: 10, hole_id: "EAST" })),   // 250 m along the trend
+    ...[0, 1, 2].map((i) => ({ x: 0, y: 250, z: i, value: 99, hole_id: "NORTH" })),  // 250 m across it
+  ];
+  const bounds = { xmin: -5, xmax: 5, ymin: -5, ymax: 5, zmin: -4, zmax: 6 };
+  const run = (opts) => estimateBlockModel(pts, { bounds, cellSize: { dx: 10, dy: 10, dz: 10 }, method: "idw2", searchRadius: 300, lengthWeight: false, ...opts }).cells[0];
+  const iso = run({});
+  assert.ok(iso.value > 10 && iso.value < 99, String(iso.value)); // both reachable without a trend
+  const along = run({ trend });
+  assert.ok(Math.abs(along.value - 10) < 1e-9, String(along.value)); // only the samples along the trend are within 300 x 1 m ...
+  assert.equal(along.nHoles, 1);  // ... the ones across it would need 300 x 1/3 = 100 m
+  assert.equal(run({ trend, searchRadius: 200 }), undefined); // beyond the major radius: nothing
+});
