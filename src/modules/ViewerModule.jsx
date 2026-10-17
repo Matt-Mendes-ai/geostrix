@@ -58,6 +58,7 @@ const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  /
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
+import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
 const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
 const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
 const StripLog = lazyModal(() => import("../components/StripLog.jsx"));  // TASKS.csv #301
@@ -3725,6 +3726,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return { ...s, supportColored: on };
     }));
   }, []);
+  // TASKS.csv #636 — colour / opacity from the surface's right-click menu (lib/surfaceStyle.js); null = reset
+  const setSurfaceStyle = useCallback((id, patch) => {
+    setImplicitSurfaces((p) => p.map((s) => {
+      if (s.id !== id) return s;
+      const style = mergeSurfaceStyle(s.style, patch);
+      const { style: _old, ...rest } = s;
+      return style ? { ...rest, style } : rest;
+    }));
+  }, []);
+  // ...applied to every surface's mesh whenever the list changes, wherever the mesh was built (several places)
+  useEffect(() => {
+    implicitSurfaces.forEach((s) => applySurfaceStyle(implicitMeshesRef.current[s.id], s));
+  }, [implicitSurfaces]);
   const removeImplicitSurface = useCallback((id) => {
     const mesh = implicitMeshesRef.current[id];
     if (mesh) { implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; }
@@ -4720,8 +4734,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       }
       return {
         ...s,
-        color: mesh?.material?.color?.getHex?.() ?? null,
-        opacity: mesh?.material?.opacity ?? 0.75,
+        ...surfaceBaseLook(mesh), // #636 — the surface's own look; a chosen style is saved separately (s.style)
         vertices: cached?.vertices || [],
         indices: cached?.indices || [],
       };
@@ -8125,6 +8138,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: s.visible ? "Hide" : "Show", onClick: () => toggleImplicitSurface(s.id) },
               { label: "Zoom to", onClick: () => zoomToImplicitSurface(s.id) },
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
+              { label: "Style (colour, opacity)…", onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
               "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
@@ -8872,9 +8886,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {styleTarget && (
         <Suspense fallback={null}>
           <LayerStyleModal target={{ ...styleTarget, onEditColours: styleTarget.colourKey ? () => setInspectLayer(styleTarget.colourKey) : null }}
-            style={layerStyles[styleTarget.key]}
-            onChange={(patch) => setLayerStyle(styleTarget.key, styleTarget.kind, patch)}
-            onReset={() => setLayerStyle(styleTarget.key, styleTarget.kind, null)}
+            style={styleTarget.surfaceId ? implicitSurfaces.find((x) => x.id === styleTarget.surfaceId)?.style : layerStyles[styleTarget.key]}
+            onChange={(patch) => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, patch) : setLayerStyle(styleTarget.key, styleTarget.kind, patch))}
+            onReset={() => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, null) : setLayerStyle(styleTarget.key, styleTarget.kind, null))}
             onClose={() => setStyleTarget(null)} />
         </Suspense>
       )}

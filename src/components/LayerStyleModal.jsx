@@ -7,11 +7,13 @@ import { SHAPES, SIZE_MIN, SIZE_MAX, resolveLayerStyle } from "../lib/layerStyle
 // TASKS.csv #635 — "edit the styles of each layer, colour, size, type (circle, plane, cylinder)". A small floating
 // panel (not a blocking dialog) beside the 3D view, so every change is seen live; changes apply as they are made
 // and are saved with the project's view state. target: { key, kind: "interval" | "point" | "plane", label,
-// defaults: { opacity }, sizeNote, onEditColours? }.
+// defaults: { opacity }, sizeNote, onEditColours? }. kind "surface" (#636, a generated surface): colour and opacity
+// only — no shape or size — and "Original colours" instead of the legend's.
 export default function LayerStyleModal({ target, style, onChange, onReset, onClose }) {
   useEscapeKey(onClose);
   const st = resolveLayerStyle(style, target.kind, target.defaults);
   const shapes = SHAPES[target.kind] || SHAPES.point;
+  const surface = target.kind === "surface";
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 74, flexShrink: 0 };
   const row = { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 };
   return (
@@ -24,6 +26,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
         <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
       </div>
       <div style={{ padding: 12 }}>
+        {!surface && <>
         <div style={row}>
           <span style={lbl}>Shape</span>
           <select value={st.shape} onChange={(e) => onChange({ shape: e.target.value })} aria-label="Shape" style={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
@@ -35,6 +38,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
           <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={0.05} value={st.size} onChange={(e) => onChange({ size: Number(e.target.value) })} aria-label="Size" style={{ flex: 1 }} />
           <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>×{st.size.toFixed(2)}</span>
         </div>
+        </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
         <div style={row}>
           <span style={lbl}>Opacity</span>
@@ -45,7 +49,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
           <span style={{ ...lbl, paddingTop: 3 }}>Colour</span>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-              <input type="radio" name="colourMode" checked={!st.color} onChange={() => onChange({ color: null })} /> By value (legend colours)
+              <input type="radio" name="colourMode" checked={!st.color} onChange={() => onChange({ color: null })} /> {surface ? "Original colours" : "By value (legend colours)"}
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <input type="radio" name="colourMode" checked={!!st.color} onChange={() => onChange({ color: st.color || "#e8901a" })} /> One colour
