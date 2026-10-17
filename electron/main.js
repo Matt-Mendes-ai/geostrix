@@ -904,6 +904,7 @@ async function makeDbClient(config) {
 // quits. db-live-query/db-live-list-tables/db-live-list reuse whichever connection id the renderer
 // gives them instead of opening a new client per call, which is what actually removes the "enter the
 // password every time" friction the user reported.
+const { guardedQuery } = require("./dbGuard.js"); // TASKS.csv #590
 const liveDbConnections = new Map(); // id -> { client, safeConfig, connectedAt }
 let liveDbConnCounter = 0;
 
@@ -952,7 +953,7 @@ ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
   try {
-    const res = await entry.client.query(sql);
+    const res = await guardedQuery(entry, sql); // TASKS.csv #590 — its own read-only transaction, rolled back
     return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, entry.safeConfig) };
