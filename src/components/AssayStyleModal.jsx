@@ -5,6 +5,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -14,6 +15,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const [local, setLocal] = useState(() => ({
     color: style?.color || defaultColor,
     sizeMult: style?.sizeMult ?? 1,
+    shape: style?.shape || "sphere", // #649
+    opacity: style?.opacity ?? 1, // #649
     minCutoff: style?.minCutoff ?? "",
     breaks: style?.breaks ? style.breaks.map((b) => ({ ...b })) : [],
   }));
@@ -23,6 +26,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
     onChange({
       color: next.color,
       sizeMult: next.sizeMult,
+      shape: next.shape === "sphere" ? null : next.shape, // #649 — only a change is stored
+      opacity: next.opacity >= 1 ? null : next.opacity,
       minCutoff: next.minCutoff === "" ? null : Number(next.minCutoff),
       breaks: next.breaks.length ? next.breaks.slice().sort((a, b) => a.max - b.max) : null,
     });
@@ -47,7 +52,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   };
   const removeBreak = (i) => commit({ ...local, breaks: local.breaks.filter((_, bi) => bi !== i) });
 
-  const reset = () => commit({ color: defaultColor, sizeMult: 1, minCutoff: "", breaks: [] });
+  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: [] });
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -68,6 +73,18 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
             </label>
           )}
 
+          {/* TASKS.csv #649 — shape and opacity, like the other layers' style panel */}
+          <label style={row}>
+            <span style={rowLabel}>Shape</span>
+            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label="Marker shape" style={{ ...inp, flex: 1 }}>
+              {SHAPES.point.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </label>
+          <label style={row}>
+            <span style={rowLabel}>Opacity</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={local.opacity} onChange={(e) => commit({ ...local, opacity: Number(e.target.value) })} aria-label="Marker opacity" style={{ flex: 1 }} />
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 34, textAlign: "right" }}>{Math.round(local.opacity * 100)}%</span>
+          </label>
           <label style={row}>
             <span style={rowLabel} title="Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.">Size</span>
             <input type="range" min="0.3" max="3" step="0.1" value={local.sizeMult} onChange={(e) => commit({ ...local, sizeMult: Number(e.target.value) })} style={{ flex: 1 }} />

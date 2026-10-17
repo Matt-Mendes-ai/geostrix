@@ -4070,7 +4070,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             if (v == null || !assayPassesCutoff(v, style)) return;
             const pt = findOnTrace(pts, (a.from + a.to) / 2);
             if (!pt) return;
-            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style) })); // #312 — shared prototype + scale
+            // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
+            const op = style?.opacity ?? 1, shape = style?.shape || "sphere";
+            const mesh = new THREE.Mesh(POINT_PROTO[shape] || PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }));
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
             mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
@@ -7101,11 +7103,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 // (a representative sample rather than any one specific value), or the default hue.
                 const color = on ? (style?.breaks?.length ? style.breaks[Math.floor(style.breaks.length / 2)].color : style?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length]) : null;
                 const defaultHue = ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
-                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.length));
+                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.length || style.shape || style.opacity != null)); // #649 shape / opacity
                 return (
                   <div
                     key={e.symbol}
-                    title={on ? `Hide ${e.symbol}` : `Show ${e.symbol}`}
+                    title={on ? `Hide ${e.symbol} — right-click for more` : `Show ${e.symbol}`}
+                    onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${e.unit})` : ""}`, [ // TASKS.csv #649 — like the other layers (#635)
+                      { label: on ? `Hide ${e.symbol}` : `Show ${e.symbol}`, onClick: () => toggleAssayElement(e.symbol) },
+                      on && { label: "Style (colour, shape, size, classes)…", onClick: () => setAssayStyleModalSymbol(e.symbol) },
+                      on && assayDisplayElements.length > 1 && { label: `Show only ${e.symbol}`, onClick: () => setAssayDisplayElements([e.symbol]) },
+                      "-", { label: "Import or edit assays — Geochem tab", onClick: () => goToModule("geochem") }])}
                     style={{
                       display: "flex", alignItems: "center", gap: 5, padding: "4px 6px 4px 9px", borderRadius: 12, cursor: "pointer", fontSize: "var(--font-size-base)",
                       // TASKS.csv #306 — the chip BORDER now carries the element's own identity hue
