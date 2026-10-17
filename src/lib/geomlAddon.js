@@ -26,13 +26,22 @@ async function connection() {
   return conn;
 }
 
-async function call(path, { method = "GET", body, timeoutMs = 30000 } = {}) {
+// TASKS.csv #645 — the cached port + token go stale when the add-on stops (crash, Remove, cancel restarts it):
+// a refused connection or a 401 drops them and the call is tried once more on a fresh connection.
+async function call(path, { method = "GET", body, timeoutMs = 30000 } = {}, retried = false) {
   const c = conn || (await connection());
-  const res = await fetch(`http://127.0.0.1:${c.port}${path}`, {
-    method, headers: { "Content-Type": "application/json", ...(c.token ? { "X-GeoStrix-Token": c.token } : {}) },
-    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeoutMs),
-  });
+  let res;
+  try {
+    res = await fetch(`http://127.0.0.1:${c.port}${path}`, {
+      method, headers: { "Content-Type": "application/json", ...(c.token ? { "X-GeoStrix-Token": c.token } : {}) },
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    if (!retried && e.name !== "TimeoutError" && d?.addonEnsure) { conn = null; return call(path, { method, body, timeoutMs }, true); }
+    throw e;
+  }
   const json = await res.json().catch(() => ({}));
+  if (res.status === 401 && !retried && d?.addonEnsure) { conn = null; return call(path, { method, body, timeoutMs }, true); }
   if (!res.ok) throw Object.assign(new Error(json.detail || `The add-on answered HTTP ${res.status}.`), { status: res.status, body: json });
   return json;
 }
@@ -43,10 +52,20 @@ export async function addonReady(onWait, maxMs = 120000) {
   const c = await connection();
   const t0 = Date.now();
   for (;;) {
+    let health = null;
     try {
       const r = await fetch(`http://127.0.0.1:${c.port}/health`, { signal: AbortSignal.timeout(2000) });
-      if (r.ok) return r.json();
+      if (r.ok) health = await r.json();
     } catch { /* not up yet */ }
+    if (health) {
+      // #645 — /health needs no token, so any add-on on this port answers it. A token-checked request tells
+      // ours ("no such job", 404) from a stranger (401) before any project data is sent.
+      if (c.token) {
+        const p = await fetch(`http://127.0.0.1:${c.port}/v1/jobs/identity-probe`, { headers: { "X-GeoStrix-Token": c.token }, signal: AbortSignal.timeout(2000) });
+        if (p.status === 401) throw new Error(`Another program answered on port ${c.port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.`);
+      }
+      return health;
+    }
     if (Date.now() - t0 > maxMs) throw new Error("The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log).");
     onWait?.(Math.round((Date.now() - t0) / 1000));
     await new Promise((r) => setTimeout(r, 1000));

@@ -8,6 +8,22 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { spawn, execFile } = require("child_process");
+const nodeNet = require("net");
+
+// TASKS.csv #645 — the add-on takes the first free port of a short fixed range instead of always 8766: a second
+// GeoStrix (a development copy beside an installed one — packaged builds are single-instance) or any other program
+// on 8766 made the add-on fail to bind, and the app then talked to the OTHER add-on ("Missing or wrong add-on
+// token"). A range, not "any port", so the build-time CSP can still name every port the renderer may reach.
+const ADDON_PORTS = Array.from({ length: 10 }, (_, i) => 8766 + i);
+const portFree = (port) => new Promise((resolve) => {
+  const srv = nodeNet.createServer();
+  srv.once("error", () => resolve(false));
+  srv.listen(port, "127.0.0.1", () => srv.close(() => resolve(true)));
+});
+async function pickPort(preferred) {
+  for (const p of [preferred, ...ADDON_PORTS.filter((q) => q !== preferred)]) if (await portFree(p)) return p;
+  return null;
+}
 
 function createAddonManager({ app, net, send }) {
   const running = {}; // id -> { proc, token, port }
@@ -124,7 +140,7 @@ function createAddonManager({ app, net, send }) {
     return status(id);
   }
 
-  function ensure(id) {
+  async function ensure(id) {
     if (running[id]) return { running: true, port: running[id].port, spawned: false };
     const info = releaseInfo(id);
     if (!info) throw new Error("Unknown add-on.");
@@ -134,7 +150,8 @@ function createAddonManager({ app, net, send }) {
     else { cmd = dev || exePath(id, info); }
     if (!fs.existsSync(cmd)) throw new Error("The add-on isn't installed.");
     const token = crypto.randomBytes(32).toString("hex");
-    const port = info.port || 8766;
+    const port = await pickPort(ADDON_PORTS.includes(info.port) ? info.port : ADDON_PORTS[0]);
+    if (port == null) throw new Error(`Ports ${ADDON_PORTS[0]}-${ADDON_PORTS[ADDON_PORTS.length - 1]} are all in use, so the add-on cannot start. Close other programs using them and try again.`);
     let logFd = null;
     try {
       fs.mkdirSync(root(id), { recursive: true });
@@ -158,4 +175,4 @@ function createAddonManager({ app, net, send }) {
   return { status, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
 }
 
-module.exports = { createAddonManager };
+module.exports = { createAddonManager, ADDON_PORTS };

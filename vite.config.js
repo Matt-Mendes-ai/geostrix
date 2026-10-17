@@ -33,6 +33,8 @@ function copyPdfjsAssets() {
 //   connect-src the local Python sidecar and the three basemap tile hosts (tileCache.js fetches tiles
 //               into IndexedDB); WMS/WFS and SRTM go through the main process (IPC), not the renderer.
 //   img-src     data:/blob: for cached tiles, drapes and exports.
+// TASKS.csv #645 — the optional add-on takes the first free port of 8766-8775 (electron/addons.js ADDON_PORTS)
+const ADDON_ORIGINS = Array.from({ length: 10 }, (_, i) => `http://127.0.0.1:${8766 + i}`).join(" ");
 const TILE_HOSTS = "https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://tile.tracestrack.com https://tiles.maps.eox.at";
 function cspPlugin() {
   return {
@@ -53,7 +55,7 @@ function cspPlugin() {
           "style-src 'self' 'unsafe-inline'",
           `img-src 'self' data: blob: ${TILE_HOSTS}`,
           "font-src 'self' data:",
-          `connect-src 'self' data: blob: http://127.0.0.1:8765 http://127.0.0.1:8766 ${TILE_HOSTS}`,
+          `connect-src 'self' data: blob: http://127.0.0.1:8765 ${ADDON_ORIGINS} ${TILE_HOSTS}`,
           "worker-src 'self' blob:",
           "object-src 'none'",
           "base-uri 'self'",
