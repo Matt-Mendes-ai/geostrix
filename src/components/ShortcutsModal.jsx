@@ -173,6 +173,13 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
                     build and the browser-fallback dev path — no IPC needed for a value this static). */}
                 <div style={{ color: "var(--color-text-muted)" }}>Version {APP_VERSION}</div>
                 <div style={{ color: "var(--color-text-muted)" }}>3D drillhole & geochemistry explorer</div>
+                {/* TASKS.csv #647 — the author, linked to his LinkedIn (opens in the real browser, like the links below) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, color: "var(--color-text-muted)" }}>
+                  by
+                  <a href={AUTHOR_URL} target="_blank" rel="noreferrer" title="Matt Mendes on LinkedIn" style={{ ...link, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    Matt Mendes <LinkedInMark />
+                  </a>
+                </div>
               </div>
             </div>
             <div>MIT-licensed, built for smaller mineral exploration teams — drillhole visualization, geochemistry, geophysics, layout, and implicit geological modelling in one desktop app.</div>
@@ -202,6 +209,16 @@ function TabBtn({ active, onClick, icon, label }) {
 // TASKS.csv #310 — kept next to the one place it is used rather than in a constants file; this is the
 // same URL electron/main.js already bakes into the SRTM fetch User-Agent and README links to.
 const REPO_URL = "https://github.com/Matt-Mendes-ai/geostrix";
+const AUTHOR_URL = "https://www.linkedin.com/in/matt-mendes-83639737/";
+// LinkedIn's "in" mark, drawn inline (brand blue; 16 px). Decorative: the link's text and title name it.
+function LinkedInMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect width="24" height="24" rx="4" fill="#0A66C2" />
+      <path fill="#fff" d="M7.1 9.5h-2.6V19h2.6V9.5zM5.8 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM19.5 13.6c0-2.6-.6-4.3-3.5-4.3-1.4 0-2.3.7-2.7 1.4h-.1V9.5h-2.5V19h2.6v-4.7c0-1.2.2-2.5 1.8-2.5 1.5 0 1.6 1.4 1.6 2.6V19h2.6v-5.4z" />
+    </svg>
+  );
+}
 const link = { color: "var(--color-primary)", textDecoration: "none", borderBottom: "1px solid var(--color-selected-border)", paddingBottom: 1 };
 const panel = { width: "min(420px, 92vw)", maxHeight: "80vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-border)" };
