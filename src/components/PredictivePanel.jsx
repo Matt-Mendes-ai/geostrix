@@ -14,7 +14,7 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = [{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }];
 
-export default function PredictivePanel({ collars, survey, litho, assays, assayElements, addVoxelModel, addSurface, setNotices }) {
+export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, addVoxelModel, addSurface, setNotices }) {
   const [st, setSt] = useState(null);
   const [inst, setInst] = useState(null); // install progress { phase, got, total } | { error }
   const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
@@ -49,6 +49,17 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     survey: (survey || []).filter((s) => Number.isFinite(s.depth) && Number.isFinite(s.dip)).map((s) => ({ hole_id: String(s.hole_id), depth: s.depth, azimuth: s.azimuth, dip: -s.dip })),
   });
 
+  // TASKS.csv #646 — which returned blocks to keep: below the ground (terrain, else a surface through the collars)
+  // and within the model's range of a sample (lib/geomlClip.js). `intervals`: [{hole_id, from, to}] the model saw.
+  const clipper = async (intervals, range) => {
+    const [{ samplePointsFromIntervals }, { desurveyHole }, { makeGround, makeNearData, clipBlocks }] = await Promise.all([
+      import("../lib/estimation.js"), import("../lib/desurvey.js"), import("../lib/geomlClip.js")]);
+    const { points } = samplePointsFromIntervals(intervals.map((r) => ({ ...r, avgGrade: 1 })), collars, survey || [], desurveyHole, desurveyMethod);
+    const ground = makeGround({ terrain, collars }), near = points.length ? makeNearData(points.map((q) => [q.x, q.y, q.z]), range) : null;
+    return (blocks) => clipBlocks(blocks, { ground, near });
+  };
+  const clipNote = (r, range) => (r.air || r.far ? `; left out ${[r.air ? `${r.air.toLocaleString()} above the ground${terrain ? "" : " (a surface through the collars — load a terrain for the real one)"}` : "", r.far ? `${r.far.toLocaleString()} more than ${range} m from any sample` : ""].filter(Boolean).join(" and ")}` : "");
+
   const run = async (label, kind, params, onResult) => {
     const ctrl = new AbortController(); abortRef.current = ctrl;
     setJob({ label, progress: 0, message: "Starting the add-on" });
@@ -56,7 +67,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     try {
       await addonReady((s) => setJob((j) => j && { ...j, message: `Starting the add-on (${s} s — the first start is slower)` }));
       const res = await runJob(kind, params, (s) => setJob((j) => j && { ...j, progress: s.progress, message: s.message, elapsed: s.elapsed }), ctrl.signal);
-      const note = onResult(res);
+      const note = await onResult(res);
       const secs = Math.round((Date.now() - t0) / 1000);
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
       setNotices((p) => [...p, `geoML — ${label}: ${note} (${secs} s).`]);
@@ -69,22 +80,29 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     const name = unitName.trim() || [...unit].join(" + ");
     const intervals = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
     const params = { ...holes(), intervals, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain };
-    run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, (res) => {
+    run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res) => {
       const parts = [];
+      const range = 400; // the add-on's default domain range
+      const clip = await clipper(intervals, range);
       if (res.surface?.triangles?.length) {
-        const pos = new Float32Array(res.surface.vertices.flat()), idx = new Uint32Array(res.surface.triangles.flat());
+        // #646 — triangles above the ground or beyond the range are left out (vertices kept; unused ones are harmless)
+        const v = res.surface.vertices;
+        const tri = res.surface.triangles.filter((t) => { const c = [0, 1, 2].map((k) => (v[t[0]][k] + v[t[1]][k] + v[t[2]][k]) / 3); return clip([{ x: c[0], y: c[1], z: c[2] }]).keep[0]; });
+        const pos = new Float32Array(v.flat()), idx = new Uint32Array(tri.flat());
         addSurface({ name: `geoML — ${name} contact`, positions: pos, indices: idx, values: res.surface.uncertainty, params: { unit: [...unit], model: res.model, quality, seconds: res.seconds, contacts: res.contacts, area_m2: Math.round(res.surface.area) } });
-        parts.push(`contact surface ${res.surface.triangles.length.toLocaleString()} triangles (darker = less certain)`);
+        parts.push(`contact surface ${tri.length.toLocaleString()} triangles (darker = less certain)`);
       }
       const b = res.blocks, cells = [], ucells = [];
+      const all = b.x.map((x, i) => ({ x, y: b.y[i], z: b.z[i] })), r = clip(all);
       for (let i = 0; i < b.x.length; i++) {
+        if (!r.keep[i]) continue;
         const c = { x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell };
         cells.push({ ...c, value: b.probability[i] }); ucells.push({ ...c, value: b.uncertainty[i] });
       }
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6 });
-      const um = Math.max(...b.uncertainty);
+      const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false });
-      parts.push(`${b.x.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)`);
+      parts.push(`${cells.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)${clipNote(r, range)}`);
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts`;
     });
   };
@@ -93,21 +111,25 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     const el = assayElements.find((e) => e.symbol === element);
     const samples = (assays || []).filter((a) => Number.isFinite(a.values?.[element]) && Number.isFinite(a.from) && Number.isFinite(a.to)).map((a) => ({ hole_id: String(a.hole_id), from: a.from, to: a.to, value: a.values[element] }));
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
-    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, (res) => {
+    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
       const b = res.blocks, cells = [], spread = [];
+      const range = 150; // the add-on's default grade range
+      const r = (await clipper(samples, range))(b.x.map((x, i) => ({ x, y: b.y[i], z: b.z[i] })));
       for (let i = 0; i < b.x.length; i++) {
+        if (!r.keep[i] || !Number.isFinite(b.prediction[i])) continue;
         const c = { x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell };
         cells.push({ ...c, value: b.prediction[i] });
         if (b.p10 && b.p90) spread.push({ ...c, value: b.p90[i] - b.p10[i] });
       }
-      const vals = b.prediction.filter(Number.isFinite).sort((p, q) => p - q);
+      if (!cells.length) throw new Error(`no block is both below the ground and within ${range} m of a sample.`);
+      const vals = cells.map((c) => c.value).sort((p, q) => p - q); // the top quarter of the blocks kept
       const min = vals[0], max = vals[vals.length - 1], p75 = vals[Math.floor(vals.length * 0.75)];
       addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: min > 0 && max / min >= 100 ? logStops(min, max) : sequentialStops(min, max), threshold: p75, opacity: 0.6 });
       if (spread.length) {
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
         addVoxelModel({ name: `geoML — ${element} P90 − P10 (spread)`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false });
       }
-      return `${b.x.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 spread added (hidden)`;
+      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 spread added (hidden)`;
     });
   };
 
