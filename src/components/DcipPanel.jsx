@@ -18,6 +18,8 @@ import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
 import { supportEnvelope } from "../lib/supportEnvelope.js"; // TASKS.csv #641
+import DcipMergePanel from "./DcipMergePanel.jsx"; // TASKS.csv #640
+import { percentile } from "../lib/sectionMerge.js";
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 
@@ -236,11 +238,12 @@ export default function DcipPanel({ pBtn, numInput }) {
         const rv = shownVals(rc);
         const common = { source: "simpeg", colorMode: "continuous", supportCutoff: Number(opts.supportCutoff) || 0,
           params: { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) } };
-        addVoxelModelToTab(token, { ...common, name: `Resistivity (ohm·m) — DC line ${name}`, property: "Resistivity (ohm·m)", method: "dc", cells: rc, stops: logStops(arrMin(rv), arrMax(rv)) });
+        // min / max of the shown cells too: the legend and the threshold slider span them, not the hidden deep cells
+        addVoxelModelToTab(token, { ...common, name: `Resistivity (ohm·m) — DC line ${name}`, property: "Resistivity (ohm·m)", method: "dc", cells: rc, min: arrMin(rv), max: arrMax(rv), stops: logStops(arrMin(rv), arrMax(rv)) });
         if (result.cells.chargeability) {
           const cc = sectionCells(result, lineGeom, "chargeability", thick);
           const cv = shownVals(cc);
-          addVoxelModelToTab(token, { ...common, name: `Chargeability (mV/V) — IP line ${name}`, property: "Chargeability (mV/V)", method: "ip", cells: cc, stops: sequentialStops(0, arrMax(cv)),
+          addVoxelModelToTab(token, { ...common, name: `Chargeability (mV/V) — IP line ${name}`, property: "Chargeability (mV/V)", method: "ip", cells: cc, min: arrMin(cv), max: arrMax(cv), stops: sequentialStops(0, percentile(cv, 0.98)), // p98: a few spikes don't wash the line out
             params: { ...common.params, fit: { ...common.params.fit, ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } } }); // #581 — its own verdict
         }
       },
@@ -345,6 +348,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
       {last && <SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} />}
+      <DcipMergePanel pBtn={pBtn} numInput={numInput} />
     </div>
   );
 }
