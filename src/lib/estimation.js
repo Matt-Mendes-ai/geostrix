@@ -206,6 +206,29 @@ function buildSampleIndex(samplePoints, searchRadius) {
   return { size, xmin, ymin, zmin, xmax, ymax, zmax, nbx, nby, nbz, buckets, key };
 }
 
+// TASKS.csv #642 — which candidates an estimate uses. With minHoles > 1 no single hole may supply more than
+// ceil(maxSamples / minHoles) of them (the "max samples per hole" every resource package has). #258's check used to
+// count distinct holes among the nearest maxSamples only — and beside a hole composited at 2 m all 16 nearest come
+// from that one hole, so every node near the data was rejected: Woodjam Cu (50 m cells, 150 m search, min holes 2)
+// estimated 116 of 122,317 nodes, all isolated, and the grade shell "never crossed" 300 ppm although half the
+// composites are above it. Counting holes anywhere in the radius instead would have passed those nodes with a
+// value still taken from one hole — exactly what #258 exists to stop. `candidates` must be sorted by distance.
+export function perHoleCap(maxSamples, minHoles) {
+  return minHoles > 1 ? Math.max(1, Math.ceil(maxSamples / minHoles)) : Infinity;
+}
+export function selectUsed(candidates, maxSamples, minHoles = 1) {
+  const cap = perHoleCap(maxSamples, minHoles);
+  if (cap === Infinity) return candidates.slice(0, maxSamples);
+  const used = [], perHole = new Map();
+  for (let i = 0; i < candidates.length && used.length < maxSamples; i++) {
+    const d = candidates[i], n = perHole.get(d.hole_id) || 0;
+    if (n >= cap) continue;
+    perHole.set(d.hole_id, n + 1);
+    used.push(d);
+  }
+  return used;
+}
+
 // TASKS.csv #91/#92 — the neighbour search (spatial index + Chebyshev ring walk + the `settled`
 // stopping rule) factored out of makeCellEstimator so the support classifier can reuse the EXACT same
 // neighbourhood the estimator used. This is pure code motion out of makeCellEstimator: it returns the
@@ -331,7 +354,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
       candidates = dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return null;
     }
-    const used = candidates.slice(0, maxSamples);
+    const used = selectUsed(candidates, maxSamples, minHoles); // #642 — per-hole cap when minHoles > 1
 
     // TASKS.csv #258 — minimum DISTINCT drillholes. minSamples counts sample points, and a single hole
     // composited at 2 m supplies ~25 of them inside a 50 m radius, so it can never express "at least
@@ -517,7 +540,7 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
       candidates = dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return none;
     }
-    const used = candidates.slice(0, maxSamples);
+    const used = selectUsed(candidates, maxSamples, minHoles); // #642 — the estimator's own selection
     const holes = new Set();
     for (let i = 0; i < used.length; i++) holes.add(used[i].hole_id);
     if (holes.size < minHoles) return none;
@@ -750,10 +773,20 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
 
   const all = kthAndNearest(null);
   if (all.nearest > safeD2) return false; // even the nearest sample isn't settled yet
+  // #642 — with a per-hole cap the used set can reach past the nearest maxSamples (other holes' samples further
+  // out), so it is settled only once the capped selection is full and its furthest member is inside safeD2.
+  // Short of that the walk goes on to the search radius (where it stops anyway).
+  const capped = perHoleCap(maxSamples, minHoles) !== Infinity;
+  const cappedSettled = (keep) => {
+    const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles);
+    return used.length >= maxSamples && used[used.length - 1].d2 <= safeD2;
+  };
+  if (capped && !restrictToDomain) return cappedSettled(null);
   if (restrictToDomain) {
     let dom = null;
     for (let i = 0; i < dists.length; i++) if (dists[i].d2 === all.nearest) { dom = dists[i].domain; break; }
     if (dom == null) return true; // this cell gets rejected outright; more candidates can't change that
+    if (capped) return cappedSettled((d) => d.domain === dom);
     const inDom = kthAndNearest((d) => d.domain === dom);
     return inDom.kth <= safeD2;
   }
