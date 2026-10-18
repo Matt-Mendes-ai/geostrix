@@ -5,7 +5,7 @@ import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
-import { BLOCK_BUDGETS, MAX_BLOCK_BUDGET, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
@@ -100,7 +100,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const [padding, setPadding] = useState(25);
   const [cellSize, setCellSize] = useState(10);
   // TASKS.csv #626 — block budget, as the grade shell's (#625): a per-computer preference, 200,000 by default
-  const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
+  const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_MODEL_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
   const setBlockBudget = (v) => { setBlockBudgetState(v); try { localStorage.setItem("geostrix.estimateBlockBudget", String(v)); } catch { /* private window */ } };
   const [method, setMethod] = useState("idw2");
   const [searchRadius, setSearchRadius] = useState(50);
@@ -145,7 +145,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
   const overLimit = totalBlocksPreview > blockBudget; // #626
   const fitCell = overLimit && bounds ? cellToFit(bounds, blockBudget, cellSize) : null;
-  const fitCellMax = overLimit && bounds && blockBudget < MAX_BLOCK_BUDGET ? cellToFit(bounds, MAX_BLOCK_BUDGET, cellSize) : null;
+  const fitCellMax = overLimit && bounds && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
 
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
@@ -419,10 +419,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
 
           {/* TASKS.csv #626 — the block budget (runs in a worker with progress and Cancel since #520) */}
           <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 8 }}
-            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory and project-file size (every estimated block is saved with the project). Remembered on this computer.">
+            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.6 GB at the peak for 1 million blocks) and project-file size (every estimated block is saved with the project). Block models stop at 1 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.">
             Block budget
             <select value={blockBudget} onChange={(e) => setBlockBudget(Number(e.target.value))} style={{ ...inp, width: "auto" }} aria-label="Block model block budget">
-              {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks{b === MAX_BLOCKS ? " (fast)" : b >= 5000000 ? " (minutes; a large project file)" : b >= 2000000 ? " (~1 min)" : " (~30 s)"}</option>)}
+              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks{b === MAX_BLOCKS ? " (fast)" : " (~1 min, ~0.6 GB of memory)"}</option>)}
             </select>
           </label>
           {gridPreview && (
@@ -432,7 +432,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
                   <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>Use {fitCell} m blocks</button>
-                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>Largest budget + {fitCellMax} m blocks</button>}
+                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>Largest budget + {fitCellMax} m blocks</button>}
                 </span>
               )}
             </div>

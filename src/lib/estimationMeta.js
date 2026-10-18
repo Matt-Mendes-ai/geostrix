@@ -6,6 +6,13 @@ export const MAX_BLOCKS = 200000; // keeps a synchronous brute-force estimation 
 // Cancel). 5 million is the ceiling: memory stays modest on an 8 GB laptop and the run is minutes, not hours.
 export const BLOCK_BUDGETS = [200000, 1000000, 2000000, 5000000];
 export const MAX_BLOCK_BUDGET = 5000000;
+// TASKS.csv #661 — a BLOCK MODEL (the estimation modal) is one object per block, held in the worker and again in the
+// renderer: measured 243-295 bytes per block in each, plus a ~5 s structured-clone hand-back per million and 72 MB of
+// instance buffers per million drawn. At 5 million that is 1.2-1.5 GB twice — more than an 8 GB laptop can spare.
+// Until estimateBlockModel returns typed columns, block models stop at 1 million (~0.6 GB at the peak); the grade
+// shell's dense grid is a Float64Array (40 MB at 5 million) and keeps BLOCK_BUDGETS.
+export const BLOCK_MODEL_BUDGETS = [200000, 1000000];
+export const MAX_BLOCK_MODEL_BUDGET = 1000000;
 // the grid a box needs at a cell size (the same rounding as estimation.js's gridDims), and the smallest cell (to
 // 0.5 m) that keeps a box within a budget
 export function gridBlockCount(bounds, cell) {
