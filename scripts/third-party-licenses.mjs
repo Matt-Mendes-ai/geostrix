@@ -11,8 +11,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const BUNDLED_FROM_DEV = ["react", "react-dom", "pdfjs-dist", "electron"]; // in devDependencies, but they ship
-const NOT_SHIPPED = new Set(["@napi-rs/canvas"]); // pdfjs-dist's optional Node canvas: never bundled into the app
+import { BUNDLED_FROM_DEV, isNotShipped } from "./shipped-roots.mjs"; // TASKS.csv #668 — one list for this and the audit
+const NOT_SHIPPED = { has: isNotShipped };
 
 const LICENSE_FILE = /^(licen[cs]e|copying|notice)(\.(md|txt|markdown))?$/i;
 function licenseText(dir) {

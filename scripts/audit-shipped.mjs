@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
-const SHIPPED_DEV = ["electron", "react", "react-dom"];
+import { BUNDLED_FROM_DEV as SHIPPED_DEV, isNotShipped } from "./shipped-roots.mjs"; // #668 — shared with third-party-licenses.mjs
 // The `electron` npm package is an installer: its own dependencies (@electron/get, got, undici...) download the
 // Electron binary during `npm install`; electron-builder ships that binary, not this package's node_modules. So
 // electron's advisories count (they are the runtime's), its dependency tree does not.
@@ -35,6 +35,7 @@ while (queue.length) {
   seen.add(key);
   shipped.add(key.slice(key.lastIndexOf("node_modules/") + "node_modules/".length));
   const p = packages[key];
+  if (isNotShipped(key.slice(key.lastIndexOf("node_modules/") + "node_modules/".length))) { shipped.delete(key.slice(key.lastIndexOf("node_modules/") + "node_modules/".length)); continue; } // #668
   if (ROOT_ONLY.has(key.slice(key.lastIndexOf("node_modules/") + "node_modules/".length))) continue;
   for (const dep of Object.keys({ ...(p.dependencies || {}), ...(p.optionalDependencies || {}) })) {
     const r = resolve(key, dep);
