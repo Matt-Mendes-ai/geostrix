@@ -20,6 +20,7 @@ import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compa
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -165,6 +166,7 @@ export async function parseGeoTIFF(file) {
   let noData = null;
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData = nd; } catch (_) { /* not all files have it */ }
 
+  let singleBandStretch = null; // #708
   if (bandCount >= 3) {
     // Treat as RGB(A) — most orthophotos / basemap exports.
     const [r, g, b] = rasters;
@@ -178,12 +180,17 @@ export async function parseGeoTIFF(file) {
     // wash out the whole ramp.
     const band = rasters[0];
     let min = Infinity, max = -Infinity;
+    const valid = [];
     for (let i = 0; i < band.length; i++) {
       const v = band[i];
       if (!Number.isFinite(v) || (noData !== null && v === noData)) continue;
       if (v < min) min = v; if (v > max) max = v;
+      valid.push(v);
     }
     const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+    // TASKS.csv #708 — the 2-98 % stretch IDW grids got in #372: a plain min-max let one pipeline spike or a bad
+    // electrode squash every other pixel into the bottom of the ramp (one 100,000 among 0-99 put 99 at t < 0.001).
+    singleBandStretch = makeStretch(valid, "p2-98");
     for (let i = 0; i < outW * outH; i++) {
       const v = band[i];
       const isNodata = !Number.isFinite(v) || (noData !== null && v === noData);
@@ -191,7 +198,7 @@ export async function parseGeoTIFF(file) {
         imgData.data[i * 4 + 3] = 0; // transparent — lets holes/other layers show through instead of a false-color block
         continue;
       }
-      const t = hasRange ? (v - min) / (max - min) : 0.5;
+      const t = hasRange ? singleBandStretch.t(v) : 0.5; // #708
       const [cr, cg, cb] = rampColor(t);
       imgData.data[i * 4] = cr; imgData.data[i * 4 + 1] = cg; imgData.data[i * 4 + 2] = cb;
       imgData.data[i * 4 + 3] = 255;
@@ -232,6 +239,7 @@ export async function parseGeoTIFF(file) {
     // just encoded. Only the importer reads this; nothing persists it to the project file.
     pixels: { width: outW, height: outH, data: imgData.data },
     grid, // #326
+    ...(singleBandStretch ? { stretch: { mode: singleBandStretch.mode, lo: singleBandStretch.lo, hi: singleBandStretch.hi } } : {}), // #708 — what the colours mean
   };
 }
 
@@ -562,8 +570,10 @@ export async function parseGXF(file) {
   const outW = Math.max(1, Math.round(ncols * scale)), outH = Math.max(1, Math.round(nrows * scale));
 
   let min = Infinity, max = -Infinity;
-  for (let i = 0; i < total; i++) { const v = values[i]; if (v !== dummy && Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
+  const valid = [];
+  for (let i = 0; i < total; i++) { const v = values[i]; if (v !== dummy && Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; valid.push(v); } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+  const gxfStretch = makeStretch(valid, "p2-98"); // #708 — as single-band GeoTIFFs and IDW grids
 
   const canvas = document.createElement("canvas");
   canvas.width = outW; canvas.height = outH;
@@ -582,7 +592,7 @@ export async function parseGXF(file) {
       const idx = (oy * outW + ox) * 4;
       const isDummy = v === dummy || !Number.isFinite(v);
       if (isDummy) { imgData.data[idx + 3] = 0; continue; }
-      const t = hasRange ? (v - min) / (max - min) : 0.5;
+      const t = hasRange ? gxfStretch.t(v) : 0.5; // #708
       const [cr, cg, cb] = rampColor(t);
       imgData.data[idx] = cr; imgData.data[idx + 1] = cg; imgData.data[idx + 2] = cb; imgData.data[idx + 3] = 255;
     }
@@ -607,6 +617,7 @@ export async function parseGXF(file) {
     width: ncols,
     height: nrows,
     dataUrl: canvas.toDataURL("image/png"),
+    stretch: { mode: gxfStretch.mode, lo: gxfStretch.lo, hi: gxfStretch.hi }, // #708
     bandCount: 1,
     epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
     note: senseNote || null,
