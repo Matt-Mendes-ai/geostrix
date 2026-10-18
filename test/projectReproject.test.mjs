@@ -145,3 +145,27 @@ test("#489 .prj names of the new families are recognised", () => {
   assert.equal(guessEpsgFromPrjWkt('GEOGCS["GCS_SIRGAS_2000",DATUM["D_SIRGAS_2000",SPHEROID["GRS_1980",6378137.0,298.257222101]],TOWGS84[0,0,0,0,0,0,0]]'), 4674);
   assert.equal(guessEpsgFromPrjWkt('GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984"]]'), 4326); // unchanged
 });
+
+// TASKS.csv #675 — trends, field references and saved DC/IP lines move with the project
+test("#675 structural trends, field references and DC/IP lines are reprojected (zone 9 -> 10)", async () => {
+  const { reprojectProject } = await import("../src/lib/projectReproject.js");
+  const live = {
+    project: { epsg: 26909 },
+    collars: [{ hole_id: "A", x: 440000, y: 6250000, z: 1000, azimuth: 202, dip: 60, length: 100 }],
+    surfaceStructures: [{ rows: [{ x: 440000, y: 6250000, dipDir: 202, dip: 50 }] }],
+    structuralTrends: { trends: [{ id: "t1", name: "GnD", dip: 50, dipAzimuth: 202, pitch: 90, ratios: { max: 3, int: 2, min: 1 } }], use: { implicit: "t1" } },
+    fieldStructuralRefs: [{ id: "r1", label: "outcrop", dipDirDeg: 202, dipDeg: 40 }],
+    dcipLines: [{ name: "115N", line: { x0: "440000", y0: "6250000", x1: "442300", y1: "6250000", scale: "", stations: { file: "gps.csv", line: "115N", list: [{ s: 0, x: 440000, y: 6250000, z: 900 }] } } }],
+  };
+  const { fields, report } = reprojectProject(live, 26909, 26910);
+  const turned = fields.surfaceStructures[0].rows[0].dipDir;
+  assert.ok(Math.abs(turned - 202) > 1, `the structure turned (${turned})`);
+  assert.ok(Math.abs(fields.structuralTrends.trends[0].dipAzimuth - turned) < 0.02, `trend ${fields.structuralTrends.trends[0].dipAzimuth} vs structure ${turned}`);
+  assert.equal(fields.structuralTrends.use.implicit, "t1");
+  assert.ok(Math.abs(fields.fieldStructuralRefs[0].dipDirDeg - turned) < 0.1);
+  const L = fields.dcipLines[0].line;
+  assert.ok(Math.abs(Number(L.x0) - fields.collars[0].x) < 0.01 && Math.abs(Number(L.y0) - fields.collars[0].y) < 0.01, JSON.stringify(L));
+  assert.equal(typeof L.x0, "string");
+  assert.ok(Math.abs(L.stations.list[0].x - fields.collars[0].x) < 1e-6);
+  assert.ok(report.counts["DC/IP lines"] === 1 && report.counts["structural trends"] === 1);
+});
