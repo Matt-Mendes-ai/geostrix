@@ -6,6 +6,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687 — Enter / Space
 import React, { useMemo, useState } from "react";
 import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
+import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
 
 export const TREND_USERS = [
   ["implicit", "Geology models (implicit surfaces, stacks)"],
@@ -92,9 +93,21 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
     const [kind, key] = src.split(":");
     let plane = null, what = "";
     if (kind === "code") {
-      const picks = (structurePicks || []).filter((p) => String(p.value ?? "?") === key && Number.isFinite(p.dip) && Number.isFinite(p.azimuth));
+      const all = (structurePicks || []).filter((p) => String(p.value ?? "?") === key);
+      const picks = all.filter((p) => Number.isFinite(p.dip) && Number.isFinite(p.azimuth));
+      const unoriented = all.length - picks.length;
       plane = planeFromPoles(picks.map((p) => poleOf(p.dip, p.azimuth)));
-      what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${plane ? ` (S1 ${plane.s1.toFixed(2)}; 1 = all parallel)` : ""}`;
+      // TASKS.csv #672 — the stereonet's own statistics: spread (alpha95), shape, and the girdle refusal it applies,
+      // so a near-random or folded population is not turned into a confident trend plane without a word.
+      const st = picks.length >= 2 ? fisherStats(picks) : null;
+      const fab = st ? fabricShape(st.s1, st.s2, st.s3) : null;
+      if (fab && picks.length >= 4 && fab.shape === "girdle") {
+        setNote({ id: t.id, text: `Not set: the ${picks.length} ${key} picks form a girdle (spread along a great circle — a fold), so a single mean plane is not a real orientation. Filter to one fold limb in the Stereonet first, or use the fold axis.` });
+        return;
+      }
+      const quality = st ? ` (S1 ${st.s1.toFixed(2)}, α95 ${st.alpha95.toFixed(1)}°, ${picks.length < 4 ? "too few picks to judge the shape" : fab.shape})` : "";
+      const warn = fab && picks.length >= 4 && fab.shape === "weak" ? " The picks barely share an orientation (weak fabric) — check them on the Stereonet before relying on this plane." : "";
+      what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${quality}${unoriented ? `; ${unoriented} ${key} row${unoriented === 1 ? " has" : "s have"} no dip / dip direction and ${unoriented === 1 ? "was" : "were"} left out` : ""}.${warn} Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can`;
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
       plane = planeFromPoints(surfacePoints?.(key) || []);
