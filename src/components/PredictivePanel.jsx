@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob } from "../lib/geomlAddon.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
+import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
+import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -113,7 +115,24 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
 
   const runGrade = () => {
     const el = assayElements.find((e) => e.symbol === element);
-    const samples = (assays || []).filter((a) => Number.isFinite(a.values?.[element]) && Number.isFinite(a.from) && Number.isFinite(a.to)).map((a) => ({ hole_id: String(a.hole_id), from: a.from, to: a.to, value: a.values[element] }));
+    // TASKS.csv #658 — the same samples the block model and grade shell use: QA/QC rows (standards, blanks, field
+    // duplicates) left out (#266), exact duplicate rows dropped and overlapping rows resolved into one interval
+    // carrying their mean (#286 / #532 / #571), values read with the element's unit and detection-limit rules. Raw
+    // rows were sent before: on Harry Au geoML warned of 92 overlapping intervals and composited them anyway
+    // (120 of 1,760 five-metre composites off, by up to 41 %), and that warning never reached GeoStrix.
+    const all = assays || [];
+    const regular = excludeQAQC(all);
+    const elementUnits = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
+    const { intervals, stats } = rawSampleIntervals(regular, element, el?.unit || "ppm", elementUnits);
+    const samples = intervals.filter((iv) => Number.isFinite(iv.avgGrade)).map((iv) => ({ hole_id: String(iv.hole_id), from: iv.from, to: iv.to, value: iv.avgGrade }));
+    const conflicts = intervals.filter((iv) => iv.conflict).length;
+    const cleaned = [
+      all.length > regular.length ? `${(all.length - regular.length).toLocaleString()} QA/QC rows left out` : "",
+      stats.duplicatesSkipped ? `${stats.duplicatesSkipped.toLocaleString()} duplicate rows dropped` : "",
+      conflicts ? `${conflicts.toLocaleString()} overlapping intervals averaged` : "",
+      stats.negativeValues ? `${stats.negativeValues.toLocaleString()} negative lab codes treated as not assayed` : "",
+    ].filter(Boolean).join(", ");
+    if (!samples.length) { setNotices((q) => [...q, `geoML grade model: no ${element} samples to model after QA/QC rows were left out.`]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
       const b = res.blocks, cells = [], spread = [];
@@ -133,7 +152,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
         addVoxelModel({ name: `geoML — ${element} P90 − P10 (spread)`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false });
       }
-      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 spread added (hidden)`;
+      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 spread added (hidden)`;
     });
   };
 
