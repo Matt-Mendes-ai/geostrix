@@ -71,7 +71,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillText(`${isRho ? "Resistivity" : "Chargeability"} — DC/IP line ${name}`, L, fpx(printPt.label) * 1.15);
   g.font = font(fpx(printPt.caption)); g.fillStyle = colors.textSecondary;
   const chi = isRho ? fitVerdict(result).chi : result.ip ? result.ip.phi_d / result.target : NaN;
-  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = barely seen by the data (support < ${cutoff})`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
+  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = below the depth the data see (no cell at or beneath it reaches support ${cutoff})`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
   // colour bar
   const by = T + plotH + 16 + fpx(printPt.small) * 3, bw = Math.min(Math.round(width * 0.325), plotW), bh = Math.round(fpx(printPt.caption) * 0.8);
   const lo = isRho ? arrMin(vals) : 0, hi = arrMax(vals);
@@ -92,7 +92,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
     g.fillStyle = hatch; g.fillRect(hx, by, 34, bh);
     g.strokeStyle = HATCH.line; g.strokeRect(hx, by, 34, bh);
     g.fillStyle = colors.textSecondary; g.textAlign = "left"; g.textBaseline = "middle";
-    g.fillText(`barely seen by the data (support < ${cutoff})`, hx + 42, by + bh / 2);
+    g.fillText(`below the depth the data see (support < ${cutoff} at and beneath)`, hx + 42, by + bh / 2);
   }
   return { dataUrl: cv.toDataURL("image/png"), width, height, verticalExaggeration: ve };
 }

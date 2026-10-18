@@ -11,9 +11,9 @@ test("a weak cell above a well-seen one is not hidden; everything below the deep
   assert.deepEqual(Array.from(env).map((v) => v >= 0.02), [true, true, true, false, false]);
 });
 
-test("a cell seen ten times less than the cutoff stays hidden even above the floor", () => {
+test("#681 any cell above the deepest well-seen one is shown (no 10x guard any more)", () => {
   const env = supportEnvelope([1, 1, 1], [100, 50, 0], [0.3, 0.0015, 0.08]);
-  assert.deepEqual(Array.from(env).map((v) => v >= 0.02), [true, false, true]);
+  assert.deepEqual(Array.from(env).map((v) => v >= 0.02), [true, true, true]);
 });
 
 test("columns are independent and a cell without support is never hidden", () => {
@@ -23,7 +23,7 @@ test("columns are independent and a cell without support is never hidden", () =>
 
 test("3D: DC/IP line models use the envelope, other inversion models keep the per-cell cutoff", () => {
   const cells = [{ x: 5, y: 7, z: 10, support: 0.005 }, { x: 5, y: 7, z: 0, support: 0.5 }, { x: 6, y: 7, z: 10, support: 0.005 }];
-  assert.equal(cellSupportEnvelope(cells).get(cells[0]), 0.05); // capped at 10x its own support
+  assert.equal(cellSupportEnvelope(cells).get(cells[0]), 0.5); // the support of the cell beneath it (#681: no 10x cap)
   const ip = { method: "ip", supportCutoff: 0.02, cells };
   assert.deepEqual(cells.map((c) => voxelCellSupported(ip, c)), [true, true, false]);
   const mag = { method: "mag", supportCutoff: 0.02, cells };

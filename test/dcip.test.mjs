@@ -62,7 +62,9 @@ test("#322 a saved line reloads through the normal parse path unchanged; section
   assert.deepEqual(slim.ip, { phi_d: 5 }); assert.deepEqual(slim.cells, result.cells);
   const geom = lineGeometry([1000, 2000], [1000, 2100]); // due north
   const rows = sectionTableRows(slim, geom);
-  assert.deepEqual(rows[1], { distance_m: 15, x: 1000, y: 2015, z: 980, ds_m: 10, dz_m: 5, resistivity_ohmm: 200, chargeability_mVV: 2, support: 0.01 });
+  assert.deepEqual(rows[1], { distance_m: 15, x: 1000, y: 2015, z: 980, ds_m: 10, dz_m: 5, resistivity_ohmm: 200, chargeability_mVV: 2, support: 0.01, envelope_support: 0.01 });
+  // #681 — with a cutoff, each row says whether the figure shows it (columns 5 and 15 are separate columns here)
+  assert.deepEqual(sectionTableRows(slim, geom, 0.02).map((r) => r.shown), ["yes", "no"]);
   assert.equal("chargeability_mVV" in sectionTableRows({ cells: { ...result.cells, chargeability: undefined } }, geom)[0], false);
   assert.equal(niceStep(0, 1000, 10), 100); assert.equal(niceStep(0, 230, 6), 50); assert.equal(niceStep(-120, -40, 4), 20);
 });

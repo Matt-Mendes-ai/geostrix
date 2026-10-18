@@ -7,6 +7,7 @@
 // Apparent resistivity in ohm.m; chargeability (optional) in mV/V. The line itself is placed by its start
 // and end coordinates in the project CRS (distance 0 = start).
 import { terrainElevationAt } from "./inversion.js";
+import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
 
 const norm = (h) => String(h).trim().toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, "");
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
@@ -177,14 +178,18 @@ export function savedLineToFile(entry) {
 
 // The inverted section as table rows: distance along the line, its x / y in the project CRS, elevation,
 // cell size, values and support (normalised sensitivity).
-export function sectionTableRows(result, geom) {
+export function sectionTableRows(result, geom, cutoff = null) {
   const c = result.cells;
   const out = [];
+  // #681 — the CSV says which rule decided each cell, so the figure can be reproduced from the export
+  const env = supportEnvelope(c.s, c.z, c.support);
   for (let i = 0; i < c.s.length; i++) {
     const [x, y] = geom.at(c.s[i]);
     const row = { distance_m: c.s[i], x: +x.toFixed(3), y: +y.toFixed(3), z: c.z[i], ds_m: c.ds[i], dz_m: c.dz[i], resistivity_ohmm: c.resistivity[i] };
     if (c.chargeability) row.chargeability_mVV = c.chargeability[i];
     row.support = c.support[i];
+    row.envelope_support = +env[i].toFixed(4);
+    if (Number.isFinite(cutoff)) row.shown = env[i] >= cutoff ? "yes" : "no";
     out.push(row);
   }
   return out;
