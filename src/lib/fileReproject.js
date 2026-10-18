@@ -5,7 +5,7 @@
 import { parseShapefileZip, buildZip, readZipEntries, prjWktFor } from "./shapefile.js";
 import { guessEpsgFromPrjWkt, pointTransform, crsName, getProj4DefSync, reprojectGrid } from "./reproject.js";
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
-import { demNodeBbox } from "./raster.js";
+import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";
 
 // zipBytes -> { layers: [{ name, epsg (from its .prj, or null), features, geomType }] }
 export async function readShapefileLayers(zipBytes) {
@@ -130,8 +130,7 @@ export async function readGeoTiffInfo(buf) {
   const tiff = await fromArrayBuffer(ab);
   const image = await tiff.getImage();
   let epsg = null;
-  try { const k = image.getGeoKeys(); epsg = k?.ProjectedCSTypeGeoKey || k?.GeographicTypeGeoKey || null; } catch { /* no geokeys */ }
-  if (epsg === 32767) epsg = null; // "user-defined": not an EPSG code
+  try { epsg = epsgFromGeoKeys(image.getGeoKeys()); } catch { /* no geokeys */ } // #707 — 32767 resolved from its citation
   let noData = null;
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData = nd; } catch { /* optional */ }
   return { image, epsg, noData, width: image.getWidth(), height: image.getHeight(), bands: image.getSamplesPerPixel() };

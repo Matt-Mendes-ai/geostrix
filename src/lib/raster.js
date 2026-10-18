@@ -17,9 +17,25 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY } from "./reproject.js";
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+
+// TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
+// CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
+// key, which the .prj sniffer can resolve (NAD_1983_CSRS_UTM_Zone_10N -> 3157). It used to be reported as
+// "EPSG:32767 isn't one GeoStrix can reproject". Returns null when nothing names a CRS GeoStrix knows.
+export function epsgFromGeoKeys(k) {
+  if (!k) return null;
+  const code = k.ProjectedCSTypeGeoKey || k.GeographicTypeGeoKey || null;
+  if (code && code !== 32767) return code;
+  for (const c of [k.PCSCitationGeoKey, k.GTCitationGeoKey, k.GeogCitationGeoKey]) {
+    if (typeof c !== "string" || !c.trim()) continue;
+    const g = guessEpsgFromPrjWkt(c);
+    if (g) return g;
+  }
+  return null;
+}
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
 // save. Raised from 1024 -> 2048 (TASKS.csv, user report of "imported in a really bad quality") —
@@ -200,7 +216,7 @@ export async function parseGeoTIFF(file) {
   let epsgTag = null;
   try {
     const geoKeys = image.getGeoKeys();
-    epsgTag = geoKeys?.ProjectedCSTypeGeoKey || geoKeys?.GeographicTypeGeoKey || null;
+    epsgTag = epsgFromGeoKeys(geoKeys); // #707
   } catch (_) { /* optional, best-effort */ }
 
   return {
@@ -315,7 +331,7 @@ async function readDemTile(file, crop = null) {
   let epsgTag = null, geographic = false;
   try {
     const geoKeys = image.getGeoKeys();
-    epsgTag = geoKeys?.ProjectedCSTypeGeoKey || geoKeys?.GeographicTypeGeoKey || null;
+    epsgTag = epsgFromGeoKeys(geoKeys); // #707
     geographic = isGeographicGeoKeys(geoKeys);
   } catch (_) { /* optional, best-effort */ }
 
@@ -327,7 +343,7 @@ async function peekDemTile(file) {
   const tiff = await fromArrayBuffer(await file.arrayBuffer());
   const image = await tiff.getImage();
   let epsgTag = null;
-  try { const k = image.getGeoKeys(); epsgTag = k?.ProjectedCSTypeGeoKey || k?.GeographicTypeGeoKey || null; } catch (_) { /* optional */ }
+  try { epsgTag = epsgFromGeoKeys(image.getGeoKeys()); /* #707 */ } catch (_) { /* optional */ }
   return { epsgTag, bbox: demNodeBbox(image) };
 }
 
