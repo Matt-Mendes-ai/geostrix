@@ -56,6 +56,12 @@ function createAddonManager({ app, net, send }) {
       installed, dev: !!dev, running: !!running[id], installing: !!installs[id], url: info.url, sizeOnDisk };
   }
 
+  // TASKS.csv #666 — plain words for a file-system failure while installing
+  function diskError(e, where) {
+    if (e?.code === "ENOSPC") return new Error(`The disk is full — the add-on could not be written to ${path.dirname(where)}. Free some space and try again.`);
+    if (e?.code === "EACCES" || e?.code === "EPERM" || e?.code === "EBUSY") return new Error(`GeoStrix could not write to ${path.dirname(where)} (${e.code}: the folder is locked or read-only — an antivirus scan or a sync tool can do this). Try again in a minute.`);
+    return e instanceof Error ? e : new Error(String(e));
+  }
   function download(url, dest, onProgress, state, redirects = 0) {
     return new Promise((resolve, reject) => {
       const req = net.request({ url, redirect: "manual" });
@@ -71,9 +77,25 @@ function createAddonManager({ app, net, send }) {
         const total = Number(res.headers["content-length"]) || 0;
         const out = fs.createWriteStream(dest);
         const hash = crypto.createHash("sha256");
-        let got = 0;
-        res.on("data", (chunk) => { if (state.cancelled) return; out.write(chunk); hash.update(chunk); got += chunk.length; onProgress(got, total); });
-        res.on("end", () => out.end(() => (state.cancelled ? reject(new Error("Cancelled.")) : resolve(hash.digest("hex")))));
+        let got = 0, failed = false;
+        // TASKS.csv #666 — a failed WRITE (disk full, folder locked) had no listener: an uncaught main-process exception
+        // and an install that then blamed the published checksum. Now it stops the download and says what happened;
+        // and the response pauses while the file catches up (back-pressure) instead of buffering in memory.
+        out.on("error", (e) => { if (failed) return; failed = true; try { req.abort(); } catch (_) { /* gone */ } reject(diskError(e, dest)); });
+        res.on("data", (chunk) => {
+          if (state.cancelled || failed) return;
+          hash.update(chunk); got += chunk.length; onProgress(got, total);
+          if (!out.write(chunk)) { res.pause(); out.once("drain", () => res.resume()); }
+        });
+        // the end callback is handed the stream's error when a write failed after the last chunk arrived
+        res.on("end", () => {
+          if (failed) return;
+          out.end((err) => {
+            if (failed) return;
+            if (err) { failed = true; reject(diskError(err, dest)); return; }
+            if (state.cancelled) reject(new Error("Cancelled.")); else resolve(hash.digest("hex"));
+          });
+        });
         res.on("error", (e) => { out.destroy(); reject(e); });
       });
       req.on("error", reject);
@@ -89,8 +111,20 @@ function createAddonManager({ app, net, send }) {
     // VTK): checked before downloading 600 MB, rather than failing on the first model with "filename too long"
     const longest = installedDir(id, info).length + 1 + (info.longestPath || 125);
     if (process.platform === "win32" && longest > 250) throw new Error(`GeoStrix's data folder (${app.getPath("userData")}) has too long a path for this add-on on Windows (${longest} of 250 characters). Please let us know on GitHub.`);
-    const state = (installs[id] = { cancelled: false, request: null });
     fs.mkdirSync(root(id), { recursive: true });
+    // TASKS.csv #666 — the zip and the unpacked folder are both on disk at the peak (553 MB + 1,758 MB for 0.1.0):
+    // say so before downloading rather than failing half-way with a full disk.
+    const need = (Number(info.bytes) || 0) + (Number(info.installedBytes) || 0);
+    if (need > 0 && typeof fs.statfsSync === "function") {
+      try {
+        const st = fs.statfsSync(root(id)), free = Number(st.bavail) * Number(st.bsize);
+        if (Number.isFinite(free) && free < need * 1.05) {
+          const gb = (b) => (b / 1e9).toFixed(1);
+          throw Object.assign(new Error(`The add-on needs about ${gb(need)} GB free while it installs, and ${root(id)} has ${gb(free)} GB. Free ${gb(need * 1.05 - free)} GB and try again.`), { noSpace: true });
+        }
+      } catch (e) { if (e.noSpace) throw e; /* statfs unavailable for this path: go on, the write handler still catches a full disk */ }
+    }
+    const state = (installs[id] = { cancelled: false, request: null });
     const zip = path.join(root(id), `${info.version}.zip.part`);
     try {
       let last = 0;
