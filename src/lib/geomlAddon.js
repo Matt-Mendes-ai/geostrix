@@ -2,6 +2,7 @@
 // status through the desktop bridge (electron/addons.js), then jobs over the add-on's local API (127.0.0.1:8766) with the
 // per-launch token. Without the desktop app (browser preview) a developer can run the add-on by hand on 8766 with no
 // token, and this talks to it directly.
+import { sidecarProof } from "./desktop.js"; // TASKS.csv #667 — the same HMAC check as the engine
 const d = typeof window !== "undefined" ? window.desktop : null;
 const ID = "geoml";
 const DEFAULT_PORT = 8766;
@@ -47,22 +48,32 @@ async function call(path, { method = "GET", body, timeoutMs = 30000 } = {}, retr
 }
 
 // Starts the add-on if needed and waits until it answers (first start: Windows may scan the new files for a while).
+// TASKS.csv #667 — identity first: /health is asked with a fresh nonce and must return HMAC-SHA256(token, nonce), as
+// GeoStrix's own engine does (#353), before the token or any project data is sent. An add-on from 0.1.2 on always
+// answers with the proof, so for those a missing proof is refused (no downgrade to the weaker check); 0.1.0 / 0.1.1
+// keep the earlier token-checked probe.
+const versionAtLeast = (v, min) => { const a = String(v || "0").split(".").map(Number), b = min.split(".").map(Number); for (let i = 0; i < 3; i++) { if ((a[i] || 0) !== b[i]) return (a[i] || 0) > b[i]; } return true; };
 export async function addonReady(onWait, maxMs = 120000) {
   conn = null;
   const c = await connection();
+  const installed = d?.addonStatus ? await d.addonStatus(ID).catch(() => null) : null;
+  const expectProof = !!c.token && versionAtLeast(installed?.version, "0.1.2");
   const t0 = Date.now();
   for (;;) {
     let health = null;
+    const nonce = c.token ? hex(crypto.getRandomValues(new Uint8Array(24))) : null;
     try {
-      const r = await fetch(`http://127.0.0.1:${c.port}/health`, { signal: AbortSignal.timeout(2000) });
+      const r = await fetch(`http://127.0.0.1:${c.port}/health${nonce ? `?nonce=${nonce}` : ""}`, { signal: AbortSignal.timeout(2000) });
       if (r.ok) health = await r.json();
     } catch { /* not up yet */ }
     if (health) {
-      // #645 — /health needs no token, so any add-on on this port answers it. A token-checked request tells
-      // ours ("no such job", 404) from a stranger (401) before any project data is sent.
-      if (c.token) {
+      const stranger = () => new Error(`Another program answered on port ${c.port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.`);
+      if (c.token && (health.proof || expectProof)) {
+        if (health.proof !== (await sidecarProof(c.token, nonce))) throw stranger();
+      } else if (c.token) {
+        // #645 — add-on 0.1.0 / 0.1.1: a token-checked request tells ours ("no such job", 404) from a stranger (401)
         const p = await fetch(`http://127.0.0.1:${c.port}/v1/jobs/identity-probe`, { headers: { "X-GeoStrix-Token": c.token }, signal: AbortSignal.timeout(2000) });
-        if (p.status === 401) throw new Error(`Another program answered on port ${c.port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.`);
+        if (p.status === 401) throw stranger();
       }
       return health;
     }
@@ -71,6 +82,9 @@ export async function addonReady(onWait, maxMs = 120000) {
     await new Promise((r) => setTimeout(r, 1000));
   }
 }
+// #692 — what the running add-on can do (0.1.2 lists it; older ones are known by version)
+export const addonHas = (health, feature) => (Array.isArray(health?.features) ? health.features.includes(feature) : feature === "trend" && versionAtLeast(health?.version, "0.1.1"));
+const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 export const startJob = (kind, params) => call("/v1/jobs", { method: "POST", body: { kind, params }, timeoutMs: 60000 });
 export const jobStatus = (id) => call(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });

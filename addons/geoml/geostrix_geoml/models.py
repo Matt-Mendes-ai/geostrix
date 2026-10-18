@@ -11,6 +11,7 @@
 # Coordinates in and out are the project's own (GeoStrix sends and receives world x / y / z).
 import math
 import time
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -44,6 +45,18 @@ def _anisotropy(geoml, p, rng):
     for k in ("azimuth", "dip", "rake", "midrange_fct", "minrange_fct"):
         tr.parameters[k].fix()
     return tr
+
+
+def _range_report(tr, start):
+    """TASKS.csv #673 — the range the model actually learnt (the add-on's 400 / 150 m are only training's starting
+    point: Woodjam IMMOQ settled at 883 m, Cu at 291 m), with the in-plane / across ratios, so GeoStrix can clip its
+    blocks to where the model is informed rather than to the starting value."""
+    def val(k):
+        try:
+            return float(np.asarray(tr.parameters[k].get_value()).ravel()[0])
+        except Exception:  # noqa: BLE001 — an older geoML without that parameter: report what is known
+            return None
+    return {"start": float(start), "trained": val("maxrange"), "mid_fct": val("midrange_fct"), "min_fct": val("minrange_fct")}
 
 
 def _grid(lo, hi, cell, max_cells):
@@ -88,8 +101,8 @@ def run_domain(p, progress):
         raise ValueError("The chosen unit has no contact with the other rock in these holes — nothing to model.")
 
     rng = float(p.get("range", 400.0))
-    inp = geoml.latent.BasicInput(inducing_points=sparse, center=True,
-                                  transform=_anisotropy(geoml, p, rng))
+    tr = _anisotropy(geoml, p, rng)  # #673 — kept, to read back the range training settled on
+    inp = geoml.latent.BasicInput(inducing_points=sparse, center=True, transform=tr)
     deep = p.get("model") == "deep"
     if deep:  # chapter 17: a vector field moves the coordinates so one stationary field can follow folds
         walked = geoml.latent.GPWalk(geoml.latent.BasicGP(inp, size=3), n_steps=5)
@@ -140,6 +153,7 @@ def run_domain(p, progress):
     progress(1.0, "Done")
     return {
         "kind": "domain", "model": "deep" if deep else "stationary", "seconds": round(time.time() - t0, 1),
+        "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")),  # #673 / #692
         "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts,
         "surface": surface,
         "blocks": {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
@@ -159,7 +173,11 @@ def run_grade(p, progress):
     a["hole_id"] = a["hole_id"].astype(str)
     a = a[np.isfinite(a["value"].astype(float)) & (a["value"].astype(float) >= 0)].copy()
     a = a.rename(columns={"value": name})[["hole_id", "from", "to", name]]
-    holes.add_intervals("assay", a, hole="hole_id", fr="from", to="to")
+    # #658 / #692 — geoML's own data checks (overlapping intervals...) are passed back instead of being lost
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        holes.add_intervals("assay", a, hole="hole_id", fr="from", to="to")
+    data_warnings = [str(w.message)[:300] for w in caught][:10]
     comp = holes.composite_fixed(length=float(p.get("composite", 5.0)))
     pts = comp.as_point_data(["assay"])
     if pts.n_data < 20:
@@ -167,8 +185,8 @@ def run_grade(p, progress):
     n_ind = int(min(p.get("inducing", 300), max(20, pts.n_data // 3)))
     inducing = geoml.data.inducing.from_kmeans(pts, n_ind)
     rng = float(p.get("range", 150.0))
-    root = geoml.latent.BasicInput(inducing, center=True,
-                                   transform=_anisotropy(geoml, p, rng))
+    tr = _anisotropy(geoml, p, rng)  # #673
+    root = geoml.latent.BasicInput(inducing, center=True, transform=tr)
     gp = geoml.latent.BasicGP(root, size=1)
     vals = np.asarray(pts.values(f"{name}/measurements")) if f"{name}/measurements" in str(pts.tree()) else a[name].to_numpy(float)
     positive = vals[vals > 0]
@@ -202,7 +220,8 @@ def run_grade(p, progress):
     if sims is not None and sims.ndim == 2 and sims.shape[1] > 1:  # P10 / P90 from the simulations, in grade units
         blocks["p10"] = np.percentile(sims, 10, axis=1).round(5).tolist()
         blocks["p90"] = np.percentile(sims, 90, axis=1).round(5).tolist()
-    out = {"kind": "grade", "element": name, "seconds": round(time.time() - t0, 1), "composites": int(pts.n_data), "inducing_points": n_ind, "blocks": blocks}
+    out = {"kind": "grade", "element": name, "seconds": round(time.time() - t0, 1), "composites": int(pts.n_data), "inducing_points": n_ind, "blocks": blocks,
+           "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")), "data_warnings": data_warnings}  # #673 / #692
     progress(1.0, "Done")
     return out
 

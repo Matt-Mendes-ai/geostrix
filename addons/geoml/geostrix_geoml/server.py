@@ -4,6 +4,7 @@
 # Same rules as GeoStrix's own Python engine (python-sidecar/app/main.py): 127.0.0.1 only, a per-launch token in
 # X-GeoStrix-Token (from GEOSTRIX_ADDON_TOKEN; none needed when unset, for a developer running it by hand), a Host
 # check against DNS rebinding, a request-size cap, one job at a time. Jobs run in a separate worker process (below).
+import hashlib
 import hmac
 import multiprocessing as mp
 import os
@@ -19,7 +20,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-ADDON_VERSION = "0.1.1"
+ADDON_VERSION = "0.1.2"
+# TASKS.csv #692 — what this add-on can do, so GeoStrix asks instead of guessing from the version string
+API_VERSION = 2
+FEATURES = ["trend", "trained_range", "identity_proof", "data_warnings", "idle_exit"]
+IDLE_EXIT_S = 600  # #698 — the warm worker (TensorFlow, ~600 MB) exits after 10 idle minutes
 _TOKEN = os.environ.get("GEOSTRIX_ADDON_TOKEN") or None
 MAX_BODY_BYTES = 60 * 1024 * 1024
 _CORS = {"Access-Control-Allow-Origin": "*"}
@@ -67,7 +72,10 @@ def _worker(inbox, outbox):
     threading.Thread(target=watch_parent, daemon=True).start()
     models = None
     while True:
-        jid, kind, params = inbox.get()
+        try:
+            jid, kind, params = inbox.get(timeout=IDLE_EXIT_S if models is not None else None)
+        except queue.Empty:  # #698 — idle: give the memory back; the next job starts a fresh worker
+            os._exit(0)
         try:
             if models is None:
                 outbox.put((jid, "progress", 0.01, "Starting TensorFlow and geoML (first model of the session)"))
@@ -76,7 +84,9 @@ def _worker(inbox, outbox):
             result = models.JOBS[kind](params, lambda f, text, jid=jid: outbox.put((jid, "progress", float(f), str(text))))
             outbox.put((jid, "done", result))
         except Exception as e:  # noqa: BLE001 — every failure goes back to GeoStrix with its message
-            outbox.put((jid, "error", f"{type(e).__name__}: {e}", traceback.format_exc()[-4000:]))
+            # #691 — a ValueError / RuntimeError is a message for the user, not a Python class name
+            msg = str(e) if isinstance(e, (ValueError, RuntimeError)) and str(e) else f"{type(e).__name__}: {e}"
+            outbox.put((jid, "error", msg, traceback.format_exc()[-4000:]))
 
 
 class Jobs:
@@ -146,9 +156,13 @@ def _public(job):
 
 
 @app.get("/health")
-def health():
-    return {"ok": True, "addon": "geoml", "version": ADDON_VERSION, "geoml": _version("geoml"), "busy": manager.running() is not None,
-            "warm": manager.proc is not None and manager.proc.is_alive()}
+def health(nonce: str | None = None):
+    # TASKS.csv #667 — identity proof, as GeoStrix's own engine does (#353): HMAC-SHA256 of the app's nonce keyed with the
+    # per-launch token. The app checks it BEFORE sending the token or any project data, so a different program holding
+    # the port never receives either (the earlier check sent the token first and accepted anything but a 401).
+    proof = hmac.new(_TOKEN.encode(), nonce.encode(), hashlib.sha256).hexdigest() if (_TOKEN and nonce and len(nonce) <= 128) else None
+    return {"ok": True, "addon": "geoml", "version": ADDON_VERSION, "api_version": API_VERSION, "features": FEATURES, "geoml": _version("geoml"),
+            "busy": manager.running() is not None, "warm": manager.proc is not None and manager.proc.is_alive(), **({"proof": proof} if proof else {})}
 
 
 @app.post("/v1/jobs")

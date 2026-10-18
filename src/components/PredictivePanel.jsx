@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob } from "../lib/geomlAddon.js";
+import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
@@ -62,7 +62,8 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     const ground = makeGround({ terrain, collars }), near = points.length ? makeNearData(points.map((q) => [q.x, q.y, q.z]), range) : null;
     return (blocks) => clipBlocks(blocks, { ground, near });
   };
-  const clipNote = (r, range) => (r.air || r.far ? `; left out ${[r.air ? `${r.air.toLocaleString()} above the ground${terrain ? "" : " (a surface through the collars — load a terrain for the real one)"}` : "", r.far ? `${r.far.toLocaleString()} more than ${range} m from any sample` : ""].filter(Boolean).join(" and ")}` : "");
+  // #673 — says whether the range is the one the model learnt or only training's starting value (add-on < 0.1.2)
+  const clipNote = (r, range, learnt) => (r.air || r.far ? `; left out ${[r.air ? `${r.air.toLocaleString()} above the ground${terrain ? "" : " (a surface through the collars — load a terrain for the real one)"}` : "", r.far ? `${r.far.toLocaleString()} more than ${range} m (${learnt ? "the range the model learnt" : "the model's starting range"}) from any sample` : ""].filter(Boolean).join(" and ")}` : "");
 
   const run = async (label, kind, params, onResult) => {
     const ctrl = new AbortController(); abortRef.current = ctrl;
@@ -71,10 +72,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     try {
       const health = await addonReady((s) => setJob((j) => j && { ...j, message: `Starting the add-on (${s} s — the first start is slower)` }));
       // TASKS.csv #650 — the structural trend chosen for geoML (Model settings → Structural trends); add-on 0.1.0 ignores it
-      const oldAddon = /^0\.1\.0$/.test(String(health?.version || ""));
+      const oldAddon = !addonHas(health, "trend"); // #692 — asked, not guessed from the version string
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => setJob((j) => j && { ...j, progress: s.progress, message: s.message, elapsed: s.elapsed }), ctrl.signal);
-      const note = `${await onResult(res)}${trend ? (oldAddon ? ` — the trend "${trend.name}" was NOT applied: this add-on version (0.1.0) predates trends; update it (Remove the add-on, then install again)` : `; following the trend "${trend.name}"`) : ""}`;
+      const note = `${await onResult(res)}${trend ? (oldAddon ? ` — the trend "${trend.name}" was NOT applied: this add-on version (${health?.version || "?"}) predates trends; update it (Remove the add-on, then install again)` : `; following the trend "${trend.name}"`) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
       setNotices((p) => [...p, `geoML — ${label}: ${note} (${secs} s).`]);
@@ -90,7 +91,8 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     const params = { ...holes(), intervals, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain };
     run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res) => {
       const parts = [];
-      const range = 400; // the add-on's default domain range
+      // #673 — clip to the range the model LEARNT when the add-on reports it (0.1.2+); 400 m is only training's start
+      const range = Math.round(res.range?.trained || 400);
       const clip = await clipper(intervals, range);
       if (res.surface?.triangles?.length) {
         // #646 — triangles above the ground or beyond the range are left out (vertices kept; unused ones are harmless)
@@ -108,11 +110,11 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         cells.push({ ...c, value: b.probability[i] }); ucells.push({ ...c, value: b.uncertainty[i] });
       }
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
-      const dparams = { tool: "geoML domain model", unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: range, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
+      const dparams = { tool: "geoML domain model", unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
-      parts.push(`${cells.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)${clipNote(r, range)}`);
+      parts.push(`${cells.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)${clipNote(r, range, !!res.range?.trained)}`);
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts`;
     });
   };
@@ -140,7 +142,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
       const b = res.blocks, cells = [], spread = [];
-      const range = 150; // the add-on's default grade range
+      const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
       const r = (await clipper(samples, range))(b.x.map((x, i) => ({ x, y: b.y[i], z: b.z[i] })));
       for (let i = 0; i < b.x.length; i++) {
         if (!r.keep[i] || !Number.isFinite(b.prediction[i])) continue;
@@ -155,13 +157,13 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       // "not a resource" statement go with it (exporters treat source "geoml" like estimate-*). #678 — the number of
       // simulations behind P10 / P90 is stated (20 draws gave P10 a 47 % relative error at a grade CV of 131 %).
       const nsim = QUALITY[quality].grade.simulations;
-      const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: QUALITY[quality].grade.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: range, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
+      const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: QUALITY[quality].grade.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: min > 0 && max / min >= 100 ? logStops(min, max) : sequentialStops(min, max), threshold: p75, opacity: 0.6, params: { ...gparams, value: "predicted grade (back-transformed mean)" } });
       if (spread.length) {
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
         addVoxelModel({ name: `geoML — ${element} P90 − P10 from ${nsim} simulations`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false, params: { ...gparams, value: `P90 - P10 of ${nsim} simulations` } });
       }
-      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden). Not a Mineral Resource estimate.`;
+      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range, !!res.range?.trained)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden).${res.data_warnings?.length ? ` geoML reported: ${res.data_warnings.join("; ")}.` : ""} Not a Mineral Resource estimate.`;
     });
   };
 
