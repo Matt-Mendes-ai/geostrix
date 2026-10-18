@@ -154,6 +154,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const run = () => {
     setError(""); setResult(null); setProgress(0);
     if (!collars.length) { setError("No collars loaded — nothing to estimate from."); return; }
+    // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
+    if (maxSamples < minHoles) { setError(`Max samples per block (${maxSamples}) is below Min distinct holes (${minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.`); return; }
     if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one (TASKS #265)."); return; }
     setRunning(true);
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
@@ -228,6 +230,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
+        if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; // #676 — 2+ holes, one with >= 95 % of the weight
         if (inShell) { // #517
           const before = est.cells.length;
           est.cells = est.cells.filter((c) => inShell(c));
@@ -502,6 +505,12 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   {result.singleHoleCells.toLocaleString()} of the estimated blocks ({((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise "Min distinct holes per block" to exclude them.
                 </div>
               )}
+              {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
+              {result.dominatedCells > 0 && (
+                <div style={{ color: "var(--color-warn-text)" }}>
+                  {result.dominatedCells.toLocaleString()} of the estimated blocks ({((result.dominatedCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) use samples from two or more holes, but one hole carries at least 95% of the weight — in effect a single-hole estimate. These blocks sit close to one hole; raising Min distinct holes does not change that, so read their grade as that hole's.
+                </div>
+              )}
               {/* TASKS.csv #265 */}
               {collarsWithoutDepth > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
@@ -559,7 +568,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — kriging needs a fitted variogram (nugget/sill/range) as a genuine prerequisite, which isn't built yet. A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — GeoStrix can fit a variogram (Variogram tool: nugget, sill and range) but does not yet krige with it — that is planned (TASKS #709). A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}{trend
               ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modeling → Model settings → Structural trends), there is</>
               : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modeling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}

@@ -11,8 +11,8 @@
 // harder formula substituted in the same loop; shipping a kriging button without that would produce
 // numbers that look like a real estimate but aren't backed by one, which is worse than not having the
 // button. NN/IDW are complete, defensible estimation methods in their own right (IDW in particular is
-// still routinely used for early-stage/scoping estimates), and TASKS.csv keeps a follow-up entry logged
-// for kriging as a separate, larger piece of work (needs its own variogram-modelling UI first).
+// still routinely used for early-stage/scoping estimates). The variogram-modelling UI now exists (#147, the Variogram
+// tool fits nugget / sill / range); ordinary kriging with it is the follow-up logged as TASKS.csv #709.
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
@@ -131,6 +131,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const cells = [];
   let blocksSkipped = 0;
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
+  let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
 
@@ -143,6 +144,7 @@ export function estimateBlockModel(samplePoints, opts) {
         const r = est(cx, cy, cz);
         if (!r) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class
         if (r.nHoles === 1) singleHoleCells++;
+        else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
         const cell = { x: cx, y: cy, z: cz, dx, dy, dz, value: r.value, nSamples: r.nSamples, nHoles: r.nHoles };
         if (r.support) {
@@ -157,7 +159,7 @@ export function estimateBlockModel(samplePoints, opts) {
     }
     opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
   }
-  return { cells, blocksEstimated: cells.length, blocksSkipped, singleHoleCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null };
+  return { cells, blocksEstimated: cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -237,6 +239,8 @@ function buildSampleIndex(samplePoints, searchRadius) {
 // estimated 116 of 122,317 nodes, all isolated, and the grade shell "never crossed" 300 ppm although half the
 // composites are above it. Counting holes anywhere in the radius instead would have passed those nodes with a
 // value still taken from one hole — exactly what #258 exists to stop. `candidates` must be sorted by distance.
+// TASKS.csv #676 — a block whose dominant hole carries at least this share of the weight is effectively one hole's
+export const DOMINANT_SHARE = 0.95;
 export function perHoleCap(maxSamples, minHoles) {
   return minHoles > 1 ? Math.max(1, Math.ceil(maxSamples / minHoles)) : Infinity;
 }
@@ -358,6 +362,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
   const bracketMax = Math.max(maxSamples, Math.min(64, maxSamples * 4));
   const gather = makeNeighbourGatherer(samplePoints, wantSupport ? { ...opts, maxSamples: bracketMax } : opts);
 
+  const shareIds = [], shareW = []; // #676 — scratch for the dominant-hole share, reused across blocks
   return (cx, cy, cz) => {
     const dists = gather(cx, cy, cz);
     if (dists.length < minSamples) return null;
@@ -407,6 +412,27 @@ function makeCellEstimator(samplePoints, opts = {}) {
     }
     if (value == null || !Number.isFinite(value)) return null;
     const out = { value, nSamples: used.length, nHoles: holes.size };
+    // TASKS.csv #676 — passing "min distinct holes" says nothing about how much the second hole counts: 1 m from hole A
+    // with hole B 60 m away, B's eight samples carried 0.09 % of the IDW weight. The dominant hole's share of the
+    // weight (the method's own distance weights; MLS uses IDW2's; NN and an exact hit are one sample) is reported.
+    if (holes.size > 1) {
+      let share = 1;
+      if (method !== "nn" && !used.some((u) => u.d2 < EXACT_D2)) {
+        // at most maxSamples entries: per-hole sums in two small reused arrays, no Map per block
+        const pw = method === "mls1" ? 2 : power;
+        let tot = 0, nh = 0;
+        for (let i = 0; i < used.length; i++) {
+          const w = used[i].len / Math.pow(used[i].d2, pw / 2), h = used[i].hole_id;
+          tot += w;
+          let k = 0; while (k < nh && shareIds[k] !== h) k++;
+          if (k === nh) { shareIds[nh] = h; shareW[nh] = 0; nh++; }
+          shareW[k] += w;
+        }
+        let top = 0; for (let k = 0; k < nh; k++) if (shareW[k] > top) top = shareW[k];
+        share = tot > 0 ? top / tot : 1;
+      }
+      out.domShare = share;
+    }
     if (mlsMode) out.mlsMode = mlsMode; // #516
     if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.searchRadius);
     return out;
@@ -852,7 +878,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const supportIdx = wantSupport ? new Float32Array(totalBlocks) : null;
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
   let estimated = 0;
-  let singleHoleCells = 0;
+  let singleHoleCells = 0, dominatedCells = 0; // dominatedCells: #676
   for (let iz = 0; iz < nz; iz++) {
     const cz = origin.z + iz * dz;
     for (let iy = 0; iy < ny; iy++) {
@@ -871,6 +897,7 @@ export function estimateDenseGrid(samplePoints, opts) {
         }
         if (!r) continue;
         if (r.nHoles === 1) singleHoleCells++;
+        else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         values[rowBase + ix] = r.value;
         estimated++;
       }
@@ -880,6 +907,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   out.estimated = estimated;
   out.skipped = totalBlocks - estimated;
   out.singleHoleCells = singleHoleCells;
+  out.dominatedCells = dominatedCells; // #676
   out.supportCode = supportCode;
   out.supportIndex = supportIdx;
   out.supportCounts = wantSupport ? supportCounts : null;

@@ -56,3 +56,21 @@ test("the indexed search picks exactly the brute-force capped selection", () => 
   }
   assert.ok(checked > 50);
 });
+
+// TASKS.csv #676 — a block that passes "min 2 holes" while one hole carries ~all the weight is counted
+test("#676 blocks where one hole carries >= 95 % of the weight are counted as effectively single-hole", async () => {
+  const { estimateBlockModel, DOMINANT_SHARE } = await import("../src/lib/estimation.js");
+  assert.equal(DOMINANT_SHARE, 0.95);
+  const pts = [];
+  for (let i = 0; i < 60; i++) pts.push({ x: 1, y: 0, z: -2 * i - 1, value: 100, hole_id: "A", length: 2 });
+  for (let i = 0; i < 60; i++) pts.push({ x: 60, y: 0, z: -2 * i - 1, value: 300, hole_id: "B", length: 2 });
+  const res = estimateBlockModel(pts, { bounds: { xmin: -1, xmax: 1, ymin: -1, ymax: 1, zmin: -61, zmax: -59 }, cellSize: { dx: 2, dy: 2, dz: 2 }, method: "idw2", searchRadius: 100, minSamples: 1, maxSamples: 16, minHoles: 2 });
+  assert.equal(res.cells.length, 1);
+  assert.equal(res.cells[0].nHoles, 2, "it passes the hole rule");
+  assert.ok(res.cells[0].value < 101, `value ${res.cells[0].value}`);
+  assert.equal(res.dominatedCells, 1);
+  assert.equal(res.singleHoleCells, 0);
+  // halfway between the two holes neither dominates
+  const mid = estimateBlockModel(pts, { bounds: { xmin: 29.5, xmax: 31.5, ymin: -1, ymax: 1, zmin: -61, zmax: -59 }, cellSize: { dx: 2, dy: 2, dz: 2 }, method: "idw2", searchRadius: 100, minSamples: 1, maxSamples: 16, minHoles: 2 });
+  assert.equal(mid.dominatedCells, 0);
+});

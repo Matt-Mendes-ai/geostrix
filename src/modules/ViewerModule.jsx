@@ -60,6 +60,7 @@ const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefM
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
 import { cleanTrend, trendBasis, trendScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
+import { colors } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours
 import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
 const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
 const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
@@ -650,6 +651,10 @@ const RELATION_TYPES = [
 // TASKS.csv #696 — true when two versions of a voxel model draw the same instances: every field the same object /
 // value except the display-only ones, and the same side of opaque / transparent (the transparent path keeps a
 // per-cell list for the depth sort and a different depthWrite).
+// TASKS.csv #700 — the trend preview in UI colours: it was drawn in 0xd9601a / 0x8f1f3d, two of the warm data ramp's
+// own anchors (chargeability, geoML, log-coloured models), so over those models the ellipsoid changed a cell by
+// dE00 0-10 and disappeared. Blue sits outside every warm ramp and away from viridis's ends.
+const TREND_PREVIEW = { ellipsoid: colors.info, plane: colors.info, axis: colors.text };
 const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
 function voxelGeometryUnchanged(a, b) {
   if (a === b) return true;
@@ -2736,10 +2741,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const basis = new THREE.Matrix4().makeBasis(toScene(b.major), toScene(b.semiMajor), toScene(b.minor));
     const placed = (obj, sxyz) => { obj.matrixAutoUpdate = false; obj.matrix.copy(basis).multiply(new THREE.Matrix4().makeScale(...sxyz)); return obj; };
     const group = new THREE.Group();
-    group.add(placed(new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20), new THREE.MeshLambertMaterial({ color: 0xd9601a, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })),
+    group.add(placed(new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20), new THREE.MeshLambertMaterial({ color: TREND_PREVIEW.ellipsoid, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })),
       [size, size * t.ratios.int / t.ratios.max, size * t.ratios.min / t.ratios.max]));
-    group.add(placed(new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: 0x2266cc, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })), [size * 1.4, size * 1.4, 1]));
-    group.add(placed(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1, 0, 0), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: 0x8f1f3d })), [size * 1.6, 1, 1]));
+    group.add(placed(new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: TREND_PREVIEW.plane, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })), [size * 1.4, size * 1.4, 1]));
+    group.add(placed(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1, 0, 0), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: TREND_PREVIEW.axis })), [size * 1.6, 1, 1]));
     group.position.copy(cs.target);
     group.userData = { tip: `${t.name}
 ${describeTrend(t)}` };

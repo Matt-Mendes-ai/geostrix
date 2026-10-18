@@ -130,3 +130,4 @@ test("majorAxisTrendPlunge: down dip, the two strike ends, and an oblique pitch 
   assert.ok(near(a.trend, 22.2, 0.5) && near(b.trend, 157.8, 0.5), `${a.trend} ${b.trend}`); // opposite quadrants
   assert.match(describeTrend({ dip: 45, dipAzimuth: 90, pitch: 90 }), /major axis plunges 45° → 90°/);
 });
+
