@@ -1239,11 +1239,14 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       return q.ok ? { unreadable: q.unreadable } : null;
     }
     try {
-      if (!checkProjectFile(data).ok) return null; // #342
+      const chk = checkProjectFile(data);
+      if (!chk.ok) return null; // #342
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
       heldAutosaveRef.current = data; // #465
       const bgNames = (data.backgroundTabs || []).map((t) => t.name);
-      return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null };
+      // TASKS.csv #686 — say when the recovery copy was written by a NEWER GeoStrix (the banner shows it, and restore
+      // marks the tabs so Save asks first, as opening a newer file does).
+      return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null, ...(chk.newer ? { newer: chk.newer } : {}) };
     } catch (_) {
       return null;
     }
@@ -1252,15 +1255,24 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     autosaveHoldRef.current = false; heldAutosaveRef.current = null;
     // TASKS.csv #465 — never replace a project the user has opened or started since launch: the recovered
     // work comes back as new tab(s) beside it (marked unsaved) instead.
+    // TASKS.csv #686 — a recovery copy from a newer GeoStrix: register every restored tab like openProject does for a
+    // newer file, so saving it with this (older) build asks before dropping what the newer one added.
+    const newer = !!checkProjectFile(data).newer;
     if (autosaveRef.current.hasWork) {
-      setWorkspaceTabs((prev) => [...prev, ...recoveredTabs(data)]);
+      const tabs = recoveredTabs(data);
+      if (newer) tabs.forEach((t) => newerFormatTabsRef.current.add(t.id));
+      setWorkspaceTabs((prev) => [...prev, ...tabs]);
       return { intoNewTab: true };
     }
     loadProjectPayload(data);
+    if (newer) newerFormatTabsRef.current.add(activeTabIdRef.current);
     // TASKS.csv #340 — unsaved background tabs come back as tabs, still marked unsaved.
     const bg = (data.backgroundTabs || []).filter((t) => t && t.payload);
     if (bg.length) {
-      setWorkspaceTabs((prev) => [...prev, ...bg.map((t, i) => ({ id: `tab_${Date.now()}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }))]);
+      const stamp = Date.now();
+      const tabs = bg.map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }));
+      if (newer) tabs.forEach((t) => newerFormatTabsRef.current.add(t.id));
+      setWorkspaceTabs((prev) => [...prev, ...tabs]);
     }
     setActiveTabDirty(data.activeDirty !== false);
     clearUndoHistory();

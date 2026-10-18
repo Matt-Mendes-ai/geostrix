@@ -360,6 +360,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
             Recovered unsaved work from a previous session — "{recovery.projectName}"
             {recovery.otherTabs?.length ? ` plus ${recovery.otherTabs.length} other tab(s) (${recovery.otherTabs.join(", ")})` : ""}
             {recovery.autosavedAt ? ` (autosaved ${new Date(recovery.autosavedAt).toLocaleString()})` : ""}.
+            {recovery.newer ? ` It was written by a newer GeoStrix (project format ${recovery.newer}); this version will ask before saving over anything that version added.` : ""}{/* #686 */}
           </span>
           <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>Restore</button>
           <button onClick={doDiscardRecovery} style={recoveryBtn}>Discard…</button>

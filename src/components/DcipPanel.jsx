@@ -26,8 +26,16 @@ import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 // TASKS.csv #581 — the IP inversion's own verdict (fitVerdict on its phi_d; older saved sections have no reachedTarget,
 // fitVerdict then judges by the ratio)
+// TASKS.csv #682 — the IP inversion is linearised about the RECOVERED resistivity model, so when that model did not fit,
+// a "reached the target" on chargeability says nothing (115N with scrambled pairing: DC 11.8x unreached, IP 0.99x
+// "reached", chargeability peak 238.6 mV/V against 14.3 on the fitted model). Then the IP verdict is not "ok" either.
 const ipFitOf = (result) => {
   const v = fitVerdict({ phi_d: result.ip.phi_d, target: result.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations ?? result.ip.history?.length ?? 0, fitChoice: result.ip.fitChoice });
+  const dc = fitVerdict(result);
+  if (dc.level === "under" || dc.level === "close") { // not "over": an over-fitted resistivity model still explains the data
+    return { level: "dc-unfitted", chi: +v.chi.toFixed(3), reachedTarget: false, dcUnfitted: true,
+      verdict: `computed on a resistivity model that did not fit the data, so treat it as unfinished as well (its own misfit: ${v.chi.toFixed(2)}x the target).` };
+  }
   return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text };
 };
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"]];
