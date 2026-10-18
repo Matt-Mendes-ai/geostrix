@@ -300,3 +300,13 @@ test("#530 a corrected (re-split) assay file replaces the hole; a partial top-up
   // new hole: nothing to compare
   assert.deepEqual(holesWithChangedIntervals(prev, [{ hole_id: "B", from: 0, to: 1, source: "assay", values: { Au: 1 } }]), []);
 });
+
+// TASKS.csv #657 — at min coverage 0 an unassayed window must not become a grade-0 composite
+test("compositeDownhole skips windows with no assayed material, even at minCoverage 0", async () => {
+  const { compositeDownhole } = await import("../src/lib/geochem.js");
+  const rows = [row(0, 1, 2), row(2, 3, 2)]; // 1-2 m not assayed
+  const c = compositeDownhole(rows, "Au", "ppm", U, { length: 1, minCoverage: 0 });
+  assert.deepEqual(c.map((x) => [x.from, x.to, x.avgGrade]), [[0, 1, 2], [2, 3, 2]]);
+  const half = compositeDownhole([row(0, 1, 4), row(3, 4, 6)], "Au", "ppm", U, { length: 2, minCoverage: 0 });
+  assert.deepEqual(half.map((x) => [x.from, x.avgGrade, x.coverage]), [[0, 4, 0.5], [2, 6, 0.5]]); // partly assayed windows are still kept
+});

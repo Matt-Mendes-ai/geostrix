@@ -800,6 +800,10 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       const segLen = to - from;
       const coverage = segLen > 0 ? Math.min(1, coveredLen / segLen) : 0;
       if (coverage < minCoverage - EPS) continue; // too little real sample material in this segment
+      // TASKS.csv #657 — a window with NO assayed material is not a composite at any minCoverage: at 0 % it used to be
+      // kept with grade 0 and coverage 0 (Harry Au, 2 m: 2,402 of 6,362 composites), and those zeros fed estimates,
+      // grade shells, the variogram and the composite CSV.
+      if (coveredLen <= EPS) continue;
       // Note: avgGrade is length-weighted across the COVERED material only (gradeLen / coveredLen),
       // not diluted by treating the uncovered remainder as zero grade — unlike computeBestIntercepts'
       // internal-dilution bridging above, an uncovered stretch here means "no data" (lost core, gap in

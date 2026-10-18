@@ -801,6 +801,11 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
   // out), so it is settled only once the capped selection is full and its furthest member is inside safeD2.
   // Short of that the walk goes on to the search radius (where it stops anyway).
   const capped = perHoleCap(maxSamples, minHoles) !== Infinity;
+  // TASKS.csv #662 — the capped selection takes maxSamples entries from the distance-sorted list, so its furthest
+  // member is never nearer than the maxSamples-th nearest candidate overall (nor than that within one domain, a
+  // subset). While that one is outside safeD2 the capped set cannot be settled either: answer without the sort.
+  // Measured before this: min holes 2 made a 976k-node grade-shell grid 2.7x and a 1M block model 4.3x slower.
+  if (capped && all.kth > safeD2) return false;
   const cappedSettled = (keep) => {
     const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles);
     return used.length >= maxSamples && used[used.length - 1].d2 <= safeD2;

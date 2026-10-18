@@ -30,7 +30,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v9 (TASKS.csv #503) adds alterationBoxes (the user's least-altered box limits + litho code -> protolith map).
 // v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
 // v12 (TASKS.csv #650) adds structuralTrends (named trends + which trend each model uses).
-export const PROJECT_VERSION = 12; // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v13 (TASKS.csv #660) compacts estimated / geoML / imported voxel models too (compactCells.keys names the columns).
+export const PROJECT_VERSION = 13; // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -46,24 +47,66 @@ export const DEFAULT_LAYOUT_ELEMENTS = [
 
 // TASKS.csv #321 (database review) — a SimPEG model can hold tens of thousands of cells, and voxel models
 // are written into every save AND every 60 s autosave. As cell objects ({x,y,z,dx,dy,dz,value,support})
-// that is ~70-100 bytes of JSON per cell; as Float32 base64 columns it is ~4 bytes per value. Only models
-// with source "simpeg" are compacted (imported UBC/OMF models keep their existing shape, untouched). The
-// compact form is cached per model object, so the repeated snapshot/dirty-check calls re-encode nothing.
+// that is ~70-100 bytes of JSON per cell; as Float32 base64 columns it is ~4 bytes per value. The compact form
+// is cached per model object, so the repeated snapshot/dirty-check calls re-encode nothing.
+// TASKS.csv #660 — every source now, not only "simpeg": estimated and geoML block models (up to millions of cells)
+// were written raw, 98-132 MB and 2-6.5 s of frozen UI per autosave at 1M blocks. A model is compacted when every
+// cell has the same keys and each key is a number in every cell (a Float32 column) or a string in every cell (a
+// dictionary + index column, e.g. the support class); anything else is saved as it was. `keys` lists the columns
+// (a file without it is a v12-or-older simpeg model: COMPACT_KEYS).
 const COMPACT_KEYS = ["x", "y", "z", "dx", "dy", "dz", "value", "support"];
+// #660 — the modelled value itself is kept exact (Float64): Float32 brought a 0.7 g/t block back as 0.699999988 and
+// every later export would print that. Geometry and the support figures stay Float32.
+const f64ToB64 = (arr) => {
+  const bytes = new Uint8Array(new Float64Array(arr).buffer);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return typeof btoa === "function" ? btoa(s) : globalThis.Buffer.from(s, "binary").toString("base64");
+};
+const b64ToF64 = (b64) => {
+  const s = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary");
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+  return new Float64Array(bytes.buffer);
+};
 const compactCache = new WeakMap();
+function cellColumns(cells) {
+  const keys = cells.length ? Object.keys(cells[0]) : null;
+  if (!keys || !keys.length) return null;
+  const kind = {};
+  for (const k of keys) kind[k] = typeof cells[0][k] === "number" ? "n" : typeof cells[0][k] === "string" ? "s" : null;
+  if (keys.some((k) => !kind[k])) return null;
+  for (let i = 1; i < cells.length; i++) {
+    const c = cells[i];
+    let n = 0;
+    for (const k in c) { n++; if (kind[k] === undefined || (kind[k] === "n" ? typeof c[k] !== "number" : typeof c[k] !== "string")) return null; }
+    if (n !== keys.length) return null;
+  }
+  return { keys, kind };
+}
 export function compactVoxelModels(list) {
   return (list || []).map((m) => {
-    if (m.source !== "simpeg" || !Array.isArray(m.cells)) return m;
+    if (!Array.isArray(m.cells) || !m.cells.length) return m;
     let c = compactCache.get(m);
     if (!c) {
       const { cells, ...rest } = m;
+      const shape = cellColumns(cells);
+      if (!shape) { compactCache.set(m, m); return m; }
       const cols = {};
-      COMPACT_KEYS.forEach((k) => {
+      shape.keys.forEach((k) => {
+        if (shape.kind[k] === "s") {
+          const dict = [], at = new Map();
+          const idx = cells.map((cell) => { let v = at.get(cell[k]); if (v === undefined) { v = dict.length; dict.push(cell[k]); at.set(cell[k], v); } return v; });
+          cols[k] = { dict, b64: f32ToB64(idx) };
+          return;
+        }
         // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
-        const base = k === "x" || k === "y" || k === "z" ? cells[0]?.[k] ?? 0 : 0;
-        cols[k] = { base, b64: f32ToB64(cells.map((cell) => (cell[k] ?? NaN) - base)) };
+        const base = k === "x" || k === "y" || k === "z" ? cells[0][k] : 0;
+        cols[k] = k === "value"
+          ? { base: 0, f64: true, b64: f64ToB64(cells.map((cell) => cell[k])) }
+          : { base, b64: f32ToB64(cells.map((cell) => cell[k] - base)) };
       });
-      c = { ...rest, compactCells: { n: cells.length, cols } };
+      c = { ...rest, compactCells: { n: cells.length, keys: shape.keys, cols } };
       compactCache.set(m, c);
     }
     return c;
@@ -73,11 +116,15 @@ export function expandVoxelModels(list) {
   return (list || []).map((m) => {
     if (!m.compactCells) return m;
     const { compactCells, ...rest } = m;
-    const cols = {};
-    COMPACT_KEYS.forEach((k) => { const c = compactCells.cols[k]; const arr = b64ToF32(c.b64); cols[k] = (i) => arr[i] + c.base; });
+    const keys = compactCells.keys || COMPACT_KEYS;
+    const get = {};
+    keys.forEach((k) => {
+      const c = compactCells.cols[k]; const arr = c.f64 ? b64ToF64(c.b64) : b64ToF32(c.b64);
+      get[k] = c.dict ? (i) => c.dict[arr[i]] : (i) => arr[i] + c.base;
+    });
     const cells = Array.from({ length: compactCells.n }, (_, i) => {
       const cell = {};
-      COMPACT_KEYS.forEach((k) => { cell[k] = cols[k](i); });
+      keys.forEach((k) => { cell[k] = get[k](i); });
       return cell;
     });
     return { ...rest, cells };
