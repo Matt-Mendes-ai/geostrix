@@ -904,6 +904,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, []);
   const [notices, setNotices] = useState([]);
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
+  const toastTimerRef = useRef(null); // #690
   const [inspectLayer, setInspectLayer] = useState(null);
   const [importModal, setImportModal] = useState(null);
   const [dbModalOpen, setDbModalOpen] = useState(false);
@@ -3167,9 +3168,19 @@ ${describeTrend(t)}` };
     // TASKS.csv #390 — an error stays until dismissed (a failed save/export that vanished after 5 s was
     // easy to miss); everything else still fades after 5 s.
     if (level === "error") return;
-    const t = setTimeout(() => setToast((cur) => (cur && cur.key === key ? null : cur)), 5000);
-    return () => clearTimeout(t);
+    // TASKS.csv #690 — long, honest result notices (up to ~550 characters, 10-24 s to read) were gone after 5 s: now
+    // 60 ms per character, between 5 and 25 s, and the timer stops while the pointer rests on the toast.
+    const ms = Math.min(25000, Math.max(5000, 60 * String(noticeText(last) || "").length));
+    toastTimerRef.current = { key, ms, started: Date.now(), t: setTimeout(() => setToast((cur) => (cur && cur.key === key ? null : cur)), ms) };
+    return () => clearTimeout(toastTimerRef.current?.t);
   }, [notices]);
+  const holdToast = useCallback(() => { const tt = toastTimerRef.current; if (tt) clearTimeout(tt.t); }, []);
+  const releaseToast = useCallback(() => {
+    const tt = toastTimerRef.current;
+    if (!tt) return;
+    clearTimeout(tt.t);
+    tt.t = setTimeout(() => setToast((cur) => (cur && cur.key === tt.key ? null : cur)), 3000);
+  }, []);
 
   // The sidecar's /implicit-model endpoint computes each orientation's gradient from dip/azimuth
   // assuming standard geographic axes (x=east, y=north, z=up) — a sensible default for an endpoint
@@ -8802,8 +8813,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div>
           )}
           {toast && toast.level !== "error" && (
-            <div key={toast.key} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
-              {toast.text}
+            // #690 — hovering keeps it up; a Dismiss button as errors have
+            <div key={toast.key} onMouseEnter={holdToast} onMouseLeave={releaseToast} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 10px 8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
+              <span style={{ flex: 1 }}>{toast.text}</span>
+              <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
         </div>
