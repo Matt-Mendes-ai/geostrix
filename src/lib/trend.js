@@ -63,18 +63,36 @@ export function fromLegacyAnisotropy(a) {
   return cleanTrend({ name: "Model trend", dip: a?.dip, dipAzimuth: a?.azimuth, pitch: 90, ratios: { max: a?.major, int: a?.semiMajor, min: a?.minor } });
 }
 
-// The mean plane of a set of poles (or plane normals, either sign): the mean of the poles turned to point
-// down — for the tight clusters a trend is set from, the mean plane a stereonet shows. { dip, dipAzimuth } | null.
+// The mean plane of a set of poles (or plane normals, either sign). TASKS.csv #654 — poles are AXIAL data: a
+// steep plane logged 88/090 and 87/270 is one structure whose two "down" poles point opposite ways, so a vector
+// mean cancels (six picks of a vertical vein set averaged to a 1 deg dip). The mean is the principal axis of
+// the orientation tensor T = sum(v v^T), the statistic the stereonet's fisherStats uses, so the two agree.
+// { dip, dipAzimuth, n, s1 } | null — s1 = largest eigenvalue / n (1 = all parallel, 1/3 = no preferred axis).
 export function planeFromPoles(poles) {
-  let sx = 0, sy = 0, sz = 0, n = 0;
+  const T = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  let n = 0, sx = 0, sy = 0, sz = 0;
   for (const v of poles || []) {
     if (!v || ![v.x, v.y, v.z].every(Number.isFinite)) continue;
     const len = Math.hypot(v.x, v.y, v.z); if (!len) continue;
-    const s = v.z > 0 ? -1 : 1; // every pole pointing down
-    sx += (s * v.x) / len; sy += (s * v.y) / len; sz += (s * v.z) / len; n++;
+    const u = [v.x / len, v.y / len, v.z / len];
+    for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) T[a][b] += u[a] * u[b];
+    const sg = u[2] > 0 ? -1 : 1; sx += sg * u[0]; sy += sg * u[1]; sz += sg * u[2]; n++;
   }
   if (!n) return null;
-  return planeFromNormal({ x: sx, y: sy, z: sz });
+  // power iteration for the principal eigenvector; start from the largest row of T (never orthogonal to it)
+  let w = T.reduce((best, r) => (Math.hypot(...r) > Math.hypot(...best) ? r : best), T[0]).slice();
+  if (Math.hypot(sx, sy, sz) > 0.5 * n) w = [sx, sy, sz]; // a tight cluster: its mean is already close
+  let lam = 0;
+  for (let k = 0; k < 200; k++) {
+    const q = [0, 1, 2].map((a) => T[a][0] * w[0] + T[a][1] * w[1] + T[a][2] * w[2]);
+    const l = Math.hypot(...q); if (!l) return null;
+    const next = q.map((x) => x / l);
+    const done = Math.abs(Math.abs(next[0] * w[0] + next[1] * w[1] + next[2] * w[2]) / (Math.hypot(...w) || 1) - 1) < 1e-15;
+    w = next; lam = l;
+    if (done && k > 3) break;
+  }
+  const plane = planeFromNormal({ x: w[0], y: w[1], z: w[2] });
+  return plane && { ...plane, n, s1: lam / n };
 }
 // a plane from its normal (either sign)
 export function planeFromNormal(nrm) {

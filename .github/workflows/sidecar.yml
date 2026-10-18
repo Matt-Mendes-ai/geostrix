@@ -41,6 +41,9 @@ jobs:
       - name: Onlap orientation tests (#512)
         working-directory: python-sidecar
         run: python tests/test_implicit_dedupe.py
+      - name: GemPy isotropic input transform (#655)
+        working-directory: python-sidecar
+        run: python tests/test_implicit_transform.py
       # TASKS.csv #557 — the live API checks (token / host guards, 409, cancel, result shape) ran nowhere, and
       # nothing ran one job of each kind through the HTTP + job-process path. A server from source here; the
       # release workflow runs the same two scripts against the frozen exe.

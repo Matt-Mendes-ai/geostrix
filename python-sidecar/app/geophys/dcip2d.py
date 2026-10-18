@@ -50,9 +50,28 @@ def _mesh(stations_s, topo_sz, cell, depth, pad=8, factor=1.3):
 
 
 def _survey(ab_mn, locs, data_type):
+    """The SimPEG survey for these readings. Call it only with readings already in survey order (see
+    _survey_order): SimPEG groups readings by source and its data vectors follow THAT order, not the file's."""
     from simpeg.electromagnetics.static.utils import generate_survey_from_abmn_locations
     a, b, m, n = (locs[ab_mn[:, k]] for k in range(4))
     return generate_survey_from_abmn_locations(locations_a=a, locations_b=b, locations_m=m, locations_n=n, data_type=data_type)
+
+
+def _survey_order(ab_mn, locs):
+    """TASKS.csv #652 — the order SimPEG will hold these readings in. generate_survey_from_abmn_locations groups
+    the readings by current electrode pair (in order of first appearance, pole receivers before dipoles), so a
+    contractor file written by n-block (every source's n = 1 readings, then every source's n = 2 ...) comes out
+    in a different order from the file. Before this, rho / chargeability / std were passed in FILE order and
+    97-100 % of the Woodjam readings were paired with another reading's electrodes (a synthetic block listed by
+    n-block scored phi_d/N = 508 instead of 0). Returns indices into the file rows, in survey order."""
+    import warnings
+    from simpeg.electromagnetics.static.utils import generate_survey_from_abmn_locations
+    a, b, m, n = (locs[ab_mn[:, k]] for k in range(4))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # the "ordering changed" warning: handled here
+        _, order = generate_survey_from_abmn_locations(locations_a=a, locations_b=b, locations_m=m, locations_n=n,
+                                                       data_type="apparent_resistivity", output_sorting=True)
+    return np.asarray(order, dtype=int)
 
 
 def run_job(req, progress):
@@ -80,6 +99,13 @@ def run_job(req, progress):
     z_at = np.interp(pos, topo[:, 0], topo[:, 1])
     locs = np.c_[pos, z_at]
     idx = np.searchsorted(pos, np.round(abmn, 6))
+    # TASKS.csv #652 — put every per-reading vector in the order SimPEG holds the readings; outputs go back
+    # to file order (`back`) so result["predicted"][i] still belongs to the file's reading i.
+    order = _survey_order(idx, locs)
+    back = np.argsort(order)
+    idx, rho = idx[order], rho[order]
+    if charge is not None:
+        charge = charge[order]
 
     mesh, core = _mesh(pos, topo, cell, depth)
     # topography as (x, z) points sampled across the whole mesh width (flat extension beyond the profile)
@@ -91,6 +117,8 @@ def run_job(req, progress):
     # shift_horizontal=False: the default moves every electrode to the nearest cell centre (2.5 m with 5 m
     # cells) and short-offset readings came out up to 140 % wrong on uniform ground; unshifted <= 2 %.
     survey = _survey(idx, locs, "apparent_resistivity")
+    if not np.array_equal(_survey_order(idx, locs), np.arange(len(idx))):  # #652 — must hold after the reorder
+        raise RuntimeError("Internal error: the readings could not be put in SimPEG's survey order.")
     survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
     # TASKS.csv #580 — WHICH geometric factor turns the predicted volts into apparent resistivity must be the one the
     # data were computed with. A receiver / contractor computes rho_a with K from the nominal electrode spacings on
@@ -195,8 +223,8 @@ def run_job(req, progress):
         ip_pred = ip_sim.dpred(m_ip)
         ip_phi = float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2))
         # TASKS.csv #581 — the IP fit gets its own status, judged the same way as the DC one
-        out_ip = {"model": m_ip, "predicted": (ip_pred * 1000).tolist(), "phi_d": ip_phi, "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
-                  "history": hist_ip, "standardDeviation": (ip_std * 1000).tolist(), "fitChoice": fit_ip}
+        out_ip = {"model": m_ip, "predicted": (ip_pred[back] * 1000).tolist(), "phi_d": ip_phi, "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
+                  "history": hist_ip, "standardDeviation": (ip_std[back] * 1000).tolist(), "fitChoice": fit_ip}
 
     keep_full = core & np.isin(np.arange(mesh.n_cells), np.flatnonzero(active))
     act_index = np.full(mesh.n_cells, -1)
@@ -206,13 +234,13 @@ def run_job(req, progress):
     ii, jj = np.unravel_index(np.flatnonzero(keep_full), mesh.shape_cells, order="F")
     f32 = lambda a: np.asarray(a, dtype=np.float32).astype(float).tolist()
     result = {
-        "kind": "dcip2d",
+        "kind": "dcip2d",  # #652 — predicted / standardDeviation are in FILE order
         "cells": {"s": np.round(cc[:, 0], 3).tolist(), "z": np.round(cc[:, 1], 3).tolist(),
                   "ds": np.round(mesh.h[0][ii], 3).tolist(), "dz": np.round(mesh.h[1][jj], 3).tolist(),
                   "resistivity": f32(1.0 / np.exp(m_dc[ai])), "support": np.round(sens[ai], 4).tolist(),
                   **({"chargeability": f32(out_ip["model"][ai] * 1000)} if out_ip else {})},
         "electrodes": np.round(survey.unique_electrode_locations, 3).tolist(),
-        "predicted": pred.tolist(), "standardDeviation": std.tolist(), "phi_d": phi_d, "target": float(len(rho)),
+        "predicted": pred[back].tolist(), "standardDeviation": std[back].tolist(), "phi_d": phi_d, "target": float(len(rho)),
         "reachedTarget": phi_d <= 1.05 * len(rho), "history": hist_dc, "iterations": len(hist_dc), "fitChoice": fit_dc,
         "ip": ({k: v for k, v in out_ip.items() if k != "model"} if out_ip else None),
         "mesh": {"shape": list(mesh.shape_cells), "cell": cell, "depth": depth, "nActive": n_act, "nCore": int(keep_full.sum())},

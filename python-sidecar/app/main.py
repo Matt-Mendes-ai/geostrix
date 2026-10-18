@@ -513,6 +513,8 @@ class ImplicitModelResponse(BaseModel):
     block: dict | None = None
     # TASKS.csv #512 — orientations dropped as exact repeats inside the one ONLAP group (see _dedupe_onlap_orientations)
     orientations_deduplicated: int | None = None
+    # TASKS.csv #655 — GemPy's per-axis input scale relative to its smallest (1, 1, 1 = isotropic, as it must be)
+    input_scale_ratios: List[float] | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -654,6 +656,15 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
         if fault_group_names:
             gp.set_is_fault(model, fault_group_names)  # #360
+        # TASKS.csv #655 — GemPy's input rescale is NOT isotropic as built: transforms.py computes its per-axis
+        # ratios once and rewrites them with a stale list, so whenever the vertical span lies between the two
+        # horizontal spans the shorter horizontal axis is stretched (control points 500 x 1000 x 700 m -> scale
+        # ratios 1.429 : 1 : 1; a 300 x 2000 x 350 m fence 5.7 : 1; a third of random data boxes, worst 22 : 1)
+        # — a hidden anisotropy on top of the one the user chose. Re-running the transform with NONE (what
+        # GemPy's own examples_generator does) gives 1 : 1 : 1 for every span (checked on 20,000 random boxes).
+        model.update_transform(gp.data.GlobalAnisotropy.NONE)
+        _sc = np.asarray(model.input_transform.scale, dtype=float)
+        input_scale_ratios = [round(float(v), 4) for v in (_sc / _sc.min())]
         # TASKS.csv #274 — capture GemPy's own default range BEFORE any override, so the response can
         # report both what GemPy would have used and what was actually used.
         kernel = model.interpolation_options.kernel_options
@@ -696,4 +707,5 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         ids = (np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int) - len(fault_elements)).tolist()
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
-    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped)
+    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
+                                 input_scale_ratios=input_scale_ratios)

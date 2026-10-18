@@ -75,3 +75,44 @@ test("geoML terms: a down-dip trend is azimuth = dip azimuth, dip = dip, rake 0;
   assert.ok(close(s.dip, 0, 1e-9) && (close(s.azimuth, 45, 1e-9) || close(s.azimuth, 225, 1e-9)), JSON.stringify(s));
   assert.ok(Math.abs(s.rake) <= 90);
 });
+
+// TASKS.csv #653 — an orientation must come out of the warp as the plane its warped POINTS lie on
+test("anisoWarpDirection gives the plane the warped points lie on (normals transform by the inverse)", async () => {
+  const { anisoWarpPoint, anisoWarpDirection } = await import("../src/lib/viewer/geomath.js");
+  const planeOfPoints = (a, b, c) => {
+    const u = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }, v = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
+    return { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
+  };
+  const center = { x: 0, y: 0, z: 0 };
+  for (const t of [{ dip: 45, dipAzimuth: 90, pitch: 90, ratios: { max: 3, int: 2, min: 1 } }, { dip: 60, dipAzimuth: 90, pitch: 90, ratios: { max: 5, int: 2, min: 1 } }, { dip: 30, dipAzimuth: 200, pitch: 40, ratios: { max: 4, int: 2, min: 1 } }]) {
+    const basis = trendBasis(t), scales = trendScales(t);
+    for (const [dip, az] of [[60, 90], [60, 180], [60, 270], [20, 45], [85, 330], [0, 0]]) {
+      const nrm = poleOf(dip, az); // downward pole; the plane through the origin
+      const a0 = Math.abs(nrm.z) < 0.9 ? { x: 0, y: 0, z: 1 } : { x: 1, y: 0, z: 0 };
+      const e1 = { x: a0.y * nrm.z - a0.z * nrm.y, y: a0.z * nrm.x - a0.x * nrm.z, z: a0.x * nrm.y - a0.y * nrm.x };
+      const e2 = { x: nrm.y * e1.z - nrm.z * e1.y, y: nrm.z * e1.x - nrm.x * e1.z, z: nrm.x * e1.y - nrm.y * e1.x };
+      const [p, q, r] = [center, { x: 100 * e1.x, y: 100 * e1.y, z: 100 * e1.z }, { x: 100 * e2.x, y: 100 * e2.y, z: 100 * e2.z }].map((x) => anisoWarpPoint(x, center, basis, scales));
+      const want = planeOfPoints(p, q, r);
+      const got = anisoWarpDirection(dip, az, basis, scales);
+      const g = poleOf(got.dip, got.azimuth);
+      const cos = Math.abs(dot(g, want)) / Math.hypot(want.x, want.y, want.z);
+      assert.ok(cos > 1 - 1e-9, `${dip}/${az} under ${JSON.stringify(t)}: sent ${got.dip.toFixed(1)}/${got.azimuth.toFixed(1)}`);
+    }
+  }
+  // the gradient keeps its sense (the younger side): it never turns more than 90 deg from the input's
+  const t = { dip: 45, dipAzimuth: 90, pitch: 90, ratios: { max: 5, int: 2, min: 1 } };
+  const got = anisoWarpDirection(80, 270, trendBasis(t), trendScales(t));
+  const up = (d, a) => ({ x: Math.sin(d * Math.PI / 180) * Math.sin(a * Math.PI / 180), y: Math.sin(d * Math.PI / 180) * Math.cos(a * Math.PI / 180), z: Math.cos(d * Math.PI / 180) });
+  assert.ok(dot(up(got.dip, got.azimuth), up(80, 270)) > 0);
+});
+
+// TASKS.csv #654 — poles are axial: a steep set logged both ways must give the steep plane, as the stereonet does
+test("planeFromPoles: a steep set logged on both sides of vertical gives the steep plane (orientation tensor)", () => {
+  const p = planeFromPoles([[88, 200], [87, 20], [89, 199], [86, 22], [90, 201], [88, 18]].map(([d, a]) => poleOf(d, a)));
+  assert.ok(p.dip > 87, JSON.stringify(p));
+  assert.ok(Math.min(Math.abs(p.dipAzimuth - 20), Math.abs(p.dipAzimuth - 200)) < 3, JSON.stringify(p));
+  assert.equal(p.n, 6); assert.ok(p.s1 > 0.99);
+  // a moderate cluster is unchanged from the old vector mean
+  const q = planeFromPoles([poleOf(50, 200), poleOf(54, 205), poleOf(52, 202)]);
+  assert.ok(Math.abs(q.dip - 52) < 1 && Math.abs(q.dipAzimuth - 202.3) < 1, JSON.stringify(q));
+});

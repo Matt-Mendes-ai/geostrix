@@ -1080,7 +1080,7 @@ export function useModelling(ctx) {
         // the outermost altered sample instead of being cut flat at it.
         const inside = gridPts.filter((p) => p.value >= 0.5);
         const xr = minMax(inside.map((p) => p.x)), yr = minMax(inside.map((p) => p.y)), zr = minMax(inside.map((p) => p.z));
-        const pad = radius;
+        const pad = anisotropy.enabled ? radius * scl.major : radius; // #656 — the search reach, in the warped grid's units
         const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
         // Keep the grid under estimation.js's MAX_BLOCKS by coarsening rather than throwing: the auto
         // cell size is derived from hole spacing, which says nothing about how BIG the padded box is.
@@ -1093,7 +1093,7 @@ export function useModelling(ctx) {
         const ac = new AbortController();
         const grid = await runEstimation("dense", gridPts, {
           bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
-          searchRadius: radius, minSamples: 1, maxSamples: 16, minHoles: 1,
+          searchRadius: anisotropy.enabled ? radius * scl.major : radius, minSamples: 1, maxSamples: 16, minHoles: 1, // #656 — major semi-axis = radius
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
         if (!grid.estimated) throw new Error("No grid cell had an alteration sample within the search radius — increase the search radius.");
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
@@ -1124,6 +1124,7 @@ export function useModelling(ctx) {
         const params = {
           tool: "alteration halo (indicator envelope)", target: altValue, isoLevel: 0.5,
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
+          ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
           cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
           paddingM: pad, closure, holeSpacingM: auto.spacing,
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
@@ -1398,6 +1399,14 @@ export function useModelling(ctx) {
           (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
         );
         const effectiveRadius = numericSearchRadius > 0 ? numericSearchRadius : gridDiagonal;
+        // TASKS.csv #656 — the samples sit in the volume-keeping warp, where 1 m along the major axis is
+        // scales.major m. Searching a sphere of R there reached R / scales.major (248 m for R 150 at 3:2:1) along
+        // the trend; searching R * scales.major makes the major semi-axis R and the ellipsoid R x R*int/max x
+        // R*min/max — the block model's (estimation.js withTrend), so the two tools search the same neighbourhood.
+        const searchInGrid = numericSearchRadius > 0 && anisotropy.enabled ? numericSearchRadius * gsScl.major : effectiveRadius;
+        const shellEllipsoidM = numericSearchRadius > 0 && anisotropy.enabled
+          ? [1, gsScl.major / gsScl.semiMajor, gsScl.major / gsScl.minor].map((f) => Math.round(numericSearchRadius * f * 10) / 10)
+          : null;
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
         const blockBudget = Math.min(MAX_BLOCK_BUDGET, Math.max(MAX_BLOCKS, Number(numericMaxBlocks) || MAX_BLOCKS));
@@ -1412,7 +1421,7 @@ export function useModelling(ctx) {
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
         const grid = await runEstimation("dense", gridPoints, {
           bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
-          searchRadius: effectiveRadius, minSamples: 1, maxSamples: 16,
+          searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
           maxBlocks: blockBudget, // TASKS.csv #625
@@ -1490,6 +1499,7 @@ export function useModelling(ctx) {
           tool: "numeric grade shell", element: symbol, unit, cutoff: numericCutoff,
           method: numericMethod, searchRadiusM: effectiveRadius,
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
+          ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes
           cellSizeM: cs, paddingM: pad, closure,
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262

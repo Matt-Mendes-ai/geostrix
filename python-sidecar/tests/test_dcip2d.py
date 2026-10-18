@@ -179,10 +179,39 @@ def test_flat_geometric_factor_on_a_ridge():
     assert out["geometricFactor"] == "flat" and out["reachedTarget"] and 85 < p5 and p95 < 115
 
 
+def test_n_block_file_order():
+    """TASKS.csv #652 — contractor TDIP files list readings by n-block (every source's n = 1, then n = 2 ...), not
+    source by source. SimPEG regroups them by source; before #652 the data were passed in file order and paired
+    with the wrong electrodes (this block scored phi_d/N = 508). The same synthetic, listed by n-block, must fit and
+    recover the block, and predicted[i] must belong to the file's reading i."""
+    rows, rho, ch, topo = _synthetic()
+    nlev = np.round((rows[:, 2] - rows[:, 1]) / 20.0).astype(int)
+    perm = np.argsort(nlev, kind="stable")
+    rows, rho, ch = rows[perm], rho[perm], ch[perm]
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "chargeability": ch.tolist(), "topo": topo.tolist(),
+           "mesh": {"cell": 5.0, "depth": 150.0}, "uncertainty": {"percent": 3, "floor": 0.0},
+           "ipUncertainty": {"percent": 3, "floor": 0.5}, "maxIter": 20}
+    out = D.run_job(req, lambda e: None)
+    pred, std = np.asarray(out["predicted"]), np.asarray(out["standardDeviation"])
+    chi_file = float(np.mean(((rho - pred) / std) ** 2))
+    ip_pred, ip_std = np.asarray(out["ip"]["predicted"]), np.asarray(out["ip"]["standardDeviation"])
+    chi_ip = float(np.mean(((ch - ip_pred) / ip_std) ** 2))
+    c = out["cells"]
+    s, z, res = (np.asarray(c[k]) for k in ("s", "z", "resistivity"))
+    ground = np.interp(s, topo[:, 0], topo[:, 1])
+    lo = int(np.argmin(res))
+    print(f"n-block order: {len(rows)} readings, DC chi {out['phi_d'] / out['target']:.2f} (file-order recompute {chi_file:.2f}), "
+          f"IP chi {chi_ip:.2f}, {out['iterations']} iterations, min resistivity {res[lo]:.1f} at s={s[lo]:.0f}")
+    assert out["reachedTarget"] and chi_file <= 1.05 and chi_ip <= 1.5
+    assert abs(chi_file - out["phi_d"] / out["target"]) < 1e-6
+    assert 260 <= s[lo] <= 380 and 5 <= ground[lo] - z[lo] <= 80
+
+
 if __name__ == "__main__":
     test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
     test_dcip2d_recovers_block()
+    test_n_block_file_order()
     test_support_not_biased_against_conductors()
     test_flat_geometric_factor_on_a_ridge()
     print("ALL PASSED")

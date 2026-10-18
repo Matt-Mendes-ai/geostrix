@@ -77,6 +77,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           venv\Scripts\python.exe tests/test_implicit_dedupe.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          venv\Scripts\python.exe tests/test_implicit_transform.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           venv\Scripts\python.exe tests/test_dcip2d.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Freeze the Python sidecar

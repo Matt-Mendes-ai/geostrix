@@ -42,7 +42,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
     if (kind === "code") {
       const picks = (structurePicks || []).filter((p) => String(p.value ?? "?") === key && Number.isFinite(p.dip) && Number.isFinite(p.azimuth));
       plane = planeFromPoles(picks.map((p) => poleOf(p.dip, p.azimuth)));
-      what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}`;
+      what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${plane ? ` (S1 ${plane.s1.toFixed(2)}; 1 = all parallel)` : ""}`;
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
       plane = planeFromPoints(surfacePoints?.(key) || []);
