@@ -78,15 +78,35 @@ export const jobResult = (id) => call(`/v1/jobs/${encodeURIComponent(id)}/result
 export const cancelJob = (id) => call(`/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {}, timeoutMs: 10000 });
 
 // Runs a job to the end: onProgress({ progress, message, elapsed }) every second; resolves with the result.
-export async function runJob(kind, params, onProgress, signal) {
-  const job = await startJob(kind, params);
+// TASKS.csv #691 — as robust as the engine's job client (#321 / #515): a status poll that times out while TensorFlow
+// saturates the CPU is retried (up to MAX_MISSES in a row) instead of abandoning a running 1-2 GB job; whenever the
+// client gives up, the job is cancelled so it is not left running with nothing able to cancel it; a "no such job"
+// after a lost connection (the add-on was restarted) says what happened instead of a bare 404; and a 409 from a
+// model already running carries that job's id (err.busyJobId) so the panel can offer to cancel it.
+export const MAX_MISSES = 5;
+export async function runJob(kind, params, onProgress, signal, { pollMs = 1000 } = {}) {
+  let job;
+  try { job = await startJob(kind, params); }
+  catch (e) {
+    if (e.status === 409 && e.body?.job?.id) throw Object.assign(new Error("A predictive model is already running in the add-on (started earlier). Cancel it, then run this again."), { busyJobId: e.body.job.id });
+    throw e;
+  }
+  const giveUp = async (err) => { await cancelJob(job.id).catch(() => {}); throw err; };
+  let misses = 0, lastErr = null;
   for (;;) {
-    if (signal?.aborted) { await cancelJob(job.id).catch(() => {}); throw new Error("Cancelled."); }
-    await new Promise((r) => setTimeout(r, 1000));
-    const s = await jobStatus(job.id);
+    if (signal?.aborted) return giveUp(new Error("Cancelled."));
+    await new Promise((r) => setTimeout(r, pollMs));
+    let s;
+    try { s = await jobStatus(job.id); misses = 0; }
+    catch (e) {
+      if (e.status === 404) return giveUp(new Error("The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log)."));
+      misses++; lastErr = e;
+      if (misses >= MAX_MISSES) return giveUp(new Error(`Lost contact with the add-on (${MAX_MISSES} status checks in a row failed: ${lastErr.message}). The model was cancelled.`));
+      continue;
+    }
     onProgress?.(s);
     if (s.state === "done") return jobResult(job.id);
-    if (s.state === "error") throw new Error(s.error || "The model failed.");
+    if (s.state === "error" || s.state === "failed") throw new Error(s.error || "The model failed.");
     if (s.state === "cancelled") throw new Error("Cancelled.");
   }
 }

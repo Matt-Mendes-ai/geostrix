@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob } from "../lib/geomlAddon.js";
+import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob } from "../lib/geomlAddon.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
@@ -19,6 +19,7 @@ const PROB_STOPS = [{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b13
 
 export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
   const [st, setSt] = useState(null);
+  const [busyJob, setBusyJob] = useState(null); // TASKS.csv #691 — an orphaned job's id (from a 409)
   const [inst, setInst] = useState(null); // install progress { phase, got, total } | { error }
   const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
   const [runs, setRuns] = useState([]);
@@ -78,6 +79,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
       setNotices((p) => [...p, `geoML — ${label}: ${note} (${secs} s).`]);
     } catch (e) {
+      if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
       setNotices((p) => [...p, `geoML — ${label}: ${e.message}`]);
     } finally { setJob(null); abortRef.current = null; refresh(); }
   };
@@ -208,6 +210,12 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
           </div>
 
           <div style={box}>
+            {busyJob && (
+              <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>
+                A model started earlier is still running in the add-on.{" "}
+                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, "geoML: the earlier model was cancelled."]); }, (e) => setNotices((p) => [...p, `geoML: could not cancel it (${e.message}).`]))} style={{ ...btn(false, false), padding: "1px 7px" }}>Cancel it</button>
+              </div>
+            )}
             <div style={h}>Model a rock unit</div>
             {!collars.length || !lithoMetres.length ? "Load drillholes with a lithology log first." : (
               <>
