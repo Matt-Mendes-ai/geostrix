@@ -655,6 +655,8 @@ const RELATION_TYPES = [
 // own anchors (chargeability, geoML, log-coloured models), so over those models the ellipsoid changed a cell by
 // dE00 0-10 and disappeared. Blue sits outside every warm ramp and away from viridis's ends.
 const TREND_PREVIEW = { ellipsoid: colors.info, plane: colors.info, axis: colors.text };
+// TASKS.csv #684 — a "point" layer row that is really an interval (mineralisation logs)
+const isIntervalRow = (r) => Number.isFinite(r.from) && Number.isFinite(r.to) && r.to - r.from > 0.5;
 const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
 function voxelGeometryUnchanged(a, b) {
   if (a === b) return true;
@@ -4448,11 +4450,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // wins; with no scheme defined this returns exactly what it always did.
       const numericIntervalColor = (groupKey, value) =>
         numericLayerColor(groupKey, value, groupKey === "sg" ? globalPointRanges.sg : { min: 0, max: 100 });
-      const buildIntervalTube = (groupKey) => {
-        const meta = LAYER_META[groupKey];
+      const buildIntervalTube = (groupKey, opt = {}) => { // opt (#684): { filter, meta } — a point layer drawing its real intervals
+        const meta = { ...LAYER_META[groupKey], ...(opt.meta || {}) };
         const st = resolveLayerStyle(layerStyles[groupKey], "interval", { opacity: meta.opacity }); // TASKS.csv #635
         const radius = meta.radius * st.size;
-        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r)).forEach((row) => {
+        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r))).forEach((row) => {
          try {
           if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
           const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
@@ -4527,7 +4529,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           // that share this same tube-building path — harmless no-op for rows that don't have one.
           // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
           // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -4542,10 +4544,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       buildIntervalTube("litho_gc");
       buildIntervalTube("alt_gc");
 
-      const buildPointMarkers = (groupKey) => {
+      const buildPointMarkers = (groupKey, filter = null) => {
         const meta = LAYER_META[groupKey];
         const st = resolveLayerStyle(layerStyles[groupKey], "point"); // TASKS.csv #635
-        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r));
+        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)));
         const { min, max } = globalPointRanges[groupKey] || { min: 0, max: 0 };
         vals.forEach((row) => {
          try {
@@ -4563,7 +4565,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
         });
       };
-      buildPointMarkers("mnlgy");
+      // TASKS.csv #684 — a mineralisation log can be an INTERVAL log (Woodjam: 958 rows over 1 m, up to 69 m long), and
+      // each row used to become one sphere at its midpoint — a depth that is not in the data. Rows longer than half a
+      // metre are drawn as intervals; point-style rows (from = to, as in Harry and the synthetic set) stay markers.
+      buildIntervalTube("mnlgy", { filter: isIntervalRow, meta: { radius: 2.8, opacity: 0.85, extraSuffix: "%" } });
+      buildPointMarkers("mnlgy", (r) => !isIntervalRow(r));
       buildPointMarkers("magsusc");
 
       const stStruct = resolveLayerStyle(layerStyles.structure, "plane", { opacity: 0.55 }); // TASKS.csv #635
