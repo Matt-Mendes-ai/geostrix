@@ -116,3 +116,17 @@ test("planeFromPoles: a steep set logged on both sides of vertical gives the ste
   const q = planeFromPoles([poleOf(50, 200), poleOf(54, 205), poleOf(52, 202)]);
   assert.ok(Math.abs(q.dip - 52) < 1 && Math.abs(q.dipAzimuth - 202.3) < 1, JSON.stringify(q));
 });
+
+// TASKS.csv #671 — pitch is measured from the right-hand-rule strike; the major axis is reported as plunge -> trend
+test("majorAxisTrendPlunge: down dip, the two strike ends, and an oblique pitch on either side", async () => {
+  const { majorAxisTrendPlunge, describeTrend } = await import("../src/lib/trend.js");
+  const near = (a, b, tol = 0.1) => Math.abs(a - b) <= tol;
+  let m = majorAxisTrendPlunge({ dip: 45, dipAzimuth: 90, pitch: 90 });
+  assert.ok(near(m.plunge, 45) && near(m.trend, 90), JSON.stringify(m));
+  m = majorAxisTrendPlunge({ dip: 45, dipAzimuth: 90, pitch: 0 });
+  assert.ok(near(m.plunge, 0) && near(m.trend, 0), JSON.stringify(m)); // strike 000 (dip azimuth - 90), horizontal
+  const a = majorAxisTrendPlunge({ dip: 45, dipAzimuth: 90, pitch: 30 }), b = majorAxisTrendPlunge({ dip: 45, dipAzimuth: 90, pitch: 150 });
+  assert.ok(near(a.plunge, 20.7) && near(b.plunge, 20.7), `${a.plunge} ${b.plunge}`);
+  assert.ok(near(a.trend, 22.2, 0.5) && near(b.trend, 157.8, 0.5), `${a.trend} ${b.trend}`); // opposite quadrants
+  assert.match(describeTrend({ dip: 45, dipAzimuth: 90, pitch: 90 }), /major axis plunges 45° → 90°/);
+});

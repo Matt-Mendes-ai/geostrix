@@ -16,6 +16,57 @@ export const TREND_USERS = [
 ];
 const newId = () => `trend_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
+// TASKS.csv #670 — a number field edited as a draft and applied on blur / Enter (Escape cancels). Every keystroke used
+// to go through cleanTrend: typing "1" into Maximum of 3:2:1 re-sorted to 2:1:1 under the cursor, a leading "0" of
+// 0.5 became 0.001, clearing a field to retype it snapped it to 0.
+function DraftNumber({ value, onCommit, label, style, ...rest }) {
+  const [draft, setDraft] = useState(null);
+  const commit = () => {
+    if (draft == null) return;
+    const v = Number(draft);
+    setDraft(null);
+    if (draft.trim() !== "" && Number.isFinite(v) && v !== Number(value)) onCommit(v);
+  };
+  return (
+    <input type="number" step="any" value={draft ?? String(value)} aria-label={label} style={style} {...rest}
+      onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") setDraft(null); }} />
+  );
+}
+
+// #670 — the three ratios as one editor: what was typed stays on screen and the set is applied as soon as it is in
+// order (Maximum >= Intermediate >= Minimum, all above zero), whichever field is edited first. They are no longer
+// reordered behind the user's back: Leapfrog lists its three values per AXIS (along the pitch / across it in the
+// plane / across the plane), and its "Max 2, Intermed 3" was silently turned into 3 along the pitch.
+function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
+  const [vals, setVals] = useState(() => ({ ...trend.ratios }));
+  const [msg, setMsg] = useState(null);
+  const tryApply = (next) => {
+    const r = { max: Number(next.max), int: Number(next.int), min: Number(next.min) };
+    if (![r.max, r.int, r.min].every((v) => Number.isFinite(v) && v > 0)) { setMsg("Each ratio must be a number above zero — not applied yet."); return; }
+    if (!(r.max >= r.int && r.int >= r.min)) {
+      setMsg(`Not applied yet: the ratios must go Maximum ≥ Intermediate ≥ Minimum (now ${r.max} : ${r.int} : ${r.min}). Leapfrog lists its values per axis — if its largest one is the in-plane axis across the pitch, enter it as Maximum and add 90° to the pitch.`);
+      return;
+    }
+    setMsg(null);
+    if (r.max !== trend.ratios.max || r.int !== trend.ratios.int || r.min !== trend.ratios.min) onApply(r);
+  };
+  const box = (key, label) => (
+    <label style={field}>{label}
+      <input type="number" step="any" min="0.01" value={vals[key]} aria-label={`${trend.name} ratio ${label}`} style={{ ...inputStyle, width: "100%" }}
+        onChange={(e) => setVals((v) => ({ ...v, [key]: e.target.value }))}
+        onBlur={() => tryApply(vals)}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { setVals({ ...trend.ratios }); setMsg(null); } }} />
+    </label>
+  );
+  return (
+    <>
+      <div style={{ display: "flex", gap: 6, marginBottom: msg ? 2 : 6 }}>{box("max", "Maximum")}{box("int", "Intermediate")}{box("min", "Minimum")}</div>
+      {msg && <div role="status" style={{ ...small, color: "var(--color-warn-text)", marginBottom: 6 }}>{msg}</div>}
+    </>
+  );
+}
+
 // structurePicks: [{ value (code), dip, azimuth (dip direction) }]; surfaces: [{ id, name }]; surfacePoints(id) -> [{x, y, z}]
 export default function TrendsPanel({ structuralTrends, setStructuralTrends, structurePicks, surfaces, surfacePoints, onView, viewingId, small, inputStyle, btnStyle }) {
   const { trends = [], use = {} } = structuralTrends || {};
@@ -56,16 +107,13 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
 
   const field = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
   const num = (t, key, extra = {}) => (
-    <input type="number" step="any" value={t[key]} onChange={(e) => update(t.id, { [key]: e.target.value })} aria-label={`${t.name} ${key}`} style={{ ...inputStyle, width: "100%" }} {...extra} />
-  );
-  const ratio = (t, key) => (
-    <input type="number" step="any" min="0.01" value={t.ratios[key]} onChange={(e) => update(t.id, { ratios: { ...t.ratios, [key]: e.target.value } })} aria-label={`${t.name} ratio ${key}`} style={{ ...inputStyle, width: "100%" }} />
+    <DraftNumber value={t[key]} onCommit={(v) => update(t.id, { [key]: v })} label={`${t.name} ${key}`} style={{ ...inputStyle, width: "100%" }} {...extra} />
   );
 
   return (
     <div>
       <div style={{ ...small, marginBottom: 8 }}>
-        A trend is the direction the geology is most continuous in: a plane (dip, dip azimuth), the line of greatest continuity within it (pitch: 0° = along strike, 90° = down dip) and how much more continuous it is along that line than across it (ratios). Each kind of model below can follow one.
+        A trend is the direction the geology is most continuous in: a plane (dip, dip azimuth), the line of greatest continuity within it (pitch, measured in the plane from the strike direction — dip azimuth − 90°, right-hand rule — towards down dip: 90° = down dip, 0° and 180° are the two strike ends) and how much more continuous it is along that line than across it (ratios). The plunge and trend of that line are shown under each trend. Each kind of model below can follow one.
       </div>
       {trends.map((t) => {
         const editing = editId === t.id;
@@ -88,11 +136,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                   <label style={field}>Dip azimuth°{num(t, "dipAzimuth", { min: 0, max: 360 })}</label>
                   <label style={field}>Pitch°{num(t, "pitch", { min: 0, max: 180 })}</label>
                 </div>
-                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={field}>Maximum{ratio(t, "max")}</label>
-                  <label style={field}>Intermediate{ratio(t, "int")}</label>
-                  <label style={field}>Minimum{ratio(t, "min")}</label>
-                </div>
+                <RatiosEditor key={t.id} trend={t} onApply={(r) => update(t.id, { ratios: r })} field={field} inputStyle={inputStyle} small={small} />
                 <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label="Set the plane from" style={{ ...inputStyle, width: "100%" }}>
                   <option value="">Set the plane from…</option>
                   {codes.length > 0 && <optgroup label="Structure measurements (mean)">{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}

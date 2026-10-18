@@ -443,8 +443,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                     onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
-                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Copy this mean plane into the Modeling tab's anisotropy trend fields"}
-                  >Use as anisotropy trend</button>
+                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Add this mean plane as a new structural trend (Modeling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there (#671)"}
+                  >Add as structural trend</button>
                 )}
               </div>
             ) : (

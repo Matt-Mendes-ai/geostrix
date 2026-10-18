@@ -132,7 +132,18 @@ function invert3(m) {
   return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det], [B / det, (a * i - c * g) / det, -(a * f - c * d) / det], [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
 }
 
-export const describeTrend = (t) => { const c = cleanTrend(t); return `dip ${c.dip.toFixed(0)}° → ${c.dipAzimuth.toFixed(0)}°, pitch ${c.pitch.toFixed(0)}°, ${+c.ratios.max.toFixed(2)} : ${+c.ratios.int.toFixed(2)} : ${+c.ratios.min.toFixed(2)}`; };
+// TASKS.csv #671 — the major axis (direction of greatest continuity) as a plunge and trend, pointing down (a
+// horizontal axis is given towards its 0-180 azimuth). Pitch alone never said which strike end it runs from: for a
+// 45 -> 090 plane, pitch 30 plunges 20.7 towards 022 and pitch 150 plunges 20.7 towards 158.
+export function majorAxisTrendPlunge(t) {
+  let { x, y, z } = trendBasis(t).major;
+  if (z > 1e-9 || (Math.abs(z) <= 1e-9 && norm360(Math.atan2(x, y) * deg) >= 180)) { x = -x; y = -y; z = -z; }
+  return { plunge: Math.asin(Math.min(1, Math.max(-1, -z))) * deg, trend: norm360(Math.atan2(x, y) * deg) };
+}
+export const describeTrend = (t) => {
+  const c = cleanTrend(t), m = majorAxisTrendPlunge(c);
+  return `dip ${c.dip.toFixed(0)}° → ${c.dipAzimuth.toFixed(0)}°, pitch ${c.pitch.toFixed(0)}° (major axis plunges ${m.plunge.toFixed(0)}° → ${m.trend.toFixed(0)}°), ${+c.ratios.max.toFixed(2)} : ${+c.ratios.int.toFixed(2)} : ${+c.ratios.min.toFixed(2)}`;
+};
 
 // TASKS.csv #650 — the same trend in geoML's terms (geoml.transform.Anisotropy3D): its azimuth / dip are the plunge
 // direction and plunge of the MAXIMUM axis (dip 0-90, down), rake (-90..90) spins the intermediate and minimum axes
