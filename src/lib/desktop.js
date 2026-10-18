@@ -400,6 +400,9 @@ export async function ensureSidecarUp() {
   sidecarStartPromise = (async () => {
     const r = await d.ensureSidecar().catch(() => null);
     if (r?.spawned) {
+      // TASKS.csv #667 — a freshly spawned engine is a new process on the port: prove its identity again before the
+      // token goes to it (the check used to be cached for the whole session)
+      sidecarVerified = null;
       // A frozen build unpacks and imports numpy/scipy before listening; allow it ~45 s.
       const until = Date.now() + 45000;
       while (Date.now() < until) {
