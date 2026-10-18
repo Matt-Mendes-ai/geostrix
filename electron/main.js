@@ -949,11 +949,11 @@ ipcMain.handle("db-disconnect", async (_e, { id }) => {
   return { ok: true };
 });
 
-ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
+ipcMain.handle("db-live-query", async (_e, { id, sql, importStep }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
   try {
-    const res = await guardedQuery(entry, sql); // TASKS.csv #590 — its own read-only transaction, rolled back
+    const res = await guardedQuery(entry, sql, { importStep: importStep === true }); // TASKS.csv #590 / #665 — its own read-only transaction unless it is a step of the Browser panel's import
     return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, entry.safeConfig) };

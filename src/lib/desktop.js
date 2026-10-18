@@ -210,9 +210,10 @@ export async function dbDisconnect(id) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
   return d.dbDisconnect(id);
 }
-export async function dbLiveQuery(id, sql) {
+// opts.importStep (TASKS.csv #665): only DbBrowserPanel's chunked import sets it; the SQL box never does
+export async function dbLiveQuery(id, sql, opts = {}) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
-  return d.dbLiveQuery(id, sql);
+  return d.dbLiveQuery(id, sql, opts);
 }
 export async function dbLiveListTables(id) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };

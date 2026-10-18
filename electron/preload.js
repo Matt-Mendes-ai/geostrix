@@ -40,7 +40,7 @@ contextBridge.exposeInMainWorld("desktop", {
   dbPasswordStatus: (config) => ipcRenderer.invoke("db-password-status", config), // TASKS.csv #621
   dbForgetPassword: (config) => ipcRenderer.invoke("db-forget-password", config), // TASKS.csv #621
   dbDisconnect: (id) => ipcRenderer.invoke("db-disconnect", { id }),
-  dbLiveQuery: (id, sql) => ipcRenderer.invoke("db-live-query", { id, sql }),
+  dbLiveQuery: (id, sql, opts = {}) => ipcRenderer.invoke("db-live-query", { id, sql, importStep: opts.importStep === true }), // #665
   dbLiveListTables: (id) => ipcRenderer.invoke("db-live-list-tables", { id }),
   fsListDir: (dirPath) => ipcRenderer.invoke("fs-list-dir", { dirPath }),
   fsListDrives: () => ipcRenderer.invoke("fs-list-drives"),

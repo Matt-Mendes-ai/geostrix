@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { selectSql, countSql, chunkedReadPlan } from "../lib/dbSql.js"; // TASKS.csv #349
+const IMPORT_STEP = { importStep: true }; // TASKS.csv #665 — the import's own transaction steps (the SQL box never sends this)
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "./icons.js";
 import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery, dbPasswordStatus } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
@@ -249,17 +250,17 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     // explicitly and always rolled back (never committed) — nothing this panel does should ever be
     // able to write to the user's database.
     const plan = chunkedReadPlan(engine, t.table_schema, t.table_name); // #349
-    const begin = await dbLiveQuery(live.id, plan.begin); // TASKS.csv #348 (the session is read-only too)
+    const begin = await dbLiveQuery(live.id, plan.begin, IMPORT_STEP); // TASKS.csv #348 (the session is read-only too)
     if (!begin.ok) { setBusyTable(null); setTaskProgress?.(null); setError(begin.error); return; }
     try {
       if (plan.open) {
-        const decl = await dbLiveQuery(live.id, plan.open);
+        const decl = await dbLiveQuery(live.id, plan.open, IMPORT_STEP);
         if (!decl.ok) { setError(decl.error); return; }
       }
       while (rows.length < target) {
         if (cancelRef.current) { setError(`Import cancelled — ${rows.length.toLocaleString()} row(s) fetched, nothing imported.`); return; }
         const want = Math.min(CHUNK_ROWS, target - rows.length);
-        const res = await dbLiveQuery(live.id, plan.page(want, rows.length));
+        const res = await dbLiveQuery(live.id, plan.page(want, rows.length), IMPORT_STEP);
         if (!res.ok) { setError(res.error); return; }
         if (!fields) fields = res.fields;
         rows.push(...res.rows);
@@ -268,8 +269,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
       }
       finish(rows, fields || [], limit != null && total > limit);
     } finally {
-      if (plan.close) await dbLiveQuery(live.id, plan.close).catch(() => {});
-      await dbLiveQuery(live.id, plan.end).catch(() => {});
+      if (plan.close) await dbLiveQuery(live.id, plan.close, IMPORT_STEP).catch(() => {});
+      await dbLiveQuery(live.id, plan.end, IMPORT_STEP).catch(() => {});
       setBusyTable(null);
       setTaskProgress?.(null);
     }
