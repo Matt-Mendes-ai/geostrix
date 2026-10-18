@@ -305,7 +305,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               <input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
             {/* TASKS.csv #258 */}
-            <label style={fieldLabel} title="A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three.">
+            <label style={fieldLabel} title="A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three. With 2 or more, each hole supplies at most (max samples / min holes) of a block's samples, e.g. 8 of 16 (#642).">
               Min distinct holes per block
               <input type="number" min="1" step="1" value={minHoles} onChange={(e) => setMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={inp} />
             </label>

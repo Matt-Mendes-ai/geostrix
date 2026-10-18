@@ -7969,11 +7969,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             NOT to add a Measured/Indicated/Inferred classifier (that is a QP's professional judgement,
             and deriving a regulatory label from a search radius would launder a parameter choice into
             a regulatory term). The real live risk is the opposite one: the app emitted confident
-            tonnages with zero classification context. This is the fix — framing, not features. */}
+            tonnages with zero classification context. This is the fix — framing, not features.
+            TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
-          visualise and target mineralisation. It has no anisotropy, no variogram, no classification and
-          no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
+          visualise and target mineralisation. It can follow a structural trend you choose, but it has no
+          variogram, no classification and no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
           it must not be reported publicly as one.
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>

@@ -2,6 +2,7 @@
 // and Leapfrog all import "centroid + block size + attributes" CSV): XC, YC, ZC, XINC, YINC, ZINC and the
 // value, plus the estimation's per-block support fields when present. Coordinates are the project CRS.
 import { SUPPORT_CODES } from "./estimation.js";
+import { capAuditText } from "./geochem.js"; // TASKS.csv #674
 
 // TASKS.csv #529 — the value column / array name carries the unit when the model recorded one: "Au_ppm", not "Au"
 // (ppm or ppb? the file couldn't say). g/t and % become "gpt" / "pct" so the name stays a plain identifier.
@@ -35,5 +36,12 @@ export function blockModelParamLines(model) {
     if (v == null || typeof v === "object") return;
     lines.push(`${k}: ${v}`);
   });
+  // TASKS.csv #674 — the object-valued params were dropped, so a trended estimate's header gave a 150 m sphere and
+  // 16 samples with no ellipsoid, no per-hole limit and no cap audit: not reproducible elsewhere.
+  if (p.minHoles > 1 && p.maxSamples > 0) lines.push(`maxSamplesPerHole: ${Math.max(1, Math.ceil(p.maxSamples / p.minHoles))} (max samples / min holes, #642)`);
+  const t = p.searchTrend;
+  if (t) lines.push(`searchTrend: "${t.name}" dip ${t.dip} towards ${t.dipAzimuth}, pitch ${t.pitch}, ratios ${t.ratios?.max} : ${t.ratios?.int} : ${t.ratios?.min}${t.ellipsoidM ? `; search ellipsoid ${t.ellipsoidM.join(" x ")} m` : ""}`);
+  if (p.capAudit) lines.push(`capAudit: ${capAuditText(p.capAudit, p.unit || "")}`);
+  if (p.mlsBlocks) lines.push(`mlsBlocks: ${Object.entries(p.mlsBlocks).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   return lines;
 }
