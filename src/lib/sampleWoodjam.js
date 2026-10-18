@@ -5,7 +5,7 @@
 import Papa from "papaparse";
 import { inferUnit, mergeAssayRows } from "./geochem.js";
 import { omfToProjectObjects } from "./omfImport.js";
-import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows } from "./dcip.js";
+import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
 
@@ -51,7 +51,7 @@ export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
     }
   }
   const half = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
-  return { name, readings: p.readings, rho: p.rho, ip: p.ip, line, opts: { cell: half, depth: String(Math.round((p.span[1] - p.span[0]) / 4)) }, savedAt: new Date().toISOString(), sample: "woodjam" };
+  return { name, readings: p.readings, rho: p.rho, ip: p.ip, line, opts: { cell: half, depth: String(suggestModelDepth(p.readings, p.span, Number(half))) } /* #680 */, savedAt: new Date().toISOString(), sample: "woodjam" };
 }
 
 // Loads the three extras into the store. readFile(relPath) → File; store: { setAssays, setAssayElements, addVoxelModel,

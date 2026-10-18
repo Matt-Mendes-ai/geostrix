@@ -239,3 +239,22 @@ export function readingsToHorizontal(readings, f) {
   const conv = (v) => { if (v == null) return v; const h = +f(v).toFixed(3); maxShift = Math.max(maxShift, Math.abs(v - h)); return h; };
   return { readings: readings.map((r) => r.map(conv)), maxShift };
 }
+
+// TASKS.csv #680 — the default model depth from the ARRAY's reach, not the line length. It was a quarter of the line:
+// 575 m on the 2.3 km Woodjam lines, where the deepest cell the data see (support >= 0.02) lies 149-188 m down on
+// average and 238 m at most, so ~70 % of every section was regularisation; and 1,700 m on the 6.8 km tie lines (48k
+// cells, >85 min) with the same array. How deep a reading sees depends on the current-to-potential separation:
+// 0.3 x the largest one (1,250 m at Woodjam -> 375 m) stays above the measured DOI with a margin; never more than a
+// quarter of the line, never less than four cells. readings: [[A, B|null, M, N|null]] in metres along the line.
+export function suggestModelDepth(readings, span, cell) {
+  let maxSep = 0;
+  for (const [a, b, m, n] of readings || []) {
+    if (!Number.isFinite(a) || !Number.isFinite(m)) continue;
+    const c = Number.isFinite(b) ? (a + b) / 2 : a, p = Number.isFinite(n) ? (m + n) / 2 : m;
+    maxSep = Math.max(maxSep, Math.abs(c - p));
+  }
+  const lineCap = span && span[1] > span[0] ? (span[1] - span[0]) / 4 : Infinity;
+  const floor = Number.isFinite(cell) && cell > 0 ? 4 * cell : 0;
+  const d = maxSep > 0 ? Math.min(lineCap, 0.3 * maxSep) : lineCap;
+  return Math.round(Math.max(floor, Number.isFinite(d) ? d : floor));
+}

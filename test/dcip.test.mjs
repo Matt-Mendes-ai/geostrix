@@ -90,3 +90,15 @@ test("#600 contractor TDIP line files (.dat / .ipg): whitespace table after meta
   }
   assert.equal(parseDcipWhitespaceText("a,b,c\n1,2,3"), null); // a CSV without electrode columns: not this reader's
 });
+
+// TASKS.csv #680 — model depth from the array's reach, capped by the line length
+test("#680 suggested model depth follows the current-to-potential reach, not the line length", async () => {
+  const { suggestModelDepth } = await import("../src/lib/dcip.js");
+  // pole-dipole, a = 100 m, n = 1..12, over a 2.3 km line and over a 6.8 km tie line: same array, same depth
+  const pd = (len) => { const r = []; for (let a = 0; a <= len; a += 100) for (let n = 1; n <= 12; n++) { const m = a - n * 100; if (m - 100 >= 0) r.push([a, null, m, m - 100]); } return r; };
+  assert.equal(suggestModelDepth(pd(2300), [0, 2300], 50), 375); // 0.3 x 1,250 m
+  assert.equal(suggestModelDepth(pd(6800), [0, 6800], 50), 375);
+  // a short line is capped at a quarter of its length; never fewer than four cells
+  assert.equal(suggestModelDepth(pd(800), [0, 800], 50), 200);
+  assert.equal(suggestModelDepth([[0, 10, 20, 30]], [0, 30], 5), 20);
+});
