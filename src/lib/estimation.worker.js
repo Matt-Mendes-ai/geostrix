@@ -4,6 +4,7 @@
 // inputs are plain sample points + options; progress is posted once per z-slice (throttled); Cancel terminates
 // the worker. A dense grid's typed arrays are transferred, not copied.
 import { estimateBlockModel, estimateDenseGrid } from "./estimation.js";
+import { columnBuffers } from "./estimationCells.js"; // #661
 
 self.onmessage = (e) => {
   const { kind, points, opts } = e.data || {};
@@ -18,7 +19,9 @@ self.onmessage = (e) => {
       const transfer = [result.values?.buffer, result.supportCode?.buffer, result.supportIndex?.buffer].filter(Boolean);
       self.postMessage({ type: "done", result }, transfer);
     } else {
-      self.postMessage({ type: "done", result: estimateBlockModel(points, { ...opts, onProgress }) });
+      // TASKS.csv #661 — typed columns, transferred: no object per block here and no structured clone of them
+      const result = estimateBlockModel(points, { ...opts, onProgress, columns: true });
+      self.postMessage({ type: "done", result }, columnBuffers(result.columns));
     }
   } catch (err) {
     self.postMessage({ type: "error", message: err?.message || String(err) });

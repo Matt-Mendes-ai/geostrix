@@ -5,7 +5,7 @@ import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
-import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
 import { LAYER_META } from "../lib/layers.js";
@@ -422,10 +422,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
 
           {/* TASKS.csv #626 — the block budget (runs in a worker with progress and Cancel since #520) */}
           <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 8 }}
-            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.6 GB at the peak for 1 million blocks) and project-file size (every estimated block is saved with the project). Block models stop at 1 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.">
+            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.4 GB for 1 million blocks, 0.9 GB for 2 million) and project-file size (every estimated block is saved with the project). Block models stop at 2 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.">
             Block budget
             <select value={blockBudget} onChange={(e) => setBlockBudget(Number(e.target.value))} style={{ ...inp, width: "auto" }} aria-label="Block model block budget">
-              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks{b === MAX_BLOCKS ? " (fast)" : " (~1 min, ~0.6 GB of memory)"}</option>)}
+              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks ({blockModelBudgetNote(b)})</option>)}
             </select>
           </label>
           {gridPreview && (

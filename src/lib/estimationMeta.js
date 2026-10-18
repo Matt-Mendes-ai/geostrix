@@ -9,10 +9,14 @@ export const MAX_BLOCK_BUDGET = 5000000;
 // TASKS.csv #661 — a BLOCK MODEL (the estimation modal) is one object per block, held in the worker and again in the
 // renderer: measured 243-295 bytes per block in each, plus a ~5 s structured-clone hand-back per million and 72 MB of
 // instance buffers per million drawn. At 5 million that is 1.2-1.5 GB twice — more than an 8 GB laptop can spare.
-// Until estimateBlockModel returns typed columns, block models stop at 1 million (~0.6 GB at the peak); the grade
-// shell's dense grid is a Float64Array (40 MB at 5 million) and keeps BLOCK_BUDGETS.
-export const BLOCK_MODEL_BUDGETS = [200000, 1000000];
-export const MAX_BLOCK_MODEL_BUDGET = 1000000;
+// The worker now returns typed columns (estimationCells.js), transferred: at ~950k blocks the worker holds 101 MB
+// instead of 276 MB, the 2.7 s clone is gone and the window builds its objects in 0.17 s. The window still keeps one
+// object per block (~330 bytes, read by 61 places in the app), so block models stop at 2 million (~0.9 GB with the
+// drawing buffers); the grade shell's dense grid is a Float64Array (40 MB at 5 million) and keeps BLOCK_BUDGETS.
+export const BLOCK_MODEL_BUDGETS = [200000, 1000000, 2000000];
+export const MAX_BLOCK_MODEL_BUDGET = 2000000;
+// what each block-model budget costs, for the menu (measured: ~330 B per block in the window + 72 MB per million drawn)
+export const blockModelBudgetNote = (b) => (b <= 200000 ? "fast, ~0.1 GB of memory" : b <= 1000000 ? "~40 s, ~0.4 GB of memory" : "~1.5 min, ~0.9 GB of memory");
 // the grid a box needs at a cell size (the same rounding as estimation.js's gridDims), and the smallest cell (to
 // 0.5 m) that keeps a box within a budget
 export function gridBlockCount(bounds, cell) {

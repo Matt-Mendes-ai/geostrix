@@ -128,7 +128,16 @@ export function estimateBlockModel(samplePoints, opts) {
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
-  const cells = [];
+  // TASKS.csv #661 — opts.columns: write typed columns (the worker transfers them) instead of one object per block
+  const asColumns = !!opts.columns;
+  const cells = asColumns ? null : [];
+  let n = 0;
+  const cap = asColumns ? totalBlocks : 0;
+  const col = asColumns ? {
+    x: new Float64Array(cap), y: new Float64Array(cap), z: new Float64Array(cap), value: new Float64Array(cap),
+    nSamples: new Uint16Array(cap), nHoles: new Uint16Array(cap),
+    ...(wantSupport ? { support: new Uint8Array(cap).fill(255), supportIndex: new Float64Array(cap), nearestSampleM: new Float64Array(cap) } : {}),
+  } : null;
   let blocksSkipped = 0;
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
@@ -146,20 +155,30 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.nHoles === 1) singleHoleCells++;
         else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
+        if (r.support) {
+          supportCounts[r.support.cls]++;
+          if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
+        }
+        if (asColumns) {
+          col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
+          if (r.support) { col.support[n] = SUPPORT_CODES[r.support.cls]; col.supportIndex[n] = r.support.index; col.nearestSampleM[n] = r.support.nearest; }
+          n++;
+          continue;
+        }
         const cell = { x: cx, y: cy, z: cz, dx, dy, dz, value: r.value, nSamples: r.nSamples, nHoles: r.nHoles };
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;
           cell.nearestSampleM = r.support.nearest;
-          supportCounts[r.support.cls]++;
-          if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
         }
         cells.push(cell);
       }
     }
     opts.onProgress?.((iz + 1) / nz); // #520 — once per z-slice (the estimation worker relays it)
   }
-  return { cells, blocksEstimated: cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null };
+  // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
+  const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
+  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell

@@ -36,9 +36,9 @@ test("#626 the block-model estimate honours maxBlocks too", () => {
 });
 
 // TASKS.csv #661 — block models (one object per block, held twice) stop at 1 million; the grade shell's grid keeps 5 million
-test("#661 block-model budgets stop at 1 million; the grade shell keeps the larger ones", async () => {
+test("#661 block-model budgets stop at 2 million; the grade shell keeps the larger ones", async () => {
   const { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, BLOCK_BUDGETS } = await import("../src/lib/estimationMeta.js");
-  assert.equal(MAX_BLOCK_MODEL_BUDGET, 1000000);
+  assert.equal(MAX_BLOCK_MODEL_BUDGET, 2000000);
   assert.equal(Math.max(...BLOCK_MODEL_BUDGETS), MAX_BLOCK_MODEL_BUDGET);
   assert.equal(Math.max(...BLOCK_BUDGETS), MAX_BLOCK_BUDGET);
 });

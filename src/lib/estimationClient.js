@@ -1,7 +1,10 @@
+import { cellsFromColumns } from "./estimationCells.js"; // TASKS.csv #661
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
 // { onProgress(fraction), signal }) resolves with exactly what estimateBlockModel / estimateDenseGrid return.
 // Aborting the signal terminates the worker and rejects with an error whose .cancelled is true. If a worker
 // can't be started at all, the estimator runs on this thread instead (slower to feel, same result).
+// #661 — a block model comes back as typed columns; the rest of the app reads cell objects, built here once
+const withCells = (r) => { if (!r?.columns) return r; const { columns, ...rest } = r; return { ...rest, cells: cellsFromColumns(columns) }; };
 export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const cancelledError = () => Object.assign(new Error("Cancelled."), { cancelled: true });
@@ -26,7 +29,7 @@ export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
       heard = true;
       const d = e.data || {};
       if (d.type === "progress") onProgress?.(d.fraction);
-      else if (d.type === "done") finish(resolve, d.result);
+      else if (d.type === "done") finish(resolve, withCells(d.result));
       else if (d.type === "error") finish(reject, new Error(d.message));
     };
     worker.onerror = (e) => {
