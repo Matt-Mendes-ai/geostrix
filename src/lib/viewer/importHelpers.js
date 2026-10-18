@@ -216,12 +216,13 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   // TASKS.csv #424 — KML/KMZ waypoints and tracks: lon/lat rows with the source CRS set to EPSG:4326
   // (KML is always WGS84), so the normal import step reprojects them to the project CRS.
   if (name.endsWith(".kml") || name.endsWith(".kmz")) {
-    loadKml().then(({ readKmlFile, kmlFeaturesToRows }) => readKmlFile(file).then(({ features, skipped }) => ({ features, skipped, kmlFeaturesToRows }))).then(({ features, skipped, kmlFeaturesToRows }) => {
+    loadKml().then(({ readKmlFile, kmlFeaturesToRows }) => readKmlFile(file).then(({ features, skipped, badTuples }) => ({ features, skipped, badTuples, kmlFeaturesToRows }))).then(({ features, skipped, badTuples, kmlFeaturesToRows }) => {
       if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
       const { rows, headers } = kmlFeaturesToRows(features);
       const nPts = features.filter((f) => f.geomType === "point").length;
       let note = ` KML: ${nPts} point(s), ${features.length - nPts} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.`;
       if (skipped) note += ` ${skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.`;
+      if (badTuples) note += ` ${badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out (#705).`;
       onDone(rows, null, { headers, note, detectedEpsg: 4326 });
     }).catch((err) => onDone(null, err.message));
     return;
@@ -277,6 +278,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       let note = "";
       if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — "${parsed.layerName}" was imported; open the file again to pick another.`;
       if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
+      if (parsed.deletedCount) note += ` ${parsed.deletedCount} record(s) flagged deleted in the .dbf were left out (#706).`;
       if (parsed.hasAttributes === false) note += " No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).";
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't

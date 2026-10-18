@@ -574,7 +574,9 @@ function parseDbf(dbfBytes, encoding = "windows-1252") {
       else row[f.name] = raw;
       fieldOff += f.len;
     });
-    if (!deleted) rows.push(row);
+    // TASKS.csv #706 — a deleted record keeps its SLOT (null): the .shp keeps every record and features are paired with
+    // rows by index, so skipping it moved every later feature's attributes onto the previous geometry.
+    rows.push(deleted ? null : row);
     recOff += recordLen;
   }
   return rows;
@@ -626,7 +628,9 @@ export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0
   if (!shp) throw new Error("No .shp data found.");
   const { geoms, skippedCount } = parseShp(shp);
   const attrRows = dbf ? parseDbf(dbf, dbfEncoding(cpg, dbf)) : [];
+  let deletedCount = 0; // #706 — a record flagged deleted in the .dbf drops its shape too (as OGR does)
   const features = geoms.flatMap((g, i) => {
+    if (dbf && attrRows[i] === null) { deletedCount++; return []; }
     if (!g) return [];
     const attributes = attrRows[i] || {};
     if (g.multi) return g.multi.map((pt) => ({ geometry: [pt], parts: [[pt]], attributes })); // #415 MultiPoint
@@ -634,7 +638,7 @@ export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0
   });
   if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
   const geomType = geoms.find((g) => g)?.type || "point";
-  return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
+  return { features, geomType, skippedCount, deletedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
 }
 
 // Flattens { features, geomType } into plain row objects — x/y/z taken from the FIRST vertex of each
