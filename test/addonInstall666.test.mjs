@@ -53,3 +53,19 @@ test("not enough free space is refused before anything is downloaded", async () 
     await assert.rejects(mgr.install("geoml"), (e) => /needs about .* GB free/.test(e.message));
   } finally { restore(); }
 });
+
+// TASKS.csv #698 — too little free memory is refused before the add-on is started
+test("#698 the add-on does not start when the computer has under 1.5 GB free", async () => {
+  const { mgr, restore } = harness();
+  const realFree = os.freemem;
+  const prevExe = process.env.GEOSTRIX_ADDON_GEOML_EXE;
+  process.env.GEOSTRIX_ADDON_GEOML_EXE = process.execPath; // any existing file: nothing is spawned in this test
+  os.freemem = () => 0.8e9;
+  try {
+    await assert.rejects(mgr.ensure("geoml"), (e) => /needs about 2 GB of free memory.*0\.8 GB free/.test(e.message));
+  } finally {
+    os.freemem = realFree;
+    if (prevExe === undefined) delete process.env.GEOSTRIX_ADDON_GEOML_EXE; else process.env.GEOSTRIX_ADDON_GEOML_EXE = prevExe;
+    restore();
+  }
+});

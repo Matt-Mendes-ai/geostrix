@@ -6,6 +6,7 @@
 // development and testing.
 const fs = require("fs");
 const path = require("path");
+const os = require("os"); // #698
 const crypto = require("crypto");
 const { spawn, execFile } = require("child_process");
 const nodeNet = require("net");
@@ -174,6 +175,16 @@ function createAddonManager({ app, net, send }) {
     return status(id);
   }
 
+  // TASKS.csv #698 — TensorFlow uses every core by default, so a 1-2 minute model competed with the window on a 4-core
+  // laptop. Half the cores, at most 4 — the same cap the Python engine gets (main.js blasThreadEnv) — unless the user
+  // set these variables themselves.
+  function addonThreadEnv() {
+    const n = String(Math.max(1, Math.min(4, Math.floor(os.cpus().length / 2))));
+    const env = {};
+    ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "TF_NUM_INTRAOP_THREADS"].forEach((k) => { if (!process.env[k]) env[k] = n; });
+    if (!process.env.TF_NUM_INTEROP_THREADS) env.TF_NUM_INTEROP_THREADS = "2";
+    return env;
+  }
   async function ensure(id) {
     if (running[id]) return { running: true, port: running[id].port, spawned: false };
     const info = releaseInfo(id);
@@ -183,6 +194,11 @@ function createAddonManager({ app, net, send }) {
     if (dev && dev.includes("|")) { [cmd, ...args] = dev.split("|"); }
     else { cmd = dev || exePath(id, info); }
     if (!fs.existsSync(cmd)) throw new Error("The add-on isn't installed.");
+    // TASKS.csv #698 — the add-on takes ~590 MB once TensorFlow is loaded and up to ~1.9 GB while a model runs; on an
+    // 8 GB laptop beside GeoStrix and the Python engine it used to fail minutes in with "stopped unexpectedly (out of
+    // memory?)". Refuse up front when the computer plainly lacks the room, and say what it has.
+    const freeGb = os.freemem() / 1e9;
+    if (freeGb < 1.5) throw new Error(`The predictive add-on needs about 2 GB of free memory while a model runs, and this computer has ${freeGb.toFixed(1)} GB free right now. Close other programs (web browsers use a lot) and try again.`);
     const token = crypto.randomBytes(32).toString("hex");
     const port = await pickPort(ADDON_PORTS.includes(info.port) ? info.port : ADDON_PORTS[0]);
     if (port == null) throw new Error(`Ports ${ADDON_PORTS[0]}-${ADDON_PORTS[ADDON_PORTS.length - 1]} are all in use, so the add-on cannot start. Close other programs using them and try again.`);
@@ -194,7 +210,7 @@ function createAddonManager({ app, net, send }) {
     } catch { logFd = null; }
     const proc = spawn(cmd, args, {
       cwd: path.dirname(args.length ? args[args.length - 1] : cmd),
-      env: { ...process.env, GEOSTRIX_ADDON_TOKEN: token, GEOSTRIX_ADDON_PORT: String(port), TF_CPP_MIN_LOG_LEVEL: "2" },
+      env: { ...process.env, GEOSTRIX_ADDON_TOKEN: token, GEOSTRIX_ADDON_PORT: String(port), TF_CPP_MIN_LOG_LEVEL: "2", ...addonThreadEnv() },
       windowsHide: true,
       stdio: logFd !== null ? ["ignore", logFd, logFd] : "ignore",
     });
