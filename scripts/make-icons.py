@@ -10,7 +10,8 @@
 # the image border; the owl is the rest, shrunk back by SEAL_PX and blurred 1 px to anti-alias the edge.
 # Outputs (same names and sizes as before, owl filling ~90% of the square like the previous icon):
 #   build/icon.png 1024, build/icon.ico (16-256), build/icon.icns, public/favicon.png 256,
-#   assets/GeoStrix_Logo.png 1024, assets/geostrix-mark-64.png 64
+#   assets/GeoStrix_Logo.png 1024, assets/geostrix-mark-64.png 64,
+#   website/favicon.png 48 and website/img/icon-128.png 128 (TASKS.csv #703 — the site's tab icon was still the old owl)
 from collections import deque
 from pathlib import Path
 from PIL import Image, ImageFilter
@@ -67,4 +68,6 @@ square(256).save(ROOT / "public" / "favicon.png", optimize=True)
 square(64).save(ROOT / "assets" / "geostrix-mark-64.png", optimize=True)
 square(256).save(ROOT / "build" / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (72, 72), (96, 96), (128, 128), (256, 256)])
 master.save(ROOT / "build" / "icon.icns")
+square(48).save(ROOT / "website" / "favicon.png", optimize=True)  # #703
+square(128).save(ROOT / "website" / "img" / "icon-128.png", optimize=True)  # #703
 print("owl bbox in source", bbox, "-> icons written")

@@ -647,6 +647,16 @@ const RELATION_TYPES = [
 // this row's own fix lands there) doesn't pass it at all, so every behavior below is a pure no-op until
 // App.jsx actually starts rendering ViewerModule as a single persistent instance and passing `false`
 // while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
+// TASKS.csv #696 — true when two versions of a voxel model draw the same instances: every field the same object /
+// value except the display-only ones, and the same side of opaque / transparent (the transparent path keeps a
+// per-cell list for the depth sort and a different depthWrite).
+const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
+function voxelGeometryUnchanged(a, b) {
+  if (a === b) return true;
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!VOXEL_DISPLAY_ONLY.has(k) && a[k] !== b[k]) return false;
+  return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1);
+}
+
 export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
@@ -5489,8 +5499,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const tmpMatrix = new THREE.Matrix4();
     const tmpColor = new THREE.Color();
     voxelModels.forEach((model) => {
-      // Always rebuilt from scratch (see comment above) — dispose any previous instance of this model.
       const prev = voxelMeshesRef.current[model.id];
+      // TASKS.csv #696 — a display-only change (opacity within the transparent range, visibility, name) is applied to
+      // the existing mesh. Every model used to be rebuilt on every opacity-slider tick: 539 ms and a 72 MB instance
+      // upload per tick for a 1M-cell model, and every OTHER model in the project rebuilt with it.
+      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model) && prev.userData.origin === `${ox},${oy},${oz}`) {
+        const op = model.opacity ?? 0.85;
+        prev.material.opacity = op;
+        prev.visible = model.visible !== false;
+        prev.userData.srcModel = model;
+        return;
+      }
+      // Otherwise rebuilt from scratch (see comment above) — dispose any previous instance of this model.
       // TASKS.csv #433 — prev.dispose() too: in three r160 the instanceMatrix/instanceColor GPU buffers are
       // released only by InstancedMesh's own 'dispose' event, so every opacity drag, threshold change or
       // visibility toggle (all rebuild this effect) leaked ~7.6 MB per 100k-cell model on the shared-RAM iGPU.
@@ -5576,6 +5596,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.visible = model.visible !== false;
       mesh.userData.transparentCells = transparentCells;
+      mesh.userData.srcModel = model; // #696
+      mesh.userData.origin = `${ox},${oy},${oz}`;
       group.add(mesh);
       voxelMeshesRef.current[model.id] = mesh;
     });

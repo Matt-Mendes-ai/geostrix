@@ -51,7 +51,7 @@ export default function LicensesModal({ onClose }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ padding: "8px 16px 14px", overflow: "auto" }}>
-          {error && <div style={{ color: "var(--color-danger-text)" }}>The licence list could not be loaded ({error}).</div>}
+          {error && <div style={{ color: "var(--color-danger-fg)" }}>The licence list could not be loaded ({error}).</div>}
           {!data && !error && <div style={{ color: "var(--color-text-muted)" }}>Loading…</div>}
           {data && (
             <>

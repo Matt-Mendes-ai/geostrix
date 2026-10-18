@@ -1,4 +1,5 @@
 // TASKS.csv #599 — the Modelling codes pane (3D Modeling tab). The code list (colour, role, pile order),
+import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // optional auto-numbering of alternating flows, and the interval picked in the 3D view: its code can be
 // changed, or it can be connected to an interval in another hole (both get the same code; a tie line is
 // drawn). The picking itself lives in ViewerModule (the 3D scene); this pane only edits `modellingCodes`.
@@ -75,7 +76,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <b>{selected.hole_id} · {Number(selected.from).toFixed(1)}–{Number(selected.to).toFixed(1)} m</b>
-            <X size={13} style={{ cursor: "pointer" }} aria-label="Clear selection" onClick={() => { setSelected(null); setConnectFrom(null); }} />
+            <X size={14} style={{ cursor: "pointer" }} {...iconAction(() => { setSelected(null); setConnectFrom(null); }, "Clear selection")} />
           </div>
           <div style={small}>Logged as <b>{selected.value}</b> · modelling code <b>{selCode}</b>{mc.assign?.[rowKey(selected)] ? " (set by you)" : " (default)"}</div>
           <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
@@ -123,7 +124,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
 
       <div style={{ ...small, marginTop: 10 }}>
         {overrides} interval(s) with a code you set · {(mc.ties || []).length} connection(s) drawn.
-        {overrides > 0 && <> <span role="button" tabIndex={0} style={{ textDecoration: "underline", cursor: "pointer" }} onClick={() => { if (window.confirm(`Reset all ${overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)`)) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }}>Reset all</span></>}
+        {overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(`Reset all ${overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)`)) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, "Reset all interval codes")}>Reset all</span></>}
       </div>
     </div>
   );

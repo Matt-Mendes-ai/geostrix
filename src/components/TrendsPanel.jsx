@@ -1,4 +1,5 @@
 // TASKS.csv #650 — "we need to find a way to introduce structural trends in geology models and grade models"
+import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687 — Enter / Space on the icon actions
 // (Matt, with Leapfrog's Trend tab). Named trends saved with the project (structuralTrends), each a plane (dip, dip
 // azimuth), the direction of greatest continuity in it (pitch) and the ellipsoid ratios; every model type picks
 // one or none. The maths is lib/trend.js; this is the list, the editor and the "used by" table.
@@ -76,8 +77,8 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                 <div style={small}>{describeTrend(t)}</div>
               </div>
               {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} style={{ ...btnStyle, width: "auto", padding: "2px 7px", marginBottom: 0 }} title="Show this trend's plane and ellipsoid in the 3D view">{viewingId === t.id ? "Hide" : "View"}</button>}
-              <Pencil size={13} role="button" tabIndex={0} aria-label={`Edit ${t.name}`} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} onClick={() => setEditId(editing ? null : t.id)} />
-              <Trash2 size={13} role="button" tabIndex={0} aria-label={`Delete ${t.name}`} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => { if (window.confirm(`Delete trend "${t.name}"? Models using it will no longer follow a trend.`)) remove(t.id); }} />
+              <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), `Edit ${t.name}`)} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { if (window.confirm(`Delete trend "${t.name}"? Models using it will no longer follow a trend.`)) remove(t.id); }, `Delete ${t.name}`)} />
             </div>
             {editing && (
               <div style={{ marginTop: 6 }}>

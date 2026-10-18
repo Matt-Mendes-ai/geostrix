@@ -3,7 +3,7 @@ import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476
+import { seedBreaks, nextDarkerClassColor } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
 
@@ -42,7 +42,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       return;
     }
     const last = local.breaks[local.breaks.length - 1];
-    commit({ ...local, breaks: [...local.breaks, { max: +(last.max * 1.5).toFixed(3), color: "#e05a4a", label: "" }] });
+    commit({ ...local, breaks: [...local.breaks, { max: +(last.max * 1.5).toFixed(3), color: nextDarkerClassColor(local.color, last.color), label: "" }] }); // #701
   };
   const updateBreak = (i, patch) => {
     // #319 — a break the user has touched is theirs: drop the `seeded` tag so nothing later treats it
@@ -106,9 +106,10 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {local.breaks.map((b, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} />
+                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} aria-label={`Class ${i + 1} colour`} />
                     <input
                       placeholder="Label"
+                      aria-label={`Class ${i + 1} label`} // #687
                       value={b.label || ""}
                       onChange={(e) => updateBreak(i, { label: e.target.value })}
                       style={{ ...inp, width: 90 }}
@@ -117,6 +118,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                     <input
                       type="number" step="any"
                       value={b.max}
+                      aria-label={`Class ${i + 1} upper limit (${unit}), up to and including`}
                       onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
                       style={{ ...inp, width: 90 }}
                     />

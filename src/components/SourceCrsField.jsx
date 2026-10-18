@@ -29,12 +29,12 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
         </div>
       )}
       {set && !name && (
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-text)", marginTop: 4, lineHeight: 1.4 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)", marginTop: 4, lineHeight: 1.4 }}>
           GeoStrix can't convert from EPSG:{value}, so the coordinates would be used as they are. Pick a CRS from the list.
         </div>
       )}
       {set && datumNote(value) && (
-        <div style={{ fontSize: "var(--font-size-sm)", color: "#e0a030", marginTop: 4, lineHeight: 1.4 }}>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>
           ⚠ {datumNote(value)}
         </div>
       )}

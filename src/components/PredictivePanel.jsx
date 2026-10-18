@@ -186,7 +186,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
           </div>
           {!st.url && !st.browser && <div style={{ marginTop: 6 }}>The add-on download isn't published for this version yet.</div>}
           {st.browser && <div style={{ marginTop: 6 }}>In the browser preview: run the add-on by hand on port 8766 (addons/geoml/README.md).</div>}
-          {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-text)" }}>{inst.error}</div>}
+          {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-fg)" }}>{inst.error}</div>}
         </div>
       ) : (
         <>
@@ -207,12 +207,27 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 <div style={{ marginBottom: 4 }}>Codes that make up the unit:</div>
                 <div style={{ maxHeight: 150, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 5, padding: 4, background: "var(--color-bg)" }}>
                   {lithoMetres.map(([code, m]) => (
-                    <label key={code} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
-                      <input type="checkbox" checked={unit.has(code)} onChange={() => setUnit((u) => { const n = new Set(u); n.has(code) ? n.delete(code) : n.add(code); return n; })} />
-                      <span style={{ flex: 1 }}>{code}</span><span style={{ color: "var(--color-text-muted)" }}>{Math.round(m).toLocaleString()} m</span>
-                      <span role="button" tabIndex={0} title="Leave this code out of the model (e.g. overburden)" onClick={() => setLeaveOut((s) => { const n = new Set(s); n.has(code) ? n.delete(code) : n.add(code); return n; })} onKeyDown={() => {}}
-                        style={{ fontSize: "var(--font-size-xs)", color: leaveOut.has(code) ? "var(--color-warn-text)" : "var(--color-text-muted)", cursor: "pointer" }}>{leaveOut.has(code) ? "left out" : "use"}</span>
-                    </label>
+                    // TASKS.csv #687 — the "use / left out" toggle was a span INSIDE the checkbox's <label>, so one click flipped
+                    // both (the code ended up in the unit AND left out, and the exclusion was then dropped). Now a real button
+                    // outside the label, and the two states exclude each other: leaving a code out takes it out of the unit,
+                    // ticking it into the unit brings it back in.
+                    <div key={code} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
+                      <label style={{ display: "flex", gap: 6, alignItems: "center", flex: 1, minWidth: 0 }}>
+                        <input type="checkbox" checked={unit.has(code)} onChange={() => {
+                          const adding = !unit.has(code);
+                          setUnit((u) => { const n = new Set(u); adding ? n.add(code) : n.delete(code); return n; });
+                          if (adding) setLeaveOut((s) => { if (!s.has(code)) return s; const n = new Set(s); n.delete(code); return n; });
+                        }} />
+                        <span style={{ flex: 1 }}>{code}</span><span style={{ color: "var(--color-text-muted)" }}>{Math.round(m).toLocaleString()} m</span>
+                      </label>
+                      <button type="button" aria-pressed={leaveOut.has(code)} aria-label={`${leaveOut.has(code) ? "Use" : "Leave out"} ${code}`} title="Leave this code out of the model (e.g. overburden)"
+                        onClick={() => {
+                          const leaving = !leaveOut.has(code);
+                          setLeaveOut((s) => { const n = new Set(s); leaving ? n.add(code) : n.delete(code); return n; });
+                          if (leaving) setUnit((u) => { if (!u.has(code)) return u; const n = new Set(u); n.delete(code); return n; });
+                        }}
+                        style={{ fontSize: "var(--font-size-xs)", color: leaveOut.has(code) ? "var(--color-warn-text)" : "var(--color-text-muted)", cursor: "pointer", background: "none", border: "none", padding: "0 2px", fontFamily: "inherit" }}>{leaveOut.has(code) ? "left out" : "use"}</button>
+                    </div>
                   ))}
                 </div>
                 <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder="Name (optional)" aria-label="Unit name" style={{ width: "100%", boxSizing: "border-box", marginTop: 6 }} />
