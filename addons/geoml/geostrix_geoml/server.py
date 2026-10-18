@@ -123,7 +123,9 @@ class Jobs:
                 if not proc.is_alive():
                     for j in self.jobs.values():
                         if j["state"] == "running":
-                            j.update(state="error", error="The modelling process stopped unexpectedly (out of memory?).")
+                            # #689 — say what is known: the exit code, and the two usual causes (on a budget laptop a CPU
+                            # without AVX kills TensorFlow at import, which "out of memory?" used to misdiagnose)
+                            j.update(state="error", error=f"The modelling process stopped unexpectedly (exit code {proc.exitcode}). Usual causes: not enough free memory, or a processor without AVX, which TensorFlow needs (some budget Celeron / Pentium chips). The add-on's log has the details.")
                     return
                 continue
             job = self.jobs.get(msg[0])

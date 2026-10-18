@@ -19,7 +19,8 @@ const PROB_STOPS = [{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b13
 
 export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
   const [st, setSt] = useState(null);
-  const [busyJob, setBusyJob] = useState(null); // TASKS.csv #691 — an orphaned job's id (from a 409)
+  const [busyJob, setBusyJob] = useState(null);
+  const [confirmInstall, setConfirmInstall] = useState(false); // #688 — one confirm step before a 553 MB download // TASKS.csv #691 — an orphaned job's id (from a 409)
   const [inst, setInst] = useState(null); // install progress { phase, got, total } | { error }
   const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
   const [runs, setRuns] = useState([]);
@@ -182,15 +183,25 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       {!st ? <div style={box}>Checking the add-on…</div> : !st.installed ? (
         <div style={box}>
           <div style={h}>Install the add-on</div>
-          It is a separate download{st.downloadBytes ? ` of about ${fmtMB(st.downloadBytes)}` : ""} ({st.installedBytes ? `${fmtMB(st.installedBytes)} on disk` : "a few GB on disk"}), because it carries TensorFlow. It needs a recent laptop: about 2 GB of free memory while a model runs. Licence: GPL-3.0 (free software); GeoStrix itself stays MIT.
+          {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button
+              used to start a 553 MB download on the click (wrong on a metered camp connection) */}
+          <div><strong>What you get:</strong> rock-unit and grade models with their uncertainty (a Fast model takes about a minute).</div>
+          <div style={{ marginTop: 4 }}><strong>What it costs:</strong> a download{st.downloadBytes ? ` of about ${fmtMB(st.downloadBytes)}` : ""} from GitHub, {st.installedBytes ? `${fmtMB(st.installedBytes)} on disk` : "a few GB on disk"} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).</div>
+          <div style={{ marginTop: 4 }}><strong>Licence:</strong> free to use; it is GPL-3.0, which only matters if you redistribute it (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">licence text</a>). GeoStrix itself stays MIT. You can remove it from this tab at any time.</div>
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
-            {inst?.phase ? (
+            {confirmInstall && !inst?.phase ? (
+              <>
+                <span style={{ flex: 1 }}>Download{st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""} now?</span>
+                <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>Download{st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""}</button>
+                <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>Not now</button>
+              </>
+            ) : inst?.phase ? (
               <>
                 <span style={{ flex: 1 }}>{inst.phase === "unpack" ? "Unpacking…" : `Downloading ${fmtMB(inst.got)} of ${fmtMB(inst.total)}`}</span>
                 {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>Cancel</button>}
               </>
             ) : (
-              <button type="button" style={btn(true, !st.url && !st.browser)} disabled={!st.url} onClick={async () => { setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>
+              <button type="button" style={btn(true, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>
                 Install predictive modelling…
               </button>
             )}
