@@ -70,3 +70,20 @@ test("a grid over the block limit grows its cell instead of failing", () => {
   assert.ok(req.cell > 1);
   assert.doesNotThrow(() => estimateBlockModel(req.points, req.opts));
 });
+
+// TASKS.csv #664 — between two lines the merge is a blend, not a copy of the nearest line with a step halfway
+test("between two lines the value blends from one to the other (no nearest-line step)", () => {
+  const flat = (id, y, v) => ({ id, method: "ip", supportCutoff: 0.02, cells: Array.from({ length: 40 }, (_, i) => ({ x: 12.5 + 25 * i, y, z: 993.75, dx: 25, dy: 25, dz: 12.5, value: v, support: 0.5 })) });
+  const { points, dz } = sectionSamples([flat("a", 0, 0), flat("b", 300, 100)]);
+  const req = mergeRequest(points, { radius: 330, cell: 25, dz });
+  assert.equal(req.opts.minHoles, 2);
+  const cells = betweenLines(unstretchCells(estimateBlockModel(req.points, req.opts).cells, req.stretch, "ip"), points, 330);
+  const byY = new Map();
+  cells.filter((c) => c.x > 300 && c.x < 700).forEach((c) => { const k = Math.round(c.y); if (!byY.has(k)) byY.set(k, []); byY.get(k).push(c.value); });
+  const prof = [...byY.entries()].sort((a, b) => a[0] - b[0]).map(([y, v]) => [y, v.reduce((s, x) => s + x, 0) / v.length]);
+  for (let i = 1; i < prof.length; i++) assert.ok(prof[i][1] >= prof[i - 1][1] - 1e-9, "rises from one line to the other");
+  const mid = prof.filter(([y]) => y > 60 && y < 240);
+  assert.ok(mid.length >= 6 && mid.every(([, v]) => v > 2 && v < 98), JSON.stringify(prof.map(([y, v]) => [y, Math.round(v)])));
+  const steps = prof.slice(1).map(([, v], i) => v - prof[i][1]);
+  assert.ok(Math.max(...steps) < 25, `largest step between neighbouring blocks ${Math.max(...steps).toFixed(1)}`);
+});

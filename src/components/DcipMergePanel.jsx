@@ -64,7 +64,7 @@ export default function DcipMergePanel({ pBtn, numInput }) {
           samples: samples.points.length, method: kind === "dc" ? "IDW (power 2) on log10 resistivity" : "IDW (power 2)",
           searchRadiusM: R, searchRadiusSource: num(radius) > 0 ? "entered by user" : "suggested from the line spacing", verticalSearchM: +(R / req.stretch).toFixed(1),
           blockM: { dx: req.cell, dy: req.cell, dz: samples.dz }, blocks: cells.length,
-          rule: "A block is kept only within the search radius of at least two lines and where the lines see at its depth (support cutoff); nothing is extrapolated beyond the outer lines.",
+          rule: "A block is kept only within the search radius of at least two lines and where the lines see at its depth (support cutoff), and its value uses samples from at least two lines (up to 8 per line, #664); nothing is extrapolated beyond the outer lines.",
           interpretation: "An interpolation between 2.5D sections, each of which assumes the ground does not change across its line: between lines it is a guide, not a 3D inversion.",
           generatedAt: new Date().toISOString(), app: APP_VERSION, seconds: Math.round((performance.now() - t0) / 1000),
         },

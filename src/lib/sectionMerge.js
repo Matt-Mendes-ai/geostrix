@@ -4,9 +4,14 @@
 //
 // Two choices make this an interpolation BETWEEN lines and not an invention around them:
 //  - a block is kept only when its plan position is within the search radius of at least two lines
-//    (betweenLines, after the estimate: the estimator's own minHoles counts lines among the NEAREST samples,
-//    which beside a line all come from that line, so it emptied a strip along every line), and only where
-//    samples exist at its depth: nothing is extrapolated beyond the outer lines or below where the lines see;
+//    (betweenLines), and only where samples exist at its depth: nothing is extrapolated beyond the outer lines
+//    or below where the lines see;
+//  - TASKS.csv #664 — every block takes samples from at least two lines (the estimator's minHoles 2, a line
+//    playing a hole). minHoles 1 was chosen when the hole rule counted the nearest 16 samples, which beside a
+//    line all come from that line, and emptied a strip along every line; #642 replaced that with a per-hole cap
+//    (8 + 8), so minHoles 2 now blends. With minHoles 1, 83 % of the Woodjam blocks were a copy of the nearest
+//    line with a step halfway between lines (0 0 0 0 0 33 67 100 100 on two constant lines 300 m apart); with 2,
+//    0 % and a smooth inverse-distance blend (1 4 9 18 29 43 57 71 82 91 96 99), measured on the corrected sections.
 //  - the search is flat: as wide as the line spacing across the lines, but only a few cells deep, so a block
 //    takes its value from the same depth on the neighbouring lines, not from shallower or deeper rock. The
 //    estimator searches a sphere, so z is stretched by `stretch` (horizontal / vertical radius) going in and
@@ -91,7 +96,7 @@ export function mergeRequest(points, { radius, cell, dz, vertical, maxBlocks = 2
     opts: {
       bounds: { xmin, xmax, ymin, ymax, zmin: zmin * stretch, zmax: zmax * stretch },
       cellSize: { dx: c, dy: c, dz: dz * stretch },
-      method: "idw2", searchRadius: radius, minSamples: 2, maxSamples: 16, minHoles: 1, lengthWeight: false, maxBlocks,
+      method: "idw2", searchRadius: radius, minSamples: 2, maxSamples: 16, minHoles: 2, lengthWeight: false, maxBlocks, // #664
     },
   };
 }
