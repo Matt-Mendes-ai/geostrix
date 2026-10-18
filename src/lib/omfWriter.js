@@ -108,7 +108,7 @@ export function volumeElementFromModel(model) {
     if (Number.isFinite(c.supportIndex)) { sIndex[idx] = c.supportIndex; hasIndex = true; }
   }
   const valueName = valueColumnName(model); // #529 — "Au_ppm"
-  const estimate = /^(estimate|support-index)-/.test(String(model.source || ""));
+  const estimate = /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")); // geoml: #677
   const codes = model.cells.some((c) => typeof c.support === "string") ? ` support = ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} ${k}`).join(", ")}.` : "";
   return {
     element: {

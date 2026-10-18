@@ -10,9 +10,9 @@ import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
 // install it on request, then model a rock unit (contact surface + probability blocks, each with uncertainty) or a
 // grade (blocks with P10 / P90 and uncertainty). Results go into the 3D view beside the other models, named "geoML — …".
 const QUALITY = {
-  fast: { label: "Fast", domain: { iterations: 150, train_spacing: 10, inducing_spacing: 80, surface_block: 80, refine_levels: 1, block_size: 60 }, grade: { iterations: 150, composite: 5, inducing: 200, block_size: 50 } },
-  standard: { label: "Standard", domain: { iterations: 300, train_spacing: 5, inducing_spacing: 40, surface_block: 60, refine_levels: 2, block_size: 40 }, grade: { iterations: 300, composite: 5, inducing: 300, block_size: 30 } },
-  detailed: { label: "Detailed", domain: { iterations: 600, train_spacing: 2.5, inducing_spacing: 25, surface_block: 40, refine_levels: 2, block_size: 25 }, grade: { iterations: 600, composite: 2.5, inducing: 500, block_size: 20 } },
+  fast: { label: "Fast", domain: { iterations: 150, train_spacing: 10, inducing_spacing: 80, surface_block: 80, refine_levels: 1, block_size: 60 }, grade: { iterations: 150, composite: 5, inducing: 200, block_size: 50, simulations: 50 } },
+  standard: { label: "Standard", domain: { iterations: 300, train_spacing: 5, inducing_spacing: 40, surface_block: 60, refine_levels: 2, block_size: 40 }, grade: { iterations: 300, composite: 5, inducing: 300, block_size: 30, simulations: 50 } },
+  detailed: { label: "Detailed", domain: { iterations: 600, train_spacing: 2.5, inducing_spacing: 25, surface_block: 40, refine_levels: 2, block_size: 25 }, grade: { iterations: 600, composite: 2.5, inducing: 500, block_size: 20, simulations: 100 } },
 };
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = [{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }];
@@ -105,9 +105,11 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         const c = { x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell };
         cells.push({ ...c, value: b.probability[i] }); ucells.push({ ...c, value: b.uncertainty[i] });
       }
-      addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6 });
+      // TASKS.csv #677 — what produced the model travels with it (panel, exports)
+      const dparams = { tool: "geoML domain model", unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: range, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
+      addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
-      addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false });
+      addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
       parts.push(`${cells.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)${clipNote(r, range)}`);
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts`;
     });
@@ -147,12 +149,17 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       if (!cells.length) throw new Error(`no block is both below the ground and within ${range} m of a sample.`);
       const vals = cells.map((c) => c.value).sort((p, q) => p - q); // the top quarter of the blocks kept
       const min = vals[0], max = vals[vals.length - 1], p75 = vals[Math.floor(vals.length * 0.75)];
-      addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: min > 0 && max / min >= 100 ? logStops(min, max) : sequentialStops(min, max), threshold: p75, opacity: 0.6 });
+      // TASKS.csv #677 — a geoML grade model is a grade estimate by another engine: its parameters, unit and the
+      // "not a resource" statement go with it (exporters treat source "geoml" like estimate-*). #678 — the number of
+      // simulations behind P10 / P90 is stated (20 draws gave P10 a 47 % relative error at a grade CV of 131 %).
+      const nsim = QUALITY[quality].grade.simulations;
+      const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: QUALITY[quality].grade.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: range, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
+      addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: min > 0 && max / min >= 100 ? logStops(min, max) : sequentialStops(min, max), threshold: p75, opacity: 0.6, params: { ...gparams, value: "predicted grade (back-transformed mean)" } });
       if (spread.length) {
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
-        addVoxelModel({ name: `geoML — ${element} P90 − P10 (spread)`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false });
+        addVoxelModel({ name: `geoML — ${element} P90 − P10 from ${nsim} simulations`, source: "geoml", cells: spread, min: 0, max: smax, colorMode: "continuous", stops: sequentialStops(0, smax), visible: false, params: { ...gparams, value: `P90 - P10 of ${nsim} simulations` } });
       }
-      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 spread added (hidden)`;
+      return `${cells.length.toLocaleString()} blocks of ${b.cell} m from ${res.composites.toLocaleString()} composites of ${samples.length.toLocaleString()} sample intervals${cleaned ? ` (${cleaned})` : ""}${clipNote(r, range)}, ${element} ${min.toPrecision(3)}–${max.toPrecision(3)}${unitTxt} (showing the top quarter, ≥ ${p75.toPrecision(3)}); P90 − P10 from ${nsim} simulations added (hidden). Not a Mineral Resource estimate.`;
     });
   };
 
@@ -241,6 +248,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
 
           <div style={box}>
             <div style={h}>Model a grade</div>
+            {/* TASKS.csv #677 — the one grade-estimation tool that said nothing about what its output is not */}
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6, lineHeight: 1.4 }}>
+              <strong>Not a resource estimate.</strong> A targeting aid with uncertainty: no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC.
+            </div>
             {!collars.length || !elements.length ? "Load assays (Geochem tab) first." : (
               <>
                 <select value={element} onChange={(e) => setElement(e.target.value)} aria-label="Element" style={{ width: "100%" }}>

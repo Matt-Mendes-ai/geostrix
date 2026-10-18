@@ -140,7 +140,7 @@ export function provenanceText(model, t, files, epsg, notes) {
     JSON.stringify(p, null, 2),
     "",
     model.source === "simpeg" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
-    /^(estimate|support-index)-/.test(String(model.source || "")) ? NOT_A_RESOURCE : "", // #529 — an estimate package said nothing
+    /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")) ? NOT_A_RESOURCE : "" /* geoml: #677 */, // #529 — an estimate package said nothing
   ].join("\n");
 }
 
