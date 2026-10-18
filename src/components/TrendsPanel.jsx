@@ -7,6 +7,7 @@ import React, { useMemo, useState } from "react";
 import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
+import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
 
 export const TREND_USERS = [
   ["implicit", "Geology models (implicit surfaces, stacks)"],
@@ -110,8 +111,16 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${quality}${unoriented ? `; ${unoriented} ${key} row${unoriented === 1 ? " has" : "s have"} no dip / dip direction and ${unoriented === 1 ? "was" : "were"} left out` : ""}.${warn} Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can`;
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
-      plane = planeFromPoints(surfacePoints?.(key) || []);
-      what = `the best-fit plane of ${s?.name || "the surface"}`;
+      const pts = surfacePoints?.(key) || [];
+      plane = planeFromPoints(pts);
+      // TASKS.csv #672 — how planar the surface is (vein.js fitPlane: RMS off the plane over its in-plane spread) and a
+      // refusal for points along one line, where the plane could rotate freely about it. A sphere, a fold or a closed
+      // shell all used to return a confident dip.
+      const fit = pts.length >= 3 ? fitPlane(pts) : null;
+      if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: `Not set: the points of ${s?.name || "this surface"} lie along a single line, so no plane is fixed by them.` }); return; }
+      const closed = /shell|envelope|halo|solid/i.test(`${s?.type || ""} ${s?.name || ""}`);
+      const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
+      what = `the best-fit plane of ${s?.name || "the surface"}${rough != null ? ` (RMS off the plane ${(rough * 100).toFixed(0)}% of its extent${rough > 0.25 ? " — far from planar: this surface is not well described by one plane" : ""})` : ""}${closed ? " — a closed shell: this is its flattening plane, not a contact" : ""}`;
     }
     if (!plane) { setNote({ id: t.id, text: "Not enough data to fit a plane." }); return; }
     update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10 });
