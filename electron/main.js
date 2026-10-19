@@ -8,6 +8,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol, cli
 // event. Fixed at the source (see mainWindow.on("close", ...) below) with a real, always-visible native
 // confirm dialog instead, driven by a dirty-state flag the renderer now pushes over IPC.
 let rendererDirty = false;
+let appQuitting = false; // TASKS.csv #773 — set by before-quit, which fires before the window close guard runs
 const path = require("path");
 const fs = require("fs");
 const dns = require("dns");
@@ -15,6 +16,7 @@ const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
 const { writeFileAtomic, backupBeforeOverwrite } = require("./fileSafety.js"); // TASKS.csv #341 (quarantine now in autosave-quarantine, #475)
 const { autoUpdater } = require("electron-updater");
+const { buildMenuTemplate } = require("./menuTemplate.js"); // TASKS.csv #773
 
 // User-reported bug: connecting the database tool (Tools > Connect to database) to a local Postgres
 // with host "localhost" failed with "connect ECONNREFUSED ::1:<port>" even though the same database
@@ -271,7 +273,13 @@ let manualCheckInFlight = false;
 // default install folder, left the zip copy on the old version (offering the update forever) and created a
 // second install. A zip copy has no NSIS uninstaller beside the exe; there, updates only point to the zip.
 const IS_PORTABLE = app.isPackaged && process.platform === "win32" && !fs.existsSync(path.join(path.dirname(process.execPath), "Uninstall GeoStrix.exe"));
+// TASKS.csv #774 — no update feed for macOS builds yet: the feed (package.json build.publish) is the upstream GitHub
+// releases, which carry no latest-mac.yml and no build signed with this fork's Developer ID, so every check could only
+// fail. Off entirely on macOS: no menu items (electron/menuTemplate.js), no startup check, and the IPC refuses.
+const UPDATES_ENABLED = process.platform !== "darwin";
+const UPDATES_OFF_MESSAGE = "Updates are turned off in this build of GeoStrix.";
 function setupAutoUpdater() {
+  if (!UPDATES_ENABLED) return; // #774
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   const send = (event, payload) => mainWindow?.webContents.send("updater-event", { event, ...payload });
@@ -308,6 +316,7 @@ ipcMain.handle("addon-stop", (_e, id) => { addons.stop(addonId(id)); return true
 app.on("will-quit", () => addons.stopAll());
 
 ipcMain.handle("updater-check", async () => {
+  if (!UPDATES_ENABLED) return { ok: false, message: UPDATES_OFF_MESSAGE }; // #774
   if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };
   manualCheckInFlight = true;
   try {
@@ -319,6 +328,7 @@ ipcMain.handle("updater-check", async () => {
   }
 });
 ipcMain.handle("updater-download", async () => {
+  if (!UPDATES_ENABLED) return { ok: false, message: UPDATES_OFF_MESSAGE }; // #774
   if (IS_PORTABLE) return { ok: false, portable: true, message: "Portable copy: download the new zip from GitHub Releases." }; // #473
   try {
     await autoUpdater.downloadUpdate();
@@ -334,6 +344,7 @@ ipcMain.handle("updater-download", async () => {
 // explicit "install without saving" (or with nothing unsaved) does the install run, with the close guard
 // disarmed (rendererDirty cleared) and the Python engine stopped first so no job is cut mid-write.
 ipcMain.handle("updater-install", async () => {
+  if (!UPDATES_ENABLED) return { ok: false, message: UPDATES_OFF_MESSAGE }; // #774
   if (rendererDirty && mainWindow && !mainWindow.isDestroyed()) {
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: "warning",
@@ -426,19 +437,25 @@ function createMainWindow() {
   mainWindow.on("close", (e) => {
     if (!rendererDirty) return;
     e.preventDefault();
+    // TASKS.csv #773 — on macOS closing the window (red button, Cmd+W) leaves GeoStrix running in the Dock, so the
+    // dialog only says "Quit" when the app really is quitting (Cmd+Q, GeoStrix > Quit)
+    const verb = process.platform === "darwin" && !appQuitting ? "Close" : "Quit";
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: "warning",
-      buttons: ["Quit Without Saving", "Cancel"],
+      buttons: [`${verb} Without Saving`, "Cancel"],
       defaultId: 1,
       cancelId: 1,
       title: "Unsaved changes",
       message: "This project has unsaved changes.",
-      detail: "Autosave keeps a periodic snapshot, but it may not include your most recent edits. Quit anyway?",
+      detail: `Autosave keeps a periodic snapshot, but it may not include your most recent edits. ${verb} anyway?`,
     });
     if (choice === 0) {
       rendererDirty = false;
-      mainWindow.close();
-    }
+      // #773 — the close guard cancelled the quit; closing the last window doesn't end the app on macOS (it does on
+      // Windows/Linux, via window-all-closed), so finish the quit the user asked for
+      if (process.platform === "darwin" && appQuitting) app.quit();
+      else mainWindow.close();
+    } else appQuitting = false; // a cancelled Cmd+Q: the next red-button close is a close again
   });
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -1054,8 +1071,21 @@ ipcMain.handle("sample-data-path", async () => {
   return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
 });
 
-// Drive roots (Windows: C:\, D:\, ... ; macOS/Linux: just / — the Browser panel's tree root(s)).
+// Drive roots (Windows: C:\, D:\, ... ; macOS: /, the home folder and each mounted volume; Linux: just / — the
+// Browser panel's tree root(s)).
 ipcMain.handle("fs-list-drives", async () => {
+  // TASKS.csv #775 — on a Mac, USB sticks and network shares mount under /Volumes, which "/" alone buried two
+  // levels down. /Volumes also holds a link back to the startup disk ("Macintosh HD" -> /), which is left out.
+  if (process.platform === "darwin") {
+    const drives = ["/", require("os").homedir()];
+    try {
+      for (const name of fs.readdirSync("/Volumes")) {
+        const p = path.join("/Volumes", name);
+        try { if (fs.realpathSync(p) !== "/" && fs.statSync(p).isDirectory()) drives.push(p); } catch (_) {}
+      }
+    } catch (_) {}
+    return { ok: true, drives };
+  }
   if (process.platform !== "win32") return { ok: true, drives: ["/"] };
   const drives = [];
   for (const code of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
@@ -1066,83 +1096,18 @@ ipcMain.handle("fs-list-drives", async () => {
 });
 
 function buildMenu() {
-  const template = [
-    {
-      label: "File",
-      submenu: [
-        { label: "New Project", accelerator: "CmdOrCtrl+N", click: () => mainWindow?.webContents.send("menu", "new-project") },
-        { label: "Open Project…", accelerator: "CmdOrCtrl+O", click: () => mainWindow?.webContents.send("menu", "open-project") },
-        { label: "Save Project", accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
-        { label: "Save Project As…", accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
-        { type: "separator" },
-        { label: "Import CSV…", accelerator: "CmdOrCtrl+I", click: () => sendMenuWithGesture("import-csv") }, // #565 — the current tab's import
-        { label: "Import Assays…", click: () => sendMenuWithGesture("import-assays") },
-        { label: "Import pXRF…", click: () => sendMenuWithGesture("import-pxrf") },
-        { type: "separator" },
-        { label: "Export PDF…", accelerator: "CmdOrCtrl+P", click: () => mainWindow?.webContents.send("menu", "export-pdf") },
-        { type: "separator" },
-        { role: "quit" },
-      ],
-    },
-    {
-      // TASKS.csv #31 — deliberately NO keyboard accelerator on these two. Electron menu accelerators
-      // are global-to-the-window and would win over a focused <input>'s own native Ctrl+Z text-undo
-      // (of which this app has many — search fields, name fields, the layout text tool, etc.), which
-      // would be a much worse regression than not having a menu shortcut for app-level undo. The real
-      // Ctrl+Z/Ctrl+Shift+Z handling lives in App.jsx's own keydown listener instead, which can check
-      // document.activeElement and defer to native text-undo when a text field has focus — something
-      // a Menu accelerator has no way to do. These items exist for menu discoverability/mouse use only.
-      label: "Edit",
-      submenu: [
-        { label: "Undo", click: () => mainWindow?.webContents.send("menu", "undo") },
-        { label: "Redo", click: () => mainWindow?.webContents.send("menu", "redo") },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [
-        // TASKS.csv #32 — module-switch accelerators (Ctrl/Cmd+1..4). Previously these four had no
-        // keyboard shortcut at all despite being the most-used navigation in the app; added now partly
-        // because a "keyboard shortcuts reference" that only had 5 shortcuts to list would barely be
-        // worth its own menu entry — these round it out into something actually useful to reference.
-        // TASKS.csv #565 — Ctrl+1..8 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab)
-        ...[["3D View", "viewer"], ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Maps", "maps"], ["Layout", "layout"]]
-          .map(([label, id], i) => ({ label, accelerator: `CmdOrCtrl+${i + 1}`, click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
-        { type: "separator" },
-        // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with
-        // no prompt (a reload never fires the window close guard): every open workspace tab was thrown
-        // away, and a running SimPEG job was orphaned in the sidecar (its poller lived in the page) while
-        // new jobs got 409. Nothing a user needs, so they are simply not in the packaged menu.
-        ...(app.isPackaged ? [] : [{ role: "reload" }, { role: "toggledevtools" }, { type: "separator" }]),
-        { role: "resetzoom" }, { role: "zoomin" }, { role: "zoomout" },
-      ],
-    },
-    {
-      label: "Tools",
-      submenu: [
-        { label: "Draw a cross-section", accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") }, // #565 — starts Draw section
-        { label: "Project CRS (Cartography)…", click: () => mainWindow?.webContents.send("menu", "set-epsg") },
-      ],
-    },
-    {
-      label: "Help",
-      submenu: [
-        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
-        // TASKS.csv #591 — the startup check is network contact the user didn't start (camp satellite links,
-        // firewalled laptops, "offline and private"): it can be switched off; the manual check stays
-        { label: "Check for Updates at Startup", type: "checkbox", checked: readPrefs().checkUpdatesAtStartup !== false, click: (item) => writePrefs({ checkUpdatesAtStartup: item.checked }) },
-        { label: "Check for Updates…", click: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); } },
-        // Bug fix while touching this menu: "About GeoStrix" sent a "menu"/"about" action that nothing
-        // on the renderer side ever handled — clicking it silently did nothing. Now shares the same
-        // modal as the new Keyboard Shortcuts entry (see ShortcutsModal in App.jsx), just opened to a
-        // different tab.
-        { type: "separator" },
-        { label: "Report a Problem…", click: () => mainWindow?.webContents.send("menu", "report-problem") }, // TASKS.csv #598
-        { label: "Third-party Licences…", click: () => mainWindow?.webContents.send("menu", "licenses") }, // TASKS.csv #639
-        { label: "About GeoStrix", click: () => mainWindow?.webContents.send("menu", "about") },
-      ],
-    },
-  ];
+  const send = (action) => mainWindow?.webContents.send("menu", action);
+  const template = buildMenuTemplate({ // TASKS.csv #773 — electron/menuTemplate.js
+    isMac: process.platform === "darwin",
+    isPackaged: app.isPackaged,
+    appName: "GeoStrix",
+    updatesEnabled: UPDATES_ENABLED, // #774
+    checkUpdatesAtStartup: readPrefs().checkUpdatesAtStartup !== false,
+    send,
+    sendWithGesture: sendMenuWithGesture,
+    onToggleStartupCheck: (checked) => writePrefs({ checkUpdatesAtStartup: checked }),
+    onCheckForUpdates: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); },
+  });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
@@ -1220,8 +1185,9 @@ app.whenReady().then(async () => {
   // A short delay so the startup update check doesn't compete with the app's own initial render/
   // autosave-recovery-prompt work for network priority on a slow connection — same reasoning as any
   // other "let the app feel responsive first" deferred background task.
-  if (app.isPackaged && readPrefs().checkUpdatesAtStartup !== false) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000); // #591 — unless switched off
+  if (UPDATES_ENABLED && app.isPackaged && readPrefs().checkUpdatesAtStartup !== false) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000); // #591 — unless switched off
 });
+app.on("before-quit", () => { appQuitting = true; });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });
 app.on("will-quit", stopPythonSidecar); // #468 — was before-quit: a cancelled quit had already killed a running GemPy / SimPEG job

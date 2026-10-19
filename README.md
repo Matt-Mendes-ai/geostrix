@@ -45,6 +45,9 @@ npm run dev
 
 The Python engine for modelling and inversion is optional; see `python-sidecar/README.md`.
 
+macOS (Apple Silicon): running from source and building the signed DMG are covered in
+[docs/macos.md](docs/macos.md).
+
 ## License
 
 MIT — see `LICENSE`.

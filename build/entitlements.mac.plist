@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TASKS.csv #772 - hardened-runtime entitlements for the signed macOS build, used for GeoStrix.app AND (as
+  entitlementsInherit) every other executable inside it: Electron's helper processes and the frozen Python engine
+  (Contents/Resources/python-sidecar/geostrix-sidecar).
+    allow-jit                          V8 (main process and renderers) compiles JavaScript at run time.
+    allow-unsigned-executable-memory   Numba / llvmlite (SimPEG's choclo kernels) JIT-compile without MAP_JIT, which
+                                       allow-jit alone does not cover.
+  Deliberately NOT here: the app sandbox (GeoStrix reads and writes wherever the user's files are, like the Windows
+  build), and disable-library-validation (everything in the bundle is signed with the same Team ID). If the signed
+  sidecar ever fails to load a library with a "different Team IDs" error, that library was not re-signed - fix the
+  signing, don't add the exception.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+</dict>
+</plist>

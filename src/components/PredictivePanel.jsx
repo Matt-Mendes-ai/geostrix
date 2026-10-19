@@ -27,7 +27,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const [runs, setRuns] = useState([]);
   const abortRef = useRef(null);
   const [cpu, setCpu] = useState(null); // TASKS.csv #689 — { avx: true | false | null }, asked once the add-on is known to be missing
-  useEffect(() => { if (st && st.available !== false && !st.installed && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
+  useEffect(() => { if (st && st.available !== false && !st.installed && !st.otherPlatform && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
   const refresh = () => addonStatus().then(setSt).catch(() => setSt({ available: false }));
   useEffect(() => { refresh(); return onAddonEvent((ev) => { if (ev.phase === "download" || ev.phase === "unpack") setInst(ev); if (ev.phase === "done") { setInst(null); refresh(); } if (ev.phase === "stopped") refresh(); }); }, []);
 
@@ -183,7 +183,13 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         Models with <strong>uncertainty</strong> from Gaussian processes (<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">geoML</a>, Ítalo Gonçalves). Results appear in the 3D view beside your other models, named "geoML — …", so you can compare them. Everything runs on this computer.
       </div>
 
-      {!st ? <div style={box}>Checking the add-on…</div> : !st.installed ? (
+      {!st ? <div style={box}>Checking the add-on…</div> : st.otherPlatform ? (
+        // TASKS.csv #775 — the add-on's published zip is Windows-only (electron/addons.js): say so, offer no download
+        <div style={box}>
+          <div style={h}>Not available on this computer</div>
+          <div>{st.reason} GeoStrix's own modelling tools (implicit surfaces, halos, grade shells, estimation) work as usual.</div>
+        </div>
+      ) : !st.installed ? (
         <div style={box}>
           <div style={h}>Install the add-on</div>
           {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button

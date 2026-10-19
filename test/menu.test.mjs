@@ -3,23 +3,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+// TASKS.csv #773 — the template itself moved to electron/menuTemplate.js (send("x") there is main.js's menu send)
 const main = readFileSync(new URL("../electron/main.js", import.meta.url), "utf8");
+const menu = readFileSync(new URL("../electron/menuTemplate.js", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const help = readFileSync(new URL("../src/components/ShortcutsModal.jsx", import.meta.url), "utf8");
 
 test("#565 every menu action is handled in App.jsx", () => {
-  const actions = new Set([...main.matchAll(/send\("menu", "([^"]+)"\)/g), ...main.matchAll(/sendMenuWithGesture\("([^"]+)"\)/g)].map((m) => m[1]));
-  assert.ok(actions.size >= 10);
+  const actions = new Set([...main.matchAll(/send\("menu", "([^"]+)"\)/g), ...main.matchAll(/sendMenuWithGesture\("([^"]+)"\)/g),
+    ...menu.matchAll(/\bsend\("([^"]+)"\)/g), ...menu.matchAll(/sendWithGesture\("([^"]+)"\)/g)].map((m) => m[1]));
+  assert.ok(actions.size >= 16);
   for (const a of actions) {
     if (a.startsWith("module-")) continue; // handled generically
     assert.ok(app.includes(`action === "${a}"`), `no handler for menu action "${a}"`);
   }
-  assert.ok(main.includes("module-${id}") && app.includes('action.startsWith("module-")'));
+  assert.ok(menu.includes("module-${id}") && app.includes('action.startsWith("module-")'));
 });
 
 test("#565 Ctrl+1..8 follow the tab strip, and the help says so", () => {
   const tabs = [...app.matchAll(/\{ id: "([a-z]+)", label: "([^"]+)", icon:/g)].map((m) => m[1]);
-  const menuOrder = [...main.matchAll(/\["[^"]+", "([a-z]+)"\]/g)].map((m) => m[1]).filter((id) => tabs.includes(id));
+  const menuOrder = [...menu.matchAll(/\["[^"]+", "([a-z]+)"\]/g)].map((m) => m[1]).filter((id) => tabs.includes(id));
   assert.deepEqual(menuOrder, tabs);
   tabs.forEach((_, i) => assert.ok(help.includes(`"Ctrl/Cmd+${i + 1}"`), `help lacks Ctrl/Cmd+${i + 1}`));
   assert.ok(!help.includes("cross-section pop-out"));

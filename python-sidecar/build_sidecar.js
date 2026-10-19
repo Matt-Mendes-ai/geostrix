@@ -83,12 +83,17 @@ function checkBootloaderCompiled() {
     if (process.env.CI) { console.error("[build:sidecar] Refusing to build a release with the prebuilt bootloader."); process.exit(1); }
   }
 }
-checkBootloaderCompiled();
+// TASKS.csv #772 — the antivirus heuristics above are a Windows problem; a macOS build is trusted by its Developer ID
+// signature and notarization instead (scripts/build-macos.sh), so the prebuilt bootloader is fine there.
+if (isWin) checkBootloaderCompiled();
 
 const args = [
   "-m", "PyInstaller", "--noconfirm", "--onedir", "--name", "geostrix-sidecar",
-  "--noupx", "--version-file", versionFile, // #456
-  ...(fs.existsSync(path.join(sidecarDir, "..", "build", "icon.ico")) ? ["--icon", path.join(sidecarDir, "..", "build", "icon.ico")] : []), // #456
+  "--noupx",
+  // #456 — a Windows version resource and .ico; #772 — Windows only (PyInstaller has no version resource elsewhere,
+  // and the sidecar is a command-line helper inside GeoStrix.app on macOS, never shown with an icon)
+  ...(isWin ? ["--version-file", versionFile] : []),
+  ...(isWin && fs.existsSync(path.join(sidecarDir, "..", "build", "icon.ico")) ? ["--icon", path.join(sidecarDir, "..", "build", "icon.ico")] : []),
   // uvicorn/gempy both do a lot of dynamic/plugin-style importing that PyInstaller's static analysis
   // can't see on its own (confirmed by an initial build attempt without these flags silently omitting
   // uvicorn's asyncio loop implementation) — --collect-all pulls in every submodule of each package

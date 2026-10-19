@@ -78,6 +78,7 @@ import { legendScale } from "../lib/legendScale.js"; // TASKS.csv #498
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
+import { kbd } from "../lib/platform.js"; // TASKS.csv #773 — ⌘I on a Mac
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
 import { unitShell, meshVolume } from "../lib/unitVolumes.js"; // TASKS.csv #517
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
@@ -8814,7 +8815,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a <b>collar</b> file.
               </div>
               <div style={{ marginBottom: 8 }}>
-                Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
+                Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, {kbd("Ctrl+I")}), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
               </div>
               <div style={{ marginBottom: 12 }}>
                 Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; survey lines and geophysical grids in <b>Geophysics</b>; GeoTIFFs, satellite imagery, terrain and map layers in <b>Maps</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.

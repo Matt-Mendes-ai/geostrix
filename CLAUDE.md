@@ -191,6 +191,10 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   to load `dist/`), then drive the page over the DevTools protocol (Runtime.evaluate,
   Page.captureScreenshot). A hidden browser pane pauses requestAnimationFrame, so anything that waits
   on rAF (focus trap, the render loop, the splash) must be checked in a visible window.
+- **macOS (Apple Silicon) build** (TASKS.csv #772-#775, ExploreTech fork): `docs/macos.md`. The application menu is
+  `electron/menuTemplate.js` (pure; tested in `test/menuTemplate773.test.mjs`), Mac shortcut labels are `kbd()` /
+  `IS_MAC` in `src/lib/platform.js`, auto-update is off on macOS (`UPDATES_ENABLED` in main.js), and the signed DMG
+  is built by `scripts/build-macos.sh` on a Mac.
 - Vite occasionally caches an EMPTY module if it reads a big file mid-write (symptom: "does not provide
   an export named 'default'"); `touch` the file and reload.
 

@@ -14,6 +14,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
+import { kbd, IS_MAC } from "./lib/platform.js"; // TASKS.csv #773
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -68,6 +69,9 @@ const MODULES = [
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
 const VIEWER_MODES = { viewer: "view", modelling: "modelling", targeting: "targeting" }; // #750 — Predictive is a Modelling tool now
+
+// TASKS.csv #31 / #773 — text fields keep their own native undo/redo (keyboard AND Edit menu)
+const isEditableEl = (el) => !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 
 export default function App() {
   const store = useStore();
@@ -271,8 +275,10 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
-      else if (action === "undo") undo();
-      else if (action === "redo") redo();
+      // TASKS.csv #773 — on macOS Cmd+Z reaches the page only through this menu item (electron/menuTemplate.js), so it
+      // follows the keydown listener's rule below: a focused text field gets its own undo. Windows/Linux unchanged.
+      else if (action === "undo") { if (IS_MAC && isEditableEl(document.activeElement)) document.execCommand("undo"); else undo(); }
+      else if (action === "redo") { if (IS_MAC && isEditableEl(document.activeElement)) document.execCommand("redo"); else redo(); }
     });
     return off;
   }, [doNew, doOpen, doSave, doExportPdf, undo, redo]);
@@ -284,16 +290,13 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   // has no way to do. Also works identically in the plain-browser dev fallback, unlike a menu
   // accelerator would.
   useEffect(() => {
-    const isEditable = (el) => {
-      if (!el) return false;
-      const tag = el.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
-    };
     const onKeyDown = (e) => {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       if (!mod || (key !== "z" && key !== "y")) return;
-      if (isEditable(document.activeElement)) return; // let the browser handle text-field undo/redo natively
+      // #773 — in the Mac desktop app Cmd+Z / Shift+Cmd+Z are the Edit menu's own keys: handled there, never twice
+      if (isDesktop && IS_MAC && e.metaKey && key === "z") return;
+      if (isEditableEl(document.activeElement)) return; // let the browser handle text-field undo/redo natively
       if (key === "y") { e.preventDefault(); redo(); return; }
       if (e.shiftKey) { e.preventDefault(); redo(); } else { e.preventDefault(); undo(); }
     };
@@ -416,7 +419,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
         <button className="ge-tool-btn" onClick={doNew} title="New project" aria-label="New project"><FilePlus2 size={14} /> <span className="ge-tool-label-opt">New</span></button>
         <button className="ge-tool-btn" onClick={doOpen} title="Open project" aria-label="Open project"><FolderOpen size={14} /> <span className="ge-tool-label-opt">Open</span></button>
-        <button className="ge-tool-btn" onClick={() => doSave()} title="Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)" aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
+        <button className="ge-tool-btn" onClick={() => doSave()} title={kbd("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
         <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>

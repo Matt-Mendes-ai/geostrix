@@ -62,9 +62,10 @@ $env:PYINSTALLER_COMPILE_BOOTLOADER = "1"   # PowerShell (bash: export PYINSTALL
 pip install --no-binary pyinstaller pyinstaller -c constraints.txt
 ```
 
-Only built/verified on Windows so far — macOS/Linux need their own PyInstaller run on that platform
-(PyInstaller freezes for the OS it runs on, it doesn't cross-compile) before `electron-builder`'s
-`mac`/`linux` targets would have a bundled sidecar to pick up.
+PyInstaller freezes for the OS it runs on (it doesn't cross-compile), so each platform's engine is built on that
+platform. Windows: the release workflow. macOS (Apple Silicon): `scripts/build-macos.sh`, after `setup_sidecar.sh`
+(the macOS/Linux counterpart of `setup_sidecar.bat`); see `docs/macos.md` (TASKS.csv #772). On macOS/Linux,
+`build_sidecar.js` leaves out the Windows-only version resource, icon and bootloader check.
 
 ## Endpoints
 

@@ -47,8 +47,9 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.mendes.geostrix",
+    "appId": "ai.exploretech.geostrix",
     "productName": "GeoStrix",
+    "copyright": "Copyright © 2026 Matt Mendes",
     "directories": {
       "output": "release"
     },
@@ -92,8 +93,20 @@
       "icon": "build/icon.ico"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "build/icon.icns"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "identity": "Exploration Technologies, Inc (CK8MVY2C3J)",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
     "linux": {
       "target": "AppImage",

@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import PromptModal from "./PromptModal.jsx";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { IS_MAC } from "../lib/platform.js"; // TASKS.csv #775
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -141,11 +142,11 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
           <div id="db-pw-note" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 6 }}>
             {pw.saved ? (
               <>
-                <span style={{ flex: 1 }}>A password is saved on this computer for this login (encrypted with your Windows account). Leave the box empty to use it.</span>
+                <span style={{ flex: 1 }}>A password is saved on this computer for this login ({IS_MAC ? "encrypted with a key kept in your macOS Keychain" : "encrypted with your Windows account"}). Leave the box empty to use it.</span>
                 <button type="button" onClick={forgetPassword} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>Forget it</button>
               </>
             ) : pw.available ? (
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title="Kept encrypted by the operating system (Windows: only your Windows account on this computer can read it), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.">
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title={`Kept encrypted by the operating system (${IS_MAC ? "macOS: the key is in your login Keychain" : "Windows: only your Windows account on this computer can read it"}), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.`}>
                 <input type="checkbox" checked={!!config.rememberPassword} onChange={(e) => set("rememberPassword", e.target.checked)} style={{ marginTop: 2 }} />
                 <span>Remember the password on this computer (encrypted, never in the project file)</span>
               </label>

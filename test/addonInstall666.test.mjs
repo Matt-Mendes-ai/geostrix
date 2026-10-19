@@ -31,7 +31,8 @@ function harness({ failWrite = false, freeBytes = 1e13 } = {}) {
   fs.statfsSync = () => ({ bavail: freeBytes / 4096, bsize: 4096 });
   Object.defineProperty(process, "platform", { value: "linux" }); // skip the Windows MAX_PATH pre-check for the temp path
   const restore = () => { fs.createWriteStream = realCreate; fs.statfsSync = realStatfs; Object.defineProperty(process, "platform", { value: realPlatform }); fs.rmSync(userData, { recursive: true, force: true }); };
-  return { mgr: createAddonManager({ app, net, send: () => {} }), restore };
+  // platform: the Windows zip being installed (TASKS.csv #775 — on any other OS it is refused before the disk checks)
+  return { mgr: createAddonManager({ app, net, send: () => {}, platform: "win32" }), restore };
 }
 
 test("a full disk while downloading is reported in plain words, with no uncaught exception", async () => {

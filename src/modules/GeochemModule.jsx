@@ -44,6 +44,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { kbd } from "../lib/platform.js"; // TASKS.csv #773 — ⌘Z on a Mac
 
 export default function GeochemModule() {
   const store = useStore();
@@ -1010,7 +1011,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     if (!confirmDestructive(`Remove ${label} (${f.intervals.toLocaleString()} interval(s))?`, { undoable: true })) return;
     const r = removeAssayFile(assays, f.file);
     setAssays(r.assays); dropUnusedElements(r.assays);
-    setNotices((p) => [...p, `Removed ${r.removed.toLocaleString()} assay interval(s) from ${label}.${r.keptShared ? ` ${r.keptShared.toLocaleString()} interval(s) also came from another file and were kept (their values can't be separated by file).` : ""} Ctrl+Z to undo.`]);
+    setNotices((p) => [...p, `Removed ${r.removed.toLocaleString()} assay interval(s) from ${label}.${r.keptShared ? ` ${r.keptShared.toLocaleString()} interval(s) also came from another file and were kept (their values can't be separated by file).` : ""} ${kbd("Ctrl+Z")} to undo.`]);
   };
   const removeElement = (sym) => {
     if (!confirmDestructive(`Remove ${sym} from every assay interval?`, { undoable: true })) return;
@@ -1018,12 +1019,12 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     setAssays(r.assays);
     setAssayElements((prev) => prev.filter((e) => e.symbol !== sym));
     if (colorElement === sym) setColorElement(null);
-    setNotices((p) => [...p, `Removed ${sym} from ${r.cleared.toLocaleString()} interval(s)${r.emptied ? `; ${r.emptied.toLocaleString()} interval(s) had no other element and were removed` : ""}. Ctrl+Z to undo.`]);
+    setNotices((p) => [...p, `Removed ${sym} from ${r.cleared.toLocaleString()} interval(s)${r.emptied ? `; ${r.emptied.toLocaleString()} interval(s) had no other element and were removed` : ""}. ${kbd("Ctrl+Z")} to undo.`]);
   };
   const removeAll = () => {
     if (!confirmDestructive(`Remove all ${assays.length.toLocaleString()} assay intervals and ${assayElements.length} element(s)?`, { undoable: true })) return;
     setAssays([]); setAssayElements([]); setColorElement(null);
-    setNotices((p) => [...p, "Removed all assays. Ctrl+Z to undo."]);
+    setNotices((p) => [...p, kbd("Removed all assays. Ctrl+Z to undo.")]);
   };
   return (
     <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>

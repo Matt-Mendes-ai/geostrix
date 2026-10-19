@@ -5,7 +5,8 @@
 // can't restore (an 80 s+ implicit-model run, an inversion) were deleted with no confirm at all.
 //   undoable: true  -> the confirm says Ctrl+Z restores it (kept for bulk wipes, where a slip is costly)
 //   undoable: false -> the confirm says it can't be undone, plus what it would take to get it back
-export const UNDO_HINT = "You can undo this with Ctrl+Z.";
+import { kbd } from "./platform.js";
+export const UNDO_HINT = kbd("You can undo this with Ctrl+Z."); // #773 — ⌘Z on a Mac
 export function confirmDestructive(question, { undoable = false, recover = "" } = {}) {
   const tail = undoable ? UNDO_HINT : `This can't be undone${recover ? ` — ${recover}` : "."}`;
   return window.confirm(`${question} ${tail}`);

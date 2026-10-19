@@ -7,6 +7,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { kbd } from "../lib/platform.js"; // TASKS.csv #773 — ⌘Z on a Mac
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
 // nodes at 3000 synthetic issues, 12,819 on the real 37-hole Harry property set's own 1483 issues) with
@@ -37,7 +38,7 @@ export default function DataQCModal({ onCancel }) {
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
   const snapToTerrain = () => {
     if (!terrainOff.length) return;
-    if (!window.confirm(`Set the elevation of ${terrainOff.length} collar(s) to the terrain "${terrain.name || "DEM"}" (worst: ${terrainOff[0].hole_id}, ${terrainOff[0].dz > 0 ? "+" : ""}${terrainOff[0].dz.toFixed(1)} m)?\n\nEach keeps its old elevation in "z_before_snap". Ctrl+Z undoes it.`)) return;
+    if (!window.confirm(`Set the elevation of ${terrainOff.length} collar(s) to the terrain "${terrain.name || "DEM"}" (worst: ${terrainOff[0].hole_id}, ${terrainOff[0].dz > 0 ? "+" : ""}${terrainOff[0].dz.toFixed(1)} m)?\n\nEach keeps its old elevation in "z_before_snap". ${kbd("Ctrl+Z")} undoes it.`)) return;
     const byId = new Map(terrainOff.map((o) => [o.hole_id, o]));
     setCollars((prev) => prev.map((c) => (byId.has(c.hole_id) ? { ...c, z_before_snap: c.z, z: Math.round(byId.get(c.hole_id).dem * 100) / 100, z_source: `terrain: ${terrain.name || "DEM"}` } : c)));
     rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)

@@ -26,7 +26,7 @@ async function pickPort(preferred) {
   return null;
 }
 
-function createAddonManager({ app, net, send }) {
+function createAddonManager({ app, net, send, platform = process.platform }) {
   const running = {}; // id -> { proc, token, port }
   const installs = {}; // id -> { request, cancelled }
 
@@ -46,11 +46,17 @@ function createAddonManager({ app, net, send }) {
   const installedDir = (id, info) => path.join(root(id), info.version);
   const exePath = (id, info) => path.join(installedDir(id, info), info.exe);
   const devOverride = (id) => process.env[`GEOSTRIX_ADDON_${id.toUpperCase()}_EXE`] || null;
+  // TASKS.csv #775 — release.json's "platform" (a process.platform value) is the one OS its zip was built for. On any
+  // other (the macOS build) the add-on is reported as not built for this computer instead of downloading a Windows
+  // zip it can't run. A development override (GEOSTRIX_ADDON_<ID>_EXE) still runs on any OS.
+  const builtForHere = (info) => !info.platform || info.platform === platform;
+  const OTHER_OS = "This add-on is only built for Windows so far.";
 
   function status(id) {
     const info = releaseInfo(id);
     if (!info) return { id, available: false, reason: "This GeoStrix build doesn't know this add-on." };
     const dev = devOverride(id);
+    if (!dev && !builtForHere(info)) return { id, available: true, name: info.name, version: info.version, licence: info.licence, installed: false, otherPlatform: true, reason: OTHER_OS, url: null }; // #775
     const installed = !!dev || fs.existsSync(exePath(id, info));
     let sizeOnDisk = null;
     return { id, available: true, name: info.name, version: info.version, licence: info.licence, downloadBytes: info.bytes, installedBytes: info.installedBytes,
@@ -107,6 +113,7 @@ function createAddonManager({ app, net, send }) {
   async function install(id) {
     const info = releaseInfo(id);
     if (!info?.url || !info.sha256) throw new Error("This add-on has no published download yet.");
+    if (!builtForHere(info)) throw new Error(OTHER_OS); // #775
     if (installs[id]) throw new Error("Already installing.");
     // Windows can't load a DLL whose full path passes 260 characters (MAX_PATH), and the add-on nests deep (scikit-learn,
     // VTK): checked before downloading 600 MB, rather than failing on the first model with "filename too long"
@@ -231,6 +238,7 @@ function createAddonManager({ app, net, send }) {
     const info = releaseInfo(id);
     if (!info) throw new Error("Unknown add-on.");
     const dev = devOverride(id);
+    if (!dev && !builtForHere(info)) throw new Error(OTHER_OS); // #775
     let cmd, args = [];
     if (dev && dev.includes("|")) { [cmd, ...args] = dev.split("|"); }
     else { cmd = dev || exePath(id, info); }

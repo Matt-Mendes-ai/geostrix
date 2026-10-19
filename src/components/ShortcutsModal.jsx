@@ -5,6 +5,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { version as APP_VERSION, description as APP_TAGLINE } from "../../package.json"; // #648 — one tagline: About + Windows app details
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { kbd as keyLabel, IS_MAC } from "../lib/platform.js"; // TASKS.csv #773 — ⌘ labels on a Mac
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -29,7 +30,7 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+Z", "Undo"],
       ["Ctrl/Cmd+Shift+Z", "Redo"],
-      ["Ctrl+Y", "Redo (Windows habit)"],
+      ...(IS_MAC ? [] : [["Ctrl+Y", "Redo (Windows habit)"]]), // #773 — not a Mac habit
     ],
   },
   {
@@ -56,6 +57,8 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+0", "Reset zoom"],
       ["Ctrl/Cmd+= / -", "Zoom in / out"],
+      // #773 — the macOS menu's own View / Window / File items (electron/menuTemplate.js)
+      ...(IS_MAC ? [["⌃⌘F", "Enter / exit full screen"], ["⌘M", "Minimize the window"], ["⌘W", "Close the window (GeoStrix stays in the Dock)"]] : []),
     ],
   },
   {
@@ -74,7 +77,7 @@ const SHORTCUT_GROUPS = [
   {
     title: "Layout page",
     items: [
-      ["Delete / Backspace", "Delete the selected element(s)"],
+      [IS_MAC ? "Delete (⌫)" : "Delete / Backspace", "Delete the selected element(s)"], // #773
       ["Ctrl/Cmd+Click", "Add/remove an element from the selection — drag any of them to move the whole group together"],
     ],
   },
@@ -107,8 +110,10 @@ function PythonHelp({ pyStatus }) {
       <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>If it doesn't start</div>
       <ol style={{ margin: 0, paddingLeft: 18 }}>
         <li>Try the feature again after a minute — the first start unpacks its libraries.</li>
-        <li>Check your antivirus: some (Bitdefender, for one) block or quarantine <code>geostrix-sidecar.exe</code> in
-          the GeoStrix install folder, or its connection to this computer. Restore it / allow it, then restart GeoStrix.</li>
+        {!IS_MAC && ( /* #773 — a Windows antivirus problem; the macOS engine is signed and notarized with the app */
+          <li>Check your antivirus: some (Bitdefender, for one) block or quarantine <code>geostrix-sidecar.exe</code> in
+            the GeoStrix install folder, or its connection to this computer. Restore it / allow it, then restart GeoStrix.</li>
+        )}
         <li>Reinstall GeoStrix with the latest installer from the GitHub releases page.</li>
       </ol>
     </div>
@@ -136,15 +141,15 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
               Most of GeoStrix is a point-and-click tool by design — this is the small, real set of
               keyboard shortcuts that exist today, not an aspirational list. Undo/Redo step back
-              through content changes (imports, deletes, moves, edits) — while a text field has focus,
-              Ctrl/Cmd+Z instead does that field's own native text-undo, as expected.
+              through content changes (imports, deletes, moves, edits) — while a text field has focus,{" "}
+              {keyLabel("Ctrl/Cmd+Z")} instead does that field's own native text-undo, as expected.
             </div>
             {SHORTCUT_GROUPS.map((g) => (
               <div key={g.title}>
                 <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6 }}>{g.title}</div>
                 {g.items.map(([keys, desc]) => (
                   <div key={keys} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
-                    <span style={kbd}>{keys}</span>
+                    <span style={kbd}>{keyLabel(keys)}</span>
                     <span style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{desc}</span>
                   </div>
                 ))}

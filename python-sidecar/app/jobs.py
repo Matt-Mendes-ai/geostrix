@@ -17,6 +17,8 @@ import ctypes
 import multiprocessing as mp
 import os
 import queue
+import re
+import subprocess
 import sys
 import threading
 import time
@@ -55,9 +57,24 @@ def available_ram_bytes():
             st.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
             ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st))
             return int(st.ullAvailPhys)
+        if sys.platform == "darwin":
+            return _darwin_available_bytes(subprocess.run(["/usr/bin/vm_stat"], capture_output=True, text=True, timeout=5).stdout)
         return int(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES"))
     except Exception:
         return total_ram_bytes() // 2
+
+
+# TASKS.csv #775 — macOS has no SC_AVPHYS_PAGES (os.sysconf raised, and every Mac fell back to "half of total RAM"
+# whatever was actually free). vm_stat is the system's own report; free + inactive + speculative pages are what
+# the OS can hand out without paging, the same sum Activity Monitor's "memory available" is built from.
+def _darwin_available_bytes(vm_stat_text):
+    m = re.search(r"page size of (\d+) bytes", vm_stat_text)
+    if not m:
+        raise ValueError("vm_stat: no page size")
+    pages = {k.strip(): int(v) for k, v in re.findall(r"^Pages ([a-z ]+):\s+(\d+)\.", vm_stat_text, re.M)}
+    if "free" not in pages:
+        raise ValueError("vm_stat: no free page count")
+    return int(m.group(1)) * (pages["free"] + pages.get("inactive", 0) + pages.get("speculative", 0))
 
 
 # Sensitivity-matrix budget: at most 1.5 GB and 20% of physical RAM, AND bounded by what is FREE right now

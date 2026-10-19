@@ -2,6 +2,7 @@
 // Layer metadata, colors, and generic CSV import mapping helpers
 // ============================================================
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
+import { kbd } from "./platform.js"; // TASKS.csv #773
 
 // Bug found during the UBC-mesh-coarsening perf fix (real repro: a 432,000-value array crashed with
 // "Maximum call stack size exceeded"): `Math.min(...arr)`/`Math.max(...arr)` spreads the WHOLE array
@@ -671,8 +672,8 @@ export function replaceRowsByHole(prev, incoming, keepRows = null) {
 const holeList = (hs) => `${hs.length} hole(s) (${hs.slice(0, 6).join(", ")}${hs.length > 6 ? ", …" : ""})`;
 // the import notice's sentence about what happened to holes that were already loaded
 export function replaceNote(res, what) {
-  return (res.replacedHoles.length ? ` Replaced the earlier ${what} of ${holeList(res.replacedHoles)} — Ctrl+Z to undo.` : "")
-    + (res.appendedHoles?.length ? ` Added below the existing ${what} of ${holeList(res.appendedHoles)} (the file starts at or below where they end, so it was read as an extension) — Ctrl+Z to undo.` : "");
+  return (res.replacedHoles.length ? ` Replaced the earlier ${what} of ${holeList(res.replacedHoles)} — ${kbd("Ctrl+Z")} to undo.` : "") // #773
+    + (res.appendedHoles?.length ? ` Added below the existing ${what} of ${holeList(res.appendedHoles)} (the file starts at or below where they end, so it was read as an extension) — ${kbd("Ctrl+Z")} to undo.` : "");
 }
 
 // TASKS.csv #426 — one place that turns (target, headers) into a first-guess mapping. For structure
