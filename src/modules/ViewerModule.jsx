@@ -6277,6 +6277,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const mid = (row.from + row.to) / 2;
         const color = meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
+        // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
+        if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
         points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
       });
     });

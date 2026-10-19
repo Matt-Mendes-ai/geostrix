@@ -61,7 +61,8 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
   const vein = (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const breccia = (layers.breccia || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #608
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
-  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), 0);
+  const mnlgy = (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #684
+  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0);
   if (maxDepth <= 0) return null;
 
   const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));
@@ -72,6 +73,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
     { label: "Alt.", rows: alt, kind: "fill", colorFn: colorForAlteration },
     { label: "Vein", rows: vein, kind: "tick", colorFn: colorForVein },
     { label: "Bx", rows: breccia, kind: "fill", colorFn: colorForBreccia }, // #608
+    { label: "Min.", rows: mnlgy, kind: "fill", colorFn: LAYER_META.mnlgy.colorFn }, // #684 — intervals as blocks, from = to as a line
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
   ].filter((t) => t.rows.length);
   if (!tracks.length) return null;
