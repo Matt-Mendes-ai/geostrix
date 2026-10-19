@@ -194,7 +194,7 @@ export function createModellingRuns(ctx, mcRef) {
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
     setImplicitBusy(true);
-    setNotices((p) => [...p, `Running ${label} (${totalPoints} points, ${totalOrientations} orientations across ${specs.length} surface${specs.length > 1 ? "s" : ""})${anisotropy.enabled ? ", with anisotropy" : ""}…`]);
+    setNotices((p) => [...p, `Running ${label} (${totalPoints} points, ${totalOrientations} orientations across ${specs.length} surface${specs.length > 1 ? "s" : ""})${anisotropy.enabled ? `, with the geology trend "${anisotropy.params?.trend || "unnamed"}"` : ""}…`]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
     // reached), jumps to 100% on an actual response, and clears shortly after — enough for the
@@ -217,7 +217,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
-      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: !anisotropy.enabled,
+      { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
         faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })) }, // #360
     );
     clearInterval(rampTimer);
@@ -344,7 +344,7 @@ export function createModellingRuns(ctx, mcRef) {
     // ground, and nothing here is a resource.
     // TASKS.csv #593 — the block was asked for but did not come back (an older engine, or the sync fallback before
     // it forwarded the request): say why the model check, volumes and "Add as block model" are missing
-    if (!anisotropy.enabled && !res.block) setNotices((p) => [...p, "The Python engine did not return the model's lithology block, so the model check, unit volumes and \"Add as block model\" are not available for this run. Updating GeoStrix (its engine is bundled) brings them back."]);
+    if (!res.block) setNotices((p) => [...p, "The Python engine did not return the model's lithology block, so the model check, unit volumes and \"Add as block model\" are not available for this run. Updating GeoStrix (its engine is bundled) brings them back."]);
     if (res.block) {
       const codeToUnit = new Map();
       specs.forEach((sp) => { if (!sp.mcode) (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)); });
@@ -360,20 +360,27 @@ export function createModellingRuns(ctx, mcRef) {
           if (r.hole_id !== t.hole_id || unit == null || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
           const p = findOnTrace(t.pts, (r.from + r.to) / 2);
           if (!p) return;
-          const api = sceneToApi(p);
+          // TASKS.csv #679 — with a trend the block was solved in the warped frame, so each sample goes through the
+          // same warp the interface points did before it is looked up
+          const api0 = sceneToApi(p);
+          const api = anisotropy.enabled ? anisoWarpPoint(api0, anisoCenter, anisoBasis, anisoScl) : api0;
           samples.push({ hole_id: t.hole_id, x: api.x, y: api.y, z: api.z, metres: r.to - r.from, logged: unit });
         });
       });
       const chk = checkAgainstLogs(res.block, samples);
-      setLastLithBlock({ block: res.block, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
-      const vols = unitVolumes(res.block).filter((v) => v.name);
+      // TASKS.csv #679 — a warped block's cells are tilted boxes in real space, which a block model (axis-aligned cells)
+      // and the modelled-unit layer (which samples the block at real positions) can't use: off for a trend run
+      if (anisotropy.enabled) setLastLithBlock(null);
+      else setLastLithBlock({ block: res.block, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
+      // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
+      const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
+      const vols = unitVolumes(res.block).filter((v) => v.name).map((v) => ({ ...v, volume: v.volume / warpDet }));
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.`]);
-    } else if (anisotropy.enabled) {
-      setNotices((p) => [...p, "Model check vs logs isn't available with anisotropy on (the model is solved in a stretched space)."]);
+      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the geology trend "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, but "Add as block model" and the modelled-unit layer are off for this run (its cells are tilted boxes in real space).` : ""}`]);
     }
     if (newMeshes.length) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
