@@ -19,7 +19,8 @@ import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "
 import { clipMesh } from "../../lib/clipMesh.js";
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
-import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757 // TASKS.csv #568
+import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
+import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -76,6 +77,7 @@ export function createModellingRuns(ctx, mcRef) {
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
     addVoxelModel, // TASKS.csv #757
+    addRaster, mapLayers, rasters, removeRaster, // TASKS.csv #758
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -233,7 +235,16 @@ export function createModellingRuns(ctx, mcRef) {
         evalRows.push({ row: r, hole_id: t.hole_id, x: api.x, y: api.y, z: api.z });
       });
     });
-    const evalPts = evalRows.length && evalRows.length <= 200000 ? evalRows.map((q) => [q.x, q.y, q.z]) : null;
+    // TASKS.csv #758 — the predicted geological map: terrain nodes over the data's own padded footprint (real space),
+    // evaluated in the same solve, in the frame the model is solved in
+    const mapTerrain = terrainForClipRef.current;
+    const o0 = originRef.current;
+    const rxMap = minMax(extentApiPts.map((q) => q.x)), ryMap = minMax(extentApiPts.map((q) => q.y));
+    const [mx0, mx1] = pad(rxMap.min, rxMap.max), [my0, my1] = pad(ryMap.min, ryMap.max);
+    const mapGrid = mapTerrain ? terrainGrid(mapTerrain, [mx0 + o0.x, my0 + o0.y, mx1 + o0.x, my1 + o0.y], { maxPts: 20000, minSpacing: 25 }) : null;
+    const mapApi = mapGrid ? mapGrid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }) : [];
+    const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z])];
+    const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
@@ -379,7 +390,7 @@ export function createModellingRuns(ctx, mcRef) {
       const unitOfRow = (r) => { if (mcodeUnits.size) { const ec = effectiveCode(r, mcRef.current, mcodeGroupOf); if (mcodeUnits.has(ec)) return ec; } return codeToUnit.get(r.value); };
       // TASKS.csv #756 — the exact unit at each midpoint when the engine evaluated them (same numbering as the block);
       // a midpoint outside the model box keeps no unit, so it counts as "outside the model" as before
-      const exact = Array.isArray(res.evaluated) && res.evaluated.length === evalRows.length;
+      const exact = Array.isArray(res.evaluated) && res.evaluated.length === evalRows.length + mapApi.length;
       if (exact) {
         const [x0, x1, y0, y1, z0, z1] = res.block.extent;
         evalRows.forEach((q, i) => { if (q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1) q.modelled = res.block.labels[res.evaluated[i] - 1] ?? null; });
@@ -411,6 +422,44 @@ export function createModellingRuns(ctx, mcRef) {
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
       setNotices((p) => [...p, `Model check${exact ? " (each interval's midpoint evaluated exactly)" : ` (read from the ${modelResolution}³ block)`}: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the ${trendWord} "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, and "Add as block model" gets the model resampled onto a real-space grid.` : ""}`]);
+      // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
+      if (mapGrid && exact && addRaster) {
+        const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
+        const off = evalRows.length;
+        // id 1 (label null) is the ground ABOVE the youngest modelled top: younger rock this model does not include -
+        // real ground, drawn in grey and named, not left blank (found live on Harry: 56% of the nodes looked empty)
+        const aboveLabel = `above the top of ${specs[0].meshName} (not modelled)`;
+        let outsideBox = 0;
+        const mapUnits = mapApi.map((q, k) => {
+          if (!(q.x >= bx0 && q.x <= bx1 && q.y >= by0 && q.y <= by1 && q.z >= bz0 && q.z <= bz1)) { outsideBox++; return null; }
+          const id = res.evaluated[off + k];
+          return id <= 1 ? aboveLabel : res.block.labels[id - 1] ?? null;
+        });
+        const colorOfUnit = new Map([...specs.map((sp) => [sp.meshName, sp.color || colorForLithology(sp.meshName)]), [aboveLabel, "#d4d4d4"]]);
+        const px = unitRaster(mapGrid, mapUnits, (u) => colorOfUnit.get(u) || colorForLithology(u));
+        const cv = document.createElement("canvas");
+        cv.width = mapGrid.nx; cv.height = mapGrid.ny;
+        cv.getContext("2d").putImageData(new ImageData(px, mapGrid.nx, mapGrid.ny), 0, 0);
+        const covered = mapUnits.filter((u) => u != null && u !== aboveLabel).length;
+        const aboveN = mapUnits.filter((u) => u === aboveLabel).length;
+        const agreements = (mapLayers || []).filter((l) => l.styleField && l.geomType !== "line" && l.geomType !== "point")
+          .map((l) => mapAgreement(mapGrid, mapUnits, l, specs.map((sp) => sp.meshName))).filter((a) => a && a.mappedNodes);
+        const cellM = Math.round((mapGrid.dx + mapGrid.dy) / 2);
+        const mapName = `Predicted geology (${specs.map((sp) => sp.meshName).join(" over ")})`;
+        (rasters || []).filter((r) => r.name === mapName && r.provenance?.tool?.includes("#758")).forEach((r) => removeRaster?.(r.id)); // a rerun replaces it
+        addRaster({
+          name: mapName, bbox: mapGrid.bbox, dataUrl: cv.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8,
+          provenance: { tool: "GemPy implicit model evaluated on the terrain (TASKS.csv #758)", cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
+            note: "the model's unit at the ground surface, evaluated exactly at each node in the same solve; grey where the ground is above the youngest modelled top; blank outside the model box", agreement: agreements.map((a) => ({ layer: a.layer, field: a.field, overall: a.overall, units: a.units.map((u) => ({ unit: u.unit, pct: u.pct, nodes: u.nodes })) })) },
+        });
+        const pctTxt = (v) => (v == null ? "—" : `${Math.round(100 * v)}%`);
+        const agreeTxt = agreements.length
+          ? agreements.map((a) => ` Against the mapped geology "${a.layer}" (field ${a.field}): the model agrees on ${pctTxt(a.overall)} of the mapped ground where it has a unit of the same name — ${a.units.filter((u) => u.inModel).slice(0, 6).map((u) => `${u.unit} ${pctTxt(u.pct)}${u.pct != null && u.pct < 0.5 && u.modelledAs[0] ? ` (mostly modelled as ${u.modelledAs[0].unit})` : ""}`).join(", ") || "no mapped unit shares a name with a model unit"}.${a.unmatchedMapUnits.length ? ` Mapped units with no model unit of that name (not scored): ${a.unmatchedMapUnits.slice(0, 6).join(", ")}${a.unmatchedMapUnits.length > 6 ? "…" : ""}.` : ""}`).join("")
+          : " No mapped geology polygons with a unit field are loaded, so there is nothing to compare it with.";
+        setNotices((p) => [...p, `Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every ${cellM} m over ${mapGrid.nodes.length.toLocaleString()} terrain nodes: ${covered.toLocaleString()} in a modelled unit, ${aboveN.toLocaleString()} above the top of ${specs[0].meshName} (younger rock this model does not include, grey)${outsideBox ? `, ${outsideBox.toLocaleString()} outside the model box (blank)` : ""}.${agreeTxt} A model can match every hole and still contradict the outcrop — this is the check for that.`]);
+      } else if (!mapTerrain && exact) {
+        setNotices((p) => [...p, "No terrain is loaded, so no predicted geological map was made (it needs the ground surface to evaluate the model on)."]);
+      }
     }
     if (newMeshes.length) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without

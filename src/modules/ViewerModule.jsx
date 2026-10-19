@@ -3559,6 +3559,7 @@ ${describeTrend(t)}` };
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
+    addRaster, rasters, removeRaster, // TASKS.csv #758
     modelAbortControllerRef,
     modelDomainId,
     modelResolution,
