@@ -25,3 +25,16 @@ test("deepest pseudo-depth is half the largest current-to-potential separation",
   const { deepestPseudoDepth } = await import("../src/lib/dcip.js");
   assert.equal(deepestPseudoDepth([[0, 10, 20, 30], [0, 10, 500, 510]]), 250);
 });
+
+test("the file's error column is mapped and parsed, null where empty, and survives a saved line", async () => {
+  const { guessDcipColumns, parseDcipRows, savedLineToFile, SAVED_LINE_HEADERS } = await import("../src/lib/dcip.js");
+  const headers = ["T1X", "T2X", "R1X", "R2X", "RHO", "MX", "SD"];
+  const map = guessDcipColumns(headers);
+  assert.equal(map.err, "SD"); assert.equal(map.ip, "MX");
+  const p = parseDcipRows([{ T1X: "100", T2X: "*", R1X: "0", R2X: "50", RHO: "120", MX: "3", SD: "0.4" }, { T1X: "100", T2X: "*", R1X: "50", R2X: "0", RHO: "90", MX: "2", SD: "*" }], map);
+  assert.deepEqual(p.err, [0.4, null]);
+  const back = savedLineToFile({ name: "L", readings: p.readings, rho: p.rho, ip: p.ip, err: p.err });
+  assert.equal(back.mapping.err, "Error");
+  assert.deepEqual(parseDcipRows(back.file.rows, back.mapping).err, [0.4, null]);
+  assert.equal(SAVED_LINE_HEADERS.length, 6); // not mutated
+});

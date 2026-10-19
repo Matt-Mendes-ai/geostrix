@@ -38,7 +38,7 @@ const ipFitOf = (result) => {
   }
   return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text };
 };
-const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"]];
+const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
 export default function DcipPanel({ pBtn, numInput }) {
   const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
@@ -112,7 +112,7 @@ export default function DcipPanel({ pBtn, numInput }) {
 
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
   const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg)$/i, "") : "";
-  const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
+  const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
   const loadSaved = (id) => {
     const e = dcipLines.find((l) => l.id === id);
     if (!e) return;
@@ -213,8 +213,9 @@ export default function DcipPanel({ pBtn, numInput }) {
       readings: readingsH, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo, // #539 — horizontal positions
       mesh: { cell: num(opts.cell), depth: num(opts.depth) }, maxIter: Number(opts.maxIter) || 20,
       geometricFactor: opts.geomFactor || "flat", // TASKS.csv #580
-      uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0 },
-      ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0 } } : {}),
+      // #683 — the file's own error column as a per-reading floor, once the user has said what it measures
+      uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0, ...(parsed.err && opts.errKind === "rhoPct" ? { floorPerReadingPercent: parsed.err } : {}) },
+      ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0, ...(parsed.err && opts.errKind === "ipMvV" ? { floorPerReadingMvV: parsed.err } : {}) } } : {}),
     };
     const name = lineName;
     keepLine();
@@ -227,7 +228,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       ...(lineGeom.scale !== 1 ? { chainingScale: lineGeom.scale } : {}), ...(line.stations ? { stations: `${line.stations.list.length} from ${line.stations.file} (line ${line.stations.line})` } : {}),
       mesh: { cellM: num(opts.cell), depthM: num(opts.depth), verticalCellM: num(opts.cell) / 2 },
       geometricFactor: (opts.geomFactor || "flat") === "flat" ? "flat ground (the file's apparent resistivities use nominal electrode spacings)" : "electrodes on the topography (the file's apparent resistivities are already topography-corrected)", // #580
-      uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: "entered by user" },
+      uncertainty: { resistivityPercent: num(opts.pct) || 0, resistivityFloor: num(opts.floor) || 0, ...(parsed.ip ? { chargeabilityPercent: num(opts.ipPct) || 0, chargeabilityFloorMvV: num(opts.ipFloor) || 0 } : {}), source: parsed.err && (opts.errKind === "rhoPct" || (opts.errKind === "ipMvV" && parsed.ip)) ? `entered by user; per-reading floor from the file's column ${mapping.err} (${opts.errKind === "rhoPct" ? "resistivity error, %" : "chargeability error, mV/V"})` : "entered by user" },
       crs: `EPSG:${project?.epsg}`, interpretation: "One smooth model that fits the data to the stated uncertainty (2.5D: the ground is assumed not to change along strike, across the line). Deep and edge cells are poorly constrained — see the support.",
     };
     const token = getProjectToken();
@@ -277,6 +278,18 @@ export default function DcipPanel({ pBtn, numInput }) {
               </select>
             </div>
           ))}
+          {parsed?.err && (
+            // TASKS.csv #683 — what a receiver writes in its error column differs (IRIS-style SD: the deviation of the
+            // chargeability or of the voltage between stacks), so GeoStrix does not guess: it is used only once chosen
+            <div style={row} title="Used as a per-reading floor: each reading's uncertainty is your percent plus the larger of your floor and the file's own error, so noisy readings weigh less. Check the receiver's manual for what this column holds.">
+              <span style={lbl}>{mapping.err} column is</span>
+              <select value={opts.errKind || ""} onChange={(e) => setOpts((o) => ({ ...o, errKind: e.target.value || undefined }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="What the error column measures">
+                <option value="">(choose — not used until you do)</option>
+                <option value="rhoPct">the resistivity error, in % of the reading</option>
+                {parsed.ip && <option value="ipMvV">the chargeability error, in mV/V</option>}
+              </select>
+            </div>
+          )}
           {parsed?.readings.length > 0 && <Pseudosection parsed={parsed} />}
           {parsed?.readings.length > 0 && (
             <button onClick={() => { keepLine(); setMsg({ ok: true, text: `${lineName} kept in the project (saved with it; also kept automatically when you invert).` }); }} style={{ ...pBtn, marginTop: 6 }}

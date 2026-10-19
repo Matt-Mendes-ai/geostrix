@@ -296,6 +296,13 @@ def _validate_dcip2d(req):
             raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
         if not floor_ok and any((c is None) or (not isinstance(c, (int, float))) or c == 0 for c in req["chargeability"]):
             raise HTTPException(400, "some chargeability readings are 0 mV/V: a percent alone gives them no uncertainty — add a floor in mV/V.")
+    # TASKS.csv #683 — optional per-reading floors from the file's own error column (null = none for that reading)
+    for key, arr in (("uncertainty.floorPerReadingPercent", u.get("floorPerReadingPercent")),
+                     ("ipUncertainty.floorPerReadingMvV", (req.get("ipUncertainty") or {}).get("floorPerReadingMvV"))):
+        if arr is None:
+            continue
+        if not isinstance(arr, list) or len(arr) != len(r) or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v) and v >= 0) for v in arr):
+            raise HTTPException(400, f"{key} must hold one non-negative value (or null) per reading.")
     req["maxIter"] = int(min(40, max(1, int(req.get("maxIter", 20)))))
     if req.get("geometricFactor") not in (None, "flat", "draped"):  # TASKS.csv #580
         raise HTTPException(400, 'geometricFactor must be "flat" (the data used nominal flat-ground spacings) or "draped".')

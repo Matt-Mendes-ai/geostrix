@@ -20,6 +20,8 @@ const ALIASES = {
   n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x"],
   rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m"],
   ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "mx", "eta", "ip_mv_v"],
+  // TASKS.csv #683 — a per-reading error column (what it measures differs between receivers, so the panel asks)
+  err: ["sd", "dev", "std", "stdev", "std_dev", "error", "err", "rho_err", "rho_sd", "mx_sd", "m_sd", "ip_err"],
 };
 
 // TASKS.csv #600 — a line file that is not a plain CSV: contractor TDIP exports put metadata lines first
@@ -64,9 +66,9 @@ const num = (v) => { if (v == null || String(v).trim() === "" || /^(\*|na|nan|nu
 
 // rows: objects keyed by header. Returns { readings: [[a, b|null, m, n|null]], rho, ip|null, skipped, spacing, span, array }.
 export function parseDcipRows(rows, mapping) {
-  const readings = [], rho = [], ip = [];
+  const readings = [], rho = [], ip = [], err = [];
   let skipped = 0;
-  const useIp = !!mapping.ip;
+  const useIp = !!mapping.ip, useErr = !!mapping.err; // err: #683 — null where a reading has none
   for (const r of rows) {
     let a = num(r[mapping.a]), b = mapping.b ? num(r[mapping.b]) : null, m = num(r[mapping.m]), n = mapping.n ? num(r[mapping.n]) : null;
     // #600 — a pole written in the FIRST column ('*' in T1X, the electrode in T2X) is the same pole array
@@ -76,13 +78,14 @@ export function parseDcipRows(rows, mapping) {
     const c = useIp ? num(r[mapping.ip]) : null;
     if (a == null || m == null || !(v > 0) || (useIp && c == null)) { skipped++; continue; }
     readings.push([a, b, m, n]); rho.push(v); if (useIp) ip.push(c);
+    if (useErr) { const e = num(r[mapping.err]); err.push(e != null && e >= 0 ? e : null); }
   }
   const pos = [...new Set(readings.flat().filter((x) => x != null))].sort((p, q) => p - q);
   let spacing = Infinity;
   for (let i = 1; i < pos.length; i++) { const d = pos[i] - pos[i - 1]; if (d > 1e-6 && d < spacing) spacing = d; }
   const poleB = readings.some((r) => r[1] == null), poleN = readings.some((r) => r[3] == null);
   const array = poleB && poleN ? "pole-pole" : poleB ? "pole-dipole" : poleN ? "dipole-pole" : "dipole-dipole (or any 4-electrode array)";
-  return { readings, rho, ip: useIp ? ip : null, skipped, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
+  return { readings, rho, ip: useIp ? ip : null, err: useErr ? err : null, skipped, spacing: Number.isFinite(spacing) ? spacing : null, span: pos.length ? [pos[0], pos[pos.length - 1]] : null, array };
 }
 
 // TASKS.csv #602 — `scale` = ground metres per file metre (the chaining scale fitted from the stations, e.g.
@@ -185,13 +188,16 @@ export function slimDcipResult(result) {
 export const SAVED_LINE_HEADERS = ["A", "B", "M", "N", "Apparent resistivity", "Chargeability"];
 export function savedLineToFile(entry) {
   const ip = entry.ip && entry.ip.length === entry.readings.length;
-  const headers = ip ? SAVED_LINE_HEADERS : SAVED_LINE_HEADERS.slice(0, 5);
+  const headers = ip ? [...SAVED_LINE_HEADERS] : SAVED_LINE_HEADERS.slice(0, 5); // a copy: an Error header may be added (#683)
+  const err = entry.err && entry.err.length === entry.readings.length; // #683
+  if (err) headers.push("Error");
   const rows = entry.readings.map((r, i) => {
     const o = { A: r[0], B: r[1] ?? "", M: r[2], N: r[3] ?? "", "Apparent resistivity": entry.rho[i] };
     if (ip) o.Chargeability = entry.ip[i];
+    if (err) o.Error = entry.err[i] ?? "";
     return o;
   });
-  const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "Apparent resistivity", ...(ip ? { ip: "Chargeability" } : {}) };
+  const mapping = { a: "A", b: "B", m: "M", n: "N", rho: "Apparent resistivity", ...(ip ? { ip: "Chargeability" } : {}), ...(err ? { err: "Error" } : {}) };
   return { file: { name: entry.name, headers, rows }, mapping };
 }
 

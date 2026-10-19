@@ -207,6 +207,26 @@ def test_n_block_file_order():
     assert 260 <= s[lo] <= 380 and 5 <= ground[lo] - z[lo] <= 80
 
 
+def test_per_reading_floor_from_the_file():
+    """TASKS.csv #683 — the file's own error column as a per-reading floor: given in FILE order (here n-block order,
+    which SimPEG regroups), each reading's returned standard deviation must be percent * |d| + max(floor, its own)."""
+    rows, rho, ch, topo = _synthetic()
+    nlev = np.round((rows[:, 2] - rows[:, 1]) / 20.0).astype(int)
+    perm = np.argsort(nlev, kind="stable")
+    rows, rho, ch = rows[perm], rho[perm], ch[perm]
+    n = len(rho)
+    fl_pct = np.where(np.arange(n) % 3 == 0, 10.0, 0.5)          # every third reading noisy (10 %)
+    fl_ip = np.where(np.arange(n) % 4 == 0, 2.0, 0.0)            # every fourth chargeability reading +-2 mV/V
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "chargeability": ch.tolist(), "topo": topo.tolist(),
+           "mesh": {"cell": 5.0, "depth": 150.0}, "uncertainty": {"percent": 3, "floor": 0.0, "floorPerReadingPercent": fl_pct.tolist()},
+           "ipUncertainty": {"percent": 3, "floor": 0.5, "floorPerReadingMvV": fl_ip.tolist()}, "maxIter": 2}
+    out = D.run_job(req, lambda e: None)
+    std = np.asarray(out["standardDeviation"])
+    assert np.allclose(std, 0.03 * rho + np.maximum(0.0, fl_pct / 100.0 * rho))
+    ip_std = np.asarray(out["ip"]["standardDeviation"])  # mV/V
+    assert np.allclose(ip_std, 0.03 * np.abs(ch) + np.maximum(0.5, fl_ip))
+
+
 if __name__ == "__main__":
     test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
@@ -214,4 +234,6 @@ if __name__ == "__main__":
     test_n_block_file_order()
     test_support_not_biased_against_conductors()
     test_flat_geometric_factor_on_a_ridge()
+    test_per_reading_floor_from_the_file()
     print("ALL PASSED")
+

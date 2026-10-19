@@ -136,13 +136,30 @@ def run_job(req, progress):
             for rx in src.receiver_list:
                 rx._geometric_factor[src] = g_flat[slices[src, rx]]
 
+    # TASKS.csv #683 — an optional per-reading floor from the file's own error column (file order -> survey order):
+    # each reading's floor is the larger of the typed floor and its own error, so a noisy reading is trusted less
+    def _per_reading(arr, name):
+        if arr is None:
+            return None
+        a = np.asarray([np.nan if v is None else v for v in arr], dtype=float)
+        if a.shape != (len(order),):
+            raise ValueError(f"{name}: one value per reading expected.")
+        a = a[order]
+        a[~np.isfinite(a)] = 0.0
+        return np.clip(a, 0.0, None)
+
     unc = req["uncertainty"]
-    std = float(unc["percent"]) / 100.0 * np.abs(rho) + float(unc.get("floor", 0))
+    _fl_pct = _per_reading(unc.get("floorPerReadingPercent"), "uncertainty.floorPerReadingPercent")
+    _floor = float(unc.get("floor", 0))
+    _floor_dc = np.maximum(_floor, _fl_pct / 100.0 * np.abs(rho)) if _fl_pct is not None else _floor
+    std = float(unc["percent"]) / 100.0 * np.abs(rho) + _floor_dc
     if np.any(~np.isfinite(std)) or np.any(std <= 0):
         raise ValueError("Every reading needs a positive uncertainty.")
     if charge is not None:  # #564 — checked here, before the DC inversion, not after it
         _iu = req.get("ipUncertainty") or {}
-        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + float(_iu.get("floor", 0)) / 1000.0
+        _ip_fl = _per_reading(_iu.get("floorPerReadingMvV"), "ipUncertainty.floorPerReadingMvV")
+        _ip_floor = np.maximum(float(_iu.get("floor", 0)), _ip_fl) / 1000.0 if _ip_fl is not None else float(_iu.get("floor", 0)) / 1000.0
+        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor
         if np.any(~np.isfinite(_ip_std)) or np.any(_ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
     dc_data = sdata.Data(survey, dobs=rho, standard_deviation=std)
@@ -209,7 +226,7 @@ def run_job(req, progress):
         ip_survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
         ip_unc = req.get("ipUncertainty") or {}
         # TASKS.csv #564 — no 5 % / 1 mV/V fallback (nothing physical is defaulted), and every std positive
-        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + float(ip_unc.get("floor", 0)) / 1000.0
+        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + _ip_floor  # #683 — with the file's per-reading floor
         if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
         ip_data = sdata.Data(ip_survey, dobs=eta_obs, standard_deviation=ip_std)
