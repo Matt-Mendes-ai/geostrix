@@ -134,6 +134,18 @@ export function fitVerdict(result) {
   return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
 }
 
+// TASKS.csv #775 — SimPEG's magnetic tutorials: "a constant floor of 2 % of the maximum |TMI|, percent uncertainties
+// avoided". Shown as a HINT beside the field, never filled in (#564: nothing physical is defaulted). The anomaly is
+// measured about the mean, as the default base-level removal leaves it.
+export function simpegMagFloorHint(values) {
+  const v = (values || []).filter(Number.isFinite);
+  if (!v.length) return null;
+  const mean = v.reduce((a, b) => a + b, 0) / v.length;
+  let m = 0;
+  for (const x of v) m = Math.max(m, Math.abs(x - mean));
+  return m > 0 ? 0.02 * m : null;
+}
+
 // TASKS.csv #770 — the engine works in grid coordinates (the inducing field's declination was converted with
 // gridDeclination: grid = true + convergence), so a recovered declination goes back to true north the same way.
 export function trueDeclination(gridDeg, convergence) {

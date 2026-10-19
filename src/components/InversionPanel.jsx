@@ -20,7 +20,7 @@ import { toLonLat } from "../lib/reproject.js";
 import { igrfField, decimalYear } from "../lib/igrf.js";
 import {
   gridDeclination, terrainElevationAt, terrainPoints, thinStationIndices, medianNearestSpacing, crsProblem, formatBytes,
-  fitVerdict, resultToVoxelModel, trueDeclination, remanenceText, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
+  fitVerdict, resultToVoxelModel, trueDeclination, remanenceText, simpegMagFloorHint, sequentialStops, divergingStops, f32ToB64, suggestThinSpacing, MAX_STATIONS,
   forwardMapValues, residualScale, // TASKS.csv #537
 } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
@@ -413,6 +413,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
               </>)}
               {step(method === "mag" ? 3 : 2, "Uncertainty & mesh", <>
                 <div style={row} title="How far you trust each reading. Too small and the model invents detail to chase noise; too large and real bodies are smoothed away. There is no default."><span style={lbl}>Uncertainty floor</span><input type="number" min={0} value={unc.floor} onChange={(e) => setUnc((p) => ({ ...p, floor: e.target.value }))} style={inp} /> {M?.unit || ""}</div>
+                {/* TASKS.csv #775 — what SimPEG's own tutorials use, as a hint only */}
+                {method === "mag" && (() => { const h = simpegMagFloorHint(rows.map((r) => r.value)); return h ? <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>For reference: SimPEG's magnetic tutorials use a constant floor of 2% of the largest anomaly and no percentage — about {h < 10 ? h.toFixed(1) : Math.round(h)} {M.unit} for these data (anomaly measured about the mean). Your survey's noise and levelling errors are the better guide.</div> : null; })()}
                 <div style={row}><span style={lbl}>+ percent of value</span><input type="number" min={0} value={unc.percent} onChange={(e) => setUnc((p) => ({ ...p, percent: e.target.value }))} style={inp} /> %</div>
                 <div style={row} title="Cell size in the core of the model. Around half the station spacing is usual; smaller cells cost memory (data x cells).">
                   <span style={lbl}>Core cell</span><input type="number" min={1} value={mesh.coreCell} onChange={(e) => setMesh((p) => ({ ...p, coreCell: e.target.value }))} style={inp} /> m
