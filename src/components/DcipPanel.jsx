@@ -7,11 +7,11 @@ import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
-import { logStops, sequentialStops, fitVerdict } from "../lib/inversion.js";
+import { logStops, sequentialStops, divergingStops, fitVerdict } from "../lib/inversion.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
@@ -120,7 +120,7 @@ export default function DcipPanel({ pBtn, numInput }) {
     setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
     const sl = e.section?.line;
     const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number), Number(sl.scale) || 1) : null;
-    setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt } : null);
+    setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt, obs: { readings: e.readings, rho: e.rho, ip: e.ip } } : null); // obs: #683
     setMsg({ ok: true, text: `${e.name}: ${e.readings.length} readings from the project${e.section ? ", with its last inverted section" : ""}.` });
   };
 
@@ -234,7 +234,7 @@ export default function DcipPanel({ pBtn, numInput }) {
     const res = await startInversionJob(request, meta, {
       kind: "dcip2d", setTaskProgress,
       onDone: (result) => {
-        setLast({ result, geom: lineGeom, name });
+        setLast({ result, geom: lineGeom, name, obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip } }); // obs: #683 — for the data-fit view
         saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
         const thick = num(opts.cell);
         const rc = sectionCells(result, lineGeom, "resistivity", thick);
@@ -423,6 +423,63 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
         <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote("Section added to the Layout page."); }} style={{ ...pBtn, width: "auto", flex: 1 }}>Add to Layout</button>
       </div>
       {note && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
+      {last.obs && <DataFit obs={last.obs} result={result} />}
+    </div>
+  );
+}
+
+// TASKS.csv #683 — how well the model reproduces each reading: observed, predicted and the normalised residual
+// (obs - pred) / std as pseudosections, for resistivity and (when inverted) chargeability, plus the readings beyond 3 sigma.
+// A residual that is structured (a whole stretch or depth level one colour) means the model or the survey geometry is
+// wrong, not the noise; on the file-order Woodjam runs (#652) it would have shown the ordering bug at once.
+function DataFit({ obs, result }) {
+  const hasIp = !!(result.ip?.predicted && obs.ip);
+  const [kind, setKind] = useState("dc");
+  const k = hasIp ? kind : "dc";
+  const rows = useMemo(() => (k === "dc"
+    ? dataFitRows(obs.readings, obs.rho, result.predicted, result.standardDeviation)
+    : dataFitRows(obs.readings, obs.ip, result.ip.predicted, result.ip.standardDeviation)), [k, obs, result]);
+  if (!Array.isArray(result.predicted) || rows.length !== result.predicted.length) {
+    return <div style={{ marginTop: 8, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Data fit: not kept with this section (inverted with an earlier GeoStrix). Run the inversion again to see observed, predicted and residual data.</div>;
+  }
+  const worst = worstReadings(rows, 3);
+  const vals = rows.flatMap((x) => [x.obs, x.pred]).filter(Number.isFinite);
+  const lo = arrMin(vals), hi = arrMax(vals);
+  const valModel = { stops: k === "dc" ? logStops(lo, hi) : sequentialStops(Math.min(0, lo), hi), colorMode: "continuous" };
+  const resModel = { stops: divergingStops(3), colorMode: "continuous" };
+  const W = 300, H = 80;
+  const smin = arrMin(rows.map((x) => x.s)), smax = arrMax(rows.map((x) => x.s)), dmax = arrMax(rows.map((x) => x.depth)) || 1;
+  const X = (s) => 6 + ((s - smin) / (smax - smin || 1)) * (W - 12), Y = (d) => 6 + (d / dmax) * (H - 12);
+  const unit = k === "dc" ? "ohm·m" : "mV/V";
+  const fmt = (v) => (Number.isFinite(v) ? Number(v.toPrecision(3)).toString() : "—");
+  const plot = (label, colorOf) => (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{label}</div>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
+        {rows.map((x) => { const c = colorOf(x); return c ? <circle key={x.i} cx={X(x.s)} cy={Y(x.depth)} r={2.4} fill={c} /> : null; })}
+      </svg>
+    </div>
+  );
+  const inside = rows.filter((x) => x.r != null && Math.abs(x.r) <= 1).length, withR = rows.filter((x) => x.r != null).length;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="ge-section-label">Data fit</div>
+      {hasIp && (
+        <div style={{ display: "flex", gap: 4, marginBottom: 2 }}>
+          {[["dc", "Resistivity"], ["ip", "Chargeability"]].map(([v, l]) => <button key={v} onClick={() => setKind(v)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: v === k ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{l}</button>)}
+        </div>
+      )}
+      {plot(`Observed (${fmt(lo)}–${fmt(hi)} ${unit})`, (x) => (Number.isFinite(x.obs) ? colorForVoxelValue(valModel, x.obs) : null))}
+      {plot("Predicted by the model (same colours)", (x) => (Number.isFinite(x.pred) ? colorForVoxelValue(valModel, x.pred) : null))}
+      {plot("Residual: (observed − predicted) / error", (x) => (x.r != null ? colorForVoxelValue(resModel, Math.max(-3, Math.min(3, x.r))) : null))}
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>
+        Residual colours run from −3 (blue: the model predicts more than was measured) to +3 (red: less), white = a perfect fit. {inside} of {withR} readings are within one error ({withR ? Math.round((100 * inside) / withR) : 0}%; about 68% is expected for a fit at the target). Patches of one colour, rather than salt-and-pepper, point to a geometry or model problem.
+      </div>
+      {worst.length > 0 ? (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+          {worst.length} reading{worst.length > 1 ? "s" : ""} beyond 3 errors. Worst: {worst.slice(0, 5).map((x) => `#${x.i + 1} (A ${x.reading[0]}, M ${x.reading[2]}: ${fmt(x.obs)} vs ${fmt(x.pred)} ${unit}, ${x.r > 0 ? "+" : ""}${x.r.toFixed(1)})`).join("; ")}.
+        </div>
+      ) : <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>No reading is more than 3 errors from the model.</div>}
     </div>
   );
 }

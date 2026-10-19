@@ -152,13 +152,32 @@ export function sectionCells(result, geom, field, thickness) {
   return out;
 }
 
-// TASKS.csv #322 — what a saved line keeps of a result: the section (cells + electrodes) and the fit, not
-// the predicted data / per-iteration history (re-run the inversion for those).
+// TASKS.csv #683 — observed vs predicted, per reading (file order, as the engine returns them since #652): position in
+// the pseudosection, both values and the normalised residual (obs - pred) / std. Readings missing any of the three
+// get r = null. The list of the worst ones is what makes an ordering or geometry error visible at a glance.
+export function dataFitRows(readings, obs, pred, std) {
+  const pos = pseudoPositions(readings);
+  return readings.map((rd, i) => {
+    const o = obs?.[i], p = pred?.[i], sd = std?.[i];
+    const r = Number.isFinite(o) && Number.isFinite(p) && Number.isFinite(sd) && sd > 0 ? (o - p) / sd : null;
+    return { i, reading: rd, s: pos[i].s, depth: pos[i].depth, obs: o, pred: p, std: sd, r };
+  });
+}
+export function worstReadings(rows, k = 3) {
+  return rows.filter((x) => x.r != null && Math.abs(x.r) > k).sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+}
+// 5 significant digits: enough for a residual plot, a fraction of the JSON of a full double
+const sig5 = (arr) => (Array.isArray(arr) ? arr.map((v) => (Number.isFinite(v) ? Number(v.toPrecision(5)) : null)) : undefined);
+
+// TASKS.csv #322 — what a saved line keeps of a result: the section (cells + electrodes) and the fit, not the
+// per-iteration history (re-run the inversion for that). #683 — the predicted data and their standard deviations
+// are kept (5 significant digits), so a restored line still shows its observed / predicted / residual pseudosections.
 export function slimDcipResult(result) {
   const c = result.cells;
   const cells = { s: c.s, z: c.z, ds: c.ds, dz: c.dz, resistivity: c.resistivity, support: c.support, ...(c.chargeability ? { chargeability: c.chargeability } : {}) };
   return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
-    iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice }).filter(([, v]) => v !== undefined)) : null, mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}) }; // ip fields: #581; geometricFactor: #580
+    iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
+    ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}) }; // ip fields: #581; geometricFactor: #580
 }
 
 // A saved line back into the panel's import shape: one row per reading under fixed headers, so the normal
