@@ -31,6 +31,13 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 $repo = "Matt-Mendes-ai/geostrix"
 
+# Windows PowerShell 5.1 with ErrorActionPreference Stop turns ANY stderr line of a native command into a fatal
+# error - including "release not found" from a probe that is expected to fail (#778: the v0.1.53 run stopped there).
+# Probes go through this.
+function Probe([scriptblock]$cmd) {
+  $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  try { $out = & $cmd 2>$null; return @{ ok = ($LASTEXITCODE -eq 0); out = $out } } finally { $ErrorActionPreference = $old }
+}
 function Fail($msg) { Write-Host ""; Write-Host "STOPPED: $msg" -ForegroundColor Red; exit 1 }
 function Step($msg) { Write-Host ""; Write-Host "== $msg" -ForegroundColor Cyan }
 
@@ -85,10 +92,9 @@ if ($UnpackedDir) {
   Copy-Item (Resolve-Path $UnpackedDir) $app -Recurse
 } else {
   Step "Waiting for GitHub's Release build of $Tag"
-  gh auth status 2>$null | Out-Null
-  if ($LASTEXITCODE -ne 0) { Fail "The GitHub CLI is not logged in (gh auth login)." }
-  $rel = gh release view $Tag --repo $repo --json isDraft 2>$null | ConvertFrom-Json
-  if ($rel -and -not $rel.isDraft) { Fail "$Tag is already published on GitHub. Nothing to do." }
+  if (-not (Probe { gh auth status }).ok) { Fail "The GitHub CLI is not logged in (gh auth login)." }
+  $probe = Probe { gh release view $Tag --repo $repo --json isDraft }
+  if ($probe.ok -and -not (($probe.out | Out-String) | ConvertFrom-Json).isDraft) { Fail "$Tag is already published on GitHub. Nothing to do." }
   $run = $null
   for ($i = 0; $i -lt 120; $i++) {
     $runs = gh run list --repo $repo --workflow release.yml --limit 30 --json databaseId,headBranch,event,status,conclusion | ConvertFrom-Json
@@ -150,8 +156,7 @@ Step "Publish $Tag"
 $answer = Read-Host "Upload these files and publish $Tag on GitHub now? (y/N)"
 if ($answer -ne "y") { Write-Host "Not published. Files are in $files"; exit 0 }
 $notes = "Download **GeoStrix-Setup-$version.exe** below (Windows 10 / 11, 64-bit), or the portable **GeoStrix-$version-win.zip**. Signed by Open Source Developer Matheus Mendes de Albuquerque (Certum). Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/$repo/blob/master/CODE_SIGNING.md) · [Privacy policy](https://geostrix.com/privacy) · [geostrix.com](https://geostrix.com)"
-gh release view $Tag --repo $repo 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+if (-not (Probe { gh release view $Tag --repo $repo }).ok) {
   gh release create $Tag --repo $repo --title $Tag --notes $notes --draft --verify-tag
   if ($LASTEXITCODE -ne 0) { Fail "Could not create the release." }
 }
