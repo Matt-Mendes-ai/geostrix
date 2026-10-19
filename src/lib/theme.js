@@ -67,7 +67,7 @@
 // Matt, not a refactor): --color-success-bg #1e3629 / --color-success-text #8fd9ab and
 // --color-danger-bg #2a1f1f / --color-danger-text #e0a0a0 are DARK-background/light-text pairs in
 // an otherwise white app. They are used on purpose (the solid dark-green Export PDF button on the
-// Layout tab is the app's only filled button, and that is a useful hierarchy signal), but the names
+// Layout tab, the add-on's Download and each geoML section's Model button are the app's only filled buttons, one per pane, and that is a useful hierarchy signal; TASKS.csv #704), but the names
 // read as if lifted from a dark theme, and a LIGHT advisory pair (--color-warn-bg cream /
 // --color-warn-text brown) does the same job elsewhere — so the app currently has two competing
 // advisory styles. If they stay, names like --color-primary-btn-bg / --color-notice-inverse-bg

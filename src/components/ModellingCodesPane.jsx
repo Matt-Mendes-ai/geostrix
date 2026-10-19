@@ -70,7 +70,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
 
       <div className="ge-section-label">Pick intervals in the 3D view</div>
       <button onClick={() => { setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
-        <Crosshair size={13} /> {pickMode ? "Picking: click an interval on a hole (click again to stop)" : "Pick an interval"}
+        <Crosshair size={14} /> {pickMode ? "Picking: click an interval on a hole (click again to stop)" : "Pick an interval"}
       </button>
       {selected && (
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
@@ -87,7 +87,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
             <button onClick={() => assignSelected(null)} title="Back to the logged code (or its group)" aria-label="Reset to the logged code" style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}><RotateCcw size={12} /></button>
           </div>
           <button onClick={() => { setConnectFrom(connectFrom ? null : selected); setPickMode(true); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0, background: connectFrom ? "var(--color-selected-bg)" : undefined }}>
-            <Waypoints size={13} /> {connectFrom ? `Click the matching interval in another hole (gets ${selCode})…` : "Connect to an interval in another hole"}
+            <Waypoints size={14} /> {connectFrom ? `Click the matching interval in another hole (gets ${selCode})…` : "Connect to an interval in another hole"}
           </button>
         </div>
       )}

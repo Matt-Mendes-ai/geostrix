@@ -23,7 +23,7 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
           <div style={{ fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Style — {target.label}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Changes show in 3D straight away and are saved with the project.</div>
         </div>
-        <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+        <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
       </div>
       <div style={{ padding: 12 }}>
         {!surface && <>

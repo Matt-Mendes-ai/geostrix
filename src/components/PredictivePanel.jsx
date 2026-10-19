@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
+import { smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704
 import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
 
@@ -168,7 +169,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     });
   };
 
-  const box = { background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, marginBottom: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
+  const box = { background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 10, marginBottom: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
   const btn = (primary, disabled) => ({ padding: "6px 12px", borderRadius: 6, border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border)", background: primary ? "var(--color-success-bg)" : "var(--color-bg)", color: primary ? "var(--color-success-text)" : "var(--color-text)", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.5 : 1, fontSize: "var(--font-size-base)" });
   const h = { fontWeight: 600, color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 6 };
   const ready = st?.installed && !job;
@@ -215,7 +216,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
           <div style={box}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
               <span style={{ flex: 1 }}>Quality</span>
-              <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label="Model quality" style={{ flex: 2 }}>
+              <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label="Model quality" style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{q.label}</option>)}
               </select>
             </div>
@@ -258,7 +259,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                     </div>
                   ))}
                 </div>
-                <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder="Name (optional)" aria-label="Unit name" style={{ width: "100%", boxSizing: "border-box", marginTop: 6 }} />
+                <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder="Name (optional)" aria-label="Unit name" style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title="geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.">
                   <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} /> Follow folds (deep model, slower)
                 </label>
@@ -275,7 +276,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
             </div>
             {!collars.length || !elements.length ? "Load assays (Geochem tab) first." : (
               <>
-                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label="Element" style={{ width: "100%" }}>
+                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label="Element" style={{ ...smallSel, width: "100%" }}>
                   {elements.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>Model {element || "a grade"}</button>

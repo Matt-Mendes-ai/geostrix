@@ -394,7 +394,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                   <div key={k} style={row}><span style={lbl}>{l}</span><input type="number" value={field[k]} onChange={(e) => setField((p) => ({ ...p, [k]: e.target.value, source: "entered by user" }))} style={inp} /></div>
                 ))}
                 <button onClick={computeIgrf} disabled={!field.date || !rows.length} style={{ ...pBtn, marginTop: 7, marginBottom: 0, opacity: field.date && rows.length ? 1 : 0.5 }} title="Fill the three values from the IGRF-14 model for the survey date at the survey centre. Your survey report's values take precedence.">
-                  <Compass size={13} /> Compute from IGRF-14 for the survey date
+                  <Compass size={14} /> Compute from IGRF-14 for the survey date
                 </button>
                 {field.source && <div style={{ ...small, marginTop: 4 }}>Source: {field.source}</div>}
               </>)}
@@ -464,7 +464,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                   <div style={row} title="Cells whose normalised sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularisation than about the rock. Display only — it does not change the inversion."><span style={lbl}>Hide cells below support</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
                 </>}
               </>)}
-              <button onClick={() => doPlan("inversion")} disabled={planBusy || running} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={13} /> {planBusy ? "Estimating…" : "Estimate size and memory"}</button>
+              <button onClick={() => doPlan("inversion")} disabled={planBusy || running} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? "Estimating…" : "Estimate size and memory"}</button>
               {plan && (
                 <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
                   {plan.nData.toLocaleString()} stations × {plan.octree ? "" : "~"}{plan.nActiveEst.toLocaleString()} underground cells{" "}
@@ -479,7 +479,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                   {plan.notes?.map((n) => <div key={n} style={{ marginTop: 3 }}>⚠ {n}</div>)}
                 </div>
               )}
-              <button onClick={runInversion} disabled={running || planBusy} style={{ ...pBtn, marginBottom: 4, opacity: running ? 0.5 : 1 }}><Play size={13} /> Invert</button>
+              <button onClick={runInversion} disabled={running || planBusy} style={{ ...pBtn, marginBottom: 4, opacity: running ? 0.5 : 1 }}><Play size={14} /> Invert</button>
 
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlate((p) => ({ ...p, open: !p.open }))} aria-expanded={plate.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
                 {plate.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Test a body (forward model)
@@ -492,7 +492,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                   ))}
                   {(surfaceStructures || []).length > 0 && <button onClick={nearestOrientation} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>Use nearest outcrop measurements for dip</button>}
                   <label style={{ ...row, cursor: "pointer" }} title="Runs the same plate at dips 10°-90° and shows the misfit for each. A flat curve means these data cannot tell the dip."><input type="checkbox" checked={plate.sweep} onChange={(e) => setPlate((p) => ({ ...p, sweep: e.target.checked }))} /> Dip sweep (10°–90°)</label>
-                  <button onClick={runForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={13} /> Forward model</button>
+                  <button onClick={runForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={14} /> Forward model</button>
                 </div>
               )}
 

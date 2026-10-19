@@ -98,7 +98,8 @@ import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TAS
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
-import { useModelling } from "./viewer/useModelling.js"; // TASKS.csv #445 step 2
+import { useModelling } from "./viewer/useModelling.js";
+import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
@@ -7864,7 +7865,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {stackFaults.map((k) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.replace(/\|$/, " (all picks)").replace("|", " — ")}</span>
-            <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
+            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
           </div>
         ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
@@ -8857,7 +8858,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           {toast && toast.level === "error" && (
             // #390 — errors: danger colours, an icon, and a close button (pointer events back on for it)
             <div key={toast.key} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", padding: "8px 10px 8px 12px", borderRadius: 7, border: "1px solid var(--color-danger-border-strong)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
-              <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
+              <AlertTriangle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
               <span style={{ flex: 1 }}>{toast.text}</span>
               <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
             </div>
@@ -10149,8 +10150,6 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const miniBtn = { width: 60, padding: "5px 0", borderRadius: 6, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
 const iconBtn = { width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", cursor: "pointer" };
-const smallSel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 4px" };
 const miniField = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };

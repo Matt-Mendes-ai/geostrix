@@ -171,7 +171,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
           </div>
         );
       })}
-      <button type="button" onClick={add} style={{ ...btnStyle, marginBottom: 10 }}><Plus size={13} /> New trend</button>
+      <button type="button" onClick={add} style={{ ...btnStyle, marginBottom: 10 }}><Plus size={14} /> New trend</button>
       {trends.length > 0 && (
         <>
           <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>Used by</div>

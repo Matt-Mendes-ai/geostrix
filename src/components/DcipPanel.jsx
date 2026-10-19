@@ -276,7 +276,7 @@ export default function DcipPanel({ pBtn, numInput }) {
             <option value="">Lines in this project ({dcipLines.length})…</option>
             {dcipLines.map((l) => <option key={l.id} value={l.id}>{l.name} — {l.readings.length} readings{l.section ? ", inverted" : ""}</option>)}
           </select>
-          {pick && <button onClick={() => { removeDcipLine(pick); setPick(""); }} title="Remove this line from the project" aria-label="Remove saved line" style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={13} /></button>}
+          {pick && <button onClick={() => { removeDcipLine(pick); setPick(""); }} title="Remove this line from the project" aria-label="Remove saved line" style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
         </div>
       )}
       <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
@@ -348,7 +348,7 @@ export default function DcipPanel({ pBtn, numInput }) {
           </div>
           <div style={row} title="Depth of investigation: in each column of the section, cells below the deepest cell whose normalised sensitivity reaches this value are greyed in the section and hidden in 3D — the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <button onClick={run} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Play size={13} /> Invert</button>
+            <button onClick={run} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Play size={14} /> Invert</button>
             {running && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>Cancel</button>}
           </div>
         </div>
@@ -418,8 +418,8 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
         {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: dark red conductive → light blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · <svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg> hatched = barely seen by the data. {last.restored ? `Inverted ${last.restored.slice(0, 10)} (kept in the project).` : "Added to Block models (3D, along the line)."}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-        <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title="Every section cell: distance, x / y (project CRS), elevation, size, values, support"><Download size={13} /> CSV</button>
-        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${last.name}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={13} /> PNG</button>
+        <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title="Every section cell: distance, x / y (project CRS), elevation, size, values, support"><Download size={14} /> CSV</button>
+        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${last.name}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={14} /> PNG</button>
         <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote("Section added to the Layout page."); }} style={{ ...pBtn, width: "auto", flex: 1 }}>Add to Layout</button>
       </div>
       {note && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}

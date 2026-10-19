@@ -274,7 +274,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 </select>
                 <button title="Apply a QGIS .qml style to this layer" onClick={() => { qmlTargetRef.current = l.id; qmlInput.current.click(); }}
                   style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>
-                  <Palette size={11} /> .qml
+                  <Palette size={12} /> .qml
                 </button>
               </div>
             )}

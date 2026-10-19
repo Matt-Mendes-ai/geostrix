@@ -1035,7 +1035,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
             <div key={f.file ?? "(untracked)"} style={row}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? "Imported before GeoStrix recorded file names"}>{f.file ?? "(imported earlier — file not recorded)"}</span>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{f.intervals.toLocaleString()}</span>
-              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={`Remove assays from ${f.file ?? "files imported earlier"}`} title="Remove this file's assay intervals"><X size={13} /></button>
+              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={`Remove assays from ${f.file ?? "files imported earlier"}`} title="Remove this file's assay intervals"><X size={14} /></button>
             </div>
           ))}
           <div style={{ color: "var(--color-text-muted)", margin: "6px 0 2px" }}>Elements</div>

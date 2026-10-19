@@ -211,10 +211,10 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
             {pierceCount} pierce point{pierceCount === 1 ? "" : "s"} at {rl} m · {inSlab} hole{inSlab === 1 ? "" : "s"} in the slab · {data.voxelSlices.length} block model{data.voxelSlices.length === 1 ? "" : "s"} and {data.surfaceCuts.length} surface{data.surfaceCuts.length === 1 ? "" : "s"} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.
           </div>
           {!drawing
-            ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote("Click points on the plan; Save outline when done."); }}><Pencil size={13} /> Draw outline</button>
-            : <><button style={btn} onClick={saveOutline}><Check size={13} /> Save outline</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>Cancel</button></>}
+            ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote("Click points on the plan; Save outline when done."); }}><Pencil size={14} /> Draw outline</button>
+            : <><button style={btn} onClick={saveOutline}><Check size={14} /> Save outline</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>Cancel</button></>}
           <button style={btn} onClick={() => setRev((r) => r + 1)} title="Rebuild from the current layers, filters and models">Refresh</button>
-          <button style={btn} onClick={() => exportPng(false)}><Download size={13} /> PNG</button>
+          <button style={btn} onClick={() => exportPng(false)}><Download size={14} /> PNG</button>
           <button style={btn} onClick={() => exportPng(true)}>Add to Layout</button>
         </div>
         {data.legendItems.length > 0 && (

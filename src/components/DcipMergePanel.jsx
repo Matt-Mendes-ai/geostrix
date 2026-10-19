@@ -94,7 +94,7 @@ export default function DcipMergePanel({ pBtn, numInput }) {
         <input type="number" min={1} value={cell} placeholder={String(lineCell)} onChange={(e) => setCell(e.target.value)} style={inp} aria-label="Merge block size" />
       </div>
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        <button onClick={run} disabled={busy != null} style={{ ...pBtn, flex: 1, opacity: busy != null ? 0.5 : 1 }}><Play size={13} /> {busy != null ? `Merging… ${Math.round(busy * 100)}%` : `Merge ${KINDS[kind].label.toLowerCase()} lines`}</button>
+        <button onClick={run} disabled={busy != null} style={{ ...pBtn, flex: 1, opacity: busy != null ? 0.5 : 1 }}><Play size={14} /> {busy != null ? `Merging… ${Math.round(busy * 100)}%` : `Merge ${KINDS[kind].label.toLowerCase()} lines`}</button>
         {busy != null && <button onClick={() => abortRef.current?.abort()} style={{ ...pBtn, width: "auto" }}>Cancel</button>}
       </div>
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
