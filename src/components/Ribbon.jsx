@@ -9,7 +9,8 @@
 // same on every tab (no layout jump when switching, the #309 lesson), while each module owns its buttons
 // and their state. A module that is mounted but hidden (ViewerModule stays mounted, #225) must not render
 // its ribbon — pass show={false}.
-import React, { createContext, useContext, useEffect, useRef } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { createPortal } from "react-dom";
 import { X } from "./icons.js";
 
@@ -17,13 +18,38 @@ export const RibbonSlotContext = createContext(null);
 
 export function Ribbon({ children, show = true, label = "Tools" }) {
   const slot = useContext(RibbonSlotContext);
+  const { mode, setMode } = useUiMode();
+  const innerRef = useRef(null);
+  const [hidden, setHidden] = useState(0);
+  // #748 — how many tools Simple mode is hiding on this tab (counted from the rendered buttons, so it is always right)
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const n = mode === "simple" ? [...el.querySelectorAll(".ge-ribbon-btn")].filter((b) => b.closest(".ge-adv")).length : 0;
+    if (n !== hidden) setHidden(n);
+  });
   if (!slot || !show) return null;
-  return createPortal(<div className="ge-ribbon-inner" role="toolbar" aria-label={label}>{children}</div>, slot);
+  return createPortal(
+    <div ref={innerRef} className={`ge-ribbon-inner${mode === "simple" ? " ge-ribbon-simple" : ""}`} role="toolbar" aria-label={label}>
+      {children}
+      {hidden > 0 && (
+        <div className="ge-ribbon-group ge-ribbon-more">
+          <div className="ge-ribbon-items">
+            <button type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title="Show every tool on this tab (Advanced mode — switch back any time from the top bar)">
+              <span className="ge-ribbon-more-count">+{hidden}</span>
+              <span className="ge-ribbon-label">more tools</span>
+            </button>
+          </div>
+          <div className="ge-ribbon-caption">Advanced</div>
+        </div>
+      )}
+    </div>, slot);
 }
 
-export function RibbonGroup({ label, children }) {
+// advanced (#748): the whole group is hidden in Simple mode
+export function RibbonGroup({ label, children, advanced = false }) {
   return (
-    <div className="ge-ribbon-group" role="group" aria-label={label}>
+    <div className={`ge-ribbon-group${advanced ? " ge-adv" : ""}`} role="group" aria-label={label}>
       <div className="ge-ribbon-items">{children}</div>
       <div className="ge-ribbon-caption">{label}</div>
     </div>
@@ -47,10 +73,10 @@ export const RIBBON_TONES = {
 // plain `disabled` button is skipped by the keyboard, so a screen-reader user never learned why it was off.
 // expanded (TASKS.csv #595): for a button that shows / hides a task pane or popover, aria-expanded instead of
 // aria-pressed, so a screen reader announces "expanded / collapsed" rather than a toggle.
-export function RibbonButton({ icon: Icon, label, title, onClick, active = false, expanded, disabled = false, disabledReason, tone = "neutral", ariaLabel, children, buttonRef }) {
+export function RibbonButton({ icon: Icon, label, title, onClick, active = false, expanded, disabled = false, disabledReason, tone = "neutral", ariaLabel, children, buttonRef, advanced = false }) {
   const soft = disabled && !!disabledReason;
   return (
-    <div className="ge-ribbon-cell">
+    <div className={`ge-ribbon-cell${advanced ? " ge-adv" : ""}`}>
       <button
         ref={buttonRef}
         type="button"

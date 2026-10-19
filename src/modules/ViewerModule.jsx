@@ -6755,7 +6755,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modeling" && (
         <Ribbon show={visible} label="3D Modeling tools">
-          <RibbonGroup label="Setup">
+          <RibbonGroup advanced label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
             <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
@@ -6763,24 +6763,24 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
           <RibbonGroup label="Lithology">
             <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
-            <RibbonButton icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+            <RibbonButton advanced icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
           </RibbonGroup>
           <RibbonGroup label="Structure">
-            <RibbonButton icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
+            <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
             <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" onClick={() => setStereonetOpen(true)} />
-            <RibbonButton icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
-            <RibbonButton icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
+            <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
+            <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
           </RibbonGroup>
-          <RibbonGroup label="Alteration & veins">
+          <RibbonGroup advanced label="Alteration & veins">
             <RibbonButton icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
             <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
           </RibbonGroup>
           <RibbonGroup label="Grade">
             <RibbonButton icon={Gem} label="Grade shell" tone="model" title="Numeric implicit model (grade shell)" {...paneProps("shell")} />
             <RibbonButton icon={Calculator} label="Estimation" tone="model" title="Grade estimation into block models" {...paneProps("gradeEst")} />
-            <RibbonButton icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
+            <RibbonButton advanced icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
           </RibbonGroup>
-          <RibbonGroup label="Check">
+          <RibbonGroup advanced label="Check">
             <RibbonButton icon={Rows3} label="Fence diagram" tone="analyse" title="Fence / panel correlation diagram" onClick={() => setFenceOpen(true)} />
             <RibbonButton icon={Ruler} label="Surface query" tone="analyse" title="Distance to surfaces / point-in-domain report" onClick={() => setSurfaceQueryOpen(true)} />
           </RibbonGroup>
@@ -6790,14 +6790,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {mode === "targeting" && (
         <Ribbon show={visible} label="Targeting tools">
           <RibbonGroup label="Targets">
-            <RibbonButton icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
+            <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
             <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
             <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
           </RibbonGroup>
           <RibbonGroup label="Export planned holes">
             <RibbonButton icon={FileSpreadsheet} label="CSV" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north" onClick={() => exportPlannedHoles("csv")} />
-            <RibbonButton icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
-            <RibbonButton icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
+            <RibbonButton advanced icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
+            <RibbonButton advanced icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
           </RibbonGroup>
         </Ribbon>
       )}
@@ -9261,7 +9261,7 @@ function ViewToolbar({
   return (
     <Ribbon show={show} label="3D View tools">
       <RibbonGroup label="View">
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
           </HoverToolInfo>
@@ -9292,7 +9292,7 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
             <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Figure</span></button>
           </HoverToolInfo>
@@ -9340,7 +9340,7 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
             <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Themes</span></button>
           </HoverToolInfo>
@@ -9390,7 +9390,7 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <RibbonButton icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
+        <RibbonButton advanced icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
       </RibbonGroup>
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
@@ -9404,9 +9404,9 @@ function ViewToolbar({
             <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
           </label>
         )}
-        <RibbonButton icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
-        <RibbonButton icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
-        <RibbonButton icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
+        <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
+        <RibbonButton advanced icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
+        <RibbonButton advanced icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
@@ -9426,7 +9426,7 @@ function ViewToolbar({
           </HoverToolInfo>
         </div>
       </RibbonGroup>
-      <RibbonGroup label="Database">
+      <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
             <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">Database</span></button>

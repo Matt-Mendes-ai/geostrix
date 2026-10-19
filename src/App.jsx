@@ -13,6 +13,7 @@ import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -80,6 +81,9 @@ export default function App() {
   const [active, setActive] = useState("viewer");
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
   const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
+  const [uiMode, setUiModeState] = useState(initialUiMode); // TASKS.csv #748
+  const setUiMode = useCallback((m) => { setUiModeState(m); saveUiMode(m); }, []);
+  const uiModeValue = React.useMemo(() => ({ mode: uiMode, setMode: setUiMode }), [uiMode, setUiMode]);
   // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
   // so hopping to Geochem and back doesn't force a sidebar re-render for a `mode` swap that isn't
   // actually happening. Updated during render (not an effect) whenever the active tab IS a viewer
@@ -344,6 +348,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   }, [discardAutosave, recovery]);
 
   return (
+    <UiModeContext.Provider value={uiModeValue}>
     <div className="ge-app">
       {/* TASKS.csv #341 — an autosave that could not be read was moved aside rather than overwritten. */}
       {recovery?.unreadable && (
@@ -436,7 +441,15 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       {/* TASKS.csv #458 — the Office-style ribbon band. ONE element for every tab (same height everywhere,
           the #309 reason the placeholder above existed); each module portals its own buttons into it
           (components/Ribbon.jsx). */}
-      <div className="ge-ribbon" ref={setRibbonEl} />
+      <div className="ge-ribbon-row">
+        <div className="ge-ribbon" ref={setRibbonEl} />
+        {/* TASKS.csv #748 — Simple shows each tab's basic tools; Advanced shows every tool. At the ribbon's right end: the
+            same place on every tab, and the top bar has no room left at 1,424 px. */}
+        <div className="ge-ui-mode" role="group" aria-label="Interface mode" title="Simple shows each tab's basic tools; Advanced shows every tool. Remembered on this computer.">
+          <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>Simple</button>
+          <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>Advanced</button>
+        </div>
+      </div>
 
       <RibbonSlotContext.Provider value={ribbonEl}>
       <div className="ge-body">
@@ -477,6 +490,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         </Suspense>
       )}
     </div>
+    </UiModeContext.Provider>
   );
 }
 

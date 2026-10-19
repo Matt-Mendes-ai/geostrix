@@ -529,22 +529,22 @@ export default function LayoutModule() {
         <Ribbon label="Layout tools">
           <RibbonGroup label="Insert">
             <RibbonButton icon={Type} label="Text" tone="output" title="Add text" onClick={() => addElement("text")} />
-            <RibbonButton icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
+            <RibbonButton advanced icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
             <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
-            <RibbonButton icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
+            <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
-          <RibbonGroup label="Draw">
+          <RibbonGroup advanced label="Draw">
             <RibbonButton icon={Square} label="Rectangle" tone="neutral" title="Add rectangle" onClick={() => addElement("rect")} />
             <RibbonButton icon={ArrowUpRight} label="Arrow" tone="neutral" title="Add arrow" onClick={() => addElement("arrow")} />
             <RibbonButton icon={MessageSquare} label="Callout" tone="neutral" title="Add callout" onClick={() => addElement("callout")} />
             <RibbonButton icon={Pencil} label="Freehand" tone="neutral" active={freehandTool} title={freehandTool ? "Click and drag on the page to draw — click again to cancel" : "Freehand pen — click, then drag on the page"} onClick={() => setFreehandTool((v) => !v)} />
           </RibbonGroup>
-          <RibbonGroup label="Page">
+          <RibbonGroup advanced label="Page">
             <RibbonButton icon={Grid3x3} label="Grid + snap" tone="view" active={showGrid} title="Show the alignment grid and snap elements to it (spacing in the sidebar)" onClick={() => setShowGrid((v) => !v)} />
             <RibbonButton icon={Save} label="Save template" tone="data" title="Save this page as a reusable template" onClick={saveAsTemplate} />
             <RibbonButton icon={FolderOpen} label={`Templates (${layoutTemplates.length})`} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />

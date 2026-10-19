@@ -175,7 +175,7 @@ export default function CartographyModule() {
           <RibbonGroup label="Project">
             <RibbonButton icon={Globe2} label="Project CRS" active={pane === "crs"} onClick={() => { setPane("crs"); setMsg(null); }} title="The coordinate reference system every import is reprojected into — change it, and optionally move all loaded data with it" />
           </RibbonGroup>
-          <RibbonGroup label="Reproject">
+          <RibbonGroup advanced label="Reproject">
             <RibbonButton icon={Layers} label="A layer" active={pane === "layer"} onClick={() => { setPane("layer"); setMsg(null); }} title="One layer, survey, voxel model, surface or raster was imported in the wrong CRS: move it into the project CRS" />
             <RibbonButton icon={FileSpreadsheet} label="A file" active={pane === "file"} onClick={() => { setPane("file"); setMsg(null); }} title="Reproject a CSV's X/Y columns, a zipped shapefile or a GeoTIFF from one CRS to another and save it as a new file" />
           </RibbonGroup>

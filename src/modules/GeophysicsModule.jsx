@@ -880,22 +880,22 @@ export default function GeophysicsModule() {
         <Ribbon label="Geophysics tools">
           <RibbonGroup label="Surveys">
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
-            <RibbonButton icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
-            <RibbonButton icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
+            <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
+            <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
           </RibbonGroup>
           <RibbonGroup label="Surface & maps">
             <RibbonButton icon={RMountain} label="Terrain" tone="data" title="Terrain: fetch SRTM or import a DEM" {...geoBtn("terrain")} />
-            <RibbonButton icon={RMapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...geoBtn("maps")} />
-            <RibbonButton icon={RGlobe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...geoBtn("web")} />
+            <RibbonButton advanced icon={RMapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...geoBtn("maps")} />
+            <RibbonButton advanced icon={RGlobe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...geoBtn("web")} />
           </RibbonGroup>
-          <RibbonGroup label="Boundaries">
+          <RibbonGroup advanced label="Boundaries">
             <RibbonButton icon={RShapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...geoBtn("boundaries")} />
             <RibbonButton icon={RFlag} label="Claims" tone="data" title="Mineral claims / tenure" {...geoBtn("claims")} />
           </RibbonGroup>
           <RibbonGroup label="Models">
             <RibbonButton icon={RBox} label="Block models" tone="data" title="Voxel / block models (UBC mesh, block model CSV), colours and cutoffs" {...geoBtn("voxel")} />
-            <RibbonButton icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
-            <RibbonButton icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
+            <RibbonButton advanced icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
+            <RibbonButton advanced icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
           </RibbonGroup>
         </Ribbon>
         {/* Raster import UI itself lives in the Raster tab now — this banner only ever shows up if a

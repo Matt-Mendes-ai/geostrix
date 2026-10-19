@@ -158,6 +158,14 @@ input, select { font-family: inherit; }
   position: relative; z-index: 20;
 }
 .ge-ribbon-inner { display: flex; align-items: stretch; min-width: 0; }
+/* TASKS.csv #748 — Simple mode hides the tools marked advanced; "+N more tools" switches to Advanced */
+.ge-ribbon-simple .ge-adv { display: none; }
+.ge-ribbon-more-count { font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text-secondary); line-height: 22px; }
+.ge-ribbon-row { display: flex; align-items: stretch; min-width: 0; flex-shrink: 0; background: var(--color-bg-subtlest); border-bottom: 1px solid var(--color-border); }
+.ge-ribbon-row > .ge-ribbon { flex: 1 1 auto; min-width: 0; border-bottom: none; }
+.ge-ui-mode { display: inline-flex; align-self: center; flex: 0 0 auto; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; margin: 0 10px; }
+.ge-ui-mode button { border: none; background: transparent; padding: 3px 8px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); cursor: pointer; }
+.ge-ui-mode button[aria-pressed="true"] { background: var(--color-bg-subtle); color: var(--color-text); font-weight: 600; }
 .ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--color-border); }
 .ge-ribbon-group:last-child { border-right: none; }
 .ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }
