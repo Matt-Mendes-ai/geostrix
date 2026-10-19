@@ -18,6 +18,12 @@ export function blockCellIndex(block, x, y, z) {
   return ix * ny * nz + iy * nz + iz;
 }
 
+// TASKS.csv #756 — a sample may carry the unit GemPy evaluated EXACTLY at its position (`modelled`: a name, or null
+// above every modelled top); otherwise the block cell it falls in is read. Outside the model -> undefined.
+export function unitOfSample(block, s) {
+  return Object.prototype.hasOwnProperty.call(s, "modelled") ? s.modelled : unitAt(block, s.x, s.y, s.z);
+}
+
 export function unitAt(block, x, y, z) {
   const i = blockCellIndex(block, x, y, z);
   if (i < 0 || block.ids[i] === 0) return undefined; // outside the model (id 0: a resampled cell outside the solved box, #679)
@@ -73,7 +79,7 @@ export function checkAgainstLogs(block, samples) {
   const byUnit = new Map(), byHole = new Map();
   let total = 0, matched = 0, outside = 0;
   samples.forEach((s) => {
-    const m = unitAt(block, s.x, s.y, s.z);
+    const m = unitOfSample(block, s); // #756
     if (m === undefined) { outside += s.metres; return; }
     const ok = m === s.logged;
     total += s.metres; if (ok) matched += s.metres;
@@ -113,7 +119,7 @@ export const ABOVE_TOPS = "above tops"; // short: it has to fit a strip-log colu
 export function modelledIntervals(block, samples) {
   const out = [];
   samples.forEach((s) => {
-    const m = unitAt(block, s.x, s.y, s.z);
+    const m = unitOfSample(block, s); // #756
     if (m === undefined) return;
     out.push({ hole_id: s.hole_id, from: s.from, to: s.to, value: m ?? ABOVE_TOPS, logged: s.logged });
   });

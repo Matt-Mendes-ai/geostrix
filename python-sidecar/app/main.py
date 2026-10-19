@@ -504,6 +504,11 @@ class ImplicitModelRequest(BaseModel):
     # 3 of 46,656 block cells different). GemPy rescales its inputs to unit space before solving, which is why single
     # precision holds; its own gravity tutorial runs float32. float64 stays available for comparison.
     precision: Literal["float32", "float64"] = "float32"
+    # TASKS.csv #756 — points [x, y, z] (the request's frame) where the unit is wanted EXACTLY, evaluated in the same
+    # solve as the block (GemPy custom grid alongside the dense grid): the model check and the modelled-unit layer read
+    # these instead of the block cell the point falls in (measured: the 36^3 block put 1.3 % of 2 m drillhole samples in
+    # the wrong unit on a 1 km box; cells are 50-110 m on real extents). ~3 s extra per 5,000 points.
+    evaluate_at: List[List[float]] | None = Field(default=None, max_length=200_000)
 
 
 class MeshOut(BaseModel):
@@ -528,6 +533,8 @@ class ImplicitModelResponse(BaseModel):
     # TASKS.csv #655 — GemPy's per-axis input scale relative to its smallest (1, 1, 1 = isotropic, as it must be)
     input_scale_ratios: List[float] | None = None
     precision: str | None = None  # TASKS.csv #767 — the engine precision actually used
+    # TASKS.csv #756 — unit id at each evaluate_at point, numbered like block["ids"] (id 1 = above every modelled top)
+    evaluated: List[int] | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -676,6 +683,13 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         # — a hidden anisotropy on top of the one the user chose. Re-running the transform with NONE (what
         # GemPy's own examples_generator does) gives 1 : 1 : 1 for every span (checked on 20,000 random boxes).
         model.update_transform(gp.data.GlobalAnisotropy.NONE)
+        if req.evaluate_at:  # TASKS.csv #756 — the exact points, in the SAME solve as the block (dense + custom grids)
+            from gempy.core.data import Grid
+            pts = np.asarray(req.evaluate_at, dtype=float)
+            if pts.ndim != 2 or pts.shape[1] != 3 or not np.all(np.isfinite(pts)):
+                raise ValueError("evaluate_at must be finite [x, y, z] points")
+            gp.set_custom_grid(model.grid, pts, reset=False)
+            gp.set_active_grid(model.grid, [Grid.GridTypes.DENSE, Grid.GridTypes.CUSTOM])
         _sc = np.asarray(model.input_transform.scale, dtype=float)
         input_scale_ratios = [round(float(v), 4) for v in (_sc / _sc.min())]
         # TASKS.csv #274 — capture GemPy's own default range BEFORE any override, so the response can
@@ -720,5 +734,8 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         ids = (np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int) - len(fault_elements)).tolist()
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
-    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
+    evaluated = None
+    if req.evaluate_at:  # #756 — same id shift as the block (fault elements take the first ids)
+        evaluated = (np.rint(np.asarray(sol.raw_arrays.custom)).astype(int) - len(fault_elements)).tolist()
+    return ImplicitModelResponse(evaluated=evaluated, surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
                                  input_scale_ratios=input_scale_ratios, precision=req.precision)

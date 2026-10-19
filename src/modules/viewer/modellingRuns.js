@@ -216,6 +216,21 @@ export function createModellingRuns(ctx, mcRef) {
     }, 500);
     const solveStartedAt = performance.now(); // TASKS.csv #52 (a) — the measured per-run cost that budgets the sensitivity ensemble
     const projectToken = getProjectToken(); // #466
+    // TASKS.csv #756 — every logged litho interval's midpoint, in the frame the model is solved in (warped with a trend),
+    // evaluated EXACTLY by GemPy in the same solve: the model check and the modelled-unit layer read these, not the
+    // block cell a midpoint falls in (one cell is 50-110 m on a real extent at 36^3)
+    const evalRows = [];
+    traces.forEach((t) => {
+      (importStateRef.current.layers?.litho || []).forEach((r) => {
+        if (r.hole_id !== t.hole_id || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
+        const p = findOnTrace(t.pts, (r.from + r.to) / 2);
+        if (!p) return;
+        const api0 = sceneToApi(p);
+        const api = anisotropy.enabled ? anisoWarpPoint(api0, anisoCenter, anisoBasis, anisoScl) : api0;
+        evalRows.push({ row: r, hole_id: t.hole_id, x: api.x, y: api.y, z: api.z });
+      });
+    });
+    const evalPts = evalRows.length && evalRows.length <= 200000 ? evalRows.map((q) => [q.x, q.y, q.z]) : null;
     const res = await pythonImplicitModel(
       extent,
       sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
@@ -223,7 +238,8 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
       { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
-        faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })) }, // #360
+        faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })), // #360
+        ...(evalPts ? { evaluateAt: evalPts } : {}) }, // #756
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
@@ -358,20 +374,19 @@ export function createModellingRuns(ctx, mcRef) {
       // interval's own code (DACT1 / DACT2 both come from logged DACT: the logged code can't tell them apart)
       const mcodeUnits = new Set(specs.filter((sp) => sp.mcode).map((sp) => sp.meshName));
       const unitOfRow = (r) => { if (mcodeUnits.size) { const ec = effectiveCode(r, mcRef.current, mcodeGroupOf); if (mcodeUnits.has(ec)) return ec; } return codeToUnit.get(r.value); };
+      // TASKS.csv #756 — the exact unit at each midpoint when the engine evaluated them (same numbering as the block);
+      // a midpoint outside the model box keeps no unit, so it counts as "outside the model" as before
+      const exact = Array.isArray(res.evaluated) && res.evaluated.length === evalRows.length;
+      if (exact) {
+        const [x0, x1, y0, y1, z0, z1] = res.block.extent;
+        evalRows.forEach((q, i) => { if (q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1) q.modelled = res.block.labels[res.evaluated[i] - 1] ?? null; });
+      }
+      // TASKS.csv #679 — with a trend the midpoints are already in the warped frame the block was solved in
       const samples = [];
-      traces.forEach((t) => {
-        // latest store rows via the ref: this useCallback's closure can hold stale `layers`
-        (importStateRef.current.layers?.litho || []).forEach((r) => {
-          const unit = unitOfRow(r);
-          if (r.hole_id !== t.hole_id || unit == null || !Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return;
-          const p = findOnTrace(t.pts, (r.from + r.to) / 2);
-          if (!p) return;
-          // TASKS.csv #679 — with a trend the block was solved in the warped frame, so each sample goes through the
-          // same warp the interface points did before it is looked up
-          const api0 = sceneToApi(p);
-          const api = anisotropy.enabled ? anisoWarpPoint(api0, anisoCenter, anisoBasis, anisoScl) : api0;
-          samples.push({ hole_id: t.hole_id, x: api.x, y: api.y, z: api.z, metres: r.to - r.from, logged: unit });
-        });
+      evalRows.forEach((q) => {
+        const unit = unitOfRow(q.row);
+        if (unit == null) return;
+        samples.push({ hole_id: q.hole_id, x: q.x, y: q.y, z: q.z, metres: q.row.to - q.row.from, logged: unit, ...("modelled" in q ? { modelled: q.modelled } : {}) });
       });
       const chk = checkAgainstLogs(res.block, samples);
       // TASKS.csv #679 — a warped block's cells are tilted boxes in real space, which a block model (axis-aligned cells)
@@ -383,7 +398,7 @@ export function createModellingRuns(ctx, mcRef) {
         const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
         lbBlock = resampleWarpedBlock(res.block, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
       }
-      setLastLithBlock({ block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      setLastLithBlock({ ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
@@ -392,7 +407,7 @@ export function createModellingRuns(ctx, mcRef) {
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the ${trendWord} "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, and "Add as block model" gets the model resampled onto a real-space grid.` : ""}`]);
+      setNotices((p) => [...p, `Model check${exact ? " (each interval's midpoint evaluated exactly)" : ` (read from the ${modelResolution}³ block)`}: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the ${trendWord} "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, and "Add as block model" gets the model resampled onto a real-space grid.` : ""}`]);
     }
     if (newMeshes.length) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without

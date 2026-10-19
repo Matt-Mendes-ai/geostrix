@@ -3481,6 +3481,8 @@ ${describeTrend(t)}` };
   };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
+    // TASKS.csv #756 — the units GemPy evaluated exactly at each interval's midpoint, when the run asked for them
+    const exactRows = lb.intervals ? lb.intervals.map((q) => ({ hole_id: q.hole_id, from: q.from, to: q.to, value: q.modelled ?? ABOVE_TOPS, logged: q.logged })) : null;
     const samples = [];
     tracesRef.current.forEach((t) => {
       (importStateRef.current.layers?.litho || []).forEach((r) => {
@@ -3491,7 +3493,7 @@ ${describeTrend(t)}` };
         samples.push({ hole_id: t.hole_id, from: r.from, to: r.to, x: api.x, y: api.y, z: api.z, logged: r.value });
       });
     });
-    const rows = modelledIntervals(lb.block, samples).map((r) => {
+    const rows = (exactRows || modelledIntervals(lb.block, samples)).map((r) => {
       const unit = lb.units.find((u) => u.name === r.value);
       return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };
     });
