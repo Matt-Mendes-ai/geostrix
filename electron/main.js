@@ -297,6 +297,7 @@ const addons = require("./addons.js").createAddonManager({ app, net, send: (ev) 
 const ADDON_IDS = new Set(["geoml"]);
 const addonId = (id) => { if (!ADDON_IDS.has(id)) throw new Error("Unknown add-on."); return id; };
 ipcMain.handle("addon-status", (_e, id) => addons.status(addonId(id)));
+ipcMain.handle("addon-notices", (_e, id) => addons.notices(addonId(id))); // TASKS.csv #669
 ipcMain.handle("addon-install", async (_e, id) => { try { return { ok: true, status: await addons.install(addonId(id)) }; } catch (err) { return { ok: false, error: err.message }; } });
 ipcMain.handle("addon-cancel-install", (_e, id) => addons.cancelInstall(addonId(id)));
 ipcMain.handle("addon-uninstall", (_e, id) => addons.uninstall(addonId(id)));

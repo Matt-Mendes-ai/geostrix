@@ -155,6 +155,26 @@ function createAddonManager({ app, net, send }) {
     }
   }
 
+  // TASKS.csv #669 — Help > Licences shows what an installed add-on ships: build_addon.py writes SOURCE.txt and
+  // THIRD-PARTY-LICENCES.txt next to the add-on's program. Read-only; nothing here is sent anywhere.
+  function notices(id) {
+    const info = releaseInfo(id);
+    if (!info) return { id, available: false };
+    const dev = devOverride(id);
+    const exe = dev || exePath(id, info);
+    const base = { id, available: true, name: info.name, version: info.version, licence: info.licence, installed: fs.existsSync(exe) };
+    if (!base.installed) return base;
+    const dir = path.dirname(exe);
+    const read = (f, cap) => {
+      try {
+        const p = path.join(dir, f);
+        if (fs.statSync(p).size > cap) return null; // a file this large is not the one build_addon.py writes
+        return fs.readFileSync(p, "utf8");
+      } catch { return null; }
+    };
+    return { ...base, source: read("SOURCE.txt", 64 * 1024), licences: read("THIRD-PARTY-LICENCES.txt", 8 * 1024 * 1024), licenceText: read("LICENSE", 256 * 1024) };
+  }
+
   function cancelInstall(id) {
     const s = installs[id];
     if (!s) return false;
@@ -222,7 +242,7 @@ function createAddonManager({ app, net, send }) {
 
   const connection = (id) => (running[id] ? { port: running[id].port, token: running[id].token } : null);
   const stopAll = () => Object.keys(running).forEach(stop);
-  return { status, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
+  return { status, notices, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
 }
 
 module.exports = { createAddonManager, ADDON_PORTS };

@@ -15,6 +15,8 @@ export default function LicensesModal({ onClose }) {
   const [error, setError] = useState(null);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(null); // "js:name" | "py:name" | "own"
+  const [addon, setAddon] = useState(null); // TASKS.csv #669 — what the installed predictive add-on ships (desktop only)
+  useEffect(() => { window.desktop?.addonNotices?.("geoml").then(setAddon).catch(() => {}); }, []);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}licenses/third-party.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then(setData).catch((e) => setError(e.message));
   }, []);
@@ -64,6 +66,15 @@ export default function LicensesModal({ onClose }) {
               <div style={heading}>Python engine ({py.length})</div>
               {data.pythonNote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{data.pythonNote}</div>}
               {py.map((p) => row("py", p))}
+              {addon?.available && (
+                <>
+                  <div style={heading}>Add-ons</div>
+                  {!addon.installed && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{addon.name} ({addon.licence}) is not installed. Once it is, its own licence and the licences of the components it ships are listed here.</div>}
+                  {addon.installed && row("addon", { name: addon.name, version: addon.version, license: addon.licence, text: [addon.source, addon.licenceText].filter(Boolean).join("\n\n") || null, url: "https://github.com/Matt-Mendes-ai/geostrix/tree/master/addons/geoml" })}
+                  {addon.installed && addon.licences && row("addon-tp", { name: `${addon.name}: third-party components`, version: "", license: "various (see text)", text: addon.licences })}
+                  {addon.installed && !addon.licences && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 4px" }}>This installed version ({addon.version}) does not include its component list (TensorFlow, NumPy, SciPy and others); add-on versions after 0.1.0 do. Its source is at github.com/Matt-Mendes-ai/geostrix, folder addons/geoml.</div>}
+                </>
+              )}
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "8px 4px 0" }}>GemPy and gempy_engine are EUPL-1.2 (a copyleft licence): their source is at github.com/gempy-project. List generated {data.generated}.</div>
             </>
           )}
