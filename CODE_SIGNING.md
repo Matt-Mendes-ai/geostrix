@@ -1,17 +1,18 @@
 # Code signing policy
 
 This document describes how GeoStrix release binaries are built, signed and approved. It exists so that
-users can verify what they download, and because SignPath Foundation requires participating projects to
-publish a code signing policy.
+users can verify what they download.
 
 ## Signing
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by
-[SignPath Foundation](https://signpath.org).
+GeoStrix is signed with a **Certum Open Source code-signing certificate** issued to
+**Open Source Developer Matheus Mendes de Albuquerque** (issuer: Certum Code Signing 2021 CA, Asseco Data
+Systems S.A.). The certificate's private key is held in Certum's SimplySign service and is unlocked only by
+the maintainer, with a one-time code from his phone, for each signing session. Every signature is
+timestamped by Certum, so it stays valid after the certificate itself expires.
 
-**Status:** GeoStrix has applied to SignPath Foundation. Until signing is approved and live, releases are
-**unsigned** — see *Release history* below. This page will say so plainly when the first signed release
-ships.
+**Status:** the first signed release will be 0.1.53. Earlier releases are unsigned — see *Release history*
+below.
 
 Signing covers the files GeoStrix's own build produces from this repository:
 
@@ -35,7 +36,7 @@ GeoStrix is a single-maintainer project. This section will be updated if that ch
 | Approvers (authorise each signing request) | Matt Mendes ([@Matt-Mendes-ai](https://github.com/Matt-Mendes-ai)) — repository owner |
 
 Contributions from anyone else arrive as pull requests and are reviewed before they are merged.
-All team members use multi-factor authentication for GitHub and for SignPath.
+All team members use multi-factor authentication for GitHub; the signing key needs the maintainer's phone.
 
 ## How releases are built
 
@@ -49,21 +50,30 @@ which runs on a GitHub-hosted Windows runner when a version tag (`v*`) is pushed
    from source rather than using the prebuilt one,
 3. installs Node dependencies from `package-lock.json` and builds the web bundle,
 4. packages the Electron app with `electron-builder` (NSIS installer and a portable zip),
-5. publishes the installer, its blockmap, `latest.yml` and `SHA256SUMS.txt` to the GitHub Release,
-6. verifies that the release is published (not a draft) and that `latest.yml`'s declared size
-   matches the attached installer, failing the build if not.
+5. uploads the packaged application (unsigned) as a workflow artifact kept for 7 days.
 
-Because the build runs from the tagged commit on a hosted runner, every binary traces back to public
-source. Build scripts and CI configuration are part of the repository and are reviewed like application
-code.
+The workflow does not publish anything by itself. The maintainer then runs
+[`scripts/sign-release.ps1`](scripts/sign-release.ps1) at the tagged commit, which:
 
-Once SignPath is set up, the workflow submits the built artifacts to SignPath for signing, and
-`latest.yml` (the auto-updater's checksum file) is generated from the **signed** installer.
+1. downloads the application that this workflow built — only from a run that passed every test,
+2. signs `GeoStrix.exe` and the Python engine,
+3. packages the installer and zip from that same application with `electron-builder --prepackaged` and
+   signs the installer, its uninstaller and its elevation helper,
+4. checks every signature and timestamp, writes `latest.yml` (the auto-updater's checksum) and
+   `SHA256SUMS.txt` from the **signed** files,
+5. after the maintainer confirms, creates the GitHub Release, uploads the files (`latest.yml` last),
+   publishes it and verifies that the installer attached is the one `latest.yml` describes.
+
+Because the application is compiled and tested from the tagged commit on a hosted runner, every binary
+traces back to public source; the maintainer's computer only adds signatures and wraps the same files
+into the installer. Build scripts and CI configuration are part of the repository and are reviewed like
+application code.
 
 ## Approval
 
-Every signing request requires manual approval by an Approver listed above. Signing is never automatic
-on tag push: a release is built and submitted, and a person authorises the signature.
+Every signature requires the Approver listed above: the key cannot be used without his SimplySign
+login and phone code, and the release script asks for confirmation before anything is published.
+Signing is never automatic on tag push.
 
 ## Privacy
 
