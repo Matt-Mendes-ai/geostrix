@@ -134,6 +134,30 @@ export function fitVerdict(result) {
   return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
 }
 
+// TASKS.csv #770 — the engine works in grid coordinates (the inducing field's declination was converted with
+// gridDeclination: grid = true + convergence), so a recovered declination goes back to true north the same way.
+export function trueDeclination(gridDeg, convergence) {
+  return ((((gridDeg - (Number(convergence) || 0)) % 360) + 360) % 360);
+}
+
+// Plain words for the vector inversion's direction summary: where the strongest cells point, and whether that is
+// far enough from today's field for remanence to matter. Thresholds are deliberately coarse: a direction from a
+// potential-field inversion is an estimate, not a palaeomagnetic measurement.
+export function remanenceText(direction, convergence) {
+  if (!direction) return null;
+  const dec = trueDeclination(direction.declinationGrid, convergence);
+  const a = direction.angleToInducingField;
+  // Found live on the Harry sample (magnetic LOWS from magnetite destruction on a regional gradient, base level
+  // removed): the vector inversion fitted the lows with magnetisation pointing almost opposite the field
+  // (inclination -75, 148 deg away). A deficit and a reversed source look the same to it; say so.
+  const verdict = a >= 135 ? "nearly opposite today's field. That is what a magnetic LOW looks like to a vector inversion — rock less magnetic than its surroundings (magnetite destroyed by alteration, for example), once the base level is removed — as well as genuinely reversed remanence. Check against the geology and the logs before calling it remanence"
+    : a >= 30 ? "far from today's field, so a remanent component is likely and a susceptibility inversion would misplace this body"
+    : a >= 15 ? "somewhat off today's field: some remanence is possible"
+      : "close to today's field: mostly induced magnetisation, so the susceptibility inversion is a fair model too";
+  const scatter = direction.consistency < 0.7 ? ` The cells' directions scatter (consistency ${direction.consistency.toFixed(2)} of 1), so treat the direction as rough.` : "";
+  return `The ${direction.cells.toLocaleString()} strongest cells point at inclination ${direction.inclination.toFixed(0)}°, declination ${dec.toFixed(0)}° (true north) — ${a.toFixed(0)}° from the inducing field: ${verdict}.${scatter}`;
+}
+
 // Sidecar result -> a GeoStrix voxel model (only core, below-ground cells are ever sent). `supportCutoff`
 // marks cells the data can barely see (normalised sensitivity below it) — kept, but flagged, so the view
 // can dim or hide them rather than colour them as if they were resolved.
@@ -141,6 +165,13 @@ export function resultToVoxelModel(result, meta) {
   const c = result.cells;
   const cells = c.value.map((v, i) => ({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v, support: c.support[i] }));
   const property = result.method === "mag" ? "Recovered susceptibility (SI)" : "Recovered density contrast (g/cc)";
+  // TASKS.csv #770 — a vector (remanence) inversion: the value is the magnetisation AMPLITUDE (SI-equivalent),
+  // and each cell carries its own inclination / declination (grid north)
+  if (result.magModel === "vector") {
+    if (c.inc && c.dec) cells.forEach((cell, i) => { cell.inc = c.inc[i]; cell.dec = c.dec[i]; });
+    const p = "Magnetisation amplitude (SI)";
+    return { name: `${p} — vector inversion of ${meta.surveyName}`, cells, source: "simpeg", property: p, method: result.method, style: "vector" };
+  }
   const style = result.style === "compact" ? "compact" : "smooth"; // TASKS.csv #769
   return { name: `${property} — ${style} inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method, style };
 }

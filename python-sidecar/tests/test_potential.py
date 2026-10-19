@@ -473,6 +473,58 @@ def test_compact_inversion_is_more_compact():
     assert inside["compact"] > 1.5 * inside["smooth"], inside
 
 
+def test_vector_inversion_finds_a_remanent_body():
+    """TASKS.csv #770 — a block magnetised far from the inducing field (inclination -20, declination 90 vs the
+    field's 75 / 18): the scalar susceptibility inversion misplaces it; the vector (MVI) inversion puts the
+    magnetisation amplitude on the block and recovers its direction. Also: three unknowns per cell in plan(),
+    and drillhole constraints refused."""
+    rng = np.random.default_rng(5)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    base = {"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}, "uncertainty": {"floor": 1.0, "percent": 2.0},
+            "reg": {"maxIter": 20}, "baseLevel": "none"}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only", "vector")
+    cc = mesh.cell_centers[actv] + local
+    c0 = np.array([500000.0, 6250000.0, 875.0])
+    block = (np.abs(cc[:, 0] - c0[0]) <= 60) & (np.abs(cc[:, 1] - c0[1]) <= 60) & (np.abs(cc[:, 2] - c0[2]) <= 50)
+    i, d = np.radians(-20.0), np.radians(90.0)
+    u = np.array([np.cos(i) * np.sin(d), np.cos(i) * np.cos(d), -np.sin(i)])
+    clean = sim.dpred(np.outer(np.where(block, 0.05, 0.0), u).T.ravel())
+    dobs = clean + rng.standard_normal(len(clean)) * (1.0 + 0.02 * np.abs(clean))
+    p_s = P.plan(dict(base, observed=dobs.tolist()), int(1.5e9))
+    p_v = P.plan(dict(base, observed=dobs.tolist(), magModel="vector"), int(1.5e9))
+    assert p_v["sensitivityBytes"] == 3 * p_s["sensitivityBytes"]
+    try:
+        P.run_job(dict(base, observed=dobs.tolist(), magModel="vector", constraints={"points": [[500000, 6250000, 900, 0.01]], "tolerance": 0.005}), lambda e: None, int(1.5e9))
+        raise AssertionError("constraints were accepted")
+    except ValueError as e:
+        assert "Drillhole constraints" in str(e)
+    res = {}
+    for mm in ("scalar", "vector"):
+        out = P.run_job(dict(base, observed=dobs.tolist(), magModel=mm), lambda e: None, int(1.5e9))
+        v = np.clip(np.array(out["cells"]["value"]), 0, None)
+        x, y, z = (np.asarray(out["cells"][k]) for k in ("x", "y", "z"))
+        inb = (np.abs(x - c0[0]) <= 60) & (np.abs(y - c0[1]) <= 60) & (np.abs(z - c0[2]) <= 50)
+        cen = np.array([(x * v).sum(), (y * v).sum(), (z * v).sum()]) / v.sum()
+        res[mm] = {"inside": float(v[inb].sum() / v.sum()), "off": float(np.hypot(*(cen[:2] - c0[:2]))), "dz": float(cen[2] - c0[2]), "out": out}
+        print(f"{mm}: {out['seconds']:.1f} s, {out['iterations']} it, phi_d {out['phi_d']:.0f} / {out['target']:.0f}, peak {v.max():.4f} (true 0.05), "
+              f"{100 * res[mm]['inside']:.0f}% inside, centre {res[mm]['off']:.0f} m off / {res[mm]['dz']:+.0f} m vert, direction {out.get('direction')}")
+    out = res["vector"]["out"]
+    assert out["magModel"] == "vector" and out["style"] == "vector"
+    assert len(out["cells"]["inc"]) == len(out["cells"]["value"]) == len(out["cells"]["dec"])
+    dr = out["direction"]
+    assert abs(dr["inclination"] - (-20)) <= 25 and min(abs(dr["declinationGrid"] - 90), 360 - abs(dr["declinationGrid"] - 90)) <= 25, dr
+    assert dr["angleToInducingField"] > 60, dr
+    assert res["vector"]["inside"] > 2 * res["scalar"]["inside"] and res["vector"]["off"] < 30, res
+    assert out["phi_d"] <= 1.6 * out["target"]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

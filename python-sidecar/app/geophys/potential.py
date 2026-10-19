@@ -179,6 +179,10 @@ def estimate_active_fraction(spec, topo_xyz):
 # Planning — sizes and a refusal BEFORE anything heavy is allocated
 # ---------------------------------------------------------------------------------------------
 
+def _is_vector(req):
+    return req.get("method") == "mag" and (req.get("magModel") or "scalar") == "vector"
+
+
 def plan(req, ram_cap_bytes):
     stations = np.asarray(req["stations"], dtype=float)
     local = _local_origin(stations)
@@ -198,7 +202,9 @@ def plan(req, ram_cap_bytes):
         omesh, ospec = _octree_from_req(req, st, topo)
         n_active = int(active_cells(omesh, topo).sum())
         octree_info = {"nCells": ospec["nCells"], "cellSizes": ospec["cellSizes"], "tensorActiveEst": tensor_active}
-    sens = n_data * n_active * SENS_BYTES if kind == "inversion" else 0
+    # TASKS.csv #770 — a vector (MVI) inversion has three unknowns per cell, so three times the matrix
+    ncomp = 3 if (kind == "inversion" and _is_vector(req)) else 1
+    sens = n_data * n_active * SENS_BYTES * ncomp if kind == "inversion" else 0
     reasons = []
     clearance_stats = None
     if not len(stations):
@@ -255,10 +261,10 @@ def _topo_local(req, local):
 # Survey / simulation
 # ---------------------------------------------------------------------------------------------
 
-def _survey_and_sim(method, mesh, actv, st_local, field, store):
+def _survey_and_sim(method, mesh, actv, st_local, field, store, model_type="scalar"):
     from simpeg import maps
     n_act = int(actv.sum())
-    ident = maps.IdentityMap(nP=n_act)
+    ident = maps.IdentityMap(nP=n_act * (3 if model_type == "vector" else 1))
     if method == "mag":
         from simpeg.potential_fields import magnetics as mag
         rx = mag.receivers.Point(st_local, components="tmi")
@@ -266,7 +272,7 @@ def _survey_and_sim(method, mesh, actv, st_local, field, store):
                                                  inclination=float(field["inclination"]), declination=float(field["declination"]))
         survey = mag.survey.Survey(src)
         sim = mag.simulation.Simulation3DIntegral(mesh, survey=survey, chiMap=ident, active_cells=actv,
-                                                  engine="choclo", store_sensitivities=store)
+                                                  engine="choclo", store_sensitivities=store, model_type=model_type)
     elif method == "grav":
         from simpeg.potential_fields import gravity as grav
         rx = grav.receivers.Point(st_local, components="gz")
@@ -277,6 +283,101 @@ def _survey_and_sim(method, mesh, actv, st_local, field, store):
     else:
         raise ValueError(f"Unknown method {method!r}")
     return survey, sim
+
+
+# ---------------------------------------------------------------------------------------------
+# TASKS.csv #770 — magnetic vector inversion (MVI) for remanent magnetisation
+# ---------------------------------------------------------------------------------------------
+
+def _vector_inversion(mesh, actv, dmis, sim, n_act, progress):
+    """SimPEG's published two-stage MVI recipe (Fournier, Heagy & Oldenburg 2020, Geophysics 85(3); the SimPEG
+    gallery's plot_inv_mag_MVI_Sparse_TreeMesh): a Cartesian inversion (three components per cell, sparse), then a
+    spherical one started from it with a sparse amplitude (norms 0/1/1/1) and smooth-edged angles. Measured on a
+    block magnetised 104 deg from the inducing field (scratchpad mvi_probe.py, 59k cells, 400 stations): the scalar
+    susceptibility inversion put none of the moment in the body (centre 232 m off, 154 m too deep); this recipe:
+    centre 4 m off, 62 m too deep, |M| peak 0.052 vs 0.050, direction 1 deg off, 104 s. Returns (model in the
+    simulation's spherical parameters, (n, 3) Cartesian magnetisation, history, nominal iterations)."""
+    from simpeg import maps, regularization, optimization, inverse_problem, inversion, directives, utils
+    history = []
+
+    class Progress(directives.InversionDirective):
+        def __init__(self, stage, offset, **kw):
+            super().__init__(**kw)
+            self.stage, self.offset = stage, offset
+
+        def endIter(self):
+            h = {"iter": int(self.opt.iter) + self.offset, "beta": float(self.invProb.beta), "phi_d": float(self.invProb.phi_d),
+                 "phi_m": float(self.invProb.phi_m), "stage": self.stage}
+            history.append(h)
+            progress({"stage": "iterating", "iter": h["iter"], "maxIter": 30, "phi_d": h["phi_d"], "target": float(dmis.nD),
+                      "message": f"Vector inversion, stage {'1 of 2 (Cartesian)' if self.stage == 'cartesian' else '2 of 2 (spherical)'}"})
+
+    zero = np.zeros(3 * n_act)
+    wires = maps.Wires(("x", n_act), ("y", n_act), ("z", n_act))
+    regs = [regularization.Sparse(mesh, active_cells=actv, mapping=w, norms=[0, 0, 0, 0], reference_model=zero) for w in (wires.x, wires.y, wires.z)]
+    opt = optimization.ProjectedGNCG(maxIter=10, lower=-10.0, upper=10.0, maxIterLS=20, cg_maxiter=20, cg_rtol=1e-3)
+    prob = inverse_problem.BaseInvProblem(dmis, regs[0] + regs[1] + regs[2], opt, print_version=False)
+    m_c = inversion.BaseInversion(prob, directiveList=[
+        directives.UpdateSensitivityWeights(every_iteration=False), directives.UpdateIRLS(f_min_change=1e-3, max_irls_iterations=10),
+        directives.UpdatePreconditioner(), directives.BetaEstimate_ByEig(beta0_ratio=1e1, random_seed=1), Progress("cartesian", 0)]).run(np.full(3 * n_act, 1e-4))
+
+    m_start = utils.mat_utils.cartesian2spherical(m_c.reshape((n_act, 3), order="F"))
+    sim.chiMap = maps.SphericalSystem()
+    sim.model = m_start
+    w2 = maps.Wires(("amp", n_act), ("theta", n_act), ("phi", n_act))
+    reg_a = regularization.Sparse(mesh, gradient_type="total", active_cells=actv, mapping=w2.amp, norms=[0.0, 1.0, 1.0, 1.0], reference_model=zero)
+    reg_t = regularization.Sparse(mesh, gradient_type="total", active_cells=actv, mapping=w2.theta, norms=[0.0, 1.0, 1.0, 1.0])
+    reg_p = regularization.Sparse(mesh, gradient_type="total", active_cells=actv, mapping=w2.phi, norms=[0.0, 1.0, 1.0, 1.0])
+    for r in (reg_t, reg_p):
+        r.alpha_s = 0.0
+        r.units = "radian"
+    reg = reg_a + reg_t + reg_p
+    reg.reference_model = zero
+    lo = np.kron(np.asarray([0.0, -np.inf, -np.inf]), np.ones(n_act))
+    up = np.kron(np.asarray([10.0, np.inf, np.inf]), np.ones(n_act))
+    opt2 = optimization.ProjectedGNCG(maxIter=20, lower=lo, upper=up, maxIterLS=20, cg_maxiter=30, cg_rtol=1e-3, stepOffBoundsFact=1e-8)
+    prob2 = inverse_problem.BaseInvProblem(dmis, reg, opt2, beta=prob.beta, print_version=False)
+    m_s = inversion.BaseInversion(prob2, directiveList=[
+        directives.ProjectSphericalBounds(), directives.SphericalUnitsWeights(amplitude=w2.amp, angles=[reg_t, reg_p]),
+        directives.UpdateIRLS(f_min_change=1e-4, max_irls_iterations=20, misfit_tolerance=0.5),
+        directives.UpdateSensitivityWeights(), directives.UpdatePreconditioner(), Progress("spherical", 10)]).run(m_start)
+    mxyz = utils.mat_utils.spherical2cartesian(m_s.reshape((n_act, 3), order="F")).reshape((n_act, 3), order="F")
+    return m_s, mxyz, history, 30
+
+
+def _inc_dec(v):
+    """Inclination (positive DOWN) and declination (clockwise from grid north) of (n, 3) x-east / y-north / z-up vectors."""
+    v = np.atleast_2d(v)
+    n = np.linalg.norm(v, axis=1)
+    n = np.where(n > 0, n, 1.0)
+    inc = np.degrees(np.arcsin(np.clip(-v[:, 2] / n, -1, 1)))
+    dec = np.degrees(np.arctan2(v[:, 0], v[:, 1])) % 360
+    return inc, dec
+
+
+def _direction_columns(mxyz, actv, keep, n_cells):
+    inc, dec = _inc_dec(mxyz)
+    full_i = np.full(n_cells, np.nan)
+    full_i[actv] = inc
+    full_d = np.full(n_cells, np.nan)
+    full_d[actv] = dec
+    return {"inc": np.round(full_i[keep], 1).tolist(), "dec": np.round(full_d[keep], 1).tolist()}
+
+
+def _direction_summary(mxyz, amp, field):
+    """Moment-weighted mean direction of the strongest cells (|M| >= half the peak), how tightly they agree, and
+    the angle to the inducing field — the number that says whether remanence matters for this body."""
+    top = amp >= 0.5 * amp.max() if amp.max() > 0 else np.zeros(len(amp), dtype=bool)
+    if not top.any():
+        return None
+    s = mxyz[top].sum(axis=0)
+    r = float(np.linalg.norm(s) / max(np.linalg.norm(mxyz[top], axis=1).sum(), 1e-30))  # 1 = all cells point the same way
+    inc, dec = _inc_dec(s[None, :])
+    fi, fd = np.radians(float(field["inclination"])), np.radians(float(field["declination"]))
+    f = np.array([np.cos(fi) * np.sin(fd), np.cos(fi) * np.cos(fd), -np.sin(fi)])
+    ang = float(np.degrees(np.arccos(np.clip(s @ f / max(np.linalg.norm(s), 1e-30), -1, 1))))
+    return {"inclination": round(float(inc[0]), 1), "declinationGrid": round(float(dec[0]), 1), "cells": int(top.sum()),
+            "consistency": round(r, 3), "angleToInducingField": round(ang, 1)}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -517,96 +618,114 @@ def run_job(req, progress, ram_cap_bytes):
     std = float(unc["floor"]) + float(unc.get("percent", 0)) / 100.0 * np.abs(dobs)
     if np.any(~np.isfinite(std)) or np.any(std <= 0):
         raise ValueError("Every datum needs a positive uncertainty: set a floor above zero.")
-    survey, sim = _survey_and_sim(method, mesh, actv, st, field, "ram")
-    progress({"stage": "sensitivities", "message": f"Building the {len(dobs)} x {n_act} sensitivity matrix"})
+    vector = _is_vector(req)  # TASKS.csv #770
+    if vector and req.get("constraints"):
+        raise ValueError("Drillhole constraints are susceptibility values, which a vector (remanence) inversion does not "
+                         "model - turn the constraints off, or use the induced-only inversion.")
+    survey, sim = _survey_and_sim(method, mesh, actv, st, field, "ram", "vector" if vector else "scalar")
+    progress({"stage": "sensitivities", "message": f"Building the {len(dobs)} x {n_act * (3 if vector else 1)} sensitivity matrix"})
     ts = time.time()
     G = sim.G  # computed here so this stage is timed and reported, not hidden inside the first iteration
     sens_seconds = time.time() - ts
     data_obj = sdata.Data(survey, dobs=dobs, standard_deviation=std)
     dmis = data_misfit.L2DataMisfit(data=data_obj, simulation=sim)
-    # TASKS.csv #769 — "compact": SimPEG's Sparse regularisation with lp norms (Fournier & Oldenburg 2019),
-    # p = 0 on the model and 1 on its gradients, solved by IRLS. On a buried 0.05 SI block (simpeg_probe_pf.py)
-    # 75% of the recovered moment sat inside the true body vs 18% for smooth, depth error 23 m vs 89 m, but the
-    # peak overshot (0.085 vs 0.050 SI) and the run took ~5x longer. A different assumption, not a better truth.
-    style = (req["reg"].get("style") or "smooth").lower()
-    if style not in ("smooth", "compact"):
-        raise ValueError(f"Unknown regularisation style '{style}' (smooth or compact).")
-    reg_cls = regularization.Sparse if style == "compact" else regularization.WeightedLeastSquares
-    reg = reg_cls(mesh, active_cells=actv, mapping=maps.IdentityMap(nP=n_act),
-                  length_scale_x=float(req["reg"].get("lengthX", 1.0)),
-                  length_scale_y=float(req["reg"].get("lengthY", 1.0)),
-                  length_scale_z=float(req["reg"].get("lengthZ", 1.0)),
-                  **({"norms": [0, 1, 1, 1]} if style == "compact" else {}))
-    lower = 0.0 if method == "mag" else -np.inf
-    upper = np.inf
-    b = req.get("bounds") or {}
-    if b.get("lower") is not None:
-        lower = float(b["lower"])
-    if b.get("upper") is not None:
-        upper = float(b["upper"])
-    max_iter = int(req["reg"].get("maxIter", 15))
-    if style == "compact":
-        max_iter = max(max_iter, 60)  # IRLS needs its own iterations after the smooth stage reaches the target
-    # TASKS.csv #323 — drillhole logs as a reference model + per-cell bounds (see drillhole_constraints).
-    lo_opt, up_opt, constraint_report, hit = lower, upper, None, None
-    con = req.get("constraints")
-    if con:
-        pts = np.asarray(con["points"], dtype=float)
-        pts_local = np.c_[pts[:, :3] - local, pts[:, 3]]
-        lo_opt, up_opt, mref, hit, constraint_report = drillhole_constraints(mesh, actv, pts_local, float(con["tolerance"]), lower, upper)
-        reg.reference_model = mref
-        progress({"stage": "mesh", "message": f"Drillhole constraints: {constraint_report['cells']} cells from {constraint_report['pointsUsed']} of {constraint_report['points']} log samples"})
-    opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
-    inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, print_version=False)
-    history = []
-
-    class Progress(directives.InversionDirective):
-        def endIter(self):
-            h = {"iter": int(self.opt.iter), "beta": float(self.invProb.beta), "phi_d": float(self.invProb.phi_d),
-                 "phi_m": float(self.invProb.phi_m)}
-            history.append(h)
-            progress({"stage": "iterating", "iter": h["iter"], "maxIter": max_iter, "phi_d": h["phi_d"],
-                      "target": float(len(dobs)), "beta": h["beta"]})
-
-    track = fit_target.Track(len(dobs))  # TASKS.csv #536
-    if style == "compact":
-        # IRLS owns beta (it cools to the target, then re-weights the norms while holding the fit), so no
-        # BetaSchedule / TargetMisfit, and the #536 pick-the-fitting-iterate step does not apply.
-        irls = directives.UpdateIRLS(max_irls_iterations=40, chifact_target=1.0, f_min_change=1e-4, misfit_tolerance=0.05)
-        dir_list = [
-            directives.UpdateSensitivityWeights(every_iteration=False),
-            directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
-            irls, directives.UpdatePreconditioner(), Progress(),
-        ]
+    lower = upper = None
+    constraint_report = None
+    choice = None
+    style = "smooth"
+    direction = None
+    mxyz = None
+    if vector:
+        progress({"stage": "iterating", "iter": 0, "maxIter": 30, "message": "Vector inversion, stage 1 of 2 (Cartesian)"})
+        m_sim, mxyz, history, max_iter = _vector_inversion(mesh, actv, dmis, sim, n_act, progress)
+        rec = np.linalg.norm(mxyz, axis=1)
+        style = "vector"
+        direction = _direction_summary(mxyz, rec, field)
     else:
-        dir_list = [
-            directives.UpdateSensitivityWeights(every_iteration=False),
-            directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
-            fit_target.track_directive(directives, track),  # before BetaSchedule: sees the beta this iterate used
-            directives.BetaSchedule(coolingFactor=2.0, coolingRate=1),
-            directives.UpdatePreconditioner(),
-            directives.TargetMisfit(chifact=1.0),
-            Progress(),
-        ]
-    inv = inversion.BaseInversion(inv_prob, directiveList=dir_list)
-    m0 = np.full(n_act, 1e-4 if method == "mag" else 0.0)
-    if hit is not None:
-        m0[hit] = reg.reference_model[hit]  # start where the logs are
-    m0 = np.clip(m0, lo_opt, up_opt)
-    progress({"stage": "iterating", "iter": 0, "maxIter": max_iter, "message": "Estimating the starting trade-off"})
-    rec = inv.run(m0)
+        # TASKS.csv #769 — "compact": SimPEG's Sparse regularisation with lp norms (Fournier & Oldenburg 2019),
+        # p = 0 on the model and 1 on its gradients, solved by IRLS. On a buried 0.05 SI block (simpeg_probe_pf.py)
+        # 75% of the recovered moment sat inside the true body vs 18% for smooth, depth error 23 m vs 89 m, but the
+        # peak overshot (0.085 vs 0.050 SI) and the run took ~5x longer. A different assumption, not a better truth.
+        style = (req["reg"].get("style") or "smooth").lower()
+        if style not in ("smooth", "compact"):
+            raise ValueError(f"Unknown regularisation style '{style}' (smooth or compact).")
+        reg_cls = regularization.Sparse if style == "compact" else regularization.WeightedLeastSquares
+        reg = reg_cls(mesh, active_cells=actv, mapping=maps.IdentityMap(nP=n_act),
+                      length_scale_x=float(req["reg"].get("lengthX", 1.0)),
+                      length_scale_y=float(req["reg"].get("lengthY", 1.0)),
+                      length_scale_z=float(req["reg"].get("lengthZ", 1.0)),
+                      **({"norms": [0, 1, 1, 1]} if style == "compact" else {}))
+        lower = 0.0 if method == "mag" else -np.inf
+        upper = np.inf
+        b = req.get("bounds") or {}
+        if b.get("lower") is not None:
+            lower = float(b["lower"])
+        if b.get("upper") is not None:
+            upper = float(b["upper"])
+        max_iter = int(req["reg"].get("maxIter", 15))
+        if style == "compact":
+            max_iter = max(max_iter, 60)  # IRLS needs its own iterations after the smooth stage reaches the target
+        # TASKS.csv #323 — drillhole logs as a reference model + per-cell bounds (see drillhole_constraints).
+        lo_opt, up_opt, constraint_report, hit = lower, upper, None, None
+        con = req.get("constraints")
+        if con:
+            pts = np.asarray(con["points"], dtype=float)
+            pts_local = np.c_[pts[:, :3] - local, pts[:, 3]]
+            lo_opt, up_opt, mref, hit, constraint_report = drillhole_constraints(mesh, actv, pts_local, float(con["tolerance"]), lower, upper)
+            reg.reference_model = mref
+            progress({"stage": "mesh", "message": f"Drillhole constraints: {constraint_report['cells']} cells from {constraint_report['pointsUsed']} of {constraint_report['points']} log samples"})
+        opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
+        inv_prob = inverse_problem.BaseInvProblem(dmis, reg, opt, print_version=False)
+        history = []
 
-    # TASKS.csv #536 — the iterate that fits to the stated uncertainty, not the one beta-cooling overshot to
-    def refine(m_start, beta):
-        o = optimization.ProjectedGNCG(maxIter=1, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
-        p = inverse_problem.BaseInvProblem(dmis, reg, o, print_version=False)
-        p.beta = beta
-        m = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m_start)
-        return m, float(np.sum(((dobs - sim.dpred(m)) / std) ** 2))
-    choice = fit_target.choose(track, refine) if style == "smooth" else None
-    if choice is not None:
-        rec = choice["model"]
-    pred_sim = sim.dpred(rec)
+        class Progress(directives.InversionDirective):
+            def endIter(self):
+                h = {"iter": int(self.opt.iter), "beta": float(self.invProb.beta), "phi_d": float(self.invProb.phi_d),
+                     "phi_m": float(self.invProb.phi_m)}
+                history.append(h)
+                progress({"stage": "iterating", "iter": h["iter"], "maxIter": max_iter, "phi_d": h["phi_d"],
+                          "target": float(len(dobs)), "beta": h["beta"]})
+
+        track = fit_target.Track(len(dobs))  # TASKS.csv #536
+        if style == "compact":
+            # IRLS owns beta (it cools to the target, then re-weights the norms while holding the fit), so no
+            # BetaSchedule / TargetMisfit, and the #536 pick-the-fitting-iterate step does not apply.
+            irls = directives.UpdateIRLS(max_irls_iterations=40, chifact_target=1.0, f_min_change=1e-4, misfit_tolerance=0.05)
+            dir_list = [
+                directives.UpdateSensitivityWeights(every_iteration=False),
+                directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
+                irls, directives.UpdatePreconditioner(), Progress(),
+            ]
+        else:
+            dir_list = [
+                directives.UpdateSensitivityWeights(every_iteration=False),
+                directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
+                fit_target.track_directive(directives, track),  # before BetaSchedule: sees the beta this iterate used
+                directives.BetaSchedule(coolingFactor=2.0, coolingRate=1),
+                directives.UpdatePreconditioner(),
+                directives.TargetMisfit(chifact=1.0),
+                Progress(),
+            ]
+        inv = inversion.BaseInversion(inv_prob, directiveList=dir_list)
+        m0 = np.full(n_act, 1e-4 if method == "mag" else 0.0)
+        if hit is not None:
+            m0[hit] = reg.reference_model[hit]  # start where the logs are
+        m0 = np.clip(m0, lo_opt, up_opt)
+        progress({"stage": "iterating", "iter": 0, "maxIter": max_iter, "message": "Estimating the starting trade-off"})
+        rec = inv.run(m0)
+
+        # TASKS.csv #536 — the iterate that fits to the stated uncertainty, not the one beta-cooling overshot to
+        def refine(m_start, beta):
+            o = optimization.ProjectedGNCG(maxIter=1, lower=lo_opt, upper=up_opt, cg_maxiter=10, cg_rtol=1e-3)
+            p = inverse_problem.BaseInvProblem(dmis, reg, o, print_version=False)
+            p.beta = beta
+            m = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m_start)
+            return m, float(np.sum(((dobs - sim.dpred(m)) / std) ** 2))
+        choice = fit_target.choose(track, refine) if style == "smooth" else None
+        if choice is not None:
+            rec = choice["model"]
+        m_sim = rec
+    pred_sim = sim.dpred(m_sim)
     phi_d = float(np.sum(((dobs - pred_sim) / std) ** 2))
     pred = _to_user(method, pred_sim)
     # Normalised sensitivity per active cell: sqrt(sum_i G_ij^2) / max. A "data support" measure, the
@@ -615,7 +734,10 @@ def run_job(req, progress, ram_cap_bytes):
     # (np.asarray(G, float64) ** 2) made two full float64 copies of G — measured +3.8 GB for a 1 GB matrix
     # by the #321 performance review, i.e. ~7.5 GB peak at the 1.5 GB cap: an out-of-memory kill at the end
     # of a finished run on an 8 GB laptop. This form adds ~2 MB and ran in 0.75 s on the same matrix.
-    sens = np.sqrt(np.einsum("ij,ij->j", G, G, dtype=np.float64)).ravel()
+    sens = np.einsum("ij,ij->j", G, G, dtype=np.float64).ravel()
+    if vector:  # #770 — columns are [x of every cell, y ..., z ...]: a cell's support covers all three
+        sens = sens.reshape(3, n_act).sum(axis=0)
+    sens = np.sqrt(sens)
     # TASKS.csv #506 — per unit VOLUME: a column of G scales with its cell's volume, so on the #324 octree a
     # 50 m cell read ~8x (2^3) the support of a 25 m cell at the same depth, and the deep coarse cells — the
     # least resolved — passed the "hide below" cutoff (octree hid 1.7% of core cells vs 50% on the tensor
@@ -655,10 +777,11 @@ def run_job(req, progress, ram_cap_bytes):
         "kind": "inversion", "method": method,
         "cells": {"x": cc[:, 0].tolist(), "y": cc[:, 1].tolist(), "z": cc[:, 2].tolist(),
                   "dx": sizes[:, 0].tolist(), "dy": sizes[:, 1].tolist(), "dz": sizes[:, 2].tolist(),
-                  "value": f32(full_model[keep]).tolist(), "support": np.round(full_sens[keep], 4).tolist()},
+                  "value": f32(full_model[keep]).tolist(), "support": np.round(full_sens[keep], 4).tolist(),
+                  **(_direction_columns(mxyz, actv, keep, mesh.n_cells) if vector else {})},
         "predicted": pred.tolist(), "standardDeviation": std.tolist(),
         "phi_d": phi_d, "target": float(len(dobs)), "reachedTarget": phi_d <= 1.05 * len(dobs),
-        "iterations": len(history), "maxIter": max_iter, "style": style, "history": history, "fitChoice": fit_target.fit_report(choice),
+        "iterations": len(history), "maxIter": max_iter, "style": style, "magModel": "vector" if vector else "scalar", "direction": direction, "history": history, "fitChoice": fit_target.fit_report(choice),
         "mesh": {"type": mesh_type, "shape": spec["n"], "coreCell": req["mesh"]["coreCell"], "nActive": n_act, "nCoreActive": int(keep.sum()),
                  **({"nCells": spec["nCells"], "cellSizes": spec["cellSizes"], "octree": {**OCTREE_DEFAULTS, **(req["mesh"].get("octree") or {})}} if mesh_type == "octree" else {}),
                  "padCells": req["mesh"].get("padCells", 6), "padFactor": req["mesh"].get("padFactor", 1.3), "depth": req["mesh"]["depth"]},
@@ -666,7 +789,8 @@ def run_job(req, progress, ram_cap_bytes):
         "seconds": time.time() - t0, "sensitivitySeconds": sens_seconds, "sensitivityBytes": int(G.nbytes),
         # TASKS.csv #368 — the bounds actually applied (the default lower=0 for susceptibility used to be
         # recorded as bounds: {}), and the data the model was fitted to after base-level removal.
-        "boundsApplied": {"lower": None if not np.isfinite(lower) else float(lower), "upper": None if not np.isfinite(upper) else float(upper)},
+        "boundsApplied": ({"lower": 0.0, "upper": None, "note": "magnetisation amplitude >= 0; direction free"} if vector else
+                          {"lower": None if not np.isfinite(lower) else float(lower), "upper": None if not np.isfinite(upper) else float(upper)}),
         "baseLevelRemoved": base_removed, "observedUsed": dobs_user.tolist(),
         "constraintsApplied": constraint_report,
     }
