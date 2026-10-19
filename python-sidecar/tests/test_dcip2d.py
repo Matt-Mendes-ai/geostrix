@@ -72,6 +72,11 @@ def test_dcip2d_recovers_block():
     assert 260 <= s[lo] <= 380 and 5 <= ground[lo] - z[lo] <= 80
     assert np.median(res[inb]) < 0.5 * np.median(res[far])
     assert 260 <= s[hi] <= 380 and np.median(eta[inb]) > 5 * max(1e-3, np.median(eta[far]))
+    # TASKS.csv #771 — no invented resistive patches at depth (sensitivity-weight threshold 1e-2; at SimPEG's
+    # default 1e-12 the deep 100 ohm.m host read p95 236, max 661 ohm.m)
+    deep = (ground - z > 80) & ~inb
+    print(f"deep host (> 80 m): median {np.median(res[deep]):.0f}, p95 {np.percentile(res[deep], 95):.0f}, max {res[deep].max():.0f} ohm.m (true 100)")
+    assert np.percentile(res[deep], 95) < 150 and res[deep].max() < 250
 
 
 def test_pole_dipole_homogeneous():

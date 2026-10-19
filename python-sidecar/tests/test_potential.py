@@ -440,6 +440,39 @@ def test_octree_support_per_volume():
     assert 0.5 < med["octree"] / med["tensor"] < 2.0, med
 
 
+def test_compact_inversion_is_more_compact():
+    """TASKS.csv #769 — the compact (sparse-norm, IRLS) model puts more of the recovered moment inside the true
+    block than the smooth one, still fits the data, and the response says which style ran."""
+    rng = np.random.default_rng(3)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only")
+    cc = mesh.cell_centers[actv] + local
+    c0 = np.array([500000.0, 6250000.0, 875.0])
+    block = (np.abs(cc[:, 0] - c0[0]) <= 60) & (np.abs(cc[:, 1] - c0[1]) <= 60) & (np.abs(cc[:, 2] - c0[2]) <= 50)
+    clean = sim.dpred(np.where(block, 0.05, 0.0))
+    dobs = clean + rng.standard_normal(len(clean)) * (1.0 + 0.02 * np.abs(clean))
+    inside = {}
+    for style in ("smooth", "compact"):
+        out = P.run_job({"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+                         "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}, "observed": dobs.tolist(),
+                         "uncertainty": {"floor": 1.0, "percent": 2.0}, "reg": {"maxIter": 20, "style": style}}, lambda e: None, int(1.5e9))
+        assert out["style"] == style
+        v = np.clip(np.array(out["cells"]["value"]), 0, None)
+        x, y, z = (np.asarray(out["cells"][k]) for k in ("x", "y", "z"))
+        inb = (np.abs(x - c0[0]) <= 60) & (np.abs(y - c0[1]) <= 60) & (np.abs(z - c0[2]) <= 50)
+        inside[style] = float(v[inb].sum() / v.sum())
+        print(f"{style}: {out['iterations']} iterations, phi_d {out['phi_d']:.0f} / {out['target']:.0f}, {out['seconds']:.1f} s, "
+              f"peak {v.max():.4f} (true 0.05), {100 * inside[style]:.0f}% of the moment inside the block")
+        assert out["phi_d"] <= 1.3 * out["target"]
+    assert inside["compact"] > 1.5 * inside["smooth"], inside
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

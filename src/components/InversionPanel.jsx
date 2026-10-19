@@ -55,6 +55,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const [sensorHeight, setSensorHeight] = useState("");
   const [zDatum, setZDatum] = useState("same"); // TASKS.csv #369 — "same" (as the terrain) | "ellipsoidal" | "unknown"
   const [baseLevel, setBaseLevel] = useState("mean"); // TASKS.csv #368 — "none" | "mean" | "plane"
+  const [regStyle, setRegStyle] = useState("smooth"); // TASKS.csv #769 — "smooth" | "compact"
   const [thin, setThin] = useState("");
   const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
   const [unc, setUnc] = useState({ floor: "", percent: "" });
@@ -163,7 +164,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     if (kind === "inversion") {
       request.observed = observed;
       request.uncertainty = { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0 };
-      request.reg = { maxIter: Number(adv.maxIter) || 15, lengthX: Number(adv.lx) || 1, lengthY: Number(adv.ly) || 1, lengthZ: Number(adv.lz) || 1 };
+      request.reg = { maxIter: Number(adv.maxIter) || 15, lengthX: Number(adv.lx) || 1, lengthY: Number(adv.ly) || 1, lengthZ: Number(adv.lz) || 1, style: regStyle };
       const lo = num(adv.lower), up = num(adv.upper);
       request.bounds = { ...(Number.isFinite(lo) ? { lower: lo } : {}), ...(Number.isFinite(up) ? { upper: up } : {}) };
       request.baseLevel = baseLevel; // #368
@@ -220,10 +221,12 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   const runInversion = async () => {
     const p = await doPlan("inversion");
     if (!p) return;
-    const meta = { label: `${M.label} inversion`, surveyName: `${activeSurvey}: ${rows.length} ${M.unit} stations`, ...p.meta }; // #364
+    const meta = { label: `${M.label} inversion${regStyle === "compact" ? " (compact)" : ""}`, surveyName: `${activeSurvey}: ${rows.length} ${M.unit} stations`, ...p.meta }; // #364
     const params = {
       tool: `${method === "mag" ? "magnetic" : "gravity"} inversion (SimPEG)`,
-      interpretation: "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
+      interpretation: regStyle === "compact"
+        ? "One compact (sparse-norm) model that fits the data to the stated uncertainty — not the only one. It assumes the source is a few compact bodies with sharp edges, so it draws them tighter and nearer their true depth than the smooth model, but the peak value can overshoot. Compare it with the smooth model: what both agree on is better supported. Not a geological boundary, not an orebody, not a volume."
+        : "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
       dataUnits: M.unit, dataStatement: M.confirm, stationZ: zMode === "sensor" ? "sensor elevation (z column)" : `terrain + ${num(sensorHeight)} m (draped — an assumption)`,
       stationZDatum: zMode === "sensor" ? { same: "same vertical datum as the terrain (stated by user)", ellipsoidal: "GPS ellipsoidal heights (stated by user) — the terrain is geoid-based, so clearance is off by the local geoid height", unknown: "not known" }[zDatum] : "draped on the terrain", // #369
       sensorClearanceM: p.clearance || null, // #369
@@ -232,7 +235,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       ...(method === "mag" ? { inducingField: { strengthNT: num(field.strength), inclination: num(field.inclination), declinationTrue: num(field.declination), declinationGrid: p.meta.gridDeclination, gridConvergence: p.meta.convergence, surveyDate: field.date || null, source: field.source || "entered by user" } } : { signConvention: "positive gz over dense rock (converted to/from SimPEG's up-positive gz)" }),
       mesh: { type: mesh.type, coreCellM: num(mesh.coreCell), depthM: num(mesh.depth), padCells: 6, padFactor: 1.3, terrainSpacingM: p.meta.topoSpacing, terrainCoversMesh: p.meta.terrainCovers,
         ...(mesh.type === "octree" ? { octree: { fineLayers: octreeSettings.fine, doubledLayers: octreeSettings.fine2, maxCellInModel: `${octreeSettings.maxFactor * num(mesh.coreCell)} m`, cellSizesM: p.octree?.cellSizes || null, how: `core cell in the first ${octreeSettings.fine} layers under the terrain over the survey, then ${octreeSettings.fine2} layers of 2x, never coarser than ${octreeSettings.maxFactor}x inside the model volume` } } : {}) }, // #324
-      regularization: { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
+      regularization: regStyle === "compact"
+        ? { type: "Sparse (compact): lp norms p = 0 on the model, 1 on its gradients, IRLS (Fournier & Oldenburg 2019)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 until the target, then IRLS re-weighting (up to 40 passes)", boundsRequested: p.request.bounds }
+        : { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
       drillholeConstraints: p.meta.drillholeConstraints ? { ...p.meta.drillholeConstraints, how: "each cell a hole passes through: reference = mean of the log samples in it, bounds = that mean ± tolerance" } : null, // #323
     };
@@ -433,6 +438,14 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                     <option value="none">None (data already levelled)</option>
                   </select>
                 </div>
+                {/* TASKS.csv #769 — smooth (L2) or compact (sparse norms) */}
+                <div style={row} title="Smooth spreads the source out: bodies come out blurred, too deep and too weak. Compact assumes a few compact bodies with sharp edges: tighter and nearer the right depth, but the peak can overshoot, and it takes several times longer. Both fit the data equally well — run both and trust what they agree on.">
+                  <span style={lbl}>Model style</span>
+                  <select value={regStyle} onChange={(e) => setRegStyle(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Model style">
+                    <option value="smooth">Smooth (L2)</option>
+                    <option value="compact">Compact (sparse norms, slower)</option>
+                  </select>
+                </div>
                 {/* TASKS.csv #323 — drillhole logs as constraints */}
                 <label style={{ ...row, cursor: "pointer" }} title="Where a drillhole passes through a model cell, hold that cell close to what the hole logged. Cells no hole touches are inverted exactly as before.">
                   <input type="checkbox" checked={dh.on} onChange={(e) => setDh((p) => ({ ...p, on: e.target.checked }))} />
@@ -549,7 +562,7 @@ function FitView({ last, method }) {
       {result.constraintsApplied && (
         <div style={small}>Drillhole constraints: {result.constraintsApplied.cells} cell(s) held within ±{result.constraintsApplied.tolerance} of the logs ({result.constraintsApplied.pointsUsed} of {result.constraintsApplied.points} samples used{result.constraintsApplied.inAirOrInactive ? `, ${result.constraintsApplied.inAirOrInactive} above the terrain` : ""}{result.constraintsApplied.outsideMesh ? `, ${result.constraintsApplied.outsideMesh} outside the model` : ""}{result.constraintsApplied.clippedToBounds ? `, ${result.constraintsApplied.clippedToBounds} cell(s) with a logged value outside the bounds held at the bound` : ""}).</div>
       )}
-      <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>
+      <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". {result.style === "compact" ? "It is one compact model of many that fit these data — it assumes a few sharp-edged bodies, so they come out tighter than in the smooth model and peak values can overshoot; compare the two" : "It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth"}; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>
     </div>
   );
 }

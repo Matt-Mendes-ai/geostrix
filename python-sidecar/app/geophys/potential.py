@@ -524,10 +524,19 @@ def run_job(req, progress, ram_cap_bytes):
     sens_seconds = time.time() - ts
     data_obj = sdata.Data(survey, dobs=dobs, standard_deviation=std)
     dmis = data_misfit.L2DataMisfit(data=data_obj, simulation=sim)
-    reg = regularization.WeightedLeastSquares(mesh, active_cells=actv, mapping=maps.IdentityMap(nP=n_act),
-                                              length_scale_x=float(req["reg"].get("lengthX", 1.0)),
-                                              length_scale_y=float(req["reg"].get("lengthY", 1.0)),
-                                              length_scale_z=float(req["reg"].get("lengthZ", 1.0)))
+    # TASKS.csv #769 — "compact": SimPEG's Sparse regularisation with lp norms (Fournier & Oldenburg 2019),
+    # p = 0 on the model and 1 on its gradients, solved by IRLS. On a buried 0.05 SI block (simpeg_probe_pf.py)
+    # 75% of the recovered moment sat inside the true body vs 18% for smooth, depth error 23 m vs 89 m, but the
+    # peak overshot (0.085 vs 0.050 SI) and the run took ~5x longer. A different assumption, not a better truth.
+    style = (req["reg"].get("style") or "smooth").lower()
+    if style not in ("smooth", "compact"):
+        raise ValueError(f"Unknown regularisation style '{style}' (smooth or compact).")
+    reg_cls = regularization.Sparse if style == "compact" else regularization.WeightedLeastSquares
+    reg = reg_cls(mesh, active_cells=actv, mapping=maps.IdentityMap(nP=n_act),
+                  length_scale_x=float(req["reg"].get("lengthX", 1.0)),
+                  length_scale_y=float(req["reg"].get("lengthY", 1.0)),
+                  length_scale_z=float(req["reg"].get("lengthZ", 1.0)),
+                  **({"norms": [0, 1, 1, 1]} if style == "compact" else {}))
     lower = 0.0 if method == "mag" else -np.inf
     upper = np.inf
     b = req.get("bounds") or {}
@@ -536,6 +545,8 @@ def run_job(req, progress, ram_cap_bytes):
     if b.get("upper") is not None:
         upper = float(b["upper"])
     max_iter = int(req["reg"].get("maxIter", 15))
+    if style == "compact":
+        max_iter = max(max_iter, 60)  # IRLS needs its own iterations after the smooth stage reaches the target
     # TASKS.csv #323 — drillhole logs as a reference model + per-cell bounds (see drillhole_constraints).
     lo_opt, up_opt, constraint_report, hit = lower, upper, None, None
     con = req.get("constraints")
@@ -558,15 +569,25 @@ def run_job(req, progress, ram_cap_bytes):
                       "target": float(len(dobs)), "beta": h["beta"]})
 
     track = fit_target.Track(len(dobs))  # TASKS.csv #536
-    dir_list = [
-        directives.UpdateSensitivityWeights(every_iteration=False),
-        directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
-        fit_target.track_directive(directives, track),  # before BetaSchedule: sees the beta this iterate used
-        directives.BetaSchedule(coolingFactor=2.0, coolingRate=1),
-        directives.UpdatePreconditioner(),
-        directives.TargetMisfit(chifact=1.0),
-        Progress(),
-    ]
+    if style == "compact":
+        # IRLS owns beta (it cools to the target, then re-weights the norms while holding the fit), so no
+        # BetaSchedule / TargetMisfit, and the #536 pick-the-fitting-iterate step does not apply.
+        irls = directives.UpdateIRLS(max_irls_iterations=40, chifact_target=1.0, f_min_change=1e-4, misfit_tolerance=0.05)
+        dir_list = [
+            directives.UpdateSensitivityWeights(every_iteration=False),
+            directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
+            irls, directives.UpdatePreconditioner(), Progress(),
+        ]
+    else:
+        dir_list = [
+            directives.UpdateSensitivityWeights(every_iteration=False),
+            directives.BetaEstimate_ByEig(beta0_ratio=float(req["reg"].get("beta0Ratio", 10.0)), random_seed=1),
+            fit_target.track_directive(directives, track),  # before BetaSchedule: sees the beta this iterate used
+            directives.BetaSchedule(coolingFactor=2.0, coolingRate=1),
+            directives.UpdatePreconditioner(),
+            directives.TargetMisfit(chifact=1.0),
+            Progress(),
+        ]
     inv = inversion.BaseInversion(inv_prob, directiveList=dir_list)
     m0 = np.full(n_act, 1e-4 if method == "mag" else 0.0)
     if hit is not None:
@@ -582,7 +603,7 @@ def run_job(req, progress, ram_cap_bytes):
         p.beta = beta
         m = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m_start)
         return m, float(np.sum(((dobs - sim.dpred(m)) / std) ** 2))
-    choice = fit_target.choose(track, refine)
+    choice = fit_target.choose(track, refine) if style == "smooth" else None
     if choice is not None:
         rec = choice["model"]
     pred_sim = sim.dpred(rec)
@@ -637,7 +658,7 @@ def run_job(req, progress, ram_cap_bytes):
                   "value": f32(full_model[keep]).tolist(), "support": np.round(full_sens[keep], 4).tolist()},
         "predicted": pred.tolist(), "standardDeviation": std.tolist(),
         "phi_d": phi_d, "target": float(len(dobs)), "reachedTarget": phi_d <= 1.05 * len(dobs),
-        "iterations": len(history), "maxIter": max_iter, "history": history, "fitChoice": fit_target.fit_report(choice),
+        "iterations": len(history), "maxIter": max_iter, "style": style, "history": history, "fitChoice": fit_target.fit_report(choice),
         "mesh": {"type": mesh_type, "shape": spec["n"], "coreCell": req["mesh"]["coreCell"], "nActive": n_act, "nCoreActive": int(keep.sum()),
                  **({"nCells": spec["nCells"], "cellSizes": spec["cellSizes"], "octree": {**OCTREE_DEFAULTS, **(req["mesh"].get("octree") or {})}} if mesh_type == "octree" else {}),
                  "padCells": req["mesh"].get("padCells", 6), "padFactor": req["mesh"].get("padFactor", 1.3), "depth": req["mesh"]["depth"]},

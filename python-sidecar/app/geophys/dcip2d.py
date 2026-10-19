@@ -182,7 +182,10 @@ def run_job(req, progress):
                 progress({"stage": label, "iter": h["iter"], "maxIter": max_iter, "phi_d": h["phi_d"], "target": target})
 
         prob = inverse_problem.BaseInvProblem(dmis, reg, opt)
-        dirs = [directives.UpdateSensitivityWeights(), directives.BetaEstimate_ByEig(beta0_ratio=1.0, random_seed=1),
+        # TASKS.csv #771 — threshold 1e-2 as in SimPEG's own 2.5D DC/IP tutorials. At the default 1e-12 the weights
+        # freed the deep cells the data barely see, and the inversion invented resistive patches there (synthetic
+        # 100 ohm.m host: deep cells up to 661 ohm.m, p95 236; at 1e-2: max 121, p95 103, block 20 vs 22 ohm.m, true 10).
+        dirs = [directives.UpdateSensitivityWeights(every_iteration=False, threshold_value=1e-2), directives.BetaEstimate_ByEig(beta0_ratio=1.0, random_seed=1),
                 fit_target.track_directive(directives, track),  # #536 — before BetaSchedule
                 directives.BetaSchedule(coolingFactor=2.0, coolingRate=1), directives.TargetMisfit(chifact=1.0),
                 directives.UpdatePreconditioner(), Progress()]

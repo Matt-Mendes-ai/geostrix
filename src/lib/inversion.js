@@ -141,7 +141,8 @@ export function resultToVoxelModel(result, meta) {
   const c = result.cells;
   const cells = c.value.map((v, i) => ({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v, support: c.support[i] }));
   const property = result.method === "mag" ? "Recovered susceptibility (SI)" : "Recovered density contrast (g/cc)";
-  return { name: `${property} — smooth inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method };
+  const style = result.style === "compact" ? "compact" : "smooth"; // TASKS.csv #769
+  return { name: `${property} — ${style} inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method, style };
 }
 
 // Base64 <-> Float32Array for compact project-file storage of model values (database review, #321):
