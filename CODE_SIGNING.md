@@ -11,8 +11,7 @@ Systems S.A.). The certificate's private key is held in Certum's SimplySign serv
 the maintainer, with a one-time code from his phone, for each signing session. Every signature is
 timestamped by Certum, so it stays valid after the certificate itself expires.
 
-**Status:** the first signed release will be 0.1.53. Earlier releases are unsigned — see *Release history*
-below.
+**Status:** releases are signed from 0.1.53. Earlier releases are unsigned — see *Release history* below.
 
 Signing covers the files GeoStrix's own build produces from this repository:
 
@@ -113,5 +112,5 @@ signed with the same identity.
 | Versions | Signing status |
 | --- | --- |
 | 0.1.0 – 0.1.52 | Unsigned. Windows may show a SmartScreen warning; choose **More info** → **Run anyway**. |
+| 0.1.53 – | Signed: Open Source Developer Matheus Mendes de Albuquerque (Certum Code Signing 2021 CA), timestamped. SmartScreen may still warn until reputation builds. |
 
-This table will be updated when the first signed release ships.
