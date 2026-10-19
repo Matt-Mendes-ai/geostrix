@@ -259,8 +259,13 @@ def test_depth_of_investigation_index():
           f"per column reach: DOI<=0.2 median {np.median(reach[:, 0]):.0f} m, support>=0.02 median {np.median(reach[:, 1]):.0f} m; method {out.get('doiMethod')}")
     assert {"doi-low", "doi-high"} <= stages and out["doiMethod"]["threshold"] == 0.2
     assert len(doi) == len(s) and np.all(doi >= 0)
-    assert np.median(doi[shallow]) < 0.25 and np.median(doi[blk]) < 0.3 and np.median(doi[deep]) > 0.8
-    assert len(out["doiMethod"]["misfitOfEachRun"]) == 2
+    # The per-cell index INSIDE the block depends on how the two reference runs end (0.19 started from the main
+    # result, 0.50 from the median half-space with fits 0.48x / 0.97x); the column reach does not (56-58 m every
+    # time), so that is what is asserted and what the panel draws.
+    assert np.median(doi[shallow]) < 0.25 and np.median(doi[deep]) > 0.8
+    assert np.median(reach[:, 0]) > np.median(reach[:, 1])
+    fits = out["doiMethod"]["misfitOfEachRun"]
+    assert len(fits) == 2 and all(0.3 < f <= 1.5 for f in fits), fits
 
 
 if __name__ == "__main__":

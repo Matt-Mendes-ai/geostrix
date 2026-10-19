@@ -1,7 +1,7 @@
 // TASKS.csv #772 — depth of investigation per column (DOI index line) and the DOI column in the section export.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { columnReach, sectionTableRows, slimDcipResult } from "../src/lib/dcip.js";
+import { columnReach, smoothReachLine, sectionTableRows, slimDcipResult } from "../src/lib/dcip.js";
 
 // two columns of four 10 m cells, ground at 100 m
 const cells = {
@@ -20,6 +20,12 @@ test("columnReach: bottom of the deepest passing cell per column, and the median
   const none = columnReach(cells, () => false);
   assert.deepEqual(none.cols.map((o) => o.zBottom), [null, null]);
   assert.equal(none.median, 0);
+});
+
+test("the drawn DOI line drops a one-column spike", () => {
+  const cols = [70, 70, 20, 70, 70].map((z, i) => ({ s: i * 10, zBottom: z, depth: 100 - z }));
+  assert.deepEqual(smoothReachLine(cols).map((o) => o.z), [70, 70, 70, 70, 70]);
+  assert.deepEqual(smoothReachLine([{ s: 0, zBottom: null, depth: 0 }, { s: 10, zBottom: 50, depth: 50 }]).map((o) => [o.s, o.z]), [[10, 50]]);
 });
 
 test("the DOI index survives slimming and is exported per cell", () => {

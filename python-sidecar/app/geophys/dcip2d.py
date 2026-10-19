@@ -222,7 +222,7 @@ def run_job(req, progress):
     sens = sens / sens.max() if sens.max() > 0 else sens
 
     # TASKS.csv #772 — optional depth-of-investigation index (Oldenburg & Li 1999, Geophysics 64(2)): invert again
-    # with the reference (and starting) model 10x below and 10x above the median apparent resistivity. Where the
+    # with the reference model 10x below and 10x above the median apparent resistivity. Where the
     # data control a cell both runs agree; where they don't, each run returns its own reference.
     # doi = |m_low - m_high| / |ref_low - ref_high| in log conductivity: ~0 data-controlled, ~1 reference-controlled.
     # Measured on the test_dcip2d synthetic (#768): it reaches a median 55 m per column vs 40 m for the support
@@ -236,13 +236,21 @@ def run_job(req, progress):
             progress({"stage": label, "iter": 0, "maxIter": max_iter, "message": f"Depth of investigation: inversion {k + 1} of 2 (reference {factor:g}x the median)"})
             m_ref = np.full(n_act, np.log(1.0 / (factor * np.median(rho))))
             reg_k = regularization.WeightedLeastSquares(mesh, active_cells=active, reference_model=m_ref)
-            opt_k = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30)
-            # started from the main result, not from the reference: started 10x off, the runs ended unfitted and the
-            # index measured that instead (top 5 m 0.47, the conductive block 0.55 on the test_dcip2d synthetic)
-            m_k, _, fit_k = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg_k, opt_k, m_dc.copy(), label, float(len(rho)),
-                                    phi_fn=lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2)),
-                                    opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
-            refs.append((m_k, m_ref[0], float(np.sum(((rho - sim.dpred(m_k)) / std) ** 2)) / len(rho)))
+            phi_fn = lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2))
+            # Started like the main run, from the uniform median half-space; only the reference differs. On Woodjam
+            # 115N the high-reference run's line search broke at iteration 3 (149x the target) whatever the start
+            # (reference: stalled at 17x; fitted main model: 58x after one step), CG or line-search limits: restart
+            # it from where it stopped with a fresh solver, up to three times (115N: 149x -> 1.70x -> 0.997x). A smaller
+            # smallness weight (alpha_s 0.01) made the high run worse (9x -> 18.9x over the restarts).
+            m_k, chi = m0.copy(), np.inf
+            for attempt in range(4):
+                opt_k = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30, maxIterLS=20)
+                m_k, _, _ = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg_k, opt_k, m_k, label, float(len(rho)),
+                                    phi_fn=phi_fn, opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
+                chi = phi_fn(m_k) / len(rho)
+                if chi <= 1.5:
+                    break
+            refs.append((m_k, m_ref[0], chi))
         (m_lo, r_lo, chi_lo), (m_hi, r_hi, chi_hi) = refs
         doi = np.abs(m_lo - m_hi) / abs(r_lo - r_hi)
         doi_fit = [round(chi_lo, 3), round(chi_hi, 3)]

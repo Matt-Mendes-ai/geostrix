@@ -247,6 +247,18 @@ export function columnReach(cells, pass) {
   return { cols: out, median };
 }
 
+// #772 — the DOI line as drawn: a running median over `w` columns. Per column, "the deepest passing cell" spikes
+// where one isolated deep cell passes (Woodjam 115N: single columns plunging 100+ m into the unresolved zone); a
+// DOI result is read as a contour, so the drawn line is smoothed. The reported median depth is not.
+export function smoothReachLine(cols, w = 5) {
+  const pts = cols.filter((o) => o.zBottom != null);
+  const h = Math.floor(w / 2);
+  return pts.map((o, i) => {
+    const win = pts.slice(Math.max(0, i - h), i + h + 1).map((p) => p.zBottom).sort((a, b) => a - b);
+    return { s: o.s, z: win[Math.floor(win.length / 2)] };
+  });
+}
+
 // ---------------------------------------------------------------------------------------------
 // TASKS.csv #539 — electrode positions chained ALONG THE GROUND (slope distance) instead of horizontally. The engine
 // puts each electrode at x = its distance (horizontal) and drapes it onto the ground; on a 30° slope a position
