@@ -1418,6 +1418,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // exactly what it always did; the effective value comes back in the response either way and is
   // reported in the run notice + stamped into every generated surface's provenance.
   const [rangeMultiplier, setRangeMultiplier] = useState(0);
+  const [thinPicks, setThinPicks] = useState(true); // TASKS.csv #765 — average structure picks per hole before GemPy
+  const [thinWindowM, setThinWindowM] = useState(50); // #765 — depth window along the hole (m)
   // TASKS.csv #86 — same shared-across-all-four-tools pattern as domain/searchEllipsoid above. Distinct
   // state from searchEllipsoid (not literally shared) since the two are conceptually independent knobs
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
@@ -3575,6 +3577,7 @@ ${describeTrend(t)}` };
     orientTypes,
     originRef,
     rangeMultiplier,
+    thinPicks, thinWindowM, // TASKS.csv #765
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -7539,6 +7542,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <option value={1.5}>1.5x — slightly smoother</option>
           <option value={2}>2x — smoother, stiffer surfaces</option>
         </select>
+
+        {/* TASKS.csv #765 — structure picks averaged per hole: faster and less pick-scatter in the surface */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Contact orientations from picks</span>
+          <InfoButton title="Average picks per hole" width={300} text={"GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is."} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
+          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />
+          Average picks per hole, in windows of
+          <input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label="Averaging window along the hole (m)" /> m
+        </label>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>

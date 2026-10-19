@@ -499,6 +499,11 @@ class ImplicitModelRequest(BaseModel):
     # no geologist can reason about: 1.0 = exactly what GemPy would have done on its own (so the default
     # here is a strict no-op), <1 = tighter/more locally-controlled surfaces, >1 = smoother/stiffer.
     range_multiplier: float | None = Field(default=None, ge=0.1, le=10.0)
+    # TASKS.csv #767 — engine precision. float32 measured 27-31 % faster than float64 with the same surfaces (Harry-sized
+    # synthetic, 88 points / 317 orientations / 36^3: 81.5 -> 59.4 s; mesh vertices 0.11 m apart on average, 1.0 m at most,
+    # 3 of 46,656 block cells different). GemPy rescales its inputs to unit space before solving, which is why single
+    # precision holds; its own gravity tutorial runs float32. float64 stays available for comparison.
+    precision: Literal["float32", "float64"] = "float32"
 
 
 class MeshOut(BaseModel):
@@ -522,6 +527,7 @@ class ImplicitModelResponse(BaseModel):
     orientations_deduplicated: int | None = None
     # TASKS.csv #655 — GemPy's per-axis input scale relative to its smallest (1, 1, 1 = isotropic, as it must be)
     input_scale_ratios: List[float] | None = None
+    precision: str | None = None  # TASKS.csv #767 — the engine precision actually used
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -680,7 +686,7 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
             kernel.range = range_default * req.range_multiplier
         range_used = float(kernel.range)
         c_o = float(kernel.c_o)
-        sol = gp.compute_model(model)
+        sol = gp.compute_model(model, engine_config=gp.data.GemPyEngineConfig(backend=gp.data.AvailableBackends.numpy, dtype=req.precision))  # #767
     except Exception as err:  # GemPy raises a variety of exception types depending on what's ill-posed
         raise HTTPException(status_code=400, detail=f"GemPy could not solve this model: {err}")
 
@@ -715,4 +721,4 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
     return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
-                                 input_scale_ratios=input_scale_ratios)
+                                 input_scale_ratios=input_scale_ratios, precision=req.precision)

@@ -16,7 +16,8 @@ import { errorNotice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
-import { clipMesh } from "../../lib/clipMesh.js"; // TASKS.csv #568
+import { clipMesh } from "../../lib/clipMesh.js";
+import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765 // TASKS.csv #568
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -71,6 +72,7 @@ export function createModellingRuns(ctx, mcRef) {
     orientTypes,
     originRef,
     rangeMultiplier,
+    thinPicks, thinWindowM, // TASKS.csv #765
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -318,7 +320,7 @@ export function createModellingRuns(ctx, mcRef) {
         tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution: [modelResolution, modelResolution, modelResolution],
-        gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null,
+        gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
         anisotropy: anisotropy.enabled ? anisotropy.params : null,
         searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
@@ -332,6 +334,7 @@ export function createModellingRuns(ctx, mcRef) {
         extent: extent.map((v) => Math.round(v)),
         // TASKS.csv #318 — a mapped surface contact that fed this run, if any (set by runImplicitModel).
         ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
+        ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
         generatedAt: new Date().toISOString(),
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
@@ -765,6 +768,14 @@ export function createModellingRuns(ctx, mcRef) {
     if (searchEllipsoid.enabled && structRows.length < preSearchCount && !silent) {
       setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
     }
+    // TASKS.csv #765 — picks averaged per hole in depth windows (lib/viewer/orientationThin.js): far fewer gradient
+    // constraints for GemPy (its time grows ~linearly with them) and the oriented-core scatter averaged out
+    let thinNote = null;
+    if (thinPicks && structRows.length > 1) {
+      const t = thinStructurePicks(structRows, { windowM: thinWindowM || 50 });
+      if (t.after < t.before) { thinNote = { picks: t.before, orientations: t.after, windowM: thinWindowM || 50 }; structRows = t.rows; }
+    }
+    if (thinNote && !silent) setNotices((p) => [...p, `"${unitName}": ${thinNote.picks} structure picks averaged into ${thinNote.orientations} orientations (per hole, ${thinNote.windowM} m windows; Model settings > Contact orientations from picks).`]);
     let orientations = structureRowsToOrientations(structRows, traces);
     // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
     // contact, as orientations at their own (terrain) position. Only when a map contact is in play: a
@@ -798,7 +809,7 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], ...(isMcode ? { mcode: true } : {}) }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], ...(isMcode ? { mcode: true } : {}), ...(thinNote ? { params: { orientationsAveraged: thinNote } } : {}) }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   const runImplicitModel = async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
