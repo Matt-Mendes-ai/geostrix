@@ -513,6 +513,11 @@ const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); /
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
 
+// TASKS.csv #695 — what a batched (never drawn) member keeps of its material; see buildLayerBatches
+function pickOnlyMaterial(src) {
+  return { isPickOnlyMaterial: true, color: src.color, side: src.side, transparent: src.transparent, opacity: src.opacity, visible: true, dispose() {} };
+}
+
 const _batchMatrix = new THREE.Matrix4();
 const _batchZero = new THREE.Vector3(0, 0, 0);
 // Mirrors the current state of a batch's member objects into its instance buffers. Called after a
@@ -551,6 +556,7 @@ function buildLayerBatches(group) {
   const families = new Map();
   for (const child of group.children) {
     if (!child.isMesh || child.isInstancedMesh) continue;
+    if (child.userData.batched) continue; // #695 — already mirrored by a batch (and holding a pick-only material)
     const protoKey = child.geometry?.userData?.protoKey;
     if (!protoKey) continue;
     const m = child.material;
@@ -595,7 +601,15 @@ function buildLayerBatches(group) {
     // between a rebuild and the next frame sees the right placement.
     group.updateWorldMatrix(true, false);
     group.matrixAutoUpdate = false;
-    for (const m of fam.members) { m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false; }
+    for (const m of fam.members) {
+      m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false;
+      // TASKS.csv #695 — a member is never drawn, so its MeshLambertMaterial (~1.2 kB of heap each, measured) only
+      // ever answered two questions: its colour (read by syncBatchedInstances, repainted by applyLegendOverrideColors)
+      // and its face side (read by Mesh.raycast). A stand-in holding just those is ~0.2 kB: about 160 MB less for an
+      // 83k-assay project showing two elements. The original was never rendered, so it holds no GPU resources.
+      m.material = pickOnlyMaterial(m.material);
+      m.userData.batched = true;
+    }
     group.add(inst);
     syncBatchedInstances(inst);
   }
