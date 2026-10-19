@@ -58,8 +58,9 @@ test("#322 a saved line reloads through the normal parse path unchanged; section
     electrodes: [[0, 1000]], predicted: [1, 2, 3], standardDeviation: [1], history: [{}], phi_d: 4, target: 4, reachedTarget: true, iterations: 3,
     ip: { phi_d: 5, history: [{}], predicted: [1] }, mesh: { cell: 10 }, versions: { simpeg: "0.25.2" } };
   const slim = slimDcipResult(result);
-  assert.equal(slim.predicted, undefined); assert.equal(slim.history, undefined);
-  assert.deepEqual(slim.ip, { phi_d: 5 }); assert.deepEqual(slim.cells, result.cells);
+  // #683 — predicted data and their errors are kept now (for the data-fit view); the history still is not
+  assert.deepEqual(slim.predicted, [1, 2, 3]); assert.deepEqual(slim.standardDeviation, [1]); assert.equal(slim.history, undefined);
+  assert.deepEqual(slim.ip, { phi_d: 5, predicted: [1] }); assert.deepEqual(slim.cells, result.cells);
   const geom = lineGeometry([1000, 2000], [1000, 2100]); // due north
   const rows = sectionTableRows(slim, geom);
   assert.deepEqual(rows[1], { distance_m: 15, x: 1000, y: 2015, z: 980, ds_m: 10, dz_m: 5, resistivity_ohmm: 200, chargeability_mVV: 2, support: 0.01, envelope_support: 0.01 });
