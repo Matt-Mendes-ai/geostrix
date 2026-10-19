@@ -20,8 +20,36 @@ export function blockCellIndex(block, x, y, z) {
 
 export function unitAt(block, x, y, z) {
   const i = blockCellIndex(block, x, y, z);
-  if (i < 0) return undefined; // outside the model
+  if (i < 0 || block.ids[i] === 0) return undefined; // outside the model (id 0: a resampled cell outside the solved box, #679)
   return block.labels[block.ids[i] - 1] ?? null; // null = above every modelled top
+}
+
+// TASKS.csv #679 — a model solved with a geology trend lives in a stretched frame: its cells are tilted boxes in real
+// space, which a block model (axis-aligned cells) and the modelled-unit layer can't hold. This resamples it onto an
+// axis-aligned grid over `realExtent` (API frame, metres): each real cell centre goes through `warp` (real -> the
+// frame the block was solved in) and takes the unit found there. A cell whose warped centre falls outside the
+// solved box gets id 0 ("outside the model"). The cell is cubic, with the solved cell's volume, enlarged if
+// needed so the grid stays within `maxCells`. Unit volumes are still best taken from the solved block itself.
+export function resampleWarpedBlock(block, realExtent, warp, maxCells = 2_000_000) {
+  const [xmin, xmax, ymin, ymax, zmin, zmax] = realExtent;
+  const [bx0, bx1, by0, by1, bz0, bz1] = block.extent;
+  const [bnx, bny, bnz] = block.resolution;
+  const solvedCellVol = ((bx1 - bx0) / bnx) * ((by1 - by0) / bny) * ((bz1 - bz0) / bnz);
+  let cell = Math.cbrt(solvedCellVol);
+  const dims = () => [Math.max(1, Math.ceil((xmax - xmin) / cell)), Math.max(1, Math.ceil((ymax - ymin) / cell)), Math.max(1, Math.ceil((zmax - zmin) / cell))];
+  let [nx, ny, nz] = dims();
+  if (nx * ny * nz > maxCells) cell *= Math.cbrt((nx * ny * nz) / maxCells);
+  for ([nx, ny, nz] = dims(); nx * ny * nz > maxCells; [nx, ny, nz] = dims()) cell *= 1.02; // rounding up can overshoot
+  const ext = [xmin, xmin + nx * cell, ymin, ymin + ny * cell, zmin, zmin + nz * cell];
+  const ids = new Int32Array(nx * ny * nz);
+  const p = { x: 0, y: 0, z: 0 };
+  for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++) {
+    p.x = xmin + (ix + 0.5) * cell; p.y = ymin + (iy + 0.5) * cell; p.z = zmin + (iz + 0.5) * cell;
+    const w = warp(p);
+    const i = blockCellIndex(block, w.x, w.y, w.z);
+    ids[ix * ny * nz + iy * nz + iz] = i < 0 ? 0 : block.ids[i];
+  }
+  return { extent: ext, resolution: [nx, ny, nz], ids, labels: block.labels, resampledFromTrend: true };
 }
 
 // Volume of each modelled unit INSIDE the model extent (m^3): cell count x cell volume. The extent is a

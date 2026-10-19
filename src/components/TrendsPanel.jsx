@@ -10,7 +10,8 @@ import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #67
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
 
 export const TREND_USERS = [
-  ["implicit", "Geology models (implicit surfaces, stacks, structural surfaces)"], // #679 — runStructuralModel goes through the same run
+  ["implicit", "Geology models (implicit surfaces, stacks)"], // stack faults follow the stack's trend
+  ["structural", "Structural surfaces"], // TASKS.csv #679 — a fault is oblique to the stratigraphic trend by definition: its own slot, none by default
   ["alteration", "Alteration halos"],
   ["gradeShell", "Grade shells"],
   ["estimation", "Block estimation"],

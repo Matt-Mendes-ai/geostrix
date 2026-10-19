@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { desurveyHole } from "../../lib/desurvey.js";
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
-import { checkAgainstLogs, unitVolumes } from "../../lib/modelCheck.js";
+import { checkAgainstLogs, unitVolumes, resampleWarpedBlock } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology } from "../../lib/layers.js";
@@ -98,7 +98,10 @@ export function createModellingRuns(ctx, mcRef) {
   } = ctx;
 
   const runSurfaceStack = async (rawSpecs, stackOpts = {}) => {
-    const anisotropy = trendWarp("implicit"); // TASKS.csv #650 — the trend chosen for geology models
+    // TASKS.csv #650 — the trend chosen for geology models; #679 — structural surfaces have their own slot
+    const trendTool = stackOpts.trendTool || "implicit";
+    const anisotropy = trendWarp(trendTool);
+    const trendWord = trendTool === "structural" ? "structural trend" : "geology trend";
     const relation = stackOpts.relation === "onlap" ? "onlap" : "erode";
     const traces = tracesRef.current;
     // TASKS.csv #187 — bug fix: a real user hit "Stratigraphic stack (DACT, VCL, SED) failed:
@@ -194,7 +197,7 @@ export function createModellingRuns(ctx, mcRef) {
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
     setImplicitBusy(true);
-    setNotices((p) => [...p, `Running ${label} (${totalPoints} points, ${totalOrientations} orientations across ${specs.length} surface${specs.length > 1 ? "s" : ""})${anisotropy.enabled ? `, with the geology trend "${anisotropy.params?.trend || "unnamed"}"` : ""}…`]);
+    setNotices((p) => [...p, `Running ${label} (${totalPoints} points, ${totalOrientations} orientations across ${specs.length} surface${specs.length > 1 ? "s" : ""})${anisotropy.enabled ? `, with the ${trendWord} "${anisotropy.params?.trend || "unnamed"}"` : ""}…`]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
     // reached), jumps to 100% on an actual response, and clears shortly after — enough for the
@@ -369,9 +372,15 @@ export function createModellingRuns(ctx, mcRef) {
       });
       const chk = checkAgainstLogs(res.block, samples);
       // TASKS.csv #679 — a warped block's cells are tilted boxes in real space, which a block model (axis-aligned cells)
-      // and the modelled-unit layer (which samples the block at real positions) can't use: off for a trend run
-      if (anisotropy.enabled) setLastLithBlock(null);
-      else setLastLithBlock({ block: res.block, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      // and the modelled-unit layer (which samples the block at real positions) can't use as they are: resample it onto
+      // an axis-aligned real-space grid over the data's own padded box first
+      let lbBlock = res.block;
+      if (anisotropy.enabled) {
+        const rx = minMax(extentApiPts.map((q) => q.x)), ry = minMax(extentApiPts.map((q) => q.y)), rz = minMax(extentApiPts.map((q) => q.z));
+        const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
+        lbBlock = resampleWarpedBlock(res.block, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
+      }
+      setLastLithBlock({ block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
@@ -380,7 +389,7 @@ export function createModellingRuns(ctx, mcRef) {
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the geology trend "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, but "Add as block model" and the modelled-unit layer are off for this run (its cells are tilted boxes in real space).` : ""}`]);
+      setNotices((p) => [...p, `Model check: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the ${trendWord} "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, and "Add as block model" gets the model resampled onto a real-space grid.` : ""}`]);
     }
     if (newMeshes.length) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
@@ -909,7 +918,7 @@ export function createModellingRuns(ctx, mcRef) {
       });
       const orientations = structureRowsToOrientations(group, traces);
       if (!points.length || !orientations.length) { setNotices((p) => [...p, `Couldn't locate "${name}" picks along the hole traces.`]); continue; }
-      await runSurfaceModel({ label: `Structure: ${name}`, meshName: name, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) });
+      await runSurfaceModel({ label: `Structure: ${name}`, meshName: name, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) }, { trendTool: "structural" }); // #679 — its own trend slot
     }
   };
 

@@ -3468,7 +3468,7 @@ ${describeTrend(t)}` };
       added.push({
         id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
-        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: "Cut at the model box: a unit that continues beyond it is closed there." },
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: lb.block.resampledFromTrend ? "Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there." : "Cut at the model box: a unit that continues beyond it is closed there." },
       });
       lines.push(`${label} ${(vol / 1e6).toFixed(2)} Mm³`);
     });
