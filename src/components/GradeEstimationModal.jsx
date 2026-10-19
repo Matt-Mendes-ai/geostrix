@@ -8,6 +8,7 @@ import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLO
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
+import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -266,7 +267,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
-    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, params: result.params }); // params: TASKS.csv #404
+    // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
+    let gMin = Infinity, gMax = -Infinity;
+    for (const c of result.cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
+    const ramp = gMin <= gMax ? { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) } : {};
+    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, ...ramp, params: result.params }); // params: TASKS.csv #404
     setAdded(true);
   };
 

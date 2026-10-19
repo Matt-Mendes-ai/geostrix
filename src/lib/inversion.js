@@ -186,6 +186,28 @@ export function logStops(min, max, anchors = RESISTIVITY_ANCHORS, n = 17) {
   const lo = Math.log10(min > 0 ? min : 1), hi = Math.log10(max > min ? max : (min > 0 ? min : 1) * 10);
   return labStops(anchors, Array.from({ length: n }, (_, i) => 10 ** (lo + ((hi - lo) * i) / (n - 1))));
 }
+// TASKS.csv #702 — ONE ramp for grade models, whichever tool made them (IDW / nearest / geoML): viridis (the 3D
+// view's default for a value with no stops, #382), log-spaced when the grades span two decades or more, so an
+// IDW Au estimate and a geoML Au estimate of the same data read alike side by side. Geophysical properties keep
+// their warm / log ramps below, so a grade model is never the same colours as a chargeability model.
+export const GRADE_ANCHORS = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
+export function gradeStops(min, max, n = 17) {
+  if (min > 0 && max / min >= 100) return logStops(min, max, GRADE_ANCHORS, n);
+  const lo = Number.isFinite(min) ? min : 0, hi = Number.isFinite(max) && max > lo ? max : lo + 1;
+  return labStops(GRADE_ANCHORS, Array.from({ length: n }, (_, i) => lo + ((hi - lo) * i) / (n - 1)));
+}
+// TASKS.csv #702 — a ramp whose anchors sit at given values (not evenly spaced), densified in Lab like the others
+export function labStopsAt(anchorStops, n = 17) {
+  const a = [...anchorStops].sort((p, q) => p.value - q.value).map((s) => ({ value: s.value, lab: rgbToLab(hexToRgb(s.color)) }));
+  const lo = a[0].value, hi = a[a.length - 1].value;
+  return Array.from({ length: n }, (_, i) => {
+    const v = lo + ((hi - lo) * i) / (n - 1);
+    let k = 0; while (k < a.length - 2 && v > a[k + 1].value) k++;
+    const f = a[k + 1].value > a[k].value ? (v - a[k].value) / (a[k + 1].value - a[k].value) : 0;
+    const lab = a[k].lab.map((c, j) => c + (a[k + 1].lab[j] - c) * f);
+    return { value: v, color: rgbToHex(labToRgb(lab).rgb) };
+  });
+}
 export const SEQUENTIAL_ANCHORS = ["#fff7cc", "#f5b247", "#d9601a", "#8f1f3d", "#3d0d3a"];
 export function sequentialStops(min, max, n = 17) {
   const lo = Number.isFinite(min) ? min : 0, hi = Number.isFinite(max) && max > lo ? max : lo + 1;
