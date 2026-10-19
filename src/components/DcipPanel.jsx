@@ -7,7 +7,7 @@ import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -51,7 +51,7 @@ export default function DcipPanel({ pBtn, numInput }) {
   const [mapping, setMapping] = useState({});
   // #602 — scale: chaining scale ("" = 1); stations: { file, line, list: [{s, x, y, z}] } from a station / GPS file
   const [line, setLine] = useState({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
-  const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02 });
+  const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false }); // vox*: #683 follow-up
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
   const [last, setLast] = useState(null); // { result, geom, name, restored? }
@@ -120,7 +120,7 @@ export default function DcipPanel({ pBtn, numInput }) {
     setFile(f); setMapping(m); setLine({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, ...e.line }); setOpts((o) => ({ ...o, ...e.opts }));
     const sl = e.section?.line;
     const sg = sl ? lineGeometry([sl.x0, sl.y0].map(Number), [sl.x1, sl.y1].map(Number), Number(sl.scale) || 1) : null;
-    setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt, obs: { readings: e.readings, rho: e.rho, ip: e.ip } } : null); // obs: #683
+    setLast(e.section && sg ? { result: e.section.result, geom: sg, name: e.name, restored: e.section.ranAt, thick: Number(e.section.opts?.cell) || Number(e.opts?.cell) || null, obs: { readings: e.readings, rho: e.rho, ip: e.ip } } : null); // obs: #683
     setMsg({ ok: true, text: `${e.name}: ${e.readings.length} readings from the project${e.section ? ", with its last inverted section" : ""}.` });
   };
 
@@ -234,26 +234,12 @@ export default function DcipPanel({ pBtn, numInput }) {
     const res = await startInversionJob(request, meta, {
       kind: "dcip2d", setTaskProgress,
       onDone: (result) => {
-        setLast({ result, geom: lineGeom, name, obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip } }); // obs: #683 — for the data-fit view
+        setLast({ result, geom: lineGeom, name, thick: num(opts.cell), obs: { readings: parsed.readings, rho: parsed.rho, ip: parsed.ip } }); // obs: #683 — for the data-fit view
         saveDcipLine({ name, section: { result: slimDcipResult(result), line: lineAtRun, opts: ranOpts, ranAt: new Date().toISOString() } });
-        const thick = num(opts.cell);
-        const rc = sectionCells(result, lineGeom, "resistivity", thick);
-        // TASKS.csv #641 — the colour range from the cells that are shown: a few deep, unseen cells pinned at the
-        // inversion's bounds (1000 mV/V on Woodjam 115N) made the whole visible line one pale colour
-        const cut = Number(opts.supportCutoff) || 0;
-        const seen = cut > 0 ? supportEnvelope(result.cells.s, result.cells.z, result.cells.support).map((v) => v >= cut) : null;
-        const shownVals = (cells) => { const v = cells.filter((_, i) => !seen || seen[i]).map((c) => c.value); return v.length ? v : cells.map((c) => c.value); };
-        const rv = shownVals(rc);
-        const common = { source: "simpeg", colorMode: "continuous", supportCutoff: Number(opts.supportCutoff) || 0,
-          params: { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) } };
-        // min / max of the shown cells too: the legend and the threshold slider span them, not the hidden deep cells
-        addVoxelModelToTab(token, { ...common, name: `Resistivity (ohm·m) — DC line ${name}`, property: "Resistivity (ohm·m)", method: "dc", cells: rc, min: arrMin(rv), max: arrMax(rv), stops: logStops(arrMin(rv), arrMax(rv)) });
-        if (result.cells.chargeability) {
-          const cc = sectionCells(result, lineGeom, "chargeability", thick);
-          const cv = shownVals(cc);
-          addVoxelModelToTab(token, { ...common, name: `Chargeability (mV/V) — IP line ${name}`, property: "Chargeability (mV/V)", method: "ip", cells: cc, min: arrMin(cv), max: arrMax(cv), stops: sequentialStops(0, percentile(cv, 0.98)), // p98: a few spikes don't wash the line out
-            params: { ...common.params, fit: { ...common.params.fit, ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } } }); // #581 — its own verdict
-        }
+        const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) };
+        // #683 follow-up — the observed and / or the extrapolated voxel, as chosen under "3D voxels"
+        const kinds = [opts.voxObserved !== false && "observed", opts.voxExtrapolated && "extrapolated"].filter(Boolean);
+        lineVoxelModels(result, lineGeom, { name, thick: num(opts.cell), cut: Number(opts.supportCutoff) || 0, params: runParams, kinds }).forEach((m) => addVoxelModelToTab(token, m));
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
@@ -346,7 +332,26 @@ export default function DcipPanel({ pBtn, numInput }) {
               <option value="draped">the electrodes on the topography</option>
             </select>
           </div>
+          {parsed?.readings.length > 0 && (() => {
+            // #683 follow-up — a deeper model on request: down to the deepest pseudo-depth of the data
+            const deep = deepestPseudoDepth(parsed.readings);
+            return deep > (num(opts.depth) || 0) + 1 ? (
+              <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>
+                The data plot down to {deep} m (pseudo-depth: half the largest current-to-potential separation).{" "}
+                <button type="button" onClick={() => setOpts((o) => ({ ...o, depth: String(deep), voxExtrapolated: true }))} style={{ fontSize: "var(--font-size-xs)", padding: "1px 6px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", cursor: "pointer" }}>Model to {deep} m</button>
+                {" "}Below the depth of investigation the cells are extrapolated by the inversion, not seen by the data, and a deeper mesh takes longer to run.
+              </div>
+            ) : null;
+          })()}
           <div style={row} title="Depth of investigation: in each column of the section, cells below the deepest cell whose normalised sensitivity reaches this value are greyed in the section and hidden in 3D — the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
+          {/* #683 follow-up — which 3D voxels a run adds */}
+          <div style={{ ...row, alignItems: "flex-start" }}>
+            <span style={lbl}>3D voxels</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+              <label title="Only the cells within the depth of investigation (the support cutoff above): what the data actually see."><input type="checkbox" checked={opts.voxObserved !== false} onChange={(e) => setOpts((o) => ({ ...o, voxObserved: e.target.checked }))} /> Observed (the cells the data see)</label>
+              <label title="Every cell of the model, down to the model depth. Below the depth of investigation the values come from the inversion's smoothing, not from the data: a prediction to test, not a measurement."><input type="checkbox" checked={!!opts.voxExtrapolated} onChange={(e) => setOpts((o) => ({ ...o, voxExtrapolated: e.target.checked }))} /> Extrapolated (the whole model, to its depth)</label>
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={run} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Play size={14} /> Invert</button>
             {running && <button onClick={() => cancelInversionJob()} style={{ ...pBtn, width: "auto" }}>Cancel</button>}
@@ -381,7 +386,7 @@ function Pseudosection({ parsed }) {
 // the inverted section: cells coloured by resistivity (log) and chargeability, poorly supported cells greyed
 function SectionResult({ last, cutoff, epsg, pBtn }) {
   const { result } = last;
-  const { addLayoutImage, goToModule } = useStore();
+  const { addLayoutImage, goToModule, addVoxelModel } = useStore();
   const [note, setNote] = useState(null);
   const c = result.cells;
   const [field, setField] = useState("resistivity");
@@ -421,6 +426,16 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title="Every section cell: distance, x / y (project CRS), elevation, size, values, support"><Download size={14} /> CSV</button>
         <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${last.name}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={14} /> PNG</button>
         <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote("Section added to the Layout page."); }} style={{ ...pBtn, width: "auto", flex: 1 }}>Add to Layout</button>
+      </div>
+      <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+        {[["observed", "Add observed voxel"], ["extrapolated", `Add extrapolated voxel (to ${(z1 - z0).toFixed(0)} m)`]].map(([k, label]) => (
+          <button key={k} onClick={() => {
+            const ms = lineVoxelModels(result, last.geom, { name: last.name, thick: last.thick || c.ds[0] || 10, cut: cutoff, params: { tool: "2D DC resistivity / IP inversion (SimPEG)", line: last.name, versions: result.versions, inverted: last.restored || "this session" }, kinds: [k] });
+            ms.forEach((m) => addVoxelModel(m));
+            setNote(`Added ${ms.map((m) => `"${m.name}"`).join(" and ")} to Block models.`);
+          }} style={{ ...pBtn, width: "auto", flex: 1, fontSize: "var(--font-size-xs)" }}
+            title={k === "observed" ? "The cells within the depth of investigation only" : "Every cell of the model; below the depth of investigation the values are the inversion's extrapolation, not data"}>{label}</button>
+        ))}
       </div>
       {note && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
       {last.obs && <DataFit obs={last.obs} result={result} />}
@@ -482,6 +497,36 @@ function DataFit({ obs, result }) {
       ) : <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>No reading is more than 3 errors from the model.</div>}
     </div>
   );
+}
+
+// TASKS.csv #683 follow-up — the 3D voxels of one inverted line. "observed": the cells within the depth of investigation
+// (the support envelope, #641), as before; "extrapolated": every cell to the model depth, shown in full, its colour range
+// from the 2nd-98th percentile so the deep cells pinned at the inversion's bounds do not wash the line out (#641).
+function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
+  const out = [];
+  const seen = cut > 0 ? supportEnvelope(result.cells.s, result.cells.z, result.cells.support).map((v) => v >= cut) : null;
+  const props = [["resistivity", "dc", "Resistivity (ohm·m)", `DC line ${name}`]];
+  if (result.cells.chargeability) props.push(["chargeability", "ip", "Chargeability (mV/V)", `IP line ${name}`]);
+  for (const [field, method, property, lineLabel] of props) {
+    const cells = sectionCells(result, geom, field, thick);
+    for (const kind of kinds) {
+      const all = cells.map((x) => x.value);
+      let vals = kind === "observed" && seen ? cells.filter((_, i) => seen[i]).map((x) => x.value) : all;
+      if (!vals.length) vals = all;
+      let lo = arrMin(vals), hi = arrMax(vals);
+      if (kind === "extrapolated") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
+      const stops = method === "dc" ? logStops(lo, hi) : sequentialStops(0, kind === "observed" ? percentile(vals, 0.98) : hi); // p98: a few spikes do not wash the line out
+      const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } : {};
+      out.push({
+        source: "simpeg", colorMode: "continuous", method, property, cells, min: lo, max: hi, stops,
+        supportCutoff: kind === "observed" ? cut : 0,
+        ...(kind === "extrapolated" ? { opacity: 0.6 } : {}), // see-through: less reliable, and the observed voxel stays readable inside it
+        name: kind === "observed" ? `${property} — ${lineLabel}` : `${property} — ${lineLabel}, extrapolated to the model depth`,
+        params: { ...params, voxel: kind === "observed" ? `cells within the depth of investigation (support cutoff ${cut})` : "every cell of the model: below the depth of investigation the values are the inversion's extrapolation, not data", ...(params.fit ? { fit: { ...params.fit, ...ipFit } } : {}) },
+      });
+    }
+  }
+  return out;
 }
 
 async function sectionImage(last, field, cutoff) {

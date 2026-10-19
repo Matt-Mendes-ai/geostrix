@@ -20,3 +20,8 @@ test("a saved section keeps predicted and standard deviations (5 significant dig
   assert.deepEqual(s.predicted, [123.46]); assert.deepEqual(s.standardDeviation, [6.1728]);
   assert.deepEqual(s.ip.predicted, [12.346]); assert.deepEqual(s.ip.standardDeviation, [0.5]);
 });
+
+test("deepest pseudo-depth is half the largest current-to-potential separation", async () => {
+  const { deepestPseudoDepth } = await import("../src/lib/dcip.js");
+  assert.equal(deepestPseudoDepth([[0, 10, 20, 30], [0, 10, 500, 510]]), 250);
+});

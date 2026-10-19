@@ -270,6 +270,15 @@ export function readingsToHorizontal(readings, f) {
 // cells, >85 min) with the same array. How deep a reading sees depends on the current-to-potential separation:
 // 0.3 x the largest one (1,250 m at Woodjam -> 375 m) stays above the measured DOI with a margin; never more than a
 // quarter of the line, never less than four cells. readings: [[A, B|null, M, N|null]] in metres along the line.
+// TASKS.csv #683 follow-up (Matt: "the final voxel is so shallow compared to the depth we got data to") — the deepest
+// pseudo-depth of the readings: half the largest current-to-potential separation, the depth the pseudosection plots
+// it at. A plotting convention, not a depth the data resolve (the median depth of investigation is nearer 0.2-0.3 x
+// the separation), so a model this deep is mostly extrapolated below the depth of investigation.
+export function deepestPseudoDepth(readings) {
+  let d = 0;
+  for (const p of pseudoPositions(readings || [])) if (Number.isFinite(p.depth) && p.depth > d) d = p.depth;
+  return Math.round(d);
+}
 export function suggestModelDepth(readings, span, cell) {
   let maxSep = 0;
   for (const [a, b, m, n] of readings || []) {
