@@ -10,6 +10,7 @@ import { logStops, sequentialStops, fitVerdict } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
 import { canvasHatch, HATCH } from "./supportHatch.js"; // TASKS.csv #535
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #641
+import { columnReach } from "./dcip.js"; // TASKS.csv #772
 
 // 1, 2, 5 x 10^n step giving about `n` ticks over [lo, hi]
 export function niceStep(lo, hi, n = 6) {
@@ -48,6 +49,14 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
     g.fillStyle = env[i] < cutoff ? hatch : colorForVoxelValue(model, vals[i]);
     g.fillRect(X(c.s[i] - c.ds[i] / 2), Y(c.z[i] + c.dz[i] / 2), c.ds[i] * sx + 0.6, c.dz[i] * sz + 0.6);
   }
+  // TASKS.csv #772 — the DOI index line, dashed, when the run computed it
+  const doiT = result.doiMethod?.threshold ?? 0.2;
+  if (c.doi) {
+    const pts = columnReach(c, (i) => c.doi[i] <= doiT).cols.filter((o) => o.zBottom != null);
+    g.save(); g.strokeStyle = colors.text; g.lineWidth = 2; g.setLineDash([10, 7]); g.beginPath();
+    pts.forEach((o, k) => (k ? g.lineTo(X(o.s), Y(o.zBottom)) : g.moveTo(X(o.s), Y(o.zBottom))));
+    g.stroke(); g.restore();
+  }
   g.fillStyle = colors.text;
   for (const e of result.electrodes) { g.beginPath(); g.arc(X(e[0]), Y(e[1]), 3, 0, Math.PI * 2); g.fill(); }
   g.strokeStyle = colors.textSecondary; g.lineWidth = 1; g.strokeRect(L, T, plotW, plotH);
@@ -71,7 +80,7 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillText(`${isRho ? "Resistivity" : "Chargeability"} — DC/IP line ${name}`, L, fpx(printPt.label) * 1.15);
   g.font = font(fpx(printPt.caption)); g.fillStyle = colors.textSecondary;
   const chi = isRho ? fitVerdict(result).chi : result.ip ? result.ip.phi_d / result.target : NaN;
-  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = below the depth the data see (no cell at or beneath it reaches support ${cutoff})`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
+  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = below the depth the data see (no cell at or beneath it reaches support ${cutoff})${c.doi ? ` · dashed = DOI index ${doiT} (Oldenburg & Li)` : ""}`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
   // colour bar
   const by = T + plotH + 16 + fpx(printPt.small) * 3, bw = Math.min(Math.round(width * 0.325), plotW), bh = Math.round(fpx(printPt.caption) * 0.8);
   const lo = isRho ? arrMin(vals) : 0, hi = arrMax(vals);

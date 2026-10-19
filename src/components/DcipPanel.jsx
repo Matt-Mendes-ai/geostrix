@@ -7,7 +7,7 @@ import { Upload, Play, Download, Trash2 } from "./icons.js";
 import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
-import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth } from "../lib/dcip.js";
+import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -51,7 +51,7 @@ export default function DcipPanel({ pBtn, numInput }) {
   const [mapping, setMapping] = useState({});
   // #602 — scale: chaining scale ("" = 1); stations: { file, line, list: [{s, x, y, z}] } from a station / GPS file
   const [line, setLine] = useState({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
-  const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false }); // vox*: #683 follow-up
+  const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false, doi: false }); // vox*: #683 follow-up; doi: #772
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
   const [last, setLast] = useState(null); // { result, geom, name, restored? }
@@ -213,6 +213,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       readings: readingsH, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo, // #539 — horizontal positions
       mesh: { cell: num(opts.cell), depth: num(opts.depth) }, maxIter: Number(opts.maxIter) || 20,
       geometricFactor: opts.geomFactor || "flat", // TASKS.csv #580
+      ...(opts.doi ? { doi: true } : {}), // TASKS.csv #772
       // #683 — the file's own error column as a per-reading floor, once the user has said what it measures
       uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0, ...(parsed.err && opts.errKind === "rhoPct" ? { floorPerReadingPercent: parsed.err } : {}) },
       ...(parsed.ip ? { ipUncertainty: { percent: num(opts.ipPct) || 0, floor: num(opts.ipFloor) || 0, ...(parsed.err && opts.errKind === "ipMvV" ? { floorPerReadingMvV: parsed.err } : {}) } } : {}),
@@ -357,6 +358,11 @@ export default function DcipPanel({ pBtn, numInput }) {
             ) : null;
           })()}
           <div style={row} title="Depth of investigation: in each column of the section, cells below the deepest cell whose normalised sensitivity reaches this value are greyed in the section and hidden in 3D — the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
+          {/* TASKS.csv #772 — the standard depth-of-investigation check */}
+          <label style={{ ...row, cursor: "pointer" }} title="Oldenburg & Li (1999): the resistivity is inverted twice more, with the reference model 10x below and 10x above the median. Where the data control a cell, all runs agree; where they don't, each run returns its own reference. A dashed line on the section marks the DOI index 0.2 — below it the model reflects the reference, not the data. About 3x the run time.">
+            <input type="checkbox" checked={!!opts.doi} onChange={(e) => setOpts((o) => ({ ...o, doi: e.target.checked }))} />
+            Depth-of-investigation check (DOI index — about 3× the time)
+          </label>
           {/* #683 follow-up — which 3D voxels a run adds */}
           <div style={{ ...row, alignItems: "flex-start" }}>
             <span style={lbl}>3D voxels</span>
@@ -406,6 +412,9 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
   const hatchId = `dcipHatch${useId().replace(/:/g, "")}`; // #535 — one pattern per section on the page
   const vals = c[field];
   const env = useMemo(() => supportEnvelope(c.s, c.z, c.support), [c]); // TASKS.csv #641
+  // TASKS.csv #772 — the DOI index line and how deep each test says the data reach
+  const doiT = result.doiMethod?.threshold ?? 0.2;
+  const reach = useMemo(() => (c.doi ? { doi: columnReach(c, (i) => c.doi[i] <= doiT), sup: columnReach(c, (i) => c.support[i] >= cutoff) } : null), [c, doiT, cutoff]);
   const verdict = fitVerdict(result);
   const W = 320, H = 150;
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
@@ -430,8 +439,10 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
           const weak = env[i] < cutoff; // #641 — below the depth of investigation, not single cells
           return <rect key={i} x={5 + (c.s[i] - c.ds[i] / 2 - s0) * sx} y={5 + (z1 - c.z[i] - c.dz[i] / 2) * sz} width={c.ds[i] * sx + 0.5} height={c.dz[i] * sz + 0.5} fill={weak ? `url(#${hatchId})` : colorForVoxelValue(model, v)} />;
         })}
+        {reach && <polyline points={reach.doi.cols.filter((o) => o.zBottom != null).map((o) => `${(5 + (o.s - s0) * sx).toFixed(1)},${(5 + (z1 - o.zBottom) * sz).toFixed(1)}`).join(" ")} fill="none" stroke="#1a2028" strokeWidth="1.3" strokeDasharray="4 3" />}
         {result.electrodes.map((e, i) => <circle key={i} cx={5 + (e[0] - s0) * sx} cy={5 + (z1 - e[1]) * sz} r={1.6} fill="#1a2028" />)}
       </svg>
+      {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>Dashed line = DOI index {doiT} (Oldenburg & Li): below it the resistivity follows the reference model, not the data. The data reach a median {reach.doi.median.toFixed(0)} m per column by the DOI index, {reach.sup.median.toFixed(0)} m by the support cutoff ({cutoff}).{result.doiMethod?.misfitOfEachRun ? ` The two reference runs fit ${result.doiMethod.misfitOfEachRun.map((v) => `${v.toFixed(2)}×`).join(" and ")} the target${result.doiMethod.misfitOfEachRun.some((v) => v < 0.5 || v > 1.5) ? " — unequal fits inflate the index, so read the line as approximate" : ""}.` : ""}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
         {field === "resistivity" ? `${arrMin(vals).toPrecision(3)}–${arrMax(vals).toPrecision(3)} ohm·m (log colours: dark red conductive → light blue resistive)` : `0–${arrMax(vals).toPrecision(3)} mV/V`} · {(s1 - s0).toFixed(0)} m × {(z1 - z0).toFixed(0)} m, vertical exaggeration {(sz / sx).toFixed(1)}× · <svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg> hatched = barely seen by the data. {last.restored ? `Inverted ${last.restored.slice(0, 10)} (kept in the project).` : "Added to Block models (3D, along the line)."}
       </div>
@@ -554,6 +565,7 @@ function exportCsv(last, epsg, cutoff) {
     `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / r.target).toFixed(2)}x` : ""}`,
     "support = normalised sensitivity (how much the data see the cell); low-support cells are poorly constrained",
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
+    ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2})`] : []), // #772
   ] });
   saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(sectionTableRows(r, last.geom, cutoff)), stamp) });
 }

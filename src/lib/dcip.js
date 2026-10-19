@@ -177,10 +177,10 @@ const sig5 = (arr) => (Array.isArray(arr) ? arr.map((v) => (Number.isFinite(v) ?
 // are kept (5 significant digits), so a restored line still shows its observed / predicted / residual pseudosections.
 export function slimDcipResult(result) {
   const c = result.cells;
-  const cells = { s: c.s, z: c.z, ds: c.ds, dz: c.dz, resistivity: c.resistivity, support: c.support, ...(c.chargeability ? { chargeability: c.chargeability } : {}) };
+  const cells = { s: c.s, z: c.z, ds: c.ds, dz: c.dz, resistivity: c.resistivity, support: c.support, ...(c.chargeability ? { chargeability: c.chargeability } : {}), ...(c.doi ? { doi: c.doi } : {}) }; // doi: #772
   return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
     iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
-    ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}) }; // ip fields: #581; geometricFactor: #580
+    ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}), ...(result.doiMethod ? { doiMethod: result.doiMethod } : {}) }; // ip fields: #581; geometricFactor: #580; doiMethod: #772
 }
 
 // A saved line back into the panel's import shape: one row per reading under fixed headers, so the normal
@@ -215,9 +215,36 @@ export function sectionTableRows(result, geom, cutoff = null) {
     row.support = c.support[i];
     row.envelope_support = +env[i].toFixed(4);
     if (Number.isFinite(cutoff)) row.shown = env[i] >= cutoff ? "yes" : "no";
+    if (c.doi) row.doi_index = c.doi[i]; // #772
     out.push(row);
   }
   return out;
+}
+
+// TASKS.csv #772 — how deep the data reach in each column of a section, by a per-cell test: the bottom of the deepest
+// cell that passes (the same "deepest well-seen cell" rule as the support envelope, #641). Used for the
+// Oldenburg & Li DOI index (doi <= 0.2 passes) and, for comparison, the support cutoff. Returns the columns
+// left to right as { s, zBottom (null: nothing passes), depth below the column's top } and the median depth.
+export function columnReach(cells, pass) {
+  const cols = new Map();
+  for (let i = 0; i < cells.s.length; i++) {
+    let a = cols.get(cells.s[i]);
+    if (!a) cols.set(cells.s[i], (a = []));
+    a.push(i);
+  }
+  const out = [];
+  for (const [s, idx] of cols) {
+    let top = -Infinity, bottom = Infinity;
+    for (const i of idx) {
+      top = Math.max(top, cells.z[i] + cells.dz[i] / 2);
+      if (pass(i)) bottom = Math.min(bottom, cells.z[i] - cells.dz[i] / 2);
+    }
+    out.push({ s, zBottom: Number.isFinite(bottom) ? bottom : null, depth: Number.isFinite(bottom) ? top - bottom : 0 });
+  }
+  out.sort((a, b) => a.s - b.s);
+  const d = out.map((o) => o.depth).sort((a, b) => a - b);
+  const median = d.length ? (d.length % 2 ? d[(d.length - 1) / 2] : (d[d.length / 2 - 1] + d[d.length / 2]) / 2) : 0;
+  return { cols: out, median };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -221,6 +221,32 @@ def run_job(req, progress):
     sens = np.sqrt(np.einsum("ij,ij->j", Jw, Jw))
     sens = sens / sens.max() if sens.max() > 0 else sens
 
+    # TASKS.csv #772 — optional depth-of-investigation index (Oldenburg & Li 1999, Geophysics 64(2)): invert again
+    # with the reference (and starting) model 10x below and 10x above the median apparent resistivity. Where the
+    # data control a cell both runs agree; where they don't, each run returns its own reference.
+    # doi = |m_low - m_high| / |ref_low - ref_high| in log conductivity: ~0 data-controlled, ~1 reference-controlled.
+    # Measured on the test_dcip2d synthetic (#768): it reaches a median 55 m per column vs 40 m for the support
+    # cutoff, at ~3x the run time (two more inversions).
+    doi = None
+    doi_fit = None
+    if req.get("doi"):
+        refs = []
+        for k, factor in enumerate((0.1, 10.0)):
+            label = "doi-low" if factor < 1 else "doi-high"
+            progress({"stage": label, "iter": 0, "maxIter": max_iter, "message": f"Depth of investigation: inversion {k + 1} of 2 (reference {factor:g}x the median)"})
+            m_ref = np.full(n_act, np.log(1.0 / (factor * np.median(rho))))
+            reg_k = regularization.WeightedLeastSquares(mesh, active_cells=active, reference_model=m_ref)
+            opt_k = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30)
+            # started from the main result, not from the reference: started 10x off, the runs ended unfitted and the
+            # index measured that instead (top 5 m 0.47, the conductive block 0.55 on the test_dcip2d synthetic)
+            m_k, _, fit_k = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg_k, opt_k, m_dc.copy(), label, float(len(rho)),
+                                    phi_fn=lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2)),
+                                    opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
+            refs.append((m_k, m_ref[0], float(np.sum(((rho - sim.dpred(m_k)) / std) ** 2)) / len(rho)))
+        (m_lo, r_lo, chi_lo), (m_hi, r_hi, chi_hi) = refs
+        doi = np.abs(m_lo - m_hi) / abs(r_lo - r_hi)
+        doi_fit = [round(chi_lo, 3), round(chi_hi, 3)]
+
     out_ip = None
     if charge is not None:
         progress({"stage": "ip", "iter": 0, "maxIter": max_iter, "message": "Inverting chargeability"})
@@ -258,6 +284,7 @@ def run_job(req, progress):
         "cells": {"s": np.round(cc[:, 0], 3).tolist(), "z": np.round(cc[:, 1], 3).tolist(),
                   "ds": np.round(mesh.h[0][ii], 3).tolist(), "dz": np.round(mesh.h[1][jj], 3).tolist(),
                   "resistivity": f32(1.0 / np.exp(m_dc[ai])), "support": np.round(sens[ai], 4).tolist(),
+                  **({"doi": np.round(doi[ai], 3).tolist()} if doi is not None else {}),
                   **({"chargeability": f32(out_ip["model"][ai] * 1000)} if out_ip else {})},
         "electrodes": np.round(survey.unique_electrode_locations, 3).tolist(),
         "predicted": pred[back].tolist(), "standardDeviation": std[back].tolist(), "phi_d": phi_d, "target": float(len(rho)),
@@ -265,6 +292,8 @@ def run_job(req, progress):
         "ip": ({k: v for k, v in out_ip.items() if k != "model"} if out_ip else None),
         "mesh": {"shape": list(mesh.shape_cells), "cell": cell, "depth": depth, "nActive": n_act, "nCore": int(keep_full.sum())},
         "geometricFactor": gf_mode,  # #580 — recorded with the result
+        **({"doiMethod": {"name": "Oldenburg & Li (1999) DOI index", "referenceFactors": [0.1, 10.0], "of": "resistivity",
+                          "threshold": 0.2, "misfitOfEachRun": doi_fit}} if doi is not None else {}),
         "seconds": time.time() - t0,
     }
     import simpeg, discretize

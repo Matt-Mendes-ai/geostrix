@@ -304,6 +304,8 @@ def _validate_dcip2d(req):
         if not isinstance(arr, list) or len(arr) != len(r) or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v) and v >= 0) for v in arr):
             raise HTTPException(400, f"{key} must hold one non-negative value (or null) per reading.")
     req["maxIter"] = int(min(40, max(1, int(req.get("maxIter", 20)))))
+    if req.get("doi") not in (None, True, False):  # TASKS.csv #772
+        raise HTTPException(400, "doi must be true or false.")
     if req.get("geometricFactor") not in (None, "flat", "draped"):  # TASKS.csv #580
         raise HTTPException(400, 'geometricFactor must be "flat" (the data used nominal flat-ground spacings) or "draped".')
 

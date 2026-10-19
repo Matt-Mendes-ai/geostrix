@@ -232,6 +232,37 @@ def test_per_reading_floor_from_the_file():
     assert np.allclose(ip_std, 0.03 * np.abs(ch) + np.maximum(0.5, fl_ip))
 
 
+def test_depth_of_investigation_index():
+    """TASKS.csv #772 — the Oldenburg & Li DOI index: ~0 where the data control the model (the block and the
+    shallow ground under the line), ~1 at depth where each run returns its own reference model."""
+    rows, rho, _, topo = _synthetic()
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "topo": topo.tolist(), "mesh": {"cell": 5.0, "depth": 150.0},
+           "uncertainty": {"percent": 3, "floor": 0.0}, "maxIter": 20, "doi": True}
+    stages = set()
+    out = D.run_job(req, lambda e: stages.add(e.get("stage")))
+    c = out["cells"]
+    s, z, doi, sup = (np.asarray(c[k]) for k in ("s", "z", "doi", "support"))
+    ground = np.interp(s, topo[:, 0], topo[:, 1])
+    depth = ground - z
+    mid = (s > 150) & (s < 450)
+    # the top 5 m (half the 10 m electrode spacing) is not resolved cell by cell: measured doi median 0.47 there,
+    # although its sensitivity is the highest — so the data-controlled band is tested from 5 m down
+    shallow, deep = mid & (depth > 5) & (depth < 45), mid & (depth > 110)
+    blk = (s > 280) & (s < 360) & (depth > 20) & (depth < 60)
+    reach = []
+    for x in np.unique(s[mid]):
+        k = (s == x)
+        seen = k & (doi <= 0.2)
+        reach.append((depth[seen].max() if seen.any() else 0.0, depth[k & (sup >= 0.02)].max() if (k & (sup >= 0.02)).any() else 0.0))
+    reach = np.asarray(reach)
+    print(f"DOI: {out['seconds']:.0f} s, stages {sorted(stages)}; median doi 5-45 m {np.median(doi[shallow]):.3f}, block {np.median(doi[blk]):.3f}, deep {np.median(doi[deep]):.3f}; "
+          f"per column reach: DOI<=0.2 median {np.median(reach[:, 0]):.0f} m, support>=0.02 median {np.median(reach[:, 1]):.0f} m; method {out.get('doiMethod')}")
+    assert {"doi-low", "doi-high"} <= stages and out["doiMethod"]["threshold"] == 0.2
+    assert len(doi) == len(s) and np.all(doi >= 0)
+    assert np.median(doi[shallow]) < 0.25 and np.median(doi[blk]) < 0.3 and np.median(doi[deep]) > 0.8
+    assert len(out["doiMethod"]["misfitOfEachRun"]) == 2
+
+
 if __name__ == "__main__":
     test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
@@ -240,5 +271,6 @@ if __name__ == "__main__":
     test_support_not_biased_against_conductors()
     test_flat_geometric_factor_on_a_ridge()
     test_per_reading_floor_from_the_file()
+    test_depth_of_investigation_index()
     print("ALL PASSED")
 
