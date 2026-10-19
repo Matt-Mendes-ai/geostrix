@@ -4,7 +4,8 @@ TASKS.csv #777 — sign and publish a GeoStrix release with the Certum certifica
 The Release workflow builds and tests everything on GitHub's runner from the tagged commit, then stops: it
 uploads the unpacked app ("unpacked-app") and does NOT publish. This script, run on the maintainer's PC with
 SimplySign Desktop connected:
-  1. waits for that run and downloads the unpacked app,
+  1. waits for that run and downloads the unpacked app (through gh; if that stalls, it shows the browser link and
+     waits for the zip in Downloads),
   2. signs GeoStrix.exe and the Python engine's executables,
   3. packages the installer and zip from that same app (electron-builder --prepackaged) and signs the
      installer, its uninstaller and its elevation helper (scripts/sign-win.cjs),
@@ -50,6 +51,42 @@ if (-not $UnpackedDir) {
   if ($LASTEXITCODE -ne 0) { Fail "Tag $Tag does not exist locally (git fetch --tags)." }
   git diff --quiet $Tag -- package.json scripts/sign-win.cjs build
   if ($LASTEXITCODE -ne 0) { Fail "package.json, scripts/sign-win.cjs or build/ differ from $Tag. Run this at the tagged commit so the installer matches the release." }
+}
+
+# TASKS.csv #778 — fetch the CI's unpacked app: gh first, then the browser. On the maintainer's PC `gh run download`
+# stalled twice for v0.1.53 (froze at 155 MB; then 0 bytes for minutes) while a browser download of the same
+# artifact worked, so after a time limit the script prints the artifact's page and waits for the zip in Downloads,
+# accepting it only at exactly the size GitHub reports.
+function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$browserMinutes = 60) {
+  $art = (Probe { gh api "repos/$repo/actions/runs/$runId/artifacts" }).out | Out-String | ConvertFrom-Json
+  $a = $art.artifacts | Where-Object { $_.name -eq "unpacked-app" } | Select-Object -First 1
+  if (-not $a) { Fail "Build $runId has no unpacked-app artifact." }
+  if ($a.expired) { Fail "The unpacked-app artifact of build $runId has expired (kept 7 days): re-run the Release workflow." }
+  $job = Start-Job -ScriptBlock { param($r, $id, $d) gh run download $id --repo $r -n unpacked-app -D $d 2>&1; "EXIT $LASTEXITCODE" } -ArgumentList $repo, $runId, $dest
+  $done = Wait-Job $job -Timeout ($ghMinutes * 60)
+  $out = Receive-Job $job -ErrorAction SilentlyContinue | Out-String
+  Remove-Job $job -Force
+  if ($done -and $out -match "EXIT 0" -and (Test-Path (Join-Path $dest "GeoStrix.exe"))) { Write-Host "  downloaded with gh"; return }
+  if (Test-Path $dest) { Remove-Item $dest -Recurse -Force -ErrorAction SilentlyContinue }
+  Get-ChildItem $env:TEMP -Filter "gh-artifact*.zip" -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-2) } | Remove-Item -Force -ErrorAction SilentlyContinue  # gh's partial download
+  $page = "https://github.com/$repo/actions/runs/$runId/artifacts/$($a.id)"
+  Write-Host ""
+  Write-Host "The download through gh $(if ($done) { 'failed' } else { "did not finish in $ghMinutes minutes" }). Download it in your browser instead (signed in to GitHub):" -ForegroundColor Yellow
+  Write-Host "  $page" -ForegroundColor Yellow
+  Write-Host "  and leave unpacked-app.zip ($('{0:N0}' -f $a.size_in_bytes) bytes) in your Downloads folder - this script waits for it."
+  $dl = Join-Path $env:USERPROFILE "Downloads"
+  $deadline = (Get-Date).AddMinutes($browserMinutes)
+  $zip = $null
+  while ((Get-Date) -lt $deadline) {
+    $zip = Get-ChildItem $dl -Filter "unpacked-app*.zip" -File -ErrorAction SilentlyContinue | Where-Object { $_.Length -eq $a.size_in_bytes } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($zip) { break }
+    Start-Sleep -Seconds 10
+  }
+  if (-not $zip) { Fail "No unpacked-app.zip of $('{0:N0}' -f $a.size_in_bytes) bytes appeared in $dl within $browserMinutes minutes." }
+  Start-Sleep -Seconds 3  # let the browser finish closing the file
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [IO.Compression.ZipFile]::ExtractToDirectory($zip.FullName, $dest)
+  Write-Host "  unpacked $($zip.Name) from Downloads ($('{0:N0}' -f $zip.Length) bytes, the size GitHub reports)"
 }
 
 # ---- the certificate (SimplySign Desktop must be connected for its private key to appear)
@@ -108,8 +145,7 @@ if ($UnpackedDir) {
   if (-not $run -or $run.status -ne "completed") { Fail "The Release build of $Tag did not finish within an hour." }
   if ($run.conclusion -ne "success") { Fail "The Release build of $Tag ended '$($run.conclusion)' - see https://github.com/$repo/actions/runs/$($run.databaseId). Not signing a build that failed its tests." }
   Write-Host "Build $($run.databaseId) succeeded; downloading the unpacked app"
-  gh run download $run.databaseId --repo $repo -n unpacked-app -D $app
-  if ($LASTEXITCODE -ne 0) { Fail "Could not download the unpacked-app artifact (artifacts are kept 7 days)." }
+  Get-UnpackedApp $run.databaseId $app $repo
 }
 $exe = Join-Path $app "GeoStrix.exe"
 if (-not (Test-Path $exe)) { Fail "The app has no GeoStrix.exe." }
