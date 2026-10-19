@@ -77,7 +77,7 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
                     : " If that isn't the project, this is the wrong CRS or zone."}</div>
                 : <div style={{ color: "var(--color-danger-fg)" }}>The collar coordinates don&apos;t fit this CRS (they land off the globe), so it is the wrong one.</div>)}
               {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
-              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>This relabels the project: no coordinates change. To convert data into another CRS, use &quot;Reproject all data&quot; in the Cartography tab.</div>}
+              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>This relabels the project: no coordinates change. To convert data into another CRS, use &quot;Reproject all data&quot; in the Maps tab (Project CRS).</div>}
             </div>
           )}
         </div>

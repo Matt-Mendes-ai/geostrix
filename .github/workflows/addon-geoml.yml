@@ -85,7 +85,7 @@ jobs:
           if (-not (Test-Path $zip)) { Write-Error "The artifact has no $($fields.file)"; exit 1 }
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne $fields.sha256) { Write-Error "sha256 of the downloaded zip ($hash) differs from release-fields.json ($($fields.sha256))"; exit 1 }
-          $notes = "Optional predictive-modelling add-on for GeoStrix (geoML, GPL-3.0). Installed from inside GeoStrix (Predictive tab) — no need to download it by hand.`n`nSource: addons/geoml in this repository · geoML: https://github.com/italo-goncalves/geoML`n`nsha256: $($fields.sha256)"
+          $notes = "Optional predictive-modelling add-on for GeoStrix (geoML, GPL-3.0). Installed from inside GeoStrix (3D Modeling › geoML models) — no need to download it by hand.`n`nSource: addons/geoml in this repository · geoML: https://github.com/italo-goncalves/geoML`n`nsha256: $($fields.sha256)"
           gh release view $tag 2>$null
           if ($LASTEXITCODE -ne 0) { gh release create $tag --title "Predictive modelling add-on $($fields.version)" --notes $notes --latest=false --prerelease }
           gh release upload $tag $zip addon/release-fields.json --clobber

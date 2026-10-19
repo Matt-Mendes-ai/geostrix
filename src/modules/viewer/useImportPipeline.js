@@ -122,7 +122,7 @@ export function useImportPipeline(ctx) {
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
         addRaster(raster);
-        setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Raster tab.`]);
+        setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.`]);
       } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }
       return;
     }

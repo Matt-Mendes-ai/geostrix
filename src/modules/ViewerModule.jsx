@@ -20,7 +20,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.j
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
@@ -1237,7 +1237,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // switcher). Now that View and Modeling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
   // below (`sidebarTab === "home"` / `=== "modeling"`) didn't need a mechanical find/replace.
-  const sidebarTab = mode === "modeling" ? "modeling" : mode === "targeting" ? "targeting" : mode === "predictive" ? "predictive" : "home";
+  const sidebarTab = mode === "modeling" ? "modeling" : mode === "targeting" ? "targeting" : "home"; // #750 — no Predictive tab
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
@@ -1477,6 +1477,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
   // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
   // starts drawing a section (it used to only switch to this tab)
+  useModuleAction(["open-geoml"], () => setToolPane("geoml")); // TASKS.csv #750 — links / menus that named the Predictive tab
   useModuleAction(["import-collars", "draw-section"], (a) => {
     if (a === "import-collars") { fileInputs.current.collar?.click(); return; }
     setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode(true); sectionPts.current = []; setSectionPreview(null);
@@ -6761,9 +6762,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
             <RibbonButton icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
-          <RibbonGroup label="Lithology">
+          {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
+              be named gempy modelling group" */}
+          <RibbonGroup label="GemPy modelling">
             <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
             <RibbonButton advanced icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+          </RibbonGroup>
+          <RibbonGroup label="geoML modelling">
+            <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
           </RibbonGroup>
           <RibbonGroup label="Structure">
             <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
@@ -7029,7 +7035,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <div key={r.id} onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
                   { label: "Zoom to", onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
-                  "-", { label: "Drape and elevation — Raster tab", onClick: () => goToModule("raster") },
+                  "-", { label: "Drape and elevation — Maps tab", onClick: () => goToModule("maps") },
                   { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove raster "${r.name}"?`)) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -7045,7 +7051,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("raster"), "Edit drape mode / elevation for this raster in the Raster tab")} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), "Edit drape mode / elevation for this raster in the Raster tab")} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
               </div>
             ))}
@@ -7661,6 +7667,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onProject={projectMapContact} mapConstraint={mapConstraint} setMapConstraint={setMapConstraint}
         />
 
+        </>)}
+        {toolPane === "geoml" && (<>
+        {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modeling tool */}
+        {paneHeader("geoML models", Sparkles, "model")}
+        <Suspense fallback={null}>
+          <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
+            addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
+        </Suspense>
         </>)}
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
@@ -8605,12 +8619,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
         </>)}
 
-        {sidebarTab === "predictive" && ( // TASKS.csv #638
-          <Suspense fallback={null}>
-            <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
-              addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
-          </Suspense>
-        )}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
@@ -8760,7 +8768,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
               </div>
               <div style={{ marginBottom: 12 }}>
-                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; grids, GeoTIFFs and survey lines in <b>Geophysics</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
+                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; survey lines and geophysical grids in <b>Geophysics</b>; GeoTIFFs, satellite imagery, terrain and map layers in <b>Maps</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
               </div>
             </>
           </EmptyState>

@@ -37,13 +37,11 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+1", "3D View"],
       ["Ctrl/Cmd+2", "3D Modeling"],
-      ["Ctrl/Cmd+3", "Predictive"], // #638
-      ["Ctrl/Cmd+4", "Geochem"],
-      ["Ctrl/Cmd+5", "Geophysics"],
-      ["Ctrl/Cmd+6", "Targeting"],
-      ["Ctrl/Cmd+7", "Raster"],
-      ["Ctrl/Cmd+8", "Cartography"],
-      ["Ctrl/Cmd+9", "Layout"], // #565 — in tab order
+      ["Ctrl/Cmd+3", "Geochem"], // #750 — geoML models are a 3D Modeling tool now
+      ["Ctrl/Cmd+4", "Geophysics"],
+      ["Ctrl/Cmd+5", "Targeting"],
+      ["Ctrl/Cmd+6", "Maps"], // #749 — rasters, terrain, map layers, boundaries, CRS
+      ["Ctrl/Cmd+7", "Layout"], // #565 — in tab order
     ],
   },
   {
@@ -104,8 +102,8 @@ function PythonHelp({ pyStatus }) {
         <li>Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion</li>
         <li>2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP</li>
       </ul>
-      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, rasters,
-        Cartography — works without it.</p>
+      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, maps,
+        rasters and reprojection — works without it.</p>
       <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>If it doesn't start</div>
       <ol style={{ margin: 0, paddingLeft: 18 }}>
         <li>Try the feature again after a minute — the first start unpacks its libraries.</li>

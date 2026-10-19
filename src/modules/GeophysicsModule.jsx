@@ -80,8 +80,11 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
 // TASKS.csv #484 — which column is which is decided per file by src/lib/geophysColumns.js (words in the
 // headers, e.g. Easting_X / Raw_Mag_nT), with the column picker as the fallback.
 
-export default function GeophysicsModule() {
-  const [geoPane, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
+// TASKS.csv #749 — embedded: shown inside the Maps tab for one of its map panes (terrain, map layers, web layers,
+// boundaries, claims): no ribbon of its own (the Maps tab's ribbon picks the pane) and no main area.
+export default function GeophysicsModule({ embedded = false, forcePane = null } = {}) {
+  const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
+  const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const {
     layers, replaceLayer, goToModule, collars, rasters, addRaster, project,
@@ -830,7 +833,7 @@ export default function GeophysicsModule() {
   return (
     <div
       className="ge-body"
-      style={{ width: "100%" }}
+      style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -877,21 +880,13 @@ export default function GeophysicsModule() {
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
-        <Ribbon label="Geophysics tools">
+        <Ribbon label="Geophysics tools" show={!embedded}>
           <RibbonGroup label="Surveys">
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
             <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
             <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
           </RibbonGroup>
-          <RibbonGroup label="Surface & maps">
-            <RibbonButton icon={RMountain} label="Terrain" tone="data" title="Terrain: fetch SRTM or import a DEM" {...geoBtn("terrain")} />
-            <RibbonButton advanced icon={RMapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...geoBtn("maps")} />
-            <RibbonButton advanced icon={RGlobe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...geoBtn("web")} />
-          </RibbonGroup>
-          <RibbonGroup advanced label="Boundaries">
-            <RibbonButton icon={RShapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...geoBtn("boundaries")} />
-            <RibbonButton icon={RFlag} label="Claims" tone="data" title="Mineral claims / tenure" {...geoBtn("claims")} />
-          </RibbonGroup>
+          {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
             <RibbonButton icon={RBox} label="Block models" tone="data" title="Voxel / block models (UBC mesh, block model CSV), colours and cutoffs" {...geoBtn("voxel")} />
             <RibbonButton advanced icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
@@ -1573,7 +1568,7 @@ export default function GeophysicsModule() {
       )}
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div
+      {!embedded && (<div
         className="ge-main"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
@@ -1609,7 +1604,7 @@ export default function GeophysicsModule() {
             Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft <code>.gxf</code>, <code>.ply</code>/<code>.dxf</code> or <code>.xyz</code> here, or use the buttons on the left — the <b>i</b> beside the button lists exactly what each format does on import.
           </div>
         </EmptyState>
-      </div>
+      </div>)}
 
       {spatialOpen && <SpatialAnalysis points={rows} onClose={() => setSpatialOpen(false)} />}
     </div>

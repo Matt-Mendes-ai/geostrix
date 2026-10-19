@@ -41,10 +41,12 @@ function reportText(report, verb) {
   return `${verb}${parts.length ? `: ${parts.join(", ")}` : ""}.${report.notes?.length ? ` ${report.notes.join(" ")}` : ""}`;
 }
 
-export default function CartographyModule() {
+// TASKS.csv #749 — embedded: inside the Maps tab, whose ribbon picks the pane (crs / layer / file); no ribbon of its own.
+export default function CartographyModule({ embedded = false, forcePane = null } = {}) {
   const store = useStore();
   const { project, setEpsg, reprojectProjectTo, reprojectObjectTo, collars, layers, voxelModels, generatedSurfaces, rasters, boundaries, mapLayers, surfaceStructures, omfObjects, terrain, plannedHoles, surfaceSamples, sections } = store;
-  const [pane, setPane] = useState("crs");
+  const [paneState, setPane] = useState("crs");
+  const pane = forcePane || paneState; // #749
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -171,7 +173,7 @@ export default function CartographyModule() {
   return (
     <div className="ge-body" style={{ width: "100%" }}>
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
-        <Ribbon label="Cartography tools">
+        <Ribbon label="Cartography tools" show={!embedded}>
           <RibbonGroup label="Project">
             <RibbonButton icon={Globe2} label="Project CRS" active={pane === "crs"} onClick={() => { setPane("crs"); setMsg(null); }} title="The coordinate reference system every import is reprojected into — change it, and optionally move all loaded data with it" />
           </RibbonGroup>

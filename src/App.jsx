@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2, Sparkles } from "./components/icons.js";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon } from "./components/icons.js";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -22,9 +22,8 @@ import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // T
 // RasterModule, d3-delaunay via GeophysicsModule's Voronoi tool) until a user actually opens that tab.
 const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
 const GeophysicsModule = React.lazy(() => import("./modules/GeophysicsModule.jsx"));
-const RasterModule = React.lazy(() => import("./modules/RasterModule.jsx"));
+const MapsModule = React.lazy(() => import("./modules/MapsModule.jsx")); // TASKS.csv #749 — Raster + Cartography + map tools
 const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
-const CartographyModule = React.lazy(() => import("./modules/CartographyModule.jsx")); // TASKS.csv #485
 // TASKS.csv #138 — project report is opened rarely (not every session), so lazy-load it the same way
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
@@ -48,16 +47,17 @@ const ProjectReportModal = React.lazy(() => import("./components/ProjectReportMo
 // disconnected 3D engine. Placed right after Geophysics — that's the data it's most often planning
 // against (voxel value-range isolation), and before Raster/Layout, which are further from "look at
 // my targets and plan holes" in the day-to-day workflow.
+// TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
+const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modeling" }; // predictive: #750
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
   { id: "modeling", label: "3D Modeling", icon: Layers3 },
-  { id: "predictive", label: "Predictive", icon: Sparkles }, // TASKS.csv #638 — geoML add-on, results compared in the 3D view
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
-  { id: "raster", label: "Raster", icon: Image },
-  // TASKS.csv #485 — the project CRS and the reprojection tools (user request: "its own tab ... called cartography")
-  { id: "cartography", label: "Cartography", icon: Globe2 },
+  // TASKS.csv #749 — one Maps tab: rasters / satellite / terrain beside each other, map + web layers, boundaries, and the
+  // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
+  { id: "maps", label: "Maps", icon: MapIcon },
   { id: "layout", label: "Layout", icon: Layout },
 ];
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
@@ -67,7 +67,7 @@ const MODULES = [
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
-const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeting", predictive: "predictive" };
+const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeting" }; // #750 — Predictive is a Modeling tool now
 
 export default function App() {
   const store = useStore();
@@ -246,19 +246,19 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   useEffect(() => {
     if (moduleRequestSeq === lastModuleReqSeq.current) return;
     lastModuleReqSeq.current = moduleRequestSeq;
-    if (requestedModule) setActive(requestedModule);
+    if (requestedModule) { setActive(TAB_ALIAS[requestedModule] || requestedModule); if (requestedModule === "predictive") requestModuleAction("open-geoml"); } // #749 / #750 — old tab names
   }, [moduleRequestSeq, requestedModule]);
 
   // menu → action bridge (Electron File/View/Tools menus)
   useEffect(() => {
     const off = onMenu((action) => {
-      if (action.startsWith("module-")) setActive(action.replace("module-", ""));
+      if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
-      else if (action === "set-epsg") setActive("cartography"); // #485 — the CRS lives in Cartography now
+      else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
       else if (action === "import-csv") {
-        const target = { viewer: ["viewer", "import-collars"], modeling: ["modeling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], raster: ["raster", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
+        const target = { viewer: ["viewer", "import-collars"], modeling: ["modeling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], maps: ["maps", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
         setActive(target[0]); requestModuleAction(target[1]);
       }
       else if (action === "import-assays") { setActive("geochem"); requestModuleAction("import-assays"); }
@@ -471,8 +471,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
           <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
             {active === "geochem" && <GeochemModule />}
             {active === "geophysics" && <GeophysicsModule />}
-            {active === "raster" && <RasterModule />}
-            {active === "cartography" && <CartographyModule />}
+            {active === "maps" && <MapsModule />}
             {active === "layout" && <LayoutModule />}
           </Suspense>
         </ErrorBoundary>
@@ -654,7 +653,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
       {project.crsSet === false
         ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title="The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)" style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>CRS: <span className="val">not set</span></span>
-        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Cartography tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Maps tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

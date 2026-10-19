@@ -187,7 +187,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
               used to start a 553 MB download on the click (wrong on a metered camp connection) */}
           <div><strong>What you get:</strong> rock-unit and grade models with their uncertainty (a Fast model takes about a minute).</div>
           <div style={{ marginTop: 4 }}><strong>What it costs:</strong> a download{st.downloadBytes ? ` of about ${fmtMB(st.downloadBytes)}` : ""} from GitHub, {st.installedBytes ? `${fmtMB(st.installedBytes)} on disk` : "a few GB on disk"} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).</div>
-          <div style={{ marginTop: 4 }}><strong>Licence:</strong> free to use; it is GPL-3.0, which only matters if you redistribute it (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">licence text</a>). GeoStrix itself stays MIT. You can remove it from this tab at any time.</div>
+          <div style={{ marginTop: 4 }}><strong>Licence:</strong> free to use; it is GPL-3.0, which only matters if you redistribute it (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">licence text</a>). GeoStrix itself stays MIT. You can remove it here (3D Modeling › geoML models) at any time.</div>
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             {confirmInstall && !inst?.phase ? (
               <>

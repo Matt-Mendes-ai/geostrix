@@ -28,7 +28,9 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // already there than to a flat imagery drape, and splitting it out too wasn't part of what was asked.
 // A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
-export default function RasterModule() {
+// TASKS.csv #749 — embedded: inside the Maps tab (its ribbon triggers import / satellite / georeference through module
+// actions); no ribbon or main area of its own.
+export default function RasterModule({ embedded = false } = {}) {
   const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg } = useStore(); // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
@@ -97,6 +99,7 @@ export default function RasterModule() {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
+  useModuleAction(["raster-satellite", "raster-georeference"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
   // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we
@@ -237,7 +240,7 @@ export default function RasterModule() {
   return (
     <div
       className="ge-body"
-      style={{ width: "100%" }}
+      style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -248,7 +251,7 @@ export default function RasterModule() {
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Raster ribbon: the import actions; the sidebar keeps the import CRS and the rasters. */}
-        <Ribbon label="Raster tools">
+        <Ribbon label="Raster tools" show={!embedded}>
           <RibbonGroup label="Import">
             <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
             <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 cloudless imagery (no account) — pick an area on a map, or match an existing terrain / boundary / raster extent" onClick={openSatPicker} />
@@ -257,7 +260,7 @@ export default function RasterModule() {
         </Ribbon>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Raster drape (GeoTIFF / Geosoft GXF)
-          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
+          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
@@ -373,7 +376,7 @@ export default function RasterModule() {
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM under Geophysics → Terrain first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM under Maps → Terrain first)" : ""}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Elev.</span>
@@ -389,7 +392,7 @@ export default function RasterModule() {
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+      {!embedded && (<div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
         {/* TASKS.csv #309 — was two lines of centred grey text with no icon and nothing to click,
             one of four different empty-state treatments across seven tabs. Now the shared
             EmptyState card (components/EmptyState.jsx), same as 3D View / Geochem / Geophysics.
@@ -414,7 +417,7 @@ export default function RasterModule() {
             <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>Drop GeoTIFF(s)/.gxf to import</div>
           </div>
         )}
-      </div>
+      </div>)}
     </div>
   );
 }
