@@ -175,6 +175,27 @@ function createAddonManager({ app, net, send }) {
     return { ...base, source: read("SOURCE.txt", 64 * 1024), licences: read("THIRD-PARTY-LICENCES.txt", 8 * 1024 * 1024), licenceText: read("LICENSE", 256 * 1024) };
   }
 
+  // TASKS.csv #689 — TensorFlow's Windows wheels need AVX, which some budget Celeron / Pentium chips lack: ask Windows
+  // (IsProcessorFeaturePresent, PF_AVX_INSTRUCTIONS_AVAILABLE = 39, which also requires the OS to have enabled it)
+  // BEFORE a 553 MB download. One PowerShell call per session, cached. avx: true / false, or null when unknown
+  // (not Windows, or the query failed) — the panel only warns, because an old Windows build may not know feature 39.
+  let cpuPromise = null;
+  function cpuCheck() {
+    if (cpuPromise) return cpuPromise;
+    cpuPromise = new Promise((resolve) => {
+      // development builds only: pretend the processor has no AVX, to see the warning (never in an installed GeoStrix)
+      if (!app.isPackaged && process.env.GEOSTRIX_ADDON_CPU_AVX === "0") { resolve({ avx: false }); return; }
+      if (process.platform !== "win32") { resolve({ avx: null }); return; }
+      const ps = path.join(process.env.SystemRoot || "C:\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+      const script = "Add-Type -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern bool IsProcessorFeaturePresent(uint f);' -Name K -Namespace GeoStrixCpu; [GeoStrixCpu.K]::IsProcessorFeaturePresent(39)";
+      execFile(ps, ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 20000 }, (err, stdout) => {
+        const out = String(stdout || "").trim();
+        resolve({ avx: err ? null : out === "True" ? true : out === "False" ? false : null });
+      });
+    });
+    return cpuPromise;
+  }
+
   function cancelInstall(id) {
     const s = installs[id];
     if (!s) return false;
@@ -242,7 +263,7 @@ function createAddonManager({ app, net, send }) {
 
   const connection = (id) => (running[id] ? { port: running[id].port, token: running[id].token } : null);
   const stopAll = () => Object.keys(running).forEach(stop);
-  return { status, notices, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
+  return { status, notices, cpuCheck, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
 }
 
 module.exports = { createAddonManager, ADDON_PORTS };

@@ -14,6 +14,7 @@ export async function addonStatus() {
   catch { return { id: ID, available: true, installed: false, running: false, browser: true }; }
 }
 export const addonInstall = () => (d?.addonInstall ? d.addonInstall(ID) : Promise.resolve({ ok: false, error: "Installing add-ons needs the desktop app." }));
+export const addonCpuCheck = () => (d?.addonCpuCheck ? d.addonCpuCheck().catch(() => ({ avx: null })) : Promise.resolve({ avx: null })); // TASKS.csv #689
 export const addonCancelInstall = () => d?.addonCancelInstall?.(ID);
 export const addonUninstall = () => d?.addonUninstall?.(ID);
 export const onAddonEvent = (cb) => (d?.onAddonEvent ? d.onAddonEvent((ev) => { if (ev.id === ID) cb(ev); }) : () => {});

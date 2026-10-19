@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { addonStatus, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
+import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 import { smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704
@@ -26,6 +26,8 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
   const [runs, setRuns] = useState([]);
   const abortRef = useRef(null);
+  const [cpu, setCpu] = useState(null); // TASKS.csv #689 — { avx: true | false | null }, asked once the add-on is known to be missing
+  useEffect(() => { if (st && st.available !== false && !st.installed && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
   const refresh = () => addonStatus().then(setSt).catch(() => setSt({ available: false }));
   useEffect(() => { refresh(); return onAddonEvent((ev) => { if (ev.phase === "download" || ev.phase === "unpack") setInst(ev); if (ev.phase === "done") { setInst(null); refresh(); } if (ev.phase === "stopped") refresh(); }); }, []);
 
@@ -189,10 +191,15 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
           <div><strong>What you get:</strong> rock-unit and grade models with their uncertainty (a Fast model takes about a minute).</div>
           <div style={{ marginTop: 4 }}><strong>What it costs:</strong> a download{st.downloadBytes ? ` of about ${fmtMB(st.downloadBytes)}` : ""} from GitHub, {st.installedBytes ? `${fmtMB(st.installedBytes)} on disk` : "a few GB on disk"} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).</div>
           <div style={{ marginTop: 4 }}><strong>Licence:</strong> free to use; it is GPL-3.0, which only matters if you redistribute it (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">licence text</a>). GeoStrix itself stays MIT. You can remove it here (3D Modeling › geoML models) at any time.</div>
+          {cpu?.avx === false && (
+            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>
+              Windows reports that this computer's processor has no AVX instructions. TensorFlow, which the add-on runs on, needs them, so the add-on would download and then fail to start. GeoStrix's own modelling tools (implicit surfaces, halos, grade shells, estimation) don't need it.
+            </div>
+          )}
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             {confirmInstall && !inst?.phase ? (
               <>
-                <span style={{ flex: 1 }}>Download{st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""} now?</span>
+                <span style={{ flex: 1 }}>{cpu?.avx === false ? "Download anyway?" : `Download${st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""} now?`}</span>
                 <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>Download{st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""}</button>
                 <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>Not now</button>
               </>

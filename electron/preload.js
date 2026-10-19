@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("desktop", {
   // TASKS.csv #638 — optional add-ons
   addonStatus: (id) => ipcRenderer.invoke("addon-status", id),
   addonNotices: (id) => ipcRenderer.invoke("addon-notices", id), // TASKS.csv #669
+  addonCpuCheck: () => ipcRenderer.invoke("addon-cpu-check"), // TASKS.csv #689
   addonInstall: (id) => ipcRenderer.invoke("addon-install", id),
   addonCancelInstall: (id) => ipcRenderer.invoke("addon-cancel-install", id),
   addonUninstall: (id) => ipcRenderer.invoke("addon-uninstall", id),
