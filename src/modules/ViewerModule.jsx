@@ -526,6 +526,9 @@ function syncBatchedInstances(inst) {
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
     m.updateMatrix();
+    // #695 — a member's world matrix is no longer refreshed by the render loop (see buildLayerBatches), so a change
+    // made here must refresh it too, or picking would test the old placement
+    m.updateMatrixWorld();
     _batchMatrix.copy(m.matrix);
     if (m.visible === false) _batchMatrix.scale(_batchZero);
     inst.setMatrixAt(i, _batchMatrix);
@@ -583,7 +586,16 @@ function buildLayerBatches(group) {
     // updateMatrix() itself on any change), so three.js need not re-compose its local matrix from
     // position/quaternion/scale on every rendered frame: measured 10.5 -> 6.2 ms per frame of pure CPU
     // at 60,000 intervals (~200 holes). World matrices keep updating (a parent transform stays correct).
-    for (const m of fam.members) { m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; }
+    // TASKS.csv #695 — and its WORLD matrix need not be re-multiplied every frame either. That only pays off if
+    // the ancestors stop recomposing too: three.js's updateMatrixWorld() forces the whole subtree whenever a
+    // parent with matrixAutoUpdate recomposes its own matrix, which the scene, root and layer group did every
+    // frame. None of them is ever moved (layer content is rebuilt, never transformed - see #304's pick-index
+    // contract), so they are frozen here and at scene setup. Measured in Node, three r160, 250,000 members:
+    // updateMatrixWorld 39.3 -> 3.9 ms per frame. matrixWorld is computed once now, which also means a pick
+    // between a rebuild and the next frame sees the right placement.
+    group.updateWorldMatrix(true, false);
+    group.matrixAutoUpdate = false;
+    for (const m of fam.members) { m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false; }
     group.add(inst);
     syncBatchedInstances(inst);
   }
@@ -2050,6 +2062,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
 
     const root = new THREE.Group(); root.name = "root"; scene.add(root);
+    // TASKS.csv #695 — neither is ever transformed; left auto-updating they force every descendant's world matrix
+    // to be recomputed on every frame (see buildLayerBatches)
+    scene.matrixAutoUpdate = false; root.matrixAutoUpdate = false;
     const groups = {};
     Object.keys(LAYER_META).forEach((k) => { const g = new THREE.Group(); g.name = k; root.add(g); groups[k] = g; });
     const assayGroup = new THREE.Group(); assayGroup.name = "assay"; root.add(assayGroup); groups.assay = assayGroup;
