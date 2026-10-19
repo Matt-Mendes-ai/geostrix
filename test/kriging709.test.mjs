@@ -54,3 +54,13 @@ test("max samples per hole caps any one hole's share of a block", async () => {
   assert.equal(capped.filter((d) => d.hole_id === "A").length, 3);
   assert.equal(capped.length, 5); // only 2 from B exist
 });
+
+test("grade shells (the dense grid) krige too and report the variogram", async () => {
+  const { estimateDenseGrid } = await import("../src/lib/estimation.js");
+  const pts = [];
+  for (let h = 0; h < 5; h++) for (let k = 0; k < 15; k++) pts.push({ x: h * 30, y: 0, z: -k * 4, value: 1 + h * 0.5 + 0.1 * (k % 3), hole_id: `H${h}` });
+  const g = estimateDenseGrid(pts, { bounds: { xmin: 0, xmax: 120, ymin: -10, ymax: 10, zmin: -56, zmax: 0 }, cellSize: { dx: 10, dy: 10, dz: 8 }, method: "ok", searchRadius: 70, maxSamples: 12 });
+  assert.ok(g.variogram && g.variogram.sill > 0);
+  assert.ok(g.estimated > 0);
+  assert.ok([...g.values].filter(Number.isFinite).every((v) => v > 0.5 && v < 4));
+});
