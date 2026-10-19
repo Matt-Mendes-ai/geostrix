@@ -8,10 +8,11 @@ export const SUPPORT_BY_CODE = ["unsupported", "extrapolated", "interpolated"]; 
 // cols: { n, dx, dy, dz, x, y, z, value (Float64Array), nSamples, nHoles (Uint16Array),
 //         support? (Uint8Array codes), supportIndex?, nearestSampleM? (Float64Array) }
 export function cellsFromColumns(cols) {
-  const { n, dx, dy, dz, x, y, z, value, nSamples, nHoles, support, supportIndex, nearestSampleM } = cols;
+  const { n, dx, dy, dz, x, y, z, value, nSamples, nHoles, support, supportIndex, nearestSampleM, kv } = cols; // kv: #709 kriging variance
   const cells = new Array(n);
   for (let i = 0; i < n; i++) {
     const c = { x: x[i], y: y[i], z: z[i], dx, dy, dz, value: value[i], nSamples: nSamples[i], nHoles: nHoles[i] };
+    if (kv && Number.isFinite(kv[i])) c.kv = kv[i];
     if (support && support[i] !== 255) { c.support = SUPPORT_BY_CODE[support[i]]; c.supportIndex = supportIndex[i]; c.nearestSampleM = nearestSampleM[i]; }
     cells[i] = c;
   }
@@ -19,4 +20,4 @@ export function cellsFromColumns(cols) {
 }
 
 // the buffers to transfer from the worker
-export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM].filter(Boolean).map((a) => a.buffer);
+export const columnBuffers = (cols) => [cols.x, cols.y, cols.z, cols.value, cols.nSamples, cols.nHoles, cols.support, cols.supportIndex, cols.nearestSampleM, cols.kv].filter(Boolean).map((a) => a.buffer);

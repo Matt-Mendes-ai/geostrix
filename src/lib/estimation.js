@@ -5,18 +5,20 @@
 // this) as its input: estimation should run on regularized composites, not raw variable-length sample
 // intervals, exactly like every real workflow (Micromine/Leapfrog/Datamine) does it.
 //
-// Two methods are implemented — nearest-neighbour and inverse-distance weighting (power 2 or 3) — NOT
-// ordinary kriging. Kriging needs a fitted variogram model (nugget/sill/range from an experimental
+// Originally two methods — nearest-neighbour and inverse-distance weighting — and NOT ordinary kriging (now added,
+// #709: see the end of this note). Kriging needs a fitted variogram model (nugget/sill/range from an experimental
 // variogram the user would build and fit interactively) as a genuine prerequisite step, not just a
 // harder formula substituted in the same loop; shipping a kriging button without that would produce
 // numbers that look like a real estimate but aren't backed by one, which is worse than not having the
 // button. NN/IDW are complete, defensible estimation methods in their own right (IDW in particular is
 // still routinely used for early-stage/scoping estimates). The variogram-modelling UI now exists (#147, the Variogram
-// tool fits nugget / sill / range); ordinary kriging with it is the follow-up logged as TASKS.csv #709.
+// tool fits nugget / sill / range); TASKS.csv #709 adds ordinary kriging with it (method "ok", okEstimate below):
+// point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
 import { valueIn } from "./geochem.js";
+import { experimentalVariogram, fitVariogramModel, suggestLagDistance, variogramModelValue } from "./variogram.js"; // #709
 
 // Squared distance below which a query point counts as sitting ON a sample: every non-nearest-neighbour
 // method here is an EXACT interpolator, i.e. it must return the sample's own value at the sample's
@@ -106,6 +108,20 @@ function trendFrame(trend, center) {
     return [(dx * a.x + dy * a.y + dz * a.z) * s.major, (dx * b.x + dy * b.y + dz * b.z) * s.semiMajor, (dx * c.x + dy * c.y + dz * c.z) * s.minor];
   };
 }
+// TASKS.csv #709 — the variogram ordinary kriging uses: the one given (nugget, sill, range), or one fitted to these
+// composites (omnidirectional, lag = median nearest-sample distance, 12 lags). `pts` are already in the search frame
+// (after a trend's warp), so a fitted range is the range along the trend's major axis.
+function resolveVariogram(pts, given, cellSize) {
+  const v = given || {};
+  const model = v.model || "spherical";
+  if ([v.nugget, v.sill, v.range].every((x) => Number.isFinite(x)) && v.sill > 0 && v.range > 0) return { model, nugget: Math.min(Math.max(0, v.nugget), v.sill), sill: v.sill, range: v.range, fitted: false };
+  const lag = suggestLagDistance(pts) || cellSize?.dx || 10;
+  const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: 12 });
+  const fit = fitVariogramModel(ev.bins, { model });
+  if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them.");
+  return { model, nugget: Math.min(Math.max(0, fit.nugget), fit.sill), sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2) };
+}
+
 function withTrend(samplePoints, opts) {
   if (!opts.trend || !samplePoints.length) return { pts: samplePoints, q: null };
   const n = samplePoints.length;
@@ -116,15 +132,18 @@ function withTrend(samplePoints, opts) {
 }
 
 export function estimateBlockModel(samplePoints, opts) {
-  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, lengthWeight = true, restrictToDomain = false } = opts;
+  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks); // maxBlocks: #626
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
 
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain };
+  // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
+  const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
+  const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram };
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
-  const tw = withTrend(samplePoints, opts); // #650
+  const tw = tw0 || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
@@ -137,11 +156,13 @@ export function estimateBlockModel(samplePoints, opts) {
     x: new Float64Array(cap), y: new Float64Array(cap), z: new Float64Array(cap), value: new Float64Array(cap),
     nSamples: new Uint16Array(cap), nHoles: new Uint16Array(cap),
     ...(wantSupport ? { support: new Uint8Array(cap).fill(255), supportIndex: new Float64Array(cap), nearestSampleM: new Float64Array(cap) } : {}),
+    ...(method === "ok" ? { kv: new Float64Array(cap) } : {}), // #709 — kriging variance
   } : null;
   let blocksSkipped = 0;
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
+  const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0 }; // TASKS.csv #709
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
 
   for (let iz = 0; iz < nz; iz++) {
@@ -155,17 +176,20 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.nHoles === 1) singleHoleCells++;
         else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
+        if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; } // #709
         if (r.support) {
           supportCounts[r.support.cls]++;
           if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
         }
         if (asColumns) {
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
+          if (col.kv) col.kv[n] = r.kv ?? NaN;
           if (r.support) { col.support[n] = SUPPORT_CODES[r.support.cls]; col.supportIndex[n] = r.support.index; col.nearestSampleM[n] = r.support.nearest; }
           n++;
           continue;
         }
         const cell = { x: cx, y: cy, z: cz, dx, dy, dz, value: r.value, nSamples: r.nSamples, nHoles: r.nHoles };
+        if (r.kv != null) cell.kv = r.kv; // #709
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;
@@ -178,7 +202,7 @@ export function estimateBlockModel(samplePoints, opts) {
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
-  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null };
+  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -260,11 +284,15 @@ function buildSampleIndex(samplePoints, searchRadius) {
 // value still taken from one hole — exactly what #258 exists to stop. `candidates` must be sorted by distance.
 // TASKS.csv #676 — a block whose dominant hole carries at least this share of the weight is effectively one hole's
 export const DOMINANT_SHARE = 0.95;
-export function perHoleCap(maxSamples, minHoles) {
-  return minHoles > 1 ? Math.max(1, Math.ceil(maxSamples / minHoles)) : Infinity;
+// TASKS.csv #709 — maxPerHole: an explicit "max samples per hole" (Micromine's search setting); 0 / missing = only the
+// implicit cap from min distinct holes (#642). The smaller of the two applies.
+export function perHoleCap(maxSamples, minHoles, maxPerHole = 0) {
+  let cap = minHoles > 1 ? Math.max(1, Math.ceil(maxSamples / minHoles)) : Infinity;
+  if (maxPerHole > 0) cap = Math.min(cap, Math.floor(maxPerHole));
+  return cap;
 }
-export function selectUsed(candidates, maxSamples, minHoles = 1) {
-  const cap = perHoleCap(maxSamples, minHoles);
+export function selectUsed(candidates, maxSamples, minHoles = 1, maxPerHole = 0) {
+  const cap = perHoleCap(maxSamples, minHoles, maxPerHole);
   if (cap === Infinity) return candidates.slice(0, maxSamples);
   const used = [], perHole = new Map();
   for (let i = 0; i < candidates.length && used.length < maxSamples; i++) {
@@ -286,7 +314,7 @@ export function selectUsed(candidates, maxSamples, minHoles = 1) {
 //
 // Returns (cx, cy, cz) => Array<{ d2, value, hole_id, len, domain }> sorted ascending by d2.
 function makeNeighbourGatherer(samplePoints, opts = {}) {
-  const { searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, lengthWeight = true, restrictToDomain = false } = opts;
+  const { searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
   const r2 = searchRadius != null ? searchRadius * searchRadius : null;
   const index = buildSampleIndex(samplePoints, searchRadius);
   // TASKS.csv #262 — a composite's own length is its declared support; weighting by length/d^p is the
@@ -349,7 +377,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
           }
         }
         const safeD2 = (ring * b) * (ring * b);
-        if (settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain)) break;
+        if (settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole)) break;
       }
     } else {
       for (let i = 0; i < samplePoints.length; i++) consider(samplePoints[i]);
@@ -366,7 +394,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
 // opts: { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain }
 function makeCellEstimator(samplePoints, opts = {}) {
   const {
-    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, restrictToDomain = false,
+    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false,
   } = opts;
   const power = methodPower(method); // null => nearest-neighbour or MLS (handled below)
   // TASKS.csv #91/#92 — when support classification is asked for, it is computed from THIS SAME
@@ -402,7 +430,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
       candidates = dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return null;
     }
-    const used = selectUsed(candidates, maxSamples, minHoles); // #642 — per-hole cap when minHoles > 1
+    const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — per-hole cap when minHoles > 1
 
     // TASKS.csv #258 — minimum DISTINCT drillholes. minSamples counts sample points, and a single hole
     // composited at 2 m supplies ~25 of them inside a 50 m radius, so it can never express "at least
@@ -411,7 +439,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     for (let i = 0; i < used.length; i++) holes.add(used[i].hole_id);
     if (holes.size < minHoles) return null;
 
-    let value, mlsMode = null;
+    let value, mlsMode = null, okRes = null;
     if (method === "nn") {
       value = used[0].value; // nearest-neighbour
     } else {
@@ -425,6 +453,10 @@ function makeCellEstimator(samplePoints, opts = {}) {
         const m = mlsLinear(used, cx, cy, cz);
         if (m) { value = m.value; mlsMode = m.rank === 3 ? "full" : "reduced"; }
         else { value = idwValue(used, 2); mlsMode = "idw"; }
+      } else if (method === "ok") {
+        // TASKS.csv #709 — a singular system (two composites at one position with no nugget) falls back to IDW2, counted
+        const k = okEstimate(used, cx, cy, cz, opts.variogram);
+        if (k) { value = k.value; okRes = k; } else { value = idwValue(used, 2); okRes = { fallback: true }; }
       } else {
         value = idwValue(used, power);
       }
@@ -453,6 +485,11 @@ function makeCellEstimator(samplePoints, opts = {}) {
       out.domShare = share;
     }
     if (mlsMode) out.mlsMode = mlsMode; // #516
+    if (method === "ok") { // #709 — an exact hit has no kriging error at that point
+      if (!okRes) { out.okMode = "exact"; out.kv = 0; }
+      else if (okRes.fallback) out.okMode = "fallbackIdw";
+      else { out.okMode = "kriged"; out.kv = okRes.kv; if (okRes.negative) out.okNeg = true; }
+    }
     if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.searchRadius);
     return out;
   };
@@ -582,7 +619,7 @@ export function supportIndex({ nearest, nHoles, nOctants, searchRadius }) {
 // estimate was actually built from — pass the estimator's own opts through verbatim, plus `bracketTol`.
 export function makeSupportClassifier(samplePoints, opts = {}) {
   const {
-    searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1,
+    searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0,
     restrictToDomain = false, bracketTol = 0,
   } = opts;
   // The WIDER neighbourhood used only for `dataBracketed` (see supportFrom). It must be an explicit,
@@ -609,7 +646,7 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
       candidates = dists.filter((d) => d.domain === cellDomain);
       if (candidates.length < minSamples) return none;
     }
-    const used = selectUsed(candidates, maxSamples, minHoles); // #642 — the estimator's own selection
+    const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — the estimator's own selection
     const holes = new Set();
     for (let i = 0; i < used.length; i++) holes.add(used[i].hole_id);
     if (holes.size < minHoles) return none;
@@ -634,10 +671,60 @@ export function summarizeSupport(counts) {
 
 // TASKS.csv #87 — method table. Kept in one place so the estimator, the modal's dropdown and the
 // parameter-provenance stamp can never disagree about what a stored `method` string means.
-// Deliberately NOT here: ordinary kriging. It needs a fitted variogram (nugget/sill/range) as a real
-// prerequisite, not a swapped formula — see this file's header and TASKS.csv #87's notes.
+// Ordinary kriging ("ok") is here since TASKS.csv #709, with its variogram resolved up front (resolveVariogram).
 const METHOD_IDS = new Set(ESTIMATION_METHODS.map((m) => m.id));
 export function isEstimationMethod(id) { return METHOD_IDS.has(id); }
+// TASKS.csv #709 — ordinary kriging at one point. Covariance C(h) = sill - gamma(h) (C(0) = sill: the nugget is a
+// jump at h > 0). Solves the (n+1) x (n+1) system [C 1; 1' 0] [w; mu] = [c0; 1] by Gaussian elimination with
+// partial pivoting (n <= maxSamples, so at most a few dozen unknowns). Returns { value, kv, negative } or null when
+// the system is singular. kv = sill - sum(w c0) - mu: the kriging variance, in the grade's squared units.
+export function okEstimate(used, cx, cy, cz, vg) {
+  const n = used.length;
+  if (!n) return null;
+  if (n === 1) return { value: used[0].value, kv: Math.max(0, 2 * (vg.sill - covAt(Math.sqrt(used[0].d2), vg))), negative: false }; // w = 1, mu = c0 - sill
+  const m = n + 1;
+  const A = new Float64Array(m * m), b = new Float64Array(m);
+  for (let i = 0; i < n; i++) {
+    const pi = used[i].p;
+    for (let j = i; j < n; j++) {
+      const pj = used[j].p;
+      const c = i === j ? vg.sill : covAt(Math.hypot(pi.x - pj.x, pi.y - pj.y, pi.z - pj.z), vg);
+      A[i * m + j] = c; A[j * m + i] = c;
+    }
+    A[i * m + n] = 1; A[n * m + i] = 1;
+    b[i] = covAt(Math.sqrt(used[i].d2), vg);
+  }
+  A[n * m + n] = 0; b[n] = 1;
+  const rhs = Float64Array.from(b);
+  for (let col = 0; col < m; col++) {
+    let piv = col, best = Math.abs(A[col * m + col]);
+    for (let r = col + 1; r < m; r++) { const v = Math.abs(A[r * m + col]); if (v > best) { best = v; piv = r; } }
+    if (best < 1e-12 * vg.sill) return null;
+    if (piv !== col) {
+      for (let k = 0; k < m; k++) { const t = A[col * m + k]; A[col * m + k] = A[piv * m + k]; A[piv * m + k] = t; }
+      const t = rhs[col]; rhs[col] = rhs[piv]; rhs[piv] = t;
+    }
+    const d = A[col * m + col];
+    for (let r = col + 1; r < m; r++) {
+      const f = A[r * m + col] / d;
+      if (f === 0) continue;
+      for (let k = col; k < m; k++) A[r * m + k] -= f * A[col * m + k];
+      rhs[r] -= f * rhs[col];
+    }
+  }
+  const x = new Float64Array(m);
+  for (let r = m - 1; r >= 0; r--) {
+    let s = rhs[r];
+    for (let k = r + 1; k < m; k++) s -= A[r * m + k] * x[k];
+    x[r] = s / A[r * m + r];
+  }
+  let value = 0, wc = 0, negative = false;
+  for (let i = 0; i < n; i++) { value += x[i] * used[i].value; wc += x[i] * b[i]; if (x[i] < -1e-9) negative = true; }
+  if (!Number.isFinite(value)) return null;
+  return { value, kv: Math.max(0, vg.sill - wc - x[n]), negative };
+}
+function covAt(h, vg) { return h <= 0 ? vg.sill : vg.sill - variogramModelValue(h, vg); }
+
 function methodPower(method) {
   return method === "idw3" ? 3 : method === "idw1" ? 1 : method === "idw2" ? 2 : null;
 }
@@ -812,7 +899,7 @@ function solve4(Min, rhs, scale) {
 //     the nearest candidate, so that nearest candidate must be inside safeD2 too.
 // Conservative by construction: when it can't prove completeness it simply keeps walking, ending in the
 // worst case at the same full scan the old code always did.
-function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain) {
+function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDomain, maxPerHole = 0) {
   if (safeD2 <= 0 || !dists.length) return false;
   const need = Math.max(maxSamples, minSamples, minHoles, 1);
   // kth smallest d2 among the entries passing `keep`, or Infinity if there aren't k of them. A bounded
@@ -845,14 +932,14 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
   // #642 — with a per-hole cap the used set can reach past the nearest maxSamples (other holes' samples further
   // out), so it is settled only once the capped selection is full and its furthest member is inside safeD2.
   // Short of that the walk goes on to the search radius (where it stops anyway).
-  const capped = perHoleCap(maxSamples, minHoles) !== Infinity;
+  const capped = perHoleCap(maxSamples, minHoles, maxPerHole) !== Infinity;
   // TASKS.csv #662 — the capped selection takes maxSamples entries from the distance-sorted list, so its furthest
   // member is never nearer than the maxSamples-th nearest candidate overall (nor than that within one domain, a
   // subset). While that one is outside safeD2 the capped set cannot be settled either: answer without the sort.
   // Measured before this: min holes 2 made a 976k-node grade-shell grid 2.7x and a 1M block model 4.3x slower.
   if (capped && all.kth > safeD2) return false;
   const cappedSettled = (keep) => {
-    const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles);
+    const used = selectUsed(dists.filter((d) => !keep || keep(d)).sort((a, b) => a.d2 - b.d2), maxSamples, minHoles, maxPerHole);
     return used.length >= maxSamples && used[used.length - 1].d2 <= safeD2;
   };
   if (capped && !restrictToDomain) return cappedSettled(null);
@@ -877,20 +964,23 @@ function settled(dists, safeD2, maxSamples, minSamples, minHoles, restrictToDoma
 // identical to estimateBlockModel's cell centers, so a grade shell extracted from this grid sits
 // exactly where the equivalent block model's cutoff boundary would.
 export function estimateDenseGrid(samplePoints, opts) {
-  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, lengthWeight = true, restrictToDomain = false } = opts;
+  const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
   const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks); // maxBlocks: #625
   const values = new Float64Array(totalBlocks).fill(NaN);
   const origin = { x: bounds.xmin + 0.5 * dx, y: bounds.ymin + 0.5 * dy, z: bounds.zmin + 0.5 * dz };
   const out = { nx, ny, nz, bounds, cellSize: { dx, dy, dz }, origin, values, estimated: 0, skipped: totalBlocks, singleHoleCells: 0 };
   if (!samplePoints.length) return out;
 
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain };
+  const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
+  const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
+  if (variogram) out.variogram = variogram;
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram };
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
   // by support with no second interpolation pass and no risk of the two disagreeing.
   const wantSupport = !!opts.support;
-  const tw = withTrend(samplePoints, opts); // #650
+  const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const supportCode = wantSupport ? new Uint8Array(totalBlocks) : null; // 0 unsupported / 1 extrapolated / 2 interpolated

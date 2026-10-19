@@ -104,10 +104,15 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_MODEL_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
   const setBlockBudget = (v) => { setBlockBudgetState(v); try { localStorage.setItem("geostrix.estimateBlockBudget", String(v)); } catch { /* private window */ } };
   const [method, setMethod] = useState("idw2");
+  // TASKS.csv #709 — ordinary kriging's variogram: blank = fitted to the composites at run time
+  const [vgModel, setVgModel] = useState("spherical");
+  const [vgNugget, setVgNugget] = useState(""), [vgSill, setVgSill] = useState(""), [vgRange, setVgRange] = useState("");
+  const [addedKv, setAddedKv] = useState(false);
   const [searchRadius, setSearchRadius] = useState(50);
   const [minSamples, setMinSamples] = useState(1);
   const [minHoles, setMinHoles] = useState(2);          // TASKS.csv #258
   const [maxSamples, setMaxSamples] = useState(16);
+  const [maxPerHole, setMaxPerHole] = useState(0); // TASKS.csv #709 — 0 = no explicit cap
   const [capValue, setCapValue] = useState(NaN);        // TASKS.csv #259
   const [includeQAQC, setIncludeQAQC] = useState(false); // TASKS.csv #266
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
@@ -209,10 +214,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         const ac = new AbortController(); abortRef.current = ac;
         const est = await runEstimation("block", points, {
           bounds, cellSize: { dx: cellSize, dy: cellSize, dz: cellSize }, maxBlocks: blockBudget, // #626
-          method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples,
+          method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
+          ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
         }, { onProgress: setProgress, signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
@@ -221,7 +227,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           tool: "Grade estimation", element: symbol, method, cellSizeM: cellSize, paddingM: padding,
           gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
-          minSamples, maxSamples, minHoles,
+          minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
@@ -231,6 +237,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
+        if (est.variogram) { params.variogram = { ...est.variogram, frame: trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic" }; params.krigingBlocks = est.okCounts; } // #709
         if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; // #676 — 2+ holes, one with >= 95 % of the weight
         if (inShell) { // #517
           const before = est.cells.length;
@@ -239,7 +246,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
         }
         setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
-        setAdded(false); setAddedSupport(false); // a fresh run invalidates both "Added ✓" states
+        setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? "Estimation cancelled." : (e.message || "Estimation failed."));
       }
@@ -263,6 +270,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
       params: { ...result.params, value: "Data Support Index (geometric, 0-1)" }, // TASKS.csv #404
     });
     setAddedSupport(true);
+  };
+  // TASKS.csv #709 — the kriging variance as its own block model, named so it can't be read as an error bar on grade
+  const addKvModel = () => {
+    if (!result || !result.cells.length) return;
+    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    const cells = result.cells.filter((c) => Number.isFinite(c.kv)).map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.kv, nSamples: c.nSamples, nHoles: c.nHoles }));
+    onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
+    setAddedKv(true);
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
@@ -300,6 +315,22 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </label>
+            {method === "ok" && (
+              <div style={{ flex: "1 1 100%", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}
+                title="The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to these composites at run time (omnidirectional; with a trend, in the trend's frame, so the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.">
+                <label style={fieldLabel}>Variogram model
+                  <select value={vgModel} onChange={(e) => setVgModel(e.target.value)} style={inp} aria-label="Variogram model">
+                    <option value="spherical">Spherical</option><option value="exponential">Exponential</option><option value="gaussian">Gaussian</option>
+                  </select>
+                </label>
+                {[["Nugget", vgNugget, setVgNugget], ["Sill (total)", vgSill, setVgSill], ["Range (m)", vgRange, setVgRange]].map(([l, v, set]) => (
+                  <label key={l} style={{ ...fieldLabel, width: 90 }}>{l}
+                    <input type="number" min="0" step="any" value={v} placeholder="fit" onChange={(e) => set(e.target.value)} style={inp} aria-label={`Variogram ${l}`} />
+                  </label>
+                ))}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.</div>
+              </div>
+            )}
             <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang (TASKS #292).">
               Search radius (m, 0 = no limit)
               <input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
@@ -325,6 +356,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             <label style={fieldLabel} title="Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).">
               Max samples/block
               <input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
+            </label>
+            <label style={fieldLabel} title="At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).">
+              Max samples/hole
+              <input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label="Max samples per hole" />
             </label>
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
@@ -498,6 +533,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               <div>{result.blocksEstimated.toLocaleString()} block(s) estimated, {result.blocksSkipped.toLocaleString()} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).</div>
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
+              {result.variogram && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  Kriged with a {result.variogram.model} variogram{result.variogram.fitted ? " fitted to these composites" : " as entered"}: nugget {+result.variogram.nugget.toPrecision(3)}, sill {+result.variogram.sill.toPrecision(3)}, range {Math.round(result.variogram.range)} m{trend ? ` (along the trend "${trend.name}")` : ""}{result.variogram.fitted ? " — check it against the Variogram tool before trusting it" : ""}.
+                  {result.variogram.nugget / result.variogram.sill > 0.8 && <span style={{ color: "var(--color-warn-text)" }}> The nugget is {Math.round((100 * result.variogram.nugget) / result.variogram.sill)}% of the sill: the composites are barely alike even close together, so kriging gives close to a plain average of the neighbours — the variogram, not the method, is the limit here.</span>}
+                  {result.okCounts && <> {result.okCounts.kriged.toLocaleString()} block(s) kriged{result.okCounts.exact ? `, ${result.okCounts.exact.toLocaleString()} on a composite` : ""}{result.okCounts.negativeWeights ? `, ${result.okCounts.negativeWeights.toLocaleString()} with a negative weight (normal for kriging; such a block can fall slightly outside its samples' range)` : ""}{result.okCounts.fallbackIdw ? `, ${result.okCounts.fallbackIdw.toLocaleString()} fell back to IDW² (their kriging system had no unique solution)` : ""}.</>}
+                </div>
+              )}
               {result.mlsCounts && (result.mlsCounts.reduced + result.mlsCounts.idw) > 0 && (
                 <div style={{ color: "var(--color-text-secondary)" }}>
                   MLS (linear): {result.mlsCounts.full.toLocaleString()} block(s) with a full 3D trend
@@ -561,6 +603,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   </button>
                 </div>
               )}
+              {result.variogram && result.blocksEstimated > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <button onClick={addKvModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title="Kriging variance: how well the samples' layout constrains each block under this variogram. It does not depend on the grades themselves, so it is not an error bar on the estimate.">
+                    {addedKv ? "Added ✓" : "Add kriging variance as a separate block model"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -573,7 +622,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — GeoStrix can fit a variogram (Variogram tool: nugget, sill and range) but does not yet krige with it — that is planned (TASKS #709). A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}{trend
               ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modeling → Model settings → Structural trends), there is</>
               : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modeling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
