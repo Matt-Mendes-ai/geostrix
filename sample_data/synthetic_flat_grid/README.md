@@ -1,4 +1,4 @@
-# Synthetic flat-grid dataset (Modeling-module control case)
+# Synthetic flat-grid dataset (Modelling-module control case)
 
 Built on request: a deliberately boring, near-trivial dataset to isolate whether a modelling problem
 is in GemPy's own behaviour or in messy real data feeding it — 100% synthetic, not real assay/geology
@@ -32,7 +32,7 @@ data, don't use it for anything but testing.
 2. `litho.csv` — 500 rows (5 per hole), lithology intervals.
 
 No `survey.csv`, `assay_wide.csv`, or any other layer — this dataset exists purely to exercise the
-Modeling module's implicit-surface tools (Implicit Model / Stratigraphic Stack) against clean,
+Modelling module's implicit-surface tools (Implicit Model / Stratigraphic Stack) against clean,
 known-good input, not to exercise the rest of the app.
 
 ## Verified live (2026-09-01)

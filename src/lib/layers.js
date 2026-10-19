@@ -121,7 +121,7 @@ export function colorForLithology(u) { const k = (u || "").toLowerCase(); return
 
 // TASKS.csv #241 — Matt's own synthetic-dataset request came bundled with a second, standing ask: a
 // way to tell overburden and cross-cutting units (faults, dykes, breccias) apart from ordinary
-// stratigraphic ones, since today every lithology code is treated identically by the Modeling tools
+// stratigraphic ones, since today every lithology code is treated identically by the Modelling tools
 // (an implicit-surface run has no idea "OBN" isn't basement, or that "FLT" cuts across everything else
 // rather than sitting in stratigraphic order with it). This is the per-unit classification that
 // downstream code (ViewerModule's Stack/Implicit tools, gatherLithoSurfaceSpec's surface `type`) reads

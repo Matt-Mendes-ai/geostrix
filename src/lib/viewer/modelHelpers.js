@@ -64,7 +64,7 @@ export const SOFT_NUGGET = 0.5;
 export const MODEL_EXTENT_PAD_M = 500;
 
 // A rough starting guess at a new surface's type from the tool/name that created it — the user can
-// always override it via the dropdown next to each surface in the Modeling tab's list. Structural
+// always override it via the dropdown next to each surface in the Modelling tab's list. Structural
 // picks are the ambiguous case (a "structure" layer covers contacts, faults, shear zones, foliation,
 // veins all under one layer type — see sample_data's own structure.csv) — a fault/shear-sounding
 // value guesses "fault", everything else falls back to "other" rather than guessing wrong.

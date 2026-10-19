@@ -1,4 +1,4 @@
-// TASKS.csv #599 — the Modelling codes pane (3D Modeling tab). The code list (colour, role, pile order),
+// TASKS.csv #599 — the Modelling codes pane (3D Modelling tab). The code list (colour, role, pile order),
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // optional auto-numbering of alternating flows, and the interval picked in the 3D view: its code can be
 // changed, or it can be connected to an interval in another hole (both get the same code; a tie line is

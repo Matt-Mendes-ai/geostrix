@@ -574,7 +574,7 @@ export function useImportPipeline(ctx) {
     e.preventDefault(); setDragOver(false);
     const grouped = groupShapefileParts(Array.from(e.dataTransfer.files || [])); // #600: loose .shp + .dbf/.prj
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
-    // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modeling buttons
+    // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
     const direct = grouped.files.filter((f) => /\.(tiff?|gxf|dxf|obj)$/i.test(f.name));
     for (const f of direct) { if (/\.obj$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }

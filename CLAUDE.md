@@ -106,7 +106,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   branch (this is what made the app also runnable as a plain Vite page in the old sandbox).
 - `src/lib/store.jsx` — the single React Context store (project state, all the persisted
   collections: collars/survey/layers/themes/rasters/voxelModels/etc, save/load/autosave).
-- `src/modules/*.jsx` — one file per top-level tab (`ViewerModule` handles View/Modeling/Targeting
+- `src/modules/*.jsx` — one file per top-level tab (`ViewerModule` handles View/Modelling/Targeting
   via a `mode` prop — see its own header comments for why; `GeophysicsModule`, `RasterModule`,
   `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~860 KB, ~11k lines)** — use targeted
   Read/Grep rather than reading it front-to-back, and lean on its extensive inline comments (many

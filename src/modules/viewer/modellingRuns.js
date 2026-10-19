@@ -308,7 +308,7 @@ export function createModellingRuns(ctx, mcRef) {
       if (stackOpts.ensemble && specs.length === 1) ensembleBase = { spec, mesh, id, sceneVerts, faces };
       // TASKS.csv #83 — `type` starts from each tool's own guess (see guessSurfaceType/the inline
       // guesses at each spec's construction site above); `relationships` starts empty — declared
-      // afterward in the Modeling tab's surface list, since a relationship needs another surface to
+      // afterward in the Modelling tab's surface list, since a relationship needs another surface to
       // already exist to point at.
       // TASKS.csv #276 — until now only the numeric grade-shell tool attached a `params` block, so every
       // GemPy-generated surface exported to OBJ/DXF/glTF carried the #269 provenance HEADER with no
@@ -824,7 +824,7 @@ export function createModellingRuns(ctx, mcRef) {
   // Deliberately litho-only, not structure/vein/dyke picks: cross-cutting features violate the very
   // non-crossing assumption this tool exists to enforce, so they're excluded from this tool by scope
   // (model them with the Structural tool instead, which has no such constraint) rather than trying to
-  // half-support fault-cuts-through-stack modeling as a first pass — noted as a real follow-up (#52).
+  // half-support fault-cuts-through-stack modelling as a first pass — noted as a real follow-up (#52).
   const runStackModel = async (unitNames) => {
     if (!unitNames || unitNames.length < 2) return;
     const traces = tracesRef.current;
@@ -869,7 +869,7 @@ export function createModellingRuns(ctx, mcRef) {
     return { spec: { label: `Fault: ${name}`, meshName: `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } };
   };
 
-  // Structural modeling tool: models a surface from one structure-plane type (e.g. a fault or shear
+  // Structural modelling tool: models a surface from one structure-plane type (e.g. a fault or shear
   // pick's "value"), self-referentially — each pick's own position feeds the interface point AND its
   // own dip/azimuth feeds the orientation at that point. Unlike the litho/alteration tools, this
   // doesn't need a separate structure-layer lookup, since the structure picks ARE the thing being
@@ -922,7 +922,7 @@ export function createModellingRuns(ctx, mcRef) {
     }
   };
 
-  // Alteration modeling tool. TASKS.csv #272 — REWRITTEN (Leapfrog-specialist review).
+  // Alteration modelling tool. TASKS.csv #272 — REWRITTEN (Leapfrog-specialist review).
   //
   // What this used to do, and why it was wrong: it gathered the alteration intervals' TOP contacts and
   // pushed them through runSurfaceModel — i.e. the same directed, single-polarity, one-sided-contact

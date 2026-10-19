@@ -186,7 +186,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               What the numbers are genuinely good for: the <b>range</b> is a defensible search radius (past it, a
               sample tells you nothing about a block); the <b>nugget / sill ratio</b> is how much of the variability
               is short-scale noise no smooth interpolation can recover; and comparing ranges in two directions is the
-              measured version of the anisotropy ratio the Modeling tab otherwise asks you to judge by eye.
+              measured version of the anisotropy ratio the Modelling tab otherwise asks you to judge by eye.
             </div>
           </div>
 

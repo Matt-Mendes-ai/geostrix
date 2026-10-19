@@ -12,7 +12,7 @@ import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.
 // A full 6-parameter affine (independent scale/rotation/shear per axis) needs >=3 non-collinear
 // points to solve via least squares — fewer than that (a simpler similarity transform from exactly 2
 // points) isn't supported; 3 is also QGIS's own practical minimum for anything beyond a pure
-// scale+translate fit, so this isn't a meaningfully higher bar than the tool it's modeled on.
+// scale+translate fit, so this isn't a meaningfully higher bar than the tool it's modelled on.
 
 function solve3x3(A, b) {
   const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);

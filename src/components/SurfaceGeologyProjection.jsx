@@ -1,6 +1,6 @@
 // TASKS.csv #318 — "use [surface mapping data] to project surface geology underground" (Matt).
 //
-// 3D Modeling sidebar section with two ways to take a mapped contact below the ground:
+// 3D Modelling sidebar section with two ways to take a mapped contact below the ground:
 //   1. Dip projection — sweep the draped contact trace down-dip to a chosen depth as a surface, the dip
 //      at each point along the trace taken from the nearest outcrop measurements of chosen types (or a
 //      typed dip/dip direction where there are none). No sidecar needed; works before any drilling.

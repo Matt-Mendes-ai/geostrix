@@ -20,7 +20,7 @@ import { useStore } from "../lib/store.jsx";
 // pair solves for the core's unknown rotational offset, which then applies to any other structure
 // measured on that run. All math lives in coreOrientation.js (derived + numerically verified there —
 // round-trip forward/inverse, degenerate cases, and a full simulated calibration workflow all pass);
-// this component is purely the form around it. Modeled on StereonetModal.jsx's own shape.
+// this component is purely the form around it. Modelled on StereonetModal.jsx's own shape.
 export default function CoreOrientationCalculator({ collars, survey, fieldStructuralRefs, outcropMeasurements = [], addFieldRef, removeFieldRef, onSaveStructurePick, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();

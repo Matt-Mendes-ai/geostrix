@@ -57,7 +57,7 @@ export const useSetCursor = () => useContext(CursorSetterContext);
 
 // TASKS.csv #226/#214 follow-up — taskProgress was the other candidate flagged (but not yet fixed)
 // when the cursor split above closed the measured case: setTaskProgress fires repeatedly during any
-// long-running foreground action (a modeling run's progress-bar tick, once per file in a multi-file
+// long-running foreground action (a modelling run's progress-bar tick, once per file in a multi-file
 // import queue — see ViewerModule.jsx's callers), and like cursor it lived in the single giant store
 // context, so every one of those ticks re-rendered every useStore() consumer including ViewerModule
 // itself — which, same as cursor, only ever calls the setter and never reads taskProgress's value in
@@ -296,13 +296,13 @@ export function StoreProvider({ children }) {
   const [gridBoundViewportId, setGridBoundViewportId] = useState("");
   const [gridMeters, setGridMeters] = useState(100);
 
-  // TASKS.csv #155 — "3D Modeling" promoted to its own top-level module (a peer of 3D View, not a
+  // TASKS.csv #155 — "3D Modelling" promoted to its own top-level module (a peer of 3D View, not a
   // sub-tab inside it), which means ViewerModule now fully unmounts/remounts when switching between
   // the two (same as switching to Geochem and back already did) — camState (theta/phi/radius/target)
   // lives in a plain useRef inside ViewerModule for performance (updated many times per second while
   // dragging; putting it in React state would re-render on every drag frame), so it was always lost on
   // unmount. Mirrored here on UNMOUNT ONLY (not every drag frame — same "cheap, infrequent write"
-  // discipline as viewerUiState above) so the camera survives a View<->Modeling round trip instead of
+  // discipline as viewerUiState above) so the camera survives a View<->Modelling round trip instead of
   // resetting to the default angle every time, which would make switching between them while working
   // genuinely annoying.
   const [lastCamState, setLastCamState] = useState(null);

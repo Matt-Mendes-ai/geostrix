@@ -1,6 +1,6 @@
 // TASKS.csv #458 — Office-style ribbon. User request (2026-09-25): "I don't like how tools are displayed on
 // the side bar. I wanna have a tool bar with user-friendly symbols, similar to what we have in the office
-// suite." The module tabs (3D View, 3D Modeling, Geochem...) act as the ribbon's tabs; under them, one band
+// suite." The module tabs (3D View, 3D Modelling, Geochem...) act as the ribbon's tabs; under them, one band
 // of big labelled buttons in named groups. Clicking a button opens its dialog, toggles its tool, or shows
 // that tool's panel in the sidebar (a task pane, see TaskPaneHeader) — the sidebar keeps the data.
 //

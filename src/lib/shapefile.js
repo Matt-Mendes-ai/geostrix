@@ -451,7 +451,7 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
 // snap to in the 3D view or re-derive attributes from). Any other shape type present in the file is
 // SKIPPED with a returned count (surfaced as a notice by the caller) rather than silently dropped —
 // matches the "no silent truncation" approach the rest of this app already follows (e.g. the surface-
-// modeling sanitization pass in ViewerModule's runSurfaceStack).
+// modelling sanitization pass in ViewerModule's runSurfaceStack).
 // TASKS.csv #415 — also the "measured" variants (PointM 21, PolyLineM 23, PolygonM 25: same layout as the
 // plain types plus M values, which are ignored) and MultiPoint (8 / 18 / 28), whose points each become their
 // own feature carrying the record's attributes.

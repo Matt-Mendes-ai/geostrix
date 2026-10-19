@@ -424,7 +424,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
 
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
-            <label style={fieldLabel} title="Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modeling, after a stack run: Add unit volumes).">
+            <label style={fieldLabel} title="Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).">
               Restrict to a modelled volume
               <select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label="Restrict to a modelled volume">
                 <option value="">— none (whole grid) —</option>
@@ -624,8 +624,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}{trend
-              ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modeling → Model settings → Structural trends), there is</>
-              : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modeling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
+              ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is</>
+              : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
             no declustering, no variogram, and no classification. Domain control applies only if you both
             select a domain layer and tick "restrict the interpolation search"; high-grade capping applies
             only if you enter a cap. Every one of those is an assumption you are making, not a property

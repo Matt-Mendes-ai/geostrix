@@ -17,7 +17,7 @@ import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // T
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
-// shared across View/Modeling/Targeting, so it loads immediately regardless), but the four modules
+// shared across View/Modelling/Targeting, so it loads immediately regardless), but the four modules
 // that are NOT the landing tab now lazy-load, deferring their own heavy deps (geotiff.js via
 // RasterModule, d3-delaunay via GeophysicsModule's Voronoi tool) until a user actually opens that tab.
 const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
@@ -35,9 +35,9 @@ const ProjectReportModal = React.lazy(() => import("./components/ProjectReportMo
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
 // sits near the other data-import modules rather than at the end.
-// TASKS.csv #155 — "3D Modeling" promoted to its own top-level module, right after 3D View (user
-// request: "I want 3D modeling to have its own module, not within the 3D view" — it used to be a
-// "Home | Modeling" pill switcher nested inside the 3D View sidebar). Both tabs render the SAME
+// TASKS.csv #155 — "3D Modelling" promoted to its own top-level module, right after 3D View (user
+// request: "I want 3D modelling to have its own module, not within the 3D view" — it used to be a
+// "Home | Modelling" pill switcher nested inside the 3D View sidebar). Both tabs render the SAME
 // ViewerModule component (see that file's own comment on the `mode` prop for why splitting the
 // underlying 3D engine into two components wasn't the right call) — only which sidebar content shows
 // differs.
@@ -48,10 +48,10 @@ const ProjectReportModal = React.lazy(() => import("./components/ProjectReportMo
 // against (voxel value-range isolation), and before Raster/Layout, which are further from "look at
 // my targets and plan holes" in the day-to-day workflow.
 // TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
-const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modeling" }; // predictive: #750
+const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling" }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19)
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
-  { id: "modeling", label: "3D Modeling", icon: Layers3 },
+  { id: "modelling", label: "3D Modelling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
@@ -62,12 +62,12 @@ const MODULES = [
 ];
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
 // entire three.js scene every time, measured 407-622ms blocking per switch, even between View/
-// Modeling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
+// Modelling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
 // a tab id to the ViewerModule `mode` it corresponds to, so a single persistent instance can be kept
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
-const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeting" }; // #750 — Predictive is a Modeling tool now
+const VIEWER_MODES = { viewer: "view", modelling: "modelling", targeting: "targeting" }; // #750 — Predictive is a Modelling tool now
 
 export default function App() {
   const store = useStore();
@@ -258,7 +258,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
       else if (action === "import-csv") {
-        const target = { viewer: ["viewer", "import-collars"], modeling: ["modeling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], maps: ["maps", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
+        const target = { viewer: ["viewer", "import-collars"], modelling: ["modelling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], maps: ["maps", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
         setActive(target[0]); requestModuleAction(target[1]);
       }
       else if (action === "import-assays") { setActive("geochem"); requestModuleAction("import-assays"); }
@@ -426,9 +426,9 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by
-          ViewerModule's ViewToolbar and ONLY in "view" mode. Every other tab — 3D Modeling,
+          ViewerModule's ViewToolbar and ONLY in "view" mode. Every other tab — 3D Modelling,
           Targeting, Geochem, Geophysics, Raster, Layout — had no such row, so switching 3D View ▸ 3D
-          Modeling shifted the entire content area UP by 38px and back down on return. That reads as
+          Modelling shifted the entire content area UP by 38px and back down on return. That reads as
           a rendering glitch, not as a design. Reserving the row's height here keeps the geometry
           stable across all seven tabs while the real #155 follow-up (actual per-module tools) is
           still outstanding. Deliberately rendered as the same .ge-subtoolbar band rather than a bare

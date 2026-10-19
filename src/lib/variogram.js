@@ -17,7 +17,7 @@ import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(
 //   * a nugget/sill ratio, i.e. how much of the variability is pure short-scale noise — a high nugget
 //     is the single best argument against trusting a smooth interpolated shell,
 //   * directional ranges: comparing the range ALONG a structural trend with the range ACROSS it is the
-//     quantitative version of the anisotropy ratio the Modeling tab already asks the user to type in
+//     quantitative version of the anisotropy ratio the Modelling tab already asks the user to type in
 //     from geological judgement alone.
 //
 // COMPOSITES, NOT RAW INTERVALS. Every caller should composite first (geochem.js compositeDownhole),

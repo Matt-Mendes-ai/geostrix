@@ -72,7 +72,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
             Every lithology/alteration interval's top — the same control points the implicit-modelling
-            tools already read on the Modeling tab — resolved to a real 3D position along each hole's
+            tools already read on the Modelling tab — resolved to a real 3D position along each hole's
             desurveyed trace. Uncheck one to exclude it from feeding a surface without touching the
             imported data itself; re-check to bring it back. Click the circle to mark a point "soft" —
             it still feeds the run, but only approximately honoured (a real GemPy nugget tolerance, not
@@ -104,7 +104,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>
               A named subset of these picks, so a unit that repeats in the pile can be modelled as the
               separate surfaces it actually is instead of every pick of that code feeding one surface.
-              Build a set here, then choose it on the Modeling tab to restrict a run to it. Sets are
+              Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are
               saved with the project, and they exclude nothing: a pick left out of the active set is
               simply not used by that run.
             </div>

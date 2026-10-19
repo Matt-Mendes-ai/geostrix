@@ -35,7 +35,7 @@ import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
-import InfoButton from "../components/InfoButton.jsx"; // TASKS.csv #309 — 3D Modeling's always-on help prose, moved behind a disclosure
+import InfoButton from "../components/InfoButton.jsx"; // TASKS.csv #309 — 3D Modelling's always-on help prose, moved behind a disclosure
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import { legibilityRadius, densestCentre } from "../lib/cameraFit.js"; // TASKS.csv #313 — opening-view framing (read cameraFit.js's header before touching fitBox)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
@@ -663,13 +663,13 @@ const RELATION_TYPES = [
 
 // TASKS.csv #445 — search ellipsoid / anisotropy / clustering / terrain maths moved to src/lib/viewer/geomath.js
 
-// TASKS.csv #155 — "3D Modeling" is now its own top-level module (a peer of "3D View" in App.jsx's
+// TASKS.csv #155 — "3D Modelling" is now its own top-level module (a peer of "3D View" in App.jsx's
 // module bar) rather than a sub-tab nested inside the Viewer. Both are still this SAME component
 // underneath — the 3D scene/camera/rendering machinery, and every piece of modelling state
 // (implicitSurfaces, domains, search ellipsoid, etc.), all live here and would be a large, risky
 // undertaking to duplicate into a truly separate component. `mode` just picks which sidebar content
-// renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modeling" (domains/
-// surfaces/implicit-modelling tools — the former "Modeling" tab). App.jsx renders one or the other
+// renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modelling" (domains/
+// surfaces/implicit-modelling tools — the former "Modelling" tab). App.jsx renders one or the other
 // depending on which top-level tab is active, never both at once.
 // TASKS.csv #225 — `visible` defaults to `true` deliberately: every existing call site (App.jsx, before
 // this row's own fix lands there) doesn't pass it at all, so every behavior below is a pure no-op until
@@ -704,7 +704,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // render-expensive component in the app, is no longer forced to re-render on every mouse-move tick.
   const setCursor = useSetCursor();
   // Same split, same reasoning, for taskProgress (TASKS.csv #226 follow-up) — this component calls
-  // setTaskProgress repeatedly during a modeling run/multi-file import but never reads its value.
+  // setTaskProgress repeatedly during a modelling run/multi-file import but never reads its value.
   const setTaskProgress = useSetTaskProgress();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
@@ -772,14 +772,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const raycasterRef = useRef(new THREE.Raycaster());
   const headlightRef = useRef(null); // TASKS.csv #308 — the scene's DirectionalLight, repositioned to follow the camera in updateCamera()
   // Restore the camera angle/distance/target from wherever it was left last time this component was
-  // mounted (View<->Modeling round trip, or any other module round trip) — see lastCamState's own
+  // mounted (View<->Modelling round trip, or any other module round trip) — see lastCamState's own
   // comment in store.jsx for why this couldn't just live in React state directly.
   const camState = useRef(lastCamState
     ? { theta: lastCamState.theta, phi: lastCamState.phi, radius: lastCamState.radius, target: new THREE.Vector3(lastCamState.target.x, lastCamState.target.y, lastCamState.target.z) }
     : { theta: Math.PI / 4, phi: Math.PI / 3, radius: 600, target: new THREE.Vector3(0, 0, 0) });
   // TASKS.csv #225 — now effectively vestigial for its ORIGINAL purpose: this only ever fires on a real
   // component unmount, and since a single ViewerModule instance now stays mounted persistently across
-  // View/Modeling/Targeting (see App.jsx), that no longer happens on every mode switch the way it used
+  // View/Modelling/Targeting (see App.jsx), that no longer happens on every mode switch the way it used
   // to — camState.current itself keeps living across those switches regardless, so nothing is lost.
   // Left in place harmlessly (it still correctly persists the final camera position at real app
   // teardown/project-tab-close), not removed, since store.jsx's `lastCamState` is also still read by
@@ -973,7 +973,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [pickHoleMode, setPickHoleMode] = useState(false);
   const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
   useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
-  // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modeling tab), connect it to another hole
+  // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modelling tab), connect it to another hole
   const [mcPickMode, setMcPickMode] = useState(false);
   const [mcSelected, setMcSelected] = useState(null); // the litho row picked
   const [mcConnectFrom, setMcConnectFrom] = useState(null); // the row the next pick gets connected to
@@ -1164,7 +1164,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // not layer-visibility churn. Always rendered regardless of which module tab is active (same as
   // every other store-driven group here — `mode` only ever gates which SIDEBAR content shows, never
   // what's in the 3D scene itself), so a planned hole stays visible for context while working in 3D
-  // View or 3D Modeling too, not just the Targeting tab where it's edited.
+  // View or 3D Modelling too, not just the Targeting tab where it's edited.
   const plannedGroupRef = useRef(null);
   const sectionStringsGroupRef = useRef(null); // TASKS.csv #519
   // TASKS.csv #575 — keyboard path to the view's right-click menu (Zoom to fit all, Zoom to selected area, Reset
@@ -1260,11 +1260,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [stackRelation, setStackRelation] = useState("onlap");
   const [stackAdd, setStackAdd] = useState("");
   const [expandedLithoGroupId, setExpandedLithoGroupId] = useState(null); // TASKS.csv #176 — which group's code checklist is open
-  // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modeling" pill
-  // switcher). Now that View and Modeling are separate top-level modules, which content shows is
+  // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modelling" pill
+  // switcher). Now that View and Modelling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
-  // below (`sidebarTab === "home"` / `=== "modeling"`) didn't need a mechanical find/replace.
-  const sidebarTab = mode === "modeling" ? "modeling" : mode === "targeting" ? "targeting" : "home"; // #750 — no Predictive tab
+  // below (`sidebarTab === "home"` / `=== "modelling"`) didn't need a mechanical find/replace.
+  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : "home"; // #750 — no Predictive tab
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
@@ -1465,9 +1465,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   // TASKS.csv #225 — armed-click tool modes (section/measure/rect-zoom/pick-hole) and transient UI
   // popovers used to implicitly disarm on every mode switch, since that switch used to unmount this
-  // whole component. Now that a single persistent instance survives View<->Modeling<->Targeting
+  // whole component. Now that a single persistent instance survives View<->Modelling<->Targeting
   // switches, that disarm has to be explicit instead of an accident of unmounting — otherwise, e.g.,
-  // arming the measure tool in 3D View and then switching to Modeling would leave it armed there too.
+  // arming the measure tool in 3D View and then switching to Modelling would leave it armed there too.
   // Deliberately NOT resetting modal-open booleans (dbModalOpen, qcModalOpen, etc.) here — leaving a
   // modal open across a mode switch reads as reasonable, arguably better, UX, not a bug to fix.
   useEffect(() => {
@@ -1637,7 +1637,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
     // TASKS.csv #225 — both of these used to reset implicitly on every tab-switch-triggered
-    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modeling/
+    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modelling/
     // Targeting, that implicit reset never happens again unless done explicitly here, on the one
     // signal (viewerUiStateSeq) that reliably means "a real New/Open project just happened", not just
     // a tab switch. hasAutoFitRef: without this, a newly-opened project would keep the PREVIOUS
@@ -3233,7 +3233,7 @@ ${describeTrend(t)}` };
   const apiToScene = (v) => ({ x: v[0], y: v[2], z: -v[1] });
 
   // Turns a set of structure picks into GemPy orientations (scene coords, permuted to the sidecar's
-  // geographic axes). Shared by all three modeling tools below — the litho and alteration tools look
+  // geographic axes). Shared by all three modelling tools below — the litho and alteration tools look
   // this up from a separate structure-layer pick (preferring "CON" contacts, else any pick with a
   // dip/azimuth); the structural tool instead feeds its own picks in here, since a fault or shear
   // pick's own dip/azimuth already IS the orientation it wants modelled.
@@ -3244,7 +3244,7 @@ ${describeTrend(t)}` };
   // tools below, so a domain genuinely restricts what a modelling run sees rather than just labeling
   // the output afterward.
   // TASKS.csv #281 — `domainIdOverride` lets a caller ask for a SPECIFIC domain rather than whatever
-  // the Modeling tab's domain selector currently holds. Added for the Stereonet's own domain filter,
+  // the Modelling tab's domain selector currently holds. Added for the Stereonet's own domain filter,
   // which is a QC choice made inside that modal and must not silently retarget (or be retargeted by)
   // the modelling tools' selection. Every existing caller omits it and behaves exactly as before.
   const filterRowsByDomain = (rows, traces, getDepth, domainIdOverride) => {
@@ -3401,7 +3401,7 @@ ${describeTrend(t)}` };
     return { x: cx, y: cy, z: cz, dip, azimuth };
   };
 
-  // Shared core for all modeling tools: takes one or more already-gathered {label, meshName, points,
+  // Shared core for all modelling tools: takes one or more already-gathered {label, meshName, points,
   // orientations, color} specs, sends them all in a SINGLE sidecar request, and adds each resulting
   // mesh to the scene. Sending multiple surfaces together (rather than one call per unit) matters for
   // more than efficiency: the sidecar puts every surface in the request into one GemPy
@@ -6182,11 +6182,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     setPickedHolePoint(world);
     setPickHoleMode(false);
   }, [pickHoleMode, raycastWorldPoint]);
-  // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modeling tab: select it, or — when
+  // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
   const onMcodeClick = useCallback((e) => {
-    if (!mcPickMode || mode !== "modeling") return;
+    if (!mcPickMode || mode !== "modelling") return;
     const d = mcDownRef.current;
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     const rect = mountRef.current.getBoundingClientRect();
@@ -6204,7 +6204,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     setMcSelected(row);
   }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, layers.litho, pickHits, setModellingCodes]);
-  // TASKS.csv #599 — overlay in the Modeling tab: a tie line (in the code's colour) between the middles of each
+  // TASKS.csv #599 — overlay in the Modelling tab: a tie line (in the code's colour) between the middles of each
   // pair of connected intervals, and the selected / "connect from" interval highlighted along its trace.
   const mcOverlayRef = useRef(null);
   useEffect(() => {
@@ -6213,8 +6213,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!mcOverlayRef.current) { mcOverlayRef.current = new THREE.Group(); mcOverlayRef.current.name = "modellingCodesOverlay"; scene.add(mcOverlayRef.current); }
     const g = mcOverlayRef.current;
     g.children.slice().forEach((o) => { g.remove(o); o.geometry?.dispose(); o.material?.dispose(); });
-    g.visible = mode === "modeling";
-    if (mode !== "modeling") return;
+    g.visible = mode === "modelling";
+    if (mode !== "modelling") return;
     const traceOf = (hole) => tracesRef.current.find((t) => t.hole_id === hole);
     const parseKey = (k) => { const parts = String(k).split("|"); const to = Number(parts.pop()), from = Number(parts.pop()); return { hole_id: parts.join("|"), from, to }; };
     (modellingCodes?.ties || []).forEach((tie) => {
@@ -6629,7 +6629,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const name = `Section ${azimuth.toFixed(0)}°`;
     upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor, contacts: [] });
-    // lithoUnits: the same distinct-litho-value list the Modeling tab's unit pickers use (litho_units
+    // lithoUnits: the same distinct-litho-value list the Modelling tab's unit pickers use (litho_units
     // above) — passed through so the pop-out's "Draw contact" flow can offer a real unit picker instead
     // of a freeform typed name (see SectionWindow.jsx's finishContact comment for why: a contact tied
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
@@ -6784,10 +6784,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           show={visible} paneProps={paneProps}
         />
       )}
-      {/* TASKS.csv #458 — 3D Modeling ribbon: each modelling tool opens as a pane at the top of the sidebar
+      {/* TASKS.csv #458 — 3D Modelling ribbon: each modelling tool opens as a pane at the top of the sidebar
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
-      {mode === "modeling" && (
-        <Ribbon show={visible} label="3D Modeling tools">
+      {mode === "modelling" && (
+        <Ribbon show={visible} label="3D Modelling tools">
           <RibbonGroup advanced label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
@@ -7438,11 +7438,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         })()}
         </>)}
 
-        {sidebarTab === "modeling" && (<>
+        {sidebarTab === "modelling" && (<>
         {toolPane === "settings" && (<>
         {paneHeader("Model settings", Settings, "model")}
         {/* TASKS.csv #309 — this block of explanatory prose used to render ALWAYS-ON directly under
-            the section label, at the smallest font size in the app. The 3D Modeling sidebar had five
+            the section label, at the smallest font size in the app. The 3D Modelling sidebar had five
             of these (Domain / Intercept set / Resolution / Surface stiffness / Search ellipsoid),
             roughly four lines of help per control, so a 900px sidebar showed about five actual
             controls and the rest was prose — while the 3D View sidebar, rendered by this SAME
@@ -7701,7 +7701,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "geoml" && (<>
-        {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modeling tool */}
+        {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modelling tool */}
         {paneHeader("geoML models", Sparkles, "model")}
         <Suspense fallback={null}>
           <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
@@ -8744,7 +8744,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label="3D view" tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modeling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label="3D view" tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -8784,7 +8784,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
-            headline={mode === "modeling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
+            headline={mode === "modelling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
             actionLabel={sampleLoading ? "Loading sample project…" : "Sample: Harry property (37 holes)"}
             onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}
@@ -9139,7 +9139,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           exists to sanity-check an orientation BEFORE it's fed to the anisotropy/structural tools, so
           the computed mean plane can now be pushed straight into the anisotropy trend fields instead
           of the user reading two numbers off the screen and retyping them. Also switches to the
-          Modeling sidebar so the fields it just wrote are actually visible — writing state into a
+          Modelling sidebar so the fields it just wrote are actually visible — writing state into a
           panel the user can't see would look like nothing happened. */}
       {stereonetOpen && (
         <StereonetModal
@@ -9153,8 +9153,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const t = { ...cleanTrend({ name: `Stereonet mean (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
             setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
-            goToModule("modeling");
-            setNotices((p) => [...p, `Trend "${t.name}" added from the stereonet mean orientation — choose which models use it in 3D Modeling → Model settings → Structural trends.`]);
+            goToModule("modelling");
+            setNotices((p) => [...p, `Trend "${t.name}" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.`]);
           }}
         />
       )}
@@ -9284,7 +9284,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 // grouped with separators; Grid and Themes open a small popover panel anchored under their button
 // (closes on an explicit close click or picking an action — no outside-click listener yet, kept
 // simple for this first pass); everything else fires the same handlers the old sidebar buttons used
-// to (a modal-open setter, or a one-shot action). Modeling mode doesn't render this yet (TASKS.csv
+// to (a modal-open setter, or a one-shot action). Modelling mode doesn't render this yet (TASKS.csv
 // #155 follow-up) — its sidebar is unchanged for now.
 function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
@@ -9456,7 +9456,7 @@ function ViewToolbar({
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modeling."}>
+          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling."}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Data QC</span></button>
           </HoverToolInfo>
         </div>
