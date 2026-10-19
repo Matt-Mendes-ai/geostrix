@@ -17,7 +17,9 @@ import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, m
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
-import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765 // TASKS.csv #568
+import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
+import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
+import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757 // TASKS.csv #568
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -73,6 +75,7 @@ export function createModellingRuns(ctx, mcRef) {
     originRef,
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
+    addVoxelModel, // TASKS.csv #757
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -465,6 +468,7 @@ export function createModellingRuns(ctx, mcRef) {
       const maxDist = Math.hypot(ext[1] - ext[0], ext[3] - ext[2], ext[5] - ext[4]) * 0.25;
       const distances = [];
       let failed = 0;
+      let counter = null, blockMeta = null; // TASKS.csv #757 — each realisation's lithology block, counted per cell
       const tStart = performance.now();
       let budgetStopped = false;
       for (let i = 0; i < n; i++) {
@@ -482,9 +486,13 @@ export function createModellingRuns(ctx, mcRef) {
         const r = await pythonImplicitModel(
           ext,
           [{ name: bSpec.meshName, points: w.points, orientations: w.orientations }],
-          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal },
+          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal, returnBlock: true }, // returnBlock: #757
         );
         if (!r.ok) { if (r.cancelled) break; failed++; continue; }
+        if (r.block?.ids?.length) { // #757
+          if (!counter) { counter = makeEnsembleCounter(r.block.ids.length, r.block.labels.length); blockMeta = r.block; }
+          counter.add(r.block.ids);
+        }
         const out = (r.surfaces || []).find((x) => x.name === bSpec.meshName);
         if (!out?.vertices?.length) { distances.push(basePts.map(() => Infinity)); continue; }
         const rVerts = unwarpVerts(out.vertices).map(apiToScene).map((v) => [v.x, v.y, v.z]);
@@ -554,6 +562,44 @@ export function createModellingRuns(ctx, mcRef) {
         },
       ]);
       setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
+
+      // ---------- TASKS.csv #757 — where the GEOLOGY is uncertain: share of realisations with the unit per cell, and the
+      // information entropy (0 = every realisation agrees), as block models; plus the unit's volume in every realisation
+      if (counter && counter.runs >= 3 && addVoxelModel) {
+        const er = counter.result();
+        const [bx0, bx1, by0, by1, bz0, bz1] = blockMeta.extent;
+        const [bnx, bny, bnz] = blockMeta.resolution;
+        const cellVol = ((bx1 - bx0) / bnx) * ((by1 - by0) / bny) * ((bz1 - bz0) / bnz);
+        const warpDetE = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
+        // With a trend the blocks are in the warped frame: read them at the centres of an axis-aligned real-space grid
+        // (the same resampling #679 uses for the block model), through an index map, so every value keeps its cell
+        let outExtent = blockMeta.extent, outRes = blockMeta.resolution, map = null;
+        if (anisotropy.enabled) {
+          const rx = minMax(extentApiPts.map((q) => q.x)), ry = minMax(extentApiPts.map((q) => q.y)), rz = minMax(extentApiPts.map((q) => q.z));
+          const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
+          const idx = Int32Array.from({ length: blockMeta.ids.length }, (_, i) => i + 1);
+          const rs = resampleWarpedBlock({ ...blockMeta, ids: idx }, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
+          outExtent = rs.extent; outRes = rs.resolution; map = rs.ids;
+        }
+        const o = originRef.current;
+        const hMax = Math.log2(Math.max(2, blockMeta.labels.length));
+        const common = { tool: "sensitivity ensemble (GemPy realisations), #757", of: bSpec.label, realisations: er.runs, pointSigmaM: ens.sigmaPos, orientationSigmaDeg: ens.sigmaDeg, seed,
+          note: "Shares of realisations under the sigmas entered: a sensitivity ensemble, not a posterior probability.", generatedAt: new Date().toISOString() };
+        const volLines = [];
+        blockMeta.labels.forEach((label, k) => {
+          if (label == null) return;
+          const cells = gridValuesToCells(outExtent, outRes, er.prob[k], o, (v) => v > 0, map);
+          if (cells.length) addVoxelModel({ name: `P(${label}): share of ${er.runs} realisations`, source: "gempy-ensemble", cells, min: 0, max: 1, colorMode: "continuous", stops: sequentialStops(0, 1), params: { ...common, value: `share of realisations in which the cell is ${label} (0-1)` } });
+          const vols = er.volumesCells.map((per) => (per[k] * cellVol) / warpDetE);
+          const q = (x) => quantile(vols, x);
+          const fmtV = (v) => (v == null ? "n/a" : v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
+          volLines.push(`${label} P10 ${fmtV(q(0.1))}, P50 ${fmtV(q(0.5))}, P90 ${fmtV(q(0.9))}`);
+        });
+        const hCells = gridValuesToCells(outExtent, outRes, er.entropy, o, (v) => v > 0, map);
+        if (hCells.length) addVoxelModel({ name: `Entropy (bits): ${bSpec.label}, ${er.runs} realisations`, source: "gempy-ensemble", cells: hCells, min: 0, max: hMax, colorMode: "continuous", stops: sequentialStops(0, hMax), params: { ...common, value: `information entropy of the unit across realisations (0 = all agree, ${hMax.toFixed(2)} = maximal disagreement)` } });
+        const uncertainShare = er.entropy.reduce((n, v) => n + (v > 0 ? 1 : 0), 0) / er.entropy.length;
+        setNotices((p) => [...p, `Where the geology is uncertain (${er.runs} realisations): added "P(...)" (share of realisations with the unit, per cell) and "Entropy" block models; ${(100 * uncertainShare).toFixed(1)}% of the model box changes unit between realisations. Unit volume inside the box across realisations: ${volLines.join("; ")}. Shares of realisations under the sigmas you entered, not probabilities in the strict sense.`]);
+      }
     }
   };
 

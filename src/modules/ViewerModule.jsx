@@ -3580,6 +3580,7 @@ ${describeTrend(t)}` };
     originRef,
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
+    addVoxelModel, // TASKS.csv #757
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
