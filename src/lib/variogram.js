@@ -1,5 +1,4 @@
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #147 — experimental variogram / spatial-continuity analysis per domain.
 //
 // WHY THIS EXISTS. estimation.js's own header says, in as many words, that GeoStrix does NOT do
@@ -71,15 +70,17 @@ function subsample(points, maxPoints) {
 // in metres is a correlation length in metres — but a log-space sill is NOT a grade variance and must
 // not be quoted as one, and back-transforming it properly needs a lognormal correction this module
 // does not do. The UI says exactly that whenever a transform is active.
+// labels and notes stay English here and are translated where they are shown (TASKS.csv #786): translating at module
+// load would freeze them in the language of the first import
 export const VALUE_TRANSFORMS = {
-  none: { label: "None (raw grade)", note: tr("Variogram of grade itself. Sill and nugget are in (grade unit)^2.") },
+  none: { label: "None (raw grade)", note: "Variogram of grade itself. Sill and nugget are in (grade unit)^2." },
   log: {
     label: "log10(value + 1)",
-    note: tr("For skewed grade (most precious/base metals). Reveals structure that outliers hide. Range is still metres; sill/nugget are in log units and are NOT a grade variance."),
+    note: "For skewed grade (most precious/base metals). Reveals structure that outliers hide. Range is still metres; sill/nugget are in log units and are NOT a grade variance.",
   },
   cap: {
     label: "Cap at percentile",
-    note: tr("Keeps raw units by pulling extreme values back to a percentile, the same top-cut idea as the estimation cap. Less distorting than a log, less effective on very skewed data."),
+    note: "Keeps raw units by pulling extreme values back to a percentile, the same top-cut idea as the estimation cap. Less distorting than a log, less effective on very skewed data.",
   },
 };
 
@@ -225,17 +226,17 @@ export const VARIOGRAM_MODELS = {
   spherical: {
     label: "Spherical",
     shape: (h, a) => (h <= 0 ? 0 : h >= a ? 1 : 1.5 * (h / a) - 0.5 * (h / a) ** 3),
-    note: tr("Reaches its sill exactly at the range — the usual first choice for grade in a defined domain."),
+    note: "Reaches its sill exactly at the range — the usual first choice for grade in a defined domain.",
   },
   exponential: {
     label: "Exponential",
     shape: (h, a) => (h <= 0 ? 0 : 1 - Math.exp((-3 * h) / a)),
-    note: tr("Approaches the sill asymptotically; 'range' is the practical range (95% of sill). Fits noisier, less structured grade."),
+    note: "Approaches the sill asymptotically; 'range' is the practical range (95% of sill). Fits noisier, less structured grade.",
   },
   gaussian: {
     label: "Gaussian",
     shape: (h, a) => (h <= 0 ? 0 : 1 - Math.exp((-3 * h * h) / (a * a))),
-    note: tr("Parabolic near the origin — implies a very smooth, almost continuous variable. Rare for grade; usually a sign of over-smoothed data."),
+    note: "Parabolic near the origin — implies a very smooth, almost continuous variable. Rare for grade; usually a sign of over-smoothed data.",
   },
 };
 

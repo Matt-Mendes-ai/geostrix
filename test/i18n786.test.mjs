@@ -65,3 +65,28 @@ test("t(): the dictionary, else the English; placeholders filled; system languag
   assert.equal(t("Close {name}", { name: "Stereonet" }), "Close Stereonet");
   assert.deepEqual(["es-CL", "pt-BR", "pt-PT", "en-CA", "fr", ""].map(systemLanguage), ["es", "pt", "pt", "en", "en", "en"]);
 });
+
+// A tr() that runs when its module loads is frozen in the first language: switching language later re-renders the app
+// but never re-runs module scope. Translate where the text is shown instead (lib/variogram.js was the one case).
+test("no translation call runs at module load", async (tc) => {
+  let parse, traverse;
+  try {
+    const { createRequire } = await import("node:module");
+    const require = createRequire(import.meta.url);
+    ({ parse } = require("@babel/parser"));
+    traverse = require("@babel/traverse").default;
+  } catch { tc.skip("@babel/parser not installed"); return; }
+  const files = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(path.join(d, e.name)) : /\.jsx?$/.test(e.name) ? [path.join(d, e.name)] : []));
+  const found = [];
+  for (const f of files("src")) {
+    const s = fs.readFileSync(f, "utf8");
+    if (!/\b(tr|tx|notice)\(/.test(s)) continue;
+    traverse(parse(s, { sourceType: "module", plugins: ["jsx"] }), {
+      CallExpression(p) {
+        const c = p.node.callee;
+        if (c.type === "Identifier" && ["t", "tr", "tx", "notice"].includes(c.name) && !p.getFunctionParent()) found.push(`${path.basename(f)}:${p.node.loc.start.line}`);
+      },
+    });
+  }
+  assert.deepEqual(found, []);
+});

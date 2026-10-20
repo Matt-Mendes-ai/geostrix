@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #93 — COMPARE TWO VERSIONS OF A SURFACE.
 //
@@ -80,7 +81,7 @@ export default function SurfaceCompareModal({
     setTimeout(() => {
       try {
         const ma = getMesh?.(surfA.id), mb = getMesh?.(surfB.id);
-        if (!ma?.positions || !mb?.positions) throw new Error("one of these versions has no mesh in the scene");
+        if (!ma?.positions || !mb?.positions) throw new Error(tr("one of these versions has no mesh in the scene"));
         const t0 = performance.now();
         const r = compareSurfaceGeometry(ma, mb, { buildMeshQuery, closestPointOnMesh, computeMeshVolume });
         setResult(r ? { ...r, ms: Math.round(performance.now() - t0) } : null);
@@ -143,24 +144,16 @@ export default function SurfaceCompareModal({
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
-            <GitCompare size={14} /> Compare model versions
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+            <GitCompare size={14} />{" "}{tr("Compare model versions")}</div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {multiVersionLineages.length === 0 ? (
-          <div style={{ padding: "24px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>
-            No surface has more than one version yet. Re-run a modelling tool with different parameters,
-            then expand the new surface in the Generated surfaces list and set <em>“New version of…”</em>{" "}
-            to the run it replaces. Both runs stay in the project — linking them only records that one
-            descends from the other, so they can be compared here.
-          </div>
+          <div style={{ padding: "24px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 560 }}>{tr("No surface has more than one version yet. Re-run a modelling tool with different parameters, then expand the new surface in the Generated surfaces list and set")}{" "}<em>{tr("“New version of…”")}</em>{" "}{tr("to the run it replaces. Both runs stay in the project — linking them only records that one descends from the other, so they can be compared here.")}</div>
         ) : (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
-              <label style={rowLabel}>
-                Lineage
-                <select
+              <label style={rowLabel}>{tr("Lineage")}<select
                   value={lineage[0]?.id || ""}
                   onChange={(e) => {
                     const l = lineages.find((x) => x[0].id === e.target.value) || [];
@@ -172,77 +165,64 @@ export default function SurfaceCompareModal({
                   style={{ ...sel, minWidth: 240 }}
                 >
                   {multiVersionLineages.map((l) => (
-                    <option key={l[0].id} value={l[0].id}>{l[0].name} — {l.length} versions</option>
+                    <option key={l[0].id} value={l[0].id}>{tr("{name} — {l} versions", { name: l[0].name, l: l.length })}</option>
                   ))}
                 </select>
               </label>
-              <label style={rowLabel}>
-                Version A (older)
-                <select value={aId} onChange={(e) => { setAId(e.target.value); setResult(null); }} style={{ ...sel, minWidth: 210 }}>
+              <label style={rowLabel}>{tr("Version A (older)")}<select value={aId} onChange={(e) => { setAId(e.target.value); setResult(null); }} style={{ ...sel, minWidth: 210 }}>
                   {lineage.map((s, i) => <option key={s.id} value={s.id}>v{i + 1} · {s.name}</option>)}
                 </select>
               </label>
-              <label style={rowLabel}>
-                Version B (newer)
-                <select value={bId} onChange={(e) => { setBId(e.target.value); setResult(null); }} style={{ ...sel, minWidth: 210 }}>
+              <label style={rowLabel}>{tr("Version B (newer)")}<select value={bId} onChange={(e) => { setBId(e.target.value); setResult(null); }} style={{ ...sel, minWidth: 210 }}>
                   {lineage.map((s, i) => <option key={s.id} value={s.id}>v{i + 1} · {s.name}</option>)}
                 </select>
               </label>
               <button onClick={runCompare} disabled={!surfA || !surfB || surfA === surfB || busy} style={{ ...primaryBtn, opacity: !surfA || !surfB || surfA === surfB || busy ? 0.5 : 1 }}>
-                <GitCompare size={12} /> {busy ? "Comparing…" : "Compare geometry"}
+                <GitCompare size={12} /> {busy ? tr("Comparing…") : tr("Compare geometry")}
               </button>
-              {(result || paramDiff) && <button onClick={exportCsv} style={{ ...ghostBtn, marginLeft: "auto" }}><Download size={12} /> Export CSV</button>}
+              {(result || paramDiff) && <button onClick={exportCsv} style={{ ...ghostBtn, marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>}
             </div>
 
             {surfA && surfB && surfA.id === surfB.id && (
-              <div style={warnNote}>Pick two different versions.</div>
+              <div style={warnNote}>{tr("Pick two different versions.")}</div>
             )}
 
             {/* HAND-EDIT DISCLOSURE — above the numbers, never below them. */}
             {edits?.message && (
               <div style={{ ...warnNote, marginBottom: 8 }}>
-                <strong>Hand-edited after generation.</strong> {edits.message}
-                {edits.a.volumeDeltaM3 != null && <div style={{ marginTop: 4 }}>Older version’s sculpting changed its enclosed volume by {edits.a.volumeDeltaM3 >= 0 ? "+" : ""}{fmt0(edits.a.volumeDeltaM3)} m³.</div>}
-                {edits.b.volumeDeltaM3 != null && <div style={{ marginTop: 4 }}>Newer version’s sculpting changed its enclosed volume by {edits.b.volumeDeltaM3 >= 0 ? "+" : ""}{fmt0(edits.b.volumeDeltaM3)} m³.</div>}
+                <strong>{tr("Hand-edited after generation.")}</strong> {edits.message}
+                {edits.a.volumeDeltaM3 != null && <div style={{ marginTop: 4 }}>{tr("Older version’s sculpting changed its enclosed volume by {v}{v2} m³.", { v: edits.a.volumeDeltaM3 >= 0 ? "+" : "", v2: fmt0(edits.a.volumeDeltaM3) })}</div>}
+                {edits.b.volumeDeltaM3 != null && <div style={{ marginTop: 4 }}>{tr("Newer version’s sculpting changed its enclosed volume by {v}{v2} m³.", { v: edits.b.volumeDeltaM3 >= 0 ? "+" : "", v2: fmt0(edits.b.volumeDeltaM3) })}</div>}
               </div>
             )}
 
             {paramDiff && !paramDiff.sameTool && (
-              <div style={{ ...warnNote, marginBottom: 8 }}>
-                These two were produced by <strong>different tools</strong> ({paramDiff.toolA || "unknown"} vs {paramDiff.toolB || "unknown"}).
-                They can still be compared geometrically, but their parameter sets are not the same kind of thing,
-                so “what changed” below is a list of two different vocabularies rather than a settings diff.
-              </div>
+              <div style={{ ...warnNote, marginBottom: 8 }}>{tr("These two were produced by")}{" "}<strong>{tr("different tools")}</strong>{" "}{tr("({v} vs {v2}). They can still be compared geometrically, but their parameter sets are not the same kind of thing, so “what changed” below is a list of two different vocabularies rather than a settings diff.", { v: paramDiff.toolA || tr("unknown"), v2: paramDiff.toolB || tr("unknown") })}</div>
             )}
 
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
               {/* ---------- WHAT CHANGED IN THE PARAMETERS (free — every run stores its own block) ---------- */}
               <div style={{ flex: "1 1 330px", minWidth: 300 }}>
-                <div style={sectionLabel}>Parameters that changed</div>
-                {!paramDiff ? <div style={muted}>Select two versions.</div> : (
+                <div style={sectionLabel}>{tr("Parameters that changed")}</div>
+                {!paramDiff ? <div style={muted}>{tr("Select two versions.")}</div> : (
                   <>
                     {paramDiff.changed.length === 0 && paramDiff.onlyA.length === 0 && paramDiff.onlyB.length === 0 ? (
-                      <div style={muted}>
-                        No recorded setting differs between these two runs
-                        {paramDiff.unchangedCount ? ` (${paramDiff.unchangedCount} compared)` : ""}.
-                        If the geometry still differs, the inputs did — the drillhole data, a domain, or an
-                        excluded intercept changed between the runs, and none of those live in the parameter block.
-                      </div>
+                      <div style={muted}>{tr("No recorded setting differs between these two runs{v}. If the geometry still differs, the inputs did — the drillhole data, a domain, or an excluded intercept changed between the runs, and none of those live in the parameter block.", { v: paramDiff.unchangedCount ? ` (${paramDiff.unchangedCount} compared)` : "" })}</div>
                     ) : (
                       <table style={tbl}>
-                        <thead><tr><th style={th}>Setting</th><th style={th}>A</th><th style={th}>B</th></tr></thead>
+                        <thead><tr><th style={th}>{tr("Setting")}</th><th style={th}>A</th><th style={th}>B</th></tr></thead>
                         <tbody>
                           {paramDiff.changed.map((c) => (
                             <tr key={c.key}><td style={td}>{c.key}</td><td style={{ ...td, color: "var(--color-danger-icon)" }}>{c.fromText}</td><td style={{ ...td, color: "#1a4a9c", fontWeight: 600 }}>{c.toText}</td></tr>
                           ))}
-                          {paramDiff.onlyA.map((k) => <tr key={`a_${k}`}><td style={td}>{k}</td><td style={td}>recorded</td><td style={{ ...td, color: "var(--color-text-muted)" }}>not recorded</td></tr>)}
-                          {paramDiff.onlyB.map((k) => <tr key={`b_${k}`}><td style={td}>{k}</td><td style={{ ...td, color: "var(--color-text-muted)" }}>not recorded</td><td style={td}>recorded</td></tr>)}
+                          {paramDiff.onlyA.map((k) => <tr key={`a_${k}`}><td style={td}>{k}</td><td style={td}>{tr("recorded")}</td><td style={{ ...td, color: "var(--color-text-muted)" }}>{tr("not recorded")}</td></tr>)}
+                          {paramDiff.onlyB.map((k) => <tr key={`b_${k}`}><td style={td}>{k}</td><td style={{ ...td, color: "var(--color-text-muted)" }}>{tr("not recorded")}</td><td style={td}>{tr("recorded")}</td></tr>)}
                         </tbody>
                       </table>
                     )}
                     {paramDiff.outcomes.length > 0 && (
                       <>
-                        <div style={{ ...sectionLabel, marginTop: 10 }}>Results that changed (outputs, not settings)</div>
+                        <div style={{ ...sectionLabel, marginTop: 10 }}>{tr("Results that changed (outputs, not settings)")}</div>
                         <table style={tbl}>
                           <tbody>
                             {paramDiff.outcomes.map((c) => (
@@ -252,73 +232,55 @@ export default function SurfaceCompareModal({
                         </table>
                       </>
                     )}
-                    <div style={hint}>
-                      Read straight from each run’s own stored parameter block — the same
-                      record every mesh export stamps into its file. Costs nothing to compute.
-                    </div>
+                    <div style={hint}>{tr("Read straight from each run’s own stored parameter block — the same record every mesh export stamps into its file. Costs nothing to compute.")}</div>
                   </>
                 )}
               </div>
 
               {/* ---------- GEOMETRY DIFF ---------- */}
               <div style={{ flex: "1 1 330px", minWidth: 300 }}>
-                <div style={sectionLabel}>Geometry</div>
-                {error && <div style={warnNote}>Couldn’t compare: {error}</div>}
-                {!result && !error && <div style={muted}>Press “Compare geometry”. This builds a spatial index over both meshes and measures the true point-to-surface distance for every vertex — a few hundred milliseconds on a full-size shell, so it runs on request rather than on every dropdown change.</div>}
+                <div style={sectionLabel}>{tr("Geometry")}</div>
+                {error && <div style={warnNote}>{tr("Couldn’t compare: {error}", { error })}</div>}
+                {!result && !error && <div style={muted}>{tr("Press “Compare geometry”. This builds a spatial index over both meshes and measures the true point-to-surface distance for every vertex — a few hundred milliseconds on a full-size shell, so it runs on request rather than on every dropdown change.")}</div>}
                 {result && (
                   <>
                     {result.identical && (
-                      <div style={{ ...goodNote, marginBottom: 8 }}>
-                        These two meshes are <strong>geometrically identical</strong> — same triangle count and zero separation
-                        everywhere. Whatever changed between the runs did not move the surface.
-                      </div>
+                      <div style={{ ...goodNote, marginBottom: 8 }}>{tr("These two meshes are")}{" "}<strong>{tr("geometrically identical")}</strong>{" "}{tr("— same triangle count and zero separation everywhere. Whatever changed between the runs did not move the surface.")}</div>
                     )}
                     <table style={tbl}>
-                      <thead><tr><th style={th}></th><th style={th}>A (older)</th><th style={th}>B (newer)</th></tr></thead>
+                      <thead><tr><th style={th}></th><th style={th}>{tr("A (older)")}</th><th style={th}>{tr("B (newer)")}</th></tr></thead>
                       <tbody>
-                        <tr><td style={td}>Vertices</td><td style={td}>{result.a.vertexCount.toLocaleString()}</td><td style={td}>{result.b.vertexCount.toLocaleString()}</td></tr>
-                        <tr><td style={td}>Triangles</td><td style={td}>{result.a.triangleCount.toLocaleString()}</td><td style={td}>{result.b.triangleCount.toLocaleString()}</td></tr>
-                        <tr><td style={td}>Watertight</td><td style={td}>{result.a.watertight ? "yes" : `no (${result.a.openEdgeCount} open edges)`}</td><td style={td}>{result.b.watertight ? "yes" : `no (${result.b.openEdgeCount} open edges)`}</td></tr>
-                        <tr><td style={td}>Separate bodies</td><td style={td}>{result.a.componentCount ?? "—"}</td><td style={td}>{result.b.componentCount ?? "—"}</td></tr>
-                        {result.bothClosed && <tr><td style={td}>Enclosed volume</td><td style={td}>{fmt0(result.a.volumeM3)} m³</td><td style={td}>{fmt0(result.b.volumeM3)} m³</td></tr>}
+                        <tr><td style={td}>{tr("Vertices")}</td><td style={td}>{result.a.vertexCount.toLocaleString()}</td><td style={td}>{result.b.vertexCount.toLocaleString()}</td></tr>
+                        <tr><td style={td}>{tr("Triangles")}</td><td style={td}>{result.a.triangleCount.toLocaleString()}</td><td style={td}>{result.b.triangleCount.toLocaleString()}</td></tr>
+                        <tr><td style={td}>{tr("Watertight")}</td><td style={td}>{result.a.watertight ? "yes" : tr("no ({openEdgeCount} open edges)", { openEdgeCount: result.a.openEdgeCount })}</td><td style={td}>{result.b.watertight ? "yes" : tr("no ({openEdgeCount} open edges)", { openEdgeCount: result.b.openEdgeCount })}</td></tr>
+                        <tr><td style={td}>{tr("Separate bodies")}</td><td style={td}>{result.a.componentCount ?? "—"}</td><td style={td}>{result.b.componentCount ?? "—"}</td></tr>
+                        {result.bothClosed && <tr><td style={td}>{tr("Enclosed volume")}</td><td style={td}>{fmt0(result.a.volumeM3)} m³</td><td style={td}>{fmt0(result.b.volumeM3)} m³</td></tr>}
                       </tbody>
                     </table>
 
                     {result.bothClosed ? (
-                      <div style={{ ...bigStat, marginTop: 8 }}>
-                        Volume change: <strong style={{ color: result.volumeDeltaM3 >= 0 ? "#1a4a9c" : "var(--color-danger-icon)" }}>
+                      <div style={{ ...bigStat, marginTop: 8 }}>{tr("Volume change:")}{" "}<strong style={{ color: result.volumeDeltaM3 >= 0 ? "#1a4a9c" : "var(--color-danger-icon)" }}>
                           {result.volumeDeltaM3 >= 0 ? "+" : ""}{fmt0(result.volumeDeltaM3)} m³
                         </strong>
                         {result.volumeDeltaPct != null && <> ({result.volumeDeltaPct >= 0 ? "+" : ""}{fmt(result.volumeDeltaPct, 1)}%)</>}
-                        <div style={hint}>Exploration target volume only — not a Mineral Resource, in either version.</div>
+                        <div style={hint}>{tr("Exploration target volume only — not a Mineral Resource, in either version.")}</div>
                       </div>
                     ) : (
-                      <div style={{ ...warnNote, marginTop: 8 }}>
-                        At least one version is an <strong>open surface</strong> (a draped contact, a fault plane, or a shell
-                        clipped by a domain or the grid edge), so there is no enclosed volume to difference. The separation
-                        figures below are still exact.
-                      </div>
+                      <div style={{ ...warnNote, marginTop: 8 }}>{tr("At least one version is an")}{" "}<strong>{tr("open surface")}</strong>{" "}{tr("(a draped contact, a fault plane, or a shell clipped by a domain or the grid edge), so there is no enclosed volume to difference. The separation figures below are still exact.")}</div>
                     )}
 
-                    <div style={{ ...sectionLabel, marginTop: 10 }}>How far the surface moved</div>
+                    <div style={{ ...sectionLabel, marginTop: 10 }}>{tr("How far the surface moved")}</div>
                     <table style={tbl}>
-                      <thead><tr><th style={th}>Direction</th><th style={th}>mean</th><th style={th}>median</th><th style={th}>p95</th><th style={th}>max</th></tr></thead>
+                      <thead><tr><th style={th}>{tr("Direction")}</th><th style={th}>{tr("mean")}</th><th style={th}>{tr("median")}</th><th style={th}>p95</th><th style={th}>{tr("max")}</th></tr></thead>
                       <tbody>
                         {result.bToA && <tr><td style={td}>B → A</td><td style={td}>{fmt(result.bToA.meanM)} m</td><td style={td}>{fmt(result.bToA.medianM)} m</td><td style={td}>{fmt(result.bToA.p95M)} m</td><td style={td}>{fmt(result.bToA.maxM)} m</td></tr>}
                         {result.aToB && <tr><td style={td}>A → B</td><td style={td}>{fmt(result.aToB.meanM)} m</td><td style={td}>{fmt(result.aToB.medianM)} m</td><td style={td}>{fmt(result.aToB.p95M)} m</td><td style={td}>{fmt(result.aToB.maxM)} m</td></tr>}
                       </tbody>
                     </table>
-                    <div style={{ ...bigStat, marginTop: 8 }}>
-                      Mean separation <strong>{fmt(result.meanSeparationM)} m</strong> · largest measured separation <strong>{fmt(result.maxSeparationM)} m</strong>
+                    <div style={{ ...bigStat, marginTop: 8 }}>{tr("Mean separation")}{" "}<strong>{fmt(result.meanSeparationM)} m</strong>{" "}{tr("· largest measured separation")}{" "}<strong>{fmt(result.maxSeparationM)} m</strong>
                     </div>
-                    <div style={hint}>
-                      Exact point-to-triangle distance (not nearest-vertex), measured both ways because a one-way
-                      figure misses anything the other version has and this one doesn’t. The maximum is a
-                      <strong> lower bound</strong> on the true worst-case difference: distances are measured from each
-                      mesh’s vertices, so a bulge in the middle of a large triangle with no vertex on it isn’t sampled.
-                      {result.sampledOnly && <> Vertices were <strong>subsampled</strong> at a fixed stride ({result.bToA?.sampled.toLocaleString()} of {result.bToA?.totalVertices.toLocaleString()} on B, {result.aToB?.sampled.toLocaleString()} of {result.aToB?.totalVertices.toLocaleString()} on A) to keep this responsive — the stride is deterministic, so these numbers are reproducible, but the maximum is sampled more coarsely than the mesh allows.</>}
-                      {" "}Computed in {result.ms} ms.
-                    </div>
+                    <div style={hint}>{tr("Exact point-to-triangle distance (not nearest-vertex), measured both ways because a one-way figure misses anything the other version has and this one doesn’t. The maximum is a")}<strong>{" "}{tr("lower bound")}</strong>{" "}{tr("on the true worst-case difference: distances are measured from each mesh’s vertices, so a bulge in the middle of a large triangle with no vertex on it isn’t sampled.")}{result.sampledOnly && <>{" "}{tr("Vertices were")}{" "}<strong>{tr("subsampled")}</strong>{" "}{tr("at a fixed stride ({v} of {v2} on B, {v3} of {v4} on A) to keep this responsive — the stride is deterministic, so these numbers are reproducible, but the maximum is sampled more coarsely than the mesh allows.", { v: result.bToA?.sampled.toLocaleString(), v2: result.bToA?.totalVertices.toLocaleString(), v3: result.aToB?.sampled.toLocaleString(), v4: result.aToB?.totalVertices.toLocaleString() })}</>}
+                      {" "}{tr("Computed in {ms} ms.", { ms: result.ms })}</div>
                   </>
                 )}
               </div>
@@ -326,21 +288,15 @@ export default function SurfaceCompareModal({
 
             {/* ---------- OVERLAY + ACCEPT ---------- */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, paddingTop: 10, borderTop: "1px solid #eef0f3", flexWrap: "wrap" }}>
-              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} style={{ ...ghostBtn, opacity: surfA && surfB ? 1 : 0.5 }} title="Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage. Uses the meshes already in the scene — no second viewport.">
-                <Layers size={12} /> Overlay both in the 3D view
-              </button>
-              <button onClick={() => onClearOverlay?.()} style={ghostBtn} title="Put the compared surfaces back to their own colours.">Reset colours</button>
+              <button onClick={() => surfA && surfB && onOverlay?.(surfA.id, surfB.id)} disabled={!surfA || !surfB} style={{ ...ghostBtn, opacity: surfA && surfB ? 1 : 0.5 }} title={tr("Show both versions in the 3D view in contrasting colours (older grey-blue, newer orange) and hide the rest of the lineage. Uses the meshes already in the scene — no second viewport.")}>
+                <Layers size={12} />{" "}{tr("Overlay both in the 3D view")}</button>
+              <button onClick={() => onClearOverlay?.()} style={ghostBtn} title={tr("Put the compared surfaces back to their own colours.")}>{tr("Reset colours")}</button>
               <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-                {surfA && <button onClick={() => onAccept?.(surfA.id)} style={acceptBtn} title={`Mark "${surfA.name}" as the accepted version of this lineage`}><Check size={12} /> Accept A</button>}
-                {surfB && <button onClick={() => onAccept?.(surfB.id)} style={acceptBtn} title={`Mark "${surfB.name}" as the accepted version of this lineage`}><Check size={12} /> Accept B</button>}
+                {surfA && <button onClick={() => onAccept?.(surfA.id)} style={acceptBtn} title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfA.name })}><Check size={12} />{" "}{tr("Accept A")}</button>}
+                {surfB && <button onClick={() => onAccept?.(surfB.id)} style={acceptBtn} title={tr("Mark \"{name}\" as the accepted version of this lineage", { name: surfB.name })}><Check size={12} />{" "}{tr("Accept B")}</button>}
               </div>
             </div>
-            <div style={hint}>
-              Accepting a version marks it as the one you are working from and hides the others in this
-              lineage — it does <strong>not</strong> delete them, and it is not a statement that the accepted run is
-              correct. Nothing in this dialog validates either version against the ground; it reports what
-              differs between two records of two runs.
-            </div>
+            <div style={hint}>{tr("Accepting a version marks it as the one you are working from and hides the others in this lineage — it does")}{" "}<strong>{tr("not")}</strong>{" "}{tr("delete them, and it is not a statement that the accepted run is correct. Nothing in this dialog validates either version against the ground; it reports what differs between two records of two runs.")}</div>
           </>
         )}
       </div>

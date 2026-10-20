@@ -84,6 +84,7 @@ function mergeRun(run) {
     } else {
       const e = c.expression;
       if (e.type === "JSXEmptyExpression") return;
+      if (e.type === "StringLiteral" && !/[A-Za-z]/.test(e.value)) { key += e.value; continue; } // " · ", " — ": text, not a value
       const nm = nameFor(e, names);
       if (own.has(nm)) return;
       if (!vars.some((v) => v.name === nm)) vars.push({ name: nm, code: valueCode(e) });

@@ -17,6 +17,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desur
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -85,11 +86,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity, holes = 0;
     for (const c of collars) {
       if (assayed.size && !assayed.has(c.hole_id)) continue;
-      let tr = [];
-      try { tr = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { tr = []; }
-      if (!tr.length) continue;
+      let trace = [];
+      try { trace = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
+      if (!trace.length) continue;
       holes++;
-      for (const p of tr) {
+      for (const p of trace) {
         if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
         if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z;
       }
@@ -159,10 +160,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const cancelRun = () => abortRef.current?.abort();
   const run = () => {
     setError(""); setResult(null); setProgress(0);
-    if (!collars.length) { setError("No collars loaded — nothing to estimate from."); return; }
+    if (!collars.length) { setError(tr("No collars loaded — nothing to estimate from.")); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
-    if (maxSamples < minHoles) { setError(`Max samples per block (${maxSamples}) is below Min distinct holes (${minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.`); return; }
-    if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one."); return; }
+    if (maxSamples < minHoles) { setError(tr("Max samples per block ({maxSamples}) is below Min distinct holes ({minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.", { maxSamples, minHoles })); return; }
+    if (!bounds) { setError(tr("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one.")); return; }
     setRunning(true);
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
     // blocks the main thread — a plain synchronous call here would show the button flip back to "Run"
@@ -197,14 +198,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         if (shellId) {
           const sh = (volumeShells || []).find((v) => v.id === shellId);
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
-          if (!sh || !closed?.closed) { setError(sh ? `"${sh.name}" is not a closed solid (${closed.boundaryEdges} open edges) — it has no inside to restrict to.` : "That volume is no longer in the project."); setRunning(false); return; }
+          if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); return; }
           const q = buildMeshQuery(sh.positions, sh.indices);
           inShell = (p) => isPointInsideMesh(q, p);
           const before = points.length;
           points = points.filter((p) => inShell(p));
           shellInfo = { name: sh.name, samplesInside: points.length, samplesOutside: before - points.length };
         }
-        if (!points.length) { setError(shellInfo ? `No ${symbol} samples fall inside "${shellInfo.name}".` : "No sample points could be placed in 3D — check that holes have collars and (ideally) survey data."); setRunning(false); return; }
+        if (!points.length) { setError(shellInfo ? tr("No {symbol} samples fall inside \"{name}\".", { symbol, name: shellInfo.name }) : tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
         // TASKS.csv #292 — an unbounded search makes every sample a candidate for every block
         // (measured: 81 s of blocked main thread at 62,500 blocks x 5,000 points). 0 now means "cap at
         // the grid's own diagonal", which is a mathematical no-op but a real computational bound.
@@ -248,7 +249,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
-        setError(e.cancelled ? "Estimation cancelled." : (e.message || "Estimation failed."));
+        setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
       }
       abortRef.current = null; setProgress(null);
       setRunning(false);
@@ -295,71 +296,55 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Grade estimation → block model</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Nearest-neighbour, inverse-distance or moving-least-squares interpolation from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade estimation → block model")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Nearest-neighbour, inverse-distance or moving-least-squares interpolation from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: collars.length, assays: assays.length })}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>Method
-              {/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
+            <label style={fieldLabel}>{tr("Method")}{/* TASKS.csv #87 — the method list comes from estimation.js's own table so the dropdown
                   and the estimator can never disagree about what a method id means. */}
-              <select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} title={ESTIMATION_METHODS.find((m) => m.id === method)?.blurb || ""}>
-                {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              <select value={method} onChange={(e) => setMethod(e.target.value)} style={inp} title={tr(ESTIMATION_METHODS.find((m) => m.id === method)?.blurb || "")}>
+                {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{tr(m.label)}</option>)}
               </select>
             </label>
             {method === "ok" && (
               <div style={{ flex: "1 1 100%", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}
-                title="The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to these composites at run time (omnidirectional; with a trend, in the trend's frame, so the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.">
-                <label style={fieldLabel}>Variogram model
-                  <select value={vgModel} onChange={(e) => setVgModel(e.target.value)} style={inp} aria-label="Variogram model">
-                    <option value="spherical">Spherical</option><option value="exponential">Exponential</option><option value="gaussian">Gaussian</option>
+                title={tr("The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to these composites at run time (omnidirectional; with a trend, in the trend's frame, so the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.")}>
+                <label style={fieldLabel}>{tr("Variogram model")}<select value={vgModel} onChange={(e) => setVgModel(e.target.value)} style={inp} aria-label={tr("Variogram model")}>
+                    <option value="spherical">{tr("Spherical")}</option><option value="exponential">{tr("Exponential")}</option><option value="gaussian">{tr("Gaussian")}</option>
                   </select>
                 </label>
-                {[["Nugget", vgNugget, setVgNugget], ["Sill (total)", vgSill, setVgSill], ["Range (m)", vgRange, setVgRange]].map(([l, v, set]) => (
+                {[[tr("Nugget"), vgNugget, setVgNugget], [tr("Sill (total)"), vgSill, setVgSill], [tr("Range (m)"), vgRange, setVgRange]].map(([l, v, set]) => (
                   <label key={l} style={{ ...fieldLabel, width: 90 }}>{l}
-                    <input type="number" min="0" step="any" value={v} placeholder="fit" onChange={(e) => set(e.target.value)} style={inp} aria-label={`Variogram ${l}`} />
+                    <input type="number" min="0" step="any" value={v} placeholder={tr("fit")} onChange={(e) => set(e.target.value)} style={inp} aria-label={tr("Variogram {l}", { l })} />
                   </label>
                 ))}
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit })}</div>
               </div>
             )}
-            <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.">
-              Search radius (m, 0 = no limit)
-              <input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
               {trend && searchRadius > 0 && (
-                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>
-                  Along trend "{trend.name}": an ellipsoid of {searchRadius} × {Math.round((searchRadius * trend.ratios.int) / trend.ratios.max)} × {Math.round((searchRadius * trend.ratios.min) / trend.ratios.max)} m ({describeTrend(trend)})
-                </span>
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: trend.name, searchRadius, v: Math.round((searchRadius * trend.ratios.int) / trend.ratios.max), v2: Math.round((searchRadius * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
               )}
             </label>
-            <label style={fieldLabel} title="Counts sample POINTS, not holes — one hole composited at 2m supplies ~25 of them inside a 50m radius, so this alone can never express 'more than one hole must see this block'. Use Min distinct holes for that.">Min samples/block
-              <input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
+            <label style={fieldLabel} title={tr("Counts sample POINTS, not holes — one hole composited at 2m supplies ~25 of them inside a 50m radius, so this alone can never express 'more than one hole must see this block'. Use Min distinct holes for that.")}>{tr("Min samples/block")}<input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
             {/* TASKS.csv #258 */}
-            <label style={fieldLabel} title="A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three. With 2 or more, each hole supplies at most (max samples / min holes) of a block's samples, e.g. 8 of 16 (#642).">
-              Min distinct holes per block
-              <input type="number" min="1" step="1" value={minHoles} onChange={(e) => setMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={inp} />
+            <label style={fieldLabel} title={tr("A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three. With 2 or more, each hole supplies at most (max samples / min holes) of a block's samples, e.g. 8 of 16 (#642).")}>{tr("Min distinct holes per block")}<input type="number" min="1" step="1" value={minHoles} onChange={(e) => setMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={inp} />
             </label>
             {/* TASKS.csv #259 */}
-            <label style={fieldLabel} title="Caps every RAW assay at this grade before compositing (compositeDownhole applies it per sample, before length-weighted averaging — the correct order). Blank = no cap. Commonly set at the 97.5th–99th percentile of the element's distribution.">
-              High-grade cap ({PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit})
-              <input type="number" min="0" step="any" placeholder="none" value={Number.isFinite(capValue) ? capValue : ""} onChange={(e) => setCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={inp} />
+            <label style={fieldLabel} title={tr("Caps every RAW assay at this grade before compositing (compositeDownhole applies it per sample, before length-weighted averaging — the correct order). Blank = no cap. Commonly set at the 97.5th–99th percentile of the element's distribution.")}>{tr("High-grade cap ({v})", { v: PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit })}<input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(capValue) ? capValue : ""} onChange={(e) => setCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).">
-              Max samples/block
-              <input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
+            <label style={fieldLabel} title={tr("Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).")}>{tr("Max samples/block")}<input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
-            <label style={fieldLabel} title="At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).">
-              Max samples/hole
-              <input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label="Max samples per hole" />
+            <label style={fieldLabel} title={tr("At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).")}>{tr("Max samples/hole")}<input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label={tr("Max samples per hole")} />
             </label>
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
@@ -368,55 +353,43 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}
           {elementCV != null && elementCV > 150 && !(Number.isFinite(capValue) && capValue > 0) && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
-              This element's coefficient of variation is {elementCV.toFixed(0)}% — a skewed, outlier-driven
-              distribution. Estimating it without a high-grade cap will overstate grade. Set a cap
-              (commonly the 97.5th–99th percentile) before trusting this result.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade. Set a cap (commonly the 97.5th–99th percentile) before trusting this result.", { elementCV: elementCV.toFixed(0) })}</div>
           )}
           {/* TASKS.csv #266 — same toggle Best Intercepts / Compositing / Grade Statistics already have. */}
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't bias the estimate — a field duplicate logged under its parent hole's id would otherwise be double-counted.">
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
-              Include QC samples (standards/blanks/duplicates) in this estimate — {qaqcExcludedCount} detected
-            </label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't bias the estimate — a field duplicate logged under its parent hole's id would otherwise be double-counted.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this estimate — {qaqcExcludedCount} detected", { qaqcExcludedCount })}</label>
           )}
           <div style={{ padding: 10, background: "#f9fafb", border: "1px solid var(--color-hover-bg)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-              <input type="checkbox" checked={useComposites} onChange={(e) => setUseComposites(e.target.checked)} />
-              Composite raw assays first (recommended)
-            </label>
+              <input type="checkbox" checked={useComposites} onChange={(e) => setUseComposites(e.target.checked)} />{tr("Composite raw assays first (recommended)")}</label>
             {useComposites && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <label style={fieldLabel}>Composite length (m)
-                  <input type="number" step="any" min="0.1" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+                <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
                 </label>
                 {/* TASKS.csv #262 — was hardcoded at 0.5 with no way to tighten it. Same control and
                     wording CompositingModal already exposes. */}
-                <label style={fieldLabel} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used in the estimate. At the 50% default, a half-missing-core composite still counts as a full sample.">
-                  Min coverage (%)
-                  <input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
+                <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used in the estimate. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
                 </label>
                 {/* TASKS.csv #260 — renamed. "Honor domain" reads as "the estimate respects my geology";
                     it never did that. All it does on its own is break composites at domain edges. */}
-                <label style={fieldLabel}>Break composites at domain boundary
-                  <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
-                    <option value="">— none —</option>
-                    {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
+                <label style={fieldLabel}>{tr("Break composites at domain boundary")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
+                    <option value="">{tr("— none —")}</option>
+                    {domainOptions.map((k) => <option key={k} value={k}>{tr(LAYER_META[k].label)}</option>)}
                   </select>
                 </label>
               </div>
             )}
             {useComposites && domainKey && (
               <>
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Restricts each block's candidate samples to composites carrying the same domain as the block itself (the block adopts the domain of its nearest composite). Without this, the search is a plain sphere through all the data and grade is smeared across contacts and faults.">
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Restricts each block's candidate samples to composites carrying the same domain as the block itself (the block adopts the domain of its nearest composite). Without this, the search is a plain sphere through all the data and grade is smeared across contacts and faults.")}>
                   <input type="checkbox" checked={restrictToDomain} onChange={(e) => setRestrictToDomain(e.target.checked)} style={{ marginTop: 2 }} />
-                  <span>Also restrict the interpolation search to the same domain <em>(recommended)</em></span>
+                  <span>{tr("Also restrict the interpolation search to the same domain")}{" "}<em>{tr("(recommended)")}</em></span>
                 </label>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                   {restrictToDomain
-                    ? "Each block adopts the domain of its nearest composite and only ever sees composites from that same domain — a nearest-neighbour domain model, the simplest defensible way to give a point in space a domain from downhole-only logging. Blocks whose nearest composite has no logged domain are left un-estimated."
-                    : "Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is a plain sphere through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too."}
+                    ? tr("Each block adopts the domain of its nearest composite and only ever sees composites from that same domain — a nearest-neighbour domain model, the simplest defensible way to give a point in space a domain from downhole-only logging. Blocks whose nearest composite has no logged domain are left un-estimated.")
+                    : tr("Selecting a domain above only stops a single composite from spanning two domains. It does NOT stop the interpolation search itself from drawing samples across a contact or a fault — that search is a plain sphere through all the data, so grade will be smeared across geological boundaries. Tick the box above to restrict the search too.")}
                 </div>
               </>
             )}
@@ -424,58 +397,41 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
 
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
-            <label style={fieldLabel} title="Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).">
-              Restrict to a modelled volume
-              <select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label="Restrict to a modelled volume">
-                <option value="">— none (whole grid) —</option>
+            <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
+                <option value="">{tr("— none (whole grid) —")}</option>
                 {volumeShells.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
             </label>
           )}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel} title="Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.">
-              Padding around collars (m)
-              <input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.")}>{tr("Padding around collars (m)")}<input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>Cell size (m, cubic)
-              <input type="number" min="0.5" step="any" value={cellSize} onChange={(e) => setCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={inp} />
+            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={cellSize} onChange={(e) => setCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={inp} />
             </label>
           </div>
 
           {/* TASKS.csv #91/#92 — data support classification. */}
           <div>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Classifies every block as interpolated (informing composites bracket the block on all three axes, from at least two holes), extrapolated (an estimate was produced, but all the informing data lies to one side) or unsupported (no estimate). Adds roughly 80% to the run time.">
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Classifies every block as interpolated (informing composites bracket the block on all three axes, from at least two holes), extrapolated (an estimate was produced, but all the informing data lies to one side) or unsupported (no estimate). Adds roughly 80% to the run time.")}>
               <input type="checkbox" checked={classifySupport} onChange={(e) => setClassifySupport(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>Classify data support per block (interpolated / extrapolated / unsupported)</span>
+              <span>{tr("Classify data support per block (interpolated / extrapolated / unsupported)")}</span>
             </label>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, marginTop: 4 }}>
-              Adds a support class and a 0–1 <strong>Data Support Index</strong> to every block, and lets you add
-              the index to the project as its own block model. The index is a <em>geometric</em> measure —
-              distance to the nearest composite, how many distinct holes informed the block, and how well
-              they surround it. It is <strong>not</strong> a confidence interval, a probability or a kriging
-              variance: nothing here measures how the grade itself decorrelates with distance, so it would
-              return the same number for a nuggety vein and a smooth porphyry drilled on the same pattern.
-              Costs about 80% extra run time.
-            </div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, marginTop: 4 }}>{tr("Adds a support class and a 0–1")}{" "}<strong>{tr("Data Support Index")}</strong>{" "}{tr("to every block, and lets you add the index to the project as its own block model. The index is a")}{" "}<em>{tr("geometric")}</em>{" "}{tr("measure — distance to the nearest composite, how many distinct holes informed the block, and how well they surround it. It is")}{" "}<strong>{tr("not")}</strong>{" "}{tr("a confidence interval, a probability or a kriging variance: nothing here measures how the grade itself decorrelates with distance, so it would return the same number for a nuggety vein and a smooth porphyry drilled on the same pattern. Costs about 80% extra run time.")}</div>
           </div>
 
           {/* TASKS.csv #626 — the block budget (runs in a worker with progress and Cancel since #520) */}
           <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 8 }}
-            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.4 GB for 1 million blocks, 0.9 GB for 2 million) and project-file size (every estimated block is saved with the project). Block models stop at 2 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.">
-            Block budget
-            <select value={blockBudget} onChange={(e) => setBlockBudget(Number(e.target.value))} style={{ ...inp, width: "auto" }} aria-label="Block model block budget">
-              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks ({blockModelBudgetNote(b)})</option>)}
+            title={tr("How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.4 GB for 1 million blocks, 0.9 GB for 2 million) and project-file size (every estimated block is saved with the project). Block models stop at 2 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.")}>{tr("Block budget")}<select value={blockBudget} onChange={(e) => setBlockBudget(Number(e.target.value))} style={{ ...inp, width: "auto" }} aria-label={tr("Block model block budget")}>
+              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks ({v})", { b: b.toLocaleString(), v: tr(blockModelBudgetNote(b)) })}</option>)}
             </select>
           </label>
           {gridPreview && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>
-              Grid: {gridPreview.nx} × {gridPreview.ny} × {gridPreview.nz} = {totalBlocksPreview.toLocaleString()} blocks
-              {overLimit && ` — over the ${blockBudget.toLocaleString()}-block budget.`}
+            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(), v: overLimit && tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>Use {fitCell} m blocks</button>
-                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>Largest budget + {fitCellMax} m blocks</button>}
+                  <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
+                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
                 </span>
               )}
             </div>
@@ -484,15 +440,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               CSV case). With no radius every block gets estimated from the whole dataset, which is
               inherently expensive however well the search is indexed. */}
           {searchRadius === 0 && totalBlocksPreview > 25000 && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
-              With no search radius, every one of these {totalBlocksPreview.toLocaleString()} blocks gets
-              estimated from the whole dataset — this run can take a minute or more (it runs in the background
-              with a progress count, and Cancel stops it). It is also rarely what you want: a block with no sample anywhere
-              near it still gets a grade. Set a real search radius (50 m is the default) unless you
-              specifically want an unbounded first pass.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("With no search radius, every one of these {totalBlocksPreview} blocks gets estimated from the whole dataset — this run can take a minute or more (it runs in the background with a progress count, and Cancel stops it). It is also rarely what you want: a block with no sample anywhere near it still gets a grade. Set a real search radius (50 m is the default) unless you specifically want an unbounded first pass.", { totalBlocksPreview: totalBlocksPreview.toLocaleString() })}</div>
           )}
-          {!collars.length && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>No collars loaded — import drillhole collars first.</div>}
+          {!collars.length && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("No collars loaded — import drillhole collars first.")}</div>}
 
           {/* TASKS.csv #265 — the refusal path used to live ONLY in run()'s setError, which is
               unreachable: the same !bounds condition disables the Run button, so a user whose collars
@@ -501,73 +451,58 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               trace only, and the sample dataset can't trigger it — every Harry collar has a length).
               Stated inline instead, so the reason is visible without clicking anything. */}
           {collars.length > 0 && !bounds && (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
-              None of the {collars.length} loaded collar(s) has a recorded length or any survey record, so
-              there's no defensible depth to build a grid down to. Import hole lengths or survey data first —
-              GeoStrix won't assume one (earlier versions silently assumed 300 m).
-            </div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("None of the {collars} loaded collar(s) has a recorded length or any survey record, so there's no defensible depth to build a grid down to. Import hole lengths or survey data first — GeoStrix won't assume one (earlier versions silently assumed 300 m).", { collars: collars.length })}</div>
           )}
           {/* Also surfaced BEFORE a run, not just in the result block, so a partially-length-less
               dataset is visible while setting parameters rather than only afterwards. */}
           {bounds && collarsWithoutDepth > 0 && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.45 }}>
-              {collarsWithoutDepth} of {collars.length} collar(s) have no recorded length and no survey record —
-              they contribute nothing to the grid's depth extent.
-            </div>
+              {tr("{collarsWithoutDepth} of {collars} collar(s) have no recorded length and no survey record — they contribute nothing to the grid's depth extent.", { collarsWithoutDepth, collars: collars.length })}</div>
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? `Running… ${progress != null ? Math.round(progress * 100) + "%" : ""}` : "Run estimation"}
+            <Play size={14} /> {running ? tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" }) : tr("Run estimation")}
           </button>
-          {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>Cancel</button>}
+          {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
 
           {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-icon-strong)" }}>{error}</div>}
 
           {result && (
             <div style={{ padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
-              <div>{result.samplePointCount} sample point(s) placed ({result.intervalCount} interval(s), {result.droppedCount} dropped — no collar/survey to place them{result.beyondTraceCount ? `, ${result.beyondTraceCount} of them deeper than the hole's trace` : ""}{result.clampedCount ? `; ${result.clampedCount} negative grade(s) clamped to zero` : ""}).</div>
+              <div>{tr("{samplePointCount} sample point(s) placed ({intervalCount} interval(s), {droppedCount} dropped — no collar/survey to place them{v}{v2}).", { samplePointCount: result.samplePointCount, intervalCount: result.intervalCount, droppedCount: result.droppedCount, v: result.beyondTraceCount ? tr(", {beyondTraceCount} of them deeper than the hole's trace", { beyondTraceCount: result.beyondTraceCount }) : "", v2: result.clampedCount ? tr("; {clampedCount} negative grade(s) clamped to zero", { clampedCount: result.clampedCount }) : "" })}</div>
               {/* TASKS.csv #571 */}
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
-                <div>Raw assays: {result.rawStats.duplicatesSkipped} exact duplicate row(s) left out; {result.rawStats.overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.</div>
+                <div>{tr("Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.", { duplicatesSkipped: result.rawStats.duplicatesSkipped, overlappingRows: result.rawStats.overlappingRows })}</div>
               )}
-              <div>{result.blocksEstimated.toLocaleString()} block(s) estimated, {result.blocksSkipped.toLocaleString()} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).</div>
+              <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
               {result.variogram && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  Kriged with a {result.variogram.model} variogram{result.variogram.fitted ? " fitted to these composites" : " as entered"}: nugget {+result.variogram.nugget.toPrecision(3)}, sill {+result.variogram.sill.toPrecision(3)}, range {Math.round(result.variogram.range)} m{trend ? ` (along the trend "${trend.name}")` : ""}{result.variogram.fitted ? " — check it against the Variogram tool before trusting it" : ""}.
-                  {result.variogram.nugget / result.variogram.sill > 0.8 && <span style={{ color: "var(--color-warn-text)" }}> The nugget is {Math.round((100 * result.variogram.nugget) / result.variogram.sill)}% of the sill: the composites are barely alike even close together, so kriging gives close to a plain average of the neighbours — the variogram, not the method, is the limit here.</span>}
-                  {result.okCounts && <> {result.okCounts.kriged.toLocaleString()} block(s) kriged{result.okCounts.exact ? `, ${result.okCounts.exact.toLocaleString()} on a composite` : ""}{result.okCounts.negativeWeights ? `, ${result.okCounts.negativeWeights.toLocaleString()} with a negative weight (normal for kriging; such a block can fall slightly outside its samples' range)` : ""}{result.okCounts.fallbackIdw ? `, ${result.okCounts.fallbackIdw.toLocaleString()} fell back to IDW² (their kriging system had no unique solution)` : ""}.</>}
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Kriged with a {model} variogram{v}: nugget {v2}, sill {v3}, range {v4} m{v5}{v6}.", { model: result.variogram.model, v: result.variogram.fitted ? tr(" fitted to these composites") : tr(" as entered"), v2: +result.variogram.nugget.toPrecision(3), v3: +result.variogram.sill.toPrecision(3), v4: Math.round(result.variogram.range), v5: trend ? tr(" (along the trend \"{name}\")", { name: trend.name }) : "", v6: result.variogram.fitted ? tr(" — check it against the Variogram tool before trusting it") : "" })}{result.variogram.nugget / result.variogram.sill > 0.8 && <span style={{ color: "var(--color-warn-text)" }}>{" "}{tr("The nugget is {v}% of the sill: the composites are barely alike even close together, so kriging gives close to a plain average of the neighbours — the variogram, not the method, is the limit here.", { v: Math.round((100 * result.variogram.nugget) / result.variogram.sill) })}</span>}
+                  {result.okCounts && <> {tr("{kriged} block(s) kriged{v}{v2}{v3}.", { kriged: result.okCounts.kriged.toLocaleString(), v: result.okCounts.exact ? tr(", {exact} on a composite", { exact: result.okCounts.exact.toLocaleString() }) : "", v2: result.okCounts.negativeWeights ? tr(", {negativeWeights} with a negative weight (normal for kriging; such a block can fall slightly outside its samples' range)", { negativeWeights: result.okCounts.negativeWeights.toLocaleString() }) : "", v3: result.okCounts.fallbackIdw ? tr(", {fallbackIdw} fell back to IDW² (their kriging system had no unique solution)", { fallbackIdw: result.okCounts.fallbackIdw.toLocaleString() }) : "" })}</>}
                 </div>
               )}
               {result.mlsCounts && (result.mlsCounts.reduced + result.mlsCounts.idw) > 0 && (
-                <div style={{ color: "var(--color-text-secondary)" }}>
-                  MLS (linear): {result.mlsCounts.full.toLocaleString()} block(s) with a full 3D trend
-                  {result.mlsCounts.reduced ? `, ${result.mlsCounts.reduced.toLocaleString()} with the trend fitted in the plane / line of their samples (e.g. holes on one section — nothing is known about the trend across it)` : ""}
-                  {result.mlsCounts.idw ? `, ${result.mlsCounts.idw.toLocaleString()} fell back to IDW² (their samples gave no direction to fit)` : ""}.
-                </div>
+                <div style={{ color: "var(--color-text-secondary)" }}>{tr("MLS (linear): {full} block(s) with a full 3D trend{v}{v2}.", { full: result.mlsCounts.full.toLocaleString(), v: result.mlsCounts.reduced ? tr(", {reduced} with the trend fitted in the plane / line of their samples (e.g. holes on one section — nothing is known about the trend across it)", { reduced: result.mlsCounts.reduced.toLocaleString() }) : "", v2: result.mlsCounts.idw ? tr(", {idw} fell back to IDW² (their samples gave no direction to fit)", { idw: result.mlsCounts.idw.toLocaleString() }) : "" })}</div>
               )}
               {result.singleHoleCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
-                  {result.singleHoleCells.toLocaleString()} of the estimated blocks ({((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise "Min distinct holes per block" to exclude them.
-                </div>
+                  {tr("{singleHoleCells} of the estimated blocks ({v}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise \"Min distinct holes per block\" to exclude them.", { singleHoleCells: result.singleHoleCells.toLocaleString(), v: ((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0) })}</div>
               )}
               {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
               {result.dominatedCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
-                  {result.dominatedCells.toLocaleString()} of the estimated blocks ({((result.dominatedCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) use samples from two or more holes, but one hole carries at least 95% of the weight — in effect a single-hole estimate. These blocks sit close to one hole; raising Min distinct holes does not change that, so read their grade as that hole's.
-                </div>
+                  {tr("{dominatedCells} of the estimated blocks ({v}%) use samples from two or more holes, but one hole carries at least 95% of the weight — in effect a single-hole estimate. These blocks sit close to one hole; raising Min distinct holes does not change that, so read their grade as that hole's.", { dominatedCells: result.dominatedCells.toLocaleString(), v: ((result.dominatedCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0) })}</div>
               )}
               {/* TASKS.csv #265 */}
               {collarsWithoutDepth > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
-                  {collarsWithoutDepth} collar(s) have no recorded length and no survey record — they contributed nothing to the grid's depth extent (rather than a silently assumed 300 m, which is what earlier versions did).
-                </div>
+                  {tr("{collarsWithoutDepth} collar(s) have no recorded length and no survey record — they contributed nothing to the grid's depth extent (rather than a silently assumed 300 m, which is what earlier versions did).", { collarsWithoutDepth })}</div>
               )}
               {/* TASKS.csv #91/#92 */}
               {result.supportCounts && result.blocksEstimated > 0 && (
                 <div style={{ marginTop: 6, padding: "8px 9px", background: "#f5f7f9", border: "1px solid #e2e6ea", borderRadius: 6, lineHeight: 1.5 }}>
-                  <div style={{ fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>Data support</div>
+                  <div style={{ fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Data support")}</div>
                   <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                     {["interpolated", "extrapolated", "unsupported"].map((k) => (
                       <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "var(--color-text-secondary)" }}>
@@ -579,17 +514,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   <div style={{ marginTop: 5, color: "var(--color-warn-text)" }}>
                     {summarizeSupport(result.supportCounts)}
                   </div>
-                  <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>
-                    Only blocks whose informing composites bracket them on all three axes, from at least two
-                    holes, count as interpolated. Everything else with a value is being carried outward from
-                    the data rather than between it — a real number, but not an interpolation.
-                  </div>
+                  <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                  <input placeholder={`${symbol} estimate (${method}, ${cellSize}m)`} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
-                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? "Added ✓" : "Add as block model"}</button>
+                  <input placeholder={tr("{symbol} estimate ({method}, {cellSize}m)", { symbol, method, cellSize })} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
+                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : tr("Add as block model")}</button>
                 </div>
               )}
               {/* TASKS.csv #92 — the index as its own block model. This IS the "where is this model
@@ -599,14 +530,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               {result.supportCounts && result.blocksEstimated > 0 && (
                 <div style={{ marginTop: 6 }}>
                   <button onClick={addSupportModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }}>
-                    {addedSupport ? "Added ✓" : "Add Data Support Index as a separate block model"}
+                    {addedSupport ? tr("Added ✓") : tr("Add Data Support Index as a separate block model")}
                   </button>
                 </div>
               )}
               {result.variogram && result.blocksEstimated > 0 && (
                 <div style={{ marginTop: 6 }}>
-                  <button onClick={addKvModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title="Kriging variance: how well the samples' layout constrains each block under this variogram. It does not depend on the grades themselves, so it is not an error bar on the estimate.">
-                    {addedKv ? "Added ✓" : "Add kriging variance as a separate block model"}
+                  <button onClick={addKvModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Kriging variance: how well the samples' layout constrains each block under this variogram. It does not depend on the grades themselves, so it is not an error bar on the estimate.")}>
+                    {addedKv ? tr("Added ✓") : tr("Add kriging variance as a separate block model")}
                   </button>
                 </div>
               )}
@@ -616,25 +547,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           {/* TASKS.csv #269 — the closing paragraph now names every assumption the estimate actually
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
-            <strong>Not a resource estimate.</strong> This is an interpolated block model to help you
-            visualise and target mineralisation. Nothing it produces is a Mineral Resource under
-            NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate
-            prepared by a Qualified Person.
-          </div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
-            {" "}{trend
-              ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is</>
-              : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
-            no declustering, no variogram, and no classification. Domain control applies only if you both
-            select a domain layer and tick "restrict the interpolation search"; high-grade capping applies
-            only if you enter a cap. Every one of those is an assumption you are making, not a property
-            of the data.
-          </div>
+            <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This is an interpolated block model to help you visualise and target mineralisation. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate prepared by a Qualified Person.")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.")}{" "}{trend
+              ? <>{tr("The search follows the structural trend \"{name}\" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is", { name: trend.name })}</>
+              : <>{tr("The search is")}{" "}<strong>{tr("isotropic")}</strong>{" "}{tr("(a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is")}</>}{" "}{tr("no declustering, no variogram, and no classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.")}</div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

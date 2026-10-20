@@ -7,6 +7,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -130,14 +131,12 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
-            {view === "rose" ? "Rose diagram" : "Stereonet"} — structure picks ({filtered.length}/{picks.length})
-            {domainId && domains.length > 0 && (
-              <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>
-                · domain: {(domains.find((d) => d.id === domainId) || {}).name || domainId}
+            {tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })}{domainId && domains.length > 0 && (
+              <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 16 }}>
@@ -184,7 +183,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               <text x={CX} y={CY - R - 6} textAnchor="middle" fontSize={11} fill="#55606e">N</text>
               <text x={CX} y={CY + R + 14} textAnchor="middle" fontSize={11} fill="#55606e">S</text>
               <text x={CX + R + 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">E</text>
-              <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">W</text>
+              <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">{tr("W")}</text>
 
               {showCircles && filtered.map((p, i) => {
                 if (p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth)) return null;
@@ -199,7 +198,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 const pt = toSvg(projectPole(p.azimuth, p.dip, projection));
                 const color = colorForStructure(p.value);
                 return <circle key={`pole_${i}`} cx={pt.x} cy={pt.y} r={3.2} fill={color} stroke="#1a2028" strokeWidth={0.5} opacity={0.9}>
-                  <title>{`${p.value || "(unlabeled)"} — dip ${p.dip}° / dipdir ${p.azimuth}°${p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : ""}`}</title>
+                  <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: p.dip, azimuth: p.azimuth, v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : "" })}</title>
                 </circle>;
               })}
 
@@ -214,10 +213,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 return (
                   <g>
                     <path d={gcd} fill="none" stroke="#c0392b" strokeWidth={2} strokeDasharray="5 3" opacity={0.95}>
-                      <title>{`Mean plane — dip ${stats.meanDip.toFixed(1)}° / dipdir ${stats.meanDipDir.toFixed(1)}°`}</title>
+                      <title>{tr("Mean plane — dip {meanDip}° / dipdir {meanDipDir}°", { meanDip: stats.meanDip.toFixed(1), meanDipDir: stats.meanDipDir.toFixed(1) })}</title>
                     </path>
                     <circle cx={mp.x} cy={mp.y} r={5.5} fill="#c0392b" stroke="#ffffff" strokeWidth={1.5}>
-                      <title>{`Mean pole — trend ${stats.meanTrend.toFixed(1)}° / plunge ${stats.meanPlunge.toFixed(1)}°`}</title>
+                      <title>{tr("Mean pole — trend {meanTrend}° / plunge {meanPlunge}°", { meanTrend: stats.meanTrend.toFixed(1), meanPlunge: stats.meanPlunge.toFixed(1) })}</title>
                     </circle>
                   </g>
                 );
@@ -236,10 +235,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 return (
                   <g>
                     <path d={gcd} fill="none" stroke="#7d3c98" strokeWidth={1.8} opacity={0.9}>
-                      <title>{`Best-fit girdle (π-circle) — dip ${stats.girdleDip.toFixed(1)}° / dipdir ${stats.girdleDipDir.toFixed(1)}°`}</title>
+                      <title>{tr("Best-fit girdle (π-circle) — dip {girdleDip}° / dipdir {girdleDipDir}°", { girdleDip: stats.girdleDip.toFixed(1), girdleDipDir: stats.girdleDipDir.toFixed(1) })}</title>
                     </path>
                     <rect x={bp.x - 5} y={bp.y - 5} width={10} height={10} fill="#7d3c98" stroke="#ffffff" strokeWidth={1.5} transform={`rotate(45 ${bp.x} ${bp.y})`}>
-                      <title>{`Fold (β) axis — trend ${stats.betaTrend.toFixed(1)}° / plunge ${stats.betaPlunge.toFixed(1)}°`}</title>
+                      <title>{tr("Fold (β) axis — trend {betaTrend}° / plunge {betaPlunge}°", { betaTrend: stats.betaTrend.toFixed(1), betaPlunge: stats.betaPlunge.toFixed(1) })}</title>
                     </rect>
                   </g>
                 );
@@ -250,50 +249,38 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
 
           <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 10 }}>
             {/* TASKS.csv #278 — plot selector. Both views read the same filtered population. */}
-            <label style={rowLabel}>
-              Plot
-              <select value={view} onChange={(e) => setView(e.target.value)} style={sel}>
-                <option value="stereonet">Stereonet (pole plot)</option>
-                <option value="rose">Rose diagram</option>
+            <label style={rowLabel}>{tr("Plot")}<select value={view} onChange={(e) => setView(e.target.value)} style={sel}>
+                <option value="stereonet">{tr("Stereonet (pole plot)")}</option>
+                <option value="rose">{tr("Rose diagram")}</option>
               </select>
             </label>
             {view === "stereonet" && (
-              <label style={rowLabel}>
-                Source
-                <select value={source} onChange={(e) => { setSource(e.target.value); setTypeFilter("all"); }} style={sel} aria-label="Measurement source">
-                  <option value="downhole" disabled={!downholePicks.length}>Downhole picks ({downholePicks.length})</option>
-                  <option value="surface" disabled={!surfacePicks.length}>Outcrop measurements ({surfacePicks.length})</option>
-                  <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>Both</option>
+              <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => { setSource(e.target.value); setTypeFilter("all"); }} style={sel} aria-label={tr("Measurement source")}>
+                  <option value="downhole" disabled={!downholePicks.length}>{tr("Downhole picks ({downholePicks})", { downholePicks: downholePicks.length })}</option>
+                  <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
+                  <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
                 </select>
-                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>domain filter: downhole only</span>}
-                Projection
-                <select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
-                  <option value="equalArea">Equal-area (Schmidt)</option>
-                  <option value="equalAngle">Equal-angle (Wulff)</option>
+                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}{tr("Projection")}<select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
+                  <option value="equalArea">{tr("Equal-area (Schmidt)")}</option>
+                  <option value="equalAngle">{tr("Equal-angle (Wulff)")}</option>
                 </select>
               </label>
             )}
             {view === "rose" && (
               <>
-                <label style={rowLabel} title="Strike is bidirectional (a plane striking 040 also strikes 220), so that rose is symmetric — the standard convention for planar fabrics. Dip direction genuinely has a sense (it points downhill), so that one is not mirrored.">
-                  Rose measures
-                  <select value={roseMode} onChange={(e) => setRoseMode(e.target.value)} style={sel}>
-                    <option value="strike">Strike (bidirectional)</option>
-                    <option value="dipdir">Dip direction (0-360°)</option>
+                <label style={rowLabel} title={tr("Strike is bidirectional (a plane striking 040 also strikes 220), so that rose is symmetric — the standard convention for planar fabrics. Dip direction genuinely has a sense (it points downhill), so that one is not mirrored.")}>{tr("Rose measures")}<select value={roseMode} onChange={(e) => setRoseMode(e.target.value)} style={sel}>
+                    <option value="strike">{tr("Strike (bidirectional)")}</option>
+                    <option value="dipdir">{tr("Dip direction (0-360°)")}</option>
                   </select>
                 </label>
-                <label style={rowLabel}>
-                  Bin size
-                  <select value={roseBin} onChange={(e) => setRoseBin(Number(e.target.value))} style={sel}>
+                <label style={rowLabel}>{tr("Bin size")}<select value={roseBin} onChange={(e) => setRoseBin(Number(e.target.value))} style={sel}>
                     {[5, 10, 15, 20, 30].map((b) => <option key={b} value={b}>{b}°</option>)}
                   </select>
                 </label>
               </>
             )}
-            <label style={rowLabel}>
-              Structure type
-              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
-                <option value="all">All types</option>
+            <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
+                <option value="all">{tr("All types")}</option>
                 {types.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
@@ -301,10 +288,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
                 domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
             {domainFilter && domains.length > 0 && (
-              <label style={rowLabel} title="Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.">
-                Structural domain
-                <select value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
-                  <option value="">Whole property</option>
+              <label style={rowLabel} title={tr("Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
+                  <option value="">{tr("Whole property")}</option>
                   {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </label>
@@ -312,17 +297,13 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             {view === "stereonet" && (
               <>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={showPoles} onChange={(e) => setShowPoles(e.target.checked)} /> Poles
-                </label>
+                  <input type="checkbox" checked={showPoles} onChange={(e) => setShowPoles(e.target.checked)} />{" "}{tr("Poles")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={showCircles} onChange={(e) => setShowCircles(e.target.checked)} /> Great circles
-                </label>
+                  <input type="checkbox" checked={showCircles} onChange={(e) => setShowCircles(e.target.checked)} />{" "}{tr("Great circles")}</label>
                 <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} /> Mean orientation
-                </label>
-                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title="Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be">
-                  <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} /> Density contours
-                </label>
+                  <input type="checkbox" checked={showMean} onChange={(e) => setShowMean(e.target.checked)} />{" "}{tr("Mean orientation")}</label>
+                <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Kamb (1959) counting-circle density contours — shades the net by how much more crowded each spot is than a random (uniform) spread of the same number of poles would be")}>
+                  <input type="checkbox" checked={showContours} onChange={(e) => setShowContours(e.target.checked)} />{" "}{tr("Density contours")}</label>
               </>
             )}
             {/* TASKS.csv #280 — Terzaghi sampling-bias correction. Disabled (with an explanatory title)
@@ -330,22 +311,20 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             <label
               style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6, color: canTerzaghi ? "#55606e" : "#a8b0ba", cursor: canTerzaghi ? "pointer" : "default" }}
               title={canTerzaghi
-                ? "Terzaghi (1965) correction. A drillhole intersects structures at a rate proportional to sin(alpha) — so it under-samples anything near-parallel to it and over-samples anything near-perpendicular. This weights each drillhole pick by 1/sin(alpha) to undo that, which can genuinely change which orientation reads as dominant. Outcrop readings have no hole and keep weight 1; with both sources shown, the drillhole weights are scaled to average 1 so neither population outweighs the other by more than its number of readings."
-                : "Needs each pick's hole attitude at its own depth (collar + survey data for the holes these picks came from)."}
+                ? tr("Terzaghi (1965) correction. A drillhole intersects structures at a rate proportional to sin(alpha) — so it under-samples anything near-parallel to it and over-samples anything near-perpendicular. This weights each drillhole pick by 1/sin(alpha) to undo that, which can genuinely change which orientation reads as dominant. Outcrop readings have no hole and keep weight 1; with both sources shown, the drillhole weights are scaled to average 1 so neither population outweighs the other by more than its number of readings.")
+                : tr("Needs each pick's hole attitude at its own depth (collar + survey data for the holes these picks came from).")}
             >
-              <input type="checkbox" checked={terzaghiOn && canTerzaghi} disabled={!canTerzaghi} onChange={(e) => setTerzaghiOn(e.target.checked)} /> Terzaghi correction
-            </label>
+              <input type="checkbox" checked={terzaghiOn && canTerzaghi} disabled={!canTerzaghi} onChange={(e) => setTerzaghiOn(e.target.checked)} />{" "}{tr("Terzaghi correction")}</label>
             {terzaghi && stats && stats.terzaghi && stats.terzaghi.applied && (
               <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
-                <div style={{ fontWeight: 600, marginBottom: 2 }}>Terzaghi-corrected</div>
-                <div>{stats.terzaghi.weighted} of {stats.n} pick(s) weighted{stats.terzaghi.unweighted ? `; ${stats.terzaghi.unweighted} left at weight 1 (no hole attitude)` : ""}.</div>
-                <div>Effective n = {stats.nEff.toFixed(1)} <span style={{ color: "#9a7c46" }}>(k/α95 use this, not the raw count)</span></div>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr("Terzaghi-corrected")}</div>
+                <div>{tr("{weighted} of {n} pick(s) weighted{v}.", { weighted: stats.terzaghi.weighted, n: stats.n, v: stats.terzaghi.unweighted ? tr("; {unweighted} left at weight 1 (no hole attitude)", { unweighted: stats.terzaghi.unweighted }) : "" })}</div>
+                <div>{tr("Effective n = {nEff}", { nEff: stats.nEff.toFixed(1) })} <span style={{ color: "#9a7c46" }}>{tr("(k/α95 use this, not the raw count)")}</span></div>
                 {/* TASKS.csv #574 — mixed drillhole + outcrop set: say how the two were balanced */}
-                {stats.terzaghi.normalisedMixed && <div style={{ marginTop: 2 }}>Drillhole weights scaled to average 1, so the drillhole picks correct each other without outweighing the {stats.terzaghi.unweighted} unweighted reading(s).</div>}
+                {stats.terzaghi.normalisedMixed && <div style={{ marginTop: 2 }}>{tr("Drillhole weights scaled to average 1, so the drillhole picks correct each other without outweighing the {unweighted} unweighted reading(s).", { unweighted: stats.terzaghi.unweighted })}</div>}
                 {stats.terzaghi.cappedCount > 0 && (
                   <div style={{ marginTop: 2 }}>
-                    {stats.terzaghi.cappedCount} pick(s) hit the ×{stats.terzaghi.maxWeight} weight cap. Anything within {stats.terzaghi.blindZoneDeg.toFixed(1)}° of parallel to its hole is in the blind zone — weighting cannot recover a set no hole ever crossed.
-                  </div>
+                    {tr("{cappedCount} pick(s) hit the ×{maxWeight} weight cap. Anything within {blindZoneDeg}° of parallel to its hole is in the blind zone — weighting cannot recover a set no hole ever crossed.", { cappedCount: stats.terzaghi.cappedCount, maxWeight: stats.terzaghi.maxWeight, blindZoneDeg: stats.terzaghi.blindZoneDeg.toFixed(1) })}</div>
                 )}
               </div>
             )}
@@ -360,7 +339,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 8px", fontSize: 10, color: "#1a2028", lineHeight: 1.5 }}>
                 {contour ? (
                   <>
-                    <div style={{ fontWeight: 600, marginBottom: 3 }}>Kamb density (σ above uniform)</div>
+                    <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Kamb density (σ above uniform)")}</div>
                     <div style={{ display: "flex", gap: 3, alignItems: "stretch", marginBottom: 3 }}>
                       {CONTOUR_LEVELS.map((lv, k) => (
                         <div key={lv} style={{ flex: 1, textAlign: "center" }} title={k === CONTOUR_LEVELS.length - 1 ? `≥ ${lv}σ` : `${lv} – ${CONTOUR_LEVELS[k + 1]}σ`}>
@@ -369,12 +348,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                         </div>
                       ))}
                     </div>
-                    <div style={{ color: "#55606e" }}>
-                      Peak <b style={{ color: "#1a2028" }}>{contour.maxSigma.toFixed(1)}σ</b> · counting circle {contour.countingAngleDeg.toFixed(1)}° (n={contour.n})
-                    </div>
-                    <div style={{ color: "#65717e", marginTop: 2 }}>
-                      Unshaded = no denser than a random spread. Higher σ = a tighter, more significant cluster.
-                    </div>
+                    <div style={{ color: "#55606e" }}>{tr("Peak")}{" "}<b style={{ color: "#1a2028" }}>{contour.maxSigma.toFixed(1)}σ</b>{" "}{tr("· counting circle {countingAngleDeg}° (n={n})", { countingAngleDeg: contour.countingAngleDeg.toFixed(1), n: contour.n })}</div>
+                    <div style={{ color: "#65717e", marginTop: 2 }}>{tr("Unshaded = no denser than a random spread. Higher σ = a tighter, more significant cluster.")}</div>
                     {/* TASKS.csv #276 — small-n reliability caveat. Kamb's σ is a ratio against the
                         density expected from a UNIFORM spread of the SAME n, so it happily reports a
                         strong-looking peak from a handful of picks: with n below ~15-20 a couple of
@@ -385,15 +360,11 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                         something the reader has to go and count. */}
                     {contour.n < 20 && (
                       <div style={{ marginTop: 4, padding: "5px 6px", background: "#fdf4e6", border: "1px solid #edd9b7", borderRadius: 4, color: "#7a4a1f", lineHeight: 1.45 }}>
-                        <b>Low sample count (n={contour.n}).</b> Kamb σ is measured against a random spread of
-                        this same n, so {contour.n < 10 ? "at this few picks" : "below about 15–20 picks"} even a
-                        strong-looking peak can come from two or three similar readings and may not be
-                        statistically meaningful. Treat the contours as indicative only until more picks exist.
-                      </div>
+                        <b>{tr("Low sample count (n={n}).", { n: contour.n })}</b>{" "}{tr("Kamb σ is measured against a random spread of this same n, so {v} even a strong-looking peak can come from two or three similar readings and may not be statistically meaningful. Treat the contours as indicative only until more picks exist.", { v: contour.n < 10 ? tr("at this few picks") : tr("below about 15–20 picks") })}</div>
                     )}
                   </>
                 ) : (
-                  <div style={{ color: "#65717e" }}>Density contours need at least 3 picks with a valid dip and dip direction.</div>
+                  <div style={{ color: "#65717e" }}>{tr("Density contours need at least 3 picks with a valid dip and dip direction.")}</div>
                 )}
               </div>
             )}
@@ -405,21 +376,21 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 (eigenvector) method rather than naive vector averaging. */}
             {stats ? (
               <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
-                <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>Mean orientation (n={stats.n})</div>
-                <div>Plane: <b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>(dip/dipdir)</span></div>
-                <div>Pole: {stats.meanPlunge.toFixed(1)}° → {stats.meanTrend.toFixed(1)}° <span style={{ color: "#65717e" }}>(plunge/trend)</span></div>
+                <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>{tr("Mean orientation (n={n})", { n: stats.n })}</div>
+                <div>{tr("Plane:")}{" "}<b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>{tr("(dip/dipdir)")}</span></div>
+                <div>{tr("Pole: {meanPlunge}° → {meanTrend}°", { meanPlunge: stats.meanPlunge.toFixed(1), meanTrend: stats.meanTrend.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span></div>
                 <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
-                  <div title="Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.">k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
-                  <div title="95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.">α95 = {stats.alpha95.toFixed(1)}°</div>
-                  <div title="Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.">S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
+                  <div title={tr("Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.")}>k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
+                  <div title={tr("95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.")}>α95 = {stats.alpha95.toFixed(1)}°</div>
+                  <div title={tr("Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.")}>S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
                 </div>
                 <div style={{ marginTop: 4, color: "#55606e" }}>
-                  <span title={`Woodcock shape K = ${fabric.K.toFixed(2)} (< 1 girdle, > 1 cluster), strength C = ${fabric.C.toFixed(1)}`}>
-                    {isGirdle ? "Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below."
-                      : fabric.shape === "cluster" ? "Tight cluster — a single dominant orientation."
-                      : fabric.shape === "few" ? "Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks."
-                      : fabric.shape === "weak" ? "Weak / no preferred orientation — treat this mean with caution."
-                      : "Moderate clustering."}
+                  <span title={tr("Woodcock shape K = {K} (< 1 girdle, > 1 cluster), strength C = {C}", { K: fabric.K.toFixed(2), C: fabric.C.toFixed(1) })}>
+                    {isGirdle ? tr("Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below.")
+                      : fabric.shape === "cluster" ? tr("Tight cluster — a single dominant orientation.")
+                      : fabric.shape === "few" ? tr("Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks.")
+                      : fabric.shape === "weak" ? tr("Weak / no preferred orientation — treat this mean with caution.")
+                      : tr("Moderate clustering.")}
                   </span>
                 </div>
                 {/* TASKS.csv #279 — the girdle message above used to be the end of the road: it told the
@@ -430,12 +401,11 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                     girdle plane it is the pole to. */}
                 {isGirdle && (
                   <div style={{ marginTop: 5, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
-                    <div style={{ fontWeight: 600, color: "#7d3c98", marginBottom: 2 }}>Fold (β) axis</div>
-                    <div title="The line the folding rotates about — the pole to the best-fit girdle. For a cylindrical fold this is the single most useful orientation to take away from this population; the mean plane above is not.">
-                      <b>{stats.betaPlunge.toFixed(1)}° → {stats.betaTrend.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>(plunge/trend)</span>
+                    <div style={{ fontWeight: 600, color: "#7d3c98", marginBottom: 2 }}>{tr("Fold (β) axis")}</div>
+                    <div title={tr("The line the folding rotates about — the pole to the best-fit girdle. For a cylindrical fold this is the single most useful orientation to take away from this population; the mean plane above is not.")}>
+                      <b>{stats.betaPlunge.toFixed(1)}° → {stats.betaTrend.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span>
                     </div>
-                    <div style={{ color: "#55606e" }} title="The great circle the poles spread along (the π-circle), given as a plane.">
-                      Girdle plane: {stats.girdleDip.toFixed(1)}° / {stats.girdleDipDir.toFixed(1)}° <span style={{ color: "#65717e" }}>(dip/dipdir)</span>
+                    <div style={{ color: "#55606e" }} title={tr("The great circle the poles spread along (the π-circle), given as a plane.")}>{tr("Girdle plane: {girdleDip}° / {girdleDipDir}°", { girdleDip: stats.girdleDip.toFixed(1), girdleDipDir: stats.girdleDipDir.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(dip/dipdir)")}</span>
                     </div>
                   </div>
                 )}
@@ -444,28 +414,24 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                     onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
-                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there (#671)"}
-                  >Add as structural trend</button>
+                    title={isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there (#671)")}
+                  >{tr("Add as structural trend")}</button>
                 )}
               </div>
             ) : (
-              <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4 }}>
-                Mean orientation needs at least 2 picks with a valid dip and dip direction.
-              </div>
+              <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4 }}>{tr("Mean orientation needs at least 2 picks with a valid dip and dip direction.")}</div>
             )}
 
             <div style={{ fontSize: 10, color: "#65717e", lineHeight: 1.4, marginTop: 4 }}>
               {view === "rose" ? (
                 rose
-                  ? <>Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0)}{terzaghi ? " (weighted)" : ""}, n = {rose.n}.</>
-                  : <>A rose diagram needs at least one pick with a valid dip and dip direction.</>
+                  ? <>{tr("Petal AREA is proportional to frequency (radius scales as √count), so a petal twice as long holds four times the picks. Longest petal = {maxCount}{v}, n = {n}.", { maxCount: rose.maxCount.toFixed(rose.maxCount % 1 ? 1 : 0), v: terzaghi ? tr(" (weighted)") : "", n: rose.n })}</>
+                  : <>{tr("A rose diagram needs at least one pick with a valid dip and dip direction.")}</>
               ) : (
-                <>Lower-hemisphere. Each point is a plane's pole (perpendicular to the plane) — clustering shows a
-                consistent trend; scatter flags noisy/unreliable picks before feeding them into the anisotropy
-                or structural-surface tools.</>
+                <>{tr("Lower-hemisphere. Each point is a plane's pole (perpendicular to the plane) — clustering shows a consistent trend; scatter flags noisy/unreliable picks before feeding them into the anisotropy or structural-surface tools.")}</>
               )}
             </div>
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} /> Export SVG</button>
+            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
 
@@ -521,7 +487,7 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
         if (!d) return null;
         return (
           <path key={`rp_${i}`} d={d} fill="#2f6fe0" fillOpacity={0.55} stroke="#1f4e9e" strokeWidth={0.7}>
-            <title>{`${String(Math.round(b.from)).padStart(3, "0")}–${String(Math.round(b.to)).padStart(3, "0")}°: ${b.count % 1 ? b.count.toFixed(1) : b.count}${rose.bidirectional ? " (bidirectional)" : ""}`}</title>
+            <title>{`${String(Math.round(b.from)).padStart(3, "0")}–${String(Math.round(b.to)).padStart(3, "0")}°: ${b.count % 1 ? b.count.toFixed(1) : b.count}${rose.bidirectional ? tr(" (bidirectional)") : ""}`}</title>
           </path>
         );
       })}
@@ -535,8 +501,8 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
       <text x={CX} y={CY - R - 6} textAnchor="middle" fontSize={11} fill="#55606e">N</text>
       <text x={CX} y={CY + R + 14} textAnchor="middle" fontSize={11} fill="#55606e">S</text>
       <text x={CX + R + 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">E</text>
-      <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">W</text>
-      {!rose && <text x={CX} y={CY} textAnchor="middle" fontSize={11} fill="#65717e">No picks with a valid dip / dip direction</text>}
+      <text x={CX - R - 10} y={CY + 4} textAnchor="middle" fontSize={11} fill="#55606e">{tr("W")}</text>
+      {!rose && <text x={CX} y={CY} textAnchor="middle" fontSize={11} fill="#65717e">{tr("No picks with a valid dip / dip direction")}</text>}
     </svg>
   );
 }

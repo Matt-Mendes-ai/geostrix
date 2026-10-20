@@ -15,6 +15,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desur
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -97,9 +98,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           length: compositeLength, minCoverage,
           domainRows: domainKey ? layers[domainKey] : null,
         });
-        if (!intervals.length) { setError("Compositing produced no intervals — check the element and composite length."); setRunning(false); return; }
+        if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
         const { points: allPoints, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!allPoints.length) { setError("No composite could be placed in 3D — check that holes have collars and (ideally) survey data."); setRunning(false); return; }
+        if (!allPoints.length) { setError(tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
 
         let points = allPoints;
         let domainLabel = null;
@@ -108,7 +109,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           points = grouped.get(domainValue === "__none__" ? null : domainValue) || [];
           domainLabel = domainValue === "__none__" ? "(no domain)" : domainValue;
           if (points.length < 20) {
-            setError(`Domain "${domainLabel}" has only ${points.length} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).`);
+            setError(tr("Domain \"{domainLabel}\" has only {points} composites — too few for a variogram worth reading (a lag bin needs ~30 pairs to mean anything).", { domainLabel, points: points.length }));
             setRunning(false); return;
           }
         }
@@ -128,7 +129,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           nIntervals: intervals.length,
         });
       } catch (e) {
-        setError(e.message || "Variogram calculation failed.");
+        setError(e.message || tr("Variogram calculation failed."));
       }
       setRunning(false);
     }, 40);
@@ -162,15 +163,13 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panelStyle} role="dialog" aria-modal="true" aria-label="Variogram analysis" onClick={(e) => e.stopPropagation()}>
+      <div style={panelStyle} role="dialog" aria-modal="true" aria-label={tr("Variogram analysis")} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Variogram — spatial continuity</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Experimental variogram + fitted nugget / sill / range, from composited assays. {collars.length} holes, {assays.length} raw intervals loaded.
-            </div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Variogram — spatial continuity")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: collars.length, assays: assays.length })}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -178,122 +177,82 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               softened: TASKS.csv #257-#270 made the estimation UI stop implying rigour it doesn't
               have, and this screen is the one most likely to be mistaken for "GeoStrix does kriging". */}
           <div style={noteBox("#f6f8fb", "#a9c6e0")}>
-            <b>This is a diagnostic, not an estimator.</b> GeoStrix computes and fits a variogram here so you can
-            see and measure a domain's grade continuity. It does <b>not</b> perform ordinary kriging: nothing on this
-            screen is fed into the grade estimator, which remains nearest-neighbour / inverse-distance. Fitting a
-            model here does not change any estimate you have run or will run.
-            <div style={{ marginTop: 6 }}>
-              What the numbers are genuinely good for: the <b>range</b> is a defensible search radius (past it, a
-              sample tells you nothing about a block); the <b>nugget / sill ratio</b> is how much of the variability
-              is short-scale noise no smooth interpolation can recover; and comparing ranges in two directions is the
-              measured version of the anisotropy ratio the Modelling tab otherwise asks you to judge by eye.
-            </div>
+            <b>{tr("This is a diagnostic, not an estimator.")}</b>{" "}{tr("GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does")}{" "}<b>{tr("not")}</b>{" "}{tr("perform ordinary kriging: nothing on this screen is fed into the grade estimator, which remains nearest-neighbour / inverse-distance. Fitting a model here does not change any estimate you have run or will run.")}<div style={{ marginTop: 6 }}>{tr("What the numbers are genuinely good for: the")}{" "}<b>{tr("range")}</b>{" "}{tr("is a defensible search radius (past it, a sample tells you nothing about a block); the")}{" "}<b>{tr("nugget / sill ratio")}</b>{" "}{tr("is how much of the variability is short-scale noise no smooth interpolation can recover; and comparing ranges in two directions is the measured version of the anisotropy ratio the Modelling tab otherwise asks you to judge by eye.")}</div>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel} title="A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.">
-              Composite length (m)
-              <input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+            <label style={fieldLabel} title={tr("A variogram assumes a common support — every sample the same volume. Compositing to a fixed length is what provides that; raw ragged intervals do not.")}>{tr("Composite length (m)")}<input type="number" min="0.1" step="any" value={compositeLength} onChange={(e) => setCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Minimum fraction of a composite that must be covered by real assay material.">
-              Min coverage (0-1)
-              <input type="number" min="0" max="1" step="0.05" value={minCoverage} onChange={(e) => setMinCoverage(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={inp} />
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite that must be covered by real assay material.")}>{tr("Min coverage (0-1)")}<input type="number" min="0" max="1" step="0.05" value={minCoverage} onChange={(e) => setMinCoverage(Math.min(1, Math.max(0, Number(e.target.value) || 0)))} style={inp} />
             </label>
-            <label style={fieldLabel}>Domain layer
-              <select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
-                <option value="">(none)</option>
+            <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
+                <option value="">{tr("(none)")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
             </label>
             {domainKey && (
-              <label style={fieldLabel} title="A variogram over two geologically different populations measures the contrast between them, not the continuity within either — run one domain at a time.">
-                Domain
-                <select value={domainValue} onChange={(e) => setDomainValue(e.target.value)} style={inp}>
-                  <option value="__all__">All domains together</option>
+              <label style={fieldLabel} title={tr("A variogram over two geologically different populations measures the contrast between them, not the continuity within either — run one domain at a time.")}>{tr("Domain")}<select value={domainValue} onChange={(e) => setDomainValue(e.target.value)} style={inp}>
+                  <option value="__all__">{tr("All domains together")}</option>
                   {domainValues.map((v) => <option key={v} value={v}>{v}</option>)}
-                  <option value="__none__">(unassigned)</option>
+                  <option value="__none__">{tr("(unassigned)")}</option>
                 </select>
               </label>
             )}
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel} title="The Matheron estimator squares differences, so a few very high grades can dominate every lag bin and hide real structure. Verified on the bundled Harry-property Zn data: raw r-squared 0.03, log-transformed 0.95, same points.">
-              Value transform
-              <select value={transform} onChange={(e) => setTransform(e.target.value)} style={inp}>
-                {Object.entries(VALUE_TRANSFORMS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <label style={fieldLabel} title={tr("The Matheron estimator squares differences, so a few very high grades can dominate every lag bin and hide real structure. Verified on the bundled Harry-property Zn data: raw r-squared 0.03, log-transformed 0.95, same points.")}>{tr("Value transform")}<select value={transform} onChange={(e) => setTransform(e.target.value)} style={inp}>
+                {Object.entries(VALUE_TRANSFORMS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
               </select>
             </label>
             {transform === "cap" && (
-              <label style={fieldLabel}>Cap percentile
-                <input type="number" min="50" max="100" step="0.5" value={capPercentile} onChange={(e) => setCapPercentile(Math.min(100, Math.max(50, Number(e.target.value) || 98)))} style={inp} />
+              <label style={fieldLabel}>{tr("Cap percentile")}<input type="number" min="50" max="100" step="0.5" value={capPercentile} onChange={(e) => setCapPercentile(Math.min(100, Math.max(50, Number(e.target.value) || 98)))} style={inp} />
               </label>
             )}
-            <label style={fieldLabel} title="Bin width. Leave 0 to use the median nearest-neighbour spacing — the finest structure the data can actually resolve.">
-              Lag distance (m, 0 = auto)
-              <input type="number" min="0" step="any" value={lagDistance} onChange={(e) => setLagDistance(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Bin width. Leave 0 to use the median nearest-neighbour spacing — the finest structure the data can actually resolve.")}>{tr("Lag distance (m, 0 = auto)")}<input type="number" min="0" step="any" value={lagDistance} onChange={(e) => setLagDistance(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.">
-              Number of lags
-              <input type="number" min="3" max="60" step="1" value={nLags} onChange={(e) => setNLags(Math.min(60, Math.max(3, Math.round(Number(e.target.value) || 12))))} style={inp} />
+            <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<input type="number" min="3" max="60" step="1" value={nLags} onChange={(e) => setNLags(Math.min(60, Math.max(3, Math.round(Number(e.target.value) || 12))))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Half-width of a bin as a fraction of the lag distance. 0.5 = contiguous bins (the usual choice).">
-              Lag tolerance
-              <input type="number" min="0.1" max="1" step="0.05" value={lagTolerance} onChange={(e) => setLagTolerance(Math.min(1, Math.max(0.1, Number(e.target.value) || 0.5)))} style={inp} />
+            <label style={fieldLabel} title={tr("Half-width of a bin as a fraction of the lag distance. 0.5 = contiguous bins (the usual choice).")}>{tr("Lag tolerance")}<input type="number" min="0.1" max="1" step="0.05" value={lagTolerance} onChange={(e) => setLagTolerance(Math.min(1, Math.max(0.1, Number(e.target.value) || 0.5)))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Downhole-only pairs are the classic way to resolve the nugget — only samples in the same hole get close enough together to see it.">
-              Pairs
-              <select value={holeMode} onChange={(e) => setHoleMode(e.target.value)} style={inp}>
-                <option value="all">All pairs</option>
-                <option value="downhole">Downhole only (resolves nugget)</option>
-                <option value="between">Between holes only</option>
+            <label style={fieldLabel} title={tr("Downhole-only pairs are the classic way to resolve the nugget — only samples in the same hole get close enough together to see it.")}>{tr("Pairs")}<select value={holeMode} onChange={(e) => setHoleMode(e.target.value)} style={inp}>
+                <option value="all">{tr("All pairs")}</option>
+                <option value="downhole">{tr("Downhole only (resolves nugget)")}</option>
+                <option value="between">{tr("Between holes only")}</option>
               </select>
             </label>
-            <label style={fieldLabel}>Model
-              <select value={model} onChange={(e) => setModel(e.target.value)} style={inp}>
-                {Object.entries(VARIOGRAM_MODELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            <label style={fieldLabel}>{tr("Model")}<select value={model} onChange={(e) => setModel(e.target.value)} style={inp}>
+                {Object.entries(VARIOGRAM_MODELS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
               </select>
             </label>
           </div>
 
           <div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-              <input type="checkbox" checked={directional} onChange={(e) => setDirectional(e.target.checked)} />
-              Directional variogram (same azimuth / dip convention as the anisotropy and search-ellipsoid fields)
-            </label>
+              <input type="checkbox" checked={directional} onChange={(e) => setDirectional(e.target.checked)} />{tr("Directional variogram (same azimuth / dip convention as the anisotropy and search-ellipsoid fields)")}</label>
             {directional && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginTop: 8 }}>
-                <label style={fieldLabel}>Azimuth (deg)
-                  <input type="number" step="any" value={azimuth} onChange={(e) => setAzimuth(Number(e.target.value) || 0)} style={inp} />
+                <label style={fieldLabel}>{tr("Azimuth (deg)")}<input type="number" step="any" value={azimuth} onChange={(e) => setAzimuth(Number(e.target.value) || 0)} style={inp} />
                 </label>
-                <label style={fieldLabel}>Dip (deg below horizontal)
-                  <input type="number" step="any" value={dip} onChange={(e) => setDip(Number(e.target.value) || 0)} style={inp} />
+                <label style={fieldLabel}>{tr("Dip (deg below horizontal)")}<input type="number" step="any" value={dip} onChange={(e) => setDip(Number(e.target.value) || 0)} style={inp} />
                 </label>
-                <label style={fieldLabel} title="Half-angle of the cone of accepted pair directions. Too tight and there are no pairs; too wide and the direction means nothing.">
-                  Angular tolerance (deg)
-                  <input type="number" min="1" max="89" step="any" value={angleTol} onChange={(e) => setAngleTol(Math.min(89, Math.max(1, Number(e.target.value) || 22.5)))} style={inp} />
+                <label style={fieldLabel} title={tr("Half-angle of the cone of accepted pair directions. Too tight and there are no pairs; too wide and the direction means nothing.")}>{tr("Angular tolerance (deg)")}<input type="number" min="1" max="89" step="any" value={angleTol} onChange={(e) => setAngleTol(Math.min(89, Math.max(1, Number(e.target.value) || 22.5)))} style={inp} />
                 </label>
-                <label style={fieldLabel} title="Caps how far a pair may sit off the direction line. Without it, a wide cone swallows far off-axis pairs at long lags. 0 = no cap.">
-                  Bandwidth (m, 0 = none)
-                  <input type="number" min="0" step="any" value={bandwidth} onChange={(e) => setBandwidth(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+                <label style={fieldLabel} title={tr("Caps how far a pair may sit off the direction line. Without it, a wide cone swallows far off-axis pairs at long lags. 0 = no cap.")}>{tr("Bandwidth (m, 0 = none)")}<input type="number" min="0" step="any" value={bandwidth} onChange={(e) => setBandwidth(Math.max(0, Number(e.target.value) || 0))} style={inp} />
                 </label>
               </div>
             )}
             {directional && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 6 }}>
-                Directional variograms use far fewer pairs than an omnidirectional one, so they are much noisier — check the
-                pair counts and the fit quality below before believing a directional range.
-              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 6 }}>{tr("Directional variograms use far fewer pairs than an omnidirectional one, so they are much noisier — check the pair counts and the fit quality below before believing a directional range.")}</div>
             )}
           </div>
 
           <button onClick={run} disabled={running || !symbols.length} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: running || !symbols.length ? 0.6 : 1 }}>
-            <Play size={14} /> {running ? "Running…" : "Compute variogram"}
+            <Play size={14} /> {running ? tr("Running…") : tr("Compute variogram")}
           </button>
 
           {error && <div style={noteBox("#fbf0f0", "#e0a9a9")}>{error}</div>}
@@ -301,12 +260,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
           {result && plot && (
             <>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                {result.nComposites.toLocaleString()} composites{result.domainLabel ? ` in domain "${result.domainLabel}"` : ""}
-                {result.vg.subsampled ? ` (subsampled to ${result.vg.nPoints.toLocaleString()} for the pair loop)` : ""}
-                {" · "}{result.vg.nPairsUsed.toLocaleString()} pairs used · lag {result.lag} m
-                {result.suggested != null ? ` (suggested ${result.suggested.toFixed(1)} m)` : ""}
-                {result.dropped ? ` · ${result.dropped} composites could not be placed in 3D` : ""}
-                {result.capValue != null ? ` · capped at ${result.capValue}` : ""}
+                {tr("{nComposites} composites{v}{v2} · {nPairsUsed} pairs used · lag {lag} m{v4}{v5}{v6}", { nComposites: result.nComposites.toLocaleString(), v: result.domainLabel ? tr(" in domain \"{domainLabel}\"", { domainLabel: result.domainLabel }) : "", v2: result.vg.subsampled ? tr(" (subsampled to {nPoints} for the pair loop)", { nPoints: result.vg.nPoints.toLocaleString() }) : "", nPairsUsed: result.vg.nPairsUsed.toLocaleString(), lag: result.lag, v4: result.suggested != null ? tr(" (suggested {suggested} m)", { suggested: result.suggested.toFixed(1) }) : "", v5: result.dropped ? tr(" · {dropped} composites could not be placed in 3D", { dropped: result.dropped }) : "", v6: result.capValue != null ? tr(" · capped at {capValue}", { capValue: result.capValue }) : "" })}
               </div>
 
               {/* flexShrink: 0 + an explicit aspectRatio are both load-bearing, not decoration. This
@@ -336,12 +290,12 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
                   const h = plot.xMax * f;
                   return <text key={f} x={plot.X(h)} y={plot.H - plot.MB + 14} textAnchor="middle" fontSize={fontSizes.xs} fill="#65717e">{h.toFixed(0)}</text>;
                 })}
-                <text x={(plot.ML + plot.W - plot.MR) / 2} y={plot.H - 6} textAnchor="middle" fontSize="10" fill="#55606e">Lag distance h (m)</text>
-                <text x={12} y={(plot.MT + plot.H - plot.MB) / 2} textAnchor="middle" fontSize="10" fill="#55606e" transform={`rotate(-90 12 ${(plot.MT + plot.H - plot.MB) / 2})`}>Semivariance γ(h)</text>
+                <text x={(plot.ML + plot.W - plot.MR) / 2} y={plot.H - 6} textAnchor="middle" fontSize="10" fill="#55606e">{tr("Lag distance h (m)")}</text>
+                <text x={12} y={(plot.MT + plot.H - plot.MB) / 2} textAnchor="middle" fontSize="10" fill="#55606e" transform={`rotate(-90 12 ${(plot.MT + plot.H - plot.MB) / 2})`}>{tr("Semivariance γ(h)")}</text>
 
                 {/* population variance — the level a stationary variable's variogram should flatten at */}
                 <line x1={plot.ML} y1={plot.Y(result.vg.variance)} x2={plot.W - plot.MR} y2={plot.Y(result.vg.variance)} stroke="#94a1b0" strokeDasharray="4 3" />
-                <text x={plot.W - plot.MR - 4} y={plot.Y(result.vg.variance) - 4} textAnchor="end" fontSize={fontSizes.xs} fill="#65717e">population variance</text>
+                <text x={plot.W - plot.MR - 4} y={plot.Y(result.vg.variance) - 4} textAnchor="end" fontSize={fontSizes.xs} fill="#65717e">{tr("population variance")}</text>
 
                 {/* fitted model */}
                 {plot.curve && <path d={plot.curve} fill="none" stroke="#e2a63c" strokeWidth="2" />}
@@ -354,7 +308,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
                 {plot.pts.map((b, i) => (
                   <circle key={i} cx={plot.X(b.h)} cy={plot.Y(b.gamma)} r={3 + 4 * Math.sqrt(b.nPairs / plot.maxPairs)}
                     fill={b.nPairs >= 30 ? "#4a9be0" : "#d98f8f"} opacity="0.85">
-                    <title>{`h = ${b.h.toFixed(1)} m\nγ = ${b.gamma.toPrecision(4)}\n${b.nPairs.toLocaleString()} pairs${b.nPairs < 30 ? " (under 30 — not a reliable measurement)" : ""}`}</title>
+                    <title>{`h = ${b.h.toFixed(1)} m\nγ = ${b.gamma.toPrecision(4)}\n${b.nPairs.toLocaleString()} pairs${b.nPairs < 30 ? tr(" (under 30 — not a reliable measurement)") : ""}`}</title>
                   </circle>
                 ))}
               </svg>
@@ -362,63 +316,45 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               <div style={{ display: "flex", gap: 18, flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
                 {result.fit ? (
                   <>
-                    <Stat label="Nugget" value={fmtNum(result.fit.nugget)} />
-                    <Stat label="Sill" value={fmtNum(result.fit.sill)} />
-                    <Stat label="Range" value={`${result.fit.range.toFixed(1)} m`} />
-                    <Stat label="Nugget / sill" value={result.fit.nuggetRatio != null ? `${(result.fit.nuggetRatio * 100).toFixed(0)}%` : "—"} />
-                    <Stat label="Fit r²" value={result.fit.rSquared != null ? result.fit.rSquared.toFixed(3) : "—"} />
-                    <Stat label="Model" value={VARIOGRAM_MODELS[result.fit.model]?.label || result.fit.model} />
+                    <Stat label={tr("Nugget")} value={fmtNum(result.fit.nugget)} />
+                    <Stat label={tr("Sill")} value={fmtNum(result.fit.sill)} />
+                    <Stat label={tr("Variogram range")} value={`${result.fit.range.toFixed(1)} m`} />
+                    <Stat label={tr("Nugget / sill")} value={result.fit.nuggetRatio != null ? `${(result.fit.nuggetRatio * 100).toFixed(0)}%` : "—"} />
+                    <Stat label={tr("Fit r²")} value={result.fit.rSquared != null ? result.fit.rSquared.toFixed(3) : "—"} />
+                    <Stat label={tr("Model")} value={VARIOGRAM_MODELS[result.fit.model] ? tr(VARIOGRAM_MODELS[result.fit.model].label) : result.fit.model} />
                   </>
-                ) : <div style={{ color: "var(--color-text-muted)" }}>Too few usable lag bins to fit a model.</div>}
+                ) : <div style={{ color: "var(--color-text-muted)" }}>{tr("Too few usable lag bins to fit a model.")}</div>}
               </div>
 
               {result.fit && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.55 }}>
-                  {VARIOGRAM_MODELS[result.fit.model]?.note}
-                  {" "}The fit is a weighted least-squares starting point, not an answer — read the plot and override it if
-                  the curve does not follow the points you trust.
-                </div>
+                  {tr("{v} The fit is a weighted least-squares starting point, not an answer — read the plot and override it if the curve does not follow the points you trust.", { v: VARIOGRAM_MODELS[result.fit.model] ? tr(VARIOGRAM_MODELS[result.fit.model].note) : "" })}</div>
               )}
 
               {result.transform !== "none" && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>Transformed values ({VALUE_TRANSFORMS[result.transform].label}).</b> {VALUE_TRANSFORMS[result.transform].note}
-                  {result.transform === "log" && " In particular, do not quote this sill as a grade variance — back-transforming it correctly needs a lognormal correction GeoStrix does not apply."}
-                  {" "}The <b>range</b> is still a distance in metres and is the number to carry into a search radius.
-                </div>
+                  <b>{tr("Transformed values ({label}).", { label: tr(VALUE_TRANSFORMS[result.transform].label) })}</b> {tr("{note}{v} The", { note: tr(VALUE_TRANSFORMS[result.transform].note), v: result.transform === "log" && tr(" In particular, do not quote this sill as a grade variance — back-transforming it correctly needs a lognormal correction GeoStrix does not apply.") })}{" "}<b>{tr("range")}</b>{" "}{tr("is still a distance in metres and is the number to carry into a search radius.")}</div>
               )}
 
               {nPairsLow && (
-                <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement —
-                  Journel &amp; Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read
-                  only out to <b>{result.vg.maxReliableLag} m</b>, the furthest lag that clears 30 pairs contiguously.
-                </div>
+                <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</div>
               )}
 
               {fitWeak && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>Weak fit (r² = {result.fit.rSquared.toFixed(3)}).</b> The experimental points do not follow a
-                  {" "}{VARIOGRAM_MODELS[result.fit.model]?.label.toLowerCase()} shape well, so the nugget / sill / range above are not
-                  meaningfully constrained. That is itself a result: a flat variogram near the population variance means this
-                  variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is
-                  drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.
-                </div>
+                  <b>{tr("Weak fit (r² = {rSquared}).", { rSquared: result.fit.rSquared.toFixed(3) })}</b>{" "}{tr("The experimental points do not follow a {v} shape well, so the nugget / sill / range above are not meaningfully constrained. That is itself a result: a flat variogram near the population variance means this variable has no resolvable spatial structure at these lags, and any smoothly interpolated shell of it is drawing continuity the data does not support. Try a value transform, a different domain, or a smaller lag.", { v: tr(VARIOGRAM_MODELS[result.fit.model]?.label || "").toLowerCase() })}</div>
               )}
 
               {result.fit && result.fit.nuggetRatio != null && result.fit.nuggetRatio > 0.5 && !fitWeak && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
-                  <b>High nugget ({(result.fit.nuggetRatio * 100).toFixed(0)}% of the sill).</b> Over half the variability is
-                  short-scale noise that no interpolation can recover. Estimates of this variable will be smooth because the
-                  method smooths, not because the grade is continuous — treat any resulting shell with corresponding caution.
-                </div>
+                  <b>{tr("High nugget ({v}% of the sill).", { v: (result.fit.nuggetRatio * 100).toFixed(0) })}</b>{" "}{tr("Over half the variability is short-scale noise that no interpolation can recover. Estimates of this variable will be smooth because the method smooths, not because the grade is continuous — treat any resulting shell with corresponding caution.")}</div>
               )}
             </>
           )}
         </div>
 
         <div style={{ padding: "12px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ ...btn(false), padding: "8px 20px" }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), padding: "8px 20px" }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

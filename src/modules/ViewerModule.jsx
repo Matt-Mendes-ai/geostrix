@@ -8087,8 +8087,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <label style={{ ...miniField }}>{tr("Method")}{/* TASKS.csv #87 — one shared method table (estimation.js) drives this dropdown and
                       GradeEstimationModal's, so the grade shell and the block model can never offer
                       different methods or mean different things by the same method id. */}
-                  <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }} title={ESTIMATION_METHODS.find((m) => m.id === numericMethod)?.blurb || ""}>
-                    {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }} title={tr(ESTIMATION_METHODS.find((m) => m.id === numericMethod)?.blurb || "")}>
+                    {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{tr(m.label)}</option>)}
                   </select>
                 </label>
               </div>

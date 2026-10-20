@@ -27,7 +27,8 @@ const UI_NAME = /^(problem|problems)$|[a-z](Note|Msg|Message|Warning|Hint)$|[a-z
 const msgName = (nm) => MSG_NAME.test(nm) || (ui && UI_NAME.test(nm) && !/csv|file|svg|json|xml|dxf|raw|default|search|filter|query/i.test(nm)); // exporters: their file text (provenance lines) stays English
 const src = fs.readFileSync(file, "utf8");
 const ast = parse(src, { sourceType: "module", plugins: ["jsx"] });
-const isText = (s) => /[A-Za-z]{2}/.test(s) && /\s/.test(s.trim()); // a phrase, not a code or a key
+const csvRow = (s) => { const tight = (s.match(/,(?! )/g) || []).length; return tight >= 2 && tight > (s.match(/, /g) || []).length; }; // "geometry,vertices,{a},{b}": an export row
+const isText = (s) => /[A-Za-z]{2}/.test(s) && /\s/.test(s.trim()) && !csvRow(s); // a phrase, not a code, a key or a CSV row
 const keys = new Set();
 const edits = [];
 let used = false;
@@ -71,6 +72,7 @@ function call(node, nodePath) {
     if (!vars.some((v) => v.name === name)) vars.push({ name, code });
     key += `{${name}}` + cooked[i + 1];
   });
+  if (csvRow(key)) return null;
   keys.add(key);
   return vars.length ? `${JSON.stringify(key)}, { ${vars.map((v) => (v.code === v.name ? v.name : `${v.name}: ${v.code}`)).join(", ")} }` : JSON.stringify(key);
 }
