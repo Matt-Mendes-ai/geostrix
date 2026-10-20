@@ -1016,9 +1016,34 @@ app.on("will-quit", () => {
 // drive root, expandable). Deliberately narrow: lists one directory at a time (the renderer expands
 // lazily, node by node, exactly like QGIS's own Browser tree) rather than walking a whole subtree, so
 // a huge folder (or a whole drive) can't stall the main process or return a giant payload.
+// TASKS.csv #746 — provenance for fs-read-file, and no silent network-share access. fs-read-file reads a file only
+// when its folder was listed by fs-list-dir this session (the Browser panel always lists before a click reads) or
+// it lies under the bundled sample data folder; a renderer can no longer name any *.json / *.txt on the disk (e.g.
+// %APPDATA%\GeoStrix's prefs). A UNC path (\\host\share) makes Windows open SMB to that host and offer NTLM, so
+// the first touch of each host in a session asks the user in a native dialog the renderer cannot answer.
+const listedDirs = new Set();
+const sampleRoots = new Set();
+const dirKey = (p) => path.resolve(String(p || "")).toLowerCase();
+const isUncPath = (p) => /^[\\/]{2}[^\\/]/.test(String(p || ""));
+const approvedShareHosts = new Set();
+async function allowNetworkPath(p) {
+  if (!isUncPath(p)) return true;
+  const host = String(p).replace(/^[\\/]+/, "").split(/[\\/]/)[0].toLowerCase();
+  if (approvedShareHosts.has(host)) return true;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: "question", buttons: ["Open", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
+    title: "Network folder", message: `Open the network location \\\\${host}?`,
+    detail: `GeoStrix was asked to read ${p}. Windows will connect to that computer and may send it your sign-in details. Open it only if you know this share.`,
+  });
+  if (response !== 0) return false;
+  approvedShareHosts.add(host);
+  return true;
+}
 ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
   try {
+    if (!(await allowNetworkPath(dirPath))) return { ok: false, error: "Network location not opened." }; // #746
     const names = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    listedDirs.add(dirKey(dirPath)); // #746
     const entries = names
       .filter((n) => !n.name.startsWith("."))
       .map((n) => {
@@ -1056,6 +1081,10 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
     const ext = path.extname(String(filePath || "")).toLowerCase();
     if (!READABLE_EXT.has(ext)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` };
+    const full = dirKey(filePath); // #746 — its folder listed this session, or the bundled samples
+    const inSamples = [...sampleRoots].some((r) => full.startsWith(r + path.sep));
+    if (!inSamples && !listedDirs.has(path.dirname(full))) return { ok: false, error: "Open the file's folder in the Browser panel first." };
+    if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
     const st = await fs.promises.stat(filePath);
     if (!st.isFile()) return { ok: false, error: "Not a file." };
     if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
@@ -1078,7 +1107,7 @@ ipcMain.handle("sample-data-path", async () => {
     ? [path.join(process.resourcesPath || "", "sample_data")]
     : [path.join(__dirname, "..", "sample_data")];
   for (const dir of candidates) {
-    try { if (fs.existsSync(dir)) return { ok: true, path: dir }; } catch (_) {}
+    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); return { ok: true, path: dir }; } } catch (_) {} // #746
   }
   return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
 });
