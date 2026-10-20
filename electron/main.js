@@ -403,6 +403,9 @@ function createMainWindow() {
       // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
       // copy-pasted webPreferences block elsewhere omitting it.
       sandbox: true,
+      // TASKS.csv #747 — no spell checker: hole ids, codes and SQL are not prose, it costs per-keystroke work on a modest
+      // laptop, and Electron's default would download a dictionary from Google's CDN, a connection PRIVACY.md never named.
+      spellcheck: false,
     },
   });
   loadMainWindow(mainWindow); // #562 — app:// (and the one-time localStorage move)
@@ -576,6 +579,9 @@ ipcMain.handle("open-section-window", (_e, payload) => {
       // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
       // copy-pasted webPreferences block elsewhere omitting it.
       sandbox: true,
+      // TASKS.csv #747 — no spell checker: hole ids, codes and SQL are not prose, it costs per-keystroke work on a modest
+      // laptop, and Electron's default would download a dictionary from Google's CDN, a connection PRIVACY.md never named.
+      spellcheck: false,
     },
   });
   const wcId = win.webContents.id;
