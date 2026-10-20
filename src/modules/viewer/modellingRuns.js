@@ -22,6 +22,7 @@ import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ense
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
 import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
+import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -77,6 +78,7 @@ export function createModellingRuns(ctx, mcRef) {
     originRef,
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
+    smoothClusters, // TASKS.csv #761
     addVoxelModel, // TASKS.csv #757
     addRaster, mapLayers, rasters, removeRaster, // TASKS.csv #758
     resolveLithoTarget,
@@ -198,7 +200,20 @@ export function createModellingRuns(ctx, mcRef) {
           }),
         }
       : s);
-    const sidecarSpecs = specs.map(warpForSidecar);
+    // TASKS.csv #761 — Model settings "Smooth clustered contacts": a per-point nugget on the contacts that sit in a cluster
+    // (KDE over each surface's points in the solve frame, lib/contactSmoothing.js); faults are left exact. The sensitivity
+    // realisations get the same treatment so they vary around the same model.
+    const smoothReports = [];
+    const smoothForSidecar = (s, report) => {
+      if (!smoothClusters || s.fault) return s;
+      const r = smoothClusteredSpec(s);
+      if (report) smoothReports.push({ label: s.label, meshName: s.meshName, smoothed: r.report.smoothed, total: r.report.total, skipped: r.report.skipped || null });
+      return r.spec;
+    };
+    const sidecarSpecs = specs.map((s) => smoothForSidecar(warpForSidecar(s), true));
+    if (smoothReports.length) {
+      setNotices((p) => [...p, `Smooth clustered contacts (Model settings): ${smoothReports.map((r) => (r.skipped ? `${r.label}: not applied (${r.skipped})` : `${r.label}: ${r.smoothed} of ${r.total} contact points smoothed`)).join("; ")}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).`]);
+    }
 
     const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
     const totalPoints = specs.reduce((s, x) => s + x.points.length, 0);
@@ -384,6 +399,7 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #318 — a mapped surface contact that fed this run, if any (set by runImplicitModel).
         ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
+        ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
@@ -568,7 +584,7 @@ export function createModellingRuns(ctx, mcRef) {
           points: perturbPoints(bSpec.points, ens.sigmaPos, rng),
           orientations: bSpec.orientations.map((o) => perturbOrientation(o, ens.sigmaDeg, rng)),
         };
-        const w = warpForSidecar(perturbed);
+        const w = smoothForSidecar(warpForSidecar(perturbed)); // #761
         const r = await pythonImplicitModel(
           ext,
           [{ name: bSpec.meshName, points: w.points, orientations: w.orientations }],

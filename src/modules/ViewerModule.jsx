@@ -1421,6 +1421,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [rangeMultiplier, setRangeMultiplier] = useState(0);
   const [thinPicks, setThinPicks] = useState(true); // TASKS.csv #765 — average structure picks per hole before GemPy
   const [thinWindowM, setThinWindowM] = useState(50); // #765 — depth window along the hole (m)
+  const [smoothClusters, setSmoothClusters] = useState(false); // TASKS.csv #761 — off by default: it trades detail for stability
   // TASKS.csv #86 — same shared-across-all-four-tools pattern as domain/searchEllipsoid above. Distinct
   // state from searchEllipsoid (not literally shared) since the two are conceptually independent knobs
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
@@ -3582,6 +3583,7 @@ ${describeTrend(t)}` };
     originRef,
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
+    smoothClusters, // TASKS.csv #761
     addVoxelModel, // TASKS.csv #757
     resolveLithoTarget,
     sceneToApi,
@@ -7595,6 +7597,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />
           Average picks per hole, in windows of
           <input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label="Averaging window along the hole (m)" /> m
+        </label>
+
+        {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Clustered contacts</span>
+          <InfoButton title="Smooth clustered contacts" width={300} text={"GemPy passes exactly through every contact point. Where many noisy picks crowd one spot (holes from one pad, digitised map or section lines) it bends the surface to honour them all, and the kink spreads. With this on, each surface's contacts are scanned for clusters (a kernel density over the points, as in von Harten et al. 2021): points at least twice as crowded as an even spread would be, and near the densest, are fitted loosely instead of exactly. Isolated points stay exact. The run says how many were smoothed. Off by default: if the clustered picks are accurate, smoothing throws away real detail."} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
+          <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />
+          Smooth clustered contacts
         </label>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
