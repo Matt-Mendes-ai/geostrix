@@ -9,6 +9,7 @@ import hmac
 import multiprocessing as mp
 import os
 import queue
+import re
 import threading
 import time
 import traceback
@@ -27,10 +28,16 @@ FEATURES = ["trend", "trained_range", "identity_proof", "data_warnings", "idle_e
 IDLE_EXIT_S = 600  # #698 — the warm worker (TensorFlow, ~600 MB) exits after 10 idle minutes
 _TOKEN = os.environ.get("GEOSTRIX_ADDON_TOKEN") or None
 MAX_BODY_BYTES = 60 * 1024 * 1024
-_CORS = {"Access-Control-Allow-Origin": "*"}
+# TASKS.csv #745 — the app's own origins only (see python-sidecar/app/main.py), not "*".
+_ORIGIN_RE = r"^(app://geostrix|http://(localhost|127\.0\.0\.1):517\d)$"
+
+
+def _cors(request):
+    origin = request.headers.get("origin", "")
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"} if re.match(_ORIGIN_RE, origin) else {}
 
 app = FastAPI(title="GeoStrix predictive modelling (geoML)")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origin_regex=_ORIGIN_RE, allow_methods=["GET", "POST"], allow_headers=["*"])
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 
@@ -42,12 +49,12 @@ async def _guard(request: Request, call_next):
     try:
         n = int(cl) if cl is not None else None
     except ValueError:
-        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."}, headers=_CORS)
+        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."}, headers=_cors(request))
     if request.method == "POST" and (n is None or n > MAX_BODY_BYTES):
-        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // 2 ** 20} MB."}, headers=_CORS)
+        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // 2 ** 20} MB."}, headers=_cors(request))
     if _TOKEN and request.url.path != "/health":
         if not hmac.compare_digest(request.headers.get("x-geostrix-token", ""), _TOKEN):
-            return JSONResponse(status_code=401, content={"detail": "Missing or wrong add-on token."}, headers=_CORS)
+            return JSONResponse(status_code=401, content={"detail": "Missing or wrong add-on token."}, headers=_cors(request))
     return await call_next(request)
 
 
@@ -172,24 +179,24 @@ async def submit(request: Request):
     body = await request.json()
     kind = body.get("kind")
     if kind not in ("domain", "grade"):
-        return JSONResponse(status_code=400, content={"detail": "kind must be 'domain' or 'grade'."}, headers=_CORS)
+        return JSONResponse(status_code=400, content={"detail": "kind must be 'domain' or 'grade'."}, headers=_cors(request))
     busy = manager.running()
     if busy:
-        return JSONResponse(status_code=409, content={"detail": "A predictive model is already running — wait for it or cancel it first.", "job": _public(busy)}, headers=_CORS)
+        return JSONResponse(status_code=409, content={"detail": "A predictive model is already running — wait for it or cancel it first.", "job": _public(busy)}, headers=_cors(request))
     return _public(manager.start(kind, body.get("params") or {}))
 
 
 @app.get("/v1/jobs/{jid}")
 def status(jid: str):
     job = manager.jobs.get(jid)
-    return _public(job) if job else JSONResponse(status_code=404, content={"detail": "No such job."}, headers=_CORS)
+    return _public(job) if job else JSONResponse(status_code=404, content={"detail": "No such job."}, headers=_cors(request))
 
 
 @app.get("/v1/jobs/{jid}/result")
 def result(jid: str):
     job = manager.jobs.get(jid)
     if not job or job["state"] != "done":
-        return JSONResponse(status_code=404, content={"detail": "No finished result for this job."}, headers=_CORS)
+        return JSONResponse(status_code=404, content={"detail": "No finished result for this job."}, headers=_cors(request))
     return job["result"]
 
 

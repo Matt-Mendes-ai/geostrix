@@ -681,18 +681,33 @@ export function makeRangeAverager(assays, elementUnits) {
 // Counts rows dropped as exact duplicates, and separately the (hole_id, from, to) intervals that
 // appear more than once with DIFFERENT results — those are conflicts compositing deliberately does
 // NOT resolve, and they're the ones worth going back to the source data for.
+// TASKS.csv #737 — exact-duplicate test without stringifying every row: the values payload is compared only when
+// (hole_id, from, to) repeats. JSON.stringify of each row's values was 60-90 % of compositing time (60,000 x 49
+// elements: 713 of 795 ms), for the ~0.1 % of rows that ever share an interval. Same answers as the full key.
+// Returns a function row -> "new" | "duplicate" (same interval, same values) | "conflict" (same interval, other values).
+function intervalDuplicateTracker() {
+  const seen = new Map(); // "hole|from|to" -> the first row, then a Set of the values strings seen there
+  return (a) => {
+    const iv = `${a.hole_id}|${a.from}|${a.to}`;
+    let prev = seen.get(iv);
+    if (prev === undefined) { seen.set(iv, a); return "new"; }
+    if (!(prev instanceof Set)) { prev = new Set([JSON.stringify(prev.values ?? null)]); seen.set(iv, prev); }
+    const v = JSON.stringify(a.values ?? null);
+    if (prev.has(v)) return "duplicate";
+    prev.add(v);
+    return "conflict";
+  };
+}
+
 export function countDuplicateAssayIntervals(assays) {
-  const exact = new Set(), byInterval = new Map();
+  const track = intervalDuplicateTracker();
   let exactDuplicates = 0;
   const conflicting = new Set();
   (assays || []).forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    const iv = `${a.hole_id}|${a.from}|${a.to}`;
-    const key = `${iv}|${JSON.stringify(a.values ?? null)}`;
-    if (exact.has(key)) { exactDuplicates++; return; }
-    exact.add(key);
-    if (byInterval.has(iv)) conflicting.add(iv);
-    byInterval.set(iv, key);
+    const seen = track(a);
+    if (seen === "duplicate") exactDuplicates++;
+    else if (seen === "conflict") conflicting.add(`${a.hole_id}|${a.from}|${a.to}`);
   });
   return { exactDuplicates, conflictingIntervals: conflicting.size };
 }
@@ -720,12 +735,10 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   // sample), not a double-import, and silently discarding one of them would be its own quiet data loss.
   // Those are left alone and stay dataQC's business to report.
   // (CompositingModal reports the count itself, via countDuplicateAssayIntervals.)
-  const dupSeen = new Set();
+  const track = intervalDuplicateTracker(); // #737 — values compared only when the interval repeats
   assays.forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
-    if (dupSeen.has(key)) return;
-    dupSeen.add(key);
+    if (track(a) === "duplicate") return;
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
   });

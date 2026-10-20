@@ -3,7 +3,8 @@
 // in addons/<id>/release.json (shipped inside the app), so a corrupt or tampered download is refused. It is unpacked
 // into userData/addons/<id>/<version>/ and started on first use with a per-launch token, like the Python engine.
 // GEOSTRIX_ADDON_<ID>_EXE (a path to the add-on's exe, or "python.exe|run_addon.py") overrides the installed copy for
-// development and testing.
+// development and testing - in an unpackaged (dev) build only, like the _URL / _SHA256 overrides (TASKS.csv #744: in an
+// installed GeoStrix a user-level environment variable could otherwise make it spawn any program with the add-on token).
 const fs = require("fs");
 const path = require("path");
 const os = require("os"); // #698
@@ -45,7 +46,7 @@ function createAddonManager({ app, net, send }) {
   const root = (id) => path.join(app.getPath("userData"), "addons", id);
   const installedDir = (id, info) => path.join(root(id), info.version);
   const exePath = (id, info) => path.join(installedDir(id, info), info.exe);
-  const devOverride = (id) => process.env[`GEOSTRIX_ADDON_${id.toUpperCase()}_EXE`] || null;
+  const devOverride = (id) => (app.isPackaged ? null : process.env[`GEOSTRIX_ADDON_${id.toUpperCase()}_EXE`] || null); // #744
 
   function status(id) {
     const info = releaseInfo(id);

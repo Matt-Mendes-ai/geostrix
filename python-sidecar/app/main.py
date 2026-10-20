@@ -18,6 +18,7 @@ import importlib.metadata
 import importlib.util
 import math
 import os
+import re
 import threading
 
 import numpy as np
@@ -33,9 +34,13 @@ app = FastAPI(title="GeoStrix Python sidecar", version="0.1.0")
 # this machine regardless of CORS policy — permissive CORS here just lets the Electron renderer
 # (origin file:// in a packaged build, http://localhost:5173 in dev) actually read the response.
 # Without this, the browser's same-origin policy would block it even though both sides are local.
+# TASKS.csv #745 — only the app's own origins (app://geostrix packaged, the vite dev server in development), not "*":
+# with "*" any web page in the user's browser could read the token-free /health (installed, busy, library versions).
+# The renderer's origin is fixed, so the wildcard bought nothing. Requests from the main process carry no Origin.
+_ORIGIN_RE = r"^(app://geostrix|http://(localhost|127\.0\.0\.1):517\d)$"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=_ORIGIN_RE,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -59,7 +64,10 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost
 # TASKS.csv #594 — _guard is registered AFTER CORSMiddleware, so it runs OUTSIDE it: its early answers never got
 # Access-Control-Allow-Origin, and the renderer's cross-origin fetch saw an opaque failure ("engine not reachable")
 # instead of the 400 / 413 / 401 message. They carry the header themselves, like the 500 handler below.
-_CORS = {"Access-Control-Allow-Origin": "*"}
+def _cors(request):
+    """The CORS header for an early or error answer: the caller's origin when it is the app's own (#745), else none."""
+    origin = request.headers.get("origin", "")
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"} if re.match(_ORIGIN_RE, origin) else {}
 
 
 @app.middleware("http")
@@ -71,13 +79,13 @@ async def _guard(request: Request, call_next):
     try:
         cl_n = int(cl) if cl is not None else None
     except ValueError:
-        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."}, headers=_CORS)
+        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."}, headers=_cors(request))
     if request.method in ("POST", "PUT") and (cl_n is None or cl_n > MAX_BODY_BYTES):
-        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."}, headers=_CORS)
+        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."}, headers=_cors(request))
     if _TOKEN and request.url.path != "/health":
         sent = request.headers.get("x-geostrix-token", "")
         if not hmac.compare_digest(sent, _TOKEN):
-            return JSONResponse(status_code=401, content={"detail": "Missing or wrong sidecar token."}, headers=_CORS)
+            return JSONResponse(status_code=401, content={"detail": "Missing or wrong sidecar token."}, headers=_cors(request))
     return await call_next(request)
 
 # TASKS.csv #62 — background gempy warm-up. Root cause of "why is modelling so slow / times out
@@ -128,7 +136,7 @@ def _on_startup():
 # binds to 127.0.0.1 only and its sole client is this app's own renderer, so the exception text is
 # going straight back to the person who triggered it, which is exactly who needs it.
 @app.exception_handler(Exception)
-async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signature fixed by FastAPI
+async def _unhandled_exception_handler(request, exc):
     # TASKS.csv #324 follow-up — Starlette runs this catch-all handler in ServerErrorMiddleware, OUTSIDE the
     # CORS middleware, so the 500 went out without Access-Control-Allow-Origin: the renderer's fetch() then
     # failed as a network error and the app said "Python engine isn't reachable" instead of showing this
@@ -136,7 +144,7 @@ async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signat
     return JSONResponse(
         status_code=500,
         content={"detail": f"Unhandled sidecar error ({type(exc).__name__}): {exc}"},
-        headers={"Access-Control-Allow-Origin": "*"},
+        headers=_cors(request),
     )
 
 

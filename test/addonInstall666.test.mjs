@@ -12,9 +12,9 @@ const require = createRequire(import.meta.url);
 const { createAddonManager } = require("../electron/addons.js");
 
 const realPlatform = process.platform;
-function harness({ failWrite = false, freeBytes = 1e13 } = {}) {
+function harness({ failWrite = false, freeBytes = 1e13, packaged = true } = {}) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "gs-addon-"));
-  const app = { isPackaged: true, getPath: () => userData, getVersion: () => "0.0.0" };
+  const app = { isPackaged: packaged, getPath: () => userData, getVersion: () => "0.0.0" };
   const net = { request: () => {
     const req = new EventEmitter();
     req.abort = () => {};
@@ -56,7 +56,7 @@ test("not enough free space is refused before anything is downloaded", async () 
 
 // TASKS.csv #698 — too little free memory is refused before the add-on is started
 test("#698 the add-on does not start when the computer has under 1.5 GB free", async () => {
-  const { mgr, restore } = harness();
+  const { mgr, restore } = harness({ packaged: false }); // #744: the exe override works in a dev build only
   const realFree = os.freemem;
   const prevExe = process.env.GEOSTRIX_ADDON_GEOML_EXE;
   process.env.GEOSTRIX_ADDON_GEOML_EXE = process.execPath; // any existing file: nothing is spawned in this test
@@ -67,5 +67,20 @@ test("#698 the add-on does not start when the computer has under 1.5 GB free", a
     os.freemem = realFree;
     if (prevExe === undefined) delete process.env.GEOSTRIX_ADDON_GEOML_EXE; else process.env.GEOSTRIX_ADDON_GEOML_EXE = prevExe;
     restore();
+  }
+});
+
+// TASKS.csv #744 — an installed (packaged) GeoStrix ignores GEOSTRIX_ADDON_<ID>_EXE: it does not count as installed
+test("#744 the add-on exe override is ignored in a packaged build", () => {
+  const prevExe = process.env.GEOSTRIX_ADDON_GEOML_EXE;
+  process.env.GEOSTRIX_ADDON_GEOML_EXE = process.execPath;
+  const packaged = harness(), dev = harness({ packaged: false });
+  try {
+    assert.equal(packaged.mgr.status("geoml").installed, false);
+    assert.equal(packaged.mgr.status("geoml").dev, false);
+    assert.equal(dev.mgr.status("geoml").dev, true);
+  } finally {
+    if (prevExe === undefined) delete process.env.GEOSTRIX_ADDON_GEOML_EXE; else process.env.GEOSTRIX_ADDON_GEOML_EXE = prevExe;
+    packaged.restore(); dev.restore();
   }
 });
