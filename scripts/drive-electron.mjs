@@ -11,7 +11,7 @@
 //   node scripts/drive-electron.mjs accept                 (accept a window.confirm / alert, which otherwise freezes the page)
 //   node scripts/drive-electron.mjs front                  (bring the window forward: a hidden window throttles timers and rAF)
 //   node scripts/drive-electron.mjs shot out.png
-// CDP_PORT (default 9333) picks the port; CDP_HASH targets a window by its #/route (e.g. "section" for a section window).
+// CDP_VIEWPORT=1024x700 emulates that window size during the command. CDP_PORT (default 9333) picks the port; CDP_HASH targets a window by its #/route (e.g. "section" for a section window).
 // Git Bash rewrites an argument starting with \\ or //: build such strings inside the page (String.fromCharCode(92)).
 import fs from "node:fs";
 
@@ -28,6 +28,12 @@ const send = (method, params = {}) => new Promise((resolve) => { const i = ++id;
 
 const KEYS = { F10: 121, ArrowDown: 40, ArrowUp: 38, Escape: 27, Enter: 13, Tab: 9, ContextMenu: 93, Home: 36, End: 35 };
 const [cmd, arg, arg2] = process.argv.slice(2);
+// CDP_VIEWPORT=1024x700: emulate that window size for THIS command (an emulation lasts only while the session is attached)
+if (process.env.CDP_VIEWPORT) {
+  const [width, height] = process.env.CDP_VIEWPORT.split("x").map(Number);
+  await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+  await new Promise((r) => setTimeout(r, 300)); // let layout settle
+}
 if (cmd === "eval") {
   const r = await send("Runtime.evaluate", { expression: arg, awaitPromise: true, returnByValue: true });
   console.log(JSON.stringify(r.result?.result?.value ?? r.result?.exceptionDetails ?? r, null, 1));

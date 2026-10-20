@@ -449,10 +449,6 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
           <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>{tr("Simple")}</button>
           <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>{tr("Advanced")}</button>
         </div>
-        {/* TASKS.csv #786 — interface language, beside the interface mode (a per-computer preference) */}
-        <select className="ge-lang" value={currentLanguage()} onChange={(e) => setLanguage(e.target.value)} aria-label={tr("Language")} title={tr("Language — remembered on this computer")}>
-          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
-        </select>
       </div>
 
       <RibbonSlotContext.Provider value={ribbonEl}>
@@ -657,14 +653,19 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a
           plain always-on <select> (not the click-to-edit pattern EPSG uses) precisely because a hidden
           control for something this consequential is worse than a slightly busier status bar. */}
-      <span title={DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || ""} style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Desurvey:")}<select
+      <span title={tr(DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || "")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Desurvey:")}<select
           value={desurveyMethod}
           onChange={(e) => setDesurveyMethod(e.target.value)}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "1px 3px", cursor: "pointer" }}
         >
-          {DESURVEY_METHODS.map((m) => <option key={m.id} value={m.id} title={m.hint}>{m.label}</option>)}
+          {DESURVEY_METHODS.map((m) => <option key={m.id} value={m.id} title={tr(m.hint)}>{tr(m.label)}</option>)}
         </select>
       </span>
+      {/* TASKS.csv #786 — interface language (a per-computer preference). In the status bar, not the ribbon row: the
+          ribbon needs every pixel at 1,024 px, and the language names are written in their own language. */}
+      <select className="ge-lang" value={currentLanguage()} onChange={(e) => setLanguage(e.target.value)} aria-label={tr("Language")} title={tr("Language — remembered on this computer")}>
+        {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+      </select>
     </div>
   );
 }

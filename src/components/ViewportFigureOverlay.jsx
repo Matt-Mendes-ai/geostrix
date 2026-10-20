@@ -39,6 +39,7 @@ import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
 import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #736 — the legend's tick text measured in its real font (the xs step), one cached canvas, memoised per
 // string: called when the legend renders, never per frame. Falls back to the old 6 px per character without a canvas.
@@ -157,7 +158,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
       )}
       {showLegend && (
         <div style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
-          <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>Legend</div>
+          <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
           {shown.map((it, i) => (
             <React.Fragment key={`${it.group}|${it.label}|${i}`}>
             {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{it.group}</div>}
@@ -169,8 +170,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           ))}
           {hiddenCount > 0 && (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>
-              + {hiddenCount} more not shown — filter categories, or build the figure in Layout
-            </div>
+              + {hiddenCount}{" "}{tr("more not shown — filter categories, or build the figure in Layout")}</div>
           )}
           {ramps.map((g) => (
             <div key={g.key} style={{ marginTop: 6 }}>
@@ -205,7 +205,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           </svg>
           {/* The honesty label. This is not decoration: without it the bar claims a single scale for
               a perspective projection that does not have one. See figureScale.js's header. */}
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>at view centre</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 1, letterSpacing: 0.2 }}>{tr("at view centre")}</div>
         </div>
       )}
     </div>

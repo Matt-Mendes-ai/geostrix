@@ -253,7 +253,7 @@ export default function SurfaceCompareModal({
                       </>
                     )}
                     <div style={hint}>
-                      Read straight from each run’s own stored parameter block (TASKS #269/#270) — the same
+                      Read straight from each run’s own stored parameter block — the same
                       record every mesh export stamps into its file. Costs nothing to compute.
                     </div>
                   </>

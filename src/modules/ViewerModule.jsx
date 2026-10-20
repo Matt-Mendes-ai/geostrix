@@ -6903,39 +6903,37 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {paneHeader("Section by coordinates", Crosshair, "section")}
         {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre E<input value={typedSection.e} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre easting" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Centre N<input value={typedSection.n} placeholder="data centre" onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label="Section centre northing" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Azimuth (°)<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label="Section azimuth" /></label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>Length (m)<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label="Section length" /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre E")}<input value={typedSection.e} placeholder={tr("data centre")} onChange={(e) => setTypedSection((s) => ({ ...s, e: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre easting")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Centre N")}<input value={typedSection.n} placeholder={tr("data centre")} onChange={(e) => setTypedSection((s) => ({ ...s, n: e.target.value.replace(/[^0-9.\-]/g, "") }))} style={typedSectionInput} aria-label={tr("Section centre northing")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
-        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} /> Open section</button>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.</div>
+        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} />{" "}{tr("Open section")}</button>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer")}{" "}{sectionCorridor}{" "}{tr("m (set on the section tool). Scissors in the Holes list: a section through that hole.")}</div>
 
         </>)}
         {toolPane === "slice3d" && (<>
         {paneHeader("3D slice", SquareSplitVertical, "section")}
         {/* TASKS.csv #453 — live 3D slice through everything in the view */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, fontSize: "var(--font-size-base)" }}>
-          <span>Slice the view</span>
+          <span>{tr("Slice the view")}</span>
           <label style={{ display: "flex", alignItems: "center", gap: 4, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
-            <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label="3D slice on" /> On
-          </label>
+            <input type="checkbox" checked={slice3d.on} onChange={(e) => setSlice3d((s) => ({ ...s, on: e.target.checked }))} aria-label={tr("3D slice on")} />{" "}{tr("On")}</label>
         </div>
         {slice3d.on && (
           <div style={{ marginBottom: 12, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 6 }}>
-              <select value={slice3d.mode} onChange={(e) => setSlice3d((s) => ({ ...s, mode: e.target.value }))} style={{ flex: 1 }} aria-label="Slice orientation">
-                <option value="vertical">Vertical slab</option>
-                <option value="horizontal">Horizontal (level plan)</option>
+              <select value={slice3d.mode} onChange={(e) => setSlice3d((s) => ({ ...s, mode: e.target.value }))} style={{ flex: 1 }} aria-label={tr("Slice orientation")}>
+                <option value="vertical">{tr("Vertical slab")}</option>
+                <option value="horizontal">{tr("Horizontal (level plan)")}</option>
               </select>
               {slice3d.mode === "vertical" && (
-                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>Az <input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label="Slice azimuth" />°</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Az")}{" "}<input type="number" min="0" max="180" value={slice3d.azimuth} onChange={(e) => setSlice3d((s) => ({ ...s, azimuth: ((Number(e.target.value) % 180) + 180) % 180 }))} style={{ width: 56 }} aria-label={tr("Slice azimuth")} />°</label>
               )}
             </div>
-            <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label="Slice position" />
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              Thickness <input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label="Slice thickness" /> m
-              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : "0 = everything beyond the cut"}</span>
+            <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
+              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : tr("0 = everything beyond the cut")}</span>
             </label>
             <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
           </div>
@@ -6944,21 +6942,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "fence" && (<>
         {paneHeader("Slice series (fence sections)", Rows3, "section")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth —
-          each one added to the list below, ready to open individually. Includes the geophysics voxel
-          slice automatically, same as any other section.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField, flex: 1 }}>
-            Azimuth (°)
-            <input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <label style={{ ...miniField, flex: 1 }}>
-            Width (m)
-            <input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title="Generate the slice series"><Scissors size={14} /> Generate</button>
+          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
         <div style={{ marginBottom: 12 }} />
@@ -7010,7 +7000,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <MapPin size={12} />{" "}{tr("Select by location")}</div>
             <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 5 }}>
               <option value="">{tr("— pick a boundary/claim —")}</option>
-              {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? " (claim)" : ""}</option>)}
+              {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? tr(" (claim)") : ""}</option>)}
             </select>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>
@@ -7055,7 +7045,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
                 {populatedKeys.length === 0
-                  ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "2px 4px 6px" }}>{g.keys.length === 0 ? 'Empty — right-click a layer below and "Add to group…"' : "Every layer in this group is currently empty (no data loaded)."}</div>
+                  ? <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "2px 4px 6px" }}>{g.keys.length === 0 ? tr("Empty — right-click a layer below and \"Add to group…\"") : tr("Every layer in this group is currently empty (no data loaded).")}</div>
                   : populatedKeys.map((key) => renderLayerRow(key))}
               </div>
             )}
@@ -7114,7 +7104,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     settings the way rasters' drape-mode/elevation do), but the jump still goes to
                     Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
                     lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit or remove this geophysics layer in the Geophysics tab")} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit or remove this geophysics layer in the Geophysics tab"))} />
               </div>
             )}
             {rasters.map((r) => (
@@ -7232,7 +7222,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               </div>
               <Beaker size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
-              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
+              <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), tr("Import more assays, or edit them, in the Geochem tab"))} />
             </div>
             {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
@@ -7260,7 +7250,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
-                {assayDisplayElements.length === 0 ? "No elements selected" : `${assayDisplayElements.length} element${assayDisplayElements.length > 1 ? "s" : ""} shown`}
+                {assayDisplayElements.length === 0 ? tr("No elements selected") : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}
               </div>
               {assayDisplayElements.length > 0 && (
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</span>
@@ -7313,7 +7303,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       <Settings2
                         size={12}
                         style={{ color: styled ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}
-                        {...iconAction((ev) => { ev.stopPropagation(); setAssayStyleModalSymbol(e.symbol); }, `Style ${e.symbol}${styled ? " (customized)" : ""}`)}
+                        {...iconAction((ev) => { ev.stopPropagation(); setAssayStyleModalSymbol(e.symbol); }, tr(styled ? "Style {el} (customized)" : "Style {el}", { el: e.symbol }))}
                       />
                     )}
                   </div>
@@ -7413,7 +7403,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => reopenSection(s)} title={tr("Reopen this section")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                 <Scissors size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({s.contacts.length}{" "}{tr("contact")}{s.contacts.length === 1 ? "" : "s"})</span>}
+                {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({tr(s.contacts.length === 1 ? "{n} contact" : "{n} contacts", { n: s.contacts.length })})</span>}
               </div>
               <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
               <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
@@ -7423,7 +7413,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>{tr("Cross-sections (")}{sections.length})</span>
+                <span>{tr("Cross-sections ({n})", { n: sections.length })}</span>
                 {sections.some((s) => (s.contacts || []).length) && (
                   <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title={tr("Draw the saved section strings (contacts, faults, strings) as 3D lines in the view")}>
                     <input type="checkbox" checked={showSectionStrings} onChange={(e) => setShowSectionStrings(e.target.checked)} />{" "}{tr("in 3D")}</label>
@@ -7502,49 +7492,43 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             it moves behind the existing InfoButton disclosure (already used 8x in GeophysicsModule,
             1x in RasterModule, and 0x here until now), which opens on hover OR click. */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Domain</span>
-          <InfoButton title="Domain" width={280} text={`Restricts every tool below to one side of one or more faults — build domains in "Domains" further down first, then pick one here. Applies to all four tools; "Whole property" is the original, undomained behavior.`} />
+          <span>{tr("Domain")}</span>
+          <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every tool below to one side of one or more faults — build domains in \"Domains\" further down first, then pick one here. Applies to all four tools; \"Whole property\" is the original, undomained behavior.")} />
         </div>
         <select value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
-          <option value="">Whole property</option>
+          <option value="">{tr("Whole property")}</option>
           {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         {/* TASKS.csv #52 (c) — named intercept sets. Sits with the Domain selector because it is the
             same kind of control: both narrow WHICH picks feed every tool below, one spatially and one
             by hand. */}
         <div className="ge-section-label" style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Intercept set</span>
-          <InfoButton title="Intercept set" width={280} text={`Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that repeats in the pile as the separate surfaces it really is, instead of every pick of that code feeding one surface. Build sets in "Boundary intercepts" on the Home tab. "All intercepts" is the original behaviour. Structural orientation picks are not covered: the tools read those directly from the structure layer, not through this table.`} />
+          <span>{tr("Intercept set")}</span>
+          <InfoButton title={tr("Intercept set")} width={280} text={tr("Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that repeats in the pile as the separate surfaces it really is, instead of every pick of that code feeding one surface. Build sets in \"Boundary intercepts\" on the Home tab. \"All intercepts\" is the original behaviour. Structural orientation picks are not covered: the tools read those directly from the structure layer, not through this table.")} />
         </div>
         <select value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
-          <option value="">All intercepts</option>
+          <option value="">{tr("All intercepts")}</option>
           {(interceptSets || []).map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
         </select>
         {activeInterceptSet && (activeInterceptSet.ids || []).length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)", marginBottom: 4, lineHeight: 1.4 }}>
-            "{activeInterceptSet.name}" is empty, so every tool below has nothing to model. Add
-            intercepts to it in "Boundary intercepts", or switch back to All intercepts.
-          </div>
+            {tr("\"{name}\" is empty, so every tool below has nothing to model. Add intercepts to it in \"Boundary intercepts\", or switch back to All intercepts.", { name: activeInterceptSet.name })}</div>
         )}
 
         {/* TASKS.csv #88 — boundary constraint: #89 above only restricts which control points feed a
             run, this additionally clips the OUTPUT mesh to the domain, since GemPy still fits/
             extrapolates across the whole extent regardless. */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: modelDomainId ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
-          <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />
-          Clip result to domain boundary
-        </label>
+          <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />{tr("Clip result to domain boundary")}</label>
         {/* TASKS.csv #358 */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={terrain ? "Removes the parts of modelled surfaces that lie above the terrain surface." : "Load a terrain surface (Geophysics > Terrain) to cut surfaces at the ground."}>
-          <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />
-          Cut surfaces at topography
-        </label>
+          <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />{tr("Cut surfaces at topography")}</label>
 
         {/* TASKS.csv #361 — which structure types are contact orientations (litho + alteration tools). */}
         {structureTypes.length > 0 && (<>
           <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
-            <span>Contact orientations</span>
-            <InfoButton title="Contact orientations" width={300} text={"Which structure-pick types are used as the dip/dip-direction of the contacts being modelled. Faults, veins, joints and foliation are not contacts and usually point the surface the wrong way. With none chosen, the orientation is estimated from the contact points' own shape (and the run says so)."} />
+            <span>{tr("Contact orientations")}</span>
+            <InfoButton title={tr("Contact orientations")} width={300} text={tr("Which structure-pick types are used as the dip/dip-direction of the contacts being modelled. Faults, veins, joints and foliation are not contacts and usually point the surface the wrong way. With none chosen, the orientation is estimated from the contact points' own shape (and the run says so).")} />
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
             {structureTypes.map((t) => {
@@ -7558,7 +7542,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             })}
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>
-            {orientTypes.length ? `Using ${orientTypes.join(", ")}${orientTypesSel === null ? " (picked automatically as contact/bedding codes)" : ""}.` : "None chosen — orientations will be estimated from the contact points."}
+            {orientTypes.length ? tr(orientTypesSel === null ? "Using {codes} (picked automatically as contact/bedding codes)." : "Using {codes}.", { codes: orientTypes.join(", ") }) : tr("None chosen — orientations will be estimated from the contact points.")}
           </div>
         </>)}
 
@@ -7567,8 +7551,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             coarser, higher = slower/finer; GemPy's own cost scales with grid cell count, so this is the
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Resolution</span>
-          <InfoButton title="Resolution" width={300} text={`Cells per axis of the model's lithology block: the grid the model check against the logs falls back to, the unit volumes, "Add as block model" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.`} />
+          <span>{tr("Resolution")}</span>
+          <InfoButton title={tr("Resolution")} width={300} text={tr("Cells per axis of the model's lithology block: the grid the model check against the logs falls back to, the unit volumes, \"Add as block model\" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.")} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
@@ -7577,13 +7561,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {/* TASKS.csv #766 — GemPy's octree level for the surface mesh (dual contouring), fixed at 4 before */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Surface detail</span>
-          <InfoButton title="Surface detail" width={300} text={"How finely the model surfaces are triangulated. Finer follows tight folds and fault steps more closely and gives smoother sections through the surfaces; it does not move the surface (measured: the same mean distance to the true surface at every level), and it does not change the block, the model check or the volumes. Measured on the Harry sample (two-unit stack): Standard 34 s; Fine 4x the triangles in 77 s (2.2x); Very fine 16x the triangles in 248 s (7x). Try Fine on the final run, not while iterating."} />
+          <span>{tr("Surface detail")}</span>
+          <InfoButton title={tr("Surface detail")} width={300} text={tr("How finely the model surfaces are triangulated. Finer follows tight folds and fault steps more closely and gives smoother sections through the surfaces; it does not move the surface (measured: the same mean distance to the true surface at every level), and it does not change the block, the model check or the volumes. Measured on the Harry sample (two-unit stack): Standard 34 s; Fine 4x the triangles in 77 s (2.2x); Very fine 16x the triangles in 248 s (7x). Try Fine on the final run, not while iterating.")} />
         </div>
-        <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label="Surface detail">
-          <option value={4}>Standard (fastest)</option>
-          <option value={5}>Fine — 4x the triangles, ~2x the time</option>
-          <option value={6}>Very fine — 16x the triangles, ~7x the time</option>
+        <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label={tr("Surface detail")}>
+          <option value={4}>{tr("Standard (fastest)")}</option>
+          <option value={5}>{tr("Fine — 4x the triangles, ~2x the time")}</option>
+          <option value={6}>{tr("Very fine — 16x the triangles, ~7x the time")}</option>
         </select>
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
@@ -7592,76 +7576,63 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             own default, byte-identical to every run before this control existed); the effective value is
             reported in the run notice and stamped into the surface's export provenance either way. */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Surface stiffness (advanced)</span>
-          <InfoButton title="Surface stiffness" width={280} text={`Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows your control points more tightly (more curvature, more risk of over-fitting sparse data); higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too wobbly or too flat for the data.`} />
+          <span>{tr("Surface stiffness (advanced)")}</span>
+          <InfoButton title={tr("Surface stiffness")} width={280} text={tr("Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows your control points more tightly (more curvature, more risk of over-fitting sparse data); higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too wobbly or too flat for the data.")} />
         </div>
         <select value={rangeMultiplier} onChange={(e) => setRangeMultiplier(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }}>
-          <option value={0}>Auto — GemPy's own default</option>
-          <option value={0.5}>0.5x — tighter, follows the points more closely</option>
-          <option value={0.75}>0.75x — slightly tighter</option>
-          <option value={1.5}>1.5x — slightly smoother</option>
-          <option value={2}>2x — smoother, stiffer surfaces</option>
+          <option value={0}>{tr("Auto — GemPy's own default")}</option>
+          <option value={0.5}>{tr("0.5x — tighter, follows the points more closely")}</option>
+          <option value={0.75}>{tr("0.75x — slightly tighter")}</option>
+          <option value={1.5}>{tr("1.5x — slightly smoother")}</option>
+          <option value={2}>{tr("2x — smoother, stiffer surfaces")}</option>
         </select>
 
         {/* TASKS.csv #765 — structure picks averaged per hole: faster and less pick-scatter in the surface */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Contact orientations from picks</span>
-          <InfoButton title="Average picks per hole" width={300} text={"GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is."} />
+          <span>{tr("Contact orientations from picks")}</span>
+          <InfoButton title={tr("Average picks per hole")} width={300} text={tr("GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is.")} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
-          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />
-          Average picks per hole, in windows of
-          <input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label="Averaging window along the hole (m)" /> m
+          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />{tr("Average picks per hole, in windows of")}<input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label={tr("Averaging window along the hole (m)")} /> m
         </label>
 
         {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>Clustered contacts</span>
-          <InfoButton title="Smooth clustered contacts" width={300} text={"GemPy passes exactly through every contact point. Where many noisy picks crowd one spot (holes from one pad, digitised map or section lines) it bends the surface to honour them all, and the kink spreads. With this on, each surface's contacts are scanned for clusters (a kernel density over the points, as in von Harten et al. 2021): points at least twice as crowded as an even spread would be, and near the densest, are fitted loosely instead of exactly. Isolated points stay exact. The run says how many were smoothed. Off by default: if the clustered picks are accurate, smoothing throws away real detail."} />
+          <span>{tr("Clustered contacts")}</span>
+          <InfoButton title={tr("Smooth clustered contacts")} width={300} text={tr("GemPy passes exactly through every contact point. Where many noisy picks crowd one spot (holes from one pad, digitised map or section lines) it bends the surface to honour them all, and the kink spreads. With this on, each surface's contacts are scanned for clusters (a kernel density over the points, as in von Harten et al. 2021): points at least twice as crowded as an even spread would be, and near the densest, are fitted loosely instead of exactly. Isolated points stay exact. The run says how many were smoothed. Off by default: if the clustered picks are accurate, smoothing throws away real detail.")} />
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
-          <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />
-          Smooth clustered contacts
-        </label>
+          <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />{tr("Smooth clustered contacts")}</label>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            Search ellipsoid
-            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately.`} />
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Search ellipsoid")}<InfoButton title={tr("Search ellipsoid")} width={300} text={tr("GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately.")} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-            <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
-          </label>
+            <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} />{" "}{tr("On")}</label>
         </div>
         {searchEllipsoid.enabled && (
           <div style={{ opacity: searchEllipsoid.enabled ? 1 : 0.5, marginBottom: 8 }}>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Azimuth°
-                <input type="number" value={searchEllipsoid.azimuth} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, azimuth: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Azimuth°")}<input type="number" value={searchEllipsoid.azimuth} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, azimuth: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>Dip°
-                <input type="number" value={searchEllipsoid.dip} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, dip: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Dip°")}<input type="number" value={searchEllipsoid.dip} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, dip: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
               </label>
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Major (m)
-                <input type="number" value={searchEllipsoid.major} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, major: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Major (m)")}<input type="number" value={searchEllipsoid.major} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, major: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>Semi-major (m)
-                <input type="number" value={searchEllipsoid.semiMajor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, semiMajor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Semi-major (m)")}<input type="number" value={searchEllipsoid.semiMajor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, semiMajor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
               </label>
-              <label style={miniField}>Minor (m)
-                <input type="number" value={searchEllipsoid.minor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
+              <label style={miniField}>{tr("Minor (m)")}<input type="number" value={searchEllipsoid.minor} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
               </label>
             </div>
-            <label style={miniField}>Min. neighbors required
-              <input type="number" value={searchEllipsoid.minSamples} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minSamples: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...smallSel, width: 70 }} />
+            <label style={miniField}>{tr("Min. neighbors required")}<input type="number" value={searchEllipsoid.minSamples} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, minSamples: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...smallSel, width: 70 }} />
             </label>
           </div>
         )}
 
         {/* TASKS.csv #650 — named structural trends (replaces the single unsaved "Anisotropy" on/off) */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Structural trends</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Structural trends")}</div>
         <Suspense fallback={null}>
           <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
             structurePicks={structurePicksWithHoleAttitude}
@@ -7680,20 +7651,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "gradeEst" && (<>
         {paneHeader("Grade estimation", Calculator, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Populate a block model FROM composited assays — nearest-neighbour or inverse-
-          distance weighting, not a surface — a separate workflow from the implicit surface tools below.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest-neighbour or inverse- distance weighting, not a surface — a separate workflow from the implicit surface tools below.")}</div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
-          <FileBarChart2 size={14} /> Estimate grade into block model…
-        </button>
+          <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
             diagnostic you are supposed to run BEFORE choosing a search radius or an anisotropy ratio,
             not a separate curiosity. It does NOT feed the estimator (GeoStrix still does not krige) —
             the modal itself says so up front; see VariogramModal.jsx's header. */}
         <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
-          <Activity size={14} /> Variogram / spatial continuity…
-        </button>
+          <Activity size={14} />{" "}{tr("Variogram / spatial continuity…")}</button>
 
         {/* TASKS.csv #176 — lithology groups: lump codes logged differently for the same real unit
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the
@@ -7709,17 +7675,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {toolPane === "groups" && (<>
         {paneHeader("Lithology groups", Group, "model")}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Lithology groups</span>
+          <span>{tr("Lithology groups")}</span>
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New lithology group name:", "", (name) => { if (name && name.trim()) setExpandedLithoGroupId(addLithoGroup({ name: name.trim() })); })}
-            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title="New lithology group">+ New group</span>
+            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("New lithology group")}>{tr("+ New group")}</span>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one
-          modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their
-          own colors in 3D.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Lump codes that were logged differently for the same real unit (e.g. andesite + basalt) into one modelled unit. Groups appear alongside raw codes in the pickers below; raw intervals keep their own colors in 3D.")}</div>
         {lithoGroups.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>No groups yet.</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No groups yet.")}</div>
         )}
         {lithoGroups.map((g) => {
           const open = expandedLithoGroupId === g.id;
@@ -7732,19 +7694,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
                   {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
-                <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title="Surface / legend color for this group"
+                <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title={tr("Surface / legend color for this group")}
                   style={{ width: 20, height: 18, padding: 0, border: "1px solid var(--color-border)", borderRadius: 3, background: "transparent", cursor: "pointer", flexShrink: 0 }} />
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
-                  onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title="Click to rename">
+                  onClick={() => askPrompt("Rename lithology group:", g.name, (name) => { if (name && name.trim()) updateLithoGroup(g.id, { name: name.trim() }); })} title={tr("Click to rename")}>
                   {g.name} <span style={{ color: "var(--color-text-muted)" }}>({codesInGroup.length})</span>
                 </div>
-                {crossCuts && <span title="Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>X-cut</span>}
-                {!crossCuts && role === "overburden" && <span title="Every member is overburden — modelled as an overburden_base surface" style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
+                {crossCuts && <span title={tr("Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("X-cut")}</span>}
+                {!crossCuts && role === "overburden" && <span title={tr("Every member is overburden — modelled as an overburden_base surface")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete lithology group "${g.name}"? Its codes stay in the log — they just stop being modelled together.`)) removeLithoGroup(g.id); }, `Delete lithology group "${g.name}" (its codes stay in the log, just ungrouped)`)} />
               </div>
               {open && (
                 <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {litho_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>No lithology codes loaded yet — import a litho CSV first.</div>}
+                  {litho_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No lithology codes loaded yet — import a litho CSV first.")}</div>}
                   {litho_units.map((u) => {
                     const on = codesInGroup.includes(u);
                     return (
@@ -7773,8 +7735,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={() => setFenceOpen(true)}
           disabled={!collars.length}
           style={{ ...pBtn, marginBottom: 8, opacity: collars.length ? 1 : 0.5, cursor: collars.length ? "pointer" : "default" }}
-          title="Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown"
-        ><Layers3 size={14} /> Fence / panel diagram…</button>
+          title={tr("Fence / panel diagram — project the holes onto a common vertical panel along the drill line and correlate lithology hole-to-hole, with each hole's perpendicular offset from the section shown")}
+        ><Layers3 size={14} />{" "}{tr("Fence / panel diagram…")}</button>
 
         {/* TASKS.csv #318 — mapped surface contacts projected underground (dip projection), or fed to the
             implicit model run just below as extra interface points + orientations. */}
@@ -7794,19 +7756,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine.
-          Uses structure dip/azimuth for orientation when available; if not, estimates one from the
-          contact points themselves so it can still run.
-        </div>
-        {!litho_units.length && emptyPaneHint("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project.")}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title="Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points">
-          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />
-          Include drawn cross-section contacts{sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : ""}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine. Uses structure dip/azimuth for orientation when available; if not, estimates one from the contact points themselves so it can still run.")}</div>
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
+          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts")}{sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : ""}
         </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">Choose a unit…</option>
+            <option value="">{tr("Choose a unit…")}</option>
             {litho_units.map((u) => {
               const role = roleForLithology(u);
               return <option key={u} value={u}>{u}{role !== "stratigraphic" ? ` (${role}${isCrossCuttingRole(role) ? ", cross-cutting" : ""})` : ""}</option>;
@@ -7815,17 +7772,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 suffix (no guessing), a cross-cutting group is still offered HERE (this tool has no
                 non-crossing constraint), just labelled. */}
             {lithoGroups.length > 0 && (
-              <optgroup label="Groups">
+              <optgroup label={tr("Groups")}>
                 {lithoGroups.map((g) => {
                   const role = lithoGroupRole(g);
                   const xcut = lithoGroupCrossCuts(g);
                   const empty = !(g.codes || []).length;
-                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || "no codes yet"}]{xcut ? " (cross-cutting)" : role && role !== "stratigraphic" ? ` (${role})` : ""}</option>;
+                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || tr("no codes yet")}]{xcut ? tr(" (cross-cutting)") : role && role !== "stratigraphic" ? ` (${role})` : ""}</option>;
                 })}
               </optgroup>
             )}
             {modellingCodeList.length > 0 && (
-              <optgroup label="Modelling codes">
+              <optgroup label={tr("Modelling codes")}>
                 {modellingCodeList.map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role !== "stratigraphic" ? ` (${c.role})` : ""}</option>)}
               </optgroup>
             )}
@@ -7833,22 +7790,21 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button
             onClick={() => runImplicitModel(implicitTarget)}
             disabled={!implicitTarget || implicitBusy}
-            aria-label="Run the implicit model (GemPy)"
-            title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
+            aria-label={tr("Run the implicit model (GemPy)")}
+            title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? "Running…" : <><Layers3 size={14} aria-hidden="true" /> Run</>}</button>{/* #572 — was an unlabeled icon */}
+          >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSensOpen((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
-          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Sensitivity: spread across realisations
-          <InfoButton title="Sensitivity spread" width={380} text={"Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realisations land from it (RMS distance per vertex).\n\nPale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realisation produced no surface there at all.\n\nIt is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick.\n\nCost: each realisation is a full GemPy run. The base run is timed first and the number of realisations is cut to fit your time budget."} />
+          {sensOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Sensitivity: spread across realisations")}<InfoButton title={tr("Sensitivity spread")} width={380} text={tr("Re-runs the implicit model for the chosen unit several times with every contact point moved by a random amount (standard deviation = the position sigma you enter, in metres, per axis) and every orientation tipped by a random angle (the orientation sigma, in degrees), then colours the surface by how far the realisations land from it (RMS distance per vertex). Pale = the surface barely moves under that input uncertainty; dark = it moves a lot. Grey = at least one realisation produced no surface there at all. It is a spread under the uncertainty YOU state — not a probability or a confidence, and only as meaningful as the sigmas entered. There is deliberately no default for them. A per-pick value in an 'uncertainty_m' number column (mapped as an extra field when importing lithology) overrides the position sigma for that pick. Cost: each realisation is a full GemPy run. The base run is timed first and the number of realisations is cut to fit your time budget.")} />
         </div>
         {sensOpen && (
           <div style={{ padding: "8px 9px", marginBottom: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
             {[
-              ["Contact position ±", sensSigmaPos, setSensSigmaPos, "m", "e.g. 2"],
-              ["Orientation ±", sensSigmaDeg, setSensSigmaDeg, "°", "e.g. 5"],
+              [tr("Contact position ±"), sensSigmaPos, setSensSigmaPos, "m", "e.g. 2"],
+              [tr("Orientation ±"), sensSigmaDeg, setSensSigmaDeg, "°", "e.g. 5"],
             ].map(([label, val, set, unit, ph]) => (
               <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                 <span style={{ width: 108, flexShrink: 0 }}>{label}</span>
@@ -7857,11 +7813,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               </div>
             ))}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-              <span style={{ width: 108, flexShrink: 0 }}>Realisations</span>
+              <span style={{ width: 108, flexShrink: 0 }}>{tr("Realisations")}</span>
               <input type="number" min={3} max={50} value={sensN} onChange={(e) => setSensN(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
-              <span style={{ width: 108, flexShrink: 0 }}>Time budget</span>
+              <span style={{ width: 108, flexShrink: 0 }}>{tr("Time budget")}</span>
               <input type="number" min={10} step={30} value={sensBudget} onChange={(e) => setSensBudget(e.target.value)} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
               <span>s</span>
             </div>
@@ -7874,7 +7830,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   disabled={!ready}
                   title={!implicitTarget ? "Choose a unit above first" : (sensSigmaPos === "" || sensSigmaDeg === "") ? "Enter both sigmas — there is deliberately no default" : "Run the model, then the realisations"}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
-                >Run with sensitivity spread</button>
+                >{tr("Run with sensitivity spread")}</button>
               );
             })()}
           </div>
@@ -7883,42 +7839,38 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "stack" && (<>
         {paneHeader("Stratigraphic stack", Layers, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Models several units' top contacts together in one run so they can't cross each other —
-          add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a
-          stack by nature, so model those with the Structural tool instead, not here.
-        </div>
-        {!litho_units.length && emptyPaneHint("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project.")}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Structural tool instead, not here.")}</div>
+        {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">Add a unit…</option>
+            <option value="">{tr("Add a unit…")}</option>
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
                 so they're unselectable rather than trusting the user to read the warning first. */}
             {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u))).map((u) => {
               const role = roleForLithology(u);
-              return <option key={u} value={u}>{u}{role === "overburden" ? " (overburden)" : ""}</option>;
+              return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}
             {/* TASKS.csv #176 — groups with ANY cross-cutting member are excluded here, same rail as
                 a raw cross-cutting code just above. */}
             {lithoGroups.some((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)) && (
-              <optgroup label="Groups">
+              <optgroup label={tr("Groups")}>
                 {lithoGroups.filter((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)).map((g) => {
                   const empty = !(g.codes || []).length;
-                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || "no codes yet"}]{lithoGroupRole(g) === "overburden" ? " (overburden)" : ""}</option>;
+                  return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || tr("no codes yet")}]{lithoGroupRole(g) === "overburden" ? tr(" (overburden)") : ""}</option>;
                 })}
               </optgroup>
             )}
             {/* TASKS.csv #599 — intrusion / cross-cutting / ignored codes break the stack's non-crossing rule: not offered */}
             {modellingCodeList.some((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")) && (
-              <optgroup label="Modelling codes">
-                {modellingCodeList.filter((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")).map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role === "overburden" ? " (overburden)" : ""}</option>)}
+              <optgroup label={tr("Modelling codes")}>
+                {modellingCodeList.filter((c) => !stackUnits.includes(`mcode:${c.name}`) && (c.role === "stratigraphic" || c.role === "overburden")).map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}{c.role === "overburden" ? tr(" (overburden)") : ""}</option>)}
               </optgroup>
             )}
           </select>
         </div>
         {stackUnits.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>No units added yet.</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No units added yet.")}</div>
         )}
         {stackUnits.map((u, i) => {
           // TASKS.csv #176 — a `group:` entry shows the group's name and gets a badge only when every
@@ -7931,7 +7883,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", width: 14, flexShrink: 0 }}>{i + 1}</span>
             {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={`Group: ${(grp.codes || []).join(" + ")}`} />}
             <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: grp || !isLithoGroupKey(u) ? "var(--color-text)" : "var(--color-danger-icon)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? `Group: ${(grp.codes || []).join(" + ")}` : undefined}>{display}</div>
-            {role === "overburden" && <span title="Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact" style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>OB</span>}
+            {role === "overburden" && <span title={tr("Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
             <ChevronUp size={14} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), `Move "${u}" up in the stratigraphic stack`)} />
             <ChevronDown size={14} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), `Move "${u}" down in the stratigraphic stack`)} />
             <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), `Remove "${u}" from the stratigraphic stack`)} />
@@ -7939,12 +7891,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           );
         })}
         {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title="Each fault is its own GemPy group ahead of the stack (a FAULT relation): the contacts either side are fitted as offset blocks in one run, instead of one surface ramped across the fault. Faults come from the Structure planes layer (picks with dip and dip direction), one per structure type and name.">
-          Faults that offset the stack
-        </div>
-        <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label="Add a fault that offsets the stack">
-          <option value="">{faultCandidates.length ? "Add a fault…" : "No structure picks with dip / dip direction"}</option>
-          {faultCandidates.filter((c) => !stackFaults.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : `${c.type} (all picks)`} · {c.n} pick{c.n === 1 ? "" : "s"}{c.faultLike ? "" : " (not named as a fault)"}</option>)}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is its own GemPy group ahead of the stack (a FAULT relation): the contacts either side are fitted as offset blocks in one run, instead of one surface ramped across the fault. Faults come from the Structure planes layer (picks with dip and dip direction), one per structure type and name.")}>{tr("Faults that offset the stack")}</div>
+        <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Add a fault that offsets the stack")}>
+          <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
+          {faultCandidates.filter((c) => !stackFaults.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{c.faultLike ? "" : tr(" (not named as a fault)")}</option>)}
         </select>
         {stackFaults.map((k) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
@@ -7953,33 +7903,28 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
-        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title="Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).">
-          Unit relationship
-          <select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
-            <option value="erode">Erode — younger units truncate older (unconformity)</option>
-            <option value="onlap">Onlap — units drape/terminate against those below (conformable pile)</option>
+        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
+            <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>
+            <option value="onlap">{tr("Onlap — units drape/terminate against those below (conformable pile)")}</option>
           </select>
         </label>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
           {stackRelation === "erode"
-            ? "Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape."
-            : "Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Usually the right choice for a layered volcanic/sedimentary sequence — including the VMS-hosting stratigraphy this app is built around — and the default."}
+            ? tr("Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape.")
+            : tr("Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Usually the right choice for a layered volcanic/sedimentary sequence — including the VMS-hosting stratigraphy this app is built around — and the default.")}
         </div>
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}
-          title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
+          title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
           style={{ ...pBtn, marginTop: 4, opacity: stackUnits.length >= 2 && !implicitBusy ? 1 : 0.5, cursor: stackUnits.length >= 2 && !implicitBusy ? "pointer" : "default" }}
-        ><Layers3 size={14} /> {implicitBusy ? "Running…" : `Run stack (${stackUnits.length} unit${stackUnits.length === 1 ? "" : "s"})`}</button>
+        ><Layers3 size={14} /> {implicitBusy ? tr("Running…") : tr(stackUnits.length === 1 ? "Run stack ({n} unit)" : "Run stack ({n} units)", { n: stackUnits.length })}</button>
 
 
         </>)}
         {toolPane === "structural" && (<>
         {paneHeader("Structural modelling", Compass, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own
-          position and dip/azimuth — no separate contact layer needed.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a surface from one structure-plane type (e.g. a fault or shear) using each pick's own position and dip/azimuth — no separate contact layer needed.")}</div>
         {/* User request: "we need to find a way to calculate the beta angle for non-oriented drilling
             based on field structural measurements" — the alpha-beta method (coreOrientation.js), placed
             right above the Stereonet QC button since it's the natural upstream step: solve a pick's true
@@ -7987,16 +7932,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={() => setCoreOrientOpen(true)}
           style={{ ...pBtn, marginBottom: 8 }}
-          title="Recover a non-oriented core pick's true dip/dip-direction by calibrating against a known field/outcrop structural reading"
-        ><Compass size={14} /> Core orientation calculator</button>
+          title={tr("Recover a non-oriented core pick's true dip/dip-direction by calibrating against a known field/outcrop structural reading")}
+        ><Compass size={14} />{" "}{tr("Core orientation calculator")}</button>
         {/* TASKS.csv #141 — check the structure picks' own orientation trend/scatter BEFORE feeding them
             into the anisotropy or structural-surface tools above/below. */}
         <button
           onClick={() => setStereonetOpen(true)}
           disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth)) && !(surfaceStructures || []).some((st) => (st.rows || []).length)} // #428: outcrop data alone is enough
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length || (surfaceStructures || []).length ? 1 : 0.5, cursor: (layers.structure || []).length || (surfaceStructures || []).length ? "pointer" : "default" }}
-          title="Pole-plot / great-circle stereonet of the Structure layer's downhole picks and/or outcrop measurements"
-        ><Milestone size={14} /> Stereonet (QC picks)</button>
+          title={tr("Pole-plot / great-circle stereonet of the Structure layer's downhole picks and/or outcrop measurements")}
+        ><Milestone size={14} />{" "}{tr("Stereonet (QC picks)")}</button>
         {/* TASKS.csv #277 — the downhole (tadpole) view, sitting next to the Stereonet because the two
             are the pair a geologist works structural data with: this one answers "where in the hole,
             and does it change at a contact", the stereonet answers "what is the orientation
@@ -8005,21 +7950,21 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={() => setTadpoleOpen(true)}
           disabled={!(layers.structure || []).some((s) => s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth))}
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
-          title="Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole"
-        ><Milestone size={14} /> Downhole structure (tadpole)</button>
-        {!struct_types.length && emptyPaneHint("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project.")}
+          title={tr("Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole")}
+        ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
+        {!struct_types.length && emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">Choose a structure type…</option>
+            <option value="">{tr("Choose a structure type…")}</option>
             {struct_types.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           <button
             onClick={() => runStructuralModel(structuralTarget)}
             disabled={!structuralTarget || implicitBusy}
-            aria-label="Run the structural model (GemPy)"
-            title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
+            aria-label={tr("Run the structural model (GemPy)")}
+            title={tr("Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? "Running…" : <><Layers3 size={14} aria-hidden="true" /> Run</>}</button>{/* #572 */}
+          >{implicitBusy ? tr("Running…") : <><Layers3 size={14} aria-hidden="true" />{" "}{tr("Run")}</>}</button>{/* #572 */}
         </div>
 
         </>)}
@@ -8028,38 +7973,27 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {/* TASKS.csv #272 — this tool no longer builds a draped contact through the alteration tops via
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a
-          0/1 "altered?" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the
-          lithology/structural tools this makes no assumption about which way is "up" — a halo wraps its
-          conduit rather than draping like a contact. Runs in-app, no Python engine needed.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">Choose an assemblage…</option>
+            <option value="">{tr("Choose an assemblage…")}</option>
             {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget)}
             disabled={!alterationTarget || alterationBusy}
-            title="Build a closed alteration-halo envelope from the logged intervals (runs in-app)"
+            title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
           >{alterationBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title="Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).">Cell size (m)
-            <input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title="Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).">Search (m)
-            <input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for
-          alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
-          under-supported contact picks, which a closed envelope has none of.
-        </div>
-        {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop under-supported contact picks, which a closed envelope has none of.")}</div>
+        {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the halo envelope…")}</div>}
 
         {/* TASKS.csv #144 — vein/dyke tool. The copy here deliberately states what the construction can
             and cannot do (paired by construction; thickness between holes is interpolated), because a
@@ -8067,49 +8001,33 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "vein" && (<>
         {paneHeader("Vein / dyke modelling", Waves, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are
-          the two walls of one structure. A midplane is fitted through the intercept midpoints and a
-          TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is
-          interpolated over it; the hangingwall and footwall are that midplane offset by half the
-          thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app,
-          no Python engine needed.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are the two walls of one structure. A midplane is fitted through the intercept midpoints and a TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app, no Python engine needed.")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">Choose a vein / dyke…</option>
+            <option value="">{tr("Choose a vein / dyke…")}</option>
             {vein_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
           <button
             onClick={() => runVeinModel(veinTarget)}
             disabled={!veinTarget || veinBusy}
-            title="Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)"
+            title={tr("Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
           >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title="Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).">Cell size (m)
-            <input type="number" min={0} value={veinCellSize} onChange={(e) => setVeinCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Grid spacing across the vein plane. 0 = auto (about 1/12 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={veinCellSize} onChange={(e) => setVeinCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title="In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).">Search (m)
-            <input type="number" min={0} value={veinSearchRadius} onChange={(e) => setVeinSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("In-plane search radius for the midplane and thickness interpolation, and how far the modelled vein is allowed to extend past the outermost intercept. 0 = auto (about 1.5x the median intercept spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={veinSearchRadius} onChange={(e) => setVeinSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <label style={{ ...miniField }} title="Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.">Dip (°)
-            <input type="number" min={0} max={90} value={veinDip} placeholder="fit" onChange={(e) => setVeinDip(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Optional. Leave both blank to fit the vein's attitude from the intercept midpoints. Required when every intercept lies on one section line, because collinear midpoints cannot fix a plane.")}>{tr("Dip (°)")}<input type="number" min={0} max={90} value={veinDip} placeholder={tr("fit")} onChange={(e) => setVeinDip(e.target.value)} style={{ ...smallSel, width: "100%" }} />
           </label>
-          <label style={{ ...miniField }} title="Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.">Dip dir (°)
-            <input type="number" min={0} max={360} value={veinDipDir} placeholder="fit" onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
+          <label style={{ ...miniField }} title={tr("Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.")}>{tr("Dip dir (°)")}<input type="number" min={0} max={360} value={veinDipDir} placeholder={tr("fit")} onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the
-          data. Adds three surfaces: hangingwall, footwall, and a closed solid for volume. Between holes
-          the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out
-          or swell no hole intersected will not be in it.
-        </div>
-        {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the vein pair…</div>}
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the data. Adds three surfaces: hangingwall, footwall, and a closed solid for volume. Between holes the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out or swell no hole intersected will not be in it.")}</div>
+        {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the vein pair…")}</div>}
 
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no
             sidecar): IDW onto a dense grid + marching cubes at the cutoff. Result lands in the
@@ -8124,24 +8042,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             tonnages with zero classification context. This is the fix — framing, not features.
             TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
-          <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
-          visualise and target mineralisation. It can follow a structural trend you choose, but it has no
-          variogram, no classification and no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
-          it must not be reported publicly as one.
-        </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Builds a wireframe envelope of everything at or above a cutoff grade directly from
-          assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff.
-          Runs in-app, no Python engine needed.
-          {/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+          <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This builds an interpolated envelope to help you visualise and target mineralisation. It can follow a structural trend you choose, but it has no variogram, no classification and no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe envelope of everything at or above a cutoff grade directly from assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff. Runs in-app, no Python engine needed.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
               for the user to discover. */}
-          {" "}It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does <strong>not</strong>{" "}
-          apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported
-          contact picks, and dropping isolated assays would delete grade rather than improve the shell.
-        </div>
+          {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</div>
         {(() => {
           const symbols = assayElements.map((e) => e.symbol);
           const sym = numericSymbol || symbols[0] || "";
@@ -8150,38 +8057,33 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
             <>
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title="Assay element to model">Element
-                  <select value={sym} onChange={(e) => setNumericSymbol(e.target.value)} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
-                    {symbols.length === 0 && <option value="">— no assays —</option>}
+                <label style={{ ...miniField }} title={tr("Assay element to model")}>{tr("Element")}<select value={sym} onChange={(e) => setNumericSymbol(e.target.value)} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
+                    {symbols.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({assayElements.find((e) => e.symbol === s)?.unit || "ppm"})</option>)}
                   </select>
                 </label>
                 {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.
                     Numerically identical for a solid, but a cutoff typo of one order of magnitude is a
                     real risk, so show the unit the user actually thinks in and keep ppm in the tooltip. */}
-                <label style={{ ...miniField }} title={`Iso-value: the shell encloses every interpolated cell at or above this grade.${PRECIOUS_METALS.has(sym) && unit === "ppm" ? " Displayed as g/t; stored as ppm \u2014 numerically identical for a solid (1 g/t = 1 ppm)." : ""}`}>Cutoff ({PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit})
+                <label style={{ ...miniField }} title={`Iso-value: the shell encloses every interpolated cell at or above this grade.${PRECIOUS_METALS.has(sym) && unit === "ppm" ? " Displayed as g/t; stored as ppm \u2014 numerically identical for a solid (1 g/t = 1 ppm)." : ""}`}>{tr("Cutoff ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title="Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.">Cell (m)
-                  <input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
                     unbounded search made every sample a candidate for every cell (measured: 81 s of
                     blocked main thread at 62,500 cells x 5,000 points, 250 s at the block cap). 0 now
                     means "cap at the grid diagonal", which is a no-op mathematically and a real bound
                     computationally. */}
-                <label style={{ ...miniField }} title="No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.">Search (m)
-                  <input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("No sample within this distance of a grid cell leaves it un-estimated (no shell there) rather than extrapolating grade far from real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang — but a real radius is both faster and far more defensible.")}>{tr("Search (m)")}<input type="number" min="0" step="any" value={numericSearchRadius} onChange={(e) => setNumericSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
-                <label style={{ ...miniField }} title="Extends the grid past the outermost sample so the shell can close beyond the last hole">Pad (m)
-                  <input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Extends the grid past the outermost sample so the shell can close beyond the last hole")}>{tr("Pad (m)")}<input type="number" min="0" step="any" value={numericPadding} onChange={(e) => setNumericPadding(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-end" }}>
-                <label style={{ ...miniField }}>Method
-                  {/* TASKS.csv #87 — one shared method table (estimation.js) drives this dropdown and
+                <label style={{ ...miniField }}>{tr("Method")}{/* TASKS.csv #87 — one shared method table (estimation.js) drives this dropdown and
                       GradeEstimationModal's, so the grade shell and the block model can never offer
                       different methods or mean different things by the same method id. */}
                   <select value={numericMethod} onChange={(e) => setNumericMethod(e.target.value)} style={{ ...smallSel, width: "100%" }} title={ESTIMATION_METHODS.find((m) => m.id === numericMethod)?.blurb || ""}>
@@ -8189,19 +8091,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   </select>
                 </label>
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation, TASKS #118)">
-                <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />
-                Composite first
-                {numericUseComposites && (
-                  <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title="Composite length (m)" />
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)")}>
+                <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />{tr("Composite first")}{numericUseComposites && (
+                  <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title={tr("Composite length (m)")} />
                 )}
                 {numericUseComposites && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>m</span>}
               </label>
               {/* TASKS.csv #262 — minCoverage was hardcoded at 0.5 here with no way to tighten it. */}
               {numericUseComposites && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.">
-                  Min coverage
-                  <input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage")}<input type="number" step="1" min="0" max="100" value={Math.round(numericMinCoverage * 100)} onChange={(e) => setNumericMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={{ ...smallSel, width: 50 }} />
                   <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>%</span>
                 </label>
               )}
@@ -8209,73 +8107,56 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {/* TASKS.csv #259 — high-grade capping was implemented in compositeDownhole and wired
                     only into CompositingModal; the grade shell composited uncapped, so a single bonanza
                     assay drove IDW² across its whole search neighbourhood. */}
-                <label style={{ ...miniField }} title="Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au in an epithermal system, estimating without a cap overstates grade.">High-grade cap ({PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit})
-                  <input type="number" min="0" step="any" placeholder="none" value={Number.isFinite(numericCapValue) ? numericCapValue : ""} onChange={(e) => setNumericCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au in an epithermal system, estimating without a cap overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
+                  <input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(numericCapValue) ? numericCapValue : ""} onChange={(e) => setNumericCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies
                     ~25 of them inside a 50 m radius, so it can never express "at least two holes must
                     see this cell". This can. */}
-                <label style={{ ...miniField }} title="A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralisation' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.">Min holes
-                  <input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title={tr("A grid cell is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. 1 lets a single hole populate a whole 50m-radius sphere of 'mineralisation' with continuity asserted rather than demonstrated; 2 (or 3) is the standard first sanity constraint.")}>{tr("Min holes")}<input type="number" min="1" step="1" value={numericMinHoles} onChange={(e) => setNumericMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
               {/* TASKS.csv #266 — QC inserts were excluded from Best Intercepts / Compositing / Grade
                   Statistics but reached the grade shell unfiltered. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.">
-                <input type="checkbox" checked={numericIncludeQAQC} onChange={(e) => setNumericIncludeQAQC(e.target.checked)} />
-                Include QC samples (standards/blanks/duplicates)
-              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default, the same as the Best Intercepts, Compositing and Grade Statistics panels. A field duplicate logged under its parent hole's id would otherwise be double-counted in the estimate.")}>
+                <input type="checkbox" checked={numericIncludeQAQC} onChange={(e) => setNumericIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates)")}</label>
               {/* TASKS.csv #257 — relabelled and now defaulting OFF. With this on, every grid node with
                   no sample in range reads as below cutoff and the shell closes halfway to it: that wall
                   is the SEARCH RADIUS, not a grade boundary, and computeMeshVolume happily calls the
                   result watertight. Volume then scales as R³ while looking converged and stable. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title="Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.">
-                <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />
-                Close shell artificially at the search-radius boundary (volume becomes an assumption)
-              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.")}>
+                <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />{tr("Close shell artificially at the search-radius boundary (volume becomes an assumption)")}</label>
               {numericCloseShell && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>
-                  Part of this shell's boundary will not be a grade boundary — it is where the search
-                  radius ran out of samples. Its volume will depend on your search radius, not only on
-                  the data.
-                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>{tr("Part of this shell's boundary will not be a grade boundary — it is where the search radius ran out of samples. Its volume will depend on your search radius, not only on the data.")}</div>
               )}
               {/* TASKS.csv #625 — the block budget (grid cells the shell may use). Runs in a background worker with
                   progress and Cancel; measured ~18 s per million blocks on a mid-range laptop. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}
-                title="How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). Remembered on this computer.">
-                <span style={{ flexShrink: 0 }}>Block budget</span>
-                <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label="Grade shell block budget">
-                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks{b === MAX_BLOCKS ? " (fast)" : b >= 5000000 ? " (~2 min, ~70 MB)" : b >= 2000000 ? " (~40 s)" : " (~20 s)"}</option>)}
+                title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). Remembered on this computer.")}>
+                <span style={{ flexShrink: 0 }}>{tr("Block budget")}</span>
+                <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Grade shell block budget")}>
+                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()}{" "}{tr("blocks")}{b === MAX_BLOCKS ? tr(" (fast)") : b >= 5000000 ? tr(" (~2 min, ~70 MB)") : b >= 2000000 ? " (~40 s)" : " (~20 s)"}</option>)}
                 </select>
               </label>
               {numericBudgetHint && (
-                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
-                  At {numericBudgetHint.cell} m cells this extent needs {numericBudgetHint.needed.toLocaleString()} blocks — over the {numericBudgetHint.budget.toLocaleString()}-block budget.
-                  <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>Use {numericBudgetHint.fit} m cells</button>
+                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("At {cell} m cells this extent needs {needed} blocks — over the {budget}-block budget.", { cell: numericBudgetHint.cell, needed: numericBudgetHint.needed.toLocaleString(), budget: numericBudgetHint.budget.toLocaleString() })}<div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Use {n} m cells", { n: numericBudgetHint.fit })}</button>
                     {numericBudgetHint.budget < BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1] && (
-                      <button type="button" onClick={() => { setNumericMaxBlocks(BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]); setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>
-                        Largest budget + {numericBudgetHint.fitMax} m cells
-                      </button>
+                      <button type="button" onClick={() => { setNumericMaxBlocks(BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]); setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>{tr("Largest budget + {n} m cells", { n: numericBudgetHint.fitMax })}</button>
                     )}
                   </div>
                 </div>
               )}
               {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
               {!(numericSearchRadius > 0) && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
-                  With no search radius, every grid cell is estimated from the whole dataset — the run can
-                  take a minute or more and the window will be unresponsive while it does. Set a real
-                  search radius unless you specifically want an unbounded first pass.
-                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more and the window will be unresponsive while it does. Set a real search radius unless you specifically want an unbounded first pass.")}</div>
               )}
               <button
                 onClick={runNumericModel}
                 disabled={!canRun}
                 title={symbols.length ? (collars.length ? "Interpolate grades onto a grid and extract the cutoff iso-surface" : "Load collars first") : "Import assays first"}
                 style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
-              ><Shapes size={14} /> {numericBusy ? "Running…" : `Generate ${sym || "grade"} shell`}</button>
+              ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: sym }) : tr("Generate grade shell"))}</button>
             </>
           );
         })()}
@@ -8286,13 +8167,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             would otherwise leave another block model and layer behind). */}
         {lastLithBlock && (
           <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Last model ({lastLithBlock.title}, {lastLithBlock.when}){lastLithBlock.matchedPct != null ? ` reproduces ${lastLithBlock.matchedPct}% of the logged metres` : ""}.</div>
-            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title="Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation"><Box size={14} /> Add unit volumes (closed)</button>
-            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title="The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out."><Box size={14} /> Add as block model</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title="An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections."><Layers3 size={14} /> Add "modelled unit" layer to holes</button>
+            <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
+            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
+            <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
+            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button>
           </div>
         )}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Generated surfaces</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Generated surfaces")}</div>
         {/* TASKS.csv #146 — query the generated surfaces rather than only look at them: how far is each
             hole from this surface, where does it pierce it, and how many downhole metres sit inside it.
             Lives here because every one of those questions is about a surface in this list. */}
@@ -8300,8 +8181,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={() => setSurfaceQueryOpen(true)}
           disabled={!implicitSurfaces.length}
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
-          title="Distance-to-surface / point-in-domain report — closest approach and pierce depths for every hole, downhole metres inside a closed shell, and a single-point distance/inside query"
-        ><Ruler size={14} /> Distance / inside query…</button>
+          title={tr("Distance-to-surface / point-in-domain report — closest approach and pierce depths for every hole, downhole metres inside a closed shell, and a single-point distance/inside query")}
+        ><Ruler size={14} />{" "}{tr("Distance / inside query…")}</button>
         {/* TASKS.csv #148 — overlay an imported solid (pit shell, stope design, someone else's
             wireframe) alongside the generated ones for an as-built vs. as-planned check. Sits in this
             section, not in a separate one, because an imported solid IS an entry in the list below —
@@ -8309,8 +8190,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <button
           onClick={() => importSolidRef.current?.click()}
           style={{ ...pBtn, marginBottom: 8 }}
-          title="Import a DXF (3DFACE / polyface mesh) or OBJ solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS."
-        ><Box size={14} /> Import solid (DXF / OBJ)…</button>
+          title={tr("Import a DXF (3DFACE / polyface mesh) or OBJ solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS.")}
+        ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ)…")}</button>
         <input
           ref={importSolidRef}
           type="file"
@@ -8328,10 +8209,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onClick={runTopologyCheck}
           disabled={!implicitSurfaces.length || topologyBusy}
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length && !topologyBusy ? 1 : 0.5, cursor: implicitSurfaces.length && !topologyBusy ? "pointer" : "default" }}
-          title="Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves."
-        ><ShieldAlert size={14} /> {topologyBusy ? "Checking relationships…" : "Check relationships"}</button>
+          title={tr("Check the generated surfaces against the relationships declared on them (expand a surface's row to declare one): surfaces that intersect where they shouldn't, a surface on the wrong side of one it is declared below/above, and contact surfaces that fold back over themselves.")}
+        ><ShieldAlert size={14} /> {topologyBusy ? tr("Checking relationships…") : tr("Check relationships")}</button>
         {implicitSurfaces.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.")}</div>
         )}
         {implicitSurfaces.map((s) => {
           const expanded = expandedSurfaceId === s.id;
@@ -8339,10 +8220,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
             <div key={s.id} onContextMenu={(e) => openRowMenu(e, s.name, [ // TASKS.csv #635
               { label: s.visible ? "Hide" : "Show", onClick: () => toggleImplicitSurface(s.id) },
-              { label: "Zoom to", onClick: () => zoomToImplicitSurface(s.id) },
+              { label: tr("Zoom to"), onClick: () => zoomToImplicitSurface(s.id) },
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
-              { label: "Style (colour, opacity)…", onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
-              "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); } }])}
+              { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
+              "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
@@ -8362,7 +8243,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {/* TASKS.csv #83 — expand to set this surface's geological type + declared
                     relationships to other surfaces (metadata only for now — see this entry's own
                     TASKS.csv note on what reads it later: #88 constraints, #90 topology checks). */}
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title="Type & relationships">
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={tr("Type & relationships")}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
@@ -8377,7 +8258,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         onClick={() => toggleSurfaceSupportColors(s.id)}
                         style={{ width: "100%", padding: "5px 0", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: s.supportColored ? "#eef3ee" : "transparent", color: "var(--color-text-secondary)" }}
                       >
-                        {s.supportColored ? "Show normal colours" : "Colour by data support"}
+                        {s.supportColored ? tr("Show normal colours") : tr("Colour by data support")}
                       </button>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
                         {["interpolated", "extrapolated", "unsupported"].map((k) => (
@@ -8387,28 +8268,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           </span>
                         ))}
                       </div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
-                        Counted over this surface's own vertices. Green means the composites that produced
-                        that part of the surface bracket it on all three axes from at least two holes.
-                        A geometric data-support measure — not a confidence interval or a kriging variance.
-                      </div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Counted over this surface's own vertices. Green means the composites that produced that part of the surface bracket it on all three axes from at least two holes. A geometric data-support measure — not a confidence interval or a kriging variance.")}</div>
                     </div>
                   )}
-                  <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
-                    Type
-                    <select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
+                  <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Type")}<select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
                       {SURFACE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                     </select>
                   </label>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>Relationships to other surfaces</div>
-                  {(s.relationships || []).length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>None declared.</div>}
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Relationships to other surfaces")}</div>
+                  {(s.relationships || []).length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("None declared.")}</div>}
                   {(s.relationships || []).map((r, i) => {
                     const target = implicitSurfaces.find((o) => o.id === r.targetId);
                     const relLabel = RELATION_TYPES.find((rt) => rt.key === r.relation)?.label || r.relation;
                     return (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", marginBottom: 4 }}>
                         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {relLabel} <span style={{ color: "var(--color-text-secondary)" }}>{target ? target.name : "(removed surface)"}</span>
+                          {relLabel} <span style={{ color: "var(--color-text-secondary)" }}>{target ? target.name : tr("(removed surface)")}</span>
                         </div>
                         <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), `Remove this relationship from surface "${s.name}"`)} />
                       </div>
@@ -8420,7 +8295,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         {RELATION_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                       </select>
                       <select value={relationDraft.targetId} onChange={(e) => setRelationDraft((p) => ({ ...p, targetId: e.target.value }))} style={{ ...smallSel, flex: 1 }}>
-                        <option value="">— surface —</option>
+                        <option value="">{tr("— surface —")}</option>
                         {otherSurfaces.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
                       <button
@@ -8429,44 +8304,37 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       >+</button>
                     </div>
                   ) : (
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Generate another surface to declare a relationship to it.</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Generate another surface to declare a relationship to it.")}</div>
                   )}
 
                   {/* TASKS.csv #52 (d) — CROSS-CUTTING. The stack tool excludes veins and dykes by
                       design (see #61), so a dyke and the contacts it cuts were previously two
                       unrelated meshes drawn through each other. This applies the cut. */}
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Cross-cutting</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Cross-cutting")}</div>
                   {otherSurfaces.length > 0 ? (
                     <>
                       <div style={{ display: "flex", gap: 4 }}>
                         <select value={cutterDraft} onChange={(e) => setCutterDraft(e.target.value)} style={{ ...smallSel, flex: 1 }}>
-                          <option value="">— cut this surface with… —</option>
+                          <option value="">{tr("— cut this surface with… —")}</option>
                           {otherSurfaces.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
                         </select>
                         <button
                           disabled={!cutterDraft || crossCutBusy}
                           onClick={() => runCrossCut(s.id, cutterDraft)}
                           style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "4px 8px", opacity: !cutterDraft || crossCutBusy ? 0.5 : 1, cursor: !cutterDraft || crossCutBusy ? "default" : "pointer" }}
-                        >{crossCutBusy ? "Cutting…" : "Apply"}</button>
+                        >{crossCutBusy ? tr("Cutting…") : tr("Apply")}</button>
                       </div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
-                        A closed body (a vein/dyke solid, a shell) removes the part of this surface inside
-                        it and leaves a clean truncation. An open surface (a fault) divides this one into
-                        two fault blocks instead — geometry only, with no displacement applied. If the
-                        cutting body doesn't reach this surface, nothing changes and it says so.
-                        Regenerating either surface undoes the cut; what was cut is recorded below under
-                        Parameters used.
-                      </div>
+                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("A closed body (a vein/dyke solid, a shell) removes the part of this surface inside it and leaves a clean truncation. An open surface (a fault) divides this one into two fault blocks instead — geometry only, with no displacement applied. If the cutting body doesn't reach this surface, nothing changes and it says so. Regenerating either surface undoes the cut; what was cut is recorded below under Parameters used.")}</div>
                     </>
                   ) : (
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Model a dyke, vein or fault to cut this surface with it.</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Model a dyke, vein or fault to cut this surface with it.")}</div>
                   )}
 
                   {/* TASKS.csv #140 — volume/tonnage. Only meaningful for a genuinely closed solid, so a
                       non-watertight mesh (e.g. a clipped-open surface, a fault plane, a draped contact
                       sheet) still shows the raw divergence-theorem number but flags it rather than
                       presenting it with false confidence. */}
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Volume &amp; tonnage</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Volume & tonnage")}</div>
                   {expandedSurfaceVolume ? (
                     <>
                       {/* TASKS.csv #268 — computeMeshVolume documents that it assumes scene units are
@@ -8477,56 +8345,42 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {isMetricProjectedEpsg(project?.epsg) !== true ? (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)", lineHeight: 1.45, marginBottom: 6 }}>
                           {project?.epsg
-                            ? `This project's CRS (EPSG:${project.epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.`
-                            : "No CRS is set for this project."}
-                          {" "}Volume and tonnage assume the coordinates are in metres, so nothing here can
-                          be reported in m³ or tonnes until a projected, metre-based CRS is set (Project
-                          settings). The mesh itself is unaffected.
-                        </div>
+                            ? tr("This project's CRS (EPSG:{epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.", { epsg: project.epsg })
+                            : tr("No CRS is set for this project.")}
+                          {" "}{tr("Volume and tonnage assume the coordinates are in metres, so nothing here can be reported in m³ or tonnes until a projected, metre-based CRS is set (Project settings). The mesh itself is unaffected.")}</div>
                       ) : (
                       <>
-                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
-                        Volume: <strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
+                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
                       </div>
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in
                           the whole tool. Closure mode is recorded on the surface at generation time. */}
                       {s.closure === "artificial" && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
-                          <strong>This shell was closed artificially.</strong> Part of its boundary is not a
-                          grade boundary — it is where the search radius ran out of samples. The volume
-                          therefore depends on your search radius, not only on the data: doubling the search
-                          radius roughly multiplies the volume by eight. Treat it as a visualisation of where
-                          grades might extend, not a measured volume.
-                        </div>
+                          <strong>{tr("This shell was closed artificially.")}</strong>{" "}{tr("Part of its boundary is not a grade boundary — it is where the search radius ran out of samples. The volume therefore depends on your search radius, not only on the data: doubling the search radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.")}</div>
                       )}
                       {/* TASKS.csv #263 — the watertight test is a manifold test, not a connectivity
                           test: two disjoint balloons 200 m apart are each closed and report as one
                           volume. Union-find over the indexed mesh says how many bodies there really are. */}
                       {expandedSurfaceVolume.componentCount > 1 && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
-                          This shell is <strong>{expandedSurfaceVolume.componentCount} separate bodies</strong> totalling {expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³, not one continuous body.
-                        </div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) })}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>
-                          This surface isn't a closed solid ({expandedSurfaceVolume.openEdgeCount} open edge{expandedSurfaceVolume.openEdgeCount === 1 ? "" : "s"}). That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.
-                        </div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount })}{" "}{tr("That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.")}</div>
                       )}
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
                       {s.params?.meanGradeInShell != null && (
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
-                          Mean interpolated grade inside the shell: <strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
-                          <span style={{ color: "var(--color-text-muted)" }}> — not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {s.params.cutoff} cutoff).</span>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Mean interpolated grade inside the shell:")}{" "}<strong>{s.params.meanGradeInShell.toFixed(3)} {PRECIOUS_METALS.has(s.params.element) && s.params.unit === "ppm" ? "g/t" : s.params.unit}</strong>
+                          <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {cutoff} cutoff).", { cutoff: s.params.cutoff })}</span>
                         </div>
                       )}
                       {/* TASKS.csv #264 — no more silent 2.7 prefill: a bold tonnage the user never
                           authorised a density for is exactly the number that gets quoted. */}
                       <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ flexShrink: 0 }}>Density (t/m³ or g/cm³)</span>
+                        <span style={{ flexShrink: 0 }}>{tr("Density (t/m³ or g/cm³)")}</span>
                         <input
-                          type="number" min={0} step={0.01} placeholder="required"
+                          type="number" min={0} step={0.01} placeholder={tr("required")}
                           value={s.density ?? ""}
                           onChange={(e) => setSurfaceDensity(s.id, e.target.value === "" ? "" : Number(e.target.value))}
                           style={{ ...smallSel, width: 70 }}
@@ -8536,21 +8390,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         const tonnage = computeTonnage(expandedSurfaceVolume.volumeM3, Number(s.density));
                         return tonnage != null ? (
                           <>
-                            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-                              Tonnage: <strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
+                            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
                             </div>
                             {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
                             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
-                              <strong>Exploration target volume only — not a Mineral Resource.</strong> Public
-                              disclosure of a tonnage requires an estimate prepared by a Qualified Person.
-                              {/* TASKS.csv #264 */}
-                              {" "}In-situ, dry, undiluted tonnes at the density you entered. No mining dilution,
-                              mining recovery, metallurgical recovery or moisture is applied. Bulk density here is
-                              a single assumed value, not a measured one — a real estimate uses measured SG by domain.
-                            </div>
+                              <strong>{tr("Exploration target volume only — not a Mineral Resource.")}</strong>{" "}{tr("Public disclosure of a tonnage requires an estimate prepared by a Qualified Person.")}{/* TASKS.csv #264 */}
+                              {" "}{tr("In-situ, dry, undiluted tonnes at the density you entered. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. Bulk density here is a single assumed value, not a measured one — a real estimate uses measured SG by domain.")}</div>
                           </>
                         ) : (
-                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.</div>
+                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.")}</div>
                         );
                       })()}
                       </>
@@ -8559,7 +8407,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           number can be reproduced and audited rather than re-derived from memory. */}
                       {s.params && (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.5 }}>
-                          <div style={{ color: "var(--color-text-muted)", marginBottom: 2 }}>Parameters used</div>
+                          <div style={{ color: "var(--color-text-muted)", marginBottom: 2 }}>{tr("Parameters used")}</div>
                           {/* BUG FIXED HERE, found by live verification for TASKS.csv #52 (d): this line
                               formatted the NUMERIC grade-shell parameter block unconditionally, for every
                               surface that had any params at all. A vein/dyke (#144) or a GemPy stack
@@ -8570,7 +8418,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               only for the surfaces it describes; everything else gets its own parameter
                               block printed generically, which is strictly more than it had before. */}
                           {s.params.cellsEstimated != null && s.params.element ? (
-                            <>{s.params.element} cutoff {s.params.cutoff} {s.params.unit} · {String(s.params.method).toUpperCase()} · search {Math.round(s.params.searchRadiusM)} m{s.params.searchRadiusWasUnlimited ? " (unlimited, capped at the grid diagonal)" : ""} · {s.params.cellSizeM} m cells · pad {s.params.paddingM} m · {s.params.composited ? `${s.params.compositeLengthM} m composites` : "raw intervals"} · cap {s.params.capValue == null ? "none" : s.params.capValue} · min {s.params.minHoles} hole{s.params.minHoles === 1 ? "" : "s"} · QC {s.params.includeQAQC ? "included" : "excluded"} · closure {s.params.closure} · {s.params.samplePoints} sample points · {s.params.cellsEstimated.toLocaleString()} cells estimated{s.params.singleHoleCells ? ` (${s.params.singleHoleCells.toLocaleString()} from a single hole)` : ""}</>
+                            <>{tr("{el} cutoff {cutoff} {unit} · {method} · search {search} m{unlimited} · {cell} m cells · pad {pad} m · {samples} · cap {cap} · min {minHoles} hole(s) · QC {qc} · closure {closure} · {points} sample points · {cells} cells estimated{single}", {
+                              el: s.params.element, cutoff: s.params.cutoff, unit: s.params.unit, method: String(s.params.method).toUpperCase(), search: Math.round(s.params.searchRadiusM),
+                              unlimited: s.params.searchRadiusWasUnlimited ? tr(" (unlimited, capped at the grid diagonal)") : "", cell: s.params.cellSizeM, pad: s.params.paddingM,
+                              samples: s.params.composited ? tr("{n} m composites", { n: s.params.compositeLengthM }) : tr("raw intervals"), cap: s.params.capValue == null ? tr("none") : s.params.capValue,
+                              minHoles: s.params.minHoles, qc: s.params.includeQAQC ? tr("included") : tr("excluded"), closure: s.params.closure, points: s.params.samplePoints,
+                              cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
                               {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && v !== null && v !== undefined).map(([k, v]) => (
@@ -8584,12 +8437,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               ))}
                             </div>
                           )}
-                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>Generated {new Date(s.params.generatedAt).toLocaleString()}. Saved with the project (TASKS #52), so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.</div>
+                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Generated {when}. Saved with the project, so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.", { when: new Date(s.params.generatedAt).toLocaleString() })}</div>
                         </div>
                       )}
                     </>
                   ) : (
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>No mesh geometry found for this surface.</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No mesh geometry found for this surface.")}</div>
                   )}
 
                   {/* TASKS.csv #145 — manual sculpting of this surface, plus its hand-edit provenance.
@@ -8608,19 +8461,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     const cands = candidatePredecessors(implicitSurfaces, s.id);
                     return (
                       <>
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
-                          Version {vNum} of {chain.length}
-                          {s.accepted && <span style={{ color: "#20512f", background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 4, padding: "1px 5px", marginLeft: 6 }}>accepted</span>}
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Version {n} of {total}", { n: vNum, total: chain.length })}
+                          {s.accepted && <span style={{ color: "#20512f", background: "#f1f7f2", border: "1px solid #c6e0cb", borderRadius: 4, padding: "1px 5px", marginLeft: 6 }}>{tr("accepted")}</span>}
                         </div>
                         <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-                          <span style={{ flexShrink: 0 }}>New version of</span>
+                          <span style={{ flexShrink: 0 }}>{tr("New version of")}</span>
                           <select
                             value={s.supersedes || ""}
                             onChange={(e) => setSurfaceSupersedes(s.id, e.target.value)}
                             style={{ ...smallSel, flex: 1, minWidth: 0 }}
-                            title="Record that this run replaces an earlier one. Both runs stay in the project — this only links them so they can be compared."
+                            title={tr("Record that this run replaces an earlier one. Both runs stay in the project — this only links them so they can be compared.")}
                           >
-                            <option value="">— nothing (this is an original run) —</option>
+                            <option value="">{tr("— nothing (this is an original run) —")}</option>
                             {cands.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
                         </label>
@@ -8630,20 +8482,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                             disabled={chain.length < 2}
                             style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: chain.length < 2 ? 0.5 : 1, cursor: chain.length < 2 ? "default" : "pointer" }}
                             title={chain.length < 2 ? "Link this surface to an earlier run first" : "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed"}
-                          ><GitCompare size={12} /> Compare versions…</button>
+                          ><GitCompare size={12} />{" "}{tr("Compare versions…")}</button>
                           <button
                             onClick={() => acceptSurfaceVersion(s.id)}
                             style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }}
-                            title="Mark this run as the version you are working from. Hides the other versions of this surface — it does not delete them, and it is not a check that this run is correct."
-                          ><Check size={12} /> {s.accepted ? "Accepted" : "Accept this version"}</button>
+                            title={tr("Mark this run as the version you are working from. Hides the other versions of this surface — it does not delete them, and it is not a check that this run is correct.")}
+                          ><Check size={12} /> {s.accepted ? tr("Accepted") : tr("Accept this version")}</button>
                         </div>
                         {chain.length > 1 && (
-                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>
-                            Every version keeps its own mesh and its own parameter block, so nothing is
-                            overwritten and nothing is dropped on save — which also means each one costs
-                            its own space in the project file. Delete a version you no longer want with
-                            the × on its row; GeoStrix will not do it for you.
-                          </div>
+                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.45 }}>{tr("Every version keeps its own mesh and its own parameter block, so nothing is overwritten and nothing is dropped on save — which also means each one costs its own space in the project file. Delete a version you no longer want with the × on its row; GeoStrix will not do it for you.")}</div>
                         )}
                       </>
                     );
@@ -8651,12 +8498,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
                   {/* TASKS.csv #143 — export to a standard mesh format, at real-world project coordinates
                       (not GeoStrix's internal scene-space), for handoff to other software. */}
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>Export mesh</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Export mesh")}</div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Wavefront OBJ — universal, human-readable">OBJ</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this">DXF</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="glTF Binary — modern standard, keeps normals, good for Blender/web viewers">glTF</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it">OMF</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Wavefront OBJ — universal, human-readable")}>{tr("OBJ")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this")}>{tr("DXF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("glTF Binary — modern standard, keeps normals, good for Blender/web viewers")}>{tr("glTF")}</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it")}>{tr("OMF")}</button>
                   </div>
                 </div>
               )}
@@ -8664,19 +8511,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           );
         })}
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Domains</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          A domain is one or more faults plus which side of each — an AND of constraints, so you can
-          bound a domain between two faults, not just split the property in two. Pick which fault
-          surfaces to use as constraints below (any generated surface typed "Fault" above); the domain
-          fails open (matches everything) until it has at least one constraint, and again for any
-          constraint whose fault surface gets deleted. Domains save with the project (TASKS #52), along
-          with the surfaces they reference.
-        </div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Domains")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("A domain is one or more faults plus which side of each — an AND of constraints, so you can bound a domain between two faults, not just split the property in two. Pick which fault surfaces to use as constraints below (any generated surface typed \"Fault\" above); the domain fails open (matches everything) until it has at least one constraint, and again for any constraint whose fault surface gets deleted. Domains save with the project, along with the surfaces they reference.")}</div>
         {(() => { const faultSurfaces = implicitSurfaces.filter((s) => s.type === "fault"); return (
         <>
         {domains.length === 0 && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>None yet.</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("None yet.")}</div>
         )}
         {domains.map((d) => {
           const expanded = expandedDomainId === d.id;
@@ -8692,16 +8532,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>Fault-side constraints</div>
-                  {d.constraints.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>None declared — matches the whole property.</div>}
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Fault-side constraints")}</div>
+                  {d.constraints.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("None declared — matches the whole property.")}</div>}
                   {d.constraints.map((c, i) => {
                     const fault = implicitSurfaces.find((s) => s.id === c.faultId);
                     return (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", marginBottom: 4 }}>
                         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {fault ? fault.name : "(deleted fault)"} <span style={{ color: "var(--color-text-secondary)" }}>— side {c.side === 1 ? "A" : "B"}</span>
+                          {fault ? fault.name : tr("(deleted fault)")} <span style={{ color: "var(--color-text-secondary)" }}>{tr("— side")}{" "}{c.side === 1 ? "A" : "B"}</span>
                         </div>
-                        <button onClick={() => flipDomainConstraint(d.id, i)} title="Flip side" style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>Flip</button>
+                        <button onClick={() => flipDomainConstraint(d.id, i)} title={tr("Flip side")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Flip")}</button>
                         <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), `Remove this fault constraint from domain "${d.name}"`)} />
                       </div>
                     );
@@ -8709,12 +8549,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {faultSurfaces.length > 0 ? (
                     <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
                       <select value={domainConstraintDraft.faultId} onChange={(e) => setDomainConstraintDraft((p) => ({ ...p, faultId: e.target.value }))} style={{ ...smallSel, flex: 1 }}>
-                        <option value="">— fault surface —</option>
+                        <option value="">{tr("— fault surface —")}</option>
                         {faultSurfaces.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                       </select>
                       <select value={domainConstraintDraft.side} onChange={(e) => setDomainConstraintDraft((p) => ({ ...p, side: Number(e.target.value) }))} style={{ ...smallSel, width: 68 }}>
-                        <option value={1}>Side A</option>
-                        <option value={-1}>Side B</option>
+                        <option value={1}>{tr("Side A")}</option>
+                        <option value={-1}>{tr("Side B")}</option>
                       </select>
                       <button
                         onClick={() => { if (domainConstraintDraft.faultId) { addDomainConstraint(d.id, domainConstraintDraft.faultId, domainConstraintDraft.side); setDomainConstraintDraft((p) => ({ ...p, faultId: "" })); } }}
@@ -8722,9 +8562,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       >+</button>
                     </div>
                   ) : (
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>No fault surfaces yet — generate one with the Structural tool above and set its type to "Fault".</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No fault surfaces yet — generate one with the Structural tool above and set its type to \"Fault\".")}</div>
                   )}
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8 }}>{countCollarsInDomain(d)} of {collars.length} collars fall inside this domain (collar-only estimate — the modelling tools above classify each control point individually).</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("{n} of {total} collars fall inside this domain (collar-only estimate — the modelling tools above classify each control point individually).", { n: countCollarsInDomain(d), total: collars.length })}</div>
                 </div>
               )}
             </div>
@@ -8732,17 +8572,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         })}
         </>
         ); })()}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>+ Domain</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>{tr("+ Domain")}</div>
         </>)}
 
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
-        <div className="ge-section-label">Geophysical voxel ranges</div>
+        <div className="ge-section-label">{tr("Geophysical voxel ranges")}</div>
         {voxelModels.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>
-            No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).
-          </div>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).")}</div>
         ) : (
           <div style={{ marginBottom: 12 }}>
             {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} />)}
@@ -8753,16 +8591,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {toolPane === "plan" && (<>
         {paneHeader("Planned drillholes", Target, "model")}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Planned drillholes ({plannedHoles.length})</span>
+          <span>{tr("Planned drillholes ({n})", { n: plannedHoles.length })}</span>
           {plannedHoles.length > 0 && (
-            <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), "Export all planned holes to CSV")} />
+            <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), tr("Export all planned holes to CSV"))} />
           )}
         </div>
         <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>
-            No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.
-          </div>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.")}</div>
         ) : (
           <div style={{ marginTop: 8 }}>
             {plannedHoles.map((hole) => (
@@ -8771,11 +8607,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         )}
         {plannedHoles.length > 0 && (<>
-          <button onClick={() => exportPlannedHoles("csv")} style={{ ...pBtn, marginTop: 8 }} title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)"><FileBarChart2 size={14} /> Export {plannedHoles.length} planned hole{plannedHoles.length === 1 ? "" : "s"} to CSV</button>
+          <button onClick={() => exportPlannedHoles("csv")} style={{ ...pBtn, marginTop: 8 }} title={tr("Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)")}><FileBarChart2 size={14} />{" "}{tr(plannedHoles.length === 1 ? "Export {n} planned hole to CSV" : "Export {n} planned holes to CSV", { n: plannedHoles.length })}</button>
           {/* TASKS.csv #397 */}
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => exportPlannedHoles("kml")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title="Google Earth / phone maps: collars and collar-to-toe lines">KML</button>
-            <button onClick={() => exportPlannedHoles("gpx")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title="Handheld GPS: collar waypoints">GPX</button>
+            <button onClick={() => exportPlannedHoles("kml")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title={tr("Google Earth / phone maps: collars and collar-to-toe lines")}>{tr("KML")}</button>
+            <button onClick={() => exportPlannedHoles("gpx")} style={{ ...pBtn, flex: 1, justifyContent: "center" }} title={tr("Handheld GPS: collar waypoints")}>{tr("GPX")}</button>
           </div>
         </>)}
         {plannedHoles.length > 0 && (

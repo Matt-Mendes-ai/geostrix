@@ -15,10 +15,10 @@ test("no TASKS.csv id in a user-visible string", () => {
   const hits = [];
   for (const f of [...files("src"), ...files("electron")]) {
     const src = fs.readFileSync(f, "utf8");
-    if (!src.includes("TASKS.csv")) continue;
+    if (!/TASKS(.csv| #)/.test(src)) continue;
     const tokens = espree.tokenize(src, { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, loc: true });
     for (const t of tokens) {
-      if (["String", "Template", "JSXText"].includes(t.type) && t.value.includes("TASKS.csv")) hits.push(`${f}:${t.loc.start.line}`);
+      if (["String", "Template", "JSXText"].includes(t.type) && /TASKS(\.csv| #\d)/.test(t.value)) hits.push(`${f}:${t.loc.start.line}`); // #786: also "TASKS #52"
     }
   }
   assert.deepEqual(hits, []);

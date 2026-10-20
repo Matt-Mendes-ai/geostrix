@@ -162,7 +162,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     if (!collars.length) { setError("No collars loaded — nothing to estimate from."); return; }
     // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
     if (maxSamples < minHoles) { setError(`Max samples per block (${maxSamples}) is below Min distinct holes (${minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.`); return; }
-    if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one (TASKS #265)."); return; }
+    if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one."); return; }
     setRunning(true);
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
     // blocks the main thread — a plain synchronous call here would show the button flip back to "Run"
@@ -331,7 +331,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.</div>
               </div>
             )}
-            <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang (TASKS #292).">
+            <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.">
               Search radius (m, 0 = no limit)
               <input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
               {trend && searchRadius > 0 && (
@@ -384,7 +384,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           <div style={{ padding: 10, background: "#f9fafb", border: "1px solid var(--color-hover-bg)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 8 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={useComposites} onChange={(e) => setUseComposites(e.target.checked)} />
-              Composite raw assays first (recommended — see TASKS #118)
+              Composite raw assays first (recommended)
             </label>
             {useComposites && (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -622,7 +622,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}{trend
               ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is</>
               : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
