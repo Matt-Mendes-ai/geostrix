@@ -5,7 +5,7 @@
 // each button picks the pane (and, for an import, asks the module to start it through a module action, #565).
 import React, { useState } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx";
-import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet } from "../components/icons.js";
+import { Image, Satellite, Mountain, MapPinned, Map as MapIcon, Globe, Globe2, Shapes, Flag, Layers, FileSpreadsheet, Rainbow } from "../components/icons.js";
 import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";
@@ -31,6 +31,7 @@ export default function MapsModule() {
           <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 cloudless imagery (no account) for an area you draw" {...btn("raster", "raster-satellite")} active={false} />
           <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
           <RibbonButton advanced icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates" {...btn("raster", "raster-georeference")} active={false} />
+          <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />
         </RibbonGroup>
         <RibbonGroup label="Map layers">
           <RibbonButton icon={MapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...btn("maps")} />

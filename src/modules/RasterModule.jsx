@@ -3,7 +3,8 @@ import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #61
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "../components/icons.js";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow } from "../components/icons.js";
+import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
@@ -99,7 +100,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
-  useModuleAction(["raster-satellite", "raster-georeference"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon
+  useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? setSpectralOpen(true) : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
   // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we
@@ -122,6 +123,7 @@ export default function RasterModule({ embedded = false } = {}) {
   // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
   // just the open/import wiring, same addRaster() call site as every other raster source on this page.
   const [georefOpen, setGeorefOpen] = useState(false);
+  const [spectralOpen, setSpectralOpen] = useState(false); // TASKS.csv #783
 
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
@@ -259,6 +261,7 @@ export default function RasterModule({ embedded = false } = {}) {
             <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
             <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 cloudless imagery (no account) — pick an area on a map, or match an existing terrain / boundary / raster extent" onClick={openSatPicker} />
             <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates: click matching points and type their real X/Y" onClick={() => setGeorefOpen(true)} />
+            <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={() => setSpectralOpen(true)} />
           </RibbonGroup>
         </Ribbon>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -304,6 +307,11 @@ export default function RasterModule({ embedded = false } = {}) {
               );
             }}
           />
+        )}
+        {spectralOpen && ( // TASKS.csv #783
+          <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg}
+            onClose={() => setSpectralOpen(false)}
+            onImport={(raster, msg) => { addRaster({ ...raster, elevation: defaultElevation }); setSpectralOpen(false); setError({ info: true, text: msg }); }} />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (

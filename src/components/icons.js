@@ -20,6 +20,7 @@ const sameProps = (p, q) => {
 export const memoIcon = (Icon) => memo(Icon, sameProps);
 
 export const Activity = memoIcon(L.Activity);
+export const Rainbow = memoIcon(L.Rainbow); // TASKS.csv #783 — spectral indices
 export const AlertTriangle = memoIcon(L.AlertTriangle);
 export const AlignCenter = memoIcon(L.AlignCenter);
 export const AlignLeft = memoIcon(L.AlignLeft);
