@@ -54,3 +54,14 @@ test("#555 project save/load: assays and a big interval layer compact, older pla
   assert.equal(old.layers.litho[0].value, "X");
   assert.equal(expandIntervalLayers(compactIntervalLayers(live.layers)).litho.length, 2500);
 });
+
+// TASKS.csv #721 — object values (qualifiers) decode to a copy per row, not one shared object
+test("#721 rows that had the same qualifiers object get their own copies after a load", () => {
+  const rows = Array.from({ length: 2500 }, (_, i) => ({ hole_id: "A", from: i, to: i + 1, values: { Au: 0.0005 }, qualifiers: i % 2 ? { Au: "<" } : undefined }));
+  const back = expandTable(JSON.parse(JSON.stringify(compactTable(rows))));
+  assert.deepEqual(back[1].qualifiers, { Au: "<" });
+  assert.notEqual(back[1].qualifiers, back[3].qualifiers);
+  back[1].qualifiers.Au = ">";
+  assert.equal(back[3].qualifiers.Au, "<");
+  assert.equal(back[0].qualifiers, undefined);
+});

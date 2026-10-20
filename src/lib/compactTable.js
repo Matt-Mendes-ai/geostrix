@@ -11,7 +11,9 @@
 //     (-1 = absent), which is what shrinks the repeated hole ids, sources, units and lithology codes;
 //   - the per-row `values` object (assay elements) -> one such column per element.
 // Absent and explicit null stay different, and a NaN is written as null exactly as JSON.stringify did before.
-// Cached per array (WeakMap), so an autosave after an unrelated edit re-encodes nothing.
+// Cached per array (WeakMap), so an autosave after an unrelated edit re-encodes nothing. TASKS.csv #721 — that cache is
+// why ROWS ARE IMMUTABLE: replace a row (and the array) through the store setters, never edit one in place, or the
+// next save writes the encoding of the old values.
 export const COMPACT_TABLE_MIN_ROWS = 2000; // below this the plain JSON is small and easier to read
 
 const cache = new WeakMap();
@@ -52,7 +54,11 @@ function openColumn(col) {
 function decodeColumn(col, i) {
   if (col.num) { const v = col.num[i]; return v === "" || v === undefined ? undefined : Number(v); }
   const c = Number(col.codes[i]);
-  return c < 0 ? undefined : col.dict[c];
+  if (c < 0) return undefined;
+  const v = col.dict[c];
+  // TASKS.csv #721 — an object value (an assay's qualifiers { Au: "<" }) is a copy per row: handing every row the one
+  // dictionary entry made 1,250 rows share a single object, so editing one row's qualifiers would change them all
+  return v !== null && typeof v === "object" ? structuredClone(v) : v;
 }
 
 export function compactTable(rows) {
