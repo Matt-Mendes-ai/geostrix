@@ -15,6 +15,7 @@ import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can genuinely reach the thousands (e.g. a 300m hole at 2m composites), unlike a toy dataset
 
@@ -109,76 +110,65 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Downhole compositing</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Fixed-length composites, breaking at domain boundaries — {assays.length} raw intervals loaded.
-              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Downhole compositing")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries —")}{" "}{assays.length}{" "}{tr("raw intervals loaded.")}{qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {(dupInfo.exactDuplicates > 0 || dupInfo.conflictingIntervals > 0) && (
             <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.5, padding: "7px 9px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a" }}>
               {dupInfo.exactDuplicates > 0 && (
-                <div>{dupInfo.exactDuplicates} exact-duplicate raw interval{dupInfo.exactDuplicates === 1 ? " was" : "s were"} found in this assay table (same hole, same from/to, same results — the classic double-import). {dupInfo.exactDuplicates === 1 ? "It was" : "They were"} counted once, not twice, so {dupInfo.exactDuplicates === 1 ? "it doesn't" : "they don't"} double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.</div>
+                <div>{tr(dupInfo.exactDuplicates === 1 ? "{n} exact-duplicate raw interval was found in this assay table (same hole, same from/to, same results — the classic double-import). It was counted once, not twice, so it doesn't double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list." : "{n} exact-duplicate raw intervals were found in this assay table (same hole, same from/to, same results — the classic double-import). They were counted once, not twice, so they don't double-weight the composite grades below. Worth cleaning up at the source anyway — run Data QC for the full list.", { n: dupInfo.exactDuplicates })}</div>
               )}
               {dupInfo.conflictingIntervals > 0 && (
-                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{dupInfo.conflictingIntervals} interval{dupInfo.conflictingIntervals === 1 ? "" : "s"} appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve them in the source data before using these composites for estimation.</div>
+                <div style={{ marginTop: dupInfo.exactDuplicates > 0 ? 5 : 0 }}>{tr(dupInfo.conflictingIntervals === 1 ? "{n} interval appears more than once with DIFFERENT results (a re-assay, or a mislabeled sample). That is a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve it in the source data before using these composites for estimation." : "{n} intervals appear more than once with DIFFERENT results (a re-assay, or a mislabeled sample). Those are a genuine conflict, not a double-import: each such metre is counted once, at the MEAN of the disagreeing results, and the composite CSV says how many metres of each composite that affected (conflict_m). Resolve them in the source data before using these composites for estimation.", { n: dupInfo.conflictingIntervals })}</div>
               )}
             </div>
           )}
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.">
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
-              Include QC samples (standards/blanks/duplicates) in this report
-            </label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't get composited into a resource-estimation input — check this to include them anyway.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>Composite length (m)
-              <input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
+            <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
             </label>
-            <label style={fieldLabel} title="Honor a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.">
-              Honor domain
-              <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
-                <option value="">— none —</option>
+            <label style={fieldLabel} title={tr("Honor a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honor domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
+                <option value="">{tr("— none —")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
               </select>
             </label>
-            <label style={fieldLabel} title="Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.">
-              High-grade cap ({unit})
-              <input type="number" step="any" min="0" placeholder="none" value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
+            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap (")}{unit})
+              <input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
             </label>
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={capValue === "" ? null : Number(capValue)} onSetCap={(v) => setCapValue(String(Number(v.toPrecision(4))))} />
             </div>
-            <label style={fieldLabel} title="Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.">
-              Min coverage (%)
-              <input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
+            <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be reported.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
             </label>
           </div>
 
           {symbols.length === 0 ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
           ) : results.length === 0 ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No composites meet these criteria — try a lower minimum coverage.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No composites meet these criteria — try a lower minimum coverage.")}</div>
           ) : (
             <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
-                    <th style={th}>Hole</th>
-                    <th style={th}>From</th>
-                    <th style={th}>To</th>
-                    <th style={th}>Length (m)</th>
-                    <th style={th}>Avg {symbol} ({unit})</th>
-                    <th style={th}>Coverage</th>
+                    <th style={th}>{tr("Hole")}</th>
+                    <th style={th}>{tr("From")}</th>
+                    <th style={th}>{tr("To")}</th>
+                    <th style={th}>{tr("Length (m)")}</th>
+                    <th style={th}>{tr("Avg")}{" "}{symbol} ({unit})</th>
+                    <th style={th}>{tr("Coverage")}</th>
                     {domainKey && <th style={th}>{domainMeta.label}</th>}
                   </tr>
                 </thead>
@@ -202,16 +192,14 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            {results.length} composite(s) from {assays.length} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).
-          </div>
+            {results.length}{" "}{tr("composite(s) from")}{" "}{assays.length}{" "}{tr("raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).")}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={14} /> Export composites (CSV)
-          </button>
+            <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

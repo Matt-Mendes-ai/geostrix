@@ -14,6 +14,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #600
 import { crsName } from "../lib/reproject.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
 
@@ -51,44 +52,44 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Import surface samples: {modal.fileName}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.elements.length} elements recognized</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import surface samples:")}{" "}{modal.fileName}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.elements.length}{" "}{tr("elements recognized")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
-          <div style={label}>Column mapping</div>
+          <div style={label}>{tr("Column mapping")}</div>
           {required.map(([key, lbl]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{lbl} <span style={{ color: "var(--color-danger-solid)" }}>*</span></div>
               <select value={modal.mapping[key] || ""} onChange={(e) => setMapping(key, e.target.value)} style={{ ...sel, flex: 1, borderColor: modal.mapping[key] ? "var(--color-border)" : "var(--color-danger-border-strong)" }}>
-                <option value="">— none —</option>
+                <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
           ))}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title="Optional. Samples with no elevation (blank, or a column that is 0 on every row) are placed on the terrain in the 3D view.">
-            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>Elevation (Z)</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title={tr("Optional. Samples with no elevation (blank, or a column that is 0 on every row) are placed on the terrain in the 3D view.")}>
+            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("Elevation (Z)")}</div>
             <select value={modal.mapping.z || ""} onChange={(e) => setMapping("z", e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="">— none: place on the terrain —</option>
+              <option value="">{tr("— none: place on the terrain —")}</option>
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>Sample ID</div>
+            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("Sample ID")}</div>
             <select value={modal.mapping.sample_id || ""} onChange={(e) => setMapping("sample_id", e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="">— none —</option>
+              <option value="">{tr("— none —")}</option>
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>Sample medium</div>
+            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("Sample medium")}</div>
             <select value={modal.mapping.medium || ""} onChange={(e) => setMapping("medium", e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="">— column, if present —</option>
+              <option value="">{tr("— column, if present —")}</option>
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
-            <select value={modal.defaultMedium} onChange={(e) => onChange({ ...modal, defaultMedium: e.target.value })} style={{ ...sel, width: 140 }} title="Used for every row when no medium column is mapped, or a row's medium value doesn't match anything recognized">
+            <select value={modal.defaultMedium} onChange={(e) => onChange({ ...modal, defaultMedium: e.target.value })} style={{ ...sel, width: 140 }} title={tr("Used for every row when no medium column is mapped, or a row's medium value doesn't match anything recognized")}>
               {SURFACE_MEDIA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
@@ -99,17 +100,15 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               defaultText={crsUnset ? "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import" : `Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
             />
             {modal.sourceEpsgFrom && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>
-                Read from the file's "{modal.sourceEpsgFrom}" column — check it. Samples are reprojected into the project CRS on import.
-              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("Read from the file's \"")}{modal.sourceEpsgFrom}{tr("\" column — check it. Samples are reprojected into the project CRS on import.")}</div>
             )}
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
-            <div style={{ ...label, marginBottom: 0 }}>Elements ({checkedCount} of {modal.elements.length})</div>
+            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements (")}{checkedCount}{" "}{tr("of")}{" "}{modal.elements.length})</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>All</span>
-              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>None</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>{tr("All")}</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -117,43 +116,43 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                 <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
                 <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", width: 28, flexShrink: 0 }}>{e.symbol}</span>
-                <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} title="Which column this element's values come from">
+                <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} title={tr("Which column this element's values come from")}>
                   {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                 </select>
                 <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
-                  <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
+                  <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
                 </select>
-                <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" aria-label={`Remove the ${e.symbol} mapping`} />
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title={tr("Remove this element mapping")} aria-label={tr("Remove the {symbol} mapping", { symbol: e.symbol })} />
               </div>
             ))}
             {modal.elements.length === 0 && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>No element columns recognized — add one manually below.</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
             )}
           </div>
 
           <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
             <input
               list="geostrix-element-symbols-surface" value={addSymbol} onChange={(ev) => setAddSymbol(ev.target.value)}
-              placeholder="Symbol (e.g. Cu)" style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
+              placeholder={tr("Symbol (e.g. Cu)")} style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
             />
             <datalist id="geostrix-element-symbols-surface">
               {ELEMENT_SYMBOLS.map((s) => <option key={s} value={s} />)}
             </datalist>
             <select value={addHeader} onChange={(ev) => setAddHeader(ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
-              <option value="">— pick the source column —</option>
+              <option value="">{tr("— pick the source column —")}</option>
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
             <button
               onClick={addElement}
               disabled={!addSymbol.trim() || !addHeader}
               style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
-            >Add</button>
+            >{tr("Add")}</button>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y || !modal.mapping.z}>Import {checkedCount} element{checkedCount === 1 ? "" : "s"}</button>
+          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y || !modal.mapping.z}>{tr("Import")}{" "}{checkedCount}{" "}{tr(checkedCount === 1 ? "element" : "elements")}</button>
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -89,44 +90,41 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>QAQC — lab quality control</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars): {counts.standard} standard{counts.standard === 1 ? "" : "s"}, {counts.blank} blank{counts.blank === 1 ? "" : "s"}, {counts.duplicate} duplicate{counts.duplicate === 1 ? "" : "s"} (of {assays.length} total intervals).
-              {/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("QAQC — lab quality control")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars):")}{" "}{counts.standard}{" "}{tr(counts.standard === 1 ? "standard" : "standards")}, {counts.blank}{" "}{tr(counts.blank === 1 ? "blank" : "blanks")}, {counts.duplicate}{" "}{tr(counts.duplicate === 1 ? "duplicate" : "duplicates")}{" "}{tr("(of")}{" "}{assays.length}{" "}{tr("total intervals).")}{/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
               {(counts.standard + counts.blank + counts.duplicate) > 0 && (
                 <details style={{ marginTop: 4 }}>
-                  <summary style={{ cursor: "pointer" }}>Excluded from intercepts, compositing, estimation and statistics — list the ids</summary>
+                  <summary style={{ cursor: "pointer" }}>{tr("Excluded from intercepts, compositing, estimation and statistics — list the ids")}</summary>
                   {["standard", "blank", "duplicate"].map((c) => excludedIds[c].length > 0 && (
                     <div key={c} style={{ marginTop: 3 }}><b>{c}s:</b> {excludedIds[c].map((e) => `${e.id} (${e.rows}${e.why === "name" ? ", by name" : ""})`).join(", ")}</div>
                   ))}
-                  <div style={{ marginTop: 3 }}>If a real hole is listed "by name", import its collar: holes in the collar table are never treated as QC.</div>
+                  <div style={{ marginTop: 3 }}>{tr("If a real hole is listed \"by name\", import its collar: holes in the collar table are never treated as QC.")}</div>
                 </details>
               )}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.">Detection limit ({unit})
-              <input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder="not set" onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Detection limit" />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit (")}{unit})
+              <input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
-              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? `The lab reported ${dlSuggestion.n} result(s) as '<${dlSuggestion.limit}'` : "No '<x' results: the lowest reported value (an upper bound on the limit)"}>
-                {dlSuggestion.basis === "lt" ? `Use the lab's <${dlSuggestion.limit}` : `Use the lowest value ${dlSuggestion.limit}`}
+              <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: dlSuggestion.limit }) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
+                {dlSuggestion.basis === "lt" ? tr("Use the lab's <{limit}", { limit: dlSuggestion.limit }) : tr("Use the lowest value {limit}", { limit: dlSuggestion.limit })}
               </button>
             )}
             <div style={{ display: "flex", gap: 4 }}>
               {TABS.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "standards" ? `Standards (${groups.length})` : t === "blanks" ? `Blanks (${counts.blank})` : `Duplicates (${dups.length})`}
+                  {t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
             </div>
@@ -134,30 +132,28 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
 
           {tab === "standards" && (
             groups.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No repeated standard insertions found. Standards are detected by hole_id containing "std", "crm", "oreas", etc. — a standard inserted only once has nothing to compare it against.</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No repeated standard insertions found. Standards are detected by hole_id containing \"std\", \"crm\", \"oreas\", etc. — a standard inserted only once has nothing to compare it against.")}</div>
             ) : (
               <>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Standard
-                  <select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Standard")}<select value={activeGroup?.id || ""} onChange={(e) => setSelectedStdId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                     {groups.map((g) => <option key={g.id} value={g.id}>{g.id} ({g.rows.length})</option>)}
                   </select>
                 </label>
                 {!series.limits ? (
-                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No {symbol} values found for this standard.</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No")}{" "}{symbol}{" "}{tr("values found for this standard.")}</div>
                 ) : (
                   <>
-                    <div style={label}>
-                      Control chart — {symbol} ({elementUnits[symbol] || "ppm"}), {series.limits.certified ? "CERTIFIED mean ± 2SD/3SD (from the certificate)" : "self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)"}
+                    <div style={label}>{tr("Control chart —")}{" "}{symbol} ({elementUnits[symbol] || "ppm"}), {series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)")}
                     </div>
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
                     <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={elementUnits[symbol] || "ppm"} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Plotted in {ordered.bySampleId ? "sample-id order" : "the order the rows were imported (no sample ids: re-imports and merges can reorder them)"}.</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in")}{" "}{ordered.bySampleId ? tr("sample-id order") : tr("the order the rows were imported (no sample ids: re-imports and merges can reorder them)")}.</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                       {series.limits.certified
-                        ? <>Certified {series.limits.mean} ± {series.limits.sd} · observed mean {series.observed.mean.toFixed(3)} (SD {series.observed.sd.toFixed(3)}, n={series.observed.n}) · <b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>bias {series.biasPct >= 0 ? "+" : ""}{series.biasPct.toFixed(1)}%</b>{Math.abs(series.biasPct) > 5 ? " (over ±5%)" : ""}</>
-                        : <>Mean {series.limits.mean.toFixed(3)} · SD {series.limits.sd.toFixed(3)} · n={series.limits.n}</>}
-                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length} point(s) outside 2SD</span>}
+                        ? <>{tr("Certified")}{" "}{series.limits.mean} ± {series.limits.sd}{" "}{tr("· observed mean")}{" "}{series.observed.mean.toFixed(3)}{" "}{tr("(SD")}{" "}{series.observed.sd.toFixed(3)}, n={series.observed.n}) · <b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>{tr("bias")}{" "}{series.biasPct >= 0 ? "+" : ""}{series.biasPct.toFixed(1)}%</b>{Math.abs(series.biasPct) > 5 ? tr(" (over ±5%)") : ""}</>
+                        : <>{tr("Mean")}{" "}{series.limits.mean.toFixed(3)}{" "}{tr("· SD")}{" "}{series.limits.sd.toFixed(3)} · n={series.limits.n}</>}
+                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length}{" "}{tr("point(s) outside 2SD")}</span>}
                     </div>
                   </>
                 )}
@@ -168,22 +164,20 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {tab === "blanks" && (
             <>
               {dl ? (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Contamination limit: multiple of the detection limit ({dl} {unit})
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit (")}{dl} {unit})
                   <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label="Blank limit as a multiple of the detection limit" />
-                    × DL = <b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
+                    <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)
-                  <input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold (")}{unit}{tr(") — set the element's detection limit above to judge blanks against a multiple of it (5x DL)")}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
               {blanks.length === 0 ? (
-                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No blanks found (hole_id containing "blank"/"blk"), or none have a {symbol} value.</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a")}{" "}{symbol}{" "}{tr("value.")}</div>
               ) : (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                  <thead><tr><th style={th}>Hole ID</th><th style={th}>From</th><th style={th}>To</th><th style={th}>{symbol}</th><th style={th}>Flag</th></tr></thead>
+                  <thead><tr><th style={th}>{tr("Hole ID")}</th><th style={th}>{tr("From")}</th><th style={th}>{tr("To")}</th><th style={th}>{symbol}</th><th style={th}>{tr("Flag")}</th></tr></thead>
                   <tbody>
                     {blanks.map((b, i) => (
                       <tr key={i} style={b.flagged ? { background: "var(--color-danger-bg-soft)" } : undefined}>
@@ -201,29 +195,29 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {/* TASKS.csv #579 */}
           {tab === "duplicates" && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}
-              title="Older and government (ARIS) exports often store a duplicate as a second row for the same hole and interval, with no sample-type column. Tick this to measure those as duplicate pairs: the first row is the original, a later row with a different result is the duplicate. Identical rows are double imports and are skipped.">
+              title={tr("Older and government (ARIS) exports often store a duplicate as a second row for the same hole and interval, with no sample-type column. Tick this to measure those as duplicate pairs: the first row is the original, a later row with a different result is the duplicate. Identical rows are double imports and are skipped.")}>
               <input type="checkbox" checked={repeatedAsDup} onChange={(e) => setRepeatedAsDup(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate){repeatedAsDup ? ` — ${dups.filter((p) => p.how === "repeated interval").length} pair(s) found${dups.identicalRepeats ? `, ${dups.identicalRepeats} identical repeat(s) skipped as double imports` : ""}` : ""}</span>
+              <span>{tr("Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate)")}{repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : ""}</span>
             </label>
           )}
           {tab === "duplicates" && (
             dups.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No duplicate pairs found — a duplicate row (hole_id containing "dup") needs a matching original row at the exact same hole_id/from/to (see info).</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No duplicate pairs found — a duplicate row (hole_id containing \"dup\") needs a matching original row at the exact same hole_id/from/to (see info).")}</div>
             ) : (
               <>
-                <div style={label}>Relative % difference (RPD) — {symbol}, {dups.length} pair{dups.length === 1 ? "" : "s"}</div>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title="RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.">Ignore pairs with a mean below ({unit}){dl ? ` — default 10 × DL = ${Number((10 * dl).toPrecision(4))}` : ", e.g. 10× detection limit"}
-                  <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Minimum pair mean" />
+                <div style={label}>{tr("Relative % difference (RPD) —")}{" "}{symbol}, {dups.length}{" "}{tr(dups.length === 1 ? "pair" : "pairs")}</div>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below (")}{unit}){dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit")}
+                  <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-                  {dupSummary.used ? `${dupSummary.within} of ${dupSummary.used} counted pairs (${dupSummary.pctWithin.toFixed(0)}%) within their limit` : "No pairs above the limit"}{dupSummary.below ? ` · ${dupSummary.below} below the limit, not counted` : ""}.
+                  {dupSummary.used ? tr("{within} of {used} counted pairs ({pctWithin}%) within their limit", { within: dupSummary.within, used: dupSummary.used, pctWithin: dupSummary.pctWithin.toFixed(0) }) : tr("No pairs above the limit")}{dupSummary.below ? tr(" · {below} below the limit, not counted", { below: dupSummary.below }) : ""}.
                   {Object.entries(dupSummary.byKind || {}).map(([k, b]) => <span key={k} style={{ marginLeft: 8, color: "var(--color-text-secondary)" }}>{DUP_KIND_LABELS[k]} (≤{b.limit}%): {b.within}/{b.used}</span>)}
                 </div>
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                  <thead><tr><th style={th}>Original</th><th style={th}>Duplicate</th><th style={th}>Type</th><th style={th}>Interval</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>RPD %</th></tr></thead>
+                  <thead><tr><th style={th}>{tr("Original")}</th><th style={th}>{tr("Duplicate")}</th><th style={th}>{tr("Type")}</th><th style={th}>{tr("Interval")}</th><th style={th}>V1</th><th style={th}>V2</th><th style={th}>{tr("RPD %")}</th></tr></thead>
                   <tbody>
                     {dups.map((d, i) => (
-                      <tr key={i} style={d.belowLimit ? { opacity: 0.45 } : d.rpd > dupLimit(d) ? { background: "var(--color-danger-bg-soft)" } : undefined} title={`paired by ${d.how}${d.belowLimit ? "; below the limit, not counted" : ""}`}>
+                      <tr key={i} style={d.belowLimit ? { opacity: 0.45 } : d.rpd > dupLimit(d) ? { background: "var(--color-danger-bg-soft)" } : undefined} title={tr("paired by {how}{v}", { how: d.how, v: d.belowLimit ? tr("; below the limit, not counted") : "" })}>
                         <td style={td}>{d.original_hole}</td><td style={td}>{d.duplicate_hole}</td><td style={td}>{DUP_KIND_LABELS[d.kind]} (≤{dupLimit(d)}%)</td>
                         <td style={td}>{d.from}–{d.to}</td>
                         <td style={td}>{d.v1.toFixed(4)}</td><td style={td}>{d.v2.toFixed(4)}</td>
@@ -232,23 +226,20 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Flagged above the usual precision limit for the duplicate's type, read from its sample type: field {DUP_RPD_LIMITS.field}%, coarse reject {DUP_RPD_LIMITS.coarse}%, pulp {DUP_RPD_LIMITS.pulp}% ({DUP_RPD_LIMITS.unknown}% when the type isn't stated) — industry rules of thumb, not certified or regulatory limits.</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Flagged above the usual precision limit for the duplicate's type, read from its sample type: field")}{" "}{DUP_RPD_LIMITS.field}{tr("%, coarse reject")}{" "}{DUP_RPD_LIMITS.coarse}{tr("%, pulp")}{" "}{DUP_RPD_LIMITS.pulp}% ({DUP_RPD_LIMITS.unknown}{tr("% when the type isn't stated) — industry rules of thumb, not certified or regulatory limits.")}</div>
               </>
             )
           )}
 
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
-            QC samples are recognised from a sample-type column when the assay file has one (standards grouped by a CRM / standard-name column if present), otherwise from the hole_id (standards "std"/"crm"/"oreas"…, blanks "blank"/"blk", duplicates "dup"); a hole in the collar table is never QC. Duplicates pair by parent sample id, else the same hole and interval, else the name. Certified limits come from the values you enter from each CRM's certificate.
-          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>{tr("QC samples are recognised from a sample-type column when the assay file has one (standards grouped by a CRM / standard-name column if present), otherwise from the hole_id (standards \"std\"/\"crm\"/\"oreas\"…, blanks \"blank\"/\"blk\", duplicates \"dup\"); a hole in the collar table is never QC. Duplicates pair by parent sample id, else the same hole and interval, else the name. Certified limits come from the values you enter from each CRM's certificate.")}</div>
 
           {/* TASKS.csv #617 — with nothing in the current view, Export used to do nothing at all when clicked */}
-          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? `Export the ${exportCount} row(s) in this view` : `Nothing to export: this view has no ${tab === "standards" ? "standard results" : tab}`} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
-            <Download size={14} /> Export current view (CSV)
-          </button>
+          <button onClick={exportCSV} disabled={!exportCount} title={exportCount ? tr("Export the {exportCount} row(s) in this view", { exportCount }) : tr("Nothing to export: this view has no {v}", { v: tab === "standards" ? tr("standard results") : tab })} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: exportCount ? 1 : 0.5, cursor: exportCount ? "pointer" : "not-allowed" }}>
+            <Download size={14} />{" "}{tr("Export current view (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -262,10 +253,10 @@ function CertInputs({ cert, unit, onSave }) {
   const ok = mean !== "" && Number.isFinite(Number(mean)) && Number(sd) > 0;
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-      <label>Certified mean ({unit})<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Certified mean" /></label>
-      <label>Certified 1 SD<input type="number" step="any" min={0} value={sd} onChange={(e) => setSd(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label="Certified standard deviation" /></label>
-      <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>Use certificate</button>
-      {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>Clear</button>}
+      <label>{tr("Certified mean (")}{unit})<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
+      <label>{tr("Certified 1 SD")}<input type="number" step="any" min={0} value={sd} onChange={(e) => setSd(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified standard deviation")} /></label>
+      <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>{tr("Use certificate")}</button>
+      {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>{tr("Clear")}</button>}
     </div>
   );
 }
@@ -294,7 +285,7 @@ function ControlChart({ points, limits }) {
       {points.map((p) => (
         <circle key={p.i} cx={x(p.i)} cy={y(p.value)} r={4} fill={p.outside3sd ? "#d9534f" : p.outside2sd ? "#e2a63c" : "#4a9be0"} stroke="#ffffff" strokeWidth="1" />
       ))}
-      <text x={padL - 6} y={y(limits.mean) + 4} fontSize={fontSizes.xs} fill="#1e5a9c" textAnchor="end">mean</text>
+      <text x={padL - 6} y={y(limits.mean) + 4} fontSize={fontSizes.xs} fill="#1e5a9c" textAnchor="end">{tr("mean")}</text>
     </svg>
   );
 }

@@ -139,7 +139,7 @@ export default function GeochemModule() {
       const [file] = await loadSampleFiles("harry_property", ["assay_wide.csv"]);
       // TASKS.csv #716 — this sample's README: below-detection results were left blank in the extraction, so an empty
       // element cell here means "below detection", not "not assayed" (the dialog still lets the user choose)
-      handleFile(file, false, { blankMode: "bdl", blankNote: "This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected." });
+      handleFile(file, false, { blankMode: "bdl", blankNote: tr("This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected.") });
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample assays: {message}", { message: err.message }))]);
     } finally {
@@ -428,12 +428,9 @@ export default function GeochemModule() {
     let replaceHoles = [];
     if (changed.length) {
       const ok = window.confirm(
-        `${changed.length} hole(s) in this file have different sample intervals from the assays already loaded (e.g. ${changed.slice(0, 3).map((h) => `${h.hole_id}: old ${h.example} not in the file`).join("; ")}${changed.length > 3 ? "; …" : ""}).
-
-` +
-        `OK — REPLACE those holes' assays with this file's (a corrected or re-split file).
-` +
-        `Cancel — keep both (the old intervals stay beside the new ones; intercepts and statistics then see both).`);
+        tr("{n} hole(s) in this file have different sample intervals from the assays already loaded (e.g. {examples}).", { n: changed.length, examples: changed.slice(0, 3).map((h) => tr("{hole}: old {interval} not in the file", { hole: h.hole_id, interval: h.example })).join("; ") + (changed.length > 3 ? "; …" : "") }) + "\n\n" +
+        tr("OK — REPLACE those holes' assays with this file's (a corrected or re-split file).") + "\n" +
+        tr("Cancel — keep both (the old intervals stay beside the new ones; intercepts and statistics then see both)."));
       if (ok) replaceHoles = changed;
     }
     const base = replaceHoles.length ? dropHoleAssays(assays, replaceHoles) : assays;
@@ -444,25 +441,26 @@ export default function GeochemModule() {
     // Existing elements keep their unit (#334); only new symbols add an entry.
     setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
+    const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
-      converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
-      negBdl ? `${negBdl} negative value(s) read as below detection (e.g. -0.005 → "<0.005", stored at half).` : null,
-      negMissing ? `${negMissing} negative value(s) treated as not assayed.` : null,
-      mergedCount ? `${mergedCount} interval(s) were already loaded and were updated in place, not duplicated.` : null,
+      converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ") }) : null,
+      negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
+      negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
+      mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;
         const near = new Map(); rows.forEach((r) => { if (ids.has(r.hole_id) || near.has(r.hole_id)) return; const m = /Did you mean "([^"]+)"/.exec(didYouMean(ids, r.hole_id)); if (m) near.set(r.hole_id, m[1]); });
-        return near.size ? `${near.size} hole id(s) match a collar only if case / spaces / hyphens are ignored (${[...near].slice(0, 4).map(([x, y]) => `"${x}" → "${y}"`).join(", ")}) — kept as typed; fix them in the file to attach these assays.` : null;
+        return near.size ? tr("{n} hole id(s) match a collar only if case / spaces / hyphens are ignored ({examples}) — kept as typed; fix them in the file to attach these assays.", { n: near.size, examples: [...near].slice(0, 4).map(([x, y]) => `"${x}" → "${y}"`).join(", ") }) : null;
       })(),
-      replaceHoles.length ? `Replaced the assays of ${replaceHoles.length} hole(s) whose sample intervals changed (${replaceHoles.slice(0, 6).map((h) => h.hole_id).join(", ")}${replaceHoles.length > 6 ? ", …" : ""}).` : null, // #530
-      changed.length && !replaceHoles.length ? `${changed.length} hole(s) kept their old intervals beside this file's different ones (${changed.slice(0, 6).map((h) => h.hole_id).join(", ")}${changed.length > 6 ? ", …" : ""}) — Data QC lists the overlaps.` : null, // #530
-      skippedNoDepth ? `${skippedNoDepth} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.` : null, // #508
-      overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return `${sym} ${n} (at ${e.overLimit.limit} ${e.unit} in "${e.header}", from "${e.overLimit.header}")`; }).join("; ")}.` : null, // #600 / #542
-      blankBdl.size ? `Empty cells read as below detection: ${[...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return `${sym} ${n} at <${L.limit} (${L.basis === "lt" ? "the lab's most common '<' limit in the file" : "the lowest value reported — no '<' limit in the file"})`; }).join("; ")}; stored at half the limit and flagged '<'.` : null, // #502
-      blankNoLimit.size ? `No detection limit could be found for ${[...blankNoLimit].join(", ")} (no '<' values and no reported values), so their empty cells stay not assayed.` : null,
+      replaceHoles.length ? tr("Replaced the assays of {n} hole(s) whose sample intervals changed ({holes}).", { n: replaceHoles.length, holes: more(replaceHoles, 6) }) : null, // #530
+      changed.length && !replaceHoles.length ? tr("{n} hole(s) kept their old intervals beside this file's different ones ({holes}) — Data QC lists the overlaps.", { n: changed.length, holes: more(changed, 6) }) : null, // #530
+      skippedNoDepth ? tr("{n} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.", { n: skippedNoDepth }) : null, // #508
+      overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
+      blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502
+      blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
-      repeatedInFile ? `${repeatedInFile} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.` : null,
-      oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,
+      repeatedInFile ? tr("{n} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
+      oxideNotes.size ? tr("Whole-rock oxide columns stored as element wt% ({list}); diagrams convert back to oxides.", { list: [...oxideNotes].join(", ") }) : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, notice("Loaded {rows} {v} intervals ({chosen} elements).{v2}", { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
     setAssayModal(null);
@@ -597,7 +595,7 @@ export default function GeochemModule() {
   const runMethod = (methodKey, altSetup = null) => {
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
-    if (missing.length) { setNotices((p) => [...p, errorNotice(tr("{label}: missing {missing}.", { label: method.label, missing: missing.join(", ") }))]); return; }
+    if (missing.length) { setNotices((p) => [...p, errorNotice(tr("{label}: missing {missing}.", { label: tr(method.label), missing: missing.join(", ") }))]); return; }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
@@ -620,7 +618,7 @@ export default function GeochemModule() {
       return { hole_id: a.hole_id, from: a.from, to: a.to, value };
     }).filter(Boolean);
     replaceLayer(targetKey, rows);
-    const detail = altSetup ? ` ${Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ")}.${noProtolith ? ` ${noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).` : ""}${JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? " Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001)." : " Box limits: your edited values."} Screening level: protolith assumed.` : "";
+    const detail = altSetup ? tr(" {v}.{v2}{v3} Screening level: protolith assumed.", { v: Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", "), v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
     setNotices((p) => [...p, notice("Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.", { rows: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail })]);
   };
 
@@ -725,31 +723,31 @@ export default function GeochemModule() {
         <input ref={pxrfRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
         <input ref={surfaceFileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
 
-        <div className="ge-section-label">Assays &amp; pXRF</div>
+        <div className="ge-section-label">{tr("Assays & pXRF")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
-          {assays.length ? `${assays.length} intervals · ${assayElements.length} elements` : "No assays loaded"}
+          {assays.length ? tr("{assays} intervals · {assayElements} elements", { assays: assays.length, assayElements: assayElements.length }) : tr("No assays loaded")}
         </div>
         {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
         {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
-        <div className="ge-section-label" style={{ marginTop: 14 }}>Surface samples</div>
+        <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Surface samples")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
-          {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
+          {surfaceSamples.length ? tr("{surfaceSamples} samples · {surfaceElements} elements", { surfaceSamples: surfaceSamples.length, surfaceElements: surfaceElements.length }) : tr("No surface samples loaded")}
         </div>
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with "pxrf"/"xrf" go to the pXRF path, everything else imports as assays.</div>
-        {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.</div>}
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.")}</div>
+        {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
 
         {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}
         {calc && assayElements.length > 0 && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Calculated element</div>
+            <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc({ name: p.name, expr: p.expr, msg: { ok: true, text: `${p.label}. ${p.unitNote}.` } }); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label="Preset">
-                  <option value="">Preset… (or write your own below)</option>
-                  {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => assayElements.some((e) => e.symbol === s))}>{p.label}{p.needs.every((s) => assayElements.some((e) => e.symbol === s)) ? "" : ` — needs ${p.needs.join(", ")}`}</option>)}
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc({ name: p.name, expr: p.expr, msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.` } }); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                  <option value="">{tr("Preset… (or write your own below)")}</option>
+                  {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => assayElements.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => assayElements.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
-                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder="Name, e.g. AI" aria-label="Calculated element name" style={{ fontSize: "var(--font-size-sm)" }} />
-                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder="Formula over element symbols, e.g. 100*Zn/(Zn+Pb)" aria-label="Calculated element formula" style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
-                <div style={{ color: "var(--color-text-muted)" }}>Elements are read in their stored units ({assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", ")}{assayElements.length > 6 ? ", …" : ""}). Rows missing any element in the formula get no value.</div>
+                <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
+                <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
+                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units (")}{assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", ")}{assayElements.length > 6 ? ", …" : ""}{tr("). Rows missing any element in the formula get no value.")}</div>
                 {calc.msg && <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
@@ -760,8 +758,8 @@ export default function GeochemModule() {
                       setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
-                  }}>Add</button>
-                  <button style={{ ...panelBtn, flex: 1 }} onClick={() => setCalc(null)}>Cancel</button>
+                  }}>{tr("Add")}</button>
+                  <button style={{ ...panelBtn, flex: 1 }} onClick={() => setCalc(null)}>{tr("Cancel")}</button>
                 </div>
               </div>
           </>
@@ -774,7 +772,7 @@ export default function GeochemModule() {
             announces and a second live region would double up). aria-live is on a wrapper that always
             renders, so the region exists before the first message lands — a live region inserted at
             the same moment as its text is routinely missed. */}
-        <div aria-live="polite" aria-relevant="additions text" aria-label="Import and analysis messages">
+        <div aria-live="polite" aria-relevant="additions text" aria-label={tr("Import and analysis messages")}>
           {notices.length > 0 && (
             // TASKS.csv #729 — #390's severity and #384's contrast here too: a failure gets an icon and the danger
             // colour, the rest the caption grey (4.98:1, was #7b8794 at 3.66:1); the newest message is bold.
@@ -782,7 +780,7 @@ export default function GeochemModule() {
               {notices.slice(-6).map((n, i, shown) => {
                 const last = i === shown.length - 1 ? { fontWeight: 600 } : null;
                 return noticeLevel(n) === "error"
-                  ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start", ...last }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span><span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>Error: </span>{noticeText(n)}</span></div>
+                  ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start", ...last }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span><span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>{tr("Error:")}{" "}</span>{noticeText(n)}</span></div>
                   : <div key={i} style={{ marginBottom: 4, ...last }}>{noticeText(n)}</div>;
               })}
             </div>
@@ -796,15 +794,13 @@ export default function GeochemModule() {
       <div className="ge-main" style={{ display: "flex", flexDirection: "column", padding: 20, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
           <select value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
-            {Object.values(ALL_DIAGRAMS).map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            {Object.values(ALL_DIAGRAMS).map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
           </select>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>
-            Colour:
-            <select value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
-              <option value="hole">by hole</option>
-              <option value="element">by element</option>
-              <option value="lithology" disabled={!hasLithLog}>by logged lithology</option>
-              <option value="uniform">uniform</option>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+              <option value="hole">{tr("by hole")}</option>
+              <option value="element">{tr("by element")}</option>
+              <option value="lithology" disabled={!hasLithLog}>{tr("by logged lithology")}</option>
+              <option value="uniform">{tr("uniform")}</option>
             </select>
             {colorMode === "element" && (
               <select value={colorElement || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
@@ -813,20 +809,18 @@ export default function GeochemModule() {
             )}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
-          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>
-            Lithology:
-            <button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
-              title={hasLithLog ? "Plot only samples from the chosen logged lithologies" : "Load a lithology log in the 3D View to filter by it"}
+          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+              title={hasLithLog ? tr("Plot only samples from the chosen logged lithologies") : tr("Load a lithology log in the 3D View to filter by it")}
               style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
-              {!hasLithLog ? "no log loaded" : !lithFilter ? `all (${lithCounts.length})` : `${lithFilter.size} of ${lithCounts.length} selected`} ▾
+              {!hasLithLog ? tr("no log loaded") : !lithFilter ? tr("all ({lithCounts})", { lithCounts: lithCounts.length }) : tr("{size} of {lithCounts} selected", { size: lithFilter.size, lithCounts: lithCounts.length })} ▾
             </button>
             {lithMenuOpen && hasLithLog && (
               <>
                 <div style={{ position: "fixed", inset: 0, zIndex: 20 }} onClick={() => setLithMenuOpen(false)} />
                 <div role="menu" onKeyDown={(e) => { if (e.key === "Escape") setLithMenuOpen(false); }} style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 21, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.15)", padding: 8, minWidth: 220, maxHeight: 360, overflowY: "auto" }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                    <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>All</button>
-                    <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>None</button>
+                    <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("All")}</button>
+                    <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>{tr("None")}</button>
                   </div>
                   {lithCounts.map(([code, n]) => {
                     const on = !lithFilter || lithFilter.has(code);
@@ -835,7 +829,7 @@ export default function GeochemModule() {
                       <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: 12, color: "var(--color-text)" }}>
                         <input type="checkbox" checked={on} onChange={toggle} />
                         <span style={{ width: 9, height: 9, borderRadius: 2, background: lithColors[code], flexShrink: 0 }} />
-                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? "not logged" : code}</span>
+                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? tr("not logged") : code}</span>
                         <span style={{ color: "var(--color-text-muted)" }}>{n}</span>
                       </label>
                     );
@@ -846,12 +840,10 @@ export default function GeochemModule() {
           </div>
         </div>
 
-        <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{diagram.caption}</div>
+        <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
 
         {missingForDiagram.length > 0 && (
-          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>
-            This diagram needs {diagram.requires.join(", ")} — missing {missingForDiagram.join(", ")}. Points that can't be projected are dropped.
-          </div>
+          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs")}{" "}{diagram.requires.join(", ")}{" "}{tr("— missing")}{" "}{missingForDiagram.join(", ")}{tr(". Points that can't be projected are dropped.")}</div>
         )}
 
         {assays.length === 0 ? (
@@ -862,24 +854,22 @@ export default function GeochemModule() {
           <div style={{ flex: 1, position: "relative", minHeight: 260 }}>
             <EmptyState
               icon={<FlaskConical size={18} />}
-              headline="No assay data yet"
-              actionLabel="Import assays…"
+              headline={tr("No assay data yet")}
+              actionLabel={tr("Import assays…")}
               onAction={() => fileRef.current.click()}
-              actionTitle="Pick an assay CSV — a hole ID, from/to depths, and one column per element"
+              actionTitle={tr("Pick an assay CSV — a hole ID, from/to depths, and one column per element")}
               secondary={
                 <>
-                  <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title="Import a pXRF export instead">Import pXRF…</button>
+                  <button onClick={() => pxrfRef.current.click()} style={emptyStateSecondaryBtn} title={tr("Import a pXRF export instead")}>{tr("Import pXRF…")}</button>
                   {/* TASKS.csv #391 — the empty Geochem tab offered imports only; the sample assays ship with the app */}
-                  <button onClick={loadSampleAssays} disabled={sampleLoading} style={emptyStateSecondaryBtn} title="The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)">
-                    {sampleLoading ? "Loading sample…" : "Load sample assays"}
+                  <button onClick={loadSampleAssays} disabled={sampleLoading} style={emptyStateSecondaryBtn} title={tr("The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)")}>
+                    {sampleLoading ? tr("Loading sample…") : tr("Load sample assays")}
                   </button>
                 </>
               }
-              footnote="An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically."
+              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.")}
             >
-              <div style={{ marginBottom: 12 }}>
-                Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.
-              </div>
+              <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
             </EmptyState>
           </div>
         ) : (
@@ -887,11 +877,10 @@ export default function GeochemModule() {
             <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
               {diagram.spider
-                ? `${plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
-                : `${plotted.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}
-              {lithFilter ? ` ${assays.length - plotted.length} hidden by the lithology filter.` : ""}
-              {" "}Below-detection values substituted at half the detection limit.
-            </div>
+                ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: assays.length })
+                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: assays.length })}
+              {lithFilter ? tr(" {v} hidden by the lithology filter.", { v: assays.length - plotted.length }) : ""}
+              {" "}{tr("Below-detection values substituted at half the detection limit.")}</div>
           </div>
         )}
       </div>
@@ -1038,27 +1027,27 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
   };
   return (
     <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>
-      <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Imported files &amp; elements — remove…</summary>
+      <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Imported files & elements — remove…")}</summary>
       {open && (
         <div style={{ paddingTop: 4 }}>
-          <div style={{ color: "var(--color-text-muted)", margin: "2px 0" }}>Files</div>
+          <div style={{ color: "var(--color-text-muted)", margin: "2px 0" }}>{tr("Files")}</div>
           {files.map((f) => (
             <div key={f.file ?? "(untracked)"} style={row}>
-              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? "Imported before GeoStrix recorded file names"}>{f.file ?? "(imported earlier — file not recorded)"}</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? tr("Imported before GeoStrix recorded file names")}>{f.file ?? tr("(imported earlier — file not recorded)")}</span>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{f.intervals.toLocaleString()}</span>
-              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={`Remove assays from ${f.file ?? "files imported earlier"}`} title="Remove this file's assay intervals"><X size={14} /></button>
+              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={tr("Remove assays from {v}", { v: f.file ?? tr("files imported earlier") })} title={tr("Remove this file's assay intervals")}><X size={14} /></button>
             </div>
           ))}
-          <div style={{ color: "var(--color-text-muted)", margin: "6px 0 2px" }}>Elements</div>
+          <div style={{ color: "var(--color-text-muted)", margin: "6px 0 2px" }}>{tr("Elements")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {assayElements.map((e) => (
               <span key={e.symbol} style={{ display: "inline-flex", alignItems: "center", gap: 2, border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 2px 1px 6px" }}>
                 {e.symbol}
-                <button type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={`Remove element ${e.symbol}`} title={`Remove ${e.symbol} from every interval`}><X size={12} /></button>
+                <button type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={tr("Remove element {symbol}", { symbol: e.symbol })} title={tr("Remove {symbol} from every interval", { symbol: e.symbol })}><X size={12} /></button>
               </span>
             ))}
           </div>
-          <button type="button" onClick={removeAll} style={{ marginTop: 8, width: "100%", padding: "5px 8px", border: "1px solid var(--color-danger-fg)", color: "var(--color-danger-fg)", background: "var(--color-bg)", borderRadius: 5, cursor: "pointer" }}>Remove all assays</button>
+          <button type="button" onClick={removeAll} style={{ marginTop: 8, width: "100%", padding: "5px 8px", border: "1px solid var(--color-danger-fg)", color: "var(--color-danger-fg)", background: "var(--color-bg)", borderRadius: 5, cursor: "pointer" }}>{tr("Remove all assays")}</button>
         </div>
       )}
     </details>

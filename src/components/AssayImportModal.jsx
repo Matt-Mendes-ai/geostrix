@@ -5,6 +5,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -56,7 +57,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
   // TASKS.csv #718 — a unit the header did not state, until the user picks one
-  const assumedTag = (e) => (!e.unitChosen && unitAssumed(e.header) ? <span title={`"${e.header}" does not say its unit, so ${e.unit} was assumed from the element. Check it against the lab certificate.`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontStyle: "italic", flexShrink: 0 }}>assumed</span> : null);
+  const assumedTag = (e) => (!e.unitChosen && unitAssumed(e.header) ? <span title={tr("\"{header}\" does not say its unit, so {unit} was assumed from the element. Check it against the lab certificate.", { header: e.header, unit: e.unit })} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontStyle: "italic", flexShrink: 0 }}>{tr("assumed")}</span> : null);
   // TASKS.csv #210 — lets the user repoint an auto-detected (or manually added) element at a
   // DIFFERENT raw column, e.g. when a file has both "Ag_XRF_Corrected_ppm_D" and "Ag_pXRF_ppm" and
   // the auto-picked one isn't the one they want. commitAssayImport already reads `values[e.symbol]`
@@ -88,19 +89,19 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Import {modal.isPxrf ? "pXRF" : "assays"}: {modal.fileName}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.format === "long" ? "Long format (row per analyte)" : "Wide format (column per element)"} · {modal.elements.length} elements recognized</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)")} · {modal.elements.length}{" "}{tr("elements recognized")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto" }}>
-          <div style={label}>Column mapping</div>
-          {[["hole_id", "Hole ID"], ["from", "From"], ["to", "To"]].map(([key, lbl]) => (
+          <div style={label}>{tr("Column mapping")}</div>
+          {[["hole_id", tr("Hole ID")], ["from", tr("From")], ["to", tr("To")]].map(([key, lbl]) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{lbl} <span style={{ color: "var(--color-danger-solid)" }}>*</span></div>
               <select value={modal.mapping[key] || ""} onChange={(e) => setMapping(key, e.target.value)} style={{ ...sel, flex: 1, borderColor: modal.mapping[key] ? "var(--color-border)" : "var(--color-danger-border-strong)" }}>
-                <option value="">— none —</option>
+                <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
@@ -108,7 +109,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
           {modal.format === "long" && modal.methods.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 4 }}>Analytical method / cert</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Analytical method / cert")}</div>
               <select value={modal.selectedMethod || ""} onChange={(e) => setMethod(e.target.value)} style={{ ...sel, width: "100%" }}>
                 {modal.methods.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
@@ -116,10 +117,10 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
-            <div style={{ ...label, marginBottom: 0 }}>Elements ({checkedCount} of {modal.elements.length})</div>
+            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements (")}{checkedCount}{" "}{tr("of")}{" "}{modal.elements.length})</div>
             <div style={{ display: "flex", gap: 8 }}>
-              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>All</span>
-              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>None</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>{tr("All")}</span>
+              <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
             </div>
           </div>
           {modal.format === "wide" ? (
@@ -131,20 +132,20 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   {/* TASKS.csv #210 — reassign which raw column feeds this element, e.g. when a file has
                       more than one candidate column (Corrected vs. raw vs. Error) and the auto-pick
                       wasn't the one wanted. */}
-                  <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} title="Which column this element's values come from">
+                  <select value={e.header} onChange={(ev) => setHeader(e.symbol, ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} title={tr("Which column this element's values come from")}>
                     {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                   {/* TASKS.csv #600 / #542 — the over-limit column that fills capped samples, while the auto-picked column is used */}
-                  {e.overLimit && e.header === e.mainHeader && <span title={`Samples at ${e.overLimit.limit} (the cap of this column) take their value from "${e.overLimit.header}" (${e.overLimit.n} values), converted to ${e.unit}`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>+ over-limit</span>}
+                  {e.overLimit && e.header === e.mainHeader && <span title={tr("Samples at {limit} (the cap of this column) take their value from \"{header}\" ({n} values), converted to {unit}", { limit: e.overLimit.limit, header: e.overLimit.header, n: e.overLimit.n, unit: e.unit })} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("+ over-limit")}</span>}
                   {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
-                    <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
+                    <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
                   </select>
-                  <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" aria-label={`Remove the ${e.symbol} mapping`} />
+                  <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title={tr("Remove this element mapping")} aria-label={tr("Remove the {symbol} mapping", { symbol: e.symbol })} />
                 </div>
               ))}
               {modal.elements.length === 0 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>No element columns recognized — add one manually below.</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: "6px 4px" }}>{tr("No element columns recognized — add one manually below.")}</div>
               )}
             </div>
           ) : (
@@ -155,7 +156,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", flex: 1 }}>{e.symbol}</span>
                   {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px" }}>
-                    <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
+                    <option value="ppm">{tr("ppm")}</option><option value="%">%</option><option value="ppb">{tr("ppb")}</option>
                   </select>
                 </div>
               ))}
@@ -170,20 +171,20 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
               <input
                 list="geostrix-element-symbols" value={addSymbol} onChange={(ev) => setAddSymbol(ev.target.value)}
-                placeholder="Symbol (e.g. Cu)" style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
+                placeholder={tr("Symbol (e.g. Cu)")} style={{ ...sel, width: 100, fontSize: "var(--font-size-sm)" }}
               />
               <datalist id="geostrix-element-symbols">
                 {ELEMENT_SYMBOLS.map((s) => <option key={s} value={s} />)}
               </datalist>
               <select value={addHeader} onChange={(ev) => setAddHeader(ev.target.value)} style={{ ...sel, flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }}>
-                <option value="">— pick the source column —</option>
+                <option value="">{tr("— pick the source column —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
               <button
                 onClick={addElement}
                 disabled={!addSymbol.trim() || !addHeader}
                 style={{ ...btn(true), width: "auto", padding: "6px 10px", fontSize: "var(--font-size-sm)", opacity: (addSymbol.trim() && addHeader) ? 1 : 0.5 }}
-              >Add</button>
+              >{tr("Add")}</button>
             </div>
           )}
         </div>
@@ -192,39 +193,31 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
             {negatives.codes > 0 && (
               <div>
-                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{negatives.codes} negative value(s) between {NO_DATA_SENTINEL_MAX} and 0. Assays can't be negative, so these are codes. What do they mean?</div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{negatives.codes}{" "}{tr("negative value(s) between")}{" "}{NO_DATA_SENTINEL_MAX}{" "}{tr("and 0. Assays can't be negative, so these are codes. What do they mean?")}</div>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
-                  <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />
-                  Below detection (-0.005 means "&lt;0.005"; stored at half and flagged "&lt;")
-                </label>
+                  <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />{tr("Below detection (-0.005 means \"<0.005\"; stored at half and flagged \"<\")")}</label>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
-                  <input type="radio" name="negmode" checked={modal.negativeMode === "missing"} onChange={() => onChange({ ...modal, negativeMode: "missing" })} />
-                  Not assayed (leave blank)
-                </label>
+                  <input type="radio" name="negmode" checked={modal.negativeMode === "missing"} onChange={() => onChange({ ...modal, negativeMode: "missing" })} />{tr("Not assayed (leave blank)")}</label>
               </div>
             )}
             {blanks > 0 && (
               <div>
-                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{blanks.toLocaleString()} empty element cell(s) in rows that have other results. What does an empty cell mean in this file?</div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{blanks.toLocaleString()}{" "}{tr("empty element cell(s) in rows that have other results. What does an empty cell mean in this file?")}</div>
                 {modal.blankNote && <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>{modal.blankNote}</div>}{/* TASKS.csv #716 */}
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
-                  <input type="radio" name="blankmode" checked={(modal.blankMode || "missing") === "missing"} onChange={() => onChange({ ...modal, blankMode: "missing" })} />
-                  Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres
-                </label>
+                  <input type="radio" name="blankmode" checked={(modal.blankMode || "missing") === "missing"} onChange={() => onChange({ ...modal, blankMode: "missing" })} />{tr("Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres")}</label>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
-                  <input type="radio" name="blankmode" checked={modal.blankMode === "bdl"} onChange={() => onChange({ ...modal, blankMode: "bdl" })} />
-                  Below detection — stored as "&lt;DL" at half the limit (the lab's most common "&lt;" limit in that column, else its lowest value)
-                </label>
+                  <input type="radio" name="blankmode" checked={modal.blankMode === "bdl"} onChange={() => onChange({ ...modal, blankMode: "bdl" })} />{tr("Below detection — stored as \"<DL\" at half the limit (the lab's most common \"<\" limit in that column, else its lowest value)")}</label>
               </div>
             )}
-            {negatives.sentinels > 0 && <div>{negatives.sentinels} value(s) at or below {NO_DATA_SENTINEL_MAX} (e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.</div>}
-            {unitClashes.length > 0 && <div>Already in this project in another unit: {unitClashes.map((e) => `${e.symbol} (file ${e.unit}, project ${existingUnits[e.symbol]})`).join(", ")}. These values will be converted to the project's unit so earlier assays keep their meaning.</div>}
+            {negatives.sentinels > 0 && <div>{negatives.sentinels}{" "}{tr("value(s) at or below")}{" "}{NO_DATA_SENTINEL_MAX}{" "}{tr("(e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.")}</div>}
+            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit:")}{" "}{unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: e.unit, projectUnit: existingUnits[e.symbol] })).join(", ")}{tr(". These values will be converted to the project's unit so earlier assays keep their meaning.")}</div>}
           </div>
         )}
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>
-          <button onClick={onCommit} disabled={!!modal.busy} style={{ ...btn(true), flex: 2, opacity: modal.busy ? 0.6 : 1 }}>{modal.busy ? "Importing…" : `Import ${checkedCount} element${checkedCount === 1 ? "" : "s"}`}</button>{/* busy: #583 */}
+          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+          <button onClick={onCommit} disabled={!!modal.busy} style={{ ...btn(true), flex: 2, opacity: modal.busy ? 0.6 : 1 }}>{modal.busy ? tr("Importing…") : tr(checkedCount === 1 ? "Import {checkedCount} element" : "Import {checkedCount} elements", { checkedCount })}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>

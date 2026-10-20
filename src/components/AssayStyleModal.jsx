@@ -6,6 +6,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { seedBreaks, nextDarkerClassColor } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -59,57 +60,57 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Style {symbol}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Data range: {range.min} – {range.max} {unit}</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Style")}{" "}{symbol}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Data range:")}{" "}{range.min} – {range.max} {unit}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
           {!local.breaks.length && (
             <label style={row}>
-              <span style={rowLabel}>Colour</span>
+              <span style={rowLabel}>{tr("Colour")}</span>
               <input type="color" value={local.color} onChange={(e) => commit({ ...local, color: e.target.value })} style={colorInp} />
             </label>
           )}
 
           {/* TASKS.csv #649 — shape and opacity, like the other layers' style panel */}
           <label style={row}>
-            <span style={rowLabel}>Shape</span>
-            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label="Marker shape" style={{ ...inp, flex: 1 }}>
+            <span style={rowLabel}>{tr("Shape")}</span>
+            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label={tr("Marker shape")} style={{ ...inp, flex: 1 }}>
               {SHAPES.point.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </label>
           <label style={row}>
-            <span style={rowLabel}>Opacity</span>
-            <input type="range" min="0.1" max="1" step="0.05" value={local.opacity} onChange={(e) => commit({ ...local, opacity: Number(e.target.value) })} aria-label="Marker opacity" style={{ flex: 1 }} />
+            <span style={rowLabel}>{tr("Opacity")}</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={local.opacity} onChange={(e) => commit({ ...local, opacity: Number(e.target.value) })} aria-label={tr("Marker opacity")} style={{ flex: 1 }} />
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 34, textAlign: "right" }}>{Math.round(local.opacity * 100)}%</span>
           </label>
           <label style={row}>
-            <span style={rowLabel} title="Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.">Size</span>
+            <span style={rowLabel} title={tr("Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.")}>{tr("Size")}</span>
             <input type="range" min="0.3" max="3" step="0.1" value={local.sizeMult} onChange={(e) => commit({ ...local, sizeMult: Number(e.target.value) })} style={{ flex: 1 }} />
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 34, textAlign: "right" }}>{local.sizeMult.toFixed(1)}×</span>
           </label>
 
           <label style={row}>
-            <span style={rowLabel} title="Samples below this grade aren't drawn at all — declutters low/background values.">Ignore below</span>
-            <input type="number" step="any" placeholder="none" value={local.minCutoff} onChange={(e) => commit({ ...local, minCutoff: e.target.value })} style={{ ...inp, width: 100 }} />
+            <span style={rowLabel} title={tr("Samples below this grade aren't drawn at all — declutters low/background values.")}>{tr("Ignore below")}</span>
+            <input type="number" step="any" placeholder={tr("none")} value={local.minCutoff} onChange={(e) => commit({ ...local, minCutoff: e.target.value })} style={{ ...inp, width: 100 }} />
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unit}</span>
           </label>
 
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <span style={{ ...rowLabel, marginBottom: 0 }} title="Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.">Grade classes (recategorize)</span>
-              {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} /> Add classes</button>}
+              <span style={{ ...rowLabel, marginBottom: 0 }} title={tr("Recategorize: instead of one flat colour, split this element into grade classes, each with its own colour — like a graduated/categorized legend.")}>{tr("Grade classes (recategorize)")}</span>
+              {!local.breaks.length && <button onClick={addBreak} style={smallBtn}><Plus size={12} />{" "}{tr("Add classes")}</button>}
             </div>
             {local.breaks.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {local.breaks.map((b, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} aria-label={`Class ${i + 1} colour`} />
+                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} aria-label={tr("Class {v} colour", { v: i + 1 })} />
                     <input
-                      placeholder="Label"
-                      aria-label={`Class ${i + 1} label`} // #687
+                      placeholder={tr("Label")}
+                      aria-label={tr("Class {v} label", { v: i + 1 })} // #687
                       value={b.label || ""}
                       onChange={(e) => updateBreak(i, { label: e.target.value })}
                       style={{ ...inp, width: 90 }}
@@ -118,27 +119,25 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                     <input
                       type="number" step="any"
                       value={b.max}
-                      aria-label={`Class ${i + 1} upper limit (${unit}), up to and including`}
+                      aria-label={tr("Class {v} upper limit ({unit}), up to and including", { v: i + 1, unit })}
                       onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
                       style={{ ...inp, width: 90 }}
                     />
                     <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{unit}</span>
-                    <Trash2 aria-label={"Remove this grade class"} title={"Remove this grade class"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
+                    <Trash2 aria-label={tr("Remove this grade class")} title={tr("Remove this grade class")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)", marginLeft: "auto" }} onClick={() => removeBreak(i)} />
                   </div>
                 ))}
-                <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} /> Add class</button>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  Classes are evaluated in order — a sample's colour comes from the first class whose value is ≤ its threshold. A value above every threshold still gets the top class's colour, so nothing above the highest break silently disappears.
-                </div>
+                <button onClick={addBreak} style={{ ...smallBtn, alignSelf: "flex-start" }}><Plus size={12} />{" "}{tr("Add class")}</button>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Classes are evaluated in order — a sample's colour comes from the first class whose value is ≤ its threshold. A value above every threshold still gets the top class's colour, so nothing above the highest break silently disappears.")}</div>
               </div>
             )}
           </div>
 
-          <button onClick={reset} style={{ ...smallBtn, alignSelf: "flex-start" }}><RotateCcw size={12} /> Reset to default</button>
+          <button onClick={reset} style={{ ...smallBtn, alignSelf: "flex-start" }}><RotateCcw size={12} />{" "}{tr("Reset to default")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(true), flex: 1 }}>Done</button>
+          <button onClick={onClose} style={{ ...btn(true), flex: 1 }}>{tr("Done")}</button>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochem.js";
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const W = 620, H = 560, PAD = 60;
 
@@ -108,7 +109,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
           {f.box && (
             <polygon points={[[f.box[0][0], f.box[0][1]], [f.box[1][0], f.box[0][1]], [f.box[1][0], f.box[1][1]], [f.box[0][0], f.box[1][1]]].map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill="none" stroke="#2a3444" strokeWidth="1" />
           )}
-          {f.pts && <text x={sx(centroid(f.pts)[0])} y={sy(centroid(f.pts)[1])} fill="#4a5568" fontSize={fontSizes.xs} textAnchor="middle">{f.name}</text>}
+          {f.pts && <text x={sx(centroid(f.pts)[0])} y={sy(centroid(f.pts)[1])} fill="#4a5568" fontSize={fontSizes.xs} textAnchor="middle">{tr(f.name)}</text>}
         </g>
       ))}
 
@@ -121,7 +122,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
         return (
           <g key={`ml${i}`}>
             <line x1={sx(0)} y1={sy(0)} x2={sx(x2)} y2={sy(ml.slope * x2)} stroke="#6b7a8c" strokeWidth="1" />
-            <text x={sx(x2 * 0.92)} y={sy(ml.slope * x2 * 0.92) - 5} fill="#6b7a8c" fontSize={fontSizes.xs} textAnchor="end">{ml.label} (slope {ml.slope})</text>
+            <text x={sx(x2 * 0.92)} y={sy(ml.slope * x2 * 0.92) - 5} fill="#6b7a8c" fontSize={fontSizes.xs} textAnchor="end">{tr("{label} (slope {slope})", { label: tr(ml.label), slope: ml.slope })}</text>
           </g>
         );
       })}
@@ -139,7 +140,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
         return (
           <g>
             <line x1={sx(0)} y1={sy(0)} x2={sx(x2)} y2={sy(Math.min(ymax, slope * x2))} stroke="#c07a4a" strokeWidth="1.5" strokeDasharray="5 3" />
-            <text x={sx(x2 * 0.55)} y={sy(Math.min(ymax, slope * x2 * 0.55)) - 6} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">trend (this dataset), slope {slope.toFixed(2)}</text>
+            <text x={sx(x2 * 0.55)} y={sy(Math.min(ymax, slope * x2 * 0.55)) - 6} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">{tr("trend (this dataset), slope {slope}", { slope: slope.toFixed(2) })}</text>
           </g>
         );
       })()}
@@ -182,16 +183,16 @@ function BoxplotGuides({ sx, sy, boxes }) {
         const pts = [[b.ccpi[0], b.ai[0]], [b.ccpi[1], b.ai[0]], [b.ccpi[1], b.ai[1]], [b.ccpi[0], b.ai[1]]];
         return (
           <g key={p}>
-            <polygon points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill={BOX_COLORS[p] || "#3a5068"} fillOpacity="0.07" stroke={BOX_COLORS[p] || "#3a5068"} strokeDasharray="3 2"><title>{`Least-altered ${p}: AI ${b.ai[0]}–${b.ai[1]}, CCPI ${b.ccpi[0]}–${b.ccpi[1]}`}</title></polygon>
-            <text x={sx(b.ccpi[0]) + 3} y={sy(b.ai[1]) + 10} fill={BOX_COLORS[p] || "#3a5068"} fontSize={fontSizes.xs}>{p}</text>
+            <polygon points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill={BOX_COLORS[p] || "#3a5068"} fillOpacity="0.07" stroke={BOX_COLORS[p] || "#3a5068"} strokeDasharray="3 2"><title>{tr("Least-altered {p}: AI {v}–{v2}, CCPI {v3}–{v4}", { p, v: b.ai[0], v2: b.ai[1], v3: b.ccpi[0], v4: b.ccpi[1] })}</title></polygon>
+            <text x={sx(b.ccpi[0]) + 3} y={sy(b.ai[1]) + 10} fill={BOX_COLORS[p] || "#3a5068"} fontSize={fontSizes.xs}>{tr(p)}</text>
           </g>
         );
       })}
       {/* corner labels */}
-      <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>sericite / K-feldspar</text>
-      <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>chlorite-pyrite</text>
-      <text x={sx(70)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>epidote-calcite</text>
-      <text x={sx(4)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>albite</text>
+      <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("sericite / K-feldspar")}</text>
+      <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("chlorite-pyrite")}</text>
+      <text x={sx(70)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("epidote-calcite")}</text>
+      <text x={sx(4)} y={sy(8)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("albite")}</text>
     </g>
   );
 }
@@ -239,7 +240,7 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef, describe }) {
       <text x={A[0]} y={A[1] - 10} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[0]}</text>
       <text x={Fp[0] - 6} y={Fp[1] + 18} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[1]}</text>
       <text x={M[0] + 6} y={M[1] + 18} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[2]}</text>
-      {diagram.dividers && <text x={cx} y={bottom - 30} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">calc-alkaline ↑ / tholeiitic ↓</text>}
+      {diagram.dividers && <text x={cx} y={bottom - 30} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">{tr("calc-alkaline ↑ / tholeiitic ↓")}</text>}
     </svg>
     <HoverTip hover={hover} lines={hp ? (describe ? describe(hp.p.sample) : [String(hp.p.sample.hole_id ?? "")]) : []} />
     </div>
@@ -304,10 +305,10 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
         <path key={i} d={pathFor(l.profile)} fill="none" stroke={colorBy(l.sample)} strokeWidth="1" strokeOpacity="0.55">{describe && <title>{describe(l.sample).join("\n")}</title>}</path>
       ))}
 
-      <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">Element (chondrite/primitive-mantle order)</text>
-      <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>Sample / normalizing value</text>
+      <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Element (chondrite/primitive-mantle order)")}</text>
+      <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Sample / normalizing value")}</text>
       {hiddenCount > 0 && (
-        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">+{hiddenCount} more samples not drawn (showing most recent {MAX_LINES})</text>
+        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">{tr("+{hiddenCount} more samples not drawn (showing most recent {max})", { hiddenCount, max: MAX_LINES })}</text>
       )}
     </svg>
   );

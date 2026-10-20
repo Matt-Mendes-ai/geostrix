@@ -7,6 +7,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import Papa from "papaparse";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #23 — Isocon / mass-balance calculator (Grant 1986; MacLean & Barrett 1993).
 //
@@ -93,31 +94,29 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Isocon / mass-change calculator</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Grant (1986) isocon method, closed-form via immobile-element ratios (MacLean &amp; Barrett 1993).</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Isocon / mass-change calculator")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Grant (1986) isocon method, closed-form via immobile-element ratios (MacLean & Barrett 1993).")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            Check intervals into a <b style={{ color: "var(--color-success-fg)" }}>precursor</b> group (least-altered equivalent of the protolith) and an <b style={{ color: "var(--color-danger-fg)" }}>altered</b> group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.
-          </div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Check intervals into a")}{" "}<b style={{ color: "var(--color-success-fg)" }}>{tr("precursor")}</b>{" "}{tr("group (least-altered equivalent of the protolith) and an")}{" "}<b style={{ color: "var(--color-danger-fg)" }}>{tr("altered")}</b>{" "}{tr("group (the rock you want the mass change of). Each group is averaged in ppm. Pick which elements were immobile during alteration — Al, Ti, Zr are reasonable defaults for VMS/epithermal systems, but confirm with an immobile-element plot (e.g. Th/Yb vs Nb/Yb, or the Zr/TiO₂ vs Nb/Y diagram) first if unsure.")}</div>
 
           <input
-            placeholder="Filter by hole ID…"
+            placeholder={tr("Filter by hole ID…")}
             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             style={{ ...sel, width: "100%" }}
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <IntervalList title="Precursor" color="#8fd9ab" rows={filtered} idSet={precursorIds} onToggle={(id) => toggle(precursorIds, setPrecursorIds, id)} n={precursor?.n} />
-            <IntervalList title="Altered" color="#e08a8a" rows={filtered} idSet={alteredIds} onToggle={(id) => toggle(alteredIds, setAlteredIds, id)} n={altered?.n} />
+            <IntervalList title={tr("Precursor")} color="#8fd9ab" rows={filtered} idSet={precursorIds} onToggle={(id) => toggle(precursorIds, setPrecursorIds, id)} n={precursor?.n} />
+            <IntervalList title={tr("Altered")} color="#e08a8a" rows={filtered} idSet={alteredIds} onToggle={(id) => toggle(alteredIds, setAlteredIds, id)} n={altered?.n} />
           </div>
 
           <div>
-            <div style={label}>Immobile elements ({immobile.size} selected)</div>
+            <div style={label}>{tr("Immobile elements (")}{immobile.size}{" "}{tr("selected)")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {symbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: immobile.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${immobile.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: immobile.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
@@ -135,24 +134,24 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
           {result && !result.error && (
             <>
               <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: "var(--font-size-base)" }}>
-                <div><span style={{ color: "var(--color-text-muted)" }}>Isocon slope (Mo/M):</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>Bulk mass change:</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>Immobile-set agreement:</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}% CV</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Isocon slope (Mo/M):")}</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Bulk mass change:")}</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Immobile-set agreement:")}</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}{tr("% CV")}</b></div>
               </div>
               {result.spread >= 0.1 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.")}</div>
               )}
 
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ color: "var(--color-text-muted)", textAlign: "left" }}>
-                    <th style={th}>Element</th><th style={th}>Precursor (ppm)</th><th style={th}>Altered (ppm)</th><th style={th}>Ratio</th><th style={th}>Mass change</th>
+                    <th style={th}>{tr("Element")}</th><th style={th}>{tr("Precursor (ppm)")}</th><th style={th}>{tr("Altered (ppm)")}</th><th style={th}>{tr("Ratio")}</th><th style={th}>{tr("Mass change")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.table.map((r) => (
                     <tr key={r.symbol} style={{ borderTop: "1px solid #eceef1" }}>
-                      <td style={td}>{r.symbol} {r.isImmobile && <span style={{ color: "#5a7290", fontSize: "var(--font-size-xs)" }}>(immobile)</span>}</td>
+                      <td style={td}>{r.symbol} {r.isImmobile && <span style={{ color: "#5a7290", fontSize: "var(--font-size-xs)" }}>{tr("(immobile)")}</span>}</td>
                       <td style={td}>{r.precursor.toFixed(2)}</td>
                       <td style={td}>{r.altered.toFixed(2)}</td>
                       <td style={td}>{r.ratio.toFixed(3)}</td>
@@ -163,14 +162,13 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
               </table>
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={14} /> Export mass-balance table (CSV)
-              </button>
+                <Download size={14} />{" "}{tr("Export mass-balance table (CSV)")}</button>
             </>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -180,7 +178,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 function IntervalList({ title, color, rows, idSet, onToggle, n }) {
   return (
     <div>
-      <div style={{ ...label, color, marginBottom: 4 }}>{title} {n ? `(${n} intervals, avg)` : ""}</div>
+      <div style={{ ...label, color, marginBottom: 4 }}>{title} {n ? tr("({n} intervals, avg)", { n }) : ""}</div>
       <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 4 }}>
         {rows.map(({ a, id }) => (
           <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: idSet.has(id) ? "var(--color-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
@@ -188,7 +186,7 @@ function IntervalList({ title, color, rows, idSet, onToggle, n }) {
             {a.hole_id} {a.from}–{a.to}m
           </label>
         ))}
-        {rows.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: 4 }}>No intervals match.</div>}
+        {rows.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: 4 }}>{tr("No intervals match.")}</div>}
       </div>
     </div>
   );

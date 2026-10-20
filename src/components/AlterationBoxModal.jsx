@@ -7,6 +7,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 import React, { useMemo, useState } from "react";
 import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -22,33 +23,26 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onCancel}>
-      <div role="dialog" aria-modal="true" aria-label="Alteration box plot classification" onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", borderRadius: 8, padding: 16, width: 520, maxHeight: "85vh", overflow: "auto", fontSize: "var(--font-size-sm)" }}>
-        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>Alteration from AI / CCPI (box plot)</div>
-        <div style={{ ...small, marginTop: 4 }}>
-          Each sample is compared with the least-altered box of its protolith. Inside: least altered. Outside: named by the
-          direction it lies in — sericite (AI up), chlorite-pyrite (up-right), chlorite-carbonate (right), epidote-calcite
-          (down-right), albite (down). Screening level: the protolith is assumed, not measured. Samples with no protolith are not classified.
-        </div>
+      <div role="dialog" aria-modal="true" aria-label={tr("Alteration box plot classification")} onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", borderRadius: 8, padding: 16, width: 520, maxHeight: "85vh", overflow: "auto", fontSize: "var(--font-size-sm)" }}>
+        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-accent-dark)" }}>{tr("Alteration from AI / CCPI (box plot)")}</div>
+        <div style={{ ...small, marginTop: 4 }}>{tr("Each sample is compared with the least-altered box of its protolith. Inside: least altered. Outside: named by the direction it lies in — sericite (AI up), chlorite-pyrite (up-right), chlorite-carbonate (right), epidote-calcite (down-right), albite (down). Screening level: the protolith is assumed, not measured. Samples with no protolith are not classified.")}</div>
         {provisional && (
-          <div role="note" style={{ marginTop: 8, padding: "6px 8px", borderRadius: 5, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
-            These box limits are <b>provisional</b> — inside the published least-altered range (AI 10–65, CCPI 15–85) but not yet checked
-            against Large et al. (2001) fig. 6. Edit them below; your values are saved with the project.
-          </div>
+          <div role="note" style={{ marginTop: 8, padding: "6px 8px", borderRadius: 5, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>{tr("These box limits are")}{" "}<b>{tr("provisional")}</b>{" "}{tr("— inside the published least-altered range (AI 10–65, CCPI 15–85) but not yet checked against Large et al. (2001) fig. 6. Edit them below; your values are saved with the project.")}</div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 12 }}>Protolith of each sample</div>
-        <select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Protolith source" style={{ ...num, width: "100%", marginTop: 4 }}>
-          <option value="logged">From the logged lithology at the sample (map the codes below)</option>
-          {PROTOLITHS.map((p) => <option key={p} value={p}>Every sample is {p}</option>)}
+        <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Protolith of each sample")}</div>
+        <select value={source} onChange={(e) => setSource(e.target.value)} aria-label={tr("Protolith source")} style={{ ...num, width: "100%", marginTop: 4 }}>
+          <option value="logged">{tr("From the logged lithology at the sample (map the codes below)")}</option>
+          {PROTOLITHS.map((p) => <option key={p} value={p}>{tr("Every sample is")}{" "}{p}</option>)}
         </select>
         {source === "logged" && (
           <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
-            {lithoCodes.length === 0 && <div style={small}>No lithology logged on the assayed holes — choose one protolith above.</div>}
+            {lithoCodes.length === 0 && <div style={small}>{tr("No lithology logged on the assayed holes — choose one protolith above.")}</div>}
             {lithoCodes.map((c) => (
               <label key={c} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ width: 60, overflow: "hidden", textOverflow: "ellipsis" }}>{c}</span>
-                <select value={map[c] || ""} onChange={(e) => setMap((m) => ({ ...m, [c]: e.target.value || null }))} aria-label={`Protolith of ${c}`} style={{ ...num, width: 110 }}>
-                  <option value="">— not classified</option>
+                <select value={map[c] || ""} onChange={(e) => setMap((m) => ({ ...m, [c]: e.target.value || null }))} aria-label={tr("Protolith of {c}", { c })} style={{ ...num, width: 110 }}>
+                  <option value="">{tr("— not classified")}</option>
                   {PROTOLITHS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
               </label>
@@ -57,11 +51,11 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
         )}
 
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
-          <span>Least-altered boxes</span>
-          {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), "Reset to provisional boxes")}>Reset to provisional</span>}
+          <span>{tr("Least-altered boxes")}</span>
+          {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), tr("Reset to provisional boxes"))}>{tr("Reset to provisional")}</span>}
         </div>
         <table style={{ marginTop: 4, borderCollapse: "collapse" }}>
-          <thead><tr style={small}><th style={{ textAlign: "left", paddingRight: 10 }}>Protolith</th><th>AI min</th><th>AI max</th><th>CCPI min</th><th>CCPI max</th></tr></thead>
+          <thead><tr style={small}><th style={{ textAlign: "left", paddingRight: 10 }}>{tr("Protolith")}</th><th>{tr("AI min")}</th><th>{tr("AI max")}</th><th>{tr("CCPI min")}</th><th>{tr("CCPI max")}</th></tr></thead>
           <tbody>
             {PROTOLITHS.map((p) => (
               <tr key={p}>
@@ -75,11 +69,11 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
             ))}
           </tbody>
         </table>
-        {!valid && <div style={{ ...small, color: "var(--color-danger-fg)" }}>Each box needs min below max.</div>}
+        {!valid && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Each box needs min below max.")}</div>}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-          <button onClick={onCancel} style={{ padding: "5px 12px" }}>Cancel</button>
-          <button disabled={!valid} onClick={() => onRun({ boxes, map, source })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid ? 1 : 0.5 }}>Classify</button>
+          <button onClick={onCancel} style={{ padding: "5px 12px" }}>{tr("Cancel")}</button>
+          <button disabled={!valid} onClick={() => onRun({ boxes, map, source })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid ? 1 : 0.5 }}>{tr("Classify")}</button>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
@@ -88,28 +89,26 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Multi-element correlation matrix</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{METHOD_LABEL[method]}, pairwise deletion — {assays.length} intervals{includeQAQC ? " (QAQC inserts included)" : qaqcCount ? `, ${qaqcCount} QAQC rows excluded` : ""}. Cells with fewer than {MIN_PAIRS} pairs are greyed.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Multi-element correlation matrix")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(METHOD_LABEL[method])}{tr(", pairwise deletion —")}{" "}{assays.length}{" "}{tr("intervals")}{includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : ""}{tr(". Cells with fewer than")}{" "}{MIN_PAIRS}{" "}{tr("pairs are greyed.")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ fontSize: "var(--font-size-base)" }}>
-                <option value="spearman">Spearman rank (default)</option>
-                <option value="log">Pearson, log10 values</option>
-                <option value="pearson">Pearson, raw values</option>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ fontSize: "var(--font-size-base)" }}>
+                <option value="spearman">{tr("Spearman rank (default)")}</option>
+                <option value="log">{tr("Pearson, log10 values")}</option>
+                <option value="pearson">{tr("Pearson, raw values")}</option>
               </select>
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} /> Include QAQC inserts{qaqcCount ? ` (${qaqcCount})` : ""}
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{" "}{tr("Include QAQC inserts")}{qaqcCount ? ` (${qaqcCount})` : ""}
             </label>
           </div>
           <div>
-            <div style={label}>Elements ({symbols.length} of {allSymbols.length} selected)</div>
+            <div style={label}>{tr("Elements (")}{symbols.length}{" "}{tr("of")}{" "}{allSymbols.length}{" "}{tr("selected)")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
@@ -121,7 +120,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
           </div>
 
           {symbols.length < 2 ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>Select at least 2 elements to compute a correlation matrix.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("Select at least 2 elements to compute a correlation matrix.")}</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
@@ -139,7 +138,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
                         const { r, n } = matrix[a][b];
                         const thin = n < MIN_PAIRS;
                         return (
-                          <td key={b} title={`${a} vs ${b}: r = ${r == null ? "n/a" : r.toFixed(3)} (n = ${n} pairs${thin ? ", too few to trust" : ""})`} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
+                          <td key={b} title={tr("{a} vs {b}: r = {v} (n = {n} pairs{v2})", { a, b, v: r == null ? "n/a" : r.toFixed(3), n, v2: thin ? tr(", too few to trust") : "" })} style={{ ...cell, background: thin ? cellColor(null) : cellColor(r), color: thin ? "var(--color-text-faint)" : cell.color }}>
                             {r == null ? "—" : r.toFixed(2)}
                           </td>
                         );
@@ -152,12 +151,11 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
           )}
 
           <button onClick={exportCSV} disabled={symbols.length < 2} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: symbols.length < 2 ? 0.5 : 1 }}>
-            <Download size={14} /> Export matrix (CSV)
-          </button>
+            <Download size={14} />{" "}{tr("Export matrix (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

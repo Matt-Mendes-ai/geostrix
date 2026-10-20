@@ -18,6 +18,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "geotech", "magsusc", "structure"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -116,7 +117,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
 
   const domainOptions = source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0) : [];
   const domainRows = domainKey ? layers[domainKey] : null;
-  const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
+  const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the two built-in group names
 
   // Per-sample {value, domain} pairs — every row that has a real numeric value for the selected
   // element (log scale needs strictly positive values; a handful of at/below-zero rows, e.g. a
@@ -193,20 +194,18 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Grade statistics</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Univariate distribution per domain — {source === "surface" ? `${surfaceSamples.length} surface samples loaded.` : `${assays.length} intervals loaded.`}
-              {source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade statistics")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Univariate distribution per domain —")}{" "}{source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length })}
+              {source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {surfaceSamples.length > 0 && (
             <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Data source
-                <select
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Data source")}<select
                   value={source}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -217,80 +216,74 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
                   }}
                   style={{ ...sel, display: "block", marginTop: 4 }}
                 >
-                  <option value="assays">Drillhole assays</option>
-                  <option value="surface">Surface samples</option>
+                  <option value="assays">{tr("Drillhole assays")}</option>
+                  <option value="surface">{tr("Surface samples")}</option>
                 </select>
               </label>
             </div>
           )}
           {source === "assays" && qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.">
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
-              Include QC samples (standards/blanks/duplicates) in this report
-            </label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't skew a domain's mean/stdev/CV — check this to include them anyway.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Element
-              <select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                 {activeElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
               </select>
             </label>
             {source === "assays" ? (
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Domain (optional)
-                <select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
-                  <option value="">— none, all intervals together —</option>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
+                  <option value="">{tr("— none, all intervals together —")}</option>
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
                 </select>
               </label>
             ) : (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>Grouped by sampling medium</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Grouped by sampling medium")}</div>
             )}
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log-scale histogram
-            </label>
+              <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log-scale histogram")}</label>
             {/* TASKS.csv #267 */}
             {source === "assays" && (
-              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title="Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralised zone.">
-                <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} /> Length-weight
-              </label>
+              <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }} title={tr("Weight every statistic by the assay interval's own length. An unweighted mean over 0.3m and 3m intervals is biased toward whatever gets sampled at short intervals — in practice the mineralised zone.")}>
+                <input type="checkbox" checked={lengthWeighted} onChange={(e) => setLengthWeighted(e.target.checked)} />{" "}{tr("Length-weight")}</label>
             )}
           </div>
           {/* TASKS.csv #267 — the panel now always states which mean it is showing. Capping decisions
               and "average grade" statements get made off this table. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: weightingActive ? "var(--color-text-secondary)" : "var(--color-warn-text)", lineHeight: 1.45 }}>
             {source === "surface"
-              ? "Statistics on surface samples — point samples with no interval length, so no weighting applies."
+              ? tr("Statistics on surface samples — point samples with no interval length, so no weighting applies.")
               : weightingActive
-                ? `Length-weighted statistics on raw assay intervals (${overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—"} of sampled core). Compositing to a regular length first is still the more standard basis for a capping decision.`
-                : `Statistics on raw assay intervals — NOT length-weighted${lengthWeighted ? " (some intervals have no usable from/to length, so weighting was skipped)" : ""}. A 0.3 m interval counts exactly as much as a 3 m one. Composite first, or tick "Length-weight", for a weighted distribution.`}
+                ? tr("Length-weighted statistics on raw assay intervals ({v} of sampled core). Compositing to a regular length first is still the more standard basis for a capping decision.", { v: overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—" })
+                : tr("Statistics on raw assay intervals — NOT length-weighted{v}. A 0.3 m interval counts exactly as much as a 3 m one. Composite first, or tick \"Length-weight\", for a weighted distribution.", { v: lengthWeighted ? tr(" (some intervals have no usable from/to length, so weighting was skipped)") : "" })}
           </div>
 
           {!overallStats ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No {symbol} values found in the loaded {source === "surface" ? "surface sample" : "assay"} data.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No")}{" "}{symbol}{" "}{tr("values found in the loaded")}{" "}{source === "surface" ? tr("surface sample") : "assay"}{" "}{tr("data.")}</div>
           ) : (
             <>
               <div>
-                <div style={label}>Distribution — {symbol} ({elementUnits[symbol] || "ppm"}){logScale ? ", log₁₀ scale" : ""}</div>
+                <div style={label}>{tr("Distribution —")}{" "}{symbol} ({elementUnits[symbol] || "ppm"}){logScale ? tr(", log₁₀ scale") : ""}</div>
                 <Histogram data={histogram} unit={elementUnits[symbol] || "ppm"} logScale={logScale} />
               </div>
 
               <div>
-                <div style={label}>By domain — {groups.length} group{groups.length === 1 ? "" : "s"}</div>
-                <BoxPlots groups={groups} domainLabel={domainKey === "litho" ? domainLabel : (v) => v} />
+                <div style={label}>{tr("By domain —")}{" "}{groups.length}{" "}{tr(groups.length === 1 ? "group" : "groups")}</div>
+                <BoxPlots groups={groups} domainLabel={domainLabel} />
               </div>
 
               <div style={{ overflowX: "auto" }}>
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={th}>Domain</th><th style={th}>n</th><th style={th}>Mean</th><th style={th}>Median</th>
-                      <th style={th}>Stdev</th><th style={th}>CV%</th><th style={th}>Min</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>Max</th>
+                      <th style={th}>{tr("Domain")}</th><th style={th}>n</th><th style={th}>{tr("Mean")}</th><th style={th}>{tr("Median")}</th>
+                      <th style={th}>{tr("Stdev")}</th><th style={th}>{tr("CV%")}</th><th style={th}>{tr("Min")}</th><th style={th}>Q1</th><th style={th}>Q3</th><th style={th}>{tr("Max")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groups.map((g) => (
                       <tr key={g.key}>
-                        <td style={td}>{domainKey === "litho" ? domainLabel(g.key) : g.key}</td>
+                        <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
                         <td style={td}>{g.stats.mean.toFixed(3)}</td>
                         <td style={td}>{g.stats.median.toFixed(3)}</td>
@@ -307,14 +300,13 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
               </div>
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={14} /> Export statistics (CSV)
-              </button>
+                <Download size={14} />{" "}{tr("Export statistics (CSV)")}</button>
             </>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>
@@ -322,7 +314,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
 }
 
 function Histogram({ data, unit, logScale }) {
-  if (!data) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No values to plot.</div>;
+  if (!data) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No values to plot.")}</div>;
   const w = 640, h = 160, padL = 40, padB = 20;
   const plotW = w - padL - 10, plotH = h - padB - 10;
   const barW = plotW / data.bins.length;

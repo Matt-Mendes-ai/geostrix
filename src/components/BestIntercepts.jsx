@@ -15,6 +15,7 @@ import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js
 import { version as APP_VERSION } from "../../package.json";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -185,45 +186,33 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Best-intercept report</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays.length} intervals loaded.
-              {qaqcExcludedCount > 0 && !includeQAQC ? ` ${qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.` : ""}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Best-intercept report")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance —")}{" "}{assays.length}{" "}{tr("intervals loaded.")}{qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {qaqcExcludedCount > 0 && (
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title="QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't turn up as a false 'best intercept' — check this to include them anyway.">
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />
-              Include QC samples (standards/blanks/duplicates) in this report
-            </label>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so they can't turn up as a false 'best intercept' — check this to include them anyway.")}>
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>Element
-              <select value={symbol} onChange={(e) => { setSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>Cutoff ({unit})
+            <label style={fieldLabel}>{tr("Cutoff (")}{unit})
               <input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(Number(e.target.value) || 0)} style={inp} />
             </label>
-            <label style={fieldLabel} title="How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.">
-              Max internal dilution (m)
-              <input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>Min length (m)
-              <input type="number" step="any" min="0" value={minLength} onChange={(e) => setMinLength(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel}>{tr("Min length (m)")}<input type="number" step="any" min="0" value={minLength} onChange={(e) => setMinLength(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel} title="'Including' sub-intercepts: intercepts at this higher cutoff, built with the same dilution and minimum-length rules, reported inside the intercept that contains them (e.g. 42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.">
-              Including at ≥
-              <input type="number" step="any" min="0" value={includeCutoff} placeholder="off" onChange={(e) => setIncludeCutoff(e.target.value)} style={inp} aria-label="Including cutoff" />
+            <label style={fieldLabel} title={tr("'Including' sub-intercepts: intercepts at this higher cutoff, built with the same dilution and minimum-length rules, reported inside the intercept that contains them (e.g. 42 m @ 1.2, including 6 m @ 5.1). Leave empty for none.")}>{tr("Including at ≥")}<input type="number" step="any" min="0" value={includeCutoff} placeholder={tr("off")} onChange={(e) => setIncludeCutoff(e.target.value)} style={inp} aria-label={tr("Including cutoff")} />
             </label>
-            <label style={fieldLabel} title="Screen out intercepts below this grade × length (e.g. gram-metres for Au in g/t) — leave at 0 to show every intercept meeting the length/cutoff criteria above.">
-              Min grade × length
-              <input type="number" step="any" min="0" value={minGradeLen} onChange={(e) => setMinGradeLen(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Screen out intercepts below this grade × length (e.g. gram-metres for Au in g/t) — leave at 0 to show every intercept meeting the length/cutoff criteria above.")}>{tr("Min grade × length")}<input type="number" step="any" min="0" value={minGradeLen} onChange={(e) => setMinGradeLen(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
           </div>
 
@@ -231,19 +220,16 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           {symbols.length > 1 && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} /> Metal equivalent ({symbol}Eq) from {symbol} and the "Also show" elements
-              </label>
+                <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent (")}{symbol}{tr("Eq) from")}{" "}{symbol}{" "}{tr("and the \"Also show\" elements")}</label>
               {meqOn && (
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
                   {[symbol, ...extraSymbols].map((s) => (
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 34 }}>{s}</span>
-                      price <input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={`${s} price`} /> {PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb"}
-                      recovery <input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={`${s} recovery %`} /> %
+                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb"}{tr("recovery")}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>
-                    {extraSymbols.length === 0 ? "Pick at least one other element under \"Also show\"." : meqReady ? metalEquivalentFormula(meqMetals) : "Enter a price and recovery for every element — no equivalent is shown until all are entered."}
+                    {extraSymbols.length === 0 ? tr("Pick at least one other element under \"Also show\".") : meqReady ? metalEquivalentFormula(meqMetals) : tr("Enter a price and recovery for every element — no equivalent is shown until all are entered.")}
                   </div>
                 </div>
               )}
@@ -251,8 +237,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           )}
 
           {symbols.length > 1 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title="Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.">
-              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Also show:</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }} title={tr("Extra elements' length-weighted average over each already-composited interval — the intercept itself is still only built/cut off against the primary Element above.")}>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Also show:")}</span>
               {symbols.filter((s) => s !== symbol).map((s) => (
                 <label key={s} style={{ fontSize: "var(--font-size-sm)", color: extraSymbols.includes(s) ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 3, cursor: "pointer", padding: "3px 7px", borderRadius: 5, border: `1px solid ${extraSymbols.includes(s) ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                   <input type="checkbox" checked={extraSymbols.includes(s)} onChange={() => toggleExtraSymbol(s)} style={{ margin: 0 }} />
@@ -268,60 +254,52 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
               no collar geometry loaded, rather than silently doing nothing. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "7px 9px", background: twEnabled ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${twEnabled ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6 }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: collars?.length ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 5, cursor: collars?.length ? "pointer" : "default" }}
-              title={collars?.length ? "Correct each intercept's downhole length to a true (perpendicular) thickness across the structure." : "Needs collar (and ideally survey) data loaded to know each hole's orientation."}>
-              <input type="checkbox" checked={twEnabled} disabled={!collars?.length} onChange={(e) => setTwEnabled(e.target.checked)} style={{ margin: 0 }} />
-              True width
-            </label>
+              title={collars?.length ? tr("Correct each intercept's downhole length to a true (perpendicular) thickness across the structure.") : tr("Needs collar (and ideally survey) data loaded to know each hole's orientation.")}>
+              <input type="checkbox" checked={twEnabled} disabled={!collars?.length} onChange={(e) => setTwEnabled(e.target.checked)} style={{ margin: 0 }} />{tr("True width")}</label>
             {twEnabled && (
               <>
-                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title="Dip direction (dip azimuth) of the mineralized structure — 0=N, 90=E.">
-                  Structure dip dir
-                  <input type="number" step="any" value={twDipDir} onChange={(e) => setTwDipDir(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ ...inp, width: 60 }} />
+                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip direction (dip azimuth) of the mineralized structure — 0=N, 90=E.")}>{tr("Structure dip dir")}<input type="number" step="any" value={twDipDir} onChange={(e) => setTwDipDir(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ ...inp, width: 60 }} />
                 </label>
-                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title="Dip of the mineralized structure, degrees below horizontal.">
-                  dip
-                  <input type="number" step="any" min="0" max="90" value={twDip} onChange={(e) => setTwDip(Math.max(0, Math.min(90, Number(e.target.value) || 0)))} style={{ ...inp, width: 55 }} />
+                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip of the mineralized structure, degrees below horizontal.")}>{tr("dip")}<input type="number" step="any" min="0" max="90" value={twDip} onChange={(e) => setTwDip(Math.max(0, Math.min(90, Number(e.target.value) || 0)))} style={{ ...inp, width: 55 }} />
                 </label>
               </>
             )}
-            {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Import collars to enable.</span>}
-            {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.</span>}
+            {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Import collars to enable.")}</span>}
+            {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.")}</span>}
           </div>
 
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}
           {domainLayerOptions.length > 0 && (
             <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 6 }}
-              title="Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.">
-              Host domain
-              <select value={domainLayer} onChange={(e) => setDomainLayer(e.target.value)} style={{ ...inp, width: "auto" }}>
-                <option value="">(none)</option>
+              title={tr("Show which logged unit each intercept sits in — and, when it straddles a contact, the split between units.")}>{tr("Host domain")}<select value={domainLayer} onChange={(e) => setDomainLayer(e.target.value)} style={{ ...inp, width: "auto" }}>
+                <option value="">{tr("(none)")}</option>
                 {domainLayerOptions.map((k) => <option key={k} value={k}>{LAYER_META[k]?.label || k}</option>)}
               </select>
             </label>
           )}
 
           {symbols.length === 0 ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No assay elements loaded — import assays first.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No assay elements loaded — import assays first.")}</div>
           ) : results.length === 0 ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>No intervals meet these criteria — try a lower cutoff or shorter minimum length.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No intervals meet these criteria — try a lower cutoff or shorter minimum length.")}</div>
           ) : (
             <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>
-                    <th style={th}>Hole</th>
-                    <th style={th}>From</th>
-                    <th style={th}>To</th>
-                    <th style={th}>Length (m)</th>
-                    {twEnabled && <th style={th} title="Downhole length corrected to a true thickness perpendicular to the stated structure.">True width (m)</th>}
-                    {twEnabled && <th style={th} title="|cos θ| between the hole and the structure's pole. 1.0 = hole perpendicular to the structure (ideal); near 0 = a grazing intersection whose downhole width is badly inflated.">Factor</th>}
-                    {domainLayer && <th style={th} title="Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.">Host</th>}
-                    <th style={th}>Avg {symbol} ({unit})</th>
-                    <th style={th}>Grade × length</th>
-                    {incOn && <th style={th}>Including (≥ {includeCutoff})</th>}
-                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{symbol}Eq ({unit})</th>}
-                    {extraSymbols.map((s) => <th key={s} style={th}>Avg {s} ({elementUnits[s] || "ppm"})</th>)}
-                    <th style={th}>Assay intervals</th>
+                    <th style={th}>{tr("Hole")}</th>
+                    <th style={th}>{tr("From")}</th>
+                    <th style={th}>{tr("To")}</th>
+                    <th style={th}>{tr("Length (m)")}</th>
+                    {twEnabled && <th style={th} title={tr("Downhole length corrected to a true thickness perpendicular to the stated structure.")}>{tr("True width (m)")}</th>}
+                    {twEnabled && <th style={th} title={tr("|cos θ| between the hole and the structure's pole. 1.0 = hole perpendicular to the structure (ideal); near 0 = a grazing intersection whose downhole width is badly inflated.")}>{tr("Factor")}</th>}
+                    {domainLayer && <th style={th} title={tr("Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.")}>{tr("Host")}</th>}
+                    <th style={th}>{tr("Avg")}{" "}{symbol} ({unit})</th>
+                    <th style={th}>{tr("Grade × length")}</th>
+                    {incOn && <th style={th}>{tr("Including (≥")}{" "}{includeCutoff})</th>}
+                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{symbol}{tr("Eq (")}{unit})</th>}
+                    {extraSymbols.map((s) => <th key={s} style={th}>{tr("Avg")}{" "}{s} ({elementUnits[s] || "ppm"})</th>)}
+                    <th style={th}>{tr("Assay intervals")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -333,7 +311,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                       <td style={td}>{r.to.toFixed(2)}</td>
                       <td style={td}>{r.length.toFixed(2)}</td>
                       {twEnabled && <td style={td}>{r.tw ? r.tw.trueWidth.toFixed(2) : "—"}</td>}
-                      {twEnabled && <td style={{ ...td, color: r.tw && r.tw.factor < 0.5 ? "#b06a1f" : undefined }} title={r.tw && r.tw.factor < 0.5 ? "Oblique intersection — the downhole width overstates true thickness by more than 2x." : undefined}>{r.tw ? r.tw.factor.toFixed(3) : "—"}</td>}
+                      {twEnabled && <td style={{ ...td, color: r.tw && r.tw.factor < 0.5 ? "#b06a1f" : undefined }} title={r.tw && r.tw.factor < 0.5 ? tr("Oblique intersection — the downhole width overstates true thickness by more than 2x.") : undefined}>{r.tw ? r.tw.factor.toFixed(3) : "—"}</td>}
                       {domainLayer && (() => {
                         const d = r.dom;
                         const partial = d && d.parts.length > 0 && d.covered < 0.99;
@@ -341,8 +319,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                         // different units), and it's why the percentages can sum above 100% — say so
                         // rather than letting the row look simply wrong.
                         const notes = [
-                          partial ? `Only ${Math.round(d.covered * 100)}% of this intercept has a logged unit — the remainder is unlogged.` : null,
-                          d?.overlapping ? "This hole's log has OVERLAPPING intervals here (the same metre logged as more than one unit), so these percentages sum above 100%. Worth fixing in the source log." : null,
+                          partial ? tr("Only {v}% of this intercept has a logged unit — the remainder is unlogged.", { v: Math.round(d.covered * 100) }) : null,
+                          d?.overlapping ? tr("This hole's log has OVERLAPPING intervals here (the same metre logged as more than one unit), so these percentages sum above 100%. Worth fixing in the source log.") : null,
                         ].filter(Boolean);
                         return (
                           <td style={{ ...td, color: d?.overlapping ? "#b06a1f" : undefined }} title={notes.length ? notes.join(" ") : undefined}>
@@ -352,9 +330,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                       })()}
                       <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}
                         title={[
-                          r.overRange ? "Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this." : null,
-                          r.unsampledM > 1e-6 ? `${r.unsampledM.toFixed(2)} m inside this intercept has no ${symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only (#502).` : null,
-                          r.overlapM > 1e-6 ? `${r.overlapM.toFixed(2)} m is covered by overlapping assay rows with different results; their average is used.` : null,
+                          r.overRange ? tr("Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this.") : null,
+                          r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only (#502).", { unsampledM: r.unsampledM.toFixed(2), symbol }) : null,
+                          r.overlapM > 1e-6 ? tr("{overlapM} m is covered by overlapping assay rows with different results; their average is used.", { overlapM: r.overlapM.toFixed(2) }) : null,
                         ].filter(Boolean).join(" ") || undefined}>
                         {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
@@ -376,22 +354,18 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
             {results.stats && (results.stats.duplicatesSkipped > 0 || results.stats.overlappingRows > 0 || results.stats.negativeValues > 0) && (
               <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>
                 {[
-                  results.stats.duplicatesSkipped > 0 ? `${results.stats.duplicatesSkipped} exact duplicate row(s) counted once` : null,
-                  results.stats.overlappingRows > 0 ? `${results.stats.overlappingRows} row(s) overlap another row in the same hole — each metre is counted once, and where overlapping ${symbol} results differ their average is used (⚠ in the table)` : null,
-                  results.stats.negativeValues > 0 ? `${results.stats.negativeValues} negative ${symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)` : null,
-                ].filter(Boolean).join(". ")}. Fix these in the source data for a clean report.
-              </div>
-            )}
-            Intercepts never average below the cutoff: internal dilution is only bridged while the result stays at or above it. "≥" marks a grade that contains an over-range result. Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.
-          </div>
+                  results.stats.duplicatesSkipped > 0 ? tr("{duplicatesSkipped} exact duplicate row(s) counted once", { duplicatesSkipped: results.stats.duplicatesSkipped }) : null,
+                  results.stats.overlappingRows > 0 ? tr("{overlappingRows} row(s) overlap another row in the same hole — each metre is counted once, and where overlapping {symbol} results differ their average is used (⚠ in the table)", { overlappingRows: results.stats.overlappingRows, symbol }) : null,
+                  results.stats.negativeValues > 0 ? tr("{negativeValues} negative {symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)", { negativeValues: results.stats.negativeValues, symbol }) : null,
+                ].filter(Boolean).join(". ")}{tr(". Fix these in the source data for a clean report.")}</div>
+            )}{tr("Intercepts never average below the cutoff: internal dilution is only bridged while the result stays at or above it. \"≥\" marks a grade that contains an over-range result. Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
-            <Download size={14} /> Export report (CSV)
-          </button>
+            <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

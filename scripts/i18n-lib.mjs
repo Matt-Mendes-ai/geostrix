@@ -93,6 +93,13 @@ traverse(ast, {
     if (errorsOnly) return;
     const c = p.node.callee;
     if (c.type === "Identifier" && c.name === "pushIssue") { message(p.get("arguments.4")); return; }
+    // a component's message state: setMsg("…"), setError(`…`), setNote({ ok, text: "…" })
+    if (c.type === "Identifier" && /^set\w*(Msg|Message|Error|Err|Note|Notice|Status|Warning|Info|Hint)$/.test(c.name)) {
+      const a0 = p.get("arguments.0");
+      if (a0?.node?.type === "ObjectExpression") a0.get("properties").forEach((pp) => { if (pp.isObjectProperty() && ["text", "message", "msg"].includes(pp.node.key.name)) message(pp.get("value")); });
+      else message(a0);
+      return;
+    }
     if (c.type === "MemberExpression" && c.property.name === "push" && LIST_NAME.test(c.object.name || c.object.property?.name || "")) p.get("arguments").forEach(message);
   },
   NewExpression(p) { if (p.node.callee.type === "Identifier" && /Error$/.test(p.node.callee.name)) message(p.get("arguments.0")); },
