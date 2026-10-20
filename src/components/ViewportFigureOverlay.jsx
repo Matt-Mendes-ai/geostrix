@@ -38,6 +38,23 @@ import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 // labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
+import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
+
+// TASKS.csv #736 — the legend's tick text measured in its real font (the xs step), one cached canvas, memoised per
+// string: called when the legend renders, never per frame. Falls back to the old 6 px per character without a canvas.
+const textWidthCache = new Map();
+let measureCtx;
+function legendTextWidth(text) {
+  const s = String(text);
+  if (textWidthCache.has(s)) return textWidthCache.get(s);
+  let w = s.length * 6;
+  try {
+    measureCtx ??= document.createElement("canvas").getContext("2d");
+    if (measureCtx) { measureCtx.font = `${fontSizes.xs}px 'Exo 2', system-ui, sans-serif`; w = measureCtx.measureText(s).width; }
+  } catch { /* no canvas: keep the estimate */ }
+  textWidthCache.set(s, w);
+  return w;
+}
 
 const MAX_BAR_PX = 190;
 // The AxisGizmo occupies the bottom-left 76px + 12px margin of the canvas (see AxisGizmo.js's own
@@ -163,11 +180,12 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
                 {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, top: 5, width: 1, height: 4, background: "var(--color-text)" }} />)}
               </div>
               <div style={{ position: "relative", height: 14, width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
-                <span style={{ position: "absolute", left: 0 }}>{fmtR(g.ramp.min)}</span>
-                {/* a tick label that would run into the min/max label is left out (its tick mark stays): ~6 px per character */}
-                {(g.ramp.ticks || []).filter((t) => { const half = String(t.label).length * 3, x = t.at * 180; return x - half > fmtR(g.ramp.min).length * 6 + 4 && x + half < 180 - fmtR(g.ramp.max).length * 6 - 4; })
+                <span style={{ position: "absolute", left: 0 }}>{g.ramp.minLabel ?? fmtR(g.ramp.min)}</span>
+                {/* a tick label that would touch the min/max label or the previous one is left out (its tick mark stays);
+                    #736 measured in the real font, and the end labels use the ticks' format */}
+                {rampTickLabels(g.ramp.ticks, g.ramp.minLabel ?? fmtR(g.ramp.min), g.ramp.maxLabel ?? fmtR(g.ramp.max), 180, legendTextWidth)
                   .map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
-                <span style={{ position: "absolute", right: 0 }}>{fmtR(g.ramp.max)}</span>
+                <span style={{ position: "absolute", right: 0 }}>{g.ramp.maxLabel ?? fmtR(g.ramp.max)}</span>
               </div>
             </div>
           ))}

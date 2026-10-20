@@ -43,5 +43,21 @@ export function legendScale(model, lo, hi, fmt = (x) => String(+Number(x).toPrec
       if (t > 0.04 && t < 0.96) ticks.push({ at: t, label: fmt(10 ** e) });
     }
   }
-  return { kind: "ramp", log, min: lo, max: hi, colors, ticks };
+  // #736 — the end labels in the ticks' own format (they were "1.00 | 10 100 | 10000" with a second formatter)
+  return { kind: "ramp", log, min: lo, max: hi, minLabel: fmt(lo), maxLabel: fmt(hi), colors, ticks };
+}
+
+// TASKS.csv #736 — which tick labels fit under a ramp bar of `width` px between its min and max labels. A label is
+// kept when its measured box (centred on the tick) keeps `gap` px from the end labels and from the last label kept;
+// measure(text) -> px. The old rule guessed 6 px per character, which is right for "0" in Exo 2 but generous for
+// "1", and dropped "1000" on a 1-10,000 bar although it cleared "10000".
+export function rampTickLabels(ticks, minLabel, maxLabel, width, measure, gap = 3) {
+  const left = measure(minLabel) + gap, right = width - measure(maxLabel) - gap;
+  const kept = [];
+  let lastEnd = left;
+  for (const t of [...(ticks || [])].sort((a, b) => a.at - b.at)) {
+    const half = measure(t.label) / 2, x = t.at * width;
+    if (x - half >= lastEnd && x + half <= right) { kept.push(t); lastEnd = x + half + gap; }
+  }
+  return kept;
 }
