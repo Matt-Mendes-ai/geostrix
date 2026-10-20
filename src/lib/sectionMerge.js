@@ -18,13 +18,10 @@
 //    shrunk back coming out.
 // Resistivity spans decades, so it is interpolated as log10 and returned in ohm.m.
 import { voxelCellSupported } from "./viewer/geomath.js";
+import { percentile, percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 
-// the p-th quantile (0..1) of a list of numbers
-export function percentile(values, p) {
-  if (!values.length) return NaN;
-  const s = [...values].sort((a, b) => a - b);
-  return s[Math.min(s.length - 1, Math.max(0, Math.floor(p * s.length)))];
-}
+// the p-th quantile (0..1) of a list of numbers — TASKS.csv #740: the shared one (arrayStats.js)
+export { percentile };
 
 export const isSectionModel = (m) => m && (m.method === "ip" || m.method === "dc") && Array.isArray(m.cells) && m.cells.length > 0;
 
@@ -68,7 +65,7 @@ export function suggestMergeRadius(points) {
       for (const q of others) { const d = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (d < best) best = d; }
       return Math.sqrt(best);
     }).sort((a, b) => a - b);
-    worst = Math.max(worst, gaps[Math.floor(gaps.length * 0.9)] ?? 0);
+    worst = Math.max(worst, gaps.length ? percentileSorted(gaps, 0.9) : 0); // #740
   }
   return worst > 0 ? Math.ceil((worst * 1.1) / 5) * 5 : null;
 }

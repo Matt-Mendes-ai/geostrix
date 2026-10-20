@@ -471,7 +471,7 @@ import { ternaryValues } from "../src/lib/raster.js";
 import { suggestThinSpacing, thinStationIndices } from "../src/lib/inversion.js";
 test("#375 ternary channels stretch independently and sample across different grids; thinning suggestion fits the cap", () => {
   const g = (vals, nx, dx = 10, x0 = 0) => ({ nx, ny: 1, x0, yTop: 0, dx, dy: dx, values: f32ToB64(Float32Array.from(vals)) });
-  const K = g([0, 1, 2, 3, NaN], 5), Th = g([100, 300], 2, 20, 0), U = g([5, 5, 5, 5, 9], 5);
+  const K = g([0, 1, 2, 3, NaN], 5), Th = g([100, 300], 2, 20, 0), U = g([5, 5, 5, 5, 5], 5); // #740: flat (with [.., 9] the shared 2-98 % rule now reaches the 9)
   const t = ternaryValues(K, Th, U);
   assert.equal(t.covered, 4);                        // K node 4 is no-data
   assert.deepEqual(Array.from(t.rgba.slice(0, 4)), [0, 0, 128, 255]); // lowest K and eTh (x=0 -> 100); eU flat across its 2-98% range -> mid-level
@@ -702,4 +702,16 @@ test("#600 real ARIS logging exports are recognised and mapped (headers from BC 
   assert.equal(looksLikeAssay(H("SAMPLEID|HOLEID|SAMPFROM|SAMPTO|Ag_XRF_ppm|Cu_XRF_ppm|Fe_XRF_pct|Zn_XRF_ppm")), true);
   assert.equal(looksLikeAssay(H("Hole number|From|To|Ag status|Ag certificate|Au laboratory|Cu method|Zn date")), false);
   assert.equal(looksLikeAssay(H("HOLEID|GEOLFROM|GEOLTO|Alt_Assemblage|AltMin_AB_Int_D|AltMin_CA_Int_D|AltMin_KF_Int_D")), false);
+});
+
+// TASKS.csv #740 — one percentile rule (makeStretch's, #708): nearest position p*(n-1); non-finite values ignored
+test("#740 percentile / percentileSorted", async () => {
+  const { percentile, percentileSorted } = await import("../src/lib/arrayStats.js");
+  const s = [0, 10, 20, 30, 40];
+  assert.deepEqual([0, 0.25, 0.5, 0.9, 1].map((p) => percentileSorted(s, p)), [0, 10, 20, 40, 40]);
+  assert.equal(percentile([30, NaN, 10, 0, 40, 20, Infinity], 0.5), 20);
+  assert.ok(Number.isNaN(percentileSorted([], 0.5)));
+  const { makeStretch } = await import("../src/lib/idw.js");
+  const st = makeStretch(Array.from({ length: 101 }, (_, i) => i));
+  assert.deepEqual([st.lo, st.hi], [2, 98]);
 });

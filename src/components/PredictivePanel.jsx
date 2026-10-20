@@ -7,6 +7,7 @@ import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
 import { checkBlocks, blockPoints, blockCells } from "../lib/geomlClip.js"; // TASKS.csv #741
 import { errorNotice } from "../lib/notices.js"; // TASKS.csv #739
+import { percentileSorted } from "../lib/arrayStats.js"; // TASKS.csv #740
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -153,7 +154,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       const spread = b.p10 && b.p90 ? blockCells(b, keep, (i) => b.p90[i] - b.p10[i]) : [];
       if (!cells.length) throw new Error(`no block is both below the ground and within ${range} m of a sample.`);
       const vals = cells.map((c) => c.value).sort((p, q) => p - q); // the top quarter of the blocks kept
-      const min = vals[0], max = vals[vals.length - 1], p75 = vals[Math.floor(vals.length * 0.75)];
+      const min = vals[0], max = vals[vals.length - 1], p75 = percentileSorted(vals, 0.75); // #740
       // TASKS.csv #677 — a geoML grade model is a grade estimate by another engine: its parameters, unit and the
       // "not a resource" statement go with it (exporters treat source "geoml" like estimate-*). #678 — the number of
       // simulations behind P10 / P90 is stated (20 draws gave P10 a 47 % relative error at a grade CV of 131 %).

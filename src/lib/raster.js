@@ -18,8 +18,9 @@
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
-import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); #740 percentileSorted
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
@@ -77,9 +78,7 @@ export function makeValueGrid(values, nx, ny, x0, yTop, dx, dy, isNoData) {
 // ramp was described here as "perceptually reasonable" but measured L* 15 up to 81 and back down to 57, so
 // the highest values were DARKER than mid values. Now viridis (monotonic lightness), the same default as
 // the 3D point/voxel colouring (layers.js magColorRGB).
-const RAMP = [
-  [68, 1, 84], [65, 68, 135], [42, 120, 142], [34, 168, 132], [122, 209, 81], [253, 231, 37],
-];
+const RAMP = VIRIDIS_ANCHORS; // TASKS.csv #740 — one table (it was typed twice; #382 had to edit both)
 function rampColor(t) {
   const n = RAMP.length - 1;
   const seg = Math.min(n - 1, Math.max(0, Math.floor(t * n)));
@@ -841,7 +840,7 @@ export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevati
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
   if (!finite.length) throw new Error("The filter produced no values.");
   finite.sort((a, b) => a - b);
-  const lo = finite[Math.floor(0.02 * (finite.length - 1))], hi = finite[Math.floor(0.98 * (finite.length - 1))];
+  const lo = percentileSorted(finite, 0.02), hi = percentileSorted(finite, 0.98); // #740 — makeStretch's rule (was floor)
   const canvas = document.createElement("canvas");
   canvas.width = nx; canvas.height = ny;
   const ctx = canvas.getContext("2d");
@@ -881,7 +880,7 @@ export function ternaryValues(kG, thG, uG) {
   const stretch = (a) => {
     const f = Array.from(a).filter(Number.isFinite).sort((p, q) => p - q);
     if (!f.length) return null;
-    const lo = f[Math.floor(0.02 * (f.length - 1))], hi = f[Math.floor(0.98 * (f.length - 1))];
+    const lo = percentileSorted(f, 0.02), hi = percentileSorted(f, 0.98); // #740
     return { lo, hi, t: (v) => (hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5) };
   };
   const s = ch.map(stretch);

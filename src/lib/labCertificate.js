@@ -19,6 +19,7 @@
 // until the user accepts or edits it (Matt, 2026-10-06). Pure; tested in test/labCertificate.test.mjs.
 import Papa from "papaparse";
 import { parseAssayValue, isElementColumn } from "./geochem.js";
+import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 
 export function isLabCertificateText(text) {
   const head = String(text || "").slice(0, 20000);
@@ -149,7 +150,7 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
   // per-element sorted drill values (percentile ranks) and a floor (5th percentile of positive values)
   const sorted = {}, floor = {};
   for (const d of drill) for (const s in d.v) (sorted[s] ||= []).push(d.v[s]);
-  for (const s in sorted) { sorted[s].sort((a, b) => a - b); const pos = sorted[s].filter((x) => x > 0); floor[s] = pos.length ? pos[Math.floor(pos.length * 0.05)] : 1e-6; }
+  for (const s in sorted) { sorted[s].sort((a, b) => a - b); const pos = sorted[s].filter((x) => x > 0); floor[s] = pos.length ? percentileSorted(pos, 0.05) : 1e-6; } // #740
   const rank = (s, x) => { const a = sorted[s]; if (!a?.length) return null; let lo = 0, hi = a.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] < x) lo = mid + 1; else hi = mid; } return lo / a.length; };
   const out = new Map();
   // 1. blanks

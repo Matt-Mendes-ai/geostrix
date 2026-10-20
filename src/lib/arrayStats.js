@@ -22,3 +22,18 @@ export function arrMax(arr) {
   }
   return m;
 }
+
+// TASKS.csv #740 — one percentile. There were eight copies with three index rules (floor(p*n), floor(p*(n-1)),
+// round(p*(n-1))), so a filtered raster stretched differently from an imported one. This is makeStretch's rule (#708):
+// the value nearest position p*(n-1) of the sorted list, p in 0..1. percentile() sorts a copy of the finite values.
+// (The length-weighted quantiles in geochem.js / GradeStatistics are a different statistic and stay separate.)
+export function percentileSorted(sorted, p) {
+  const n = sorted.length;
+  if (!n) return NaN;
+  return sorted[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))];
+}
+export function percentile(values, p) {
+  const s = [];
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) s.push(+values[i]);
+  return percentileSorted(s.sort((a, b) => a - b), p);
+}

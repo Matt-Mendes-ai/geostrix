@@ -9,6 +9,7 @@
 // numerical instability RBF can hit with clustered points, "good enough" quality for a quick-look grid
 // of geophysics/geochem point data, which is exactly what this is for.
 import { magColorRGB } from "./layers.js";
+import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid kept on the raster
 
 // Grids `points` ({x,y,value}[]) onto a regular raster using inverse-distance weighting. `power`
@@ -117,7 +118,7 @@ export function makeStretch(values, mode = "p2-98") {
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) v.push(values[i]);
   if (!v.length) return { t: () => 0, lo: null, hi: null, mode };
   v.sort((a, b) => a - b);
-  const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
+  const q = (p) => percentileSorted(v, p); // #740 — the shared rule
   if (mode === "equalise") {
     return { mode, lo: v[0], hi: v[v.length - 1], t: (x) => {
       let a = 0, b = v.length - 1;

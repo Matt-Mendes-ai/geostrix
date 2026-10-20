@@ -197,7 +197,7 @@ export function rqdColor(pct) {
 // at all for "high" vs "low", and it is hard for red-green colour-blind users. Viridis rises
 // monotonically in lightness (dark purple = low, yellow = high). A 256-entry table is built once because
 // this runs per voxel cell / per grid node.
-const VIRIDIS_ANCHORS = [[68, 1, 84], [65, 68, 135], [42, 120, 142], [34, 168, 132], [122, 209, 81], [253, 231, 37]];
+export const VIRIDIS_ANCHORS = [[68, 1, 84], [65, 68, 135], [42, 120, 142], [34, 168, 132], [122, 209, 81], [253, 231, 37]];
 const DEFAULT_LUT = (() => {
   const out = new Array(256);
   for (let i = 0; i < 256; i++) {

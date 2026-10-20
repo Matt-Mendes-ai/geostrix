@@ -4,6 +4,7 @@
 // normal import queue like the Harry sample's. Each part is independent: one failing doesn't stop the others.
 import Papa from "papaparse";
 import { inferUnit, mergeAssayRows, convertUnit } from "./geochem.js";
+import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { omfToProjectObjects } from "./omfImport.js";
 import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
@@ -89,7 +90,7 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
     // (or the block model's display range) brings the rest back.
     res.voxelModels.forEach((v) => {
       const vals = v.cells.map((c) => c.value).filter(Number.isFinite).sort((a, b) => a - b);
-      const p85 = vals.length ? vals[Math.floor(vals.length * 0.85)] : v.min;
+      const p85 = vals.length ? percentileSorted(vals, 0.85) : v.min; // #740
       store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: p85, opacity: 0.55 });
     });
     notes.push(`Woodjam ZTEM: ${res.voxelModels.length} block model(s) from the 2023 3D inversion${res.notes.length ? ` (${res.notes.join(" ")})` : ""} — listed under Geophysics in the 3D View, showing its most conductive 15% (set the display range in the Geophysics tab to see the rest).`);
