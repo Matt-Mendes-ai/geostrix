@@ -206,6 +206,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             {blanks > 0 && (
               <div>
                 <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{blanks.toLocaleString()} empty element cell(s) in rows that have other results. What does an empty cell mean in this file?</div>
+                {modal.blankNote && <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>{modal.blankNote}</div>}{/* TASKS.csv #716 */}
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="blankmode" checked={(modal.blankMode || "missing") === "missing"} onChange={() => onChange({ ...modal, blankMode: "missing" })} />
                   Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres

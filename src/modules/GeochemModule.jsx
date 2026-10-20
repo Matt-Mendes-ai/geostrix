@@ -136,7 +136,9 @@ export default function GeochemModule() {
     setSampleLoading(true);
     try {
       const [file] = await loadSampleFiles("harry_property", ["assay_wide.csv"]);
-      handleFile(file, false);
+      // TASKS.csv #716 — this sample's README: below-detection results were left blank in the extraction, so an empty
+      // element cell here means "below detection", not "not assayed" (the dialog still lets the user choose)
+      handleFile(file, false, { blankMode: "bdl", blankNote: "This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected." });
     } catch (err) {
       setNotices((p) => [...p, errorNotice(`Couldn't load the sample assays: ${err.message}`)]);
     } finally {
@@ -145,7 +147,7 @@ export default function GeochemModule() {
   };
   // TASKS.csv #605 — an .xlsx gives its sheet with the most element columns (an MX "Assay Samples" sheet)
   const elementScore = (headers) => headers.filter((h) => isElementColumn(h)).length;
-  const handleFile = (file, isPxrf) => {
+  const handleFile = (file, isPxrf, preset = null) => { // preset: #716 — dialog defaults for a known file
     parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
@@ -160,14 +162,14 @@ export default function GeochemModule() {
         const pv = detectLongAssay(headers) ? pivotLongAssays(data, headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
         if (pv && pv.rows.length) {
           setNotices((p) => [...p, `${file.name}: ${longAssayNote(pv.report)}`]);
-          openAssayModal(file, pv.headers, pv.rows, isPxrf);
+          openAssayModal(file, pv.headers, pv.rows, isPxrf, preset);
           return;
         }
-        openAssayModal(file, headers, data, isPxrf);
+        openAssayModal(file, headers, data, isPxrf, preset);
     });
   };
 
-  const openAssayModal = (file, headers, data, isPxrf) => {
+  const openAssayModal = (file, headers, data, isPxrf, preset = null) => {
     // TASKS.csv #600 (40958Z) — the shared column matcher: "To (m)" / "Hole ID" style headers, and no bare
     // substring match on a short alias ("to" inside any header that contains those two letters)
     const guess = (aliases) => guessColumn(headers, aliases);
@@ -184,7 +186,7 @@ export default function GeochemModule() {
       const methods = methodCol ? Array.from(new Set(data.map((r) => r[methodCol]).filter(Boolean))) : [];
       const analytes = Array.from(new Set(data.map((r) => r[analyteCol]).filter(Boolean)));
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, methods, selectedMethod: methods[0] || null, elements });
+      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, methods, selectedMethod: methods[0] || null, elements, ...preset });
     } else {
       // TASKS.csv #210 — a single lab export can carry more than one column for the same element
       // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
@@ -198,7 +200,7 @@ export default function GeochemModule() {
       // TASKS.csv #600 / #542 — the most complete column per element, an over-limit (ore-grade) column when one
       // exists, descriptive / error columns skipped, implausible default-% units corrected (pickElementColumns).
       const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements });
+      setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements, ...preset });
     }
   };
 

@@ -32,5 +32,12 @@ UTM zone 10 and is reprojected by GeoStrix when the lines are placed.
 | `ip/*.dat`, `ip/2357GPS_All.txt` | E — IP Survey 2023, *DataFiles* | Six pole-dipole TDIP lines (109N, 112N, 115N, 118N, 6200E, 6400E; Scott Geophysics) and the GPS station list used to place them |
 | `ztem_inversion_2023.omf` | C — ZTEM Survey Data, *2023 ZTEM Inversion / 20230814 / Woodjam_ZTEM_mesh.omf* | The 2023 3D ZTEM inversion as delivered: two iterations (m_03_01, m_05_03); the sample shows **m_05_03, the final model** |
 
+**Below-detection gold.** The source database has no "<" values: 638 of the 3,791 Au results (17 %) are exactly
+0.0005 g/t, half the ALS 0.001 g/t lower limit. These are almost certainly below-detection results that the company's
+database stored as half the limit, but the file does not say so, and `assays.csv` keeps the values as delivered. GeoStrix
+stores a "<0.001" result at half the limit too, so grades and statistics come out the same; what is missing is only the
+"<" flag, so these rows count as measured results: below-detection rules (the qualifier, "a < sample never starts an
+intercept", QA/QC below-detection counts) do not apply to them.
+
 Not included: the quick log, structure *interval* log and the ZTEM `.mod` / `.csv` / `.geoh5` exports (the OMF holds the
 same model).
