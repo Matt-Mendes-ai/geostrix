@@ -1404,6 +1404,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // a user actually moves this slider. GemPy cost scales with grid cells, so lower = faster/coarser,
   // higher = slower/finer — 64 matches the sidecar's own documented cap (python-sidecar/app/main.py).
   const [modelResolution, setModelResolution] = useState(36);
+  const [surfaceDetail, setSurfaceDetail] = useState(4); // TASKS.csv #766 — GemPy's octree level for the surface mesh
   // TASKS.csv #361 — which structure-pick codes count as CONTACT orientations for the litho/alteration
   // tools. Only exact 'CON' used to be preferred, and with none present EVERY pick type (faults, veins,
   // joints, foliation) was used silently; real codes like 'Contact' or 'BED' never matched. null = the
@@ -3584,6 +3585,7 @@ ${describeTrend(t)}` };
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
     smoothClusters, // TASKS.csv #761
+    surfaceDetail, // TASKS.csv #766
     addVoxelModel, // TASKS.csv #757
     resolveLithoTarget,
     sceneToApi,
@@ -7564,12 +7566,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
           <span>Resolution</span>
-          <InfoButton title="Resolution" width={280} text={`Grid cells per axis for every modelling run below. Lower is faster; higher is slower but finer-detailed. A real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.`} />
+          <InfoButton title="Resolution" width={300} text={`Cells per axis of the model's lithology block: the grid the model check against the logs falls back to, the unit volumes, "Add as block model" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.`} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
         </div>
+
+        {/* TASKS.csv #766 — GemPy's octree level for the surface mesh (dual contouring), fixed at 4 before */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Surface detail</span>
+          <InfoButton title="Surface detail" width={300} text={"How finely the model surfaces are triangulated. Finer follows tight folds and fault steps more closely and gives smoother sections through the surfaces; it does not move the surface (measured: the same mean distance to the true surface at every level), and it does not change the block, the model check or the volumes. Measured on the Harry sample (two-unit stack): Standard 34 s; Fine 4x the triangles in 77 s (2.2x); Very fine 16x the triangles in 248 s (7x). Try Fine on the final run, not while iterating."} />
+        </div>
+        <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label="Surface detail">
+          <option value={4}>Standard (fastest)</option>
+          <option value={5}>Fine — 4x the triangles, ~2x the time</option>
+          <option value={6}>Very fine — 16x the triangles, ~7x the time</option>
+        </select>
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
             tight or smooth a fitted surface is. It was never set and never reported, so the same job

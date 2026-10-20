@@ -522,6 +522,11 @@ class ImplicitModelRequest(BaseModel):
     # these instead of the block cell the point falls in (measured: the 36^3 block put 1.3 % of 2 m drillhole samples in
     # the wrong unit on a 1 km box; cells are 50-110 m on real extents). ~3 s extra per 5,000 points.
     evaluate_at: List[List[float]] | None = Field(default=None, max_length=200_000)
+    # TASKS.csv #766 — how finely the surfaces are triangulated: GemPy's octree level for dual contouring (4 = GemPy's
+    # floor, what every run used). MEASURED (1 km box): 4 = 14.0 s, 348 vertices; 5 = 30.6 s, 1,392; 6 = 102 s, 5,575 -
+    # the surface's placement does not change (mean |dz| 1.58 / 1.57 / 1.57 m), only how finely it follows tight folds
+    # and fault steps. The block (model check, volumes) is set by `resolution`, not by this.
+    surface_detail: int = Field(default=4, ge=4, le=6)
 
 
 class MeshOut(BaseModel):
@@ -546,6 +551,7 @@ class ImplicitModelResponse(BaseModel):
     # TASKS.csv #655 — GemPy's per-axis input scale relative to its smallest (1, 1, 1 = isotropic, as it must be)
     input_scale_ratios: List[float] | None = None
     precision: str | None = None  # TASKS.csv #767 — the engine precision actually used
+    surface_detail: int | None = None  # TASKS.csv #766 — the surface octree level actually used
     # TASKS.csv #756 — unit id at each evaluate_at point, numbered like block["ids"] (id 1 = above every modelled top)
     evaluated: List[int] | None = None
 
@@ -713,6 +719,12 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
             kernel.range = range_default * req.range_multiplier
         range_used = float(kernel.range)
         c_o = float(kernel.c_o)
+        if req.surface_detail != 4:  # #766 — the getter caps this at number_octree_levels, so raise that too if needed
+            ev = model.interpolation_options.evaluation_options
+            if ev.number_octree_levels < req.surface_detail:
+                ev.number_octree_levels = req.surface_detail
+            ev.number_octree_levels_surface = req.surface_detail
+        surface_level_used = int(model.interpolation_options.evaluation_options.number_octree_levels_surface)
         sol = gp.compute_model(model, engine_config=gp.data.GemPyEngineConfig(backend=gp.data.AvailableBackends.numpy, dtype=req.precision))  # #767
     except Exception as err:  # GemPy raises a variety of exception types depending on what's ill-posed
         raise HTTPException(status_code=400, detail=f"GemPy could not solve this model: {err}")
@@ -751,4 +763,4 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     if req.evaluate_at:  # #756 — same id shift as the block (fault elements take the first ids)
         evaluated = (np.rint(np.asarray(sol.raw_arrays.custom)).astype(int) - len(fault_elements)).tolist()
     return ImplicitModelResponse(evaluated=evaluated, surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
-                                 input_scale_ratios=input_scale_ratios, precision=req.precision)
+                                 input_scale_ratios=input_scale_ratios, precision=req.precision, surface_detail=surface_level_used)

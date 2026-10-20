@@ -79,6 +79,7 @@ export function createModellingRuns(ctx, mcRef) {
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
     smoothClusters, // TASKS.csv #761
+    surfaceDetail, // TASKS.csv #766
     addVoxelModel, // TASKS.csv #757
     addRaster, mapLayers, rasters, removeRaster, // TASKS.csv #758
     resolveLithoTarget,
@@ -287,7 +288,7 @@ export function createModellingRuns(ctx, mcRef) {
       // model space, where block coordinates no longer match hole positions directly.
       { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
         faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })), // #360
-        ...(evalPts ? { evaluateAt: evalPts } : {}) }, // #756
+        ...(evalPts ? { evaluateAt: evalPts } : {}), surfaceDetail }, // #756; surfaceDetail: #766
     );
     clearInterval(rampTimer);
     const baseSolveSeconds = (performance.now() - solveStartedAt) / 1000;
@@ -384,6 +385,7 @@ export function createModellingRuns(ctx, mcRef) {
         tool: specs.length > 1 ? "stratigraphic stack (GemPy)" : "implicit surface (GemPy)",
         surface: spec.meshName, sourcePoints: spec.points.length, orientations: spec.orientations.length,
         relation, resolution: [modelResolution, modelResolution, modelResolution],
+        surfaceDetail: res.surfaceDetail ?? 4, // #766 — GemPy's octree level for the mesh (4 = its floor)
         gempyRange: res.rangeUsed ?? null, gempyRangeDefault: res.rangeDefault ?? null, engineDtype: res.precision ?? "float64", // engineDtype: #767 (an older engine solved in float64)
         gempyRangeMultiplier: rangeMultiplier || null, gempyCO: res.cO ?? null,
         anisotropy: anisotropy.enabled ? anisotropy.params : null,
