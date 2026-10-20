@@ -169,3 +169,44 @@ export function orientFromAlphaBeta({ alphaDeg, betaDeg, holeAzDeg, holeDipDeg, 
   if (!refLine) return { error: "hole too close to vertical for an orientation line" };
   return dipDDFromPole(poleFromAlphaBeta(alphaDeg, betaDeg, holeDir, refLine));
 }
+
+// TASKS.csv #548 — alpha/beta-derived orientations depend on the hole's survey at the pick, but were computed
+// once at import and never again: replacing a hole's survey (a gyro re-survey, a corrected azimuth reference)
+// left every pick oriented from the OLD hole direction. A pick is "derived" when it carries `abRef` ("top" /
+// "bottom", stored from now on) or an orientedFrom written by the importer ("alpha/beta, top-of-hole line");
+// picks with their own logged dip / dip direction, or calibrated by the core-orientation calculator, are not
+// touched. A pick that could NOT be oriented at import (its survey or collar came later) carries `abRef` and no
+// dip, and is oriented here once its hole's direction is known — the import order no longer matters. `holeIds` limits the work to holes whose survey / collar changed (null = all).
+// Returns { rows, changed (newly oriented included), newlyOriented, failed: ["DDH-1@123.4 (reason)"], maxChangeDeg, derived } — rows unchanged when nothing moved.
+const AB_FROM = /^alpha\/beta, (top|bottom)-of-hole line$/;
+export function alphaBetaRef(r) {
+  if (r.abRef === "top" || r.abRef === "bottom") return r.abRef;
+  const m = AB_FROM.exec(String(r.orientedFrom || ""));
+  return m ? m[1] : null;
+}
+function poleOf(dip, dipDir) {
+  const d = (dip * Math.PI) / 180, a = (dipDir * Math.PI) / 180;
+  return [Math.sin(d) * Math.sin(a), Math.sin(d) * Math.cos(a), Math.cos(d)];
+}
+export function reorientAlphaBetaPicks(structure, collarAt, surveyByHole, holeIds = null, attitudeAt) {
+  let changed = 0, derived = 0, maxChangeDeg = 0, newlyOriented = 0;
+  const failed = [];
+  const rows = (structure || []).map((r) => {
+    const ref = alphaBetaRef(r);
+    if (!ref || (holeIds && !holeIds.has(r.hole_id)) || !Number.isFinite(r.alpha) || !Number.isFinite(r.beta)) return r;
+    derived++;
+    const collar = collarAt(r.hole_id);
+    const att = collar ? attitudeAt(collar, surveyByHole.get(r.hole_id) || [], r.depth) : null;
+    const o = att ? orientFromAlphaBeta({ alphaDeg: r.alpha, betaDeg: r.beta, holeAzDeg: att.azimuth, holeDipDeg: att.dip, useTop: ref === "top" }) : { error: "no collar/survey for this hole" };
+    if (o.error) { failed.push(`${r.hole_id}@${r.depth} (${o.error})`); return r; }
+    if (Number.isFinite(r.dip) && Number.isFinite(r.azimuth)) {
+      const p = poleOf(r.dip, r.azimuth), q = poleOf(o.dipDeg, o.dipDirDeg);
+      const ang = (Math.acos(Math.min(1, Math.abs(p[0] * q[0] + p[1] * q[1] + p[2] * q[2]))) * 180) / Math.PI;
+      if (ang < 0.05) return r.abRef ? r : { ...r, abRef: ref };
+      if (ang > maxChangeDeg) maxChangeDeg = ang;
+    } else newlyOriented++;
+    changed++;
+    return { ...r, dip: o.dipDeg, azimuth: o.dipDirDeg, abRef: ref, orientedFrom: `alpha/beta, ${ref}-of-hole line` };
+  });
+  return { rows: changed ? rows : structure, changed, newlyOriented, failed, maxChangeDeg, derived };
+}

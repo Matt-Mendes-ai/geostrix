@@ -17,6 +17,13 @@ name: Release
 # whole job had contents: write and checkout left the token readable, so a compromised dependency could
 # push commits/tags or swap release assets — and latest.yml is the updater's only integrity check while
 # the installer is unsigned (#36).
+#
+# TASKS.csv #777 — releases are signed with a Certum certificate whose key lives in SimplySign (Certum's
+# cloud, unlocked by the maintainer's phone), so this runner cannot sign. `build` builds and tests here and
+# also uploads the unpacked app ("unpacked-app"); the maintainer then runs scripts/sign-release.ps1, which
+# signs GeoStrix.exe and the Python engine, packages and signs the installer from that same app, and
+# publishes. `publish` (unsigned) now runs only if the repository variable PUBLISH_UNSIGNED is 'true' — a
+# fallback for when signing is unavailable, never the default.
 on:
   push:
     tags: ["v*"]
@@ -33,8 +40,6 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-    env:
-      HAS_SIGNING_CERT: ${{ secrets.WIN_CSC_LINK != '' }} # TASKS.csv #456
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -76,6 +81,8 @@ jobs:
           venv\Scripts\python.exe tests/test_implicit_faults.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
           venv\Scripts\python.exe tests/test_implicit_dedupe.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          venv\Scripts\python.exe tests/test_implicit_transform.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
           venv\Scripts\python.exe tests/test_dcip2d.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -120,33 +127,10 @@ jobs:
         # matching files, and the shipped app's index.html was simply missing — a genuinely blank
         # window forever, not a slow load. Caught via a real install (not just a build success check).
         run: npm run build:web
-      # TASKS.csv #456 — code signing is the one thing that reliably stops antivirus/SmartScreen false
-      # positives. It needs a certificate that only the project owner can obtain (see docs/antivirus.md).
-      # When the repository secrets WIN_CSC_LINK (base64 .pfx) and WIN_CSC_KEY_PASSWORD exist, the Python
-      # engine's executables are signed here and electron-builder signs GeoStrix.exe, the installer and the
-      # uninstaller; without them the build is unchanged (unsigned).
-      - name: Sign the Python engine (when a certificate is configured)
-        if: env.HAS_SIGNING_CERT == 'true'
-        env:
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: |
-          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CSC_LINK))
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
-          Get-ChildItem python-sidecar\dist\geostrix-sidecar -Recurse -Include *.exe | ForEach-Object {
-            & $signtool.FullName sign /f $pfx /p $env:WIN_CSC_KEY_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName
-            if ($LASTEXITCODE -ne 0) { throw "signtool failed on $($_.FullName)" }
-          }
-          Remove-Item $pfx
-
       - name: "Build the installer (not published from here: #472)"
         # electron-builder still writes latest.yml with --publish never (updateInfoBuilder runs whether
         # or not it uploads). No GH_TOKEN in this job.
         run: npx electron-builder --publish never --win
-        env:
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
       - name: Collect the release files and their SHA-256 checksums
         # The asset names electron-builder used when it uploaded itself: spaces become dashes, which is
@@ -171,11 +155,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # TASKS.csv #777 — the app exactly as packaged here, for scripts/sign-release.ps1 to sign and wrap into
+      # the signed installer on the maintainer's PC.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unpacked-app
+          path: release/win-unpacked/
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     # #472 — the only job with write access. No checkout, no npm/pip: nothing here runs third-party code
     # except the GitHub CLI preinstalled on the runner.
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && vars.PUBLISH_UNSIGNED == 'true' # #777 — signed releases are published by scripts/sign-release.ps1
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -202,15 +195,16 @@ jobs:
         #
         # Creating the release up front removes the race entirely: both publishers then find an
         # existing release and just upload into it. Idempotent so a re-run of the same tag is safe.
-        # Notes are left empty deliberately — they're filled in after the fact; --verify-tag makes this
-        # fail loudly rather than inventing a tag if the ref is somehow wrong.
+        # Notes carry the standing links (TASKS.csv #629: SignPath asks for "Code signing policy" on the download /
+        # release pages); the changes are added after the fact. --verify-tag makes this fail loudly rather than
+        # inventing a tag if the ref is somehow wrong.
         run: |
           # Actions runs pwsh with $ErrorActionPreference='stop'; a `gh` probe that legitimately fails
           # (release not created yet) writes to stderr, so relax it here and branch on the exit code.
           $ErrorActionPreference = 'Continue'
           gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" 2>&1 | Out-Null
           if ($LASTEXITCODE -ne 0) {
-            gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --notes "" --verify-tag
+            gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "${{ github.ref_name }}" --notes "Download **GeoStrix-Setup-*.exe** below (Windows 10 / 11, 64-bit), or the portable **GeoStrix-*-win.zip**. Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/${{ github.repository }}/blob/master/CODE_SIGNING.md) · [Privacy policy](https://geostrix.com/privacy) · [geostrix.com](https://geostrix.com)" --verify-tag
           } else {
             Write-Host "Release ${{ github.ref_name }} already exists - uploading into it."
           }

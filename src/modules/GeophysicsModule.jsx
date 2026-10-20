@@ -21,17 +21,20 @@ import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
 import { blockModelRows, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #404/#411
+import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
-import { parseOMF, omfVolumeToCells } from "../lib/omf.js";
+import { omfToProjectObjects } from "../lib/omfImport.js"; // TASKS.csv #637
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
-import { parseDXF, dxfToBoundaries } from "../lib/dxf.js";
+import { gemHeaderInfo } from "../lib/diurnal.js";
+import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
+import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
-import { idwGridToRasterInput } from "../lib/idw.js";
+import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
 import { hillshadeToRasterInput } from "../lib/hillshade.js";
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
@@ -46,6 +49,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -76,8 +80,11 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
 // TASKS.csv #484 — which column is which is decided per file by src/lib/geophysColumns.js (words in the
 // headers, e.g. Easting_X / Raw_Mag_nT), with the column picker as the fallback.
 
-export default function GeophysicsModule() {
-  const [geoPane, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
+// TASKS.csv #749 — embedded: shown inside the Maps tab for one of its map panes (terrain, map layers, web layers,
+// boundaries, claims): no ribbon of its own (the Maps tab's ribbon picks the pane) and no main area.
+export default function GeophysicsModule({ embedded = false, forcePane = null } = {}) {
+  const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
+  const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const {
     layers, replaceLayer, goToModule, collars, rasters, addRaster, project,
@@ -91,6 +98,7 @@ export default function GeophysicsModule() {
     boundaries, addBoundary, updateBoundary, removeBoundary,
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     projectIsEmpty, setEpsg, // TASKS.csv #607
+    addMapLayer, // TASKS.csv #544 — WFS polygons/lines with their attributes
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
@@ -145,6 +153,8 @@ export default function GeophysicsModule() {
   const [idwCellSize, setIdwCellSize] = useState(25);
   const [idwPower, setIdwPower] = useState(2);
   const [idwStretch, setIdwStretch] = useState("p2-98"); // TASKS.csv #372
+  const [idwSurvey, setIdwSurvey] = useState(""); // TASKS.csv #538 — one survey at a time ("" = the only / first one)
+  const [idwBlank, setIdwBlank] = useState(""); // #538 — blanking distance (m); "" = the suggested default
   const [hillshadeOpen, setHillshadeOpen] = useState(false); // TASKS.csv #237 — terrain hillshade
   // TASKS.csv #237 sub-item (2) — terrain contours. 50 m default interval: a sensible starting point
   // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
@@ -174,6 +184,11 @@ export default function GeophysicsModule() {
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #538 — gridding used EVERY imported survey at once (a mag survey in nT blended with a gravity or
+  // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
+  const idwKey = surveyList.some((s) => s.key === idwSurvey) ? idwSurvey : surveyList[0]?.key || "";
+  const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
+  const idwSuggest = useMemo(() => (idwRows.length ? suggestBlankingDistance(idwRows) : null), [idwRows]);
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -443,9 +458,10 @@ export default function GeophysicsModule() {
           ? ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain (in ${better.name} they would sit within ${Math.round(better.medianDz)} m) — kept as you chose.`
           : ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).`;
       }
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
+      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = `Fetched and imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh covering ${(txmax - txmin).toFixed(0)}×${(tymax - tymin).toFixed(0)} world units for the area you drew.`;
+      if (parsed.source) msg += ` Source: ${parsed.source.service}, zoom ${parsed.source.zoom} (its own pixels ~${Math.round(parsed.source.sourcePixelM)} m), resampled to nodes ~${Math.round(parsed.source.nodeM)} m apart — features smaller than that are smoothed out.`; // #726
       if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
       else if (parsed.reprojectNote) msg += ` Note: ${parsed.reprojectNote}`;
       if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to download — check your connection.`;
@@ -508,13 +524,16 @@ export default function GeophysicsModule() {
     if (!files.length) return;
     setBoundaryError(null);
     let imported = 0;
-    const failed = [];
+    const failed = [], dxfNotes = []; // dxfNotes: #550
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
         if (!shapePolylines && /\.dxf$/i.test(file.name)) {
           // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
-          dxfToBoundaries(await file.text(), file.name).forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          const specs = dxfToBoundaries(await file.text(), file.name);
+          specs.forEach((sp) => { addBoundary({ ...sp, elevation: defaultElevation }); imported++; });
+          const sk = dxfSkippedText(specs[0]?.dxfSkipped); // #550 — say what was left out
+          if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
         }
         let polylines;
@@ -531,6 +550,7 @@ export default function GeophysicsModule() {
       }
     }
     let msg = imported ? `Imported ${imported} boundary file(s) (${boundaries.length + imported} total).` : "";
+    if (dxfNotes.length) msg += ` ${dxfNotes.join(" ")}.`; // #550
     if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
@@ -588,53 +608,13 @@ export default function GeophysicsModule() {
     setOmfBusy(true);
     try {
       const buf = await file.arrayBuffer();
-      const project = await parseOMF(buf);
-      let pointsCount = 0, linesCount = 0, surfacesCount = 0, volumesCount = 0;
-      const skipped = [];
-      const coarsenNotes = [];
-      for (const el of project.elements) {
-        if (el.kind === "skipped") { skipped.push(`${el.name} (${el.reason})`); continue; }
-        if (el.kind === "points" || el.kind === "lines" || el.kind === "surface") {
-          const hex = el.color ? `#${el.color.slice(0, 3).map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("")}` : undefined;
-          addOmfObject({
-            name: el.name, description: el.description, kind: el.kind,
-            color: hex,
-            origin: el.origin, vertices: el.vertices, segments: el.segments, triangles: el.triangles,
-            attributes: el.attributes,
-          });
-          if (el.kind === "points") pointsCount++; else if (el.kind === "lines") linesCount++; else surfacesCount++;
-        } else if (el.kind === "volume") {
-          // #159 follow-up (real Geosoft export, "resistivity.omf": 126x246x102 = 3,161,592 cells —
-          // over 12x MAX_CELLS): omfVolumeToCells now coarsens internally, same block-averaging
-          // approach as the UBC importer's #158 fix, so this can never hang/crash the 3D view on a
-          // large real-world block model the way it did before this fix.
-          const { cells, attrName, availableAttrs, coarsenNote, colormap, air } = omfVolumeToCells(el, null, effectiveMaxCells);
-          if (!cells.length) {
-            skipped.push(`${el.name} (volume has no numeric cell attribute to render${availableAttrs?.length ? ` — found: ${availableAttrs.join(", ")}, none usable` : ""})`);
-            continue;
-          }
-          const { min, max } = cellValueRange(cells);
-          // User request: "Can we also import the colour legend" — turn the OMF file's own
-          // ScalarColormap gradient (see omf.js's convertColormap) into this app's {value,color} stops,
-          // spread evenly across the colormap's own limits (falling back to this cell set's actual
-          // min/max if the file didn't record limits). Continuous mode matches how OMF itself renders
-          // a gradient legend. If the file had no embedded colormap, leave stops unset — the model
-          // keeps using the original 2-color magColor gradient, unchanged from before this feature.
-          let colorInit = {};
-          if (colormap?.gradient?.length) {
-            const g = colormap.gradient;
-            const [lo, hi] = Array.isArray(colormap.limits) && colormap.limits.length === 2 ? colormap.limits : [min, max];
-            const stops = g.map((color, i) => ({ value: lo + (g.length > 1 ? (i / (g.length - 1)) * (hi - lo) : 0), color }));
-            colorInit = { colorMode: "continuous", stops };
-          } else if (min > 0 && max / min >= 100) {
-            colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
-          }
-          if (air?.count) coarsenNotes.push(`${el.name}: ${air.count.toLocaleString()} cells at ${Number(air.value).toPrecision(3)} (the tiny value this model uses for air above the ground) treated as air (no data).`);
-          addVoxelModel({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit });
-          volumesCount++;
-          if (coarsenNote) coarsenNotes.push(`${el.name}: ${coarsenNote}`);
-        }
-      }
+      // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
+      const res = await omfToProjectObjects(buf, effectiveMaxCells);
+      const pointsCount = res.omfObjects.filter((o) => o.kind === "points").length, linesCount = res.omfObjects.filter((o) => o.kind === "lines").length;
+      const surfacesCount = res.omfObjects.filter((o) => o.kind === "surface").length, volumesCount = res.voxelModels.length;
+      res.omfObjects.forEach((o) => addOmfObject(o));
+      res.voxelModels.forEach((m) => addVoxelModel(m));
+      const skipped = res.skipped, coarsenNotes = res.notes;
       const parts = [];
       if (pointsCount) parts.push(`${pointsCount} point set(s)`);
       if (linesCount) parts.push(`${linesCount} line set(s)`);
@@ -675,6 +655,7 @@ export default function GeophysicsModule() {
         yCol: guessColumn(columns, XY_NAME_HINTS.y),
         zCol: g.z,
         valueCol: g.value,
+        header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
       });
     } catch (err) {
       setXyzError({ info: false, text: `Could not parse ${file.name}: ${err.message}` });
@@ -701,6 +682,10 @@ export default function GeophysicsModule() {
         _src: fileName,
       }))
       .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value));
+    // TASKS.csv #538 (found testing) — a GPS rover logs X = Y = 0 while it has no fix (Lawyers 2021-06-19: 5 readings,
+    // 0 satellites); taken as real they sat 6,000 km from the survey and made its extent (and any grid) absurd.
+    const noFix = mapped.filter((r) => r.x === 0 && r.y === 0).length;
+    if (noFix) mapped = mapped.filter((r) => !(r.x === 0 && r.y === 0));
     if (!mapped.length) {
       setXyzError({ info: false, text: `None of the ${parsedRows.length} row(s) had usable values in the chosen columns (likely all "*"/no-data for this combination) — try different columns.` });
       return;
@@ -720,8 +705,10 @@ export default function GeophysicsModule() {
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
-    const skipped = parsedRows.length - mapped.length;
-    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}` });
+    const skipped = parsedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately
+    if (noFix) reprojectNote += ` Left out ${noFix} reading(s) at X = 0, Y = 0 (no GPS fix).`;
+    const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
+    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}${dcNote}` });
     setXyzPending(null);
     if (xyzPending.source === "csv") setError(null);
   };
@@ -847,7 +834,7 @@ export default function GeophysicsModule() {
   return (
     <div
       className="ge-body"
-      style={{ width: "100%" }}
+      style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -863,6 +850,10 @@ export default function GeophysicsModule() {
         const gxfs = files.filter((f) => /\.gxf$/i.test(f.name));
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
         const xyzs = files.filter((f) => /\.xyz$/i.test(f.name));
+        // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
+        // files used to be ignored here without a word
+        const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
+        if (advice.length) setRasterError({ info: true, text: advice.join(" ") });
         // A dropped .tif is ambiguous between a raster drape (#24) and a DEM (#77) — both are plain
         // georeferenced GeoTIFFs, nothing in the file format itself says which. Heuristic: a filename
         // that reads as elevation data goes to the dedicated terrain importer; anything else keeps the
@@ -890,25 +881,17 @@ export default function GeophysicsModule() {
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Geophysics ribbon: each button shows that tool in the sidebar */}
-        <Ribbon label="Geophysics tools">
+        <Ribbon label="Geophysics tools" show={!embedded}>
           <RibbonGroup label="Surveys">
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
-            <RibbonButton icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
-            <RibbonButton icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
+            <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
+            <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
           </RibbonGroup>
-          <RibbonGroup label="Surface & maps">
-            <RibbonButton icon={RMountain} label="Terrain" tone="data" title="Terrain: fetch SRTM or import a DEM" {...geoBtn("terrain")} />
-            <RibbonButton icon={RMapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...geoBtn("maps")} />
-            <RibbonButton icon={RGlobe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...geoBtn("web")} />
-          </RibbonGroup>
-          <RibbonGroup label="Boundaries">
-            <RibbonButton icon={RShapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...geoBtn("boundaries")} />
-            <RibbonButton icon={RFlag} label="Claims" tone="data" title="Mineral claims / tenure" {...geoBtn("claims")} />
-          </RibbonGroup>
+          {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
             <RibbonButton icon={RBox} label="Block models" tone="data" title="Voxel / block models (UBC mesh, block model CSV), colours and cutoffs" {...geoBtn("voxel")} />
-            <RibbonButton icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
-            <RibbonButton icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
+            <RibbonButton advanced icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
+            <RibbonButton advanced icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
           </RibbonGroup>
         </Ribbon>
         {/* Raster import UI itself lives in the Raster tab now — this banner only ever shows up if a
@@ -919,6 +902,15 @@ export default function GeophysicsModule() {
             {rasterError.text}
           </div>
         )}
+        {/* TASKS.csv #617 — the point-survey file input lives OUTSIDE the pane: the empty-state "Import CSV…" and
+            File > Import CSV (Ctrl+I) click it too, and did nothing whenever another pane (Terrain, Inversion…) was open */}
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
+        />
         {geoPane === "points" && (<>
         <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -937,13 +929,6 @@ export default function GeophysicsModule() {
         <button onClick={() => fileInput.current.click()} style={pBtn}>
           <Upload size={14} /> Import CSV…
         </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".csv"
-          style={{ display: "none" }}
-          onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
-        />
 
         {/* Geosoft .xyz line/profile import — its column layout isn't fixed like the CSV importer
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
@@ -1010,13 +995,14 @@ export default function GeophysicsModule() {
                 <select
                   value={xyzPending[key]}
                   onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
-                  style={{ ...numInput, width: "auto", flex: 1 }}
+                  style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                 >
                   <option value="">{key === "zCol" ? "(none — elevation not recorded)" : "(choose a column)"}</option>
                   {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             ))}
+            {xyzPending.source !== "csv" && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 <Upload size={14} /> Import
@@ -1098,6 +1084,20 @@ export default function GeophysicsModule() {
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
+                {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
+                {surveyList.length > 1 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Survey</span>
+                    <select value={idwKey} onChange={(e) => setIdwSurvey(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Survey to grid">
+                      {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
+                    </select>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title="Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.">
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Blank &gt; (m)</span>
+                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label="Blanking distance" />
+                </div>
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>Default {Math.round(idwSuggest.distance)} m: median {idwSuggest.basis} {idwSuggest.spacing.toFixed(1)} m.</div>}
                 {/* TASKS.csv #372 — colour stretch */}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalize: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Colours</span>
@@ -1109,13 +1109,19 @@ export default function GeophysicsModule() {
                 </div>
                 <button
                   onClick={() => {
-                    const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
+                    const pts = idwRows;
+                    if (!pts.length) return;
+                    const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
                     if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
-                    const raster = idwGridToRasterInput(rows, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, name: `geophys_pts_idw_${idwCellSize}m_${idwStretch}` });
-                    addRaster({ ...raster, elevation: defaultElevation });
-                    setError(null);
+                    const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
+                    const label = String(idwKey).replace(/\.[^.]+$/, "");
+                    const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
+                      name: `${label} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` });
+                    addRaster({ ...raster, elevation: defaultElevation, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
+                    const cells = raster.grid.nx * raster.grid.ny;
+                    setError({ info: true, text: `Gridded "${idwKey}" (${pts.length.toLocaleString()} points) at ${idwCellSize} m: ${raster.grid.valid.toLocaleString()} of ${cells.toLocaleString()} cells have a value${Number.isFinite(blank) ? `; cells more than ${Math.round(blank)} m from any point are left empty` : ""}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.` });
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
@@ -1184,16 +1190,6 @@ export default function GeophysicsModule() {
             areaOptions={srtmAreaOptions}
             onClose={() => setSrtmPickerOpen(false)}
             onConfirm={runSrtmFetch}
-          />
-        )}
-        {webLayerModalOpen && (
-          <AddWebLayerModal
-            onClose={() => setWebLayerModalOpen(false)}
-            addRaster={addRaster}
-            addBoundary={addBoundary}
-            projectEpsg={project?.epsg}
-            defaultBboxLonLat={webLayerDefaultBbox}
-            collarsLoaded={collars.length > 0}
           />
         )}
         <input
@@ -1356,6 +1352,18 @@ export default function GeophysicsModule() {
 
         </>)}
         {geoPane === "web" && (<>
+        {/* TASKS.csv #543 — this dialog sat inside the Terrain pane, so "Add web layer" in this pane never showed it */}
+        {webLayerModalOpen && (
+          <AddWebLayerModal
+            onClose={() => setWebLayerModalOpen(false)}
+            addRaster={addRaster}
+            addBoundary={addBoundary}
+            addMapLayer={addMapLayer}
+            projectEpsg={project?.epsg}
+            defaultBboxLonLat={webLayerDefaultBbox}
+            collarsLoaded={collars.length > 0}
+          />
+        )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Web layers (WMS / WFS)
@@ -1544,7 +1552,7 @@ export default function GeophysicsModule() {
           </div>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} />
+          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} epsg={project?.epsg} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1561,7 +1569,7 @@ export default function GeophysicsModule() {
       )}
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div
+      {!embedded && (<div
         className="ge-main"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
@@ -1597,7 +1605,7 @@ export default function GeophysicsModule() {
             Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft <code>.gxf</code>, <code>.ply</code>/<code>.dxf</code> or <code>.xyz</code> here, or use the buttons on the left — the <b>i</b> beside the button lists exactly what each format does on import.
           </div>
         </EmptyState>
-      </div>
+      </div>)}
 
       {spatialOpen && <SpatialAnalysis points={rows} onClose={() => setSpatialOpen(false)} />}
     </div>
@@ -1611,12 +1619,12 @@ export default function GeophysicsModule() {
 // fires continuously during a drag, which would otherwise rebuild the whole 3D mesh on every pixel of
 // movement.
 // TASKS.csv #411 — see blockModelExport.js
-function exportBlockModelCSV(model) {
+function exportBlockModelCSV(model, epsg) {
   const csv = Papa.unparse(blockModelRows(model));
-  const stamp = stampLines({ tool: "Block model export", params: blockModelParamLines(model) });
+  const stamp = stampLines({ tool: "Block model export", version: APP_VERSION, epsg, params: blockModelParamLines(model) }); // #529 — version + CRS
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, epsg }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1659,7 +1667,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage 
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
         {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" for other software`} title="Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt" onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
-        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model)} />
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model, epsg)} />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>

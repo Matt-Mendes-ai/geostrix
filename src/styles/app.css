@@ -42,6 +42,7 @@
      tokens (1.66:1 and 2.16:1 on white) that ~50 lines used as plain text on white. */
   --color-success-fg: #2e7d4f;
   --color-danger-fg: #b23a2e;
+  --color-danger-bg-soft: #fdeceb; /* #579 — a flagged row / card on white (danger-bg is the DARK one) */
   --color-success-border: #3d6b52;
   --color-success-border-soft: #4a6b4a;
   --color-danger-bg: #2a1f1f;
@@ -157,6 +158,14 @@ input, select { font-family: inherit; }
   position: relative; z-index: 20;
 }
 .ge-ribbon-inner { display: flex; align-items: stretch; min-width: 0; }
+/* TASKS.csv #748 — Simple mode hides the tools marked advanced; "+N more tools" switches to Advanced */
+.ge-ribbon-simple .ge-adv { display: none; }
+.ge-ribbon-more-count { font-size: var(--font-size-lg); font-weight: 600; color: var(--color-text-secondary); line-height: 22px; }
+.ge-ribbon-row { display: flex; align-items: stretch; min-width: 0; flex-shrink: 0; background: var(--color-bg-subtlest); border-bottom: 1px solid var(--color-border); }
+.ge-ribbon-row > .ge-ribbon { flex: 1 1 auto; min-width: 0; border-bottom: none; }
+.ge-ui-mode { display: inline-flex; align-self: center; flex: 0 0 auto; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; margin: 0 10px; }
+.ge-ui-mode button { border: none; background: transparent; padding: 3px 8px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); cursor: pointer; }
+.ge-ui-mode button[aria-pressed="true"] { background: var(--color-bg-subtle); color: var(--color-text); font-weight: 600; }
 .ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--color-border); }
 .ge-ribbon-group:last-child { border-right: none; }
 .ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }
@@ -177,7 +186,7 @@ input, select { font-family: inherit; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
 .ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 54px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
 /* Narrow windows (budget laptops, #449): tighter buttons. Measured at 1024 px: the widest ribbons (3D
-   Modeling, Geochem) are 1012 px, so nothing scrolls — and the band must NOT get overflow:auto, which would
+   Modelling, Geochem) are 1012 px, so nothing scrolls — and the band must NOT get overflow:auto, which would
    clip the Grid / Figure / Themes popovers that drop below it. */
 @media (max-width: 1279px) {
   .ge-ribbon-btn { min-width: 44px; padding: 5px 3px 2px; }
@@ -233,7 +242,10 @@ input, select { font-family: inherit; }
 .ge-tab.active { background: var(--color-bg-subtle); border-color: var(--color-selected-border); color: var(--color-text); }
 .ge-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
-.ge-tab-close { flex-shrink: 0; color: var(--color-text-muted); border-radius: 3px; }
+/* #596 — the tab's two sibling buttons, unstyled so the pill (.ge-tab) still looks the same */
+.ge-tab-switch { all: unset; display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; cursor: pointer; }
+.ge-tab-switch:focus-visible, .ge-tab-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 3px; }
+.ge-tab-close { all: unset; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; color: var(--color-text-muted); border-radius: 3px; }
 .ge-tab-close:hover { color: var(--color-danger-fg); background: #fdeceb; } /* #384 */
 .ge-tab-add {
   display: flex; align-items: center; justify-content: center;

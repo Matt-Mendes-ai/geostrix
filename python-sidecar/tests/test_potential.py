@@ -368,6 +368,8 @@ def test_octree_inversion_recovers_block():
     assert abs(vol - core_vol) < 1e-6 * core_vol
     assert out["reachedTarget"]
     assert abs(err[0]) <= 25 and abs(err[1]) <= 25 and abs(err[2]) <= 50
+    # TASKS.csv #536 — the iterate at the target, not the overshoot (was 71/225 = 0.32x)
+    assert 0.7 <= out["phi_d"] / out["target"] <= 1.05, out["fitChoice"]
 
 
 def test_octree_settings():
@@ -436,6 +438,124 @@ def test_octree_support_per_volume():
         med[mt] = float(np.median(s[band]))
     print(f"support at 200-250 m: octree {med['octree']:.4f}, tensor {med['tensor']:.4f}")
     assert 0.5 < med["octree"] / med["tensor"] < 2.0, med
+
+
+def test_compact_inversion_is_more_compact():
+    """TASKS.csv #769 — the compact (sparse-norm, IRLS) model puts more of the recovered moment inside the true
+    block than the smooth one, still fits the data, and the response says which style ran."""
+    rng = np.random.default_rng(3)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only")
+    cc = mesh.cell_centers[actv] + local
+    c0 = np.array([500000.0, 6250000.0, 875.0])
+    block = (np.abs(cc[:, 0] - c0[0]) <= 60) & (np.abs(cc[:, 1] - c0[1]) <= 60) & (np.abs(cc[:, 2] - c0[2]) <= 50)
+    clean = sim.dpred(np.where(block, 0.05, 0.0))
+    dobs = clean + rng.standard_normal(len(clean)) * (1.0 + 0.02 * np.abs(clean))
+    inside = {}
+    for style in ("smooth", "compact"):
+        out = P.run_job({"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+                         "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}, "observed": dobs.tolist(),
+                         "uncertainty": {"floor": 1.0, "percent": 2.0}, "reg": {"maxIter": 20, "style": style}}, lambda e: None, int(1.5e9))
+        assert out["style"] == style
+        v = np.clip(np.array(out["cells"]["value"]), 0, None)
+        x, y, z = (np.asarray(out["cells"][k]) for k in ("x", "y", "z"))
+        inb = (np.abs(x - c0[0]) <= 60) & (np.abs(y - c0[1]) <= 60) & (np.abs(z - c0[2]) <= 50)
+        inside[style] = float(v[inb].sum() / v.sum())
+        print(f"{style}: {out['iterations']} iterations, phi_d {out['phi_d']:.0f} / {out['target']:.0f}, {out['seconds']:.1f} s, "
+              f"peak {v.max():.4f} (true 0.05), {100 * inside[style]:.0f}% of the moment inside the block")
+        assert out["phi_d"] <= 1.3 * out["target"]
+    assert inside["compact"] > 1.5 * inside["smooth"], inside
+
+
+def test_vector_inversion_finds_a_remanent_body():
+    """TASKS.csv #770 — a block magnetised far from the inducing field (inclination -20, declination 90 vs the
+    field's 75 / 18): the scalar susceptibility inversion misplaces it; the vector (MVI) inversion puts the
+    magnetisation amplitude on the block and recovers its direction. Also: three unknowns per cell in plan(),
+    and drillhole constraints refused."""
+    rng = np.random.default_rng(5)
+    st = _grid_stations(15, 40.0, 1010.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    base = {"method": "mag", "kind": "inversion", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 25.0, "depth": 300.0, "padCells": 4}, "uncertainty": {"floor": 1.0, "percent": 2.0},
+            "reg": {"maxIter": 20}, "baseLevel": "none"}
+    local = P._local_origin(st)
+    spec = P.mesh_spec(st - local, 25.0, 300.0, pad_cells=4, margin_cells=2, top_z=1000.0)
+    mesh = P.build_mesh(spec)
+    actv = P.active_cells(mesh, topo - local)
+    _, sim = P._survey_and_sim("mag", mesh, actv, st - local, field, "forward_only", "vector")
+    cc = mesh.cell_centers[actv] + local
+    c0 = np.array([500000.0, 6250000.0, 875.0])
+    block = (np.abs(cc[:, 0] - c0[0]) <= 60) & (np.abs(cc[:, 1] - c0[1]) <= 60) & (np.abs(cc[:, 2] - c0[2]) <= 50)
+    i, d = np.radians(-20.0), np.radians(90.0)
+    u = np.array([np.cos(i) * np.sin(d), np.cos(i) * np.cos(d), -np.sin(i)])
+    clean = sim.dpred(np.outer(np.where(block, 0.05, 0.0), u).T.ravel())
+    dobs = clean + rng.standard_normal(len(clean)) * (1.0 + 0.02 * np.abs(clean))
+    p_s = P.plan(dict(base, observed=dobs.tolist()), int(1.5e9))
+    p_v = P.plan(dict(base, observed=dobs.tolist(), magModel="vector"), int(1.5e9))
+    assert p_v["sensitivityBytes"] == 3 * p_s["sensitivityBytes"]
+    try:
+        P.run_job(dict(base, observed=dobs.tolist(), magModel="vector", constraints={"points": [[500000, 6250000, 900, 0.01]], "tolerance": 0.005}), lambda e: None, int(1.5e9))
+        raise AssertionError("constraints were accepted")
+    except ValueError as e:
+        assert "Drillhole constraints" in str(e)
+    res = {}
+    for mm in ("scalar", "vector"):
+        out = P.run_job(dict(base, observed=dobs.tolist(), magModel=mm), lambda e: None, int(1.5e9))
+        v = np.clip(np.array(out["cells"]["value"]), 0, None)
+        x, y, z = (np.asarray(out["cells"][k]) for k in ("x", "y", "z"))
+        inb = (np.abs(x - c0[0]) <= 60) & (np.abs(y - c0[1]) <= 60) & (np.abs(z - c0[2]) <= 50)
+        cen = np.array([(x * v).sum(), (y * v).sum(), (z * v).sum()]) / v.sum()
+        res[mm] = {"inside": float(v[inb].sum() / v.sum()), "off": float(np.hypot(*(cen[:2] - c0[:2]))), "dz": float(cen[2] - c0[2]), "out": out}
+        print(f"{mm}: {out['seconds']:.1f} s, {out['iterations']} it, phi_d {out['phi_d']:.0f} / {out['target']:.0f}, peak {v.max():.4f} (true 0.05), "
+              f"{100 * res[mm]['inside']:.0f}% inside, centre {res[mm]['off']:.0f} m off / {res[mm]['dz']:+.0f} m vert, direction {out.get('direction')}")
+    out = res["vector"]["out"]
+    assert out["magModel"] == "vector" and out["style"] == "vector"
+    assert len(out["cells"]["inc"]) == len(out["cells"]["value"]) == len(out["cells"]["dec"])
+    dr = out["direction"]
+    assert abs(dr["inclination"] - (-20)) <= 25 and min(abs(dr["declinationGrid"] - 90), 360 - abs(dr["declinationGrid"] - 90)) <= 25, dr
+    assert dr["angleToInducingField"] > 60, dr
+    assert res["vector"]["inside"] > 2 * res["scalar"]["inside"] and res["vector"]["off"] < 30, res
+    assert out["phi_d"] <= 1.6 * out["target"]
+
+
+def test_geology_model_forward_matches_plate():
+    """TASKS.csv #760 — a geology model (cells with a property contrast) on the forward mesh: a box built from
+    10 m model cells must give the same response as the plate tool's box of the same size on 20 m mesh cells,
+    the base level must be fitted, and the volume must be kept; cells above the terrain must drop out."""
+    st = _grid_stations(13, 40.0, 1030.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    base = {"kind": "forward", "method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 20.0, "depth": 400.0, "padCells": 4}}
+    plate = {"cx": 500000.0, "cy": 6250000.0, "cz": 880.0, "dip": 90.0, "dipDirection": 90.0, "strikeLength": 300.0,
+             "dipExtent": 200.0, "thickness": 40.0, "contrast": 0.05}
+    ref = np.array(P.run_job(dict(base, plates=[plate]), lambda e: None, ram_cap_bytes=int(1.5e9))["predicted"])
+    xs = 500000.0 - 20 + 5 + 10 * np.arange(4)
+    ys = 6250000.0 - 150 + 5 + 10 * np.arange(30)
+    zs = 780.0 + 5 + 10 * np.arange(20)
+    cells = [[x, y, z, 10.0, 10.0, 10.0, 0.05] for x in xs for y in ys for z in zs]
+    out = P.run_job(dict(base, model={"cells": cells}, observed=(ref + 150.0).tolist()), lambda e: None, ram_cap_bytes=int(1.5e9))
+    pred = np.array(out["predicted"])
+    rel = float(np.max(np.abs(pred - ref)) / np.max(np.abs(ref)))
+    run = out["runs"][0]
+    print(f"geology model forward: {len(cells)} model cells -> {run['modelCells']} mesh cells, max diff to the plate {rel:.2%}, "
+          f"volume ratio {run['volumeRatio']:.3f}, base level {run['baseLevel']:.2f} nT, residual {run['rmsResidual']:.3f} nT, r {run['correlation']:.4f}, {out['seconds']:.1f} s")
+    assert out["body"] == "model"
+    assert rel < 0.03
+    assert abs(run["volumeRatio"] - 1) < 0.02
+    assert abs(run["baseLevel"] - 150) < 1.0 and run["correlation"] > 0.999
+    # the same box raised so its top half is above the ground (terrain at 1000 m): that half is not counted
+    up = [[x, y, z + 120.0, 10.0, 10.0, 10.0, 0.05] for x, y, z, *_ in cells]
+    r2 = P.run_job(dict(base, model={"cells": up}), lambda e: None, ram_cap_bytes=int(1.5e9))["runs"][0]
+    print(f"box straddling the ground: volume ratio {r2['volumeRatio']:.3f}")
+    assert 0.35 < r2["volumeRatio"] < 0.65
 
 
 if __name__ == "__main__":

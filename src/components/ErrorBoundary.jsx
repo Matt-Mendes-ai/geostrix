@@ -20,6 +20,12 @@ export default class ErrorBoundary extends React.Component {
     // Also goes to the DevTools console (already open automatically in `npm run dev`), so the
     // full stack + component stack survives even after this fallback UI replaces the crashed tree.
     console.error("GeoStrix crashed:", error, info?.componentStack);
+    // TASKS.csv #598 — also into the session's error list, so Help > Report a problem carries it
+    try {
+      const list = window.__geostrixErrors;
+      if (list) { list.push({ at: new Date().toISOString(), kind: "screen crash", message: String(error?.message || error).slice(0, 2000), stack: `${error?.stack || ""}
+${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.splice(0, list.length - 50); }
+    } catch { /* never let reporting break the fallback */ }
   }
   render() {
     if (!this.state.error) return this.props.children;

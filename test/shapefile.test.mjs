@@ -111,3 +111,16 @@ test("#487 reproject a zipped shapefile: every layer, ring and part; attributes 
   await assert.rejects(reprojectShapefileZip(noPrj, null, 4326), /no \.prj — choose its CRS/);
   assert.equal((await reprojectShapefileZip(noPrj, 4326, 3857)).report[0].vertices, 1);
 });
+
+// TASKS.csv #706 — a record flagged deleted in the .dbf must not shift the later features' attributes
+test("#706 a deleted .dbf record drops its own shape and leaves the others' attributes in place", async () => {
+  const zip = buildShapefileZip({ epsg: 26910, baseName: "d", geomType: "point", features: [1, 2, 3, 4].map((i) => ({ geometry: [[i * 10, i * 100, 0]], attributes: { HOLE: `DDH-${i}` } })) });
+  const e = await readZipEntries(zip);
+  const dbf = new Uint8Array(e["d.dbf"]);
+  const dv = new DataView(dbf.buffer, dbf.byteOffset, dbf.byteLength);
+  const headerLen = dv.getUint16(8, true), recordLen = dv.getUint16(10, true);
+  dbf[headerLen + 1 * recordLen] = 0x2a; // record 2 (DDH-2) deleted
+  const parsed = parseShapefileParts({ shp: new Uint8Array(e["d.shp"]), dbf });
+  assert.deepEqual(parsed.features.map((f) => [f.geometry[0][0], f.attributes.HOLE]), [[10, "DDH-1"], [30, "DDH-3"], [40, "DDH-4"]]);
+  assert.equal(parsed.deletedCount, 1);
+});

@@ -1,7 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import { selectSql, countSql, chunkedReadPlan } from "../lib/dbSql.js"; // TASKS.csv #349
+const IMPORT_STEP = { importStep: true }; // TASKS.csv #665 — the import's own transaction steps (the SQL box never sends this)
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "./icons.js";
-import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery } from "../lib/desktop.js";
+import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery, dbPasswordStatus } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -17,7 +18,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // as importable in the Browser tree at all — a QGIS user treats the Browser as the one place to pull
 // in ANY supported file. The routing per extension lives in ViewerModule's importBrowserFile (the
 // `onImportFile` prop), which dispatches to the handler each format already had.
-const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf"];
+export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717
 
 // TASKS.csv #282 — bounds for the Postgres table import below. Found independently by BOTH the
 // security and Micromine specialist reviews: #255 correctly removed the old hard `LIMIT 500` (a real
@@ -43,7 +44,7 @@ const CHUNK_ROWS = 20000;
 // hostile-looking name out of information_schema can't terminate the identifier and inject a second
 // statement. TASKS.csv #349 — quoting and chunked reads are per engine (lib/dbSql.js).
 
-export default function DbBrowserPanel({ onImportFile, onImportRows }) {
+export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) {
   const { dbConnections, liveDbConnections, connectDb, disconnectDb } = useStore();
   const { recent, favorites, noteRecentFolder, addFavorite, removeFavorite } = useBrowserPanelPrefs();
   const [drives, setDrives] = useState(null);
@@ -59,11 +60,11 @@ export default function DbBrowserPanel({ onImportFile, onImportRows }) {
 
   const handleFilePick = useCallback(async (entry) => {
     const res = await fsReadFile(entry.path);
-    if (!res.ok) return;
+    if (!res.ok) { onError?.(`${entry.name}: ${res.error || "could not be read."}`); return; } // #717 — was silent
     const file = readResultToFile(res, res.name); // #346
     noteRecentFolder(entry.path.slice(0, Math.max(0, entry.path.length - entry.name.length - 1)) || entry.path);
     onImportFile(file);
-  }, [onImportFile, noteRecentFolder]);
+  }, [onImportFile, noteRecentFolder, onError]);
 
   return (
     <div style={{ padding: "10px 12px", overflowY: "auto", height: "100%", fontSize: "var(--font-size-base)" }}>
@@ -169,6 +170,8 @@ function FsTreeNode({ entry, depth, isDrive, isFavorite, favorites, onToggleFavo
 function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
+  const [pwSaved, setPwSaved] = useState(false); // TASKS.csv #621 — a password remembered for this login
+  useEffect(() => { let on = true; dbPasswordStatus(profile).then((r) => { if (on) setPwSaved(!!r?.saved); }); return () => { on = false; }; }, [profile]);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [tables, setTables] = useState(null);
@@ -247,17 +250,17 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     // explicitly and always rolled back (never committed) — nothing this panel does should ever be
     // able to write to the user's database.
     const plan = chunkedReadPlan(engine, t.table_schema, t.table_name); // #349
-    const begin = await dbLiveQuery(live.id, plan.begin); // TASKS.csv #348 (the session is read-only too)
+    const begin = await dbLiveQuery(live.id, plan.begin, IMPORT_STEP); // TASKS.csv #348 (the session is read-only too)
     if (!begin.ok) { setBusyTable(null); setTaskProgress?.(null); setError(begin.error); return; }
     try {
       if (plan.open) {
-        const decl = await dbLiveQuery(live.id, plan.open);
+        const decl = await dbLiveQuery(live.id, plan.open, IMPORT_STEP);
         if (!decl.ok) { setError(decl.error); return; }
       }
       while (rows.length < target) {
         if (cancelRef.current) { setError(`Import cancelled — ${rows.length.toLocaleString()} row(s) fetched, nothing imported.`); return; }
         const want = Math.min(CHUNK_ROWS, target - rows.length);
-        const res = await dbLiveQuery(live.id, plan.page(want, rows.length));
+        const res = await dbLiveQuery(live.id, plan.page(want, rows.length), IMPORT_STEP);
         if (!res.ok) { setError(res.error); return; }
         if (!fields) fields = res.fields;
         rows.push(...res.rows);
@@ -266,8 +269,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
       }
       finish(rows, fields || [], limit != null && total > limit);
     } finally {
-      if (plan.close) await dbLiveQuery(live.id, plan.close).catch(() => {});
-      await dbLiveQuery(live.id, plan.end).catch(() => {});
+      if (plan.close) await dbLiveQuery(live.id, plan.close, IMPORT_STEP).catch(() => {});
+      await dbLiveQuery(live.id, plan.end, IMPORT_STEP).catch(() => {});
       setBusyTable(null);
       setTaskProgress?.(null);
     }
@@ -306,7 +309,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
         <div style={{ paddingLeft: 18 }}>
           {!live && (
             <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" style={pwInp}
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={pwSaved ? "Saved — just Connect" : "Password"} style={pwInp} aria-label={`Password for ${profile.name}`}
                 onKeyDown={(e) => { if (e.key === "Enter") doConnect(); }} />
               <button onClick={doConnect} disabled={connecting} style={connectBtn}>{connecting ? <Loader2 size={12} className="spin" /> : "Connect"}</button>
             </div>

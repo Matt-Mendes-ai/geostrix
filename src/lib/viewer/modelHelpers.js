@@ -1,3 +1,4 @@
+import { buildMeshQuery, closestPointOnMesh } from "../meshQuery.js"; // TASKS.csv #518
 // TASKS.csv #445 step 2 — plain helpers the modelling runs (modules/viewer/useModelling.js) and ViewerModule.jsx
 // both use, moved unchanged from the top of ViewerModule.jsx (comments included).
 
@@ -63,7 +64,7 @@ export const SOFT_NUGGET = 0.5;
 export const MODEL_EXTENT_PAD_M = 500;
 
 // A rough starting guess at a new surface's type from the tool/name that created it — the user can
-// always override it via the dropdown next to each surface in the Modeling tab's list. Structural
+// always override it via the dropdown next to each surface in the Modelling tab's list. Structural
 // picks are the ambiguous case (a "structure" layer covers contacts, faults, shear zones, foliation,
 // veins all under one layer type — see sample_data's own structure.csv) — a fault/shear-sounding
 // value guesses "fault", everything else falls back to "other" rather than guessing wrong.
@@ -100,14 +101,33 @@ export function classifyPointAgainstFault(point, faultMesh) {
   // null and having pointInDomain treat null as "can't classify, don't exclude" makes the two
   // defensive branches actually agree.
   if (!pos || !norm) return null;
-  let bestD2 = Infinity, bestIdx = 0;
-  for (let i = 0; i < pos.count; i++) {
-    const dx = pos.getX(i) - point.x, dy = pos.getY(i) - point.y, dz = pos.getZ(i) - point.z;
-    const d2 = dx * dx + dy * dy + dz * dz;
-    if (d2 < bestD2) { bestD2 = d2; bestIdx = i; }
-  }
-  const dot = (point.x - pos.getX(bestIdx)) * norm.getX(bestIdx) + (point.y - pos.getY(bestIdx)) * norm.getY(bestIdx) + (point.z - pos.getZ(bestIdx)) * norm.getZ(bestIdx);
+  // TASKS.csv #518 — the side comes from the nearest TRIANGLE and its face normal (as crosscut.js's splitter does),
+  // not the nearest VERTEX's normal: GemPy meshes carry orphan vertices that no face uses, whose normal
+  // computeVertexNormals leaves at (0,0,0) — a point near one got dot = 0 -> side +1 whatever its real side (a test
+  // point 40 m on the -x side of a fault came out +1 because of an orphan 2 m from it). The triangle search uses a
+  // BVH (meshQuery.js) built once per fault geometry instead of scanning every vertex per point. A consistently
+  // wound mesh's face normals point the same way as its vertex normals, so saved domain sides keep their meaning.
+  const q = faultQuery(geo);
+  if (!q) return null;
+  const near = closestPointOnMesh(q, point);
+  if (!near) return null;
+  const P = q.positions, I = q.indices, t = near.triangle;
+  const ia = I[t * 3] * 3, ib = I[t * 3 + 1] * 3, ic = I[t * 3 + 2] * 3;
+  const e1x = P[ib] - P[ia], e1y = P[ib + 1] - P[ia + 1], e1z = P[ib + 2] - P[ia + 2];
+  const e2x = P[ic] - P[ia], e2y = P[ic + 1] - P[ia + 1], e2z = P[ic + 2] - P[ia + 2];
+  const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+  const dot = (point.x - near.point.x) * nx + (point.y - near.point.y) * ny + (point.z - near.point.z) * nz;
   return dot >= 0 ? 1 : -1;
+}
+const faultQueries = new WeakMap(); // geometry -> meshQuery BVH (fault meshes are rebuilt, never edited in place)
+function faultQuery(geo) {
+  if (faultQueries.has(geo)) return faultQueries.get(geo);
+  const pos = geo.attributes.position;
+  const positions = pos.array instanceof Float32Array || pos.array instanceof Float64Array ? pos.array : Float32Array.from(pos.array);
+  const indices = geo.index ? geo.index.array : Uint32Array.from({ length: pos.count }, (_, i) => i);
+  const q = indices.length >= 3 ? buildMeshQuery(positions, indices) : null;
+  faultQueries.set(geo, q);
+  return q;
 }
 
 // A domain is an AND of fault-side constraints: [{faultId, side: 1 | -1}, ...] — a point belongs to

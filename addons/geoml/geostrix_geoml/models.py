@@ -1,0 +1,229 @@
+# GeoStrix predictive-modelling add-on (TASKS.csv #638) — the geoML models GeoStrix runs.
+# Copyright (C) 2026 Matt Mendes. Licensed under the GNU GPL v3 (see ../LICENSE): this add-on runs geoML
+# (Ítalo Gonçalves, GPL-3.0, https://github.com/italo-goncalves/geoML), so the add-on as a whole is GPL-3.0.
+# GeoStrix itself (the desktop app) is a separate program under the MIT licence; they talk over local HTTP.
+#
+# Two jobs, each a pure function of its JSON parameters, reporting progress through `progress(fraction, text)`:
+#   domain — implicit model of one rock unit (a set of logged codes) against the rest: the contact surface with
+#            the model's uncertainty on every vertex, and blocks with the unit's probability and uncertainty.
+#   grade  — Gaussian-process grade model (Box-Cox warped, so grades stay positive) on composites: blocks with the
+#            predicted grade, its spread (P10 / P90) and uncertainty.
+# Coordinates in and out are the project's own (GeoStrix sends and receives world x / y / z).
+import math
+import time
+import warnings
+
+import numpy as np
+import pandas as pd
+
+MAX_BLOCKS_OUT = 100_000  # GeoStrix's 3D-view cell budget
+
+
+def _holes(geoml, p):
+    collar = pd.DataFrame(p["collars"])
+    survey = pd.DataFrame(p.get("survey") or [])
+    kw = dict(hole="hole_id", x="x", y="y", z="z", length="length", dip="dip", azimuth="azimuth", depth="depth",
+              dip_positive_down=False)  # the API takes dips negative-down; GeoStrix (positive-down inside) negates them when sending (#644)
+    collar["hole_id"] = collar["hole_id"].astype(str)
+    if len(survey):
+        survey["hole_id"] = survey["hole_id"].astype(str)
+    return geoml.data.DrillholeData(collar, survey=survey if len(survey) else None, **kw)
+
+
+def _anisotropy(geoml, p, rng):
+    """TASKS.csv #650 — the model's anisotropy. With a structural trend from GeoStrix (p["trend"]: azimuth / dip of the
+    maximum axis, rake, midFct = int / max, minFct = min / int — lib/trend.js trendToGeoml) the orientation and the
+    ratios are the geologist's and are held fixed while training; only the overall range is learnt. Without one,
+    the add-on's earlier behaviour (orientation 0 / 0, isotropic ratios, everything trainable)."""
+    t = p.get("trend")
+    if not t:
+        return geoml.transform.Anisotropy3D(rng, float(p.get("ratio_y", 1.0)), float(p.get("ratio_z", 1.0)),
+                                            azimuth=float(p.get("azimuth", 0.0)), dip=float(p.get("dip", 0.0)))
+    clamp = lambda v, lo, hi: min(hi, max(lo, float(v)))
+    tr = geoml.transform.Anisotropy3D(rng, clamp(t["midFct"], 0.05, 1.0), clamp(t["minFct"], 0.01, 1.0),
+                                      azimuth=float(t["azimuth"]) % 360, dip=clamp(t["dip"], 0.0, 90.0), rake=clamp(t["rake"], -90.0, 90.0))
+    for k in ("azimuth", "dip", "rake", "midrange_fct", "minrange_fct"):
+        tr.parameters[k].fix()
+    return tr
+
+
+def _range_report(tr, start):
+    """TASKS.csv #673 — the range the model actually learnt (the add-on's 400 / 150 m are only training's starting
+    point: Woodjam IMMOQ settled at 883 m, Cu at 291 m), with the in-plane / across ratios, so GeoStrix can clip its
+    blocks to where the model is informed rather than to the starting value."""
+    def val(k):
+        try:
+            return float(np.asarray(tr.parameters[k].get_value()).ravel()[0])
+        except Exception:  # noqa: BLE001 — an older geoML without that parameter: report what is known
+            return None
+    return {"start": float(start), "trained": val("maxrange"), "mid_fct": val("midrange_fct"), "min_fct": val("minrange_fct")}
+
+
+def _grid(lo, hi, cell, max_cells):
+    """A regular block grid over [lo, hi] with cubic cells of at least `cell`, grown until it fits max_cells."""
+    lo, hi = np.asarray(lo, float), np.asarray(hi, float)
+    while True:
+        n = np.maximum(1, np.ceil((hi - lo) / cell).astype(int))
+        if int(np.prod(n)) <= max_cells:
+            return n, cell
+        cell *= 1.25
+
+
+def _train(model, iterations, progress, lo, hi, label):
+    """train_full in chunks so progress can be reported (and a cancel lands between chunks)."""
+    done, chunk = 0, max(10, iterations // 20)
+    while done < iterations:
+        step = min(chunk, iterations - done)
+        model.train_full(max_iter=step)
+        done += step
+        progress(lo + (hi - lo) * done / iterations, f"{label}: {done} / {iterations} iterations")
+
+
+def run_domain(p, progress):
+    import geoml
+    t0 = time.time()
+    geoml.set_seed(int(p.get("seed", 1234)))
+    progress(0.02, "Reading the drillholes")
+    holes = _holes(geoml, p)
+    target = set(map(str, p["target_values"]))
+    exclude = set(map(str, p.get("exclude_values") or []))
+    iv = pd.DataFrame(p["intervals"])
+    iv["hole_id"] = iv["hole_id"].astype(str)
+    iv["value"] = iv["value"].astype(str)
+    iv = iv[~iv["value"].isin(exclude)].copy()
+    iv["UNIT"] = np.where(iv["value"].isin(target), "Target", "Other")
+    holes.add_intervals("lito", iv[["hole_id", "from", "to", "UNIT"]], hole="hole_id", fr="from", to="to", categorical=["UNIT"])
+    holes.add_intervals("lito", holes.merge_domains(("lito", "UNIT")))
+    dense = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("train_spacing", 5.0)))
+    sparse = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("inducing_spacing", 40.0)))
+    n_contacts = int(np.sum(dense.values("UNIT/boundary")))
+    if n_contacts == 0:
+        raise ValueError("The chosen unit has no contact with the other rock in these holes — nothing to model.")
+
+    rng = float(p.get("range", 400.0))
+    tr = _anisotropy(geoml, p, rng)  # #673 — kept, to read back the range training settled on
+    inp = geoml.latent.BasicInput(inducing_points=sparse, center=True, transform=tr)
+    deep = p.get("model") == "deep"
+    if deep:  # chapter 17: a vector field moves the coordinates so one stationary field can follow folds
+        walked = geoml.latent.GPWalk(geoml.latent.BasicGP(inp, size=3), n_steps=5)
+        field = geoml.latent.BasicGP(walked, size=1, isotropic=True)
+    else:
+        field = geoml.latent.BasicGP(inp, size=1)
+    model = geoml.models.VGPNetwork(dense, "UNIT", geoml.likelihood.CategoricalGaussianIndicator(2), geoml.latent.Linear(field, size=2),
+                                    options=geoml.models.GPOptions(jitter=1e-6, training_batch_size=500, verbose=False))
+    iterations = int(p.get("iterations", 300))
+    progress(0.08, f"Training ({dense.n_data} points, {n_contacts} contacts)")
+    if deep:
+        model.set_learning_rate(5e-2)
+        epochs = max(5, iterations // 15)
+        for e in range(epochs):
+            model.train_svi(1)
+            progress(0.08 + 0.5 * (e + 1) / epochs, f"Training (deep): epoch {e + 1} / {epochs}")
+    else:
+        model.set_learning_rate(2e-2)
+        _train(model, iterations, progress, 0.08, 0.58, "Training")
+
+    c = np.asarray(dense.coordinates)
+    pad = np.array([float(p.get("pad", 100.0))] * 2 + [float(p.get("pad_z", 50.0))])
+    lo, hi = c.min(0) - pad, c.max(0) + pad
+    if p.get("bounds"):
+        b = p["bounds"]; lo, hi = np.array(b[:3], float), np.array(b[3:], float)
+
+    # the contact surface: refined blocks (finer where the contact runs), contoured where the unit's indicator is 0
+    progress(0.6, "Building the contact surface")
+    sblock = float(p.get("surface_block", 40.0))
+    n, sblock = _grid(lo, hi, sblock, 60_000)
+    bs = geoml.data.BlockSet3D(start=list(lo + sblock / 2), n=list(n), step=[sblock] * 3, discretization=(2, 2, 2), max_levels=int(p.get("refine_levels", 2)))
+    bs = geoml.models.refine(model, bs)
+    surf = bs.get_contour("UNIT/Target/indicator_predicted", 0.0)
+    surface = None
+    if len(surf.triangles):
+        model.predict(surf)
+        surface = {"vertices": np.asarray(surf.coordinates).round(2).tolist(), "triangles": np.asarray(surf.triangles).astype(int).tolist(),
+                   "uncertainty": np.asarray(surf.values("UNIT/uncertainty")).round(3).tolist(), "area": float(surf.area)}
+
+    # blocks for the 3D view: a regular grid inside the cell budget, unit probability + uncertainty
+    progress(0.85, "Predicting the block model")
+    n, cell = _grid(lo, hi, float(p.get("block_size", 25.0)), int(p.get("max_blocks", MAX_BLOCKS_OUT)))
+    grid = geoml.data.BlockSet3D(start=list(lo + cell / 2), n=list(n), step=[cell] * 3, discretization=(2, 2, 2), max_levels=1)
+    model.predict(grid)
+    xyz = np.asarray(grid.coordinates)
+    prob = np.asarray(grid.values("UNIT/Target/probability"))
+    unc = np.asarray(grid.values("UNIT/uncertainty"))
+    progress(1.0, "Done")
+    return {
+        "kind": "domain", "model": "deep" if deep else "stationary", "seconds": round(time.time() - t0, 1),
+        "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")),  # #673 / #692
+        "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts,
+        "surface": surface,
+        "blocks": {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
+                   "probability": prob.round(4).tolist(), "uncertainty": unc.round(4).tolist()},
+        "elbo": [float(v) for v in list(getattr(model, "training_log", []))[-50:]],
+    }
+
+
+def run_grade(p, progress):
+    import geoml
+    t0 = time.time()
+    geoml.set_seed(int(p.get("seed", 1234)))
+    progress(0.02, "Reading the drillholes and assays")
+    holes = _holes(geoml, p)
+    name = str(p.get("element", "grade"))
+    a = pd.DataFrame(p["samples"])  # hole_id, from, to, value
+    a["hole_id"] = a["hole_id"].astype(str)
+    a = a[np.isfinite(a["value"].astype(float)) & (a["value"].astype(float) >= 0)].copy()
+    a = a.rename(columns={"value": name})[["hole_id", "from", "to", name]]
+    # #658 / #692 — geoML's own data checks (overlapping intervals...) are passed back instead of being lost
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        holes.add_intervals("assay", a, hole="hole_id", fr="from", to="to")
+    data_warnings = [str(w.message)[:300] for w in caught][:10]
+    comp = holes.composite_fixed(length=float(p.get("composite", 5.0)))
+    pts = comp.as_point_data(["assay"])
+    if pts.n_data < 20:
+        raise ValueError(f"Only {pts.n_data} composites with a {name} value — too few to model.")
+    n_ind = int(min(p.get("inducing", 300), max(20, pts.n_data // 3)))
+    inducing = geoml.data.inducing.from_kmeans(pts, n_ind)
+    rng = float(p.get("range", 150.0))
+    tr = _anisotropy(geoml, p, rng)  # #673
+    root = geoml.latent.BasicInput(inducing, center=True, transform=tr)
+    gp = geoml.latent.BasicGP(root, size=1)
+    vals = np.asarray(pts.values(f"{name}/measurements")) if f"{name}/measurements" in str(pts.tree()) else a[name].to_numpy(float)
+    positive = vals[vals > 0]
+    shift = float(np.nanmin(positive)) / 2 if positive.size else 1.0  # Box-Cox needs > 0; half the smallest grade
+    lik = geoml.likelihood.Gaussian(geoml.warping.ChainedWarping(geoml.warping.BoxCox(1, shift=shift), geoml.warping.ZScore(1)))
+    model = geoml.models.VGPNetwork(pts, name, lik, gp, options=geoml.models.GPOptions(verbose=False))
+    progress(0.08, f"Training ({pts.n_data} composites)")
+    _train(model, int(p.get("iterations", 300)), progress, 0.08, 0.75, "Training")
+
+    c = np.asarray(pts.coordinates)
+    pad = np.array([float(p.get("pad", 50.0))] * 3)
+    lo, hi = c.min(0) - pad, c.max(0) + pad
+    if p.get("bounds"):
+        b = p["bounds"]; lo, hi = np.array(b[:3], float), np.array(b[3:], float)
+    progress(0.8, "Predicting the block model")
+    n, cell = _grid(lo, hi, float(p.get("block_size", 20.0)), int(p.get("max_blocks", MAX_BLOCKS_OUT)))
+    grid = geoml.data.BlockSet3D(start=list(lo + cell / 2), n=list(n), step=[cell] * 3, discretization=(2, 2, 2), max_levels=1)
+    model.predict(grid, n_sim=int(p.get("simulations", 20)))
+    xyz = np.asarray(grid.coordinates)
+
+    def get(path):
+        try:
+            return np.asarray(grid.values(f"{name}/{path}"))
+        except KeyError:
+            return None
+    pred, disp, sims = get("prediction"), get("dispersion"), get("simulations")
+    blocks = {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
+              "prediction": None if pred is None else pred.round(5).tolist()}
+    if disp is not None:
+        blocks["dispersion"] = disp.round(5).tolist()  # geoML's spread of the back-transformed grade
+    if sims is not None and sims.ndim == 2 and sims.shape[1] > 1:  # P10 / P90 from the simulations, in grade units
+        blocks["p10"] = np.percentile(sims, 10, axis=1).round(5).tolist()
+        blocks["p90"] = np.percentile(sims, 90, axis=1).round(5).tolist()
+    out = {"kind": "grade", "element": name, "seconds": round(time.time() - t0, 1), "composites": int(pts.n_data), "inducing_points": n_ind, "blocks": blocks,
+           "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")), "data_warnings": data_warnings}  # #673 / #692
+    progress(1.0, "Done")
+    return out
+
+
+JOBS = {"domain": run_domain, "grade": run_grade}

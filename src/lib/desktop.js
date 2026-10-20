@@ -151,6 +151,16 @@ export function onMenu(cb) {
   const offIpc = d ? d.onMenu(cb) : () => {};
   return () => { if (typeof window !== "undefined") window.removeEventListener("geostrix-menu-gesture", onGesture); offIpc?.(); };
 }
+// TASKS.csv #617 — the payload this section window was opened with (null in a browser / before main has one)
+// TASKS.csv #589 — copy to the clipboard: through the main process in the desktop app (web permissions are all
+// refused there), the async Clipboard API in a plain browser.
+export async function copyText(text) {
+  if (d?.copyText) return d.copyText(text);
+  try { await navigator.clipboard.writeText(text); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; }
+}
+export async function getSectionData() {
+  return d?.getSectionData ? d.getSectionData() : null;
+}
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);
   return () => {};
@@ -165,13 +175,45 @@ export async function dbConnect(config) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
   return d.dbConnect(config);
 }
+// TASKS.csv #621 — whether a password is remembered (encrypted by the OS, desktop only) for this login, and
+// forgetting it. The password itself never comes back to the renderer.
+export async function dbPasswordStatus(config) {
+  if (!d?.dbPasswordStatus) return { saved: false, available: false };
+  return d.dbPasswordStatus(config);
+}
+export async function dbForgetPassword(config) {
+  if (!d?.dbForgetPassword) return { ok: true, forgotten: false };
+  return d.dbForgetPassword(config);
+}
+// TASKS.csv #598 — Help > Report a problem. In a plain browser there is no window capture or Downloads folder:
+// the report is offered as a normal download and the email opens through mailto:.
+export const SUPPORT_EMAIL = "support@geostrix.com";
+export async function problemReportInfo() {
+  if (d?.problemReportInfo) return d.problemReportInfo();
+  return { app: "browser preview", os: navigator.userAgent, memoryGB: null, lastExitUnclean: false, sidecarLogTail: null, packaged: false };
+}
+export async function captureWindow() { return d?.captureWindow ? d.captureWindow() : null; }
+export async function saveProblemReport(bytes, name) {
+  if (d?.saveProblemReport) return d.saveProblemReport(bytes, name);
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return { ok: true, path: null, name };
+}
+export async function emailSupport(subject, body) {
+  if (d?.emailSupport) return d.emailSupport(subject, body);
+  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return { ok: true, to: SUPPORT_EMAIL };
+}
+export async function showReportFile(file) { return d?.showReportFile ? d.showReportFile(file) : { ok: false }; }
 export async function dbDisconnect(id) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
   return d.dbDisconnect(id);
 }
-export async function dbLiveQuery(id, sql) {
+// opts.importStep (TASKS.csv #665): only DbBrowserPanel's chunked import sets it; the SQL box never does
+export async function dbLiveQuery(id, sql, opts = {}) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
-  return d.dbLiveQuery(id, sql);
+  return d.dbLiveQuery(id, sql, opts);
 }
 export async function dbLiveListTables(id) {
   if (!d) return { ok: false, error: "Database connections require the desktop app." };
@@ -258,6 +300,18 @@ export async function fetchSRTMTile(z, x, y) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.`);
   return res.arrayBuffer();
+}
+
+// ---------- TASKS.csv #784: satellite imagery (STAC search / one COG byte range), main-process proxied ----------
+// { url, range: [start, end] | null, json: object | null } -> { ok, status, contentRange, data: Uint8Array } | { ok: false, message }
+export async function remoteSensingFetch(req) {
+  if (d && d.remoteSensingFetch) return d.remoteSensingFetch(req);
+  try { // browser / dev fallback: a direct fetch (these services send CORS headers)
+    const headers = {};
+    if (req.range) headers.Range = `bytes=${req.range[0]}-${req.range[1]}`;
+    const r = await fetch(req.url, req.json != null ? { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(req.json) } : { headers });
+    return { ok: r.ok, status: r.status, contentRange: r.headers.get("content-range") || "", data: new Uint8Array(await r.arrayBuffer()) };
+  } catch (e) { return { ok: false, status: 0, message: e.message }; }
 }
 
 // ---------- Generic web-layer fetch (see electron/main.js's fetch-web-layer handler) ----------
@@ -358,6 +412,9 @@ export async function ensureSidecarUp() {
   sidecarStartPromise = (async () => {
     const r = await d.ensureSidecar().catch(() => null);
     if (r?.spawned) {
+      // TASKS.csv #667 — a freshly spawned engine is a new process on the port: prove its identity again before the
+      // token goes to it (the check used to be cached for the whole session)
+      sidecarVerified = null;
       // A frozen build unpacks and imports numpy/scipy before listening; allow it ~45 s.
       const until = Date.now() + 45000;
       while (Date.now() < until) {
@@ -520,9 +577,12 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
     ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
     ...(opts.returnBlock ? { return_block: true } : {}), // TASKS.csv #356
     ...(opts.faults?.length ? { faults: opts.faults } : {}), // TASKS.csv #360 — faults that offset the stack
+    ...(opts.evaluateAt?.length ? { evaluate_at: opts.evaluateAt } : {}), // TASKS.csv #756 — exact units at these points
+    ...(opts.surfaceDetail > 4 ? { surface_detail: opts.surfaceDetail } : {}), // TASKS.csv #766 — finer surface triangulation
   };
   const start = await startSidecarJob("implicit", request); // #515
-  if (!start.ok && start.status === 400 && /jobKind must be 'potential'\.?$/.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
+  // #593 — any "this sidecar doesn't know jobKind implicit" refusal (the old wording matched exactly before)
+  if (!start.ok && start.status === 400 && /jobKind/i.test(start.error || "") && !/implicit/i.test(start.error || "")) return pythonImplicitModelSync(extent, surfaces, opts);
   if (!start.ok) return { ok: false, error: start.error }; // #563 — the real reason (identity / timeout / unreachable / HTTP), unchanged
   const id = start.data.id;
   const deadline = Date.now() + 15 * 60 * 1000; // safety net only; Cancel is the real control now
@@ -550,7 +610,7 @@ export async function pythonImplicitModel(extent, surfaces, opts = {}) {
   const r = await sidecarJobResult(id);
   if (!r.ok) return { ok: false, error: r.error };
   const data = r.data;
-  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null, orientationsDeduplicated: data.orientations_deduplicated ?? null }; // #512
+  return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null, orientationsDeduplicated: data.orientations_deduplicated ?? null, precision: data.precision ?? null, evaluated: data.evaluated ?? null, surfaceDetail: data.surface_detail ?? null }; // #512; precision: #767
 }
 
 // The pre-#355 synchronous call, kept only as a fallback for an older sidecar.
@@ -568,6 +628,9 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
         // TASKS.csv #274 — omitted entirely (not sent as 1) when the user leaves it on Auto, so the
         // request the sidecar sees is identical to a pre-#274 one in that case.
         ...(opts.rangeMultiplier ? { range_multiplier: opts.rangeMultiplier } : {}),
+        ...(opts.returnBlock ? { return_block: true } : {}), // TASKS.csv #593 — was not forwarded on this path
+        ...(opts.evaluateAt?.length ? { evaluate_at: opts.evaluateAt } : {}), // TASKS.csv #756
+        ...(opts.surfaceDetail > 4 ? { surface_detail: opts.surfaceDetail } : {}), // TASKS.csv #766
       }),
       // Real bug found here: this used to be 60s, and a fetch that hits an AbortSignal timeout
       // throws the exact same generic error as a genuinely-unreachable sidecar, so a slow-but-
@@ -594,7 +657,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
     // TASKS.csv #274 — rangeUsed/rangeDefault/cO are what the run notice and the exported surface's
     // provenance report, so "why did this look different than last time" has an answer. Older sidecars
     // don't send them; undefined then, and every consumer treats that as "unknown".
-    return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, orientationsDeduplicated: data.orientations_deduplicated ?? null }; // #512
+    return { ok: true, surfaces: data.surfaces, rangeUsed: data.range_used, rangeDefault: data.range_default, cO: data.c_o, block: data.block || null, orientationsDeduplicated: data.orientations_deduplicated ?? null, precision: data.precision ?? null, evaluated: data.evaluated ?? null, surfaceDetail: data.surface_detail ?? null }; // #512; block: #593; precision: #767
   } catch (err) {
     if (err?.code === "SIDECAR_IDENTITY") return { ok: false, error: err.message }; // #353
     // A user-triggered cancel (opts.signal aborted with this specific reason) gets its own quiet,

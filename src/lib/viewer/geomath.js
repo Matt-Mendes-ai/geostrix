@@ -1,3 +1,4 @@
+import { cellSupportEnvelope } from "../supportEnvelope.js"; // TASKS.csv #641
 // TASKS.csv #445 step 1 — moved out of ViewerModule.jsx unchanged (pure maths, no three.js / DOM), so it
 // can be tested on its own (test/core.test.mjs #445). The comments are the originals.
 const toRad = (d) => (d * Math.PI) / 180;
@@ -94,19 +95,21 @@ export function anisoWarpPoint(apiPt, center, basis, scales) {
   };
 }
 export const invScales = (scales) => ({ major: 1 / scales.major, semiMajor: 1 / scales.semiMajor, minor: 1 / scales.minor });
-// Transforms an orientation's dip/azimuth by the SAME linear map (basis+scales, no translation) applied
-// to the unit gradient direction, then renormalizes and converts back to dip/azimuth. This is the
-// practical approximation used here rather than the mathematically exact inverse-transpose Jacobian a
-// general (non-orthogonal-preserving) warp would need — exact for the common case this feature targets
-// (a surface whose local tangent is close to the declared structural trend near its own control points,
-// which is the entire premise of declaring one trend for the domain in the first place); worth a visual
-// sanity-check against a known structure before trusting it on an unfamiliar one.
+// Transforms an orientation (a plane's dip / dip azimuth) into the warped space. TASKS.csv #653 — a plane's
+// NORMAL does not move like a position: the warp is W = R S R^T (rotate, scale per axis, rotate back), and a
+// normal transforms by the inverse transpose, W^-T = R S^-1 R^T, i.e. each basis component is DIVIDED by its
+// scale. (Until #653 it was multiplied, the tangent rule: under a 45 -> 090 3:2:1 trend a 60/090 contact
+// was sent as 50.1/090 where the true warped plane is 83.8/090, and at 5:2:1 dips up to 113 deg came out.)
+// This is the exact transform of the scalar field's gradient, SIGN INCLUDED, so it is not flipped back up: a
+// dip above 90 out of here is the same younger side, seen in the warped frame (main.py builds the gradient
+// from dip / azimuth with cos(dip), no range limit). Check: warp three points of a plane with anisoWarpPoint
+// and compare (test/trend650.test.mjs).
 export function anisoWarpDirection(dip, azimuth, basis, scales) {
   const dr = toRad(dip), ar = toRad(azimuth);
   const g = { x: Math.sin(dr) * Math.sin(ar), y: Math.sin(dr) * Math.cos(ar), z: Math.cos(dr) };
-  const p1 = (g.x * basis.major.x + g.y * basis.major.y + g.z * basis.major.z) * scales.major;
-  const p2 = (g.x * basis.semiMajor.x + g.y * basis.semiMajor.y + g.z * basis.semiMajor.z) * scales.semiMajor;
-  const p3 = (g.x * basis.minor.x + g.y * basis.minor.y + g.z * basis.minor.z) * scales.minor;
+  const p1 = (g.x * basis.major.x + g.y * basis.major.y + g.z * basis.major.z) / scales.major;
+  const p2 = (g.x * basis.semiMajor.x + g.y * basis.semiMajor.y + g.z * basis.semiMajor.z) / scales.semiMajor;
+  const p3 = (g.x * basis.minor.x + g.y * basis.minor.y + g.z * basis.minor.z) / scales.minor;
   const wx = p1 * basis.major.x + p2 * basis.semiMajor.x + p3 * basis.minor.x;
   const wy = p1 * basis.major.y + p2 * basis.semiMajor.y + p3 * basis.minor.y;
   const wz = p1 * basis.major.z + p2 * basis.semiMajor.z + p3 * basis.minor.z;
@@ -225,8 +228,12 @@ export function spatialClusters(points, threshold) {
 // much the data can see that cell). Cells below the model's supportCutoff are hidden everywhere a voxel
 // model is drawn or sampled, because their value reflects the regularisation, not the rock. Imported
 // models have no `support` and are unaffected.
+// TASKS.csv #641 — a 2D DC/IP line (method "dc" / "ip") uses the column envelope: hidden only below its depth of
+// investigation, never as holes through the shallow band.
 export function voxelCellSupported(model, c) {
-  return !(model.supportCutoff > 0 && c.support != null && c.support < model.supportCutoff);
+  if (!(model.supportCutoff > 0 && c.support != null)) return true;
+  const s = model.method === "dc" || model.method === "ip" ? cellSupportEnvelope(model.cells).get(c) ?? c.support : c.support;
+  return !(s < model.supportCutoff);
 }
 
 export function sampleTerrainElevation(terrain, x, y) {

@@ -1,41 +1,43 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Image, Layers3, Target, FileBarChart2, Globe2 } from "./components/icons.js";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon } from "./components/icons.js";
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
-// shared across View/Modeling/Targeting, so it loads immediately regardless), but the four modules
+// shared across View/Modelling/Targeting, so it loads immediately regardless), but the four modules
 // that are NOT the landing tab now lazy-load, deferring their own heavy deps (geotiff.js via
 // RasterModule, d3-delaunay via GeophysicsModule's Voronoi tool) until a user actually opens that tab.
 const GeochemModule = React.lazy(() => import("./modules/GeochemModule.jsx"));
 const GeophysicsModule = React.lazy(() => import("./modules/GeophysicsModule.jsx"));
-const RasterModule = React.lazy(() => import("./modules/RasterModule.jsx"));
+const MapsModule = React.lazy(() => import("./modules/MapsModule.jsx")); // TASKS.csv #749 — Raster + Cartography + map tools
 const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
-const CartographyModule = React.lazy(() => import("./modules/CartographyModule.jsx")); // TASKS.csv #485
 // TASKS.csv #138 — project report is opened rarely (not every session), so lazy-load it the same way
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
 const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx")); // TASKS.csv #476
+const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
+const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
 // sits near the other data-import modules rather than at the end.
-// TASKS.csv #155 — "3D Modeling" promoted to its own top-level module, right after 3D View (user
-// request: "I want 3D modeling to have its own module, not within the 3D view" — it used to be a
-// "Home | Modeling" pill switcher nested inside the 3D View sidebar). Both tabs render the SAME
+// TASKS.csv #155 — "3D Modelling" promoted to its own top-level module, right after 3D View (user
+// request: "I want 3D modelling to have its own module, not within the 3D view" — it used to be a
+// "Home | Modelling" pill switcher nested inside the 3D View sidebar). Both tabs render the SAME
 // ViewerModule component (see that file's own comment on the `mode` prop for why splitting the
 // underlying 3D engine into two components wasn't the right call) — only which sidebar content shows
 // differs.
@@ -45,25 +47,27 @@ const ProjectReportModal = React.lazy(() => import("./components/ProjectReportMo
 // disconnected 3D engine. Placed right after Geophysics — that's the data it's most often planning
 // against (voxel value-range isolation), and before Raster/Layout, which are further from "look at
 // my targets and plan holes" in the day-to-day workflow.
+// TASKS.csv #749 — tabs that were folded into another: a menu item / link naming one opens its new home
+const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling" }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19)
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
-  { id: "modeling", label: "3D Modelling", icon: Layers3 },
+  { id: "modelling", label: "3D Modelling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
-  { id: "raster", label: "Raster", icon: Image },
-  // TASKS.csv #485 — the project CRS and the reprojection tools (user request: "its own tab ... called cartography")
-  { id: "cartography", label: "Cartography", icon: Globe2 },
+  // TASKS.csv #749 — one Maps tab: rasters / satellite / terrain beside each other, map + web layers, boundaries, and the
+  // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
+  { id: "maps", label: "Maps", icon: MapIcon },
   { id: "layout", label: "Layout", icon: Layout },
 ];
 // TASKS.csv #225 (software-design-specialist audit finding: switching tabs unmounted/remounted the
 // entire three.js scene every time, measured 407-622ms blocking per switch, even between View/
-// Modeling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
+// Modelling/Targeting — literally the same ViewerModule component with a different `mode` prop) — maps
 // a tab id to the ViewerModule `mode` it corresponds to, so a single persistent instance can be kept
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
-const VIEWER_MODES = { viewer: "view", modeling: "modeling", targeting: "targeting" };
+const VIEWER_MODES = { viewer: "view", modelling: "modelling", targeting: "targeting" }; // #750 — Predictive is a Modelling tool now
 
 export default function App() {
   const store = useStore();
@@ -77,6 +81,9 @@ export default function App() {
   const [active, setActive] = useState("viewer");
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
   const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
+  const [uiMode, setUiModeState] = useState(initialUiMode); // TASKS.csv #748
+  const setUiMode = useCallback((m) => { setUiModeState(m); saveUiMode(m); }, []);
+  const uiModeValue = React.useMemo(() => ({ mode: uiMode, setMode: setUiMode }), [uiMode, setUiMode]);
   // TASKS.csv #225 — a stable `mode` to pass ViewerModule while it's hidden behind a non-viewer tab,
   // so hopping to Geochem and back doesn't force a sidebar re-render for a `mode` swap that isn't
   // actually happening. Updated during render (not an effect) whenever the active tab IS a viewer
@@ -93,6 +100,17 @@ export default function App() {
   useEffect(() => onProjectCrsRequest(({ reason, points, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, resolvers: [resolve] }))), []);
   const finishCrsRequest = (epsg) => setCrsRequest((cur) => { cur?.resolvers.forEach((r) => r(epsg)); return null; });
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
+  // TASKS.csv #598 — Help > Report a problem: { screenshot, crashed } while open; the window is captured BEFORE the
+  // dialog opens, so the picture shows the problem, not the dialog
+  const [reportProblem, setReportProblem] = useState(null);
+  const [licensesOpen, setLicensesOpen] = useState(false); // #639
+  const [lastExitUnclean, setLastExitUnclean] = useState(false);
+  const openReportProblem = async (crashed = false) => {
+    let screenshot = null;
+    try { screenshot = await captureWindow(); } catch { /* no capture */ }
+    setReportProblem({ screenshot, crashed });
+  };
+  useEffect(() => { problemReportInfo().then((i) => { if (i?.lastExitUnclean) setLastExitUnclean(true); }).catch(() => {}); }, []);
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
   // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
   // status bar (below) — "checking"/"not-available" stay silent, since a routine background check
@@ -228,19 +246,19 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   useEffect(() => {
     if (moduleRequestSeq === lastModuleReqSeq.current) return;
     lastModuleReqSeq.current = moduleRequestSeq;
-    if (requestedModule) setActive(requestedModule);
+    if (requestedModule) { setActive(TAB_ALIAS[requestedModule] || requestedModule); if (requestedModule === "predictive") requestModuleAction("open-geoml"); } // #749 / #750 — old tab names
   }, [moduleRequestSeq, requestedModule]);
 
   // menu → action bridge (Electron File/View/Tools menus)
   useEffect(() => {
     const off = onMenu((action) => {
-      if (action.startsWith("module-")) setActive(action.replace("module-", ""));
+      if (action.startsWith("module-")) { const m = action.replace("module-", ""); setActive(TAB_ALIAS[m] || m); if (m === "predictive") requestModuleAction("open-geoml"); }
       else if (action === "export-pdf") doExportPdf();
-      else if (action === "set-epsg") setActive("cartography"); // #485 — the CRS lives in Cartography now
+      else if (action === "set-epsg") { setActive("maps"); requestModuleAction("maps-crs"); } // #485 / #749 — the CRS lives in the Maps tab
       // TASKS.csv #565 — these used to do nothing (import-*) or only switch tab (cross-section)
       else if (action === "cross-section") { setActive("viewer"); requestModuleAction("draw-section"); }
       else if (action === "import-csv") {
-        const target = { viewer: ["viewer", "import-collars"], modeling: ["modeling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], raster: ["raster", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
+        const target = { viewer: ["viewer", "import-collars"], modelling: ["modelling", "import-collars"], targeting: ["targeting", "import-collars"], geochem: ["geochem", "import-assays"], geophysics: ["geophysics", "import-points"], maps: ["maps", "import-raster"] }[activeRef.current] || ["viewer", "import-collars"];
         setActive(target[0]); requestModuleAction(target[1]);
       }
       else if (action === "import-assays") { setActive("geochem"); requestModuleAction("import-assays"); }
@@ -251,6 +269,8 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       else if (action === "save-project-as") doSave({ saveAs: true }); // #553
       else if (action === "shortcuts") setShortcutsTab("shortcuts");
       else if (action === "about") setShortcutsTab("about");
+      else if (action === "report-problem") openReportProblem(); // #598
+      else if (action === "licenses") setLicensesOpen(true); // #639
       else if (action === "undo") undo();
       else if (action === "redo") redo();
     });
@@ -328,6 +348,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   }, [discardAutosave, recovery]);
 
   return (
+    <UiModeContext.Provider value={uiModeValue}>
     <div className="ge-app">
       {/* TASKS.csv #341 — an autosave that could not be read was moved aside rather than overwritten. */}
       {recovery?.unreadable && (
@@ -344,9 +365,18 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
             Recovered unsaved work from a previous session — "{recovery.projectName}"
             {recovery.otherTabs?.length ? ` plus ${recovery.otherTabs.length} other tab(s) (${recovery.otherTabs.join(", ")})` : ""}
             {recovery.autosavedAt ? ` (autosaved ${new Date(recovery.autosavedAt).toLocaleString()})` : ""}.
+            {recovery.newer ? ` It was written by a newer GeoStrix (project format ${recovery.newer}); this version will ask before saving over anything that version added.` : ""}{/* #686 */}
           </span>
           <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>Restore</button>
           <button onClick={doDiscardRecovery} style={recoveryBtn}>Discard…</button>
+        </div>
+      )}
+      {/* TASKS.csv #598 — the last session did not end normally (crash, forced close, power cut): offer a report */}
+      {lastExitUnclean && (
+        <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)" }}>
+          <span style={{ flex: 1 }}>GeoStrix didn't close normally last time. If it crashed or froze, a short report helps fix it.</span>
+          <button onClick={() => { setLastExitUnclean(false); openReportProblem(true); }} style={recoveryBtn}>Report it…</button>
+          <button onClick={() => setLastExitUnclean(false)} style={recoveryBtn} aria-label="Dismiss">Dismiss</button>
         </div>
       )}
       {recoveryNote && (
@@ -396,9 +426,9 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by
-          ViewerModule's ViewToolbar and ONLY in "view" mode. Every other tab — 3D Modeling,
+          ViewerModule's ViewToolbar and ONLY in "view" mode. Every other tab — 3D Modelling,
           Targeting, Geochem, Geophysics, Raster, Layout — had no such row, so switching 3D View ▸ 3D
-          Modeling shifted the entire content area UP by 38px and back down on return. That reads as
+          Modelling shifted the entire content area UP by 38px and back down on return. That reads as
           a rendering glitch, not as a design. Reserving the row's height here keeps the geometry
           stable across all seven tabs while the real #155 follow-up (actual per-module tools) is
           still outstanding. Deliberately rendered as the same .ge-subtoolbar band rather than a bare
@@ -411,7 +441,15 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       {/* TASKS.csv #458 — the Office-style ribbon band. ONE element for every tab (same height everywhere,
           the #309 reason the placeholder above existed); each module portals its own buttons into it
           (components/Ribbon.jsx). */}
-      <div className="ge-ribbon" ref={setRibbonEl} />
+      <div className="ge-ribbon-row">
+        <div className="ge-ribbon" ref={setRibbonEl} />
+        {/* TASKS.csv #748 — Simple shows each tab's basic tools; Advanced shows every tool. At the ribbon's right end: the
+            same place on every tab, and the top bar has no room left at 1,424 px. */}
+        <div className="ge-ui-mode" role="group" aria-label="Interface mode" title="Simple shows each tab's basic tools; Advanced shows every tool. Remembered on this computer.">
+          <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>Simple</button>
+          <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>Advanced</button>
+        </div>
+      </div>
 
       <RibbonSlotContext.Provider value={ribbonEl}>
       <div className="ge-body">
@@ -433,8 +471,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
           <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
             {active === "geochem" && <GeochemModule />}
             {active === "geophysics" && <GeophysicsModule />}
-            {active === "raster" && <RasterModule />}
-            {active === "cartography" && <CartographyModule />}
+            {active === "maps" && <MapsModule />}
             {active === "layout" && <LayoutModule />}
           </Suspense>
         </ErrorBoundary>
@@ -443,6 +480,8 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
 
       <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} onDone={finishCrsRequest} /></Suspense>}
+      {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
+      {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {reportOpen && (
         <Suspense fallback={null}>
@@ -450,6 +489,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         </Suspense>
       )}
     </div>
+    </UiModeContext.Provider>
   );
 }
 
@@ -467,25 +507,18 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
         const label = isActive ? activeName : t.name;
         const dirty = isActive ? activeDirty : t.dirty;
         return (
-          <div role="button" tabIndex={0} onKeyDown={activateOnKey}
-            key={t.id}
-            className={`ge-tab ${isActive ? "active" : ""}`}
-            aria-current={isActive ? "true" : undefined} // TASKS.csv #388
-            onClick={() => onSwitch(t.id)}
-            title={label}
-          >
-            {dirty && <span className="ge-tab-dot" title="Unsaved changes" />}
-            <span className="ge-tab-label">{label || "Untitled project"}</span>
-            <X
-              size={12}
-              className="ge-tab-close"
-              onClick={(e) => { e.stopPropagation(); onClose(t.id); }}
-              title="Close project"
-              role="button"
-              tabIndex={0}
-              aria-label={`Close ${label || "Untitled project"}`}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onClose(t.id); } }}
-            />
+          // TASKS.csv #596 — the switch and the close are SIBLING buttons (the close X used to be a role=button
+          // nested inside the tab's role=button: nested interactive controls, announced as one)
+          <div key={t.id} className={`ge-tab ${isActive ? "active" : ""}`} title={label}>
+            <button type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
+              aria-current={isActive ? "true" : undefined} // TASKS.csv #388
+              aria-label={`${label || "Untitled project"}${dirty ? " (unsaved changes)" : ""}`}>
+              {dirty && <span className="ge-tab-dot" title="Unsaved changes" />}
+              <span className="ge-tab-label">{label || "Untitled project"}</span>
+            </button>
+            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title="Close project" aria-label={`Close ${label || "Untitled project"}`}>
+              <X size={12} aria-hidden="true" />
+            </button>
           </div>
         );
       })}
@@ -620,7 +653,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
       {project.crsSet === false
         ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title="The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)" style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>CRS: <span className="val">not set</span></span>
-        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognized CRS"} — click to change the project CRS (reprojection tools: Cartography tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognized CRS"} — click to change the project CRS (reprojection tools: Maps tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

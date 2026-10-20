@@ -58,11 +58,14 @@ test("#322 a saved line reloads through the normal parse path unchanged; section
     electrodes: [[0, 1000]], predicted: [1, 2, 3], standardDeviation: [1], history: [{}], phi_d: 4, target: 4, reachedTarget: true, iterations: 3,
     ip: { phi_d: 5, history: [{}], predicted: [1] }, mesh: { cell: 10 }, versions: { simpeg: "0.25.2" } };
   const slim = slimDcipResult(result);
-  assert.equal(slim.predicted, undefined); assert.equal(slim.history, undefined);
-  assert.deepEqual(slim.ip, { phi_d: 5 }); assert.deepEqual(slim.cells, result.cells);
+  // #683 — predicted data and their errors are kept now (for the data-fit view); the history still is not
+  assert.deepEqual(slim.predicted, [1, 2, 3]); assert.deepEqual(slim.standardDeviation, [1]); assert.equal(slim.history, undefined);
+  assert.deepEqual(slim.ip, { phi_d: 5, predicted: [1] }); assert.deepEqual(slim.cells, result.cells);
   const geom = lineGeometry([1000, 2000], [1000, 2100]); // due north
   const rows = sectionTableRows(slim, geom);
-  assert.deepEqual(rows[1], { distance_m: 15, x: 1000, y: 2015, z: 980, ds_m: 10, dz_m: 5, resistivity_ohmm: 200, chargeability_mVV: 2, support: 0.01 });
+  assert.deepEqual(rows[1], { distance_m: 15, x: 1000, y: 2015, z: 980, ds_m: 10, dz_m: 5, resistivity_ohmm: 200, chargeability_mVV: 2, support: 0.01, envelope_support: 0.01 });
+  // #681 — with a cutoff, each row says whether the figure shows it (columns 5 and 15 are separate columns here)
+  assert.deepEqual(sectionTableRows(slim, geom, 0.02).map((r) => r.shown), ["yes", "no"]);
   assert.equal("chargeability_mVV" in sectionTableRows({ cells: { ...result.cells, chargeability: undefined } }, geom)[0], false);
   assert.equal(niceStep(0, 1000, 10), 100); assert.equal(niceStep(0, 230, 6), 50); assert.equal(niceStep(-120, -40, 4), 20);
 });
@@ -89,4 +92,16 @@ test("#600 contractor TDIP line files (.dat / .ipg): whitespace table after meta
     assert.equal(p.array, "pole-dipole");
   }
   assert.equal(parseDcipWhitespaceText("a,b,c\n1,2,3"), null); // a CSV without electrode columns: not this reader's
+});
+
+// TASKS.csv #680 — model depth from the array's reach, capped by the line length
+test("#680 suggested model depth follows the current-to-potential reach, not the line length", async () => {
+  const { suggestModelDepth } = await import("../src/lib/dcip.js");
+  // pole-dipole, a = 100 m, n = 1..12, over a 2.3 km line and over a 6.8 km tie line: same array, same depth
+  const pd = (len) => { const r = []; for (let a = 0; a <= len; a += 100) for (let n = 1; n <= 12; n++) { const m = a - n * 100; if (m - 100 >= 0) r.push([a, null, m, m - 100]); } return r; };
+  assert.equal(suggestModelDepth(pd(2300), [0, 2300], 50), 375); // 0.3 x 1,250 m
+  assert.equal(suggestModelDepth(pd(6800), [0, 6800], 50), 375);
+  // a short line is capped at a quarter of its length; never fewer than four cells
+  assert.equal(suggestModelDepth(pd(800), [0, 800], 50), 200);
+  assert.equal(suggestModelDepth([[0, 10, 20, 30]], [0, 30], 5), 20);
 });

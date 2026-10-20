@@ -114,7 +114,7 @@ export function provenanceLines(name, provenance, extra = {}) {
     if (q.gempyRange != null) out.push(`GemPy potential-field range: ${q.gempyRange}${q.gempyRangeDefault != null ? ` (GemPy default ${q.gempyRangeDefault}${q.gempyRangeMultiplier ? `, multiplier ${q.gempyRangeMultiplier}` : ", used as-is"})` : ""}${q.gempyCO != null ? ` | c_o: ${q.gempyCO}` : ""}`);
     if (q.method) out.push(`Interpolation: ${q.method} | search radius: ${Math.round(q.searchRadiusM)} m${q.searchRadiusAuto ? " (auto, from hole spacing)" : ""} | cell size: ${q.cellSizeM.toFixed ? q.cellSizeM.toFixed(2) : q.cellSizeM} m${q.cellSizeAuto ? " (auto)" : ""}${q.cellSizeCoarsened ? " — coarsened to stay under the grid limit" : ""}`);
     if (q.holeSpacingM != null) out.push(`Median hole spacing behind those auto values: ${Math.round(q.holeSpacingM)} m`);
-    if (q.anisotropy) out.push(`Anisotropy trend: ${q.anisotropy.azimuth}/${q.anisotropy.dip} deg, ranges ${q.anisotropy.major}/${q.anisotropy.semiMajor}/${q.anisotropy.minor} m`);
+    if (q.anisotropy) out.push(anisotropyLine(q.anisotropy)); // #674 — the #650 trend shape printed "undefined"
     if (q.searchEllipsoid) out.push(`Search ellipsoid: ${q.searchEllipsoid.azimuth}/${q.searchEllipsoid.dip} deg, ranges ${q.searchEllipsoid.major}/${q.searchEllipsoid.semiMajor}/${q.searchEllipsoid.minor} m, min neighbours ${q.searchEllipsoid.minSamples}`);
     if (q.domain) out.push(`Model domain: ${q.domain}${q.clippedToDomain ? " (output mesh clipped to it)" : " (input points restricted to it)"}`);
     if (q.extent) out.push(`Modelled extent (project coords, origin-relative): ${q.extent.join(", ")}`);
@@ -131,17 +131,31 @@ export function provenanceLines(name, provenance, extra = {}) {
     out.push(`Compositing: ${q.composited ? `${q.compositeLengthM} m${q.minCoverage != null ? `, min coverage ${Math.round(q.minCoverage * 100)}%` : ""}` : "none (raw intervals)"} | high-grade cap: ${q.capValue == null ? "none" : q.capValue} | min distinct holes: ${q.minHoles} | QC samples: ${q.includeQAQC ? "included" : "excluded"}`);
     out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a grade boundary — volume depends on the search radius)" : ""}`);
     out.push(`Sample points: ${q.samplePoints} | cells estimated: ${q.cellsEstimated}${q.singleHoleCells ? ` (${q.singleHoleCells} informed by a single hole)` : ""}`);
+    if (q.anisotropy) out.push(anisotropyLine(q.anisotropy)); // #674
+    if (q.searchEllipsoidM) out.push(`Search ellipsoid semi-axes along the trend: ${q.searchEllipsoidM.join(" x ")} m (#656 — the block model's ellipsoid for the same radius)`);
     if (q.meanGradeInShell != null) out.push(`Mean interpolated grade inside the shell: ${q.meanGradeInShell.toFixed(3)} ${q.unit} (not a resource grade)`);
     out.push(`Generated: ${q.generatedAt}`);
   }
-  out.push(`No anisotropy, no variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
+  // #674 — "No anisotropy" only when there was none (it followed the trend line above whenever a trend was used)
+  const anis = provenance?.anisotropy;
+  out.push(`${anis ? "" : "No anisotropy, "}${anis ? "No" : "no"} variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
   return out;
+}
+
+// TASKS.csv #674 — one line for either anisotropy shape: the #650 named structural trend (dip / dip azimuth / pitch +
+// ratios) or the older two-angle ellipsoid (azimuth / dip + ranges).
+export function anisotropyLine(a) {
+  if (a.dipAzimuth != null) {
+    const r = a.ratios || {};
+    return `Structural trend${a.trend ? ` "${a.trend}"` : ""}: dip ${a.dip} deg towards ${a.dipAzimuth} deg, pitch ${a.pitch} deg (from the right-hand-rule strike towards down dip), ratios ${r.max} : ${r.int} : ${r.min} (along pitch : across in the plane : across the plane)`;
+  }
+  return `Anisotropy trend: ${a.azimuth}/${a.dip} deg, ranges ${a.major}/${a.semiMajor}/${a.minor} m`;
 }
 
 // OBJ — plain text, universally supported. 1-indexed faces per the OBJ spec.
 export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
-  const lines = [`# ${name} — exported from GeoStrix (TASKS.csv #143)`];
+  const lines = [`# ${name} — exported from GeoStrix`]; // TASKS.csv #143
   provenanceLines(name, provenance, extra).forEach((l) => lines.push(`# ${l}`)); // TASKS.csv #269
   lines.push(`o ${sanitizeName(name)}`);
   for (const [x, y, z] of vertices) lines.push(`v ${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);

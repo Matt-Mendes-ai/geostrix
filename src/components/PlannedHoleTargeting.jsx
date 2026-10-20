@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Crosshair, GitCompareArrows } from "./icons.js";
-import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual } from "../lib/holePlanning.js";
+import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual, solveWithDeviation, plannedTrace, hasDeviation } from "../lib/holePlanning.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { useStore } from "../lib/store.jsx";
 
@@ -57,7 +57,31 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
     [targetComplete, plannedPts, target?.x, target?.y, target?.z]
   );
 
+  // TASKS.csv #524 — expected lift / drift (°/100 m, saved on the hole) and a tail past the target
+  const lift = Number(hole.lift) || 0, drift = Number(hole.drift) || 0;
+  const past = hole.pastTargetM == null ? 30 : Number(hole.pastTargetM) || 0;
+  const deviated = hasDeviation(hole);
+  const devSolved = useMemo(
+    () => (targetComplete && deviated ? solveWithDeviation({ x: hole.x, y: hole.y, z: hole.z }, target, { lift, drift }) : null),
+    [targetComplete, deviated, hole.x, hole.y, hole.z, target?.x, target?.y, target?.z, lift, drift]
+  );
+  // where the STRAIGHT aim really passes once the hole lifts / drifts
+  const straightWithDev = useMemo(() => {
+    if (!solved || !deviated) return null;
+    const pts = plannedTrace({ x: hole.x, y: hole.y, z: hole.z, azimuth: solved.azimuth, dip: solved.dip, length: solved.length + past, lift, drift });
+    return missDistanceToTarget(pts, target);
+  }, [solved, deviated, hole.x, hole.y, hole.z, past, lift, drift, target?.x, target?.y, target?.z]);
+
   const applySolved = () => {
+    if (!solved) return;
+    const s = devSolved || solved; // #524 — aim off for the expected deviation when there is one
+    onUpdate(hole.id, {
+      azimuth: Math.round(s.azimuth * 10) / 10,
+      dip: Math.round(s.dip * 10) / 10,
+      length: Math.round((s.length + past) * 10) / 10, // #524 — drill past the target
+    });
+  };
+  const applySolvedStraightOnly = () => {
     if (!solved) return;
     // Rounded to 0.1 deg / 0.1 m: a rig cannot be set up to 9 decimal places, and an unrounded value
     // makes the row's own readout look like spurious precision. The residual miss this introduces is
@@ -65,7 +89,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
     onUpdate(hole.id, {
       azimuth: Math.round(solved.azimuth * 10) / 10,
       dip: Math.round(solved.dip * 10) / 10,
-      length: Math.round(solved.length * 10) / 10,
+      length: Math.round((solved.length + past) * 10) / 10, // #524 — past the target
     });
   };
 
@@ -109,6 +133,15 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
             the collar or angles above. A straight hole reaches any point at exactly its straight-line
             distance, so the solved orientation is also the shallowest way there.
           </div>
+          {/* TASKS.csv #524 — expected deviation and a tail past the target */}
+          <div style={rowStyle}>
+            <TargetField label="Lift °/100 m" value={hole.lift} onChange={(v) => onUpdate(hole.id, { lift: v })} />
+            <TargetField label="Drift °/100 m" value={hole.drift} onChange={(v) => onUpdate(hole.id, { drift: v })} />
+            <TargetField label="Past target (m)" value={hole.pastTargetM ?? 30} onChange={(v) => onUpdate(hole.id, { pastTargetM: v })} />
+          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+            Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Typical diamond holes: 1–3°/100 m — use your own holes' surveys. Both curve the planned hole in 3D too.
+          </div>
           <div style={rowStyle}>
             <TargetField label="Target E" value={target?.x} onChange={(v) => setTarget({ x: v })} />
             <TargetField label="Target N" value={target?.y} onChange={(v) => setTarget({ y: v })} />
@@ -136,9 +169,22 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
                   {miss.distance < 1 ? " — on target." : ""}
                 </div>
               )}
+              {straightWithDev && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "#c08a3c", marginBottom: 4, lineHeight: 1.5 }}>
+                  Aimed straight at it, this hole's lift / drift would pass {straightWithDev.distance.toFixed(1)} m from the target{straightWithDev.beyondToe ? " (and end short of it)" : ""}.
+                </div>
+              )}
+              {devSolved && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
+                  Aim-off for the deviation: <b>Az {devSolved.azimuth.toFixed(1)}°</b> / <b>Dip {devSolved.dip.toFixed(1)}°</b>, target reached at {devSolved.length.toFixed(1)} m{devSolved.miss >= 1 ? ` (closest ${devSolved.miss.toFixed(1)} m — check the lift / drift)` : ""}.
+                </div>
+              )}
               <button onClick={applySolved} style={{ ...btn, background: "#e3ecf5", borderColor: "var(--color-selected-border)" }}>
-                Apply solved orientation to this hole
+                Apply {devSolved ? "aim-off" : "solved"} orientation{past ? `, ${past} m past the target` : ""}
               </button>
+              {devSolved && (
+                <button onClick={applySolvedStraightOnly} style={{ ...btn, marginTop: 4 }}>Apply the straight aim instead</button>
+              )}
             </div>
           )}
         </div>

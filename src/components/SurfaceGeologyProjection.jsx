@@ -1,6 +1,6 @@
 // TASKS.csv #318 — "use [surface mapping data] to project surface geology underground" (Matt).
 //
-// 3D Modeling sidebar section with two ways to take a mapped contact below the ground:
+// 3D Modelling sidebar section with two ways to take a mapped contact below the ground:
 //   1. Dip projection — sweep the draped contact trace down-dip to a chosen depth as a surface, the dip
 //      at each point along the trace taken from the nearest outcrop measurements of chosen types (or a
 //      typed dip/dip direction where there are none). No sidecar needed; works before any drilling.
@@ -67,10 +67,10 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
     <>
       <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 5 }}>
         Project surface geology
-        <InfoButton title="Project surface geology" width={400} text={"Takes a mapped contact between two units on an imported geology map (Geophysics → Map layers) below the ground.\n\nProject to depth: the contact trace is draped on the terrain and swept down-dip to the depth you set. Along the trace, the dip comes from the outcrop measurements (Surface structures) of the types ticked below within the search radius, inverse-distance weighted; where none are in range the typed dip/dip direction is used. Depth is vertical depth below the outcrop, so a shallow dip reaches further sideways.\n\nUse in implicit model: adds the draped trace as interface points, and the nearby measurements as orientations, to the next \"Implicit model\" run below — so a surface fitted to drillhole contacts also honours where the contact crops out.\n\nContacts are found where two different units' boundaries lie within the snap tolerance of each other (or one polygon lies inside another, e.g. a dyke drawn over its host). The edge of the mapped area is never treated as a contact."} />
+        <InfoButton title="Project surface geology" width={400} text={"Takes a mapped contact between two units on an imported geology map (Maps → Map layers) below the ground.\n\nProject to depth: the contact trace is draped on the terrain and swept down-dip to the depth you set. Along the trace, the dip comes from the outcrop measurements (Surface structures) of the types ticked below within the search radius, inverse-distance weighted; where none are in range the typed dip/dip direction is used. Depth is vertical depth below the outcrop, so a shallow dip reaches further sideways.\n\nUse in implicit model: adds the draped trace as interface points, and the nearby measurements as orientations, to the next \"Implicit model\" run below — so a surface fitted to drillhole contacts also honours where the contact crops out.\n\nContacts are found where two different units' boundaries lie within the snap tolerance of each other (or one polygon lies inside another, e.g. a dyke drawn over its host). The edge of the mapped area is never treated as a contact."} />
       </div>
       {!polygonLayers.length ? (
-        <div style={{ ...small, marginBottom: 10 }}>Import a polygon geology map in Geophysics → Map layers to project its contacts underground.</div>
+        <div style={{ ...small, marginBottom: 10 }}>Import a polygon geology map in Maps → Map layers to project its contacts underground.</div>
       ) : (
         <>
           <select value={layer?.id || ""} onChange={(e) => { setLayerId(e.target.value); setContactKey(""); }} style={sel}>
@@ -112,7 +112,7 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
             onClick={() => onProject(settings(), contact, layer, chosenRows)}
             disabled={!contact || !terrain || busy}
             style={{ ...pBtn, marginBottom: 6, opacity: contact && terrain && !busy ? 1 : 0.5, cursor: contact && terrain && !busy ? "pointer" : "default" }}
-            title={terrain ? "Build a surface by sweeping this contact down-dip" : "Needs a terrain surface to drape the contact trace on (Geophysics → Terrain)"}
+            title={terrain ? "Build a surface by sweeping this contact down-dip" : "Needs a terrain surface to drape the contact trace on (Maps → Terrain)"}
           ><ArrowDownToLine size={14} /> Project contact to depth</button>
           <label style={{ ...row, cursor: contact && terrain ? "pointer" : "default", opacity: contact && terrain ? 1 : 0.5 }}
             title="Adds this contact's draped trace as interface points and the chosen nearby measurements as orientations to the next single-unit Implicit model run below">

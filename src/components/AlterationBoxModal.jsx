@@ -1,4 +1,5 @@
 // TASKS.csv #503 — set up the AI / CCPI alteration classification: where each sample's protolith comes from
+import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // (its logged lithology, mapped code by code, or one protolith for every sample) and the least-altered box of
 // each protolith. The box limits ship as PROVISIONAL defaults (not yet checked against Large et al. 2001
 // fig. 6) and are edited here; they are saved with the project. The classification itself is
@@ -57,7 +58,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
 
         <div className="ge-section-label" style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
           <span>Least-altered boxes</span>
-          {!provisional && <span role="button" tabIndex={0} style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} onClick={() => setBoxes(PROVISIONAL_ALTERATION_BOXES)}>Reset to provisional</span>}
+          {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), "Reset to provisional boxes")}>Reset to provisional</span>}
         </div>
         <table style={{ marginTop: 4, borderCollapse: "collapse" }}>
           <thead><tr style={small}><th style={{ textAlign: "left", paddingRight: 10 }}>Protolith</th><th>AI min</th><th>AI max</th><th>CCPI min</th><th>CCPI max</th></tr></thead>

@@ -3,8 +3,9 @@ import { X, Plus, Trash2, RotateCcw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476
+import { seedBreaks, nextDarkerClassColor } from "../lib/colorRamp.js"; // TASKS.csv #319 / #476; #701
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { SHAPES } from "../lib/layerStyle.js"; // TASKS.csv #649 — the same marker shapes as the other point layers
 
 // seedBreaks moved to lib/colorRamp.js (TASKS.csv #476) so the 3D view can seed breaks without loading this modal.
 
@@ -14,6 +15,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   const [local, setLocal] = useState(() => ({
     color: style?.color || defaultColor,
     sizeMult: style?.sizeMult ?? 1,
+    shape: style?.shape || "sphere", // #649
+    opacity: style?.opacity ?? 1, // #649
     minCutoff: style?.minCutoff ?? "",
     breaks: style?.breaks ? style.breaks.map((b) => ({ ...b })) : [],
   }));
@@ -23,6 +26,8 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
     onChange({
       color: next.color,
       sizeMult: next.sizeMult,
+      shape: next.shape === "sphere" ? null : next.shape, // #649 — only a change is stored
+      opacity: next.opacity >= 1 ? null : next.opacity,
       minCutoff: next.minCutoff === "" ? null : Number(next.minCutoff),
       breaks: next.breaks.length ? next.breaks.slice().sort((a, b) => a.max - b.max) : null,
     });
@@ -37,7 +42,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
       return;
     }
     const last = local.breaks[local.breaks.length - 1];
-    commit({ ...local, breaks: [...local.breaks, { max: +(last.max * 1.5).toFixed(3), color: "#e05a4a", label: "" }] });
+    commit({ ...local, breaks: [...local.breaks, { max: +(last.max * 1.5).toFixed(3), color: nextDarkerClassColor(local.color, last.color), label: "" }] }); // #701
   };
   const updateBreak = (i, patch) => {
     // #319 — a break the user has touched is theirs: drop the `seeded` tag so nothing later treats it
@@ -47,7 +52,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
   };
   const removeBreak = (i) => commit({ ...local, breaks: local.breaks.filter((_, bi) => bi !== i) });
 
-  const reset = () => commit({ color: defaultColor, sizeMult: 1, minCutoff: "", breaks: [] });
+  const reset = () => commit({ color: defaultColor, sizeMult: 1, shape: "sphere", opacity: 1, minCutoff: "", breaks: [] });
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -68,6 +73,18 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
             </label>
           )}
 
+          {/* TASKS.csv #649 — shape and opacity, like the other layers' style panel */}
+          <label style={row}>
+            <span style={rowLabel}>Shape</span>
+            <select value={local.shape} onChange={(e) => commit({ ...local, shape: e.target.value })} aria-label="Marker shape" style={{ ...inp, flex: 1 }}>
+              {SHAPES.point.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+          </label>
+          <label style={row}>
+            <span style={rowLabel}>Opacity</span>
+            <input type="range" min="0.1" max="1" step="0.05" value={local.opacity} onChange={(e) => commit({ ...local, opacity: Number(e.target.value) })} aria-label="Marker opacity" style={{ flex: 1 }} />
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 34, textAlign: "right" }}>{Math.round(local.opacity * 100)}%</span>
+          </label>
           <label style={row}>
             <span style={rowLabel} title="Multiplies the value-scaled marker size (1 = default). Every marker for this element scales by this factor, keeping the same 'bigger = higher grade' relationship.">Size</span>
             <input type="range" min="0.3" max="3" step="0.1" value={local.sizeMult} onChange={(e) => commit({ ...local, sizeMult: Number(e.target.value) })} style={{ flex: 1 }} />
@@ -89,9 +106,10 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {local.breaks.map((b, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} />
+                    <input type="color" value={b.color} onChange={(e) => updateBreak(i, { color: e.target.value })} style={colorInp} aria-label={`Class ${i + 1} colour`} />
                     <input
                       placeholder="Label"
+                      aria-label={`Class ${i + 1} label`} // #687
                       value={b.label || ""}
                       onChange={(e) => updateBreak(i, { label: e.target.value })}
                       style={{ ...inp, width: 90 }}
@@ -100,6 +118,7 @@ export default function AssayStyleModal({ symbol, unit, defaultColor, range, sty
                     <input
                       type="number" step="any"
                       value={b.max}
+                      aria-label={`Class ${i + 1} upper limit (${unit}), up to and including`}
                       onChange={(e) => updateBreak(i, { max: Number(e.target.value) || 0 })}
                       style={{ ...inp, width: 90 }}
                     />

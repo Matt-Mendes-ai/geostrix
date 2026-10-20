@@ -120,13 +120,54 @@ export const formatBytes = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b >
 export function fitVerdict(result) {
   const chi = result.phi_d / result.target;
   if (chi > 1.5) return { chi, level: "under", text: `Did not reach the target fit (misfit ${chi.toFixed(2)}x the target) — the model does not explain the data to the uncertainty you entered. Treat it as unfinished.` };
+  // TASKS.csv #536 — an overshoot by the solver's last step (beta halved past the target) is not the user's
+  // uncertainty: the engine now returns an in-band iterate when it has one and says so in fitChoice.
+  const fc = result.fitChoice;
+  const picked = fc && (fc.how === "earlier" || fc.how === "refined") ? ` The final solver step overshot to ${(fc.lastPhi / result.target).toFixed(2)}x, so the ${fc.how === "refined" ? "step was redone with a smaller one" : `model from iteration ${fc.iteration} is used`} instead.` : "";
+  if (chi < 0.5 && fc?.overshot) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) because the solver's last step overshot the target — not necessarily a sign that the uncertainty is too large. The model is rougher than the data need; treat fine detail with caution.` };
   if (chi < 0.5) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) — likely fitting noise; the uncertainty may be set too large.` };
   // TASKS.csv #507 — "Reached" only when the run did reach it: the sidecar's reachedTarget (phi_d <= 1.05 N);
   // results without the flag (older saved sections) use the same test. A run that stopped at its iteration
   // limit at 1.05-1.5x used to be reported — and stored in provenance — as converged.
   const reached = result.reachedTarget ?? chi <= 1.05;
   if (!reached) return { chi, level: "close", text: `Stopped after ${result.iterations} iteration${result.iterations === 1 ? "" : "s"} before reaching the target fit (misfit ${chi.toFixed(2)}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered.` };
-  return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.` };
+  return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
+}
+
+// TASKS.csv #775 — SimPEG's magnetic tutorials: "a constant floor of 2 % of the maximum |TMI|, percent uncertainties
+// avoided". Shown as a HINT beside the field, never filled in (#564: nothing physical is defaulted). The anomaly is
+// measured about the mean, as the default base-level removal leaves it.
+export function simpegMagFloorHint(values) {
+  const v = (values || []).filter(Number.isFinite);
+  if (!v.length) return null;
+  const mean = v.reduce((a, b) => a + b, 0) / v.length;
+  let m = 0;
+  for (const x of v) m = Math.max(m, Math.abs(x - mean));
+  return m > 0 ? 0.02 * m : null;
+}
+
+// TASKS.csv #770 — the engine works in grid coordinates (the inducing field's declination was converted with
+// gridDeclination: grid = true + convergence), so a recovered declination goes back to true north the same way.
+export function trueDeclination(gridDeg, convergence) {
+  return ((((gridDeg - (Number(convergence) || 0)) % 360) + 360) % 360);
+}
+
+// Plain words for the vector inversion's direction summary: where the strongest cells point, and whether that is
+// far enough from today's field for remanence to matter. Thresholds are deliberately coarse: a direction from a
+// potential-field inversion is an estimate, not a palaeomagnetic measurement.
+export function remanenceText(direction, convergence) {
+  if (!direction) return null;
+  const dec = trueDeclination(direction.declinationGrid, convergence);
+  const a = direction.angleToInducingField;
+  // Found live on the Harry sample (magnetic LOWS from magnetite destruction on a regional gradient, base level
+  // removed): the vector inversion fitted the lows with magnetisation pointing almost opposite the field
+  // (inclination -75, 148 deg away). A deficit and a reversed source look the same to it; say so.
+  const verdict = a >= 135 ? "nearly opposite today's field. That is what a magnetic LOW looks like to a vector inversion — rock less magnetic than its surroundings (magnetite destroyed by alteration, for example), once the base level is removed — as well as genuinely reversed remanence. Check against the geology and the logs before calling it remanence"
+    : a >= 30 ? "far from today's field, so a remanent component is likely and a susceptibility inversion would misplace this body"
+    : a >= 15 ? "somewhat off today's field: some remanence is possible"
+      : "close to today's field: mostly induced magnetization, so the susceptibility inversion is a fair model too";
+  const scatter = direction.consistency < 0.7 ? ` The cells' directions scatter (consistency ${direction.consistency.toFixed(2)} of 1), so treat the direction as rough.` : "";
+  return `The ${direction.cells.toLocaleString()} strongest cells point at inclination ${direction.inclination.toFixed(0)}°, declination ${dec.toFixed(0)}° (true north) — ${a.toFixed(0)}° from the inducing field: ${verdict}.${scatter}`;
 }
 
 // Sidecar result -> a GeoStrix voxel model (only core, below-ground cells are ever sent). `supportCutoff`
@@ -136,7 +177,15 @@ export function resultToVoxelModel(result, meta) {
   const c = result.cells;
   const cells = c.value.map((v, i) => ({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v, support: c.support[i] }));
   const property = result.method === "mag" ? "Recovered susceptibility (SI)" : "Recovered density contrast (g/cc)";
-  return { name: `${property} — smooth inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method };
+  // TASKS.csv #770 — a vector (remanence) inversion: the value is the magnetisation AMPLITUDE (SI-equivalent),
+  // and each cell carries its own inclination / declination (grid north)
+  if (result.magModel === "vector") {
+    if (c.inc && c.dec) cells.forEach((cell, i) => { cell.inc = c.inc[i]; cell.dec = c.dec[i]; });
+    const p = "Magnetization amplitude (SI)";
+    return { name: `${p} — vector inversion of ${meta.surveyName}`, cells, source: "simpeg", property: p, method: result.method, style: "vector" };
+  }
+  const style = result.style === "compact" ? "compact" : "smooth"; // TASKS.csv #769
+  return { name: `${property} — ${style} inversion of ${meta.surveyName}`, cells, source: "simpeg", property, method: result.method, style };
 }
 
 // Base64 <-> Float32Array for compact project-file storage of model values (database review, #321):
@@ -171,10 +220,37 @@ function labStops(anchors, values) {
 // the strongest cells are the most salient on GeoStrix's light viewport, same logic as #306's grade ramp.
 // TASKS.csv #322 — resistivity: log-spaced stops (it spans decades), conductive = warm / dark red, resistive =
 // blue, the convention DC/IP sections are read in.
-export const RESISTIVITY_ANCHORS = ["#8a1d1d", "#e0885c", "#f4f4f2", "#5b8fc9", "#1d3f7a"];
+// TASKS.csv #535 — SEQUENTIAL, not diverging: the old dark red -> #f4f4f2 -> dark blue ramp put a near-white neutral
+// (ΔE00 2.5 from the page) at the geometric middle of min..max, so mid-resistivity cells read as blank paper, the
+// "neutral" moved with the data's extremes, and the low-support grey matched ~150-200 ohm·m. Now lightness rises
+// monotonically with resistivity (L* 15 -> 83): conductive (the target) darkest and most salient, as the chargeability
+// and susceptibility ramps do for their strong values; nowhere closer than ΔE00 11.5 to page white.
+export const RESISTIVITY_ANCHORS = ["#4d0a12", "#a8262a", "#dd6a3a", "#e9b27c", "#b9d3e6"];
 export function logStops(min, max, anchors = RESISTIVITY_ANCHORS, n = 17) {
   const lo = Math.log10(min > 0 ? min : 1), hi = Math.log10(max > min ? max : (min > 0 ? min : 1) * 10);
   return labStops(anchors, Array.from({ length: n }, (_, i) => 10 ** (lo + ((hi - lo) * i) / (n - 1))));
+}
+// TASKS.csv #702 — ONE ramp for grade models, whichever tool made them (IDW / nearest / geoML): viridis (the 3D
+// view's default for a value with no stops, #382), log-spaced when the grades span two decades or more, so an
+// IDW Au estimate and a geoML Au estimate of the same data read alike side by side. Geophysical properties keep
+// their warm / log ramps below, so a grade model is never the same colours as a chargeability model.
+export const GRADE_ANCHORS = ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"];
+export function gradeStops(min, max, n = 17) {
+  if (min > 0 && max / min >= 100) return logStops(min, max, GRADE_ANCHORS, n);
+  const lo = Number.isFinite(min) ? min : 0, hi = Number.isFinite(max) && max > lo ? max : lo + 1;
+  return labStops(GRADE_ANCHORS, Array.from({ length: n }, (_, i) => lo + ((hi - lo) * i) / (n - 1)));
+}
+// TASKS.csv #702 — a ramp whose anchors sit at given values (not evenly spaced), densified in Lab like the others
+export function labStopsAt(anchorStops, n = 17) {
+  const a = [...anchorStops].sort((p, q) => p.value - q.value).map((s) => ({ value: s.value, lab: rgbToLab(hexToRgb(s.color)) }));
+  const lo = a[0].value, hi = a[a.length - 1].value;
+  return Array.from({ length: n }, (_, i) => {
+    const v = lo + ((hi - lo) * i) / (n - 1);
+    let k = 0; while (k < a.length - 2 && v > a[k + 1].value) k++;
+    const f = a[k + 1].value > a[k].value ? (v - a[k].value) / (a[k + 1].value - a[k].value) : 0;
+    const lab = a[k].lab.map((c, j) => c + (a[k + 1].lab[j] - c) * f);
+    return { value: v, color: rgbToHex(labToRgb(lab).rgb) };
+  });
 }
 export const SEQUENTIAL_ANCHORS = ["#fff7cc", "#f5b247", "#d9601a", "#8f1f3d", "#3d0d3a"];
 export function sequentialStops(min, max, n = 17) {
@@ -189,4 +265,22 @@ export const DIVERGING_ANCHORS = ["#1d3f7a", "#5b8fc9", "#f4f4f2", "#e0885c", "#
 export function divergingStops(absMax, n = 17) {
   const m = Number.isFinite(absMax) && absMax > 0 ? absMax : 1;
   return labStops(DIVERGING_ANCHORS, Array.from({ length: n }, (_, i) => -m + (2 * m * i) / (n - 1)));
+}
+
+// TASKS.csv #537 — what the forward-model maps show. The engine scores a forward run as obs − pred − b, with b the
+// best-fit base level (#366), but the maps were given raw obs and pred: with an IGRF-removed level of ~150 nT the
+// residual map was one flat colour, its RMS ≈ the base level (contradicting the "RMS left over" sentence above
+// it), and the shared observed / predicted colour scale was stretched across both offsets. The predicted map is
+// shown with b added (same level as the data), so residual = obs − (pred + b) and its RMS = the engine's.
+export function forwardMapValues(observed, run) {
+  const b = Number.isFinite(run?.baseLevel) ? run.baseLevel : 0;
+  const predicted = (run?.predicted || []).map((p) => p + b);
+  return { predicted, baseLevel: b };
+}
+// a symmetric colour range for a residual map without per-datum σ: the 98th percentile of |residual| (so one spike
+// doesn't wash out the rest); with σ the residual is in σ units and ±3 is the scale
+export function residualScale(resid, hasStd) {
+  if (hasStd) return 3;
+  const a = resid.map(Math.abs).filter(Number.isFinite).sort((x, y) => x - y);
+  return a.length ? Math.max(a[Math.min(a.length - 1, Math.floor(0.98 * (a.length - 1)))], 1e-9) : 1;
 }

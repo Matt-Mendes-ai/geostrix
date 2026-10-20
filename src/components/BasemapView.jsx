@@ -54,6 +54,7 @@ export default function BasemapView({
   confirmLabel = "Fetch SRTM for this area", // draw mode only, same reason as `title` above.
   onClose,
   onConfirm, // (bboxLonLat) => void, draw mode only
+  extraControls = null, // TASKS.csv #781 — draw mode only: (bboxLonLat | null) => node, shown before the area size
 }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -377,6 +378,7 @@ export default function BasemapView({
             </select>
           )}
           <div style={{ flex: 1 }} />
+          {extraControls && extraControls(bbox)}
           {bbox && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "#5a6472", marginRight: 10 }}>
               ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°

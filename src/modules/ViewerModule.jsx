@@ -16,11 +16,12 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
-import { openSectionWindow, saveFile } from "../lib/desktop.js";
+import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
+import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
+import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
@@ -29,13 +30,14 @@ const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGe
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
+import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
-import InfoButton from "../components/InfoButton.jsx"; // TASKS.csv #309 — 3D Modeling's always-on help prose, moved behind a disclosure
+import InfoButton from "../components/InfoButton.jsx"; // TASKS.csv #309 — 3D Modelling's always-on help prose, moved behind a disclosure
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import { legibilityRadius, densestCentre } from "../lib/cameraFit.js"; // TASKS.csv #313 — opening-view framing (read cameraFit.js's header before touching fitBox)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
@@ -43,7 +45,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import PanelSplitHandle from "../components/PanelSplitHandle.jsx";
 import { useBrowserPanelHeight } from "../lib/useBrowserPanelHeight.js";
-import DbBrowserPanel from "../components/DbBrowserPanel.jsx";
+const DbBrowserPanel = React.lazy(() => import("../components/DbBrowserPanel.jsx")); // startup budget (#476): loads after the first paint
 const ImportMappingModal = lazyModal(() => import("../components/ImportMappingModal.jsx"));  // TASKS.csv #301
 const LayerPickerModal = lazyModal(() => import("../components/LayerPickerModal.jsx")); // TASKS.csv #476 // TASKS.csv #288
 const DatabaseConnectModal = lazyModal(() => import("../components/DatabaseConnectModal.jsx"));  // TASKS.csv #301
@@ -56,10 +58,18 @@ const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  /
 // regardless of whether SQL workspace is ever opened. React.lazy defers the whole chain until the
 // modal is actually rendered (see the Suspense wrapper at its render site below).
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
+const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
+const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
+const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
+import { cleanTrend, trendBasis, trendScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
+import { colors } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours
+import { mergeSurfaceStyle, applySurfaceStyle, surfaceBaseLook } from "../lib/surfaceStyle.js"; // TASKS.csv #636
+const PredictivePanel = React.lazy(() => import("../components/PredictivePanel.jsx")); // TASKS.csv #638
 const BoundaryInterceptsModal = lazyModal(() => import("../components/BoundaryInterceptsModal.jsx"));  // TASKS.csv #301
 const StripLog = lazyModal(() => import("../components/StripLog.jsx"));  // TASKS.csv #301
 const StereonetModal = lazyModal(() => import("../components/StereonetModal.jsx"));  // TASKS.csv #301
 const DownholeStructurePlot = lazyModal(() => import("../components/DownholeStructurePlot.jsx")); // TASKS.csv #277  // TASKS.csv #301
+const LevelPlanWindow = lazyModal(() => import("../components/LevelPlanWindow.jsx")); // TASKS.csv #525
 const SurfaceQueryModal = lazyModal(() => import("../components/SurfaceQueryModal.jsx")); // TASKS.csv #146  // TASKS.csv #301
 const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompareModal.jsx")); // TASKS.csv #93  // TASKS.csv #301
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
@@ -68,24 +78,30 @@ const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrie
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { legendScale } from "../lib/legendScale.js"; // TASKS.csv #498
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
-import ModellingCodesPane from "../components/ModellingCodesPane.jsx"; // TASKS.csv #599
+import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
+import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
+import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
+import { unitShell, meshVolume } from "../lib/unitVolumes.js"; // TASKS.csv #517
+const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
+import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, ESTIMATION_METHODS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92
+import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
-import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math
+import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
-import { useModelling } from "./viewer/useModelling.js"; // TASKS.csv #445 step 2
+import { useModelling } from "./viewer/useModelling.js";
+import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
@@ -117,7 +133,9 @@ function plannedHoleTrace(hole) {
   // interval — and all four methods are provably IDENTICAL on a constant azimuth/inclination hole
   // (verified to 0.000e+0 m in #135's Node check). Passing the method here would be a no-op that
   // implied the plan's geometry depends on a setting it cannot depend on.
-  return desurveyHole({ ...hole, dip: -hole.dip }, []);
+  // TASKS.csv #524 — with an expected lift / drift the trace curves (minimum curvature through synthetic
+  // stations); holePlanning.plannedTrace is the one builder, so the 3D view, exports and targeting agree.
+  return plannedTrace(hole);
 }
 
 function stripInternalFields(r) { return Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith("_"))); }
@@ -488,6 +506,20 @@ const PROTO_SPHERE_10 = sharedProto(new THREE.SphereGeometry(1, 10, 10), "sph10"
 const PROTO_SPHERE_8 = sharedProto(new THREE.SphereGeometry(1, 8, 8), "sph8");
 const PROTO_SPHERE_12 = sharedProto(new THREE.SphereGeometry(1, 12, 12), "sph12");
 const PROTO_CIRCLE_24 = sharedProto(new THREE.CircleGeometry(1, 24), "circ24");
+// TASKS.csv #635 — the extra shapes a layer style can pick (same unit-size + scale convention, so they batch too)
+const PROTO_CYLINDER_16 = sharedProto(new THREE.CylinderGeometry(1, 1, 1, 16, 1, false).translate(0, 0.5, 0), "cyl16");
+const PROTO_PRISM_4 = sharedProto(new THREE.CylinderGeometry(1, 1, 1, 4, 1, false).rotateY(Math.PI / 4).translate(0, 0.5, 0), "prism4");
+const PROTO_CUBE = sharedProto(new THREE.BoxGeometry(1.6, 1.6, 1.6), "cube"); // ~ the sphere's visual size
+const PROTO_DISC_FLAT = sharedProto(new THREE.CircleGeometry(1.2, 24).rotateX(-Math.PI / 2), "discflat"); // horizontal
+const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, false), "pillar"); // vertical, centred
+const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
+const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
+const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
+
+// TASKS.csv #695 — what a batched (never drawn) member keeps of its material; see buildLayerBatches
+function pickOnlyMaterial(src) {
+  return { isPickOnlyMaterial: true, color: src.color, side: src.side, transparent: src.transparent, opacity: src.opacity, visible: true, dispose() {} };
+}
 
 const _batchMatrix = new THREE.Matrix4();
 const _batchZero = new THREE.Vector3(0, 0, 0);
@@ -502,6 +534,9 @@ function syncBatchedInstances(inst) {
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
     m.updateMatrix();
+    // #695 — a member's world matrix is no longer refreshed by the render loop (see buildLayerBatches), so a change
+    // made here must refresh it too, or picking would test the old placement
+    m.updateMatrixWorld();
     _batchMatrix.copy(m.matrix);
     if (m.visible === false) _batchMatrix.scale(_batchZero);
     inst.setMatrixAt(i, _batchMatrix);
@@ -524,6 +559,7 @@ function buildLayerBatches(group) {
   const families = new Map();
   for (const child of group.children) {
     if (!child.isMesh || child.isInstancedMesh) continue;
+    if (child.userData.batched) continue; // #695 — already mirrored by a batch (and holding a pick-only material)
     const protoKey = child.geometry?.userData?.protoKey;
     if (!protoKey) continue;
     const m = child.material;
@@ -559,7 +595,24 @@ function buildLayerBatches(group) {
     // updateMatrix() itself on any change), so three.js need not re-compose its local matrix from
     // position/quaternion/scale on every rendered frame: measured 10.5 -> 6.2 ms per frame of pure CPU
     // at 60,000 intervals (~200 holes). World matrices keep updating (a parent transform stays correct).
-    for (const m of fam.members) { m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; }
+    // TASKS.csv #695 — and its WORLD matrix need not be re-multiplied every frame either. That only pays off if
+    // the ancestors stop recomposing too: three.js's updateMatrixWorld() forces the whole subtree whenever a
+    // parent with matrixAutoUpdate recomposes its own matrix, which the scene, root and layer group did every
+    // frame. None of them is ever moved (layer content is rebuilt, never transformed - see #304's pick-index
+    // contract), so they are frozen here and at scene setup. Measured in Node, three r160, 250,000 members:
+    // updateMatrixWorld 39.3 -> 3.9 ms per frame. matrixWorld is computed once now, which also means a pick
+    // between a rebuild and the next frame sees the right placement.
+    group.updateWorldMatrix(true, false);
+    group.matrixAutoUpdate = false;
+    for (const m of fam.members) {
+      m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false;
+      // TASKS.csv #695 — a member is never drawn, so its MeshLambertMaterial (~1.2 kB of heap each, measured) only
+      // ever answered two questions: its colour (read by syncBatchedInstances, repainted by applyLegendOverrideColors)
+      // and its face side (read by Mesh.raycast). A stand-in holding just those is ~0.2 kB: about 160 MB less for an
+      // 83k-assay project showing two elements. The original was never rendered, so it holds no GPU resources.
+      m.material = pickOnlyMaterial(m.material);
+      m.userData.batched = true;
+    }
     group.add(inst);
     syncBatchedInstances(inst);
   }
@@ -612,18 +665,34 @@ const RELATION_TYPES = [
 
 // TASKS.csv #445 — search ellipsoid / anisotropy / clustering / terrain maths moved to src/lib/viewer/geomath.js
 
-// TASKS.csv #155 — "3D Modeling" is now its own top-level module (a peer of "3D View" in App.jsx's
+// TASKS.csv #155 — "3D Modelling" is now its own top-level module (a peer of "3D View" in App.jsx's
 // module bar) rather than a sub-tab nested inside the Viewer. Both are still this SAME component
 // underneath — the 3D scene/camera/rendering machinery, and every piece of modelling state
 // (implicitSurfaces, domains, search ellipsoid, etc.), all live here and would be a large, risky
 // undertaking to duplicate into a truly separate component. `mode` just picks which sidebar content
-// renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modeling" (domains/
-// surfaces/implicit-modelling tools — the former "Modeling" tab). App.jsx renders one or the other
+// renders: "view" (collars/survey/layers/rasters — the former "Home" tab) or "modelling" (domains/
+// surfaces/implicit-modelling tools — the former "Modelling" tab). App.jsx renders one or the other
 // depending on which top-level tab is active, never both at once.
 // TASKS.csv #225 — `visible` defaults to `true` deliberately: every existing call site (App.jsx, before
 // this row's own fix lands there) doesn't pass it at all, so every behavior below is a pure no-op until
 // App.jsx actually starts rendering ViewerModule as a single persistent instance and passing `false`
 // while another tab is shown. See this row's own TASKS.csv notes for the staged rollout this follows.
+// TASKS.csv #696 — true when two versions of a voxel model draw the same instances: every field the same object /
+// value except the display-only ones, and the same side of opaque / transparent (the transparent path keeps a
+// per-cell list for the depth sort and a different depthWrite).
+// TASKS.csv #700 — the trend preview in UI colours: it was drawn in 0xd9601a / 0x8f1f3d, two of the warm data ramp's
+// own anchors (chargeability, geoML, log-coloured models), so over those models the ellipsoid changed a cell by
+// dE00 0-10 and disappeared. Blue sits outside every warm ramp and away from viridis's ends.
+const TREND_PREVIEW = { ellipsoid: colors.info, plane: colors.info, axis: colors.text };
+// TASKS.csv #684 — a "point" layer row that is really an interval (mineralisation logs)
+const isIntervalRow = (r) => Number.isFinite(r.from) && Number.isFinite(r.to) && r.to - r.from > 0.5;
+const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
+function voxelGeometryUnchanged(a, b) {
+  if (a === b) return true;
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!VOXEL_DISPLAY_ONLY.has(k) && a[k] !== b[k]) return false;
+  return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1);
+}
+
 export default function ViewerModule({ mode = "view", visible = true }) {
   const store = useStore();
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
@@ -637,7 +706,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // render-expensive component in the app, is no longer forced to re-render on every mouse-move tick.
   const setCursor = useSetCursor();
   // Same split, same reasoning, for taskProgress (TASKS.csv #226 follow-up) — this component calls
-  // setTaskProgress repeatedly during a modeling run/multi-file import but never reads its value.
+  // setTaskProgress repeatedly during a modelling run/multi-file import but never reads its value.
   const setTaskProgress = useSetTaskProgress();
   const {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
@@ -655,14 +724,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
+    updateMapLayer, removeMapLayer, // TASKS.csv #628 — the Map layers list in this sidebar
+    sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     modellingCodes, setModellingCodes, // TASKS.csv #599
+    structuralTrends, setStructuralTrends, // TASKS.csv #650
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
     geophysSurveys, // TASKS.csv #451
     voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
+    setAssays, setAssayElements, addOmfObject, saveDcipLine, voxelCellBudget, // TASKS.csv #637 — the Woodjam sample's assays / ZTEM / IP
     project,
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     excludedIntercepts, toggleExcludedIntercept,
@@ -701,14 +774,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const raycasterRef = useRef(new THREE.Raycaster());
   const headlightRef = useRef(null); // TASKS.csv #308 — the scene's DirectionalLight, repositioned to follow the camera in updateCamera()
   // Restore the camera angle/distance/target from wherever it was left last time this component was
-  // mounted (View<->Modeling round trip, or any other module round trip) — see lastCamState's own
+  // mounted (View<->Modelling round trip, or any other module round trip) — see lastCamState's own
   // comment in store.jsx for why this couldn't just live in React state directly.
   const camState = useRef(lastCamState
     ? { theta: lastCamState.theta, phi: lastCamState.phi, radius: lastCamState.radius, target: new THREE.Vector3(lastCamState.target.x, lastCamState.target.y, lastCamState.target.z) }
     : { theta: Math.PI / 4, phi: Math.PI / 3, radius: 600, target: new THREE.Vector3(0, 0, 0) });
   // TASKS.csv #225 — now effectively vestigial for its ORIGINAL purpose: this only ever fires on a real
   // component unmount, and since a single ViewerModule instance now stays mounted persistently across
-  // View/Modeling/Targeting (see App.jsx), that no longer happens on every mode switch the way it used
+  // View/Modelling/Targeting (see App.jsx), that no longer happens on every mode switch the way it used
   // to — camState.current itself keeps living across those switches regardless, so nothing is lost.
   // Left in place harmlessly (it still correctly persists the final camera position at real app
   // teardown/project-tab-close), not removed, since store.jsx's `lastCamState` is also still read by
@@ -867,10 +940,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, []);
   const [notices, setNotices] = useState([]);
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
+  const toastTimerRef = useRef(null); // #690
   const [inspectLayer, setInspectLayer] = useState(null);
   const [importModal, setImportModal] = useState(null);
   const [dbModalOpen, setDbModalOpen] = useState(false);
   const [qcModalOpen, setQcModalOpen] = useState(false); // TASKS.csv #82 — data QA/QC modal
+  const [sectionGeorefOpen, setSectionGeorefOpen] = useState(false); // TASKS.csv #630
   // TASKS.csv #239 — SQL workspace (#50) was only reachable from the Geochem module's toolbar despite
   // querying collars/survey/layers/boundaries too, not just assays — discoverability gap flagged by the
   // QGIS-specialist audit. Same modal, same store data, just also reachable from here.
@@ -900,7 +975,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [pickHoleMode, setPickHoleMode] = useState(false);
   const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
   useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
-  // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modeling tab), connect it to another hole
+  // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modelling tab), connect it to another hole
   const [mcPickMode, setMcPickMode] = useState(false);
   const [mcSelected, setMcSelected] = useState(null); // the litho row picked
   const [mcConnectFrom, setMcConnectFrom] = useState(null); // the row the next pick gets connected to
@@ -942,6 +1017,17 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const axisLinesRef = useRef([]);
   // TASKS.csv #311 — figure overlay config; see DEFAULT_FIGURE_OVERLAY for the default-on reasoning.
   const [figureOverlay, setFigureOverlay] = useState({ ...DEFAULT_FIGURE_OVERLAY });
+  // TASKS.csv #635 — per-layer style overrides (lib/layerStyle.js), saved in the project's view state like the legend
+  // overrides; styleTarget = the layer whose Style dialog is open; rowMenu = the right-click menu of a non-interval row.
+  const [layerStyles, setLayerStyles] = useState({});
+  const [styleTarget, setStyleTarget] = useState(null); // { key, kind, label, defaults, categoriesKey }
+  const [rowMenu, setRowMenu] = useState(null); // { x, y, title, items: [{ label, onClick } | "-"] }
+  const setLayerStyle = useCallback((key, kind, patch) => setLayerStyles((p) => {
+    const next = { ...p };
+    const c = patch === null ? null : cleanLayerStyle({ ...(p[key] || {}), ...patch }, kind);
+    if (c) next[key] = c; else delete next[key];
+    return next;
+  }, []), []);
   // Set by ViewportFigureOverlay to its own imperative scale-bar updater, and called from
   // updateCamera()/resize() below. Deliberately a ref-held callback rather than React state: a camera
   // move must NOT re-render this module (#312's 142.9 fps is not something to spend on chrome), and
@@ -1059,6 +1145,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     (omfObjects || []).map((o) => [o.id, (o.vertices || []).length, o.origin || null]),
   ]), [terrain?.bbox, terrainElevRange, rasters, boundaries, omfObjects]);
   const mapLayerGroupRef = useRef(null);
+  const sectionImageGroupRef = useRef(null), sectionImageMeshesRef = useRef({}); // TASKS.csv #630
   const mapLayerMeshesRef = useRef({}); // id -> THREE.Mesh (one textured drape per layer)
   const surfStructGroupRef = useRef(null);
   const surfStructObjsRef = useRef({}); // id -> THREE.Group (InstancedMesh discs + dip ticks)
@@ -1079,8 +1166,44 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // not layer-visibility churn. Always rendered regardless of which module tab is active (same as
   // every other store-driven group here — `mode` only ever gates which SIDEBAR content shows, never
   // what's in the 3D scene itself), so a planned hole stays visible for context while working in 3D
-  // View or 3D Modeling too, not just the Targeting tab where it's edited.
+  // View or 3D Modelling too, not just the Targeting tab where it's edited.
   const plannedGroupRef = useRef(null);
+  const sectionStringsGroupRef = useRef(null); // TASKS.csv #519
+  // TASKS.csv #575 — keyboard path to the view's right-click menu (Zoom to fit all, Zoom to selected area, Reset
+  // orientation, background colour): the ContextMenu key or Shift+F10 on the focused 3D view opens it at the view's
+  // centre with the first item focused; arrows move, Escape closes and gives focus back to the view.
+  const viewFocusRef = useRef(null);
+  const contextMenuRef = useRef(null);
+  const contextMenuByKeyRef = useRef(false);
+  const onViewKeyDown = (e) => {
+    if (e.target !== e.currentTarget) return; // a control inside the view (Fit, Top…) keeps its own keys
+    if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
+    e.preventDefault(); // no second, browser-dispatched contextmenu event
+    const r = e.currentTarget.getBoundingClientRect();
+    contextMenuByKeyRef.current = true;
+    setContextMenu({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), hit: null });
+  };
+  const menuItemsOf = (el) => [...(el?.querySelectorAll('[tabindex="0"], input, button') || [])];
+  const onContextMenuKeyDown = (e) => {
+    if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); setContextMenu(null); return; }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const items = menuItemsOf(contextMenuRef.current);
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+  };
+  useEffect(() => {
+    if (!contextMenuByKeyRef.current) return;
+    if (contextMenu) { menuItemsOf(contextMenuRef.current)[0]?.focus(); return; }
+    // closed (an item chosen, Escape, or a click outside): focus back on the view, not lost to <body>
+    contextMenuByKeyRef.current = false;
+    viewFocusRef.current?.focus();
+  }, [contextMenu]);
+  // TASKS.csv #730 — the same keys for the layer and sidebar-row menus (lib/useMenuKeys.js)
+  const layerMenuKeys = useMenuKeys(layerContextMenu, () => setLayerContextMenu(null));
+  const rowMenuKeys = useMenuKeys(rowMenu, () => setRowMenu(null));
+  const [showSectionStrings, setShowSectionStrings] = useState(true); // TASKS.csv #519
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
@@ -1108,6 +1231,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [structuralTarget, setStructuralTarget] = useState("");
   const [stereonetOpen, setStereonetOpen] = useState(false); // TASKS.csv #141
   const [tadpoleOpen, setTadpoleOpen] = useState(false); // TASKS.csv #277 — downhole structural plot
+  const [levelPlanOpen, setLevelPlanOpen] = useState(false); // TASKS.csv #525 — horizontal section at an RL
   const [surfaceQueryOpen, setSurfaceQueryOpen] = useState(false); // TASKS.csv #146 — distance/point-in-domain report
   // TASKS.csv #93 — iterative modelling workflow. Holds the surface id the compare dialog was opened
   // from (so it can preselect that lineage), or null when closed.
@@ -1141,17 +1265,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [stackRelation, setStackRelation] = useState("onlap");
   const [stackAdd, setStackAdd] = useState("");
   const [expandedLithoGroupId, setExpandedLithoGroupId] = useState(null); // TASKS.csv #176 — which group's code checklist is open
-  // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modeling" pill
-  // switcher). Now that View and Modeling are separate top-level modules, which content shows is
+  // TASKS.csv #155 — this used to be its own toggleable state (an internal "Home | Modelling" pill
+  // switcher). Now that View and Modelling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
-  // below (`sidebarTab === "home"` / `=== "modeling"`) didn't need a mechanical find/replace.
-  const sidebarTab = mode === "modeling" ? "modeling" : mode === "targeting" ? "targeting" : "home";
+  // below (`sidebarTab === "home"` / `=== "modelling"`) didn't need a mechanical find/replace.
+  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : "home"; // #750 — no Predictive tab
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
   useEffect(() => { setToolPane(mode === "targeting" ? "plan" : null); }, [mode]);
-  const paneProps = (id) => ({ active: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) });
+  const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
+  // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
+  const emptyPaneHint = (text) => <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", marginBottom: 8, lineHeight: 1.4 }}>{text}</div>;
   // TASKS.csv #155 — QGIS-style toolbar (view mode only, this pass): which of the Grid/Themes
   // popovers is open, if any. Null closes both. The Database/QC/Boundary-intercepts/Snapshot toolbar
   // buttons don't need this — they trigger the SAME existing modal-open booleans (dbModalOpen etc.)
@@ -1179,6 +1305,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [numericSymbol, setNumericSymbol] = useState("");
   const [numericCutoff, setNumericCutoff] = useState(1);
   const [numericCellSize, setNumericCellSize] = useState(10);
+  // TASKS.csv #625 — the grade shell's block budget (a per-computer preference: what this machine can afford), and the
+  // hint left by an over-budget run ({ needed, budget, cell, fit, fitMax })
+  const [numericMaxBlocks, setNumericMaxBlocksState] = useState(() => { try { return Number(localStorage.getItem("geostrix.gradeShellBlockBudget")) || MAX_BLOCKS; } catch { return MAX_BLOCKS; } });
+  const setNumericMaxBlocks = (v) => { setNumericMaxBlocksState(v); try { localStorage.setItem("geostrix.gradeShellBlockBudget", String(v)); } catch { /* private window */ } };
+  const [numericBudgetHint, setNumericBudgetHint] = useState(null);
   const [numericSearchRadius, setNumericSearchRadius] = useState(50);
   const [numericMethod, setNumericMethod] = useState("idw2");
   const [numericUseComposites, setNumericUseComposites] = useState(true);
@@ -1277,6 +1408,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // a user actually moves this slider. GemPy cost scales with grid cells, so lower = faster/coarser,
   // higher = slower/finer — 64 matches the sidecar's own documented cap (python-sidecar/app/main.py).
   const [modelResolution, setModelResolution] = useState(36);
+  const [surfaceDetail, setSurfaceDetail] = useState(4); // TASKS.csv #766 — GemPy's octree level for the surface mesh
   // TASKS.csv #361 — which structure-pick codes count as CONTACT orientations for the litho/alteration
   // tools. Only exact 'CON' used to be preferred, and with none present EVERY pick type (faults, veins,
   // joints, foliation) was used silently; real codes like 'Contact' or 'BED' never matched. null = the
@@ -1292,12 +1424,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // exactly what it always did; the effective value comes back in the response either way and is
   // reported in the run notice + stamped into every generated surface's provenance.
   const [rangeMultiplier, setRangeMultiplier] = useState(0);
+  const [thinPicks, setThinPicks] = useState(true); // TASKS.csv #765 — average structure picks per hole before GemPy
+  const [thinWindowM, setThinWindowM] = useState(50); // #765 — depth window along the hole (m)
+  const [smoothClusters, setSmoothClusters] = useState(false); // TASKS.csv #761 — off by default: it trades detail for stability
   // TASKS.csv #86 — same shared-across-all-four-tools pattern as domain/searchEllipsoid above. Distinct
   // state from searchEllipsoid (not literally shared) since the two are conceptually independent knobs
   // (which points are trusted vs. how the surface itself should stretch) even though they usually share
   // the same real-world structural trend — "Copy from search ellipsoid" in the UI covers that overlap
   // without forcing the two to always move together.
-  const [anisotropy, setAnisotropy] = useState({ enabled: false, azimuth: 45, dip: 60, major: 300, semiMajor: 150, minor: 50 });
+  // TASKS.csv #650 — the old single, unsaved anisotropy is replaced by named trends saved with the project; each
+  // model type asks for its own (structuralTrends.use[tool]) and gets the warp the existing code already used.
+  const trendFor = useCallback((tool) => {
+    const id = structuralTrends?.use?.[tool];
+    const t = id && (structuralTrends.trends || []).find((x) => x.id === id);
+    return t ? cleanTrend(t) : null;
+  }, [structuralTrends]);
+  const [trendPreviewId, setTrendPreviewId] = useState(null); // #650 — the trend shown in 3D ("View")
+  const trendWarp = useCallback((tool) => {
+    const t = trendFor(tool);
+    if (!t) return { enabled: false };
+    return { enabled: true, trend: t, basis: trendBasis(t), scales: trendScales(t),
+      params: { trend: t.name, dip: t.dip, dipAzimuth: t.dipAzimuth, pitch: t.pitch, ratios: t.ratios } };
+  }, [trendFor]);
 
   // ---- Saved themes (TASKS.csv #45) ----
   const [themeNameDraft, setThemeNameDraft] = useState("");
@@ -1326,9 +1474,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   // TASKS.csv #225 — armed-click tool modes (section/measure/rect-zoom/pick-hole) and transient UI
   // popovers used to implicitly disarm on every mode switch, since that switch used to unmount this
-  // whole component. Now that a single persistent instance survives View<->Modeling<->Targeting
+  // whole component. Now that a single persistent instance survives View<->Modelling<->Targeting
   // switches, that disarm has to be explicit instead of an accident of unmounting — otherwise, e.g.,
-  // arming the measure tool in 3D View and then switching to Modeling would leave it armed there too.
+  // arming the measure tool in 3D View and then switching to Modelling would leave it armed there too.
   // Deliberately NOT resetting modal-open booleans (dbModalOpen, qcModalOpen, etc.) here — leaving a
   // modal open across a mode switch reads as reasonable, arguably better, UX, not a bug to fix.
   useEffect(() => {
@@ -1340,10 +1488,32 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     dragRef.current = { dragging: false, panning: false, lastX: 0, lastY: 0 };
   }, [mode]);
 
+  // TASKS.csv #617 — Escape. Nothing in the 3D view listened for it: a right-click menu, a layer menu or a popover
+  // stayed open, and an armed tool (Draw section, Measure, rectangle zoom, pick a hole, modelling-code pick) could
+  // only be left by clicking its button again. Escape now closes the open menu first, else disarms the tool.
+  // Left alone while typing in a field or when a dialog is open (dialogs handle their own Escape).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape" || !visibleRef.current) return;
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (document.querySelector("[role=dialog], [aria-modal=true]")) return;
+      if (contextMenu || layerContextMenu || openPopover) { setContextMenu(null); setLayerContextMenu(null); setOpenPopover(null); return; }
+      if (rectZoomMode) { setRectZoomMode(false); setRectVisual(null); rectDragRef.current = null; return; }
+      if (sectionMode) { setSectionMode(false); sectionPts.current = []; setSectionPreview(null); return; }
+      if (pickHoleMode) { setPickHoleMode(false); return; }
+      if (mcConnectFrom) { setMcConnectFrom(null); return; }
+      if (measureMode) { setMeasureMode(null); setMeasurePts([]); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [contextMenu, layerContextMenu, openPopover, rectZoomMode, sectionMode, pickHoleMode, mcConnectFrom, measureMode]);
+
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };
   // TASKS.csv #565 — File > Import CSV (Ctrl+I) opens the collar import here; View > Cross-section (Ctrl+Shift+C)
   // starts drawing a section (it used to only switch to this tab)
+  useModuleAction(["open-geoml"], () => setToolPane("geoml")); // TASKS.csv #750 — links / menus that named the Predictive tab
   useModuleAction(["import-collars", "draw-section"], (a) => {
     if (a === "import-collars") { fileInputs.current.collar?.click(); return; }
     setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode(true); sectionPts.current = []; setSectionPreview(null);
@@ -1450,13 +1620,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     CATEGORY_LAYER_KEYS.forEach((key) => {
       const g = groups[key];
       if (!g) return;
+      const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
       g.children.forEach((child) => {
         if (child.userData?.catValue === undefined || !child.material?.color) return;
-        child.material.color.set(effectiveColor(key, child.userData.catValue));
+        child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
     });
     syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312 — repaint the batches' instanceColor from the objects just repainted
-  }, [effectiveColor, syncLayerBatches]);
+  }, [effectiveColor, syncLayerBatches, layerStyles]);
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
@@ -1475,7 +1646,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
     // TASKS.csv #225 — both of these used to reset implicitly on every tab-switch-triggered
-    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modeling/
+    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modelling/
     // Targeting, that implicit reset never happens again unless done explicitly here, on the one
     // signal (viewerUiStateSeq) that reliably means "a real New/Open project just happened", not just
     // a tab switch. hasAutoFitRef: without this, a newly-opened project would keep the PREVIOUS
@@ -1501,6 +1672,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       setBgColor(DEFAULT_BG_COLOR);
       setHoleLabelMode("none");
       setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY }); // TASKS.csv #311
+      setLayerStyles({}); // #635
       return;
     }
     if (s.layerVisible) setLayerVisible({ ...DEFAULT_LAYER_VISIBLE, ...s.layerVisible });
@@ -1521,6 +1693,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #311 — spread over the defaults (not replaced by them) so a project saved before this
     // row existed opens with the overlay on, same as a new one, rather than silently missing it.
     setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...(s.figureOverlay || {}) });
+    setLayerStyles(s.layerStyles || {}); // #635
   }, [viewerUiStateSeq, viewerUiState, lastCamState]);
 
   // Push local UI state up to the store on every relevant change, so it's captured whenever
@@ -1541,8 +1714,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       bgColor,
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
+      layerStyles, // TASKS.csv #635
     });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, setViewerUiState]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -1590,6 +1764,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (!layerVisible[key]) return;
       const rows = layers?.[key] || [];
       if (!rows.length) return;
+      if (layerStyles[key]?.color) { groups.push({ key, label: LAYER_META[key].label, items: [["all (one colour)", layerStyles[key].color]] }); return; } // TASKS.csv #635
       const hidden = categoryFilter[key];
       const seen = new Set();
       const items = [];
@@ -1659,7 +1834,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -1911,6 +2086,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     rendererRef.current = renderer; mount.appendChild(renderer.domElement);
 
     const root = new THREE.Group(); root.name = "root"; scene.add(root);
+    // TASKS.csv #695 — neither is ever transformed; left auto-updating they force every descendant's world matrix
+    // to be recomputed on every frame (see buildLayerBatches)
+    scene.matrixAutoUpdate = false; root.matrixAutoUpdate = false;
     const groups = {};
     Object.keys(LAYER_META).forEach((k) => { const g = new THREE.Group(); g.name = k; root.add(g); groups[k] = g; });
     const assayGroup = new THREE.Group(); assayGroup.name = "assay"; root.add(assayGroup); groups.assay = assayGroup;
@@ -1940,6 +2118,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const mapLayerGroup = new THREE.Group(); mapLayerGroup.name = "mapLayers"; root.add(mapLayerGroup); // TASKS.csv #316
     mapLayerGroupRef.current = mapLayerGroup;
     mapLayerMeshesRef.current = {};
+    const sectionImageGroup = new THREE.Group(); sectionImageGroup.name = "sectionImages"; root.add(sectionImageGroup); // TASKS.csv #630
+    sectionImageGroupRef.current = sectionImageGroup;
+    sectionImageMeshesRef.current = {};
     const surfStructGroup = new THREE.Group(); surfStructGroup.name = "surfaceStructures"; root.add(surfStructGroup); // TASKS.csv #317
     surfStructGroupRef.current = surfStructGroup;
     surfStructObjsRef.current = {};
@@ -1964,6 +2145,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #188 — planned drillholes, own group, same reasoning as voxelGroup/terrainGroup.
     const plannedGroup = new THREE.Group(); plannedGroup.name = "planned"; root.add(plannedGroup);
     plannedGroupRef.current = plannedGroup;
+    // TASKS.csv #519 — saved section strings as 3D lines
+    const sectionStringsGroup = new THREE.Group(); sectionStringsGroup.name = "sectionStrings"; root.add(sectionStringsGroup);
+    sectionStringsGroupRef.current = sectionStringsGroup;
     plannedMeshesRef.current = {};
 
     // TASKS.csv #121 — measurement tool's own group, same reasoning as plannedGroup/voxelGroup.
@@ -2582,6 +2766,34 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     gridGroupRef.current = group;
   }, [gridConfig]);
 
+  // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
+  const trendPreviewRef = useRef(null);
+  const trendPreview = useMemo(() => (structuralTrends?.trends || []).find((t) => t.id === trendPreviewId) || null, [structuralTrends, trendPreviewId]);
+  useEffect(() => {
+    const scene = sceneRef.current; if (!scene) return;
+    if (trendPreviewRef.current) { scene.remove(trendPreviewRef.current); disposeThreeGroup(trendPreviewRef.current); trendPreviewRef.current = null; }
+    if (!trendPreview) return;
+    // at the centre of the current view and a third of the camera distance across, so it is in sight whatever the
+    // project's extent (Woodjam's holes span ~5 km: sized from the drilling it engulfed the camera)
+    const cs = camState.current;
+    if (!cs?.target) return;
+    const size = Math.max(10, 0.3 * (cs.radius || 300));
+    const t = cleanTrend(trendPreview), b = trendBasis(t);
+    const toScene = (v) => new THREE.Vector3(v.x, v.z, -v.y); // (east, north, up) -> scene; a proper rotation
+    const basis = new THREE.Matrix4().makeBasis(toScene(b.major), toScene(b.semiMajor), toScene(b.minor));
+    const placed = (obj, sxyz) => { obj.matrixAutoUpdate = false; obj.matrix.copy(basis).multiply(new THREE.Matrix4().makeScale(...sxyz)); return obj; };
+    const group = new THREE.Group();
+    group.add(placed(new THREE.Mesh(new THREE.SphereGeometry(1, 40, 20), new THREE.MeshLambertMaterial({ color: TREND_PREVIEW.ellipsoid, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide })),
+      [size, size * t.ratios.int / t.ratios.max, size * t.ratios.min / t.ratios.max]));
+    group.add(placed(new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: TREND_PREVIEW.plane, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })), [size * 1.4, size * 1.4, 1]));
+    group.add(placed(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1, 0, 0), new THREE.Vector3(1, 0, 0)]), new THREE.LineBasicMaterial({ color: TREND_PREVIEW.axis })), [size * 1.6, 1, 1]));
+    group.position.copy(cs.target);
+    group.userData = { tip: `${t.name}
+${describeTrend(t)}` };
+    scene.add(group);
+    trendPreviewRef.current = group;
+  }, [trendPreview, sceneReady]);
+
   // ---------- TASKS.csv #16: snapshot the live 3D viewport into a Layout page image ----------
   const snapshotToLayout = useCallback(() => {
     const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
@@ -3003,9 +3215,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #390 — an error stays until dismissed (a failed save/export that vanished after 5 s was
     // easy to miss); everything else still fades after 5 s.
     if (level === "error") return;
-    const t = setTimeout(() => setToast((cur) => (cur && cur.key === key ? null : cur)), 5000);
-    return () => clearTimeout(t);
+    // TASKS.csv #690 — long, honest result notices (up to ~550 characters, 10-24 s to read) were gone after 5 s: now
+    // 60 ms per character, between 5 and 25 s, and the timer stops while the pointer rests on the toast.
+    const ms = Math.min(25000, Math.max(5000, 60 * String(noticeText(last) || "").length));
+    toastTimerRef.current = { key, ms, started: Date.now(), t: setTimeout(() => setToast((cur) => (cur && cur.key === key ? null : cur)), ms) };
+    return () => clearTimeout(toastTimerRef.current?.t);
   }, [notices]);
+  const holdToast = useCallback(() => { const tt = toastTimerRef.current; if (tt) clearTimeout(tt.t); }, []);
+  const releaseToast = useCallback(() => {
+    const tt = toastTimerRef.current;
+    if (!tt) return;
+    clearTimeout(tt.t);
+    tt.t = setTimeout(() => setToast((cur) => (cur && cur.key === tt.key ? null : cur)), 3000);
+  }, []);
 
   // The sidecar's /implicit-model endpoint computes each orientation's gradient from dip/azimuth
   // assuming standard geographic axes (x=east, y=north, z=up) — a sensible default for an endpoint
@@ -3020,7 +3242,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const apiToScene = (v) => ({ x: v[0], y: v[2], z: -v[1] });
 
   // Turns a set of structure picks into GemPy orientations (scene coords, permuted to the sidecar's
-  // geographic axes). Shared by all three modeling tools below — the litho and alteration tools look
+  // geographic axes). Shared by all three modelling tools below — the litho and alteration tools look
   // this up from a separate structure-layer pick (preferring "CON" contacts, else any pick with a
   // dip/azimuth); the structural tool instead feeds its own picks in here, since a fault or shear
   // pick's own dip/azimuth already IS the orientation it wants modelled.
@@ -3031,7 +3253,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // tools below, so a domain genuinely restricts what a modelling run sees rather than just labeling
   // the output afterward.
   // TASKS.csv #281 — `domainIdOverride` lets a caller ask for a SPECIFIC domain rather than whatever
-  // the Modeling tab's domain selector currently holds. Added for the Stereonet's own domain filter,
+  // the Modelling tab's domain selector currently holds. Added for the Stereonet's own domain filter,
   // which is a QC choice made inside that modal and must not silently retarget (or be retargeted by)
   // the modelling tools' selection. Every existing caller omits it and behaves exactly as before.
   const filterRowsByDomain = (rows, traces, getDepth, domainIdOverride) => {
@@ -3136,7 +3358,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (!p) return;
       const api = sceneToApi(p);
       // #430 — an overturned pick tells GemPy the younger side is the other way (polarity -1)
-      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth, ...(s.overturned ? { polarity: -1 } : {}) });
+      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth, hole_id: s.hole_id, ...(s.overturned ? { polarity: -1 } : {}) }); // hole_id: #762 (the sidecar ignores it)
     });
     return orientations;
   };
@@ -3188,7 +3410,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return { x: cx, y: cy, z: cz, dip, azimuth };
   };
 
-  // Shared core for all modeling tools: takes one or more already-gathered {label, meshName, points,
+  // Shared core for all modelling tools: takes one or more already-gathered {label, meshName, points,
   // orientations, color} specs, sends them all in a SINGLE sidecar request, and adds each resulting
   // mesh to the scene. Sending multiple surfaces together (rather than one call per unit) matters for
   // more than efficiency: the sidecar puts every surface in the request into one GemPy
@@ -3205,6 +3427,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // no-op for a one-element group.
   // TASKS.csv #356 — see lastLithBlock.
   const lithUnitColor = (lb, name) => lb.units.find((u) => u.name === name)?.color || colorForLithology(name);
+  // TASKS.csv #517 — closed model solids (unit volumes, imported solids) in WORLD coordinates for Grade estimation's
+  // "restrict to a modelled volume": [{ id, name, positions (E, N, Z), indices }]. Open surfaces are left out.
+  const closedShellsForEstimation = () => {
+    const o = originRef.current;
+    return (implicitSurfaces || []).filter((sf) => sf.type === "unit_volume" || sf.type === "imported").flatMap((sf) => {
+      const mesh = implicitMeshesRef.current[sf.id];
+      const pos = mesh?.geometry?.attributes?.position?.array;
+      if (!pos) return [];
+      const n = pos.length / 3, w = new Float64Array(pos.length);
+      for (let i = 0; i < n; i++) { w[i * 3] = pos[i * 3] + o.x; w[i * 3 + 1] = o.y - pos[i * 3 + 2]; w[i * 3 + 2] = pos[i * 3 + 1] + o.z; }
+      const idx = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
+      return [{ id: sf.id, name: sf.name, positions: w, indices: idx }];
+    });
+  };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
     const cells = blockToCells(lb.block, lb.origin);
@@ -3214,8 +3450,46 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])) });
     setNotices((p) => [...p, `Added the model's lithology block as a block model: ${cells.length.toLocaleString()} cells (${legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.`]);
   };
+  // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
+  // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
+  // readout, and usable to restrict a grade estimate ("inside modelled DACT").
+  const addUnitVolumes = () => {
+    const lb = lastLithBlock; if (!lb) return;
+    const o = originRef.current, stamp = Date.now(), added = [], lines = [];
+    lb.block.labels.forEach((label, k) => {
+      if (label == null) return;
+      // the block is in the model's API frame; lb.origin is the world origin it was built with
+      const s = unitShell(lb.block, label, lb.origin);
+      if (!s) return;
+      const w = s.positions, scene = new Float32Array(w.length);
+      for (let i = 0; i < w.length; i += 3) { scene[i] = w[i] - o.x; scene[i + 1] = w[i + 2] - o.z; scene[i + 2] = o.y - w[i + 1]; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+      geo.setIndex(new THREE.BufferAttribute(s.indices, 1));
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(lithUnitColor(lb, label)), side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+      const mesh = new THREE.Mesh(geo, mat);
+      const vol = meshVolume(w, s.indices);
+      const nTris = s.indices.length / 3, nVerts = w.length / 3;
+      mesh.userData = { tip: `${label} — unit volume (${lb.title})\n${(vol / 1e6).toFixed(2)} Mm³ inside the model box, ${nTris} triangles` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${stamp}_unitvol_${k}`;
+      implicitMeshesRef.current[id] = mesh;
+      added.push({
+        id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
+        type: "unit_volume", relationships: [], closure: "closed",
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: lb.block.resampledFromTrend ? "Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there." : "Cut at the model box: a unit that continues beyond it is closed there." },
+      });
+      lines.push(`${label} ${(vol / 1e6).toFixed(2)} Mm³`);
+    });
+    if (!added.length) { setNotices((p) => [...p, "The last model has no modelled unit cells inside its box — no volumes to build."]); return; }
+    setImplicitSurfaces((p) => [...p, ...added]);
+    setNotices((p) => [...p, `Added ${added.length} closed unit volume(s) from ${lb.title}: ${lines.join(", ")} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and "Restrict to a modelled volume" in Grade estimation work on them.`]);
+  };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
+    // TASKS.csv #756 — the units GemPy evaluated exactly at each interval's midpoint, when the run asked for them
+    const exactRows = lb.intervals ? lb.intervals.map((q) => ({ hole_id: q.hole_id, from: q.from, to: q.to, value: q.modelled ?? ABOVE_TOPS, logged: q.logged })) : null;
     const samples = [];
     tracesRef.current.forEach((t) => {
       (importStateRef.current.layers?.litho || []).forEach((r) => {
@@ -3226,7 +3500,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         samples.push({ hole_id: t.hole_id, from: r.from, to: r.to, x: api.x, y: api.y, z: api.z, logged: r.value });
       });
     });
-    const rows = modelledIntervals(lb.block, samples).map((r) => {
+    const rows = (exactRows || modelledIntervals(lb.block, samples)).map((r) => {
       const unit = lb.units.find((u) => u.name === r.value);
       return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };
     });
@@ -3265,7 +3539,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     activeInterceptSetRef,
     alterationCellSize,
     alterationSearchRadius,
-    anisotropy,
+    trendWarp, // TASKS.csv #650
     apiToScene,
     assayElements,
     assays,
@@ -3292,11 +3566,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     mapConstraint,
     mapContactWorldPoints,
     mapLayers,
+    addRaster, rasters, removeRaster, // TASKS.csv #758
     modelAbortControllerRef,
     modelDomainId,
     modelResolution,
     numericCapValue,
     numericCellSize,
+    numericMaxBlocks, setNumericBudgetHint, // TASKS.csv #625
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -3311,6 +3587,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     orientTypes,
     originRef,
     rangeMultiplier,
+    thinPicks, thinWindowM, // TASKS.csv #765
+    smoothClusters, // TASKS.csv #761
+    surfaceDetail, // TASKS.csv #766
+    addVoxelModel, // TASKS.csv #757
     resolveLithoTarget,
     sceneToApi,
     searchEllipsoid,
@@ -3436,6 +3716,40 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
 
 
+  // TASKS.csv #638 — a triangle mesh in world coordinates (the geoML add-on's contact surface) registered like an imported
+  // solid (#148): show / hide, remove, query, export, persistence and section intersection come with it. Optional
+  // per-vertex 0–1 values (geoML's uncertainty) colour it light (confident) → dark (uncertain) for this session; the
+  // saved surface keeps its plain colour.
+  const addWorldMeshSurface = useCallback(({ name, positions, indices, values = null, color = "#c46f2a", opacity = 0.7, params = {} }) => {
+    const o = originRef.current;
+    const scene = new Float32Array(positions.length);
+    for (let i = 0; i < positions.length; i += 3) { scene[i] = positions[i] - o.x; scene[i + 1] = positions[i + 2] - o.z; scene[i + 2] = o.y - positions[i + 1]; }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+    geo.setIndex(new THREE.BufferAttribute(indices instanceof Uint32Array ? indices : new Uint32Array(indices), 1));
+    geo.computeVertexNormals();
+    let vertexColors = false;
+    if (values && values.length === positions.length / 3) {
+      const cols = new Float32Array(positions.length), base = new THREE.Color(color), dark = new THREE.Color("#1d2b53");
+      const c = new THREE.Color();
+      for (let i = 0; i < values.length; i++) { c.copy(base).lerp(dark, Math.max(0, Math.min(1, values[i]))); cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b; }
+      geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+      vertexColors = true;
+    }
+    const mat = new THREE.MeshLambertMaterial({ color: vertexColors ? 0xffffff : color, vertexColors, side: THREE.DoubleSide, transparent: opacity < 1, opacity });
+    const mesh = new THREE.Mesh(geo, mat);
+    const nVerts = positions.length / 3, nTris = indices.length / 3;
+    mesh.userData = { tip: `${name}
+${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
+    implicitGroupRef.current?.add(mesh);
+    const id = `impl_${Date.now()}_geoml_${Math.random().toString(36).slice(2, 6)}`;
+    implicitMeshesRef.current[id] = mesh;
+    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: nVerts, faceCount: nTris, type: "geoml", relationships: [], closure: null, params: { tool: "geoML (predictive modelling add-on)", vertices: nVerts, triangles: nTris, createdAt: new Date().toISOString(), ...params } }]);
+    geo.computeBoundingBox(); mesh.updateWorldMatrix(true, false);
+    lastActivityRef.current = Date.now();
+    return id;
+  }, []);
+
   // "Project contact to depth": sweep the draped trace down-dip (mapLayers.js projectContactRibbon) and
   // register the result exactly like an imported solid (#148) — in implicitMeshesRef/implicitSurfaces —
   // so it gets show/hide, remove, query, export, persistence and section intersection for free. Tagged
@@ -3531,6 +3845,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       return { ...s, supportColored: on };
     }));
   }, []);
+  // TASKS.csv #636 — colour / opacity from the surface's right-click menu (lib/surfaceStyle.js); null = reset
+  const setSurfaceStyle = useCallback((id, patch) => {
+    setImplicitSurfaces((p) => p.map((s) => {
+      if (s.id !== id) return s;
+      const style = mergeSurfaceStyle(s.style, patch);
+      const { style: _old, ...rest } = s;
+      return style ? { ...rest, style } : rest;
+    }));
+  }, []);
+  // ...applied to every surface's mesh whenever the list changes, wherever the mesh was built (several places)
+  useEffect(() => {
+    implicitSurfaces.forEach((s) => applySurfaceStyle(implicitMeshesRef.current[s.id], s));
+  }, [implicitSurfaces]);
   const removeImplicitSurface = useCallback((id) => {
     const mesh = implicitMeshesRef.current[id];
     if (mesh) { implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; }
@@ -3815,6 +4142,130 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     [voxelModels]
   );
 
+  // ---------- TASKS.csv #551 — assay spheres, geophysics points and surface samples: their own builders ----------
+  // These used to be built inside the big rebuild effect below, which listed assayStyle, the assay element picks,
+  // the four geophysics legend settings and surface-sample visibility as dependencies — so changing one assay
+  // colour or dragging a geophysics legend stop disposed and re-desurveyed EVERY drillhole and rebuilt every
+  // litho / alteration / vein tube. Each builder clears and batches only its own group, from the traces
+  // (tracesRef) and origin (originRef) the big effect last built. The big effect calls all three at the end of a
+  // real rebuild; each small effect re-runs its builder only when its own inputs change (and skips the first run
+  // after the big effect already built with the same inputs).
+  const sameInputs = (a, b) => !!a && a.length === b.length && a.every((v, i) => v === b[i]);
+  const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
+  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars];
+  const assayBuiltRef = useRef(null);
+  const buildAssaySpheres = () => {
+    const g = layerGroupsRef.current.assay;
+    if (!g) return;
+    assayBuiltRef.current = assayInputs;
+    clearGroup(g);
+    if (!assayVisible || !assayDisplayElements.length || !collars.length) return;
+    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+    const byHole = new Map();
+    assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's
+    // one size range PER element across all holes (Au in g/t and Cu in % share no scale); p50/p90 for #306's quantile sizes
+    const ranges = {};
+    assayDisplayElements.forEach((sym) => {
+      const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
+      const finite = vals.filter(Number.isFinite).sort((x, y) => x - y);
+      const q = (pp) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(pp * (finite.length - 1)))] : undefined);
+      ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) };
+    });
+    const traceOf = new Map(tracesRef.current.map((t) => [t.hole_id, t.pts]));
+    const n = assayDisplayElements.length;
+    const errors = [];
+    collars.forEach((c) => {
+      const pts = traceOf.get(c.hole_id);
+      if (!pts?.length) return;
+      try {
+        // each selected element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one
+        // depth stay separately visible (one element: no offset)
+        assayDisplayElements.forEach((sym, idx) => {
+          const style = assayStyle[sym];
+          const angle = (2 * Math.PI * idx) / n;
+          const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
+          (byHole.get(c.hole_id) || []).forEach((a) => {
+            const v = a.values[sym];
+            if (v == null || !assayPassesCutoff(v, style)) return;
+            const pt = findOnTrace(pts, (a.from + a.to) / 2);
+            if (!pt) return;
+            // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
+            const op = style?.opacity ?? 1, shape = style?.shape || "sphere";
+            const mesh = new THREE.Mesh(POINT_PROTO[shape] || PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }));
+            mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
+            mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
+            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
+            g.add(mesh);
+          });
+        });
+      } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} hole(s) failed to draw assay markers: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildAssaySpheresRef = useRef(buildAssaySpheres);
+  buildAssaySpheresRef.current = buildAssaySpheres;
+
+  const geophysInputs = [layers.geophys_pts, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, isRowVisibleForBuild, layerStyles.geophys_pts]; // #635 style
+  const geophysBuiltRef = useRef(null);
+  const buildGeophysPts = () => {
+    const g = layerGroupsRef.current.geophys_pts;
+    if (!g) return;
+    geophysBuiltRef.current = geophysInputs;
+    clearGroup(g);
+    // scene x = world x - ox, scene y = elevation - oz, scene z = -(northing - oy): the drillholes' convention
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const rows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
+    if (!rows.length) return;
+    const colorer = makeSurveyColorer(rows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several; #122 class breaks
+    const errors = [];
+    const st = resolveLayerStyle(layerStyles.geophys_pts, "point"); // TASKS.csv #635
+    const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
+    rows.forEach((row) => {
+      try {
+        const { color: c0, t } = colorer.colorOf(row);
+        const color = st.color || c0;
+        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
+        mesh.scale.setScalar((1.4 + 2.8 * t) * st.size);
+        mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
+        mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+        g.add(mesh);
+      } catch (err) { errors.push(err.message); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} geophysics point(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildGeophysPtsRef = useRef(buildGeophysPts);
+  buildGeophysPtsRef.current = buildGeophysPts;
+
+  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples]; // #635 style
+  const surfaceBuiltRef = useRef(null);
+  const buildSurfaceSamples = () => {
+    const g = layerGroupsRef.current.surface_samples;
+    if (!g) return;
+    surfaceBuiltRef.current = surfaceInputs;
+    clearGroup(g);
+    // #228 — soil / rock-chip / stream-sediment samples, coloured by medium (one gradient would blend the media)
+    if (!layerVisible.surface_samples || !placedSurfaceSamples.length) return;
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const errors = [];
+    const st = resolveLayerStyle(layerStyles.surface_samples, "point"); // TASKS.csv #635
+    const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
+    placedSurfaceSamples.forEach((row) => {
+      try {
+        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color: st.color || colorForMedium(row.medium), transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
+        mesh.scale.setScalar(1.8 * st.size);
+        mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
+        mesh.userData = { tip: surfaceSampleTip(row) };
+        g.add(mesh);
+      } catch (err) { errors.push(err.message); }
+    });
+    buildLayerBatches(g);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} surface sample(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+  };
+  const buildSurfaceSamplesRef = useRef(buildSurfaceSamples);
+  buildSurfaceSamplesRef.current = buildSurfaceSamples;
+
   // ---------- rebuild all geometry ----------
   useEffect(() => {
     const groups = layerGroupsRef.current;
@@ -3931,45 +4382,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           new THREE.Vector3(bxmax - rox, ezMax - roz, -(bymin - roy)),
         );
         fitBox(box, 1.3);
-        // TASKS.csv #228 — build the geophys_pts group here too (same rendering as the main per-collar
-        // path below, just using this branch's own rox/roy/roz and a local buildErrors since the main
-        // one isn't declared until after this early return). Without this, the anchor-bbox fit above
-        // would correctly frame the camera on the right spot, but nothing would actually be drawn there.
-        const geophysPtsRows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
-        if (geophysPtsRows.length) {
-          const gBuildErrors = [];
-          const colorer = makeSurveyColorer(geophysPtsRows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several
-          geophysPtsRows.forEach((row) => {
-            try {
-              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const { color, t } = colorer.colorOf(row);
-              const size = 1.4 + 2.8 * t;
-              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-              mesh.scale.setScalar(size);
-              mesh.position.set(x, y, z);
-              mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
-              groups.geophys_pts.add(mesh);
-            } catch (err) { gBuildErrors.push(`geophys_pts point: ${err.message}`); }
-          });
-          if (gBuildErrors.length) setNotices((p) => [...p, errorNotice(`${gBuildErrors.length} geophysics point(s) failed to render: ${gBuildErrors.slice(0, 3).join(" · ")}`)]);
-        }
-        // TASKS.csv #228 — surface geochemistry samples, same zero-collar-anchor reasoning as the
-        // geophys_pts block right above: a surface-geochem-only project (no drillholes at all — the
-        // exact "before ever drilling" workflow this feature targets) must still render here.
-        if (layerVisible.surface_samples && placedSurfaceSamples.length) {
-          const sBuildErrors = [];
-          placedSurfaceSamples.forEach((row) => {
-            try {
-              const x = row.x - rox, y = row.z - roz, z = -(row.y - roy);
-              const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
-              mesh.scale.setScalar(1.8);
-              mesh.position.set(x, y, z);
-              mesh.userData = { tip: surfaceSampleTip(row) };
-              groups.surface_samples.add(mesh);
-            } catch (err) { sBuildErrors.push(`surface sample: ${err.message}`); }
-          });
-          if (sBuildErrors.length) setNotices((p) => [...p, errorNotice(`${sBuildErrors.length} surface sample(s) failed to render: ${sBuildErrors.slice(0, 3).join(" · ")}`)]);
-        }
       }
       // TASKS.csv #312 — this no-collars branch builds geophys_pts/surface_samples itself and then
       // returns before the main path's own buildLayerBatches pass at the end of this effect, so it
@@ -3977,6 +4389,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // soil-sample grid, which can easily be thousands of point markers) would keep paying one draw
       // call per point. Same call, same semantics as the main path's.
       Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+      // TASKS.csv #551 — geophysics points and surface samples are built by their own builders (below the
+      // big effect's own groups), here for a project with no drillholes yet
+      buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current(); buildAssaySpheresRef.current();
       return;
     }
 
@@ -3987,7 +4402,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     syncImplicitOrigin(); // #407 — re-base surfaces/solids built against an earlier origin
 
     const allTraces = [];
-    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
 
     // Perf (user report: "the app is getting a bit heavy on my laptop") — every builder below used to
     // do `rows.filter(r => r.hole_id === c.hole_id)` INSIDE the per-collar loop, i.e. a full scan of
@@ -4014,7 +4428,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
       recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), // #608
     };
-    const assaysByHole = groupByHole(assays.filter((a) => !isMarkedQcRow(a))); // #601 — a standard's grade is not the rock's
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
     // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
     // litho/alt/etc., just never extended to survey: `survey.filter(s => s.hole_id === c.hole_id)`
@@ -4042,23 +4455,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // (which would render almost every real SG value, ~2-5, as a near-identical dark red).
       sg: numericRangeFor("sg", layers.sg),
     };
-    // Same per-hole-scale bug for the assay spheres below — now one range PER selected element (each
-    // element gets its own size scale, since e.g. Au in g/t and Cu in % are on totally different
-    // numeric scales and sharing one min/max would flatten one of them to barely-visible dots).
-    const globalAssayRanges = {};
-    if (assayVisible) {
-      assayDisplayElements.forEach((sym) => {
-        const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
-        // TASKS.csv #306 — p50/p90 as well, so assaySizeFor's quantile map has the distribution it
-        // needs. Same shape (and same computation) as the component-level globalAssayRanges memo
-        // above; kept computed separately here for the reason that memo's own comment gives, but the
-        // two must stay shape-compatible since seedBreaks and assaySizeFor both read this shape.
-        const finite = vals.filter(Number.isFinite).sort((a, b) => a - b);
-        const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
-        globalAssayRanges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) }; // not Math.min/max(...) — see layers.js's minMax comment
-      });
-    }
-
     const buildErrors = [];
     collars.forEach((c) => {
      try {
@@ -4101,9 +4497,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       // wins; with no scheme defined this returns exactly what it always did.
       const numericIntervalColor = (groupKey, value) =>
         numericLayerColor(groupKey, value, groupKey === "sg" ? globalPointRanges.sg : { min: 0, max: 100 });
-      const buildIntervalTube = (groupKey) => {
-        const meta = LAYER_META[groupKey];
-        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r)).forEach((row) => {
+      const buildIntervalTube = (groupKey, opt = {}) => { // opt (#684): { filter, meta } — a point layer drawing its real intervals
+        const meta = { ...LAYER_META[groupKey], ...(opt.meta || {}) };
+        const st = resolveLayerStyle(layerStyles[groupKey], "interval", { opacity: meta.opacity }); // TASKS.csv #635
+        const radius = meta.radius * st.size;
+        (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r))).forEach((row) => {
          try {
           if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
           const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
@@ -4157,18 +4555,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             // straight interval in a layer share ONE InstancedMesh draw call — see PROTO_CYLINDER
             // and buildLayerBatches. Same vertices, same placement; three.js raycasts in local
             // space, so picking is unchanged.
-            geo = PROTO_CYLINDER;
-            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value);
-            const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
+            geo = INTERVAL_PROTO[st.shape];
+            const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+            const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
-            mesh_.scale.set(meta.radius, len, meta.radius);
+            mesh_.scale.set(radius, len, radius);
             mesh_.position.set(p1.x, p1.y, p1.z);
             mesh_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
           } else {
             const curve = new THREE.CatmullRomCurve3(vecs);
-            geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), meta.radius, 6, false);
-            const color = meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value);
-            const mat = new THREE.MeshLambertMaterial({ color, transparent: meta.opacity < 1, opacity: meta.opacity });
+            geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), radius, TUBE_SEGMENTS[st.shape], false);
+            const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
+            const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
             mesh_ = new THREE.Mesh(geo, mat);
           }
           const mesh = mesh_;
@@ -4178,7 +4576,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // that share this same tube-building path — harmless no-op for rows that don't have one.
           // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
           // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -4193,9 +4591,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       buildIntervalTube("litho_gc");
       buildIntervalTube("alt_gc");
 
-      const buildPointMarkers = (groupKey) => {
+      const buildPointMarkers = (groupKey, filter = null) => {
         const meta = LAYER_META[groupKey];
-        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r));
+        const st = resolveLayerStyle(layerStyles[groupKey], "point"); // TASKS.csv #635
+        const vals = (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!filter || filter(r)));
         const { min, max } = globalPointRanges[groupKey] || { min: 0, max: 0 };
         vals.forEach((row) => {
          try {
@@ -4203,9 +4602,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const p = findOnTrace(pts, mid);
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
-          const color = meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value);
-          const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(size, 10, 10))
-          mesh.scale.setScalar(size);
+          const color = st.color || (meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
+          const mesh = new THREE.Mesh(POINT_PROTO[st.shape], new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
+          mesh.scale.setScalar(size * st.size);
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
           mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
@@ -4213,9 +4612,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
         });
       };
-      buildPointMarkers("mnlgy");
+      // TASKS.csv #684 — a mineralisation log can be an INTERVAL log (Woodjam: 958 rows over 1 m, up to 69 m long), and
+      // each row used to become one sphere at its midpoint — a depth that is not in the data. Rows longer than half a
+      // metre are drawn as intervals; point-style rows (from = to, as in Harry and the synthetic set) stay markers.
+      buildIntervalTube("mnlgy", { filter: isIntervalRow, meta: { radius: 2.8, opacity: 0.85, extraSuffix: "%" } });
+      buildPointMarkers("mnlgy", (r) => !isIntervalRow(r));
       buildPointMarkers("magsusc");
 
+      const stStruct = resolveLayerStyle(layerStyles.structure, "plane", { opacity: 0.55 }); // TASKS.csv #635
       (rowsByHole.structure?.get(c.hole_id) || []).filter((s) => isRowVisibleForBuild("structure", s)).forEach((s) => {
         const p = findOnTrace(pts, s.depth);
         if (!p) return;
@@ -4224,10 +4628,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         // "dip 45° / az 0°" as if measured, so alpha-only or unoriented picks looked like real
         // north-dipping planes.
         const oriented = s.dip != null && !isNaN(s.dip) && s.azimuth != null && !isNaN(s.azimuth);
-        const color = baseColorForBuild("structure", s.value);
+        const color = stStruct.color || baseColorForBuild("structure", s.value);
         if (!oriented) {
-          const mark = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55 }));
-          mark.scale.setScalar(2.2);
+          const mark = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: stStruct.opacity }));
+          mark.scale.setScalar(2.2 * stStruct.size);
           mark.position.set(p.x, p.y, p.z);
           mark.userData = { tip: `${c.hole_id}\nStructure: ${effectiveLabel("structure", s.value)}\norientation not recorded (dip —)\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
           groups.structure.add(mark);
@@ -4235,10 +4639,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         }
         const dip = s.dip;
         const az = s.azimuth;
-        const geo = PROTO_CIRCLE_24; // TASKS.csv #312 — shared prototype + scale (was CircleGeometry(6, 24))
-        const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
+        const geo = stStruct.shape === "square" ? PROTO_SQUARE : PROTO_CIRCLE_24; // TASKS.csv #312 — shared prototype + scale (was CircleGeometry(6, 24)); #635 shape
+        const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: stStruct.opacity < 1, opacity: stStruct.opacity });
         const disc = new THREE.Mesh(geo, mat);
-        disc.scale.setScalar(6);
+        disc.scale.setScalar(6 * stStruct.size);
         disc.rotation.order = "YXZ";
         disc.rotation.x = Math.PI / 2 - toRad(dip);
         disc.rotation.y = -toRad(az);
@@ -4248,38 +4652,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         groups.structure.add(disc);
       });
 
-      if (assayVisible && assayDisplayElements.length) {
-        // Multi-element display (user request): each selected element gets its own fixed hue (not a
-        // value-driven gradient — with several elements on screen at once, distinguishing "which
-        // color is which element" matters more than each one's own gradient) and its own small radial
-        // offset around the hole trace, fanned out by pick order, so e.g. Au/Cu/Zn markers at the same
-        // depth render as separate visible spheres instead of one totally occluding the others. A
-        // single selected element gets no offset (offX/offZ both 0) — sits exactly on the trace, same
-        // as the old single-element behavior.
-        const n = assayDisplayElements.length;
-        assayDisplayElements.forEach((sym, idx) => {
-          const style = assayStyle[sym];
-          const holeAssays = (assaysByHole.get(c.hole_id) || []).filter((a) => a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
-          const angle = (2 * Math.PI * idx) / n;
-          const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
-          holeAssays.forEach((a) => {
-            const mid = (a.from + a.to) / 2;
-            const p = findOnTrace(pts, mid);
-            if (!p) return;
-            const v = a.values[sym];
-            const size = assaySizeFor(v, globalAssayRanges[sym], style); // TASKS.csv #306 — takes the whole range (needs its percentiles), not just min/max
-            const color = assayColorFor(v, idx, style);
-            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-            mesh.scale.setScalar(size);
-            mesh.position.set(p.x + offX, p.y, p.z + offZ);
-            const unit = elementUnits[sym] || "";
-            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${unit}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
-            groups.assay.add(mesh);
-          });
-        });
-      }
-
       customLayers.forEach((layer) => {
+        const stI = resolveLayerStyle(layerStyles[`custom:${layer.id}`], "interval"), stP = resolveLayerStyle(layerStyles[`custom:${layer.id}`], "point"); // TASKS.csv #635
         // TASKS.csv #227 — geometry is now built regardless of customVisible (visibility is toggled
         // cheaply afterward via the layer's own group.visible, see the small effect near layerVisible's
         // own visibility effect) so this rebuild no longer needs to re-run every time a custom layer's
@@ -4288,13 +4662,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           if (row.to != null && !isNaN(row.to)) {
             const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
             const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(p1.x, p1.y, p1.z), new THREE.Vector3(p2.x, p2.y, p2.z)]);
-            const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6, 6, false), new THREE.MeshLambertMaterial({ color: row.modelColor || hashColor(row.value) })); // #323: a model's own colour
+            const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6 * stI.size, TUBE_SEGMENTS[stI.shape], false), new THREE.MeshLambertMaterial({ color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity })); // #323: a model's own colour; #635 style
             mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = findOnTrace(pts, row.depth);
-            const mesh = new THREE.Mesh(PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: hashColor(row.value) })); // TASKS.csv #312 — shared prototype + scale
-            mesh.scale.setScalar(2.4);
+            const mesh = new THREE.Mesh(POINT_PROTO[stP.shape], new THREE.MeshLambertMaterial({ color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
+            mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
             mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };
             layer.group.add(mesh);
@@ -4305,51 +4679,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
        buildErrors.push(`${c.hole_id}: ${err.message}`);
      }
     });
-
-    // Geophysics point cloud (TASKS.csv #25) — unlike everything above, these aren't hole-relative
-    // (no hole_id/depth to desurvey against): they're raw x/y/z survey points from a geophysics
-    // instrument (mag, IP, gravity, whatever). Rendered once here, outside the per-hole loop, using
-    // the same origin-recentering (ox/oy/oz) and axis convention as everything else in the scene
-    // (scene x = world x - ox, scene y = world z - oz [elevation], scene z = -(world y - oy)
-    // [-northing]) so they line up correctly with drillholes rather than needing their own transform.
-    const geophysPts = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365
-    if (geophysPts.length) {
-      const colorer = makeSurveyColorer(geophysPts, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // TASKS.csv #451 — per survey when several
-      // TASKS.csv #122 — graduated/classed symbology: honor the user-defined class breaks/palette set
-      // via GeophysicsModule's VoxelLegendEditor (geophysPtsStops/geophysPtsColorMode/geophysPtsMin/
-      // geophysPtsMax), falling back to the original 2-color magColor gradient when no stops have been
-      // set yet — same "model" shape colorForVoxelValue already expects, just built from these flat
-      // store fields instead of a real voxel model object.
-      geophysPts.forEach((row) => {
-        try {
-          const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const { color, t } = colorer.colorOf(row);
-          const size = 1.4 + 2.8 * t;
-          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color })); // TASKS.csv #312 — shared prototype + scale
-          mesh.scale.setScalar(size);
-          mesh.position.set(x, y, z);
-          mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
-          groups.geophys_pts.add(mesh);
-        } catch (err) { buildErrors.push(`geophys_pts point: ${err.message}`); }
-      });
-    }
-
-    // TASKS.csv #228 — surface geochemistry samples (soil/rock-chip/stream-sediment/talus-fines), same
-    // "raw world x/y/z, no hole to desurvey against" rendering as the geophys_pts block just above —
-    // colored by sampling medium (colorForMedium) rather than by value, since a surface program often
-    // mixes media (a soil grid plus a few rock-chip grabs) that shouldn't be blended into one gradient.
-    if (layerVisible.surface_samples && placedSurfaceSamples.length) {
-      placedSurfaceSamples.forEach((row) => {
-        try {
-          const x = row.x - ox, y = row.z - oz, z = -(row.y - oy);
-          const mesh = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshLambertMaterial({ color: colorForMedium(row.medium) })); // TASKS.csv #312 — shared prototype + scale
-          mesh.scale.setScalar(1.8);
-          mesh.position.set(x, y, z);
-          mesh.userData = { tip: surfaceSampleTip(row) };
-          groups.surface_samples.add(mesh);
-        } catch (err) { buildErrors.push(`surface sample: ${err.message}`); }
-      });
-    }
 
     // Bug fix (user report: imported a real OMF block model — resistivity.omf — into a project that
     // already had drillholes loaded, and it just never appeared, no matter how they panned/zoomed).
@@ -4377,6 +4706,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // must run BEFORE the applyCategoryVisibility/applyLegendOverrideColors calls below, since both
     // of those mirror their per-object changes into the batches they find.
     Object.values(layerGroupsRef.current).forEach((g) => { if (g) buildLayerBatches(g); });
+    // TASKS.csv #551 — assay spheres, geophysics points and surface samples have their own builders (each clears and
+    // batches only its own group): run them on the traces and origin just built
+    buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();
 
     lastTracesRef.current = allTraces;
     if (buildErrors.length) setNotices((p) => [...p, errorNotice(`${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`)]);
@@ -4402,7 +4734,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, assays, assayDisplayElements, assayStyle, assayElements, assayVisible, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, placedSurfaceSamples /* #606 */, layerVisible.surface_samples, holeLabelMode]);
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, holeLabelMode]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
+  useEffect(() => { if (!sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
+  useEffect(() => { if (!sameInputs(geophysBuiltRef.current, geophysInputs)) buildGeophysPtsRef.current(); }, geophysInputs);
+  useEffect(() => { if (!sameInputs(surfaceBuiltRef.current, surfaceInputs)) buildSurfaceSamplesRef.current(); }, surfaceInputs);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //
@@ -4523,8 +4859,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
       return {
         ...s,
-        color: mesh?.material?.color?.getHex?.() ?? null,
-        opacity: mesh?.material?.opacity ?? 0.75,
+        ...surfaceBaseLook(mesh), // #636 — the surface's own look; a chosen style is saved separately (s.style)
         vertices: cached?.vertices || [],
         indices: cached?.indices || [],
       };
@@ -4673,7 +5008,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               vertexCount: Math.floor(part.positions.length / 3), faceCount: Math.floor(part.indices.length / 3),
               relationships: [{ relation: "terminates_against", targetId: cutterId }],
               params: {
-                tool: "fault block split (TASKS.csv #52)", derivedFrom: host.name, fault: cutter.name, block: sense,
+                tool: "fault block split" /* TASKS.csv #52 */, derivedFrom: host.name, fault: cutter.name, block: sense,
                 triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
                 edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
                 note: "Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here.",
@@ -4974,6 +5309,48 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     });
   }, [mapLayers, collars, terrain, rebuildSeq]);
 
+  // ---------- georeferenced section images (TASKS.csv #630) ----------
+  // One textured quad per image through its four world corners (sectionGeoref.js: an affine maps the image to a
+  // parallelogram, so plain UVs on two triangles reproduce it exactly). Double-sided, so it reads from either side
+  // of the section. Rebuilt only when the corners, the image or the scene origin change; opacity / visibility are
+  // applied in place.
+  useEffect(() => {
+    const group = sectionImageGroupRef.current;
+    if (!group) return;
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    const meshes = sectionImageMeshesRef.current;
+    const dispose = (m) => { group.remove(m); m.geometry?.dispose?.(); m.material?.map?.dispose?.(); m.material?.dispose?.(); };
+    const wanted = new Set((sectionImages || []).map((im) => im.id));
+    Object.keys(meshes).forEach((id) => { if (!wanted.has(id)) { dispose(meshes[id]); delete meshes[id]; } });
+    (sectionImages || []).forEach((im) => {
+      if (!im.corners || im.corners.length !== 4 || !im.dataUrl) return;
+      const geoKey = `${ox},${oy},${oz}|${im.corners.flat().join(",")}|${im.dataUrl.length}`;
+      let mesh = meshes[im.id];
+      if (mesh && mesh.userData.geoKey !== geoKey) { dispose(mesh); mesh = null; delete meshes[im.id]; }
+      if (!mesh) {
+        const pos = new Float32Array(im.corners.flatMap(([x, y, z]) => [x - ox, z - oz, -(y - oy)]));
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]), 2)); // TL, TR, BR, BL
+        geometry.setIndex([0, 3, 1, 1, 3, 2]);
+        geometry.computeBoundingSphere();
+        const texture = new THREE.TextureLoader().load(im.dataUrl, () => { lastActivityRef.current = Date.now(); });
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = rendererRef.current?.capabilities?.getMaxAnisotropy?.() ?? 1;
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true, opacity: im.opacity ?? 1 });
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.userData = { geoKey };
+        group.add(mesh);
+        meshes[im.id] = mesh;
+      }
+      mesh.material.opacity = im.opacity ?? 1;
+      mesh.material.transparent = (im.opacity ?? 1) < 1;
+      mesh.material.depthWrite = (im.opacity ?? 1) >= 1;
+      mesh.material.needsUpdate = true;
+      mesh.visible = im.visible !== false;
+    });
+  }, [sectionImages, collars, rebuildSeq]);
+
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // One InstancedMesh of thin discs per imported file (a disc lying in the measured plane, i.e. its axis
   // along the pole) plus one LineSegments of down-dip ticks from each disc's centre — two draw calls per
@@ -5191,8 +5568,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const tmpMatrix = new THREE.Matrix4();
     const tmpColor = new THREE.Color();
     voxelModels.forEach((model) => {
-      // Always rebuilt from scratch (see comment above) — dispose any previous instance of this model.
       const prev = voxelMeshesRef.current[model.id];
+      // TASKS.csv #696 — a display-only change (opacity within the transparent range, visibility, name) is applied to
+      // the existing mesh. Every model used to be rebuilt on every opacity-slider tick: 539 ms and a 72 MB instance
+      // upload per tick for a 1M-cell model, and every OTHER model in the project rebuilt with it.
+      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model) && prev.userData.origin === `${ox},${oy},${oz}`) {
+        const op = model.opacity ?? 0.85;
+        prev.material.opacity = op;
+        prev.visible = model.visible !== false;
+        prev.userData.srcModel = model;
+        return;
+      }
+      // Otherwise rebuilt from scratch (see comment above) — dispose any previous instance of this model.
       // TASKS.csv #433 — prev.dispose() too: in three r160 the instanceMatrix/instanceColor GPU buffers are
       // released only by InstancedMesh's own 'dispose' event, so every opacity drag, threshold change or
       // visibility toggle (all rebuild this effect) leaked ~7.6 MB per 100k-cell model on the shared-RAM iGPU.
@@ -5278,6 +5665,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.visible = model.visible !== false;
       mesh.userData.transparentCells = transparentCells;
+      mesh.userData.srcModel = model; // #696
+      mesh.userData.origin = `${ox},${oy},${oz}`;
       group.add(mesh);
       voxelMeshesRef.current[model.id] = mesh;
     });
@@ -5292,6 +5681,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // industry convention of drawing planned/proposed holes dashed on a section) in a bright cyan that
   // doesn't collide with any lithology/alteration/vein color already in use, plus a small diamond-
   // shaped toe marker so the hole's endpoint (not just its direction) is visible at a glance.
+  // TASKS.csv #519 — the strings digitised on sections (contacts, faults, free strings) as thin 3D lines at their real
+  // x / y / z: before, they were only visible in their own section window (and in the CSV / DXF exports).
+  useEffect(() => {
+    const group = sectionStringsGroupRef.current;
+    if (!group) return;
+    group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.dispose(); });
+    if (!showSectionStrings) return;
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    (sections || []).forEach((s) => (s.contacts || []).forEach((c) => {
+      const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => new THREE.Vector3(p.x - ox, p.z - oz, -(p.y - oy)));
+      if (pts.length < 2) return;
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: new THREE.Color(c.color || "#e2a63c"), depthTest: true }));
+      line.userData = { tip: `${c.unit} (${c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "upper contact"})\nsection: ${s.name}\n${pts.length} vertices` };
+      group.add(line);
+    }));
+  }, [sections, showSectionStrings]);
+
   useEffect(() => {
     const group = plannedGroupRef.current;
     if (!group) return;
@@ -5447,6 +5853,19 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setTaskProgress,
     setVisibleHoles,
   });
+  // TASKS.csv #637 — Harry or Woodjam. Woodjam's assays, ZTEM block model and IP lines are not drillhole tables, so they
+  // are loaded here (lib/sampleWoodjam.js, lazily) once its tables are queued.
+  const loadSample = async (which) => {
+    const ok = await loadSampleProject(which);
+    if (!ok || which !== "woodjam") return;
+    try {
+      const { loadWoodjamExtras, WOODJAM_EPSG } = await import("../lib/sampleWoodjam.js");
+      const readFile = async (rel) => (await loadSampleFiles("woodjam", [rel]))[0];
+      const notes = await loadWoodjamExtras(readFile, { setAssays, setAssayElements, addVoxelModel, addOmfObject, saveDcipLine },
+        { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined, existingElements: assayElements }); // existingElements: #722
+      setNotices((p) => [...p, ...notes]);
+    } catch (e) { setNotices((p) => [...p, `The Woodjam sample's assays, IP and ZTEM could not be loaded: ${e.message}`]); }
+  };
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
   // TASKS.csv #222 — useCallback so this keeps a stable identity across renders, required for
@@ -5477,6 +5896,29 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   };
   const toggleLayer = (key) => setLayerVisible((p) => ({ ...p, [key]: !p[key] }));
   const toggleCustom = (id) => setCustomVisible((p) => ({ ...p, [id]: p[id] === false ? true : false }));
+
+  // TASKS.csv #635 — Matt: "in the 3d view tab we need the right click menu on the geophysics layers, custom, map and
+  // all layers. Also … edit the styles of each layer, colour, size, type (circle, plane, cylinder), etc". Interval /
+  // point / structure / geophysics-point / surface-sample / custom layers get a Style… panel (lib/layerStyle.js);
+  // every sidebar row gets a right-click menu (rowMenu) with the actions that fit it.
+  const styleKindFor = (key) => {
+    if (key === "surface_samples") return "point";
+    const k = LAYER_META[key]?.kind;
+    return k === "interval" ? "interval" : k === "point" || k === "point3d" ? "point" : k === "plane" ? "plane" : null;
+  };
+  const openLayerStyle = (key, label) => {
+    const meta = LAYER_META[key], kind = styleKindFor(key);
+    if (!kind) return;
+    const sizeNote = kind === "interval" ? `Default tube radius ${meta.radius} m.` : kind === "plane" ? "Default disc radius 6 m." : meta?.numeric ? "By default the marker grows with the value; this scales all of them." : null;
+    setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null });
+  };
+  const openCustomStyle = (l) => {
+    const intervals = (l.rows || []).filter((r) => r.to != null && !isNaN(r.to)).length;
+    const kind = intervals >= (l.rows || []).length / 2 ? "interval" : "point";
+    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? "Default tube radius 1.6 m." : "Default marker radius 2.4 m." });
+  };
+  const openRowMenu = (e, title, items) => { e.preventDefault(); setRowMenu({ x: e.clientX, y: e.clientY, title, items: items.filter(Boolean) }); };
+  const zoomToObject = (obj) => { if (obj) { const b = new THREE.Box3().setFromObject(obj); if (!b.isEmpty()) fitBox(b); } };
   const toggleCategory = (layerKey, value) => setCategoryFilter((p) => { const cur = new Set(p[layerKey] || []); if (cur.has(value)) cur.delete(value); else cur.add(value); return { ...p, [layerKey]: cur }; });
   const setLegendColor = (layerKey, value, color) => setLegendOverride((p) => ({ ...p, [layerKey]: { ...p[layerKey], [value]: { ...p[layerKey]?.[value], color } } }));
   const setLegendLabel = (layerKey, value, label) => setLegendOverride((p) => ({ ...p, [layerKey]: { ...p[layerKey], [value]: { ...p[layerKey]?.[value], label } } }));
@@ -5535,7 +5977,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           // exported attribute in the same negative-down convention every other file in this app uses,
           // so the round-trip is lossless and an opened-in-QGIS attribute table matches what the user
           // actually typed.
-          attributes: { hole_id: c.hole_id, azimuth: c.azimuth ?? null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null },
+          // TASKS.csv #577 — stored azimuths are GRID bearings (project CRS); say so in the field name and give the
+          // true-north bearing beside it (grid = true + convergence), so QGIS / a re-import can't take one for the other
+          attributes: { hole_id: c.hole_id, azim_grid: c.azimuth ?? null, azim_true: Number.isFinite(c.azimuth) && project?.epsg ? (() => { const cv = trueNorthBearingInGridDeg(c.x, c.y, project.epsg); return Number.isFinite(cv) ? +((((c.azimuth - cv) % 360) + 360) % 360).toFixed(2) : null; })() : null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null },
         })),
         geomType: "point",
       };
@@ -5588,11 +6032,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const zipBytes = buildShapefileZip({ features, geomType, epsg: project?.epsg, baseName: label });
-      saveFile({
+      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
         content: uint8ToBase64(zipBytes), encoding: "base64",
       });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
       setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a shapefile (.zip — .shp/.shx/.dbf${project?.epsg ? "/.prj" : ""}).`]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(`Shapefile export failed: ${err.message}`)]);
@@ -5607,11 +6052,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
       const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]); // #439 lazy
-      saveFile({
+      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
         content: uint8ToBase64(gpkgBytes), encoding: "base64",
       });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
       setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a GeoPackage (.gpkg).`]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(`GeoPackage export failed: ${err.message}`)]);
@@ -5620,19 +6066,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   // TASKS.csv #128 — DXF export, the CAD/GIS interop format surveyors and mine planners actually work
   // in day to day, alongside Shapefile/GeoPackage above. Same buildVectorFeatures() data path, just a
-  // third output format — plan-view only (X/Y; Z dropped), per src/lib/dxf.js's own scope note.
+  // third output format. Elevations are written (#408) and the file is consistent R12 (#578), per src/lib/dxf.js.
   const exportVectorDXF = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
     try {
       const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
       const dxfText = buildDXF({ features, geomType });
-      saveFile({
+      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
         filters: [{ name: "DXF", extensions: ["dxf"] }],
         content: dxfText,
       });
-      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a DXF (.dxf, plan-view — elevation dropped).`]);
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
+      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a DXF (.dxf, R12, elevations kept).`]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(`DXF export failed: ${err.message}`)]);
     }
@@ -5658,7 +6105,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
         onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu({ key, label: meta.label, x: e.clientX, y: e.clientY }); }}
         expanded={!!expandedLayers[key]} onToggleExpand={() => setExpandedLayers((p) => ({ ...p, [key]: !p[key] }))}
-        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
+        input={isGeophys ? null : <input ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
       >
         <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
@@ -5685,6 +6132,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   };
 
   // ---------- cross-section (plan-view draw -> pop-out window) ----------
+  // TASKS.csv #617 — which clicks place a section / measure / pick-hole / modelling-code / sculpt point. All five
+  // handlers hang off the 3D view's container, so before this (reproduced with real mouse input in the Electron app):
+  //   * ending an orbit or pan DRAG fired a click -> a measure point (or section end) wherever the mouse stopped;
+  //   * clicking a control drawn OVER the view (Fit / Top / Bottom, the legend, the measure panel's Clear and
+  //     Distance/Area pills) bubbled here -> a point under the button (Clear then immediately re-added one);
+  //   * snapping the view with the compass (drawn on the canvas) did the same.
+  // A pick is now a click on the canvas itself, not on the compass, with the pointer within 4 px of where it went down.
+  const isViewClick = (e) => {
+    const canvas = rendererRef.current?.domElement;
+    if (!canvas || e.target !== canvas) return false;
+    const d = mcDownRef.current;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return false;
+    const mount = mountRef.current, compass = compassRef.current;
+    if (mount && compass?.isOver) { const r = mount.getBoundingClientRect(); if (compass.isOver(mount, e.clientX - r.left, e.clientY - r.top)) return false; }
+    return true;
+  };
   const onSectionClick = useCallback((e) => {
     if (!sectionMode) return;
     const rect = mountRef.current.getBoundingClientRect();
@@ -5735,11 +6198,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     setPickedHolePoint(world);
     setPickHoleMode(false);
   }, [pickHoleMode, raycastWorldPoint]);
-  // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modeling tab: select it, or — when
+  // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
   const onMcodeClick = useCallback((e) => {
-    if (!mcPickMode || mode !== "modeling") return;
+    if (!mcPickMode || mode !== "modelling") return;
     const d = mcDownRef.current;
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
     const rect = mountRef.current.getBoundingClientRect();
@@ -5757,7 +6220,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }
     setMcSelected(row);
   }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, layers.litho, pickHits, setModellingCodes]);
-  // TASKS.csv #599 — overlay in the Modeling tab: a tie line (in the code's colour) between the middles of each
+  // TASKS.csv #599 — overlay in the Modelling tab: a tie line (in the code's colour) between the middles of each
   // pair of connected intervals, and the selected / "connect from" interval highlighted along its trace.
   const mcOverlayRef = useRef(null);
   useEffect(() => {
@@ -5766,8 +6229,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!mcOverlayRef.current) { mcOverlayRef.current = new THREE.Group(); mcOverlayRef.current.name = "modellingCodesOverlay"; scene.add(mcOverlayRef.current); }
     const g = mcOverlayRef.current;
     g.children.slice().forEach((o) => { g.remove(o); o.geometry?.dispose(); o.material?.dispose(); });
-    g.visible = mode === "modeling";
-    if (mode !== "modeling") return;
+    g.visible = mode === "modelling";
+    if (mode !== "modelling") return;
     const traceOf = (hole) => tracesRef.current.find((t) => t.hole_id === hole);
     const parseKey = (k) => { const parts = String(k).split("|"); const to = Number(parts.pop()), from = Number(parts.pop()); return { hole_id: parts.join("|"), from, to }; };
     (modellingCodes?.ties || []).forEach((tie) => {
@@ -5827,7 +6290,108 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // everything currently visible regardless of relevance. null/undefined on any individual scope key
   // means "don't override — use the live visibility state", so an old section with no scope field at
   // all (every section saved before this feature existed) renders identically to before.
-  const buildSectionPayload = (a, b, corridor, scope = {}) => {
+  // Flatten every currently-visible layer into plain {color,label} primitives here, in the main
+  // window, where all the color/legend/filter logic already lives — so the pop-out window just
+  // draws shapes and never needs to know about layer types, filters, or overrides.
+  // TASKS.csv #525 — factored out of buildSectionPayload so the level plan colours holes exactly as sections do.
+  const layerPrimitivesFor = (holeIds, scope = {}) => {
+    const intervals = [];
+    // TASKS.csv #137 — SG has no fixed domain the way RQD%/recovery% do (see the main geometry
+    // effect's numericIntervalColor comment for the same reasoning) — its actual project min/max
+    // is computed once here too, same values that effect's globalPointRanges.sg would produce.
+    const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
+    const sgRange = minMax(sgVals);
+    ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
+      const meta = LAYER_META[key];
+      (layers[key] || []).forEach((row) => {
+        if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
+        const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
+        const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
+        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key }); // #392 — layer drives the ribbon offset
+      });
+    });
+
+    const points = [];
+    ["mnlgy", "magsusc"].forEach((key) => {
+      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
+      const meta = LAYER_META[key];
+      const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r));
+      const numeric = vals.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
+      const { min, max } = minMax(numeric); // not Math.min/max(...) — see layers.js's minMax comment
+      vals.forEach((row) => {
+        const mid = (row.from + row.to) / 2;
+        const color = meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
+        const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
+        // TASKS.csv #684 — a mineralisation INTERVAL is a ribbon over its depths in the section, not a dot at its midpoint
+        if (key === "mnlgy" && isIntervalRow(row)) { intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}${row.extra != null ? ` (${row.extra}%)` : ""}`, layer: key }); return; }
+        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
+      });
+    });
+    const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
+    if (showAssays && assayDisplayElements.length) {
+      assayDisplayElements.forEach((sym, idx) => {
+        const style = assayStyle[sym];
+        const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
+        if (!vals.length) return;
+        vals.forEach((a) => {
+          const mid = (a.from + a.to) / 2, v = a.values[sym];
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to } }); // #392 — drawn as a grade bar
+        });
+      });
+    }
+
+    const showCustomLayers = scope.showCustomLayers != null ? scope.showCustomLayers : true;
+    customLayers.forEach((layer) => {
+      if (!showCustomLayers) return;
+      if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
+      layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
+        const color = hashColor(row.value);
+        if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
+        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
+      });
+    });
+
+    return { intervals, points };
+  };
+
+  // TASKS.csv #759 — the last model's units on this section as a picture (drawn behind the holes in the section
+  // window): exact when the run evaluated this saved section on this same line, else read from the model's block at its
+  // cell size, and said so. Nodes above the ground are left out. Coordinates: world E / N / elevation.
+  const modelBackdropFor = (a, b, secId, showTerrain, corridor) => {
+    const lb = lastLithBlock;
+    if (!lb?.block) return null;
+    const colorOf = (u) => (u === lb.aboveLabel || /^above the top of /.test(u) ? "#d4d4d4" : lithUnitColor(lb, u));
+    const ev = secId && lb.sections?.[secId];
+    let grid, units, source;
+    if (ev && sameLine({ ax: a.x, ay: a.y, bx: b.x, by: b.y }, ev)) {
+      const g = ev.grid;
+      grid = { len: g.len, z0: g.z0, z1: g.z1, nx: g.nx, ny: g.ny, dl: g.dl, nodes: Array.from(g.ij, (k) => ({ i: k % g.nx, j: Math.floor(k / g.nx) })) };
+      units = unpackUnits(ev.units);
+      source = `evaluated exactly every ${Math.round(g.dl)} m`;
+    } else {
+      const o = lb.origin, [, , , , bz0, bz1] = lb.block.extent, sp = blockSpacing(lb.block);
+      const groundAt = terrain && showTerrain ? (x, y) => {
+        const [tx0, ty0, tx1, ty1] = terrain.bbox;
+        return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN;
+      } : null;
+      const tracePts = tracesRef.current.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] })));
+      const [zl, zh] = sectionZRange(tracePts, a, b, corridor, bz0 + o.z, bz1 + o.z);
+      grid = sectionGrid(a, b, zl, zh, { maxPts: 40000, minSpacing: Math.max(1, Math.min(sp.horizontal, sp.vertical) / 2), groundAt });
+      if (!grid) return null;
+      const above = `above the top of ${lb.units[0]?.name || "the model"} (not modelled)`;
+      units = grid.nodes.map((n) => { const u = unitAt(lb.block, n.x - o.x, n.y - o.y, n.z - o.z); return u === undefined ? null : u === null ? above : u; });
+      source = `read from the model's block (cells about ${Math.round(sp.horizontal)} x ${Math.round(sp.vertical)} m; a model run evaluates the most recent sections exactly)`;
+    }
+    if (!units.some((u) => u != null)) return null;
+    const cv = document.createElement("canvas");
+    cv.width = grid.nx; cv.height = grid.ny;
+    cv.getContext("2d").putImageData(new ImageData(sectionPixels(grid, units, colorOf), grid.nx, grid.ny), 0, 0);
+    const seen = [...new Set(units.filter((u) => u != null))];
+    return { name: `Model: ${lb.title} (${lb.when})`, source, len: grid.len, z0: grid.z0, z1: grid.z1, dataUrl: cv.toDataURL("image/png"), legend: seen.map((u) => [`Model: ${u}`, colorOf(u)]) };
+  };
+
+  const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
     const holeIds = new Set(holesInBand.map((t) => t.hole_id));
@@ -5877,52 +6441,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects });
     });
 
-    // Flatten every currently-visible layer into plain {color,label} primitives here, in the main
-    // window, where all the color/legend/filter logic already lives — so the pop-out window just
-    // draws shapes and never needs to know about layer types, filters, or overrides.
-    const intervals = [];
-    // TASKS.csv #137 — SG has no fixed domain the way RQD%/recovery% do (see the main geometry
-    // effect's numericIntervalColor comment for the same reasoning) — its actual project min/max
-    // is computed once here too, same values that effect's globalPointRanges.sg would produce.
-    const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
-    const sgRange = minMax(sgVals);
-    ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
-      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
-      const meta = LAYER_META[key];
-      (layers[key] || []).forEach((row) => {
-        if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
-        const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
-        const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
-        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key }); // #392 — layer drives the ribbon offset
-      });
-    });
-
-    const points = [];
-    ["mnlgy", "magsusc"].forEach((key) => {
-      if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
-      const meta = LAYER_META[key];
-      const vals = (layers[key] || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible(key, r));
-      const numeric = vals.map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
-      const { min, max } = minMax(numeric); // not Math.min/max(...) — see layers.js's minMax comment
-      vals.forEach((row) => {
-        const mid = (row.from + row.to) / 2;
-        const color = meta.numeric ? numericLayerColor(key, row.value, { min, max }) : effectiveColor(key, row.value);
-        const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
-        points.push({ hole_id: row.hole_id, md: mid, color, label: `${meta.label}: ${label}` });
-      });
-    });
-    const showAssays = scope.showAssays != null ? scope.showAssays : assayVisible;
-    if (showAssays && assayDisplayElements.length) {
-      assayDisplayElements.forEach((sym, idx) => {
-        const style = assayStyle[sym];
-        const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
-        if (!vals.length) return;
-        vals.forEach((a) => {
-          const mid = (a.from + a.to) / 2, v = a.values[sym];
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to } }); // #392 — drawn as a grade bar
-        });
-      });
-    }
+    const { intervals, points } = layerPrimitivesFor(holeIds, scope); // #525 — shared with the level plan
 
     const planes = [];
     if (scope.layerKeys != null ? scope.layerKeys.includes("structure") : layerVisible.structure) {
@@ -5937,17 +6456,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         planes.push({ hole_id: s.hole_id, depth: s.depth, color, label: `Structure: ${label}`, apparentDip });
       });
     }
-
-    const showCustomLayers = scope.showCustomLayers != null ? scope.showCustomLayers : true;
-    customLayers.forEach((layer) => {
-      if (!showCustomLayers) return;
-      if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
-      layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
-        const color = hashColor(row.value);
-        if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
-        else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
-      });
-    });
 
     // TASKS.csv #499 — keep only what lies in the corridor: intervals / assay bars clipped to the in-corridor runs,
     // points and structures kept when their depth is in one. (Before, a hole touching the corridor anywhere had
@@ -5978,11 +6486,18 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const showTerrain = scope.showTerrain != null ? scope.showTerrain : true;
     if (terrain && showTerrain) {
       const dist = Math.hypot(b.x - a.x, b.y - a.y);
-      const STEPS = 100;
+      // TASKS.csv #573 — sampled at the DEM's own cell size (was a fixed 100 points: every 50 m on a 5 km section,
+      // cutting ridges / gullies a 30 m SRTM or 1 m LiDAR grid has, and the planned-collar snap interpolated across
+      // them), at least 100 and at most 2000 points per section — bilinear lookups, once per section build.
+      const [txmin, tymin, txmax, tymax] = terrain.bbox;
+      const cell = Math.min((txmax - txmin) / Math.max(1, terrain.gridW - 1), (tymax - tymin) / Math.max(1, terrain.gridH - 1));
+      const STEPS = Math.max(100, Math.min(2000, Math.ceil(dist / Math.max(cell, 1e-6))));
       const pts = [];
       for (let i = 0; i <= STEPS; i++) {
         const t = i / STEPS;
         const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+        // #573 — off the terrain the sampler returns the nearest edge value: leave a gap, not a flat fake ground
+        if (x < txmin || x > txmax || y < tymin || y > tymax) continue;
         const el = sampleTerrainElevation(terrain, x, y);
         if (Number.isFinite(el)) pts.push({ d: dist * t, z: el });
       }
@@ -6057,7 +6572,91 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       plannedOnSection.push({ name: h.name || h.id, trace: tr.map((p) => ({ x: p.x, y: p.y, z: p.z })) });
     });
 
-    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection };
+    const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
+    if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
+    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop };
+  };
+
+  // TASKS.csv #525 — a LEVEL PLAN: everything cut by the horizontal plane z = rl, keeping what lies in the slab
+  // rl ± half (hole runs, their logs, assays, structures), plus pierce points, block-model cells at the RL, model
+  // surfaces / solids cut by the plane and planned holes. Same layer colours / filters / legend as a section
+  // (layerPrimitivesFor). Geometry is in lib/levelPlan.js; coordinates are E / N.
+  const buildPlanPayload = (rl, half) => {
+    const zmin = rl - half, zmax = rl + half;
+    const holes = [];
+    for (const t of tracesRef.current) {
+      const trace = t.pts.map((p, i) => ({ md: p.md, x: t.wx[i], y: t.wy[i], z: t.wz[i] }));
+      if (!trace.length) continue;
+      const runs = slabRuns(trace, zmin, zmax);
+      // context: the whole hole, thinned to ~200 points
+      const k = Math.max(1, Math.floor(trace.length / 200));
+      const context = trace.filter((_, i) => i % k === 0 || i === trace.length - 1).map((p) => [p.x, p.y]);
+      holes.push({ hole_id: t.hole_id, trace, runs, polylines: tracePolylines(trace, runs), pierce: piercePoints(trace, rl), collar: [trace[0].x, trace[0].y], context });
+    }
+    const inSlab = holes.filter((h) => h.runs.length);
+    const holeIds = new Set(inSlab.map((h) => h.hole_id));
+    const { intervals, points } = layerPrimitivesFor(holeIds, {});
+    const byId = new Map(holes.map((h) => [h.hole_id, h]));
+    const clip = (h, from, to) => h.runs.map(([r0, r1]) => [Math.max(from, r0), Math.min(to, r1)]).filter(([f, t]) => t - f > 1e-6);
+    const planIntervals = [];
+    intervals.forEach((iv) => {
+      const h = byId.get(iv.hole_id); if (!h) return;
+      const parts = clip(h, iv.from, iv.to);
+      if (parts.length) planIntervals.push({ hole_id: iv.hole_id, layer: iv.layer, color: iv.color, label: iv.label, from: iv.from, to: iv.to, lines: tracePolylines(h.trace, parts) });
+    });
+    const planPoints = [];
+    points.forEach((pt) => {
+      const h = byId.get(pt.hole_id); if (!h) return;
+      const md = pt.assay ? (pt.assay.from + pt.assay.to) / 2 : pt.md;
+      if (!h.runs.some(([a, b]) => md >= a - 1e-9 && md <= b + 1e-9)) return;
+      const q = pointAtMd(h.trace, md);
+      planPoints.push({ hole_id: pt.hole_id, md, x: q.x, y: q.y, color: pt.color, label: pt.label, assay: pt.assay || null });
+    });
+    // what each pierce point sits in: the interval of every logged layer at that depth, and the assays there
+    holes.forEach((h) => h.pierce.forEach((pc) => {
+      pc.logs = intervals.filter((iv) => iv.hole_id === h.hole_id && pc.md >= iv.from && pc.md <= iv.to).map((iv) => ({ label: iv.label, color: iv.color, layer: iv.layer }));
+      pc.assays = points.filter((pt) => pt.hole_id === h.hole_id && pt.assay && pc.md >= pt.assay.from && pc.md <= pt.assay.to).map((pt) => pt.label);
+    }));
+    const structures = [];
+    if (layerVisible.structure) {
+      (layers.structure || []).forEach((sp) => {
+        const h = byId.get(sp.hole_id);
+        if (!h || !isRowVisible("structure", sp) || !h.runs.some(([a, b]) => sp.depth >= a && sp.depth <= b)) return;
+        const q = pointAtMd(h.trace, Number(sp.depth));
+        const oriented = Number.isFinite(Number(sp.dip)) && Number.isFinite(Number(sp.azimuth)) && sp.dip !== null && sp.azimuth !== null;
+        structures.push({ hole_id: sp.hole_id, depth: sp.depth, x: q.x, y: q.y, dip: oriented ? Number(sp.dip) : null, dipDir: oriented ? Number(sp.azimuth) : null, color: effectiveColor("structure", sp.value), label: `Structure: ${effectiveLabel("structure", sp.value)}` });
+      });
+    }
+    const voxelSlices = [];
+    (voxelModels || []).forEach((model) => {
+      if (!model.cells?.length || model.visible === false) return;
+      const rects = voxelPlanRects(model.cells.filter((c) => voxelCellSupported(model, c)), rl).map((r) => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, color: colorForVoxelValue(model, r.value) }));
+      if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects });
+    });
+    const surfaceCuts = [];
+    {
+      const o = originRef.current;
+      const nameOf = Object.fromEntries((implicitSurfaces || []).map((sf) => [sf.id, sf.name]));
+      Object.entries(implicitMeshesRef.current || {}).forEach(([id, mesh]) => {
+        if (!mesh?.visible || !mesh.geometry?.attributes?.position) return;
+        const pos = mesh.geometry.attributes.position.array, n = pos.length / 3;
+        const tris = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
+        // scene -> world: E = x + ox, N = oy - z, Z = y + oz (as the section cut)
+        const segs = meshPlanCut(n, tris, (i) => ({ x: pos[i * 3] + o.x, y: o.y - pos[i * 3 + 2], z: pos[i * 3 + 1] + o.z }), rl);
+        if (segs.length) surfaceCuts.push({ id, name: nameOf[id] || String(mesh.userData?.tip || id).split("\n")[0], color: `#${(mesh.material?.color?.getHex?.() ?? 0xc8a24a).toString(16).padStart(6, "0")}`, segs });
+      });
+    }
+    const planned = [];
+    (plannedHoles || []).forEach((ph) => {
+      const tr = plannedHoleTrace(ph);
+      if (!tr?.length) return;
+      const runs = slabRuns(tr, zmin, zmax), pierce = piercePoints(tr, rl);
+      planned.push({ name: ph.name || ph.id, collar: [tr[0].x, tr[0].y], lines: tracePolylines(tr, runs), pierce, context: tr.map((p) => [p.x, p.y]) });
+    });
+    const legendSeen = new Set(), legendItems = [];
+    [...planIntervals, ...structures].forEach((r) => { const key = `${r.label}|${r.color}`; if (!legendSeen.has(key) && !/^(Geotech|Recovery|Specific gravity)/.test(r.label)) { legendSeen.add(key); legendItems.push([r.label, r.color]); } });
+    legendItems.sort((a, b) => a[0].localeCompare(b[0]));
+    return { rl, half, holes, intervals: planIntervals, points: planPoints, structures, voxelSlices, surfaceCuts, planned, legendItems };
   };
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in
@@ -6067,26 +6666,40 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // still creates a new section entry (matches the pre-existing ephemeral behavior); reopening a
   // previously-saved one goes through reopenSection below instead, which reuses its id/name so drawn
   // contacts keep accumulating on it.
-  const launchSection = () => {
+  // TASKS.csv #631 — georeferenced section images lying on this section's line, drawn behind its holes and contacts
+  // (lib/sectionGeoref.js sectionImagesOnSection, loaded on demand); each carries its picture for the section window.
+  const sectionImagesFor = async (a, b, corridor) => {
+    if (!sectionImages.length) return [];
+    const { sectionImagesOnSection } = await import("../lib/sectionGeoref.js");
+    return sectionImagesOnSection(sectionImages, { ax: a.x, ay: a.y, bx: b.x, by: b.y }, corridor).map((m) => {
+      const im = sectionImages.find((i) => i.id === m.id);
+      return { ...m, dataUrl: im.dataUrl, width: im.width, height: im.height };
+    });
+  };
+  const launchSection = async () => {
     const [a, b] = sectionPts.current;
     const corridor = sectionCorridor;
-    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, corridor);
+    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, corridor);
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const name = `Section ${azimuth.toFixed(0)}°`;
     upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor, contacts: [] });
-    // lithoUnits: the same distinct-litho-value list the Modeling tab's unit pickers use (litho_units
+    // lithoUnits: the same distinct-litho-value list the Modelling tab's unit pickers use (litho_units
     // above) — passed through so the pop-out's "Draw contact" flow can offer a real unit picker instead
     // of a freeform typed name (see SectionWindow.jsx's finishContact comment for why: a contact tied
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
     // contacts into 3D surface generation as real interface points later).
-    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection });
+    const sectionImgs = await sectionImagesFor(a, b, corridor);
+    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
+      ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections) }); // #519
   };
 
-  const reopenSection = useCallback((s) => {
+  const reopenSection = useCallback(async (s) => {
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, s.corridor, s.scope || {});
-    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection });
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles]);
+    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
+    const sectionImgs = await sectionImagesFor(a, b, s.corridor);
+    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
+      ghostStrings: ghostStrings(s, sections) }); // #519 — the neighbouring sections' strings
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
@@ -6204,6 +6817,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
       {mode === "view" && (
         <ViewToolbar
+          onLevelPlan={() => { if (!tracesRef.current.length) { setNotices((p) => [...p, "Load collars first — a level plan cuts the drillholes at an elevation."]); return; } setLevelPlanOpen(true); }}
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
           figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)}
@@ -6224,36 +6838,41 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           show={visible} paneProps={paneProps}
         />
       )}
-      {/* TASKS.csv #458 — 3D Modeling ribbon: each modelling tool opens as a pane at the top of the sidebar
+      {/* TASKS.csv #458 — 3D Modelling ribbon: each modelling tool opens as a pane at the top of the sidebar
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
-      {mode === "modeling" && (
+      {mode === "modelling" && (
         <Ribbon show={visible} label="3D Modelling tools">
-          <RibbonGroup label="Setup">
+          <RibbonGroup advanced label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
             <RibbonButton icon={Waypoints} label="Modelling codes" tone="model" title="Give intervals modelling codes (alternating flows), connect units between holes, set roles and pile order" {...paneProps("mcodes")} />
             <RibbonButton icon={GitCompare} label="Correlation" tone="model" title="Section correlation" {...paneProps("correlation")} />
           </RibbonGroup>
-          <RibbonGroup label="Lithology">
+          {/* TASKS.csv #750 — Matt: "predictive could go into 3d modelling as a tool, geoML modelling group. the other one should
+              be named gempy modelling group" */}
+          <RibbonGroup label="GemPy modelling">
             <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
-            <RibbonButton icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+            <RibbonButton advanced icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+          </RibbonGroup>
+          <RibbonGroup label="geoML modelling">
+            <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
           </RibbonGroup>
           <RibbonGroup label="Structure">
-            <RibbonButton icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
+            <RibbonButton advanced icon={Compass} label="Structures" tone="model" title="Structural modelling from structure picks" {...paneProps("structural")} />
             <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of structure picks (and outcrop measurements)" onClick={() => setStereonetOpen(true)} />
-            <RibbonButton icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
-            <RibbonButton icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
+            <RibbonButton advanced icon={Activity} label="Downhole plot" tone="analyse" title="Downhole structure (tadpole) plot" onClick={() => setTadpoleOpen(true)} />
+            <RibbonButton advanced icon={Crosshair} label="Core orient." tone="analyse" title="Core orientation (alpha-beta) calculator for non-oriented core" onClick={() => setCoreOrientOpen(true)} />
           </RibbonGroup>
-          <RibbonGroup label="Alteration & veins">
+          <RibbonGroup advanced label="Alteration & veins">
             <RibbonButton icon={Droplets} label="Alteration" tone="model" title="Alteration modelling" {...paneProps("alteration")} />
             <RibbonButton icon={Waves} label="Veins / dykes" tone="model" title="Vein / dyke modelling" {...paneProps("vein")} />
           </RibbonGroup>
           <RibbonGroup label="Grade">
             <RibbonButton icon={Gem} label="Grade shell" tone="model" title="Numeric implicit model (grade shell)" {...paneProps("shell")} />
             <RibbonButton icon={Calculator} label="Estimation" tone="model" title="Grade estimation into block models" {...paneProps("gradeEst")} />
-            <RibbonButton icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
+            <RibbonButton advanced icon={Spline} label="Variogram" tone="analyse" title="Variogram / spatial continuity" onClick={() => setVariogramOpen(true)} />
           </RibbonGroup>
-          <RibbonGroup label="Check">
+          <RibbonGroup advanced label="Check">
             <RibbonButton icon={Rows3} label="Fence diagram" tone="analyse" title="Fence / panel correlation diagram" onClick={() => setFenceOpen(true)} />
             <RibbonButton icon={Ruler} label="Surface query" tone="analyse" title="Distance to surfaces / point-in-domain report" onClick={() => setSurfaceQueryOpen(true)} />
           </RibbonGroup>
@@ -6263,14 +6882,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {mode === "targeting" && (
         <Ribbon show={visible} label="Targeting tools">
           <RibbonGroup label="Targets">
-            <RibbonButton icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
+            <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
             <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
             <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
           </RibbonGroup>
           <RibbonGroup label="Export planned holes">
             <RibbonButton icon={FileSpreadsheet} label="CSV" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north" onClick={() => exportPlannedHoles("csv")} />
-            <RibbonButton icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
-            <RibbonButton icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
+            <RibbonButton advanced icon={Globe} label="KML" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Google Earth / phone maps" onClick={() => exportPlannedHoles("kml")} />
+            <RibbonButton advanced icon={MapPin} label="GPX" tone="output" disabled={!plannedHoles.length} disabledReason="Plan a hole first" title="Handheld GPS: collar waypoints" onClick={() => exportPlannedHoles("gpx")} />
           </RibbonGroup>
         </Ribbon>
       )}
@@ -6349,12 +6968,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
+        <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Survey {survey.length ? `(${survey.length})` : ""}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
         </div>
-        <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
+        <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
         {/* TASKS.csv #131 — hole (collar) labels, QGIS-specialist audit finding: GeoStrix had no text
             labeling anywhere in the 3D scene at all. Scoped to a small fixed set of label contents
@@ -6466,7 +7085,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </select>
         )}
         {emptyLayerKeys.filter((key) => key !== "geophys_pts").map((key) => (
-          <input key={key} ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
+          <input key={key} ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />
         ))}
 
         {/* User request: rasters/terrain show up as toggleable layer rows here too, not just inside
@@ -6477,7 +7096,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Rasters & terrain</div>
             {terrain && (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
+                  { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
+                  { label: "Zoom to", onClick: () => zoomToObject(terrainMeshRef.current) },
+                  "-", { label: "Colour, drape and remove — Geophysics tab", onClick: () => goToModule("geophysics") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6496,7 +7118,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
             )}
             {rasters.map((r) => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div key={r.id} onContextMenu={(e) => openRowMenu(e, r.name, [
+                  { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
+                  { label: "Zoom to", onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
+                  "-", { label: "Drape and elevation — Maps tab", onClick: () => goToModule("maps") },
+                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove raster "${r.name}"?`)) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6511,7 +7137,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("raster"), "Edit drape mode / elevation for this raster in the Raster tab")} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), "Edit drape mode / elevation for this raster in the Raster tab")} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
               </div>
             ))}
@@ -6532,7 +7158,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>Geophysics</div>
             {boundaries.map((b) => (
-              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
+                  { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
+                  { label: "Zoom to", onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
+                  "-", { label: "Colour and style — Geophysics tab", onClick: () => goToModule("geophysics") },
+                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove boundary "${b.name}"?`)) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6544,7 +7174,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
             ))}
             {omfObjects.map((o) => (
-              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div key={o.id} onContextMenu={(e) => openRowMenu(e, o.name, [
+                  { label: o.visible === false ? "Show" : "Hide", onClick: () => updateOmfObject(o.id, { visible: o.visible === false }) },
+                  { label: "Zoom to", onClick: () => zoomToObject(omfMeshesRef.current[o.id]) },
+                  "-", { label: "Colour and style — Geophysics tab", onClick: () => goToModule("geophysics") },
+                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove OMF object "${o.name}"?`)) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6558,7 +7192,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               </div>
             ))}
             {voxelModels.map((v) => (
-              <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+              <div key={v.id} onContextMenu={(e) => openRowMenu(e, v.name, [
+                  { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
+                  { label: "Zoom to", onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
+                  "-", { label: "Legend, classes and palette — Geophysics tab", onClick: () => goToModule("geophysics") },
+                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -6583,7 +7221,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             Geochem, where the import/element data actually lives. */}
         {surfaceSamples.length > 0 && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
+            <div onContextMenu={(e) => openRowMenu(e, `${surfaceSamples.length} surface samples`, [
+              { label: layerVisible.surface_samples ? "Hide" : "Show", onClick: () => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples })) },
+              { label: "Zoom to", onClick: () => zoomToObject(layerGroupsRef.current.surface_samples) },
+              { label: "Style (colour, size, shape)…", onClick: () => openLayerStyle("surface_samples", "Surface samples") },
+              "-", { label: "Import or edit samples — Geochem tab", onClick: () => goToModule("geochem") }])} className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {layerVisible.surface_samples ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -6641,11 +7283,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 // (a representative sample rather than any one specific value), or the default hue.
                 const color = on ? (style?.breaks?.length ? style.breaks[Math.floor(style.breaks.length / 2)].color : style?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length]) : null;
                 const defaultHue = ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
-                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.length));
+                const styled = !!(style && ((style.color && style.color !== defaultHue) || (style.sizeMult != null && style.sizeMult !== 1) || style.minCutoff != null || style.breaks?.length || style.shape || style.opacity != null)); // #649 shape / opacity
                 return (
                   <div
                     key={e.symbol}
-                    title={on ? `Hide ${e.symbol}` : `Show ${e.symbol}`}
+                    title={on ? `Hide ${e.symbol} — right-click for more` : `Show ${e.symbol}`}
+                    onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${e.unit})` : ""}`, [ // TASKS.csv #649 — like the other layers (#635)
+                      { label: on ? `Hide ${e.symbol}` : `Show ${e.symbol}`, onClick: () => toggleAssayElement(e.symbol) },
+                      on && { label: "Style (colour, shape, size, classes)…", onClick: () => setAssayStyleModalSymbol(e.symbol) },
+                      on && assayDisplayElements.length > 1 && { label: `Show only ${e.symbol}`, onClick: () => setAssayDisplayElements([e.symbol]) },
+                      "-", { label: "Import or edit assays — Geochem tab", onClick: () => goToModule("geochem") }])}
                     style={{
                       display: "flex", alignItems: "center", gap: 5, padding: "4px 6px 4px 9px", borderRadius: 12, cursor: "pointer", fontSize: "var(--font-size-base)",
                       // TASKS.csv #306 — the chip BORDER now carries the element's own identity hue
@@ -6679,7 +7326,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
         <div className="ge-section-label" style={{ marginTop: 16 }}>Custom layers</div>
         {customLayers.map((l) => (
-          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+          <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
+            { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
+            { label: "Zoom to", onClick: () => zoomToCustom(l.id) },
+            { label: "Style (colour, size, shape)…", onClick: () => openCustomStyle(l) },
+            "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the custom layer "${l.name}"?`)) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
             </div>
@@ -6688,7 +7339,52 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
-        <input ref={setInputRef("customCsv")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
+        <input ref={setInputRef("customCsv")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
+
+        {/* TASKS.csv #628 — Matt: "I'm importing shp files but there is no way to delete them … I wanna be able to see
+            them as layers, just like in qgis". Line / polygon shapefiles and GeoPackage tables go to the project's map
+            layers (#609), which were only listed under Geophysics -> Map layers; this lists them here too, QGIS-style:
+            show/hide, zoom to, remove. Styling stays in the Geophysics panel (one place for it). */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Map layers{mapLayers.length ? ` (${mapLayers.length})` : ""}</div>
+        {mapLayers.map((l) => (
+          <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
+            { label: l.visible === false ? "Show" : "Hide", onClick: () => updateMapLayer(l.id, { visible: l.visible === false }) },
+            { label: "Zoom to", onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
+            "-", { label: "Colours, labels and draping — Geophysics tab", onClick: () => goToModule("geophysics") },
+            { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? "Show" : "Hide"} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.features.length} {l.geomType})</span>
+            </div>
+            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, `Zoom to map layer "${l.name}"`)} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); }, `Remove map layer "${l.name}"`)} />
+          </div>
+        ))}
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add map layer (.shp / .zip / .gpkg)</div>
+        <input ref={setInputRef("mapLayer")} type="file" multiple accept=".zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx" style={{ display: "none" }} onChange={(e) => { groupShapefileParts(Array.from(e.target.files)).files.forEach((f) => openImportModal(f)); e.target.value = ""; }} />
+        {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>Colours, labels and draping: Geophysics → Map layers.</div>}
+
+        {/* TASKS.csv #630 — georeferenced cross-section images standing in the 3D view */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Section images{sectionImages.length ? ` (${sectionImages.length})` : ""}</div>
+        {sectionImages.map((im) => (
+          <div key={im.id} onContextMenu={(e) => openRowMenu(e, im.name, [
+            { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
+            { label: "Zoom to", onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
+            { label: "Opaque", onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
+            { label: "Half transparent", onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
+            "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? "Show" : "Hide"} "${im.name}"${im.rmse != null ? ` (fit error ${im.rmse.toFixed(1)} m)` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                {im.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{im.name}</span>
+              </div>
+              <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, `Zoom to section image "${im.name}"`)} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); }, `Remove section image "${im.name}"`)} />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>
+              Opacity <input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={`Opacity of "${im.name}"`} />
+            </label>
+          </div>
+        ))}
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Georeference a section image…</div>
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
             the toolbar above (Camera / Scissors icons) — same reasoning as Grid/Themes above. The
@@ -6729,6 +7425,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Cross-sections ({sections.length})</span>
+                {sections.some((s) => (s.contacts || []).length) && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title="Draw the saved section strings (contacts, faults, strings) as 3D lines in the view">
+                    <input type="checkbox" checked={showSectionStrings} onChange={(e) => setShowSectionStrings(e.target.checked)} /> in 3D
+                  </label>
+                )}
                 {/* TASKS.csv #409 — digitised contacts/faults/strings out as 3D CSV and DXF */}
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
@@ -6791,11 +7492,11 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         })()}
         </>)}
 
-        {sidebarTab === "modeling" && (<>
+        {sidebarTab === "modelling" && (<>
         {toolPane === "settings" && (<>
         {paneHeader("Model settings", Settings, "model")}
         {/* TASKS.csv #309 — this block of explanatory prose used to render ALWAYS-ON directly under
-            the section label, at the smallest font size in the app. The 3D Modeling sidebar had five
+            the section label, at the smallest font size in the app. The 3D Modelling sidebar had five
             of these (Domain / Intercept set / Resolution / Surface stiffness / Search ellipsoid),
             roughly four lines of help per control, so a 900px sidebar showed about five actual
             controls and the rest was prose — while the 3D View sidebar, rendered by this SAME
@@ -6869,12 +7570,23 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             single biggest lever a user has over the 80s+ run times real properties hit. */}
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 6 }}>
           <span>Resolution</span>
-          <InfoButton title="Resolution" width={280} text={`Grid cells per axis for every modelling run below. Lower is faster; higher is slower but finer-detailed. A real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.`} />
+          <InfoButton title="Resolution" width={300} text={`Cells per axis of the model's lithology block: the grid the model check against the logs falls back to, the unit volumes, "Add as block model" and the block read on sections. It does not change how finely the surfaces are drawn — that is Surface detail below. Lower is faster; a real property-scale run at 36 (the default) commonly takes 60-90+ seconds — try 24 or lower for a quick first look.`} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <input type="range" min={12} max={64} step={4} value={modelResolution} onChange={(e) => setModelResolution(Number(e.target.value))} style={{ flex: 1 }} />
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", width: 46, textAlign: "right", flexShrink: 0 }}>{modelResolution}³</span>
         </div>
+
+        {/* TASKS.csv #766 — GemPy's octree level for the surface mesh (dual contouring), fixed at 4 before */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Surface detail</span>
+          <InfoButton title="Surface detail" width={300} text={"How finely the model surfaces are triangulated. Finer follows tight folds and fault steps more closely and gives smoother sections through the surfaces; it does not move the surface (measured: the same mean distance to the true surface at every level), and it does not change the block, the model check or the volumes. Measured on the Harry sample (two-unit stack): Standard 34 s; Fine 4x the triangles in 77 s (2.2x); Very fine 16x the triangles in 248 s (7x). Try Fine on the final run, not while iterating."} />
+        </div>
+        <select value={surfaceDetail} onChange={(e) => setSurfaceDetail(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }} aria-label="Surface detail">
+          <option value={4}>Standard (fastest)</option>
+          <option value={5}>Fine — 4x the triangles, ~2x the time</option>
+          <option value={6}>Very fine — 16x the triangles, ~7x the time</option>
+        </select>
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
             tight or smooth a fitted surface is. It was never set and never reported, so the same job
@@ -6893,10 +7605,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <option value={2}>2x — smoother, stiffer surfaces</option>
         </select>
 
+        {/* TASKS.csv #765 — structure picks averaged per hole: faster and less pick-scatter in the surface */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Contact orientations from picks</span>
+          <InfoButton title="Average picks per hole" width={300} text={"GemPy honours every orientation it is given, one by one, and its run time grows with their number. Averaging the picks of each hole in depth windows sends a few representative orientations instead: much faster, and the scatter between neighbouring oriented-core picks no longer bends the surface. A window never mixes picks more than 30 degrees apart (a fold limb, an overturned pick, a different structure). Untick to send every pick as it is."} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
+          <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />
+          Average picks per hole, in windows of
+          <input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label="Averaging window along the hole (m)" /> m
+        </label>
+
+        {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}
+        <div className="ge-section-label" style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Clustered contacts</span>
+          <InfoButton title="Smooth clustered contacts" width={300} text={"GemPy passes exactly through every contact point. Where many noisy picks crowd one spot (holes from one pad, digitised map or section lines) it bends the surface to honour them all, and the kink spreads. With this on, each surface's contacts are scanned for clusters (a kernel density over the points, as in von Harten et al. 2021): points at least twice as crowded as an even spread would be, and near the densest, are fitted loosely instead of exactly. Isolated points stay exact. The run says how many were smoothed. Off by default: if the clustered picks are accurate, smoothing throws away real detail."} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
+          <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />
+          Smooth clustered contacts
+        </label>
+
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             Search ellipsoid
-            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. Same trend the anisotropy layer below reuses.`} />
+            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately.`} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
@@ -6929,45 +7662,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Anisotropy</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
-            <input type="checkbox" checked={anisotropy.enabled} onChange={(e) => setAnisotropy((p) => ({ ...p, enabled: e.target.checked }))} /> On
-          </label>
-        </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          Warps every coordinate into a normalized space where this ellipsoid becomes a sphere before
-          the surface is fit, then warps the result back — the standard way to get directional
-          continuity (a vein behaving very differently along strike than across it) out of an
-          interpolator that's otherwise isotropic. Same azimuth/dip idea as the search
-          ellipsoid above — usually the same real structural trend.
-        </div>
-        {anisotropy.enabled && (
-          <div style={{ marginBottom: 8 }}>
-            <button onClick={() => setAnisotropy((p) => ({ ...p, azimuth: searchEllipsoid.azimuth, dip: searchEllipsoid.dip, major: searchEllipsoid.major, semiMajor: searchEllipsoid.semiMajor, minor: searchEllipsoid.minor }))} style={{ ...pBtn, padding: "5px 8px", fontSize: "var(--font-size-sm)", marginBottom: 8 }}>
-              Copy from search ellipsoid
-            </button>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Azimuth°
-                <input type="number" value={anisotropy.azimuth} onChange={(e) => setAnisotropy((p) => ({ ...p, azimuth: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Dip°
-                <input type="number" value={anisotropy.dip} onChange={(e) => setAnisotropy((p) => ({ ...p, dip: Number(e.target.value) || 0 }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-            </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <label style={miniField}>Major (m)
-                <input type="number" value={anisotropy.major} onChange={(e) => setAnisotropy((p) => ({ ...p, major: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Semi-major (m)
-                <input type="number" value={anisotropy.semiMajor} onChange={(e) => setAnisotropy((p) => ({ ...p, semiMajor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-              <label style={miniField}>Minor (m)
-                <input type="number" value={anisotropy.minor} onChange={(e) => setAnisotropy((p) => ({ ...p, minor: Math.max(1, Number(e.target.value) || 1) }))} style={{ ...smallSel, width: "100%" }} />
-              </label>
-            </div>
-          </div>
-        )}
+        {/* TASKS.csv #650 — named structural trends (replaces the single unsaved "Anisotropy" on/off) */}
+        <div className="ge-section-label" style={{ marginTop: 16 }}>Structural trends</div>
+        <Suspense fallback={null}>
+          <TrendsPanel structuralTrends={structuralTrends} setStructuralTrends={setStructuralTrends}
+            structurePicks={structurePicksWithHoleAttitude}
+            surfaces={implicitSurfaces.map((x) => ({ id: x.id, name: x.name }))}
+            surfacePoints={(id) => {
+              const geo = implicitMeshesRef.current[id]?.geometry; if (!geo) return [];
+              const { vertices } = sceneVertsToWorldFlat(geo, originRef.current);
+              const pts = []; for (let i = 0; i < vertices.length; i += 3) pts.push({ x: vertices[i], y: vertices[i + 1], z: vertices[i + 2] });
+              return pts;
+            }}
+            onView={(t) => setTrendPreviewId(t ? t.id : null)} viewingId={trendPreviewId}
+            small={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}
+            inputStyle={smallSel} btnStyle={pBtn} />
+        </Suspense>
 
         </>)}
         {toolPane === "gradeEst" && (<>
@@ -6994,9 +7704,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         </>)}
         {toolPane === "mcodes" && (<>
         {paneHeader("Modelling codes", Waypoints, "model")}
-        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
+        <Suspense fallback={null}>        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
-          askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+          askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
         </>)}
         {toolPane === "groups" && (<>
         {paneHeader("Lithology groups", Group, "model")}
@@ -7076,6 +7786,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         />
 
         </>)}
+        {toolPane === "geoml" && (<>
+        {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modelling tool */}
+        {paneHeader("geoML models", Sparkles, "model")}
+        <Suspense fallback={null}>
+          <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
+            addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
+        </Suspense>
+        </>)}
         {toolPane === "implicit" && (<>
         {paneHeader("Implicit surface", Mountain, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
@@ -7083,6 +7801,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           Uses structure dip/azimuth for orientation when available; if not, estimates one from the
           contact points themselves so it can still run.
         </div>
+        {!litho_units.length && emptyPaneHint("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project.")}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title="Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points">
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />
           Include drawn cross-section contacts{sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : ""}
@@ -7116,9 +7835,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button
             onClick={() => runImplicitModel(implicitTarget)}
             disabled={!implicitTarget || implicitBusy}
+            aria-label="Run the implicit model (GemPy)"
             title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
+            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: implicitTarget && !implicitBusy ? 1 : 0.5, cursor: implicitTarget && !implicitBusy ? "pointer" : "default" }}
+          >{implicitBusy ? "Running…" : <><Layers3 size={14} aria-hidden="true" /> Run</>}</button>{/* #572 — was an unlabeled icon */}
         </div>
         {/* TASKS.csv #52 (a) — sensitivity spread. Collapsed by default: it is N+1 GemPy runs, not a
             casual click. Copy says "spread", never "confidence" — see lib/surfaceSpread.js's header. */}
@@ -7170,6 +7890,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a
           stack by nature, so model those with the Structural tool instead, not here.
         </div>
+        {!litho_units.length && emptyPaneHint("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project.")}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">Add a unit…</option>
@@ -7230,7 +7951,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {stackFaults.map((k) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.replace(/\|$/, " (all picks)").replace("|", " — ")}</span>
-            <X size={13} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
+            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
           </div>
         ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
@@ -7288,6 +8009,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
           title="Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole"
         ><Milestone size={14} /> Downhole structure (tadpole)</button>
+        {!struct_types.length && emptyPaneHint("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project.")}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">Choose a structure type…</option>
@@ -7296,9 +8018,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           <button
             onClick={() => runStructuralModel(structuralTarget)}
             disabled={!structuralTarget || implicitBusy}
+            aria-label="Run the structural model (GemPy)"
             title="Runs in GeoStrix's Python engine (GemPy) — the status bar's Py shows whether it is ready"
-            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
-          >{implicitBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
+            style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", whiteSpace: "nowrap", opacity: structuralTarget && !implicitBusy ? 1 : 0.5, cursor: structuralTarget && !implicitBusy ? "pointer" : "default" }}
+          >{implicitBusy ? "Running…" : <><Layers3 size={14} aria-hidden="true" /> Run</>}</button>{/* #572 */}
         </div>
 
         </>)}
@@ -7334,8 +8057,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-          0 = auto (derived from your own hole spacing). The model domain and the anisotropy trend are
-          honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
+          0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for
+          alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop
           under-supported contact picks, which a closed envelope has none of.
         </div>
         {alterationBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>Building the halo envelope…</div>}
@@ -7400,11 +8123,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             NOT to add a Measured/Indicated/Inferred classifier (that is a QP's professional judgement,
             and deriving a regulatory label from a search radius would launder a parameter choice into
             a regulatory term). The real live risk is the opposite one: the app emitted confident
-            tonnages with zero classification context. This is the fix — framing, not features. */}
+            tonnages with zero classification context. This is the fix — framing, not features.
+            TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>Not a resource estimate.</strong> This builds an interpolated envelope to help you
-          visualize and target mineralization. It has no anisotropy, no variogram, no classification and
-          no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
+          visualize and target mineralization. It can follow a structural trend you choose, but it has no
+          variogram, no classification and no dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and
           it must not be reported publicly as one.
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
@@ -7416,7 +8140,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
               for the user to discover. */}
-          {" "}It honours the model domain and the anisotropy trend set above. It does <strong>not</strong>{" "}
+          {" "}It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does <strong>not</strong>{" "}
           apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported
           contact picks, and dropping isolated assays would delete grade rather than improve the shell.
         </div>
@@ -7442,8 +8166,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 </label>
               </div>
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title="Interpolation grid cell size (cubic). Smaller = smoother shell but more cells; capped by the same block limit as grade estimation.">Cell (m)
-                  <input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={{ ...smallSel, width: "100%" }} />
+                <label style={{ ...miniField }} title="Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.">Cell (m)
+                  <input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #292 — "0 = unlimited" actively invited the pathological setting: an
                     unbounded search made every sample a candidate for every cell (measured: 81 s of
@@ -7518,6 +8242,28 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                   the data.
                 </div>
               )}
+              {/* TASKS.csv #625 — the block budget (grid cells the shell may use). Runs in a background worker with
+                  progress and Cancel; measured ~18 s per million blocks on a mid-range laptop. */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}
+                title="How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). Remembered on this computer.">
+                <span style={{ flexShrink: 0 }}>Block budget</span>
+                <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label="Grade shell block budget">
+                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks{b === MAX_BLOCKS ? " (fast)" : b >= 5000000 ? " (~2 min, ~70 MB)" : b >= 2000000 ? " (~40 s)" : " (~20 s)"}</option>)}
+                </select>
+              </label>
+              {numericBudgetHint && (
+                <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
+                  At {numericBudgetHint.cell} m cells this extent needs {numericBudgetHint.needed.toLocaleString()} blocks — over the {numericBudgetHint.budget.toLocaleString()}-block budget.
+                  <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setNumericCellSize(numericBudgetHint.fit); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>Use {numericBudgetHint.fit} m cells</button>
+                    {numericBudgetHint.budget < BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1] && (
+                      <button type="button" onClick={() => { setNumericMaxBlocks(BLOCK_BUDGETS[BLOCK_BUDGETS.length - 1]); setNumericCellSize(numericBudgetHint.fitMax); setNumericBudgetHint(null); }} style={{ ...smallSel, cursor: "pointer" }}>
+                        Largest budget + {numericBudgetHint.fitMax} m cells
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
               {!(numericSearchRadius > 0) && (
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>
@@ -7543,6 +8289,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         {lastLithBlock && (
           <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Last model ({lastLithBlock.title}, {lastLithBlock.when}){lastLithBlock.matchedPct != null ? ` reproduces ${lastLithBlock.matchedPct}% of the logged metres` : ""}.</div>
+            <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title="Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation"><Box size={14} /> Add unit volumes (closed)</button>
             <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title="The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out."><Box size={14} /> Add as block model</button>
             <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title="An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections."><Layers3 size={14} /> Add "modelled unit" layer to holes</button>
           </div>
@@ -7592,7 +8339,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           const expanded = expandedSurfaceId === s.id;
           const otherSurfaces = implicitSurfaces.filter((o) => o.id !== s.id);
           return (
-            <div key={s.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div key={s.id} onContextMenu={(e) => openRowMenu(e, s.name, [ // TASKS.csv #635
+              { label: s.visible ? "Hide" : "Show", onClick: () => toggleImplicitSurface(s.id) },
+              { label: "Zoom to", onClick: () => zoomToImplicitSurface(s.id) },
+              { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
+              { label: "Style (colour, opacity)…", onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
+              "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); } }])}
+              style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
                 <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
@@ -7905,7 +8658,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                     <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Wavefront OBJ — universal, human-readable">OBJ</button>
                     <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this">DXF</button>
                     <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="glTF Binary — modern standard, keeps normals, good for Blender/web viewers">glTF</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it (TASKS.csv #411)">OMF</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it">OMF</button>
                   </div>
                 </div>
               )}
@@ -8065,7 +8818,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {sidebarTab === "home" && (<>
         <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title="Drag to resize the Browser panel" />
         <div style={{ height: browserHeight, flexShrink: 0 }}>
-          <DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} />
+          <Suspense fallback={null}><DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} onError={(m) => setNotices((p) => [...p, m])} /></Suspense>
         </div>
       </>)}
       </div>
@@ -8077,7 +8830,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div role="application" aria-label="3D view" tabIndex={0} className="ge-main" onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modeling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label="3D view" tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -8117,12 +8870,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
-            headline={mode === "modeling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
-            actionLabel={sampleLoading ? "Loading sample project…" : "Load sample project (Harry property, 37 real holes)"}
-            onAction={loadSampleProject}
+            headline={mode === "modelling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
+            actionLabel={sampleLoading ? "Loading sample project…" : "Sample: Harry property (37 holes)"}
+            onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}
             actionTitle="Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers"
-            footnote="No data of your own yet? This loads a real 37-hole dataset from BC's public ARIS drillhole database (report #37584) so you can see what a full project looks like. Some interval layers in it are synthesized — the bundled README says exactly which."
+            secondary={<button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title="Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597" style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>Sample: Woodjam (19 holes, IP, ZTEM)</button>}
+            footnote="No data of your own yet? Two real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized."
           >
             <>
               <div style={{ marginBottom: 8 }}>
@@ -8132,7 +8886,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
                 Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
               </div>
               <div style={{ marginBottom: 12 }}>
-                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; grids, GeoTIFFs and survey lines in <b>Geophysics</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
+                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; survey lines and geophysical grids in <b>Geophysics</b>; GeoTIFFs, satellite imagery, terrain and map layers in <b>Maps</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
               </div>
             </>
           </EmptyState>
@@ -8190,14 +8944,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           {toast && toast.level === "error" && (
             // #390 — errors: danger colours, an icon, and a close button (pointer events back on for it)
             <div key={toast.key} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", padding: "8px 10px 8px 12px", borderRadius: 7, border: "1px solid var(--color-danger-border-strong)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
-              <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
+              <AlertTriangle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
               <span style={{ flex: 1 }}>{toast.text}</span>
               <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
           {toast && toast.level !== "error" && (
-            <div key={toast.key} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)" }}>
-              {toast.text}
+            // #690 — hovering keeps it up; a Dismiss button as errors have
+            <div key={toast.key} onMouseEnter={holdToast} onMouseLeave={releaseToast} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 10px 8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
+              <span style={{ flex: 1 }}>{toast.text}</span>
+              <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
         </div>
@@ -8224,13 +8980,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
       {contextMenu && (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={contextMenuRef} role="menu" aria-label="3D view menu" onKeyDown={onContextMenuKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             {contextMenu.hit ? (
               <>
                 <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-line", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
                 <ContextItem label="Zoom here" onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
                 <ContextItem label={`Hide ${contextMenu.hit.holeId}`} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
-                <ContextItem label="Copy details" onClick={() => { navigator.clipboard?.writeText(contextMenu.hit.tip); setContextMenu(null); }} />
+                <ContextItem label="Copy details" onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
                 <ContextItem label="Zoom to selected area…" onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
                 <ContextItem label="Zoom to fit all" onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
                 <ContextItem label="Reset orientation" onClick={() => { resetView(); setContextMenu(null); }} />
@@ -8276,11 +9032,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         const vectorKind = layerContextMenu.key === "__collars__" ? "collars" : layerContextMenu.key === "__survey__" ? "survey" : "layer";
         return (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setLayerContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu(null); }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={layerMenuKeys.menuRef} role="menu" aria-label={`${layerContextMenu.label} menu`} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{layerContextMenu.label}</div>
             {!isVector && <>
               <ContextItem label="Zoom to layer" onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
               <ContextItem label={layerVisible[layerContextMenu.key] ? "Hide layer" : "Show layer"} onClick={() => { toggleLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
+              {styleKindFor(layerContextMenu.key) && <ContextItem label="Style (colour, size, shape)…" onClick={() => { openLayerStyle(layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
               <ContextItem label="Clear layer data…" onClick={() => { clearLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
             </>}
             {/* TASKS.csv — export/inspect, the same for real layers and the collars/survey sentinels. */}
@@ -8317,6 +9074,25 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         );
       })()}
 
+      {rowMenu && ( // TASKS.csv #635
+        <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setRowMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRowMenu(null); }}>
+          <div ref={rowMenuKeys.menuRef} role="menu" aria-label={`${rowMenu.title} menu`} onKeyDown={rowMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: Math.max(4, Math.min(rowMenu.x, window.innerWidth - 240)), top: Math.max(4, Math.min(rowMenu.y, window.innerHeight - 44 - rowMenu.items.length * 30)), background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+            <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rowMenu.title}</div>
+            {rowMenu.items.map((it, i) => (it === "-"
+              ? <div key={i} style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
+              : <ContextItem key={i} label={it.label} onClick={() => { setRowMenu(null); it.onClick(); }} />))}
+          </div>
+        </div>
+      )}
+      {styleTarget && (
+        <Suspense fallback={null}>
+          <LayerStyleModal target={{ ...styleTarget, onEditColours: styleTarget.colourKey ? () => setInspectLayer(styleTarget.colourKey) : null }}
+            style={styleTarget.surfaceId ? implicitSurfaces.find((x) => x.id === styleTarget.surfaceId)?.style : layerStyles[styleTarget.key]}
+            onChange={(patch) => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, patch) : setLayerStyle(styleTarget.key, styleTarget.kind, patch))}
+            onReset={() => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, null) : setLayerStyle(styleTarget.key, styleTarget.kind, null))}
+            onClose={() => setStyleTarget(null)} />
+        </Suspense>
+      )}
       {attrTableTarget && (
         <AttributeTableModal
           title={attrTableTarget.label}
@@ -8377,6 +9153,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         );
       })()}
       {qcModalOpen && <DataQCModal onCancel={() => setQcModalOpen(false)} />}
+      {sectionGeorefOpen && (
+        <Suspense fallback={null}>
+          <SectionGeorefModal sections={sections} onClose={() => setSectionGeorefOpen(false)}
+            onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, `${img.name}: placed in 3D on its section line${img.rmse != null ? ` (fit error ${img.rmse.toFixed(1)} m)` : ""} — listed under Section images.`]); }} />
+        </Suspense>
+      )}
       {sqlModalOpen && (
         <Suspense fallback={null}>
           <SQLWorkspaceModal
@@ -8421,6 +9203,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           layers={layers}
           collars={collars}
           survey={survey}
+          volumeShells={closedShellsForEstimation()}
+          trend={trendFor("estimation")} // TASKS.csv #650
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, `Added block model "${model.name}" (${model.cells.length.toLocaleString()} cells).`]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />
@@ -8441,7 +9225,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           exists to sanity-check an orientation BEFORE it's fed to the anisotropy/structural tools, so
           the computed mean plane can now be pushed straight into the anisotropy trend fields instead
           of the user reading two numbers off the screen and retyping them. Also switches to the
-          Modeling sidebar so the fields it just wrote are actually visible — writing state into a
+          Modelling sidebar so the fields it just wrote are actually visible — writing state into a
           panel the user can't see would look like nothing happened. */}
       {stereonetOpen && (
         <StereonetModal
@@ -8451,15 +9235,33 @@ export default function ViewerModule({ mode = "view", visible = true }) {
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
           onUseAsTrend={({ azimuth, dip }) => {
-            setAnisotropy((p) => ({ ...p, enabled: true, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10 }));
+            // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour)
+            const t = { ...cleanTrend({ name: `Stereonet mean (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
+            setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
-            goToModule("modeling");
-            setNotices((p) => [...p, `Anisotropy trend set from the stereonet mean orientation (dip ${dip.toFixed(1)}° / dipdir ${azimuth.toFixed(1)}°).`]);
+            goToModule("modelling");
+            setNotices((p) => [...p, `Trend "${t.name}" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.`]);
           }}
         />
       )}
       {/* TASKS.csv #277 — downhole structural (tadpole) plot. Fed the SAME hole-attitude-enriched picks
           the stereonet's Terzaghi correction uses, so alpha means one thing across both tools. */}
+      {levelPlanOpen && (() => {
+        // TASKS.csv #525 — elevation range of the loaded holes (loops, not Math.min(...) over every vertex, #371)
+        let z0 = Infinity, z1 = -Infinity;
+        tracesRef.current.forEach((t) => t.wz.forEach((z) => { if (z < z0) z0 = z; if (z > z1) z1 = z; }));
+        if (!Number.isFinite(z0)) return null;
+        return (
+          <LevelPlanWindow
+            build={buildPlanPayload}
+            zRange={[z0, z1]}
+            defaultRl={(z0 + z1) / 2}
+            onClose={() => setLevelPlanOpen(false)}
+            onSaveBoundary={(pts, rl, name) => addBoundary({ name, polylines: [pts.map(([x, y]) => ({ x, y }))], elevation: rl, drapeMode: "flat" })}
+            onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }}
+          />
+        );
+      })()}
       {tadpoleOpen && (
         <DownholeStructurePlot
           picks={structurePicksWithHoleAttitude}
@@ -8568,7 +9370,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 // grouped with separators; Grid and Themes open a small popover panel anchored under their button
 // (closes on an explicit close click or picking an action — no outside-click listener yet, kept
 // simple for this first pass); everything else fires the same handlers the old sidebar buttons used
-// to (a modal-open setter, or a one-shot action). Modeling mode doesn't render this yet (TASKS.csv
+// to (a modal-open setter, or a one-shot action). Modelling mode doesn't render this yet (TASKS.csv
 // #155 follow-up) — its sidebar is unchanged for now.
 function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
@@ -8579,14 +9381,15 @@ function ViewToolbar({
   onSnapshot, snapshotDisabled, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
   show, paneProps, // TASKS.csv #458
+  onLevelPlan, // TASKS.csv #525
 }) {
   const toggle = (name) => setOpenPopover((p) => (p === name ? null : name));
   return (
     <Ribbon show={show} label="3D View tools">
       <RibbonGroup label="View">
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/colour, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
-            <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-pressed={!!(openPopover === "grid")} onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
             <div style={popoverStyle}>
@@ -8615,9 +9418,9 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
-            <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-pressed={!!(openPopover === "figure")} onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Figure</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Figure</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
             <div style={{ ...popoverStyle, width: 268 }}>
@@ -8663,9 +9466,9 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <div className="ge-ribbon-cell">
+        <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
-            <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-pressed={!!(openPopover === "themes")} onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Themes</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Themes</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
             <div style={{ ...popoverStyle, width: 260 }}>
@@ -8713,7 +9516,7 @@ function ViewToolbar({
             </div>
           )}
         </div>
-        <RibbonButton icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
+        <RibbonButton advanced icon={SquareSplitVertical} label="3D slice" tone="section" title="Cut the view with a moving vertical or horizontal slab" {...paneProps("slice3d")} />
       </RibbonGroup>
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
@@ -8727,8 +9530,9 @@ function ViewToolbar({
             <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
           </label>
         )}
-        <RibbonButton icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
-        <RibbonButton icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
+        <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
+        <RibbonButton advanced icon={Rows3} label="Fence series" tone="section" title="Parallel sections at a set azimuth and spacing, on round grid lines" {...paneProps("fence")} />
+        <RibbonButton advanced icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
@@ -8748,7 +9552,7 @@ function ViewToolbar({
           </HoverToolInfo>
         </div>
       </RibbonGroup>
-      <RibbonGroup label="Database">
+      <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
             <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">Database</span></button>
@@ -8775,9 +9579,10 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 
 function ContextItem({ label, onClick, disabled, title }) {
   if (disabled) {
-    return <div title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
+    return <div role="menuitem" aria-disabled="true" title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
   }
-  return <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
+  // TASKS.csv #730 — menuitem (was button); tabIndex 0 stays, #575's menuItemsOf finds items by it
+  return <div role="menuitem" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
 // TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
 // 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's
@@ -8839,11 +9644,11 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
         {/* TASKS.csv #66 — inline expand (category chips + sources) without opening the full
             LayerInspector modal. Only offered once there's something to expand. */}
         {count > 0 && onToggleExpand ? (
-          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"}>
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"} aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`} aria-expanded={!!expanded}>{/* #596 */}
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"} aria-label={`${visible ? "Hide" : "Show"} ${label}`}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
         <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
         {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
         {count > 0 && <ListFilter size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
@@ -8851,7 +9656,7 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
         {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV">{count ? `${count}` : <Upload size={12} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV" aria-label={count ? `Import CSV into ${label} (${count} rows)` : `Import CSV into ${label}`}>{count ? `${count}` : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
@@ -9367,7 +10172,7 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurve
       {results.map(({ hole, nearestReal, targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;
         return (
-          <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
+          <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg-soft)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-fg)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || "Planned hole"}</div>
             {nearestReal ? (
               <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>
@@ -9432,8 +10237,6 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   );
 }
 
-const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
 const miniBtn = { width: 60, padding: "5px 0", borderRadius: 6, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
 const iconBtn = { width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", cursor: "pointer" };
-const smallSel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 4px" };
 const miniField = { flex: 1, display: "flex", flexDirection: "column", gap: 3, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };

@@ -119,6 +119,9 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   `sample_data/harry_property/` — a real 37-hole dataset extracted from BC's public ARIS/BCGS
   drillhole database (report #37584), with a small number of layer types (alteration, veins,
   geotech, etc — the source DB has no such tables) synthesized around the real assay anomalies.
+  `sample_data/woodjam/` (TASKS.csv #637) is a second, fully real project (ARIS 41597: 19 holes from 2023 with logs,
+  surveys, oriented structures and assays, six IP lines, the ZTEM 3D inversion as OMF), built by
+  `scripts/samples/build-woodjam.mjs`; the 3D View's empty state offers both samples.
   Each has its own README explaining exactly what's real vs. synthetic — read those before
   reusing this data for anything, and don't present the synthesized parts as real to anyone.
 - `python-sidecar/` — optional local Python server for scipy-backed geoprocessing (interpolation
@@ -146,8 +149,11 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
 - Security-sensitive copy is taken seriously and shouldn't regress: e.g. Postgres passwords are
   explicitly "session only, never saved to disk or the project file" — this is now a *live*
   connection held in `electron/main.js`'s in-memory `liveDbConnections` Map for the app session,
-  not a fresh connection per query, but the "never touches disk" guarantee must hold regardless of
-  future changes there.
+  not a fresh connection per query. Since TASKS.csv #621 (Matt's request, 2026-10-16) a password MAY be
+  remembered, but only opt-in ("Remember the password on this computer"), only encrypted by the OS
+  (Electron safeStorage / Windows DPAPI, `electron/dbCredentials.js`, never a plain-text fallback),
+  only in userData — never in the project file or localStorage — and it is never sent back to the
+  renderer. Keep all four of those properties if you touch this.
 - **Design tokens (colour + type).** `src/styles/app.css`'s `:root` block is the single source of
   truth for both, mirrored value-for-value in `src/lib/theme.js` (`colors`, `fontSizes`). Reach for
   `var(--color-*)` / `var(--font-size-*)` by default — they work in class rules AND in the inline

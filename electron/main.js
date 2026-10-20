@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol } = require("electron"); // session: TASKS.csv #300; shell: TASKS.csv #310; protocol: #562
+const { app, BrowserWindow, ipcMain, dialog, Menu, session, shell, protocol, clipboard, safeStorage, net } = require("electron"); // session: TASKS.csv #300; shell: TASKS.csv #310; protocol: #562
 // User-reported bug: "there's a bug on the app that won't let me close it. I can only close it ending
 // the task" — App.jsx's beforeunload handler correctly calls e.preventDefault() when a tab has unsaved
 // changes (the standard web pattern, meant to trigger a native "leave site?" confirm), but Electron
@@ -291,6 +291,22 @@ ipcMain.handle("sidecar-token", () => SIDECAR_TOKEN);
 ipcMain.handle("sidecar-ensure", () => ({ spawned: startPythonSidecar(), running: pySidecar !== null }));
 ipcMain.handle("sidecar-running", () => pySidecar !== null);
 
+// TASKS.csv #638 — optional add-ons (electron/addons.js): the geoML predictive-modelling engine, downloaded on request,
+// checksum-pinned, started on first use with its own token. Progress goes to the renderer as "addon-event".
+const addons = require("./addons.js").createAddonManager({ app, net, send: (ev) => mainWindow?.webContents.send("addon-event", ev) });
+const ADDON_IDS = new Set(["geoml"]);
+const addonId = (id) => { if (!ADDON_IDS.has(id)) throw new Error("Unknown add-on."); return id; };
+ipcMain.handle("addon-status", (_e, id) => addons.status(addonId(id)));
+ipcMain.handle("addon-notices", (_e, id) => addons.notices(addonId(id))); // TASKS.csv #669
+ipcMain.handle("addon-cpu-check", () => addons.cpuCheck()); // TASKS.csv #689
+ipcMain.handle("addon-install", async (_e, id) => { try { return { ok: true, status: await addons.install(addonId(id)) }; } catch (err) { return { ok: false, error: err.message }; } });
+ipcMain.handle("addon-cancel-install", (_e, id) => addons.cancelInstall(addonId(id)));
+ipcMain.handle("addon-uninstall", (_e, id) => addons.uninstall(addonId(id)));
+ipcMain.handle("addon-ensure", async (_e, id) => { try { return { ok: true, ...(await addons.ensure(addonId(id))) }; } catch (err) { return { ok: false, error: err.message }; } });
+ipcMain.handle("addon-connection", (_e, id) => addons.connection(addonId(id)));
+ipcMain.handle("addon-stop", (_e, id) => { addons.stop(addonId(id)); return true; });
+app.on("will-quit", () => addons.stopAll());
+
 ipcMain.handle("updater-check", async () => {
   if (!app.isPackaged) return { ok: false, message: "Update checks only run in a packaged build (see electron-updater's own requirement — there's no publish feed to check against in a dev run)." };
   manualCheckInFlight = true;
@@ -387,6 +403,9 @@ function createMainWindow() {
       // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
       // copy-pasted webPreferences block elsewhere omitting it.
       sandbox: true,
+      // TASKS.csv #747 — no spell checker: hole ids, codes and SQL are not prose, it costs per-keystroke work on a modest
+      // laptop, and Electron's default would download a dictionary from Google's CDN, a connection PRIVACY.md never named.
+      spellcheck: false,
     },
   });
   loadMainWindow(mainWindow); // #562 — app:// (and the one-time localStorage move)
@@ -433,7 +452,93 @@ function createMainWindow() {
 
 ipcMain.on("set-dirty-state", (_e, dirty) => { rendererDirty = !!dirty; });
 
+// ---------- TASKS.csv #598 — Help > Report a problem ----------
+// No server (offline + privacy pillars): the renderer builds a zip the USER sends. These handlers give it what only
+// the main process can: system facts, a capture of the window, the Python engine's log tail, a file in Downloads,
+// and a mailto: with a FIXED recipient (the renderer never chooses where it goes).
+// Unclean-exit detection: a marker written at launch and removed at a normal quit; still there at the next launch
+// means GeoStrix did not close normally (a crash, a kill, a power cut).
+const SUPPORT_EMAIL = "support@geostrix.com";
+const runMarkerPath = () => path.join(app.getPath("userData"), "running.marker");
+let lastExitUnclean = false;
+function markRunning() {
+  try { lastExitUnclean = fs.existsSync(runMarkerPath()); fs.writeFileSync(runMarkerPath(), new Date().toISOString()); } catch { /* best effort */ }
+}
+function clearRunningMarker() { try { fs.unlinkSync(runMarkerPath()); } catch { /* best effort */ } }
+const tailOf = (file, maxBytes = 64 * 1024) => {
+  try {
+    const st = fs.statSync(file);
+    const fd = fs.openSync(file, "r");
+    const len = Math.min(st.size, maxBytes);
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, st.size - len);
+    fs.closeSync(fd);
+    return buf.toString("utf8");
+  } catch { return null; }
+};
+ipcMain.handle("problem-report-info", async () => {
+  const os = require("os");
+  let gpu = null;
+  try { const g = await app.getGPUInfo("basic"); gpu = (g.gpuDevice || []).map((d) => `vendor ${d.vendorId?.toString(16)} device ${d.deviceId?.toString(16)}${d.active ? " (active)" : ""}`).join("; ") || null; } catch { /* not available */ }
+  const { screen } = require("electron");
+  const disp = screen.getPrimaryDisplay();
+  return {
+    app: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
+    os: `${os.type()} ${os.release()} (${typeof os.version === "function" ? os.version() : ""}) ${os.arch()}`,
+    cpu: `${os.cpus()[0]?.model || "?"} × ${os.cpus().length}`,
+    memoryGB: { total: +(os.totalmem() / 1e9).toFixed(1), free: +(os.freemem() / 1e9).toFixed(1) },
+    display: `${disp.size.width}×${disp.size.height} @ ${disp.scaleFactor}x`,
+    gpu, packaged: app.isPackaged, lastExitUnclean,
+    sidecarLogTail: tailOf(path.join(app.getPath("userData"), "python-sidecar.log")),
+  };
+});
+ipcMain.handle("capture-window", async (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w) return null;
+  const img = await w.webContents.capturePage();
+  return new Uint8Array(img.toPNG());
+});
+ipcMain.handle("save-problem-report", (_e, { bytes, name }) => {
+  const safe = String(name || "GeoStrix-report.zip").replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 120);
+  if (!/\.zip$/i.test(safe)) return { ok: false, error: "A report must be a .zip file." };
+  const dir = app.getPath("downloads");
+  let target = path.join(dir, safe), n = 1;
+  while (fs.existsSync(target)) target = path.join(dir, safe.replace(/\.zip$/i, `-${++n}.zip`));
+  fs.writeFileSync(target, Buffer.from(bytes));
+  shell.showItemInFolder(target);
+  return { ok: true, path: target, name: path.basename(target) };
+});
+ipcMain.handle("email-support", (_e, { subject, body }) => {
+  const q = `subject=${encodeURIComponent(String(subject || "").slice(0, 200))}&body=${encodeURIComponent(String(body || "").slice(0, 1800))}`;
+  shell.openExternal(`mailto:${SUPPORT_EMAIL}?${q}`);
+  return { ok: true, to: SUPPORT_EMAIL };
+});
+ipcMain.handle("show-report-file", (_e, { file }) => {
+  const f = String(file || "");
+  if (path.dirname(f) !== app.getPath("downloads") || !/\.zip$/i.test(f) || !fs.existsSync(f)) return { ok: false };
+  shell.showItemInFolder(f);
+  return { ok: true };
+});
+// TASKS.csv #622 — Electron on Windows: after a native alert() / confirm() / prompt() closes, the window is in
+// front again but its page has lost focus (document.hasFocus() false, measured), so clicks no longer put the
+// cursor in text boxes ("I can't click on the in-app window after using it once"). Re-activating the window
+// restores it. The renderer calls this right after every such dialog (src/main.jsx).
+ipcMain.on("refocus-after-dialog", (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w || w.isDestroyed()) return;
+  w.blur();
+  w.focus();
+  e.sender.focus();
+});
+
 // ---------- cross-section pop-out window ----------
+// TASKS.csv #617 — the section window's renderer (lazy SectionWindow chunk) starts listening for "section-data"
+// AFTER did-finish-load, so the one push sent there could arrive before anyone listened and the window sat on
+// "Waiting for section data..." forever (every time in dev; a race in packaged builds). Each window's latest
+// payload is kept here and the window ASKS for it once it is listening ("get-section-data"); pushes still
+// deliver later updates.
+const sectionPayloads = new Map(); // webContents.id -> latest payload
+ipcMain.handle("get-section-data", (ev) => sectionPayloads.get(ev.sender.id) || null);
 ipcMain.handle("open-section-window", (_e, payload) => {
   // TASKS.csv — cross-section contact drawing: the caller (ViewerModule) now supplies a stable id
   // (matching the section's entry in store.sections) so contacts drawn in this pop-out can be relayed
@@ -451,6 +556,7 @@ ipcMain.handle("open-section-window", (_e, payload) => {
   // drifted apart. Now it just focuses the existing window and re-sends fresh data instead.
   const existing = childWindows.get(id);
   if (existing && !existing.isDestroyed()) {
+    sectionPayloads.set(existing.webContents.id, { id, ...payload });
     existing.webContents.send("section-data", { id, ...payload });
     if (existing.isMinimized()) existing.restore();
     existing.focus();
@@ -473,13 +579,18 @@ ipcMain.handle("open-section-window", (_e, payload) => {
       // invoke/.on, fully sandbox-compatible) against a future Electron default change or a
       // copy-pasted webPreferences block elsewhere omitting it.
       sandbox: true,
+      // TASKS.csv #747 — no spell checker: hole ids, codes and SQL are not prose, it costs per-keystroke work on a modest
+      // laptop, and Electron's default would download a dictionary from Google's CDN, a connection PRIVACY.md never named.
+      spellcheck: false,
     },
   });
+  const wcId = win.webContents.id;
+  sectionPayloads.set(wcId, { id, ...payload });
   win.loadURL(resolveUrl("/section"));
   win.webContents.once("did-finish-load", () => {
     win.webContents.send("section-data", { id, ...payload });
   });
-  win.on("closed", () => childWindows.delete(id));
+  win.on("closed", () => { childWindows.delete(id); sectionPayloads.delete(wcId); });
   childWindows.set(id, win);
   return { id };
 });
@@ -650,7 +761,10 @@ ipcMain.handle("autosave-clear", async () => {
 // context) is the kind of thing a non-Node-developer geologist has no way to act on. Always keeps the
 // original err.message too, never replaces it — the hint is additive, not a guess presented as fact.
 function friendlyDbError(err, config) {
-  const raw = err.message || String(err);
+  // TASKS.csv #621 — "localhost" tries IPv6 and IPv4; when both fail Node throws an AggregateError whose own
+  // message is empty, so the user saw just "AggregateError". Use the inner errors' codes / messages.
+  const inner = Array.isArray(err?.errors) && err.errors.length ? err.errors : null;
+  const raw = inner ? inner.map((e) => e.message || e.code || String(e)).filter((m, i, a) => a.indexOf(m) === i).join("; ") : (err.message || String(err));
   if (/ECONNREFUSED/.test(raw)) {
     const engineLabel = config.engine === "mysql" ? "MySQL/MariaDB" : "Postgres";
     return `${raw} — nothing is accepting connections at ${config.host}:${config.port}. Double check the host/port match what DBeaver uses for this same connection, and that ${engineLabel} is actually running and reachable from this machine (a local firewall or VPN can block this even when DBeaver on the same network works).`;
@@ -663,6 +777,13 @@ function friendlyDbError(err, config) {
   }
   if (/password authentication failed|28P01|ER_ACCESS_DENIED_ERROR|Access denied for user/.test(raw)) {
     return `${raw} — connected to the server fine, but the username/password was rejected. Double check both against the same credentials DBeaver uses for this connection.`;
+  }
+  // TASKS.csv #621 (Matt, treaty_creek via Conntiki) — the server only lets this address in over SSL
+  if (/no pg_hba\.conf entry/.test(raw) && /no encryption/.test(raw)) {
+    return `${raw} — the server only accepts ENCRYPTED connections from this computer. Tick "Use SSL"; if it then complains about the certificate (common through a tunnel to localhost, or with a self-signed certificate), also tick "Trust a self-signed / unverified certificate".`;
+  }
+  if (/no pg_hba\.conf entry/.test(raw)) {
+    return `${raw} — the server's access rules (pg_hba.conf) don't allow this user / database from this computer's address. Ask the database administrator to allow it, or check the user and database names against DBeaver's.`;
   }
   if (/ER_BAD_DB_ERROR|Unknown database/.test(raw)) {
     return `${raw} — connected to the server, but database "${config.database}" doesn't exist there (or this user can't see it). Check the database name against what DBeaver uses for this connection.`;
@@ -725,7 +846,36 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
   return { ok: true, status: res.status, contentType: res.contentType, base64: res.buffer.toString("base64") };
 });
 
+// TASKS.csv #784 — satellite imagery for spectral indices, read in pieces: a STAC catalogue search (JSON POST) or one
+// byte range of a cloud-optimised GeoTIFF. Only these HTTPS hosts (no general proxy), the #350 address checks on every
+// hop, 64 MB a response, 60 s. Earth Search + sentinel-cogs: Copernicus Sentinel-2 on AWS Open Data (no account);
+// Planetary Computer + its ASTER blob store: ASTER L1T (anonymous read token from the Planetary Computer itself).
+const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net"]);
+ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
+  let u;
+  try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
+  if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
+  const headers = {};
+  if (range) {
+    const [a, b] = range;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < a || b - a > 64 * 1024 * 1024) return { ok: false, status: 0, message: "Bad byte range." };
+    headers.Range = `bytes=${a}-${b}`;
+  }
+  let init = { headers };
+  if (json != null) {
+    const body = JSON.stringify(json);
+    if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
+    init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
+  }
+  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init });
+  if (res.message) return { ok: false, status: res.status, message: res.message };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
+});
+
 const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348
+const { createDbCredentialStore } = require("./dbCredentials.js"); // TASKS.csv #621
+let dbCredStore = null;
+const dbCreds = () => (dbCredStore ||= createDbCredentialStore({ safeStorage, dir: app.getPath("userData") }));
 function testConnectionQuery(config) {
   return config.engine === "mysql"
     ? "SELECT DATABASE() as db, CURRENT_USER() as usr, VERSION() as ver"
@@ -788,14 +938,22 @@ async function makeDbClient(config) {
 // quits. db-live-query/db-live-list-tables/db-live-list reuse whichever connection id the renderer
 // gives them instead of opening a new client per call, which is what actually removes the "enter the
 // password every time" friction the user reported.
+const { guardedQuery } = require("./dbGuard.js"); // TASKS.csv #590
 const liveDbConnections = new Map(); // id -> { client, safeConfig, connectedAt }
 let liveDbConnCounter = 0;
 
 ipcMain.handle("db-connect", async (_e, config) => {
   let db;
+  // TASKS.csv #621 — an empty password box uses the one remembered for exactly this login (if any); a typed
+  // password always wins. The saved one never goes back to the renderer.
+  const typed = !!config.password;
+  let usedSaved = false;
+  if (!typed) { const saved = dbCreds().get(config); if (saved) { config = { ...config, password: saved }; usedSaved = true; } }
   try {
     db = await makeDbClient(config);
     const res = await db.query(testConnectionQuery(config));
+    let passwordSaved = dbCreds().has(config);
+    if (config.rememberPassword && typed) passwordSaved = dbCreds().set(config, config.password) || passwordSaved;
     const id = `dbconn_${++liveDbConnCounter}_${Date.now()}`;
     const { password, ...safeConfig } = config;
     liveDbConnections.set(id, { client: db, safeConfig, connectedAt: Date.now() });
@@ -805,12 +963,17 @@ ipcMain.handle("db-connect", async (_e, config) => {
       // every subsequent query against a dead client.
       if (liveDbConnections.get(id)?.client === db) liveDbConnections.delete(id);
     });
-    return { ok: true, id, info: res.rows[0], config: safeConfig };
+    return { ok: true, id, info: res.rows[0], config: safeConfig, passwordSaved, usedSavedPassword: usedSaved };
   } catch (err) {
     if (db) try { await db.end(); } catch (_) {}
-    return { ok: false, error: friendlyDbError(err, config) };
+    const msg = friendlyDbError(err, config);
+    return { ok: false, error: usedSaved ? `${msg} (This used the password saved on this computer — if it changed, type the new one.)` : msg };
   }
 });
+
+// TASKS.csv #621 — whether a password is remembered for this login (never the password itself), and forgetting it
+ipcMain.handle("db-password-status", (_e, config) => ({ saved: dbCreds().has(config || {}), available: dbCreds().available() }));
+ipcMain.handle("db-forget-password", (_e, config) => ({ ok: true, forgotten: dbCreds().forget(config || {}) }));
 
 ipcMain.handle("db-disconnect", async (_e, { id }) => {
   const entry = liveDbConnections.get(id);
@@ -820,11 +983,11 @@ ipcMain.handle("db-disconnect", async (_e, { id }) => {
   return { ok: true };
 });
 
-ipcMain.handle("db-live-query", async (_e, { id, sql }) => {
+ipcMain.handle("db-live-query", async (_e, { id, sql, importStep }) => {
   const entry = liveDbConnections.get(id);
   if (!entry) return { ok: false, error: "This connection has been closed — reconnect and try again.", needsReconnect: true };
   try {
-    const res = await entry.client.query(sql);
+    const res = await guardedQuery(entry, sql, { importStep: importStep === true }); // TASKS.csv #590 / #665 — its own read-only transaction unless it is a step of the Browser panel's import
     return { ok: true, rows: res.rows, fields: res.fields, rowCount: res.rowCount };
   } catch (err) {
     return { ok: false, error: friendlyDbError(err, entry.safeConfig) };
@@ -850,6 +1013,7 @@ ipcMain.handle("db-live-list-tables", async (_e, { id }) => {
 // dropped every DB connection (the renderer kept showing them live). will-quit fires only once every
 // window has actually closed, i.e. the quit is really happening.
 app.on("will-quit", () => {
+  clearRunningMarker(); // TASKS.csv #598 — a normal quit
   for (const { client } of liveDbConnections.values()) { try { client.end(); } catch (_) {} }
   liveDbConnections.clear();
 });
@@ -858,9 +1022,34 @@ app.on("will-quit", () => {
 // drive root, expandable). Deliberately narrow: lists one directory at a time (the renderer expands
 // lazily, node by node, exactly like QGIS's own Browser tree) rather than walking a whole subtree, so
 // a huge folder (or a whole drive) can't stall the main process or return a giant payload.
+// TASKS.csv #746 — provenance for fs-read-file, and no silent network-share access. fs-read-file reads a file only
+// when its folder was listed by fs-list-dir this session (the Browser panel always lists before a click reads) or
+// it lies under the bundled sample data folder; a renderer can no longer name any *.json / *.txt on the disk (e.g.
+// %APPDATA%\GeoStrix's prefs). A UNC path (\\host\share) makes Windows open SMB to that host and offer NTLM, so
+// the first touch of each host in a session asks the user in a native dialog the renderer cannot answer.
+const listedDirs = new Set();
+const sampleRoots = new Set();
+const dirKey = (p) => path.resolve(String(p || "")).toLowerCase();
+const isUncPath = (p) => /^[\\/]{2}[^\\/]/.test(String(p || ""));
+const approvedShareHosts = new Set();
+async function allowNetworkPath(p) {
+  if (!isUncPath(p)) return true;
+  const host = String(p).replace(/^[\\/]+/, "").split(/[\\/]/)[0].toLowerCase();
+  if (approvedShareHosts.has(host)) return true;
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: "question", buttons: ["Open", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
+    title: "Network folder", message: `Open the network location \\\\${host}?`,
+    detail: `GeoStrix was asked to read ${p}. Windows will connect to that computer and may send it your sign-in details. Open it only if you know this share.`,
+  });
+  if (response !== 0) return false;
+  approvedShareHosts.add(host);
+  return true;
+}
 ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
   try {
+    if (!(await allowNetworkPath(dirPath))) return { ok: false, error: "Network location not opened." }; // #746
     const names = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    listedDirs.add(dirKey(dirPath)); // #746
     const entries = names
       .filter((n) => !n.name.startsWith("."))
       .map((n) => {
@@ -888,13 +1077,20 @@ ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
 // hold: this handler used to read ANY path the renderer named (whole-disk exfiltration for any script that
 // got into a window), whole, then base64 it (+33%) for the renderer to atob-loop back into bytes — a
 // 500 MB mis-click held ~1.5 GB at once. The Buffer is now returned as-is (IPC delivers a Uint8Array).
+// TASKS.csv #717 — .las logs (#492), .xlsx (#605) and .kml / .kmz (#424) import from their buttons but were missing here,
+// so the Browser panel's click on them did nothing (test/browserImportExt717 pins the panel's list as a subset)
 const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".shp", ".shx", ".dbf", ".prj", ".cpg",
-  ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod"]);
+  ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod",
+  ".las", ".xlsx", ".kml", ".kmz"]);
 const READ_MAX_BYTES = 200 * 1024 * 1024;
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
     const ext = path.extname(String(filePath || "")).toLowerCase();
     if (!READABLE_EXT.has(ext)) return { ok: false, error: `GeoStrix doesn't import ${ext || "extension-less"} files.` };
+    const full = dirKey(filePath); // #746 — its folder listed this session, or the bundled samples
+    const inSamples = [...sampleRoots].some((r) => full.startsWith(r + path.sep));
+    if (!inSamples && !listedDirs.has(path.dirname(full))) return { ok: false, error: "Open the file's folder in the Browser panel first." };
+    if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
     const st = await fs.promises.stat(filePath);
     if (!st.isFile()) return { ok: false, error: "Not a file." };
     if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
@@ -917,7 +1113,7 @@ ipcMain.handle("sample-data-path", async () => {
     ? [path.join(process.resourcesPath || "", "sample_data")]
     : [path.join(__dirname, "..", "sample_data")];
   for (const dir of candidates) {
-    try { if (fs.existsSync(dir)) return { ok: true, path: dir }; } catch (_) {}
+    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); return { ok: true, path: dir }; } } catch (_) {} // #746
   }
   return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
 });
@@ -974,7 +1170,7 @@ function buildMenu() {
         // because a "keyboard shortcuts reference" that only had 5 shortcuts to list would barely be
         // worth its own menu entry — these round it out into something actually useful to reference.
         // TASKS.csv #565 — Ctrl+1..8 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab)
-        ...[["3D View", "viewer"], ["3D Modelling", "modeling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Raster", "raster"], ["Cartography", "cartography"], ["Layout", "layout"]]
+        ...[["3D View", "viewer"], ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Maps", "maps"], ["Layout", "layout"]]
           .map(([label, id], i) => ({ label, accelerator: `CmdOrCtrl+${i + 1}`, click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
         { type: "separator" },
         // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with
@@ -996,11 +1192,17 @@ function buildMenu() {
       label: "Help",
       submenu: [
         { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
+        // TASKS.csv #591 — the startup check is network contact the user didn't start (camp satellite links,
+        // firewalled laptops, "offline and private"): it can be switched off; the manual check stays
+        { label: "Check for Updates at Startup", type: "checkbox", checked: readPrefs().checkUpdatesAtStartup !== false, click: (item) => writePrefs({ checkUpdatesAtStartup: item.checked }) },
         { label: "Check for Updates…", click: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); } },
         // Bug fix while touching this menu: "About GeoStrix" sent a "menu"/"about" action that nothing
         // on the renderer side ever handled — clicking it silently did nothing. Now shares the same
         // modal as the new Keyboard Shortcuts entry (see ShortcutsModal in App.jsx), just opened to a
         // different tab.
+        { type: "separator" },
+        { label: "Report a Problem…", click: () => mainWindow?.webContents.send("menu", "report-problem") }, // TASKS.csv #598
+        { label: "Third-party Licences…", click: () => mainWindow?.webContents.send("menu", "licenses") }, // TASKS.csv #639
         { label: "About GeoStrix", click: () => mainWindow?.webContents.send("menu", "about") },
       ],
     },
@@ -1051,8 +1253,29 @@ app.on("second-instance", () => {
   mainWindow.focus();
 });
 
+// TASKS.csv #591 — small app preferences that the main process needs before any window exists (userData/prefs.json)
+function prefsPath() { return path.join(app.getPath("userData"), "prefs.json"); }
+function readPrefs() { try { return JSON.parse(fs.readFileSync(prefsPath(), "utf8")) || {}; } catch { return {}; } }
+function writePrefs(patch) { try { fs.writeFileSync(prefsPath(), JSON.stringify({ ...readPrefs(), ...patch }, null, 2)); } catch { /* a read-only profile: the choice lasts this session */ } }
+
+// TASKS.csv #589 — Electron grants every web permission by default (camera, microphone, screen capture,
+// geolocation, notifications, clipboard, HID / serial / USB pickers). GeoStrix uses none of them: ALL are refused,
+// so a compromised renderer or a hostile page loaded by mistake can't ask for them. The one clipboard use ("Copy
+// details") goes through the copy-text IPC below — navigator.clipboard.writeText reaches Electron as a
+// "clipboard-read" request, and allowing that would also let a page READ the clipboard.
+const ALLOWED_PERMISSIONS = new Set();
+ipcMain.handle("copy-text", (_e, text) => { clipboard.writeText(String(text ?? "").slice(0, 1_000_000)); return { ok: true }; });
+function lockDownPermissions() {
+  const s = session.defaultSession;
+  s.setPermissionRequestHandler((_wc, permission, callback) => callback(ALLOWED_PERMISSIONS.has(permission)));
+  s.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+  s.setDevicePermissionHandler(() => false);
+}
+
 app.whenReady().then(async () => {
   if (!gotSingleInstanceLock) return; // #556 — quitting; never open a second window
+  lockDownPermissions(); // #589
+  markRunning(); // TASKS.csv #598 — did the last session end normally?
   setTileUserAgent(); // TASKS.csv #300 — before any window exists, so the first tile request carries it
   if (!isDev) registerAppProtocol(); // #562
   createMainWindow();
@@ -1061,7 +1284,7 @@ app.whenReady().then(async () => {
   // A short delay so the startup update check doesn't compete with the app's own initial render/
   // autosave-recovery-prompt work for network priority on a slow connection — same reasoning as any
   // other "let the app feel responsive first" deferred background task.
-  if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000);
+  if (app.isPackaged && readPrefs().checkUpdatesAtStartup !== false) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000); // #591 — unless switched off
 });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createMainWindow(); });

@@ -59,6 +59,7 @@ function sampleLive() {
   live.layoutPages = [{ id: "p1", name: "Page 1", elements: [] }, { id: "p2", name: "Page 2", elements: [] }];
   live.activeLayoutPageId = "p2";
   live.alterationBoxes = { boxes: { basalt: { ai: [20, 55], ccpi: [55, 85] } }, map: { BSL: "basalt" }, source: "logged" }; // #503
+  live.structuralTrends = { trends: [{ id: "t1", name: "Main foliation", dip: 52, dipAzimuth: 202, pitch: 90, ratios: { max: 3, int: 2, min: 1 } }], use: { implicit: "t1", estimation: "t1" } }; // #650
   live.modellingCodes = { codes: [{ name: "AND1", role: "stratigraphic", order: 1 }], assign: { "H1|0.000|2.000": "AND1" }, ties: [{ a: "H1|0.000|2.000", b: "H2|5.000|9.000" }] }; // #599
   return live;
 }
@@ -144,8 +145,42 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
     8: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
     9: "project+load,collars,survey,layers+save+load,assays,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
     10: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
+    11: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
+    12: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains",
+    13: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,omfObjects,terrain,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,generatedSurfaces+save+load,modelDomains", // #660 — same fields; voxel models of every source may be compactCells (with keys)
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
   assert.equal(payloadFromFields(emptyFields()).version, PROJECT_VERSION);
+});
+
+// TASKS.csv #660 — estimated / geoML / imported voxel models are written as columns too, and come back the same
+test("#660 every voxel model is compacted and round-trips (numbers and text support classes)", async () => {
+  const { compactVoxelModels, expandVoxelModels } = await import("../src/lib/projectFields.js");
+  const cls = ["measured", "inferred", "extrapolated"];
+  const cells = Array.from({ length: 500 }, (_, i) => ({ x: 450000 + i * 10, y: 6200000 + (i % 7) * 10, z: 900 - i, dx: 10, dy: 10, dz: 10, value: 0.25 * (i % 9), nSamples: i % 17, nHoles: 1 + (i % 4), support: cls[i % 3], supportIndex: (i % 10) / 10, nearestSampleM: i * 0.5 }));
+  const m = { id: "v1", name: "Cu IDW", source: "estimate-idw2", cells, min: 0, max: 2 };
+  const [c] = compactVoxelModels([m]);
+  assert.ok(c.compactCells && !c.cells, "written as columns");
+  assert.deepEqual(c.compactCells.keys, Object.keys(cells[0]));
+  assert.ok(JSON.stringify(c).length < JSON.stringify(m).length / 2, `${JSON.stringify(c).length} vs ${JSON.stringify(m).length}`);
+  const [back] = expandVoxelModels([JSON.parse(JSON.stringify(c))]);
+  assert.equal(back.cells.length, 500);
+  back.cells.forEach((b, i) => {
+    const a = cells[i];
+    for (const k of Object.keys(a)) {
+      if (typeof a[k] === "string" || k === "value") assert.equal(b[k], a[k]); // the value is exact
+      else assert.ok(Math.abs(b[k] - a[k]) <= 1e-6 * Math.max(1, Math.abs(a[k])) + 1e-3, `${k} ${b[k]} vs ${a[k]}`);
+    }
+    assert.equal(Object.keys(b).length, Object.keys(a).length);
+  });
+  // cells whose keys differ, or hold something that is not a number or text, are saved as they were
+  const mixed = { id: "v2", source: "csv", cells: [{ x: 1, y: 1, z: 1, value: 1 }, { x: 2, y: 2, z: 2 }] };
+  assert.equal(compactVoxelModels([mixed])[0], mixed);
+  const obj = { id: "v3", source: "geoml", cells: [{ x: 1, y: 1, z: 1, value: 1, extra: { a: 1 } }] };
+  assert.equal(compactVoxelModels([obj])[0], obj);
+  // a v12 simpeg file (no keys) still expands with the old eight columns
+  const old = compactVoxelModels([{ id: "s", source: "simpeg", cells: [{ x: 1, y: 2, z: 3, dx: 1, dy: 1, dz: 1, value: 5, support: 0.5 }] }])[0];
+  const legacy = { ...old, compactCells: { n: old.compactCells.n, cols: old.compactCells.cols } };
+  assert.deepEqual(expandVoxelModels([legacy])[0].cells[0], { x: 1, y: 2, z: 3, dx: 1, dy: 1, dz: 1, value: 5, support: 0.5 });
 });

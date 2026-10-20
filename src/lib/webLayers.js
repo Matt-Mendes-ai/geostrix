@@ -95,8 +95,24 @@ export async function fetchWmsLayers(baseUrl) {
 // requested lon/lat box into the project's own CRS for positioning the drape plane; the image itself is
 // requested from the server in EPSG:4326 (WMS 1.1.1, so lon/lat axis order is unambiguous) and then
 // warped pixel by pixel into the project CRS (TASKS.csv #418 — see below).
-export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width = 1024, height = 1024, transparent = true, format = "image/png" }) {
+// TASKS.csv #543 — GetMap size from the area's real proportions. A square 1024 x 1024 over a lon/lat box stretched
+// the image: at 56.5N a degree of longitude is only 0.55 of a degree of latitude, so a "square" request over a
+// square-looking project box squeezed east-west detail into half the pixels it needed. Long side = `longPx`.
+export function wmsImageSize(bboxLonLat, longPx = 1024) {
   const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+  const midLat = ((latMin + latMax) / 2) * Math.PI / 180;
+  const w = Math.max(1e-9, (lonMax - lonMin) * Math.cos(midLat)), h = Math.max(1e-9, latMax - latMin);
+  const s = longPx / Math.max(w, h);
+  return { width: Math.max(64, Math.round(w * s)), height: Math.max(64, Math.round(h * s)) };
+}
+// TASKS.csv #543 — which area a WMS import starts with: the project's own area when there is one (a provincial
+// layer's declared extent is all of BC, ~1.5-2 km a pixel at 1024 px), the layer's extent only without a project.
+export function defaultWmsArea(layerBboxLonLat, projectBboxLonLat) {
+  return projectBboxLonLat || layerBboxLonLat || null;
+}
+export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width, height, transparent = true, format = "image/png" }) {
+  const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+  if (!width || !height) ({ width, height } = wmsImageSize(bboxLonLat)); // #543
   const url = buildQuery(baseUrl, {
     SERVICE: "WMS", REQUEST: "GetMap", VERSION: "1.1.1",
     LAYERS: layerName, STYLES: "", SRS: "EPSG:4326",
@@ -230,7 +246,11 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
     if (probe.some((v) => Math.abs(v) > 180)) throw new Error("This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server.");
     fromEpsg = 4326;
   }
-  let polylines = features.flatMap((f) => geometryToPolylines(f.geometry, projectEpsg, fromEpsg));
+  // TASKS.csv #544 — keep each feature's attributes (tenure number, owner, good-to date...) with its parts, so the
+  // layer can come in as a Map layer that is labelled, coloured and queried by them. `polylines` stays for the
+  // boundary-line import; `owner[i]` is the feature index of polylines[i] so the clip below can drop both together.
+  let polylines = [], owner = [];
+  features.forEach((f, fi) => { for (const pl of geometryToPolylines(f.geometry, projectEpsg, fromEpsg)) { polylines.push(pl); owner.push(fi); } });
   let clippedCount = 0;
   // #417 — when the server already filtered by BBOX, its answer is "features that intersect the area";
   // re-clipping by "has a vertex inside" threw away big claims that cross the area (31 of 192 in a live
@@ -242,14 +262,47 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
       const xmin = Math.min(corner.x, corner2.x), xmax = Math.max(corner.x, corner2.x);
       const ymin = Math.min(corner.y, corner2.y), ymax = Math.max(corner.y, corner2.y);
       const before = polylines.length;
-      polylines = polylines.filter((loop) => {
+      const keep = polylines.map((loop) => {
         let lx0 = Infinity, ly0 = Infinity, lx1 = -Infinity, ly1 = -Infinity;
         for (const p of loop) { if (p.x < lx0) lx0 = p.x; if (p.x > lx1) lx1 = p.x; if (p.y < ly0) ly0 = p.y; if (p.y > ly1) ly1 = p.y; }
         return lx1 >= xmin && lx0 <= xmax && ly1 >= ymin && ly0 <= ymax;
       });
+      polylines = polylines.filter((_, k) => keep[k]); owner = owner.filter((_, k) => keep[k]);
       clippedCount = before - polylines.length;
     }
   }
   if (!polylines.length) throw new Error("Every feature fell outside the current project area after clipping — try without clipping, or check this is really the right layer.");
-  return { name: typeName, polylines, totalFeatures: features.length, clippedCount };
+  // #544 — one map-layer feature per source feature, with its properties as attributes (flat values only:
+  // a nested object becomes its JSON text so it still shows up rather than as "[object Object]")
+  const partsByFeature = new Map();
+  polylines.forEach((pl, k) => { if (!partsByFeature.has(owner[k])) partsByFeature.set(owner[k], []); partsByFeature.get(owner[k]).push(pl.map((q) => [q.x, q.y])); });
+  const flat = (props) => Object.fromEntries(Object.entries(props || {}).map(([k, v]) => [k, v != null && typeof v === "object" ? JSON.stringify(v) : v]));
+  const mapFeatures = [...partsByFeature].map(([fi, parts]) => ({ parts, attributes: flat(features[fi].properties) }));
+  const kinds = new Set(features.map((f) => f.geometry?.type).filter(Boolean));
+  const geomType = [...kinds].every((t) => /Polygon$/.test(t)) ? "polygon" : [...kinds].every((t) => /LineString$/.test(t)) ? "polyline" : null;
+  // #544 — exactly COUNT back means the server stopped at our cap: the layer may well have more in the area
+  const truncated = features.length >= maxFeatures;
+  return { name: typeName, polylines, totalFeatures: features.length, clippedCount, mapFeatures, geomType, truncated, maxFeatures };
+}
+
+// TASKS.csv #544 — which attribute to colour a WFS Map layer by. guessStyleField falls back to the first field, and on
+// a WFS layer that is its id (DataBC tenure: TENURE_NUMBER_ID, one colour per claim). Keep the guess unless it is an
+// id (a different value on every feature) or has too many values to read; then prefer an owner / status field, then
+// a type / description, then whatever splits the layer into the fewest groups (2..30).
+export function pickWfsStyleField(features, fields, current) {
+  const n = features.length;
+  const distinct = (f) => new Set(features.map((ft) => { const v = ft.attributes?.[f]; return v == null || v === "" ? null : String(v); })).size;
+  if (current && n > 0) { const d = distinct(current); if (d <= 30 && !(n > 3 && d === n)) return current; }
+  const usable = fields.map((f) => [f, distinct(f)]).filter(([f, d]) => d > 1 && d <= 30 && !(n > 3 && d === n) && !/(^|_)(id|objectid|fid|gid)$|timestamp|userid|_date$|area|length|count/i.test(f));
+  for (const re of [/owner|holder|client_name|operator|company/i, /status/i, /desc|type|class|unit|lith/i]) {
+    const hit = usable.find(([f]) => re.test(f));
+    if (hit) return hit[0];
+  }
+  usable.sort((a, b) => a[1] - b[1]);
+  return usable[0]?.[0] || current;
+}
+
+// TASKS.csv #544 — "the server's first 2,000 features — there may be more" for the import notice ("" when complete)
+export function wfsTruncationText({ truncated, maxFeatures }) {
+  return truncated ? `This is only the server's first ${Number(maxFeatures).toLocaleString("en-US")} features — the layer may have more here. Tick "Limit to the current project area", or work in a smaller area, to get all of them.` : "";
 }

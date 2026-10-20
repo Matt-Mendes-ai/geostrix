@@ -24,8 +24,8 @@ export default function BlockModelMappingModal({ fileName, headers, numeric, row
     <div style={overlay} {...backdropProps(null)}>
       <div role="dialog" aria-modal="true" aria-label="Block model columns" style={{ ...panel(), width: 520, maxHeight: "86vh" }}>
         <div style={headerStyle}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Box size={16} /> Block model columns — {fileName}</span>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={16} /></button>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}><Box size={18} /> Block model columns — {fileName}</span>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", fontSize: "var(--font-size-base)" }}>
           <div style={{ color: "var(--color-text-secondary)", marginBottom: 12 }}>{rowCount.toLocaleString()} rows. Check the columns GeoStrix guessed; sizes left on "infer" are taken from the spacing between centroids.</div>

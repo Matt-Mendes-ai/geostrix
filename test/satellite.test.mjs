@@ -61,3 +61,29 @@ test("#423 an all-good mosaic comes out opaque with its colours unchanged", () =
   const nan = unpremultiply([NaN], [NaN], [NaN], [NaN], new Uint8ClampedArray(4));
   assert.deepEqual([...nan], [0, 0, 0, 0]);
 });
+
+// TASKS.csv #781 — resolution levels: what each would fetch, before fetching
+import { planSatelliteFetch, SAT_LEVELS } from "../src/lib/satelliteFetch.js";
+
+test("plan: a larger level fetches finer zoom over a big area, within its tile budget", () => {
+  const big = [-130.5, 56.0, -129.5, 56.6]; // ~60 x 67 km in the Golden Triangle
+  const p = Object.fromEntries(Object.keys(SAT_LEVELS).map((k) => [k, planSatelliteFetch(big, k)]));
+  for (const k of Object.keys(SAT_LEVELS)) {
+    assert.ok(p[k].tiles <= SAT_LEVELS[k].maxTiles, `${k} ${p[k].tiles}`);
+    assert.ok(Math.max(p[k].gridW, p[k].gridH) <= SAT_LEVELS[k].gridMax);
+  }
+  assert.ok(p.standard.zoom < p.high.zoom && p.high.zoom <= p.veryhigh.zoom, JSON.stringify([p.standard.zoom, p.high.zoom, p.veryhigh.zoom]));
+  assert.ok(p.standard.pixelM > p.high.pixelM && p.high.pixelM > p.veryhigh.pixelM);
+  assert.ok(p.veryhigh.pixelM < p.standard.pixelM / 2);
+  assert.equal(p.standard.nativeLimited, false);
+});
+
+test("plan: a small area hits the imagery's own 10 m limit at every level", () => {
+  const small = [-130.01, 56.0, -130.0, 56.006]; // ~600 x 670 m
+  const s = planSatelliteFetch(small, "standard"), v = planSatelliteFetch(small, "veryhigh");
+  assert.equal(s.zoom, 14); assert.equal(v.zoom, 14);
+  assert.ok(s.nativeLimited && v.nativeLimited);
+  assert.equal(s.pixelM, 10); // never claims finer than the source
+  assert.deepEqual([s.gridW, s.gridH], [v.gridW, v.gridH]); // no bigger image of the same pixels
+  assert.ok(Math.max(s.gridW, s.gridH) < 300);
+});

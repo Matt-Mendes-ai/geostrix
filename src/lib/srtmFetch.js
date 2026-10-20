@@ -18,7 +18,7 @@
 // Actual tile bytes are fetched via desktop.js's fetchSRTMTile (proxied through Electron's main
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
-import { getProj4Def, reprojectGrid, bilinearSample, pointTransform, neighbourUtmZones } from "./reproject.js";
+import { getProj4Def, reprojectGrid, pointTransform, neighbourUtmZones } from "./reproject.js";
 import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #614
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 
@@ -71,6 +71,39 @@ async function decodeTerrariumTile(z, x, y) {
     elevations[i] = r * 256 + g + b / 256 - 32768; // Terrarium encoding
   }
   return { data: elevations, width: bitmap.width, height: bitmap.height };
+}
+
+// TASKS.csv #726 — the tile mosaic (Float32 elevations, `mw` x `mh`, NaN where a tile failed, covering `tiles` = the
+// tile-grid extent in lon/lat) resampled onto a gridW x gridH lon/lat grid over `bbox`, the way satelliteFetch.js's
+// resampleMosaic (#423) does it:
+//  * PIXEL CENTRES: the mosaic's edges are tile corners, so its first / last pixel centres sit half a pixel inside.
+//    The first version sampled each tile with node 0 on its west / north EDGE: a half-pixel shift, 2.9 m at z14
+//    (an area up to ~6 km), 5.8 m at z13, 11.7 m at z12 (~25 km).
+//  * Rows in Mercator Y (tile rows are evenly spaced in it, not in latitude).
+//  * One mosaic, so cells between two tiles interpolate across the seam (per-tile sampling could not).
+// A cell touching a failed tile is NaN (filled and reported later by demFill.js).
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+export function resampleElevationMosaic(elev, mw, mh, tiles, bbox, gridW, gridH) {
+  const halfX = (tiles.lonMax - tiles.lonMin) / mw / 2;
+  const yTop = mercY(tiles.latMax), yBot = mercY(tiles.latMin), halfY = (yTop - yBot) / mh / 2;
+  const x0 = tiles.lonMin + halfX, x1 = tiles.lonMax - halfX, y0 = yBot + halfY, y1 = yTop - halfY;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const cols = Math.max(2, mw), rows = Math.max(2, mh);
+  const out = new Float32Array(gridW * gridH);
+  for (let row = 0; row < gridH; row++) {
+    const lat = bbox.latMax - (row / Math.max(1, gridH - 1)) * (bbox.latMax - bbox.latMin);
+    const fy = ((y1 - clamp(mercY(lat), y0, y1)) / (y1 - y0 || 1)) * (rows - 1); // row 0 = north
+    const r0 = Math.max(0, Math.min(rows - 2, Math.floor(fy))), ty = fy - r0;
+    for (let col = 0; col < gridW; col++) {
+      const lon = bbox.lonMin + (col / Math.max(1, gridW - 1)) * (bbox.lonMax - bbox.lonMin);
+      const fx = ((clamp(lon, x0, x1) - x0) / (x1 - x0 || 1)) * (cols - 1);
+      const c0 = Math.max(0, Math.min(cols - 2, Math.floor(fx))), tx = fx - c0;
+      const k = r0 * mw + c0;
+      const top = elev[k] + (elev[k + 1] - elev[k]) * tx, bot = elev[k + mw] + (elev[k + mw + 1] - elev[k + mw]) * tx;
+      out[row * gridW + col] = top + (bot - top) * ty;
+    }
+  }
+  return out;
 }
 
 // TASKS.csv #614 — collars vs a freshly fetched terrain. GeoStrix fetches the terrain for wherever the project CRS
@@ -131,45 +164,40 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const tilesX = se.x - nw.x + 1, tilesY = se.y - nw.y + 1;
   const total = tilesX * tilesY;
 
-  const tiles = [];
-  let done = 0;
+  // TASKS.csv #726 — one Float32 mosaic of every tile (NaN where a tile failed), downloaded 6 at a time
+  const TILE = 256;
+  const mw = tilesX * TILE, mh = tilesY * TILE;
+  const mosaic = new Float32Array(mw * mh).fill(NaN);
+  const jobs = [];
+  for (let ty = 0; ty < tilesY; ty++) for (let tx = 0; tx < tilesX; tx++) jobs.push([tx, ty]);
+  let done = 0, next = 0, got = 0;
   const failed = [];
-  for (let ty = 0; ty < tilesY; ty++) {
-    for (let tx = 0; tx < tilesX; tx++) {
-      const x = nw.x + tx, y = nw.y + ty;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const [tx, ty] = jobs[next++];
       try {
-        const tile = await decodeTerrariumTile(zoom, x, y);
-        const nwLL = tileXYToLonLat(x, y, zoom), seLL = tileXYToLonLat(x + 1, y + 1, zoom);
-        tiles.push({ ...tile, bbox: [nwLL.lon, seLL.lat, seLL.lon, nwLL.lat] }); // [xmin, ymin, xmax, ymax], ymin=south
+        const tile = await decodeTerrariumTile(zoom, nw.x + tx, nw.y + ty);
+        if (tile.width !== TILE || tile.height !== TILE) throw new Error(`unexpected tile size ${tile.width} x ${tile.height}`);
+        for (let row = 0; row < TILE; row++) mosaic.set(tile.data.subarray(row * TILE, (row + 1) * TILE), (ty * TILE + row) * mw + tx * TILE);
+        got++;
       } catch (err) {
         failed.push(err.message);
       }
       done++;
       onProgress?.(done, total);
     }
-  }
-  if (!tiles.length) {
+  };
+  await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, worker));
+  if (!got) {
     throw new Error(`Couldn't fetch any elevation tiles (${failed[0] || "unknown error"}). Check your internet connection — this needs to reach a public AWS-hosted elevation service.`);
   }
 
-  // Mosaic onto a regular lon/lat grid — same approach parseDEMFiles uses for multiple GeoTIFF tiles,
-  // just sampling decoded tile pixel grids instead of GeoTIFF bands.
+  // Resample onto a regular lon/lat grid over exactly the requested area (#726: at pixel centres, in Mercator Y)
+  const nwLL = tileXYToLonLat(nw.x, nw.y, zoom), seLL = tileXYToLonLat(se.x + 1, se.y + 1, zoom);
   const aspect = (lonMax - lonMin) / Math.max(1e-12, latMax - latMin);
   const gridW = aspect >= 1 ? GRID_MAX : Math.max(2, Math.round(GRID_MAX * aspect));
   const gridH = aspect >= 1 ? Math.max(2, Math.round(GRID_MAX / aspect)) : GRID_MAX;
-  const raw = new Float32Array(gridW * gridH).fill(NaN);
-  for (let row = 0; row < gridH; row++) {
-    const lat = latMax - (row / Math.max(1, gridH - 1)) * (latMax - latMin);
-    for (let col = 0; col < gridW; col++) {
-      const lon = lonMin + (col / Math.max(1, gridW - 1)) * (lonMax - lonMin);
-      for (const t of tiles) {
-        const [txmin, tymin, txmax, tymax] = t.bbox;
-        if (lon < txmin || lon > txmax || lat < tymin || lat > tymax) continue;
-        const v = bilinearSample(t.data, t.width, t.height, txmin, tymin, txmax, tymax, lon, lat);
-        if (Number.isFinite(v)) { raw[row * gridW + col] = v; break; }
-      }
-    }
-  }
+  const raw = resampleElevationMosaic(mosaic, mw, mh, { lonMin: nwLL.lon, latMin: seLL.lat, lonMax: seLL.lon, latMax: nwLL.lat }, { lonMin, latMin, lonMax, latMax }, gridW, gridH);
 
   let outBbox = [lonMin, latMin, lonMax, latMax];
   let outGridW = gridW, outGridH = gridH, outElevations = raw;
@@ -189,10 +217,16 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const fill = fillNoData(outElevations);
   const elevations = fill.elevations;
 
+  // TASKS.csv #726 — say what the surface is: the source (AWS Terrain Tiles blend SRTM with national DEMs - CDEM in
+  // Canada - so "SRTM" was probably the wrong name in BC), its own pixel and the node spacing GRID_MAX made
+  const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
+  const sourcePixelM = (40075016.686 * Math.cos(latMid)) / (TILE * 2 ** zoom);
+  const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
   return {
-    name: `SRTM (auto-fetched, ${tiles.length} tile${tiles.length > 1 ? "s" : ""} @ z${zoom})`,
+    name: `Terrain (AWS Terrain Tiles, ~${Math.round(nodeM)} m grid)`,
     bbox: outBbox, gridW: outGridW, gridH: outGridH, elevations,
-    reprojectedTo, reprojectNote, tileCount: tiles.length, zoom,
+    reprojectedTo, reprojectNote, tileCount: got, zoom,
+    source: { service: "AWS Terrain Tiles (Terrarium): SRTM blended with national DEMs (CDEM in Canada)", zoom, sourcePixelM, nodeM, fetched: new Date().toISOString().slice(0, 10) },
     noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     failedTiles: failed.length,
   };

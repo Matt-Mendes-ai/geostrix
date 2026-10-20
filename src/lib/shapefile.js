@@ -451,7 +451,7 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
 // snap to in the 3D view or re-derive attributes from). Any other shape type present in the file is
 // SKIPPED with a returned count (surfaced as a notice by the caller) rather than silently dropped —
 // matches the "no silent truncation" approach the rest of this app already follows (e.g. the surface-
-// modeling sanitization pass in ViewerModule's runSurfaceStack).
+// modelling sanitization pass in ViewerModule's runSurfaceStack).
 // TASKS.csv #415 — also the "measured" variants (PointM 21, PolyLineM 23, PolygonM 25: same layout as the
 // plain types plus M values, which are ignored) and MultiPoint (8 / 18 / 28), whose points each become their
 // own feature carrying the record's attributes.
@@ -574,7 +574,9 @@ function parseDbf(dbfBytes, encoding = "windows-1252") {
       else row[f.name] = raw;
       fieldOff += f.len;
     });
-    if (!deleted) rows.push(row);
+    // TASKS.csv #706 — a deleted record keeps its SLOT (null): the .shp keeps every record and features are paired with
+    // rows by index, so skipping it moved every later feature's attributes onto the previous geometry.
+    rows.push(deleted ? null : row);
     recOff += recordLen;
   }
   return rows;
@@ -594,14 +596,22 @@ function parseDbf(dbfBytes, encoding = "windows-1252") {
 // real names, so they're returned as `layerNames` and `layerName` (which one this call actually read),
 // and `wantLayer` lets the caller ask for one of them by name. `otherBaseNames` is kept exactly as it
 // was so nothing that already reads it changes behavior.
+// TASKS.csv #627 — the zip's names are listed first and ONLY the chosen layer's files are decompressed. It used to
+// inflate every .shp/.dbf in the archive to import one of them, so a province-wide bundle (BC Surficial Geology:
+// many layers, over 1 GB unpacked) hit the whole-archive ceiling part-way through and failed with "expands to more
+// than 7 MB" — the 7 MB being what was left of the 1 GB allowance — and was slow and memory-hungry even when it fit.
+const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export async function listZipNames(zipBytes) {
+  return Object.keys(await readZipEntries(zipBytes, /(?!)/)); // central directory only — nothing decompressed
+}
 export async function parseShapefileZip(zipBytes, wantLayer = null) {
-  const entries = await readZipEntries(zipBytes);
-  const shpNames = Object.keys(entries).filter((n) => /\.shp$/i.test(n));
+  const shpNames = (await listZipNames(zipBytes)).filter((n) => /\.shp$/i.test(n));
   if (!shpNames.length) throw new Error("No .shp file found inside this .zip.");
   const baseNames = Array.from(new Set(shpNames.map((n) => n.replace(/\.shp$/i, ""))));
   // An unknown/stale requested name falls back to the first layer rather than throwing — the caller's
   // picker is built from `layerNames`, so this only happens if the two ever get out of sync.
   const base = (wantLayer && baseNames.includes(wantLayer)) ? wantLayer : baseNames[0];
+  const entries = await readZipEntries(zipBytes, new RegExp(`^${escapeRe(base)}\\.(shp|dbf|prj|cpg)$`, "i"));
   // TASKS.csv #223 — the .prj sidecar (if the zip bundles one) was previously ignored entirely. Text-
   // decode it and hand it along so the caller can run it through reproject.js's guessEpsgFromPrjWkt.
   const prjBytes = entries[`${base}.prj`];
@@ -618,7 +628,9 @@ export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0
   if (!shp) throw new Error("No .shp data found.");
   const { geoms, skippedCount } = parseShp(shp);
   const attrRows = dbf ? parseDbf(dbf, dbfEncoding(cpg, dbf)) : [];
+  let deletedCount = 0; // #706 — a record flagged deleted in the .dbf drops its shape too (as OGR does)
   const features = geoms.flatMap((g, i) => {
+    if (dbf && attrRows[i] === null) { deletedCount++; return []; }
     if (!g) return [];
     const attributes = attrRows[i] || {};
     if (g.multi) return g.multi.map((pt) => ({ geometry: [pt], parts: [[pt]], attributes })); // #415 MultiPoint
@@ -626,7 +638,7 @@ export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0
   });
   if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
   const geomType = geoms.find((g) => g)?.type || "point";
-  return { features, geomType, skippedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
+  return { features, geomType, skippedCount, deletedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
 }
 
 // Flattens { features, geomType } into plain row objects — x/y/z taken from the FIRST vertex of each

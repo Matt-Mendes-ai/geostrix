@@ -144,3 +144,25 @@ test("#467 a failed save returns the reason instead of throwing", { timeout: 150
   assert.equal(res.error, "EBUSY: resource busy or locked");
   await m.unmount();
 });
+
+// TASKS.csv #686 — a crash-recovery copy written by a NEWER GeoStrix keeps the #342 guard: Save asks first
+test("#686 restoring a newer build's autosave marks the tab, so Save asks before overwriting", { timeout: 15000 }, async () => {
+  const newerFile = JSON.stringify({ version: 999, project: { name: "From the future", epsg: 32609 }, collars: [{ hole_id: "N-1", x: 1, y: 2, z: 3 }], activeDirty: true });
+  const prevRead = window.desktop.autosaveRead, prevConfirm = window.confirm;
+  window.desktop.autosaveRead = async () => ({ ok: true, content: newerFile });
+  let asked = 0;
+  window.confirm = () => { asked++; return false; };
+  try {
+    const m = await mount();
+    let rec;
+    await act(async () => { rec = await m.s.checkAutosave(); await wait(20); });
+    assert.equal(rec.newer, 999, "the banner is told it came from a newer build");
+    await step(() => m.s.restoreAutosave(rec.data));
+    assert.equal(m.s.collars[0].hole_id, "N-1");
+    let res;
+    await act(async () => { res = await m.s.saveProject(); await wait(20); });
+    assert.equal(asked, 1, "Save asked before writing");
+    assert.equal(res.cancelled, true);
+    await m.unmount();
+  } finally { window.desktop.autosaveRead = prevRead; window.confirm = prevConfirm; }
+});

@@ -3,11 +3,12 @@ import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #61
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import React, { useRef, useState } from "react";
-import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal } from "../components/icons.js";
+import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow } from "../components/icons.js";
+import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
+import { fetchSatelliteImagery, planSatelliteFetch, SAT_LEVELS } from "../lib/satelliteFetch.js";
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import InfoButton from "../components/InfoButton.jsx";
@@ -28,7 +29,9 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // already there than to a flat imagery drape, and splitting it out too wasn't part of what was asked.
 // A .tif/.gxf dropped directly on the Geophysics tab still imports as a raster exactly like before —
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
-export default function RasterModule() {
+// TASKS.csv #749 — embedded: inside the Maps tab (its ribbon triggers import / satellite / georeference through module
+// actions); no ribbon or main area of its own.
+export default function RasterModule({ embedded = false } = {}) {
   const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg } = useStore(); // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
@@ -97,6 +100,7 @@ export default function RasterModule() {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
+  useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? openSpectralRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
   // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we
@@ -111,11 +115,17 @@ export default function RasterModule() {
   const [satAreaOptions, setSatAreaOptions] = useState(null);
   const [satBusy, setSatBusy] = useState(false);
   const [satProgress, setSatProgress] = useState(null);
+  // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
+  const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
+  const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
   // TASKS.csv #129 — manual tie-point georeferencer for a scanned map/claim sketch with no embedded
   // geo tags at all (a GeoTIFF/gxf still trusts its own tags, per buildRasterImport above — this is
   // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
   // just the open/import wiring, same addRaster() call site as every other raster source on this page.
   const [georefOpen, setGeorefOpen] = useState(false);
+  const [spectralOpen, setSpectralOpen] = useState(false); // TASKS.csv #783
+  const [spectralAreas, setSpectralAreas] = useState([]); // TASKS.csv #784 — areas offered for fetching imagery
+  const openSpectralRef = useRef(null);
 
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
@@ -181,6 +191,15 @@ export default function RasterModule() {
   };
   openSatPickerRef.current = openSatPicker;
 
+  // TASKS.csv #784 — the spectral index dialog, with the same ready-made areas as the satellite picker
+  const openSpectral = async () => {
+    const seed = await defaultSatBboxLonLat();
+    const opts = await buildSatAreaOptions();
+    setSpectralAreas([...(seed ? [{ id: "holes", label: "Around the drillholes", bboxLonLat: seed }] : []), ...opts]);
+    setSpectralOpen(true);
+  };
+  openSpectralRef.current = openSpectral;
+
   const runSatFetch = async (bboxLonLat) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
     setSatPickerOpen(false);
@@ -188,11 +207,11 @@ export default function RasterModule() {
     setSatProgress({ done: 0, total: 1 });
     try {
       const parsed = await fetchSatelliteImagery({
-        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg,
+        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg, level: satLevel, // #781
         onProgress: (done, total) => setSatProgress({ done, total }),
       });
       addRaster({ name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation });
-      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}).`;
+      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}, image ${parsed.gridW} × ${parsed.gridH} px).`;
       if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
       if (parsed.reprojectNote) msg += ` ${parsed.reprojectNote}`;
       if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to fetch and are left transparent.`;
@@ -237,7 +256,7 @@ export default function RasterModule() {
   return (
     <div
       className="ge-body"
-      style={{ width: "100%" }}
+      style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -248,16 +267,17 @@ export default function RasterModule() {
     >
       <div className="ge-panel" style={{ padding: "16px 14px", overflowY: "auto", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Raster ribbon: the import actions; the sidebar keeps the import CRS and the rasters. */}
-        <Ribbon label="Raster tools">
+        <Ribbon label="Raster tools" show={!embedded}>
           <RibbonGroup label="Import">
             <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
             <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 cloudless imagery (no account) — pick an area on a map, or match an existing terrain / boundary / raster extent" onClick={openSatPicker} />
             <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates: click matching points and type their real X/Y" onClick={() => setGeorefOpen(true)} />
+            <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
           Raster drape (GeoTIFF / Geosoft GXF)
-          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Geophysics → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
+          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
@@ -285,7 +305,24 @@ export default function RasterModule() {
             areaOptions={satAreaOptions}
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
+            extraControls={(bbox) => { // TASKS.csv #781 — resolution, and what it would fetch for this area
+              const p = bbox ? planSatelliteFetch(bbox, satLevel) : null;
+              return (
+                <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label="Image resolution" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
+                    title="Higher levels download more tiles for a sharper image of large areas. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.">
+                    {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{l.label} resolution</option>)}
+                  </select>
+                  {p && <span title={`zoom ${p.zoom}: ${p.tilesX} × ${p.tilesY} tiles; image ${p.gridW} × ${p.gridH} px`}>~{Math.round(p.pixelM)} m pixels · {p.tiles} tiles · ~{p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB)} MB{p.nativeLimited ? " · imagery's finest (10 m)" : ""}</span>}
+                </span>
+              );
+            }}
           />
+        )}
+        {spectralOpen && ( // TASKS.csv #783
+          <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
+            onClose={() => setSpectralOpen(false)}
+            onImport={(raster, msg) => { addRaster({ ...raster, elevation: defaultElevation }); setSpectralOpen(false); setError({ info: true, text: msg }); }} />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (
@@ -373,7 +410,7 @@ export default function RasterModule() {
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM under Geophysics → Terrain first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM under Maps → Terrain first)" : ""}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Elev.</span>
@@ -389,7 +426,7 @@ export default function RasterModule() {
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+      {!embedded && (<div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
         {/* TASKS.csv #309 — was two lines of centred grey text with no icon and nothing to click,
             one of four different empty-state treatments across seven tabs. Now the shared
             EmptyState card (components/EmptyState.jsx), same as 3D View / Geochem / Geophysics.
@@ -414,7 +451,7 @@ export default function RasterModule() {
             <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>Drop GeoTIFF(s)/.gxf to import</div>
           </div>
         )}
-      </div>
+      </div>)}
     </div>
   );
 }

@@ -9,6 +9,7 @@
 // numerical instability RBF can hit with clustered points, "good enough" quality for a quick-look grid
 // of geophysics/geochem point data, which is exactly what this is for.
 import { magColorRGB } from "./layers.js";
+import { f32ToB64 } from "./inversion.js"; // TASKS.csv #538 — the float grid kept on the raster
 
 // Grids `points` ({x,y,value}[]) onto a regular raster using inverse-distance weighting. `power`
 // controls how sharply influence falls off with distance (2 is the standard IDW default); each cell uses
@@ -128,8 +129,11 @@ export function makeStretch(values, mode = "p2-98") {
   return { mode, lo, hi, t: (x) => (hi > lo ? Math.min(1, Math.max(0, (x - lo) / (hi - lo))) : 0) };
 }
 
-export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98" }) {
-  const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power });
+// TASKS.csv #538 — maxDistance blanks cells farther than that from every point (NaN = transparent) instead of
+// extrapolating across gaps and notches; the float values are kept as `grid` (the rasterFromGrid shape, node
+// centres x0 / yTop), so a gridded survey can go through the #373 filters and #326 grid-to-points.
+export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize, power, name, stretch = "p2-98", maxDistance = Infinity }) {
+  const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize, power, maxDistance });
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
@@ -151,5 +155,37 @@ export function idwGridToRasterInput(points, { xmin, ymin, xmax, ymax, cellSize,
   // from xmin / ymax at cellSize steps). It used to be stretched over the raw data extent, so e.g. 130 m of
   // data at 25 m cells (5 cells = 125 m) was drawn 4% too large and shifted.
   return { name, bbox: [xmin, ymax - gridH * cellSize, xmin + gridW * cellSize, ymax], dataUrl: canvas.toDataURL("image/png"), gridMin: hasRange ? min : null, gridMax: hasRange ? max : null,
-    stretch: { mode: st.mode, lo: st.lo, hi: st.hi } }; // #372 — what the colours mean
+    stretch: { mode: st.mode, lo: st.lo, hi: st.hi }, // #372 — what the colours mean
+    grid: { nx: gridW, ny: gridH, x0: xmin + cellSize / 2, yTop: ymax - cellSize / 2, dx: cellSize, dy: cellSize, values: f32ToB64(values), valid: values.reduce((c, v) => c + (Number.isFinite(v) ? 1 : 0), 0), averagedBy: 1, sourceSize: [gridW, gridH] } };
+}
+
+// TASKS.csv #538 — a default blanking distance for gridding a survey. Line data (walk / airborne mag) are dense
+// ALONG lines and sparse ACROSS them, so the nearest-point spacing (1 m on a walk-mag line) would blank everything
+// between lines: with line labels, the spacing is the median distance from a station to the nearest station of
+// ANOTHER line, and the default is 1.5x that. Scattered stations (no lines): 2x the median nearest spacing.
+// Sampled (400 stations) so it stays fast on 100k-point surveys. -> { distance, spacing, basis } or null.
+export function suggestBlankingDistance(points, sample = 400) {
+  const pts = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  const n = pts.length;
+  if (n < 3) return null;
+  const idx = n <= sample ? pts.map((_, i) => i) : Array.from({ length: sample }, (_, k) => Math.floor((k * n) / sample));
+  const lines = new Set(pts.map((p) => (p.line == null ? null : String(p.line))));
+  const byLine = lines.size > 1 && !lines.has(null);
+  const d = [];
+  for (const i of idx) {
+    const a = pts[i];
+    let best = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      const b = pts[j];
+      if (byLine && String(b.line) === String(a.line)) continue;
+      const q = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+      if (q > 0 && q < best) best = q;
+    }
+    if (Number.isFinite(best)) d.push(Math.sqrt(best));
+  }
+  if (!d.length) return null;
+  d.sort((x, y) => x - y);
+  const spacing = d[Math.floor(d.length / 2)];
+  return { spacing, distance: (byLine ? 1.5 : 2) * spacing, basis: byLine ? "line spacing" : "station spacing" };
 }

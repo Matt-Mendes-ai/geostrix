@@ -7,7 +7,13 @@ export const ELEMENT_SYMBOLS = ["Ag","Al","As","Au","B","Ba","Be","Bi","Br","Ca"
   "Dy","Er","Eu","F","Fe","Ga","Gd","Ge","Hf","Hg","Ho","In","Ir","K","La","Li","Lu","Mg","Mn","Mo","Na","Nb",
   "Nd","Ni","Os","P","Pb","Pd","Pr","Pt","Rb","Re","Rh","Ru","S","Sb","Sc","Se","Si","Sm","Sn","Sr","Ta","Tb",
   "Te","Th","Ti","Tl","Tm","U","V","W","Y","Yb","Zn","Zr"];
-const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","P","S","Ti","Si","Mn","Cr"]);
+// Elements a bare header (no unit in it) is read in %: the ones a multi-acid ICP package reports in percent (ALS ME-ICP61:
+// Al Ca Fe K Mg Na S Ti; Si comes from whole-rock). TASKS.csv #718 — Cr, Mn and P were listed too, but those packages
+// report them in ppm, and Cr at 5-100 ppm (normal in felsic / intermediate volcanics) was read as 5-100 % (the #210
+// rule only switches to ppm above 100). Whole-rock Cr2O3 / MnO / P2O5 arrive as oxide headers (#403) and stay %.
+const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","S","Ti","Si"]);
+// TASKS.csv #718 — the unit was not in the header: it came from the element symbol alone (shown as "assumed")
+export const unitAssumed = (header) => !/ppm|ppb|gpt|g\/t|pct|%/i.test(String(header || "")) && !oxideOfHeader(header);
 
 // TASKS.csv #210 — real-world lab exports rarely use a bare element symbol as the header: a
 // method/instrument code commonly sits BETWEEN the element and its unit (e.g. pXRF exports like
@@ -66,6 +72,7 @@ export function fromOxideHeader(value, header) {
   return ox ? value / ox.factor : value;
 }
 export function inferUnit(header, symbol) {
+  if (oxideOfHeader(header)) return "%"; // TASKS.csv #718 — whole-rock oxides are wt% (was implied by Cr / Mn / P being on MAJOR_PCT)
   const h = String(header).toLowerCase();
   if (h.includes("ppb")) return "ppb";
   // TASKS.csv #210 — "gpt" (grams per tonne) is the standard unit lab reports use for Au/Ag/Pt/Pd
@@ -264,11 +271,66 @@ export function mergeAssayRows(prev, incoming) {
     Object.keys(r.values || {}).forEach((sym) => { delete quals[sym]; });
     Object.assign(quals, r.qualifiers || {});
     const next = { ...old, ...r, values: { ...(old.values || {}), ...(r.values || {}) } };
+    const files = unionSrcFiles(old.srcFile, r.srcFile); // #624 — a merged interval came from both files
+    if (files) next.srcFile = files; else delete next.srcFile;
     if (Object.keys(quals).length) next.qualifiers = quals; else delete next.qualifiers;
     out[i] = next;
     merged++;
   });
   return { rows: out, merged, added, repeatedInFile };
+}
+
+// TASKS.csv #624 — which imported file(s) an assay interval came from, so a file can be removed again ("currently
+// there is no way to deleted imported assays"). srcFile is the file name, or several joined by a newline when a later
+// file merged into the same interval (a file name never contains a newline). Rows from before this have none.
+const SRC_SEP = "\n";
+export const srcFilesOf = (r) => (r?.srcFile ? String(r.srcFile).split(SRC_SEP) : []);
+export function unionSrcFiles(a, b) {
+  const set = [...new Set([...(a ? String(a).split(SRC_SEP) : []), ...(b ? String(b).split(SRC_SEP) : [])])];
+  return set.length ? set.join(SRC_SEP) : null;
+}
+// [{ file (null = imported before files were tracked), intervals, shared (also from another file) }], largest first
+export function assayFileSummary(assays) {
+  const m = new Map();
+  (assays || []).forEach((r) => {
+    const files = srcFilesOf(r);
+    if (!files.length) { const e = m.get(null) || { file: null, intervals: 0, shared: 0 }; e.intervals++; m.set(null, e); return; }
+    files.forEach((f) => { const e = m.get(f) || { file: f, intervals: 0, shared: 0 }; e.intervals++; if (files.length > 1) e.shared++; m.set(f, e); });
+  });
+  return [...m.values()].sort((x, y) => y.intervals - x.intervals);
+}
+// remove one file's intervals. Intervals that ALSO came from another file are kept (their values can't be separated)
+// and lose this file's name; file = null removes the untracked (older) rows.
+export function removeAssayFile(assays, file) {
+  let removed = 0, keptShared = 0;
+  const out = [];
+  (assays || []).forEach((r) => {
+    const files = srcFilesOf(r);
+    if (file == null ? files.length === 0 : files.length === 1 && files[0] === file) { removed++; return; }
+    if (file != null && files.length > 1 && files.includes(file)) {
+      keptShared++;
+      out.push({ ...r, srcFile: files.filter((f) => f !== file).join(SRC_SEP) });
+      return;
+    }
+    out.push(r);
+  });
+  return { assays: out, removed, keptShared };
+}
+// remove one element everywhere; intervals left with no element at all are removed too
+export function removeAssayElement(assays, symbol) {
+  let cleared = 0, emptied = 0;
+  const out = [];
+  (assays || []).forEach((r) => {
+    if (!r.values || !(symbol in r.values)) { out.push(r); return; }
+    cleared++;
+    const values = { ...r.values }; delete values[symbol];
+    const next = { ...r, values };
+    if (r.qualifiers && symbol in r.qualifiers) { const q = { ...r.qualifiers }; delete q[symbol]; if (Object.keys(q).length) next.qualifiers = q; else delete next.qualifiers; }
+    if (r.valueSources && symbol in r.valueSources) { const v = { ...r.valueSources }; delete v[symbol]; if (Object.keys(v).length) next.valueSources = v; else delete next.valueSources; }
+    if (!Object.keys(values).length) { emptied++; return; }
+    out.push(next);
+  });
+  return { assays: out, cleared, emptied };
 }
 
 // element wt% -> oxide wt%
@@ -462,6 +524,26 @@ function resolveAssaySegments(rows, symbol, unit, elementUnits, stats) {
   return segs;
 }
 
+// TASKS.csv #571 — the RAW (non-composited) sample intervals for estimation and grade shells. Those paths mapped
+// every assay row straight to a sample point, so an exact double import, or a re-assay over its parent interval,
+// became two co-located samples (double weight in IDW / kriging). Now the same rules as compositing and the
+// intercept tools: exact duplicates dropped (#286 / #331), overlapping rows resolved into non-overlapping
+// segments carrying the mean of the overlapping results (flagged `conflict`), negative lab codes treated as not
+// assayed (they used to be clamped to 0 downstream), values read through valueIn like compositing.
+// capValue: high-grade cap per segment, like the raw path before. Returns { intervals, stats }.
+export function rawSampleIntervals(assays, symbol, unit, elementUnits, { capValue = null } = {}) {
+  const { byHole, stats } = groupAssayRowsByHole(assays || []);
+  const intervals = [];
+  byHole.forEach((rows, hole_id) => {
+    resolveAssaySegments(rows, symbol, unit, elementUnits, stats).forEach((s) => {
+      if (s.value == null) return;
+      const avgGrade = capValue != null && s.value > capValue ? capValue : s.value;
+      intervals.push({ hole_id, from: s.from, to: s.to, avgGrade, ...(s.conflict ? { conflict: true } : {}) });
+    });
+  });
+  return { intervals, stats };
+}
+
 // TASKS.csv #230 (Micromine/mineral-exploration/Leapfrog-specialist audit finding) — best-intercept
 // reporting only ever showed ONE element (whichever the intercept was composited against), with no way
 // to see what a second/third element graded over that SAME depth window (e.g. "what's the Ag and Cu
@@ -599,18 +681,33 @@ export function makeRangeAverager(assays, elementUnits) {
 // Counts rows dropped as exact duplicates, and separately the (hole_id, from, to) intervals that
 // appear more than once with DIFFERENT results — those are conflicts compositing deliberately does
 // NOT resolve, and they're the ones worth going back to the source data for.
+// TASKS.csv #737 — exact-duplicate test without stringifying every row: the values payload is compared only when
+// (hole_id, from, to) repeats. JSON.stringify of each row's values was 60-90 % of compositing time (60,000 x 49
+// elements: 713 of 795 ms), for the ~0.1 % of rows that ever share an interval. Same answers as the full key.
+// Returns a function row -> "new" | "duplicate" (same interval, same values) | "conflict" (same interval, other values).
+function intervalDuplicateTracker() {
+  const seen = new Map(); // "hole|from|to" -> the first row, then a Set of the values strings seen there
+  return (a) => {
+    const iv = `${a.hole_id}|${a.from}|${a.to}`;
+    let prev = seen.get(iv);
+    if (prev === undefined) { seen.set(iv, a); return "new"; }
+    if (!(prev instanceof Set)) { prev = new Set([JSON.stringify(prev.values ?? null)]); seen.set(iv, prev); }
+    const v = JSON.stringify(a.values ?? null);
+    if (prev.has(v)) return "duplicate";
+    prev.add(v);
+    return "conflict";
+  };
+}
+
 export function countDuplicateAssayIntervals(assays) {
-  const exact = new Set(), byInterval = new Map();
+  const track = intervalDuplicateTracker();
   let exactDuplicates = 0;
   const conflicting = new Set();
   (assays || []).forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    const iv = `${a.hole_id}|${a.from}|${a.to}`;
-    const key = `${iv}|${JSON.stringify(a.values ?? null)}`;
-    if (exact.has(key)) { exactDuplicates++; return; }
-    exact.add(key);
-    if (byInterval.has(iv)) conflicting.add(iv);
-    byInterval.set(iv, key);
+    const seen = track(a);
+    if (seen === "duplicate") exactDuplicates++;
+    else if (seen === "conflict") conflicting.add(`${a.hole_id}|${a.from}|${a.to}`);
   });
   return { exactDuplicates, conflictingIntervals: conflicting.size };
 }
@@ -638,12 +735,10 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   // sample), not a double-import, and silently discarding one of them would be its own quiet data loss.
   // Those are left alone and stay dataQC's business to report.
   // (CompositingModal reports the count itself, via countDuplicateAssayIntervals.)
-  const dupSeen = new Set();
+  const track = intervalDuplicateTracker(); // #737 — values compared only when the interval repeats
   assays.forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
-    if (dupSeen.has(key)) return;
-    dupSeen.add(key);
+    if (track(a) === "duplicate") return;
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
   });
@@ -725,6 +820,10 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       const segLen = to - from;
       const coverage = segLen > 0 ? Math.min(1, coveredLen / segLen) : 0;
       if (coverage < minCoverage - EPS) continue; // too little real sample material in this segment
+      // TASKS.csv #657 — a window with NO assayed material is not a composite at any minCoverage: at 0 % it used to be
+      // kept with grade 0 and coverage 0 (Harry Au, 2 m: 2,402 of 6,362 composites), and those zeros fed estimates,
+      // grade shells, the variogram and the composite CSV.
+      if (coveredLen <= EPS) continue;
       // Note: avgGrade is length-weighted across the COVERED material only (gradeLen / coveredLen),
       // not diluted by treating the uncovered remainder as zero grade — unlike computeBestIntercepts'
       // internal-dilution bridging above, an uncovered stretch here means "no data" (lost core, gap in
@@ -743,6 +842,58 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
 
   composites.sort((a, b) => (a.hole_id < b.hole_id ? -1 : a.hole_id > b.hole_id ? 1 : a.from - b.from));
   return composites;
+}
+
+// ---------- TASKS.csv #533 — capping audit ----------
+// A cap value means nothing to a reviewer without the standard figures: how many samples it cut and what share of the
+// metal (grade x length) it removed. Both are measured on the RAW samples the cap is applied to (compositeDownhole caps
+// each raw sample before averaging), as resolved segments (#331: overlapping rows counted once, negative lab codes not
+// assayed, exact duplicate rows dropped), so the figures match what compositing / estimation actually used.
+function rawSegments(assays, symbol, unit, elementUnits) {
+  const byHole = new Map(), seen = new Set();
+  (assays || []).forEach((a) => {
+    if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
+    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    let arr = byHole.get(a.hole_id);
+    if (!arr) byHole.set(a.hole_id, (arr = []));
+    arr.push(a);
+  });
+  const out = [];
+  byHole.forEach((rows) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) out.push({ value: s.value, len: s.to - s.from }); }));
+  return out;
+}
+export function capAudit(assays, symbol, unit, elementUnits, capValue) {
+  const segs = rawSegments(assays, symbol, unit, elementUnits);
+  let metalBefore = 0, metalAfter = 0, nCapped = 0, lenCapped = 0;
+  for (const s of segs) {
+    metalBefore += s.value * s.len;
+    const capped = capValue != null && s.value > capValue;
+    if (capped) { nCapped++; lenCapped += s.len; }
+    metalAfter += (capped ? capValue : s.value) * s.len;
+  }
+  const nSamples = segs.length;
+  return {
+    capValue: capValue ?? null, nSamples, nCapped, lenCapped,
+    pctCapped: nSamples ? (100 * nCapped) / nSamples : 0,
+    metalBefore, metalAfter, pctMetalRemoved: metalBefore > 0 ? (100 * (metalBefore - metalAfter)) / metalBefore : 0,
+  };
+}
+// the grade below which p% of the sampled LENGTH lies (a 10 m sample counts ten times a 1 m one) — what "cap at the
+// 97.5th percentile" means for unequal sample lengths. null when nothing is assayed.
+export function lengthWeightedPercentile(assays, symbol, unit, elementUnits, p) {
+  const segs = rawSegments(assays, symbol, unit, elementUnits).sort((a, b) => a.value - b.value);
+  const total = segs.reduce((t, s) => t + s.len, 0);
+  if (!total) return null;
+  const target = (p / 100) * total;
+  let acc = 0;
+  for (const s of segs) { acc += s.len; if (acc >= target - 1e-9) return s.value; }
+  return segs[segs.length - 1].value;
+}
+export function capAuditText(a, unitLabel = "") {
+  if (!a || a.capValue == null) return "";
+  return `cap ${a.capValue}${unitLabel ? ` ${unitLabel}` : ""}: ${a.nCapped} of ${a.nSamples} samples capped (${a.pctCapped.toFixed(1)}%), ${a.pctMetalRemoved.toFixed(1)}% of the metal (grade x length) removed`;
 }
 
 // ---------- diagram definitions ----------

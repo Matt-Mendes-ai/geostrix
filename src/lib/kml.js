@@ -21,15 +21,27 @@ const firstText = (xml, name) => {
   const m = xml.match(new RegExp(`<${tag(name)}\\b[^>]*>([\\s\\S]*?)</${tag(name)}>`, "i"));
   return m ? decode(m[1]) : "";
 };
+// TASKS.csv #705 — tuples are "lon,lat[,alt]" separated by whitespace. A space after the comma ("-121.30, 52.30, 0",
+// written by hand edits, some GPS apps and spreadsheet exports; Google Earth and GDAL read it) used to split each
+// tuple in pieces, and Number("") = 0 turned them into extra vertices at latitude 0 — a claim placed 20,000 km
+// away with no notice. Spaces around commas are closed up first; a tuple must be 2-3 numbers in range, and any
+// that is not is counted (`bad`) instead of being coerced.
 function parseCoords(text) {
-  return decode(text).split(/\s+/).filter(Boolean).map((t) => t.split(",").map(Number)).filter((c) => c.length >= 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]))
-    .map(([lon, lat, alt]) => (Number.isFinite(alt) ? [lon, lat, alt] : [lon, lat]));
+  const coords = [];
+  let bad = 0;
+  decode(text).replace(/\s*,\s*/g, ",").split(/\s+/).filter(Boolean).forEach((t) => {
+    const parts = t.split(",");
+    const nums = parts.map((p) => (p === "" ? NaN : Number(p)));
+    if (parts.length < 2 || parts.length > 3 || nums.some((v) => !Number.isFinite(v)) || Math.abs(nums[0]) > 180 || Math.abs(nums[1]) > 90) { bad++; return; }
+    coords.push(nums.length === 3 ? nums : [nums[0], nums[1]]);
+  });
+  return { coords, bad };
 }
 
 export function parseKML(text) {
   const src = String(text);
   const features = [];
-  let skipped = 0;
+  let skipped = 0, badTuples = 0; // #705
   const pmRe = new RegExp(`<${tag("Placemark")}\\b[^>]*>([\\s\\S]*?)</${tag("Placemark")}>`, "gi");
   let m;
   while ((m = pmRe.exec(src))) {
@@ -46,14 +58,15 @@ export function parseKML(text) {
     let g;
     while ((g = geomRe.exec(body))) {
       const kind = g[1].replace(/^[\w-]+:/, "");
-      const coords = parseCoords(firstText(g[2], "coordinates"));
+      const { coords, bad } = parseCoords(firstText(g[2], "coordinates"));
+      badTuples += bad;
       if (!coords.length) continue;
       found++;
       features.push({ name, description, attrs, geomType: kind === "Point" ? "point" : kind === "LinearRing" ? "polygon" : "line", coords });
     }
     if (!found) skipped++;
   }
-  return { features, skipped };
+  return { features, skipped, badTuples };
 }
 
 // KMZ = a zip with doc.kml (or any .kml) at its root.

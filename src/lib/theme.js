@@ -67,7 +67,7 @@
 // Matt, not a refactor): --color-success-bg #1e3629 / --color-success-text #8fd9ab and
 // --color-danger-bg #2a1f1f / --color-danger-text #e0a0a0 are DARK-background/light-text pairs in
 // an otherwise white app. They are used on purpose (the solid dark-green Export PDF button on the
-// Layout tab is the app's only filled button, and that is a useful hierarchy signal), but the names
+// Layout tab, the add-on's Download and each geoML section's Model button are the app's only filled buttons, one per pane, and that is a useful hierarchy signal; TASKS.csv #704), but the names
 // read as if lifted from a dark theme, and a LIGHT advisory pair (--color-warn-bg cream /
 // --color-warn-text brown) does the same job elsewhere — so the app currently has two competing
 // advisory styles. If they stay, names like --color-primary-btn-bg / --color-notice-inverse-bg
@@ -135,6 +135,7 @@ export const colors = {
   // Danger / destructive / error (red)
   dangerBg: "#2a1f1f",
   dangerText: "#e0a0a0", // on the dark danger background only
+  dangerBgSoft: "#fdeceb", // TASKS.csv #579 — light flagged-row background (dangerBg is dark)
   dangerFg: "#b23a2e", // TASKS.csv #384 — danger text on light backgrounds (5.94:1 on white)
   dangerBorder: "#4a2f2f",
   dangerBorderStrong: "#5a2a2a", // an unmapped/invalid field's own border
@@ -163,6 +164,12 @@ export const colors = {
 // Numbers, not "10px" strings, because that is the form those consumers want (ctx.font arithmetic,
 // SVG attribute values); append "px" at the call site if you need a CSS string.
 // KEEP IN SYNC WITH app.css — change a value in one, change it in the other.
+// TASKS.csv #585 — the PRINT scale, for text drawn on a Layout page (and images made to be placed on one). The
+// five-step fontSizes above are SCREEN sizes; the page used ad-hoc 6 / 6.4 / 7.5 / 8.25 / 13.5 pt literals, the
+// smallest under the legibility floor of a plotted A4 / A3. Points, as the page renders them: 1 pt = 96/72 px.
+export const printPt = { caption: 7, small: 8, body: 10, label: 12, heading: 16 };
+export const printPx = (pt) => Math.round(((pt * 96) / 72) * 100) / 100;
+
 export const fontSizes = {
   xs: 10, // captions, counts, units, badges
   sm: 11, // secondary labels, uppercase section captions

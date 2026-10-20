@@ -72,6 +72,11 @@ def test_dcip2d_recovers_block():
     assert 260 <= s[lo] <= 380 and 5 <= ground[lo] - z[lo] <= 80
     assert np.median(res[inb]) < 0.5 * np.median(res[far])
     assert 260 <= s[hi] <= 380 and np.median(eta[inb]) > 5 * max(1e-3, np.median(eta[far]))
+    # TASKS.csv #771 — no invented resistive patches at depth (sensitivity-weight threshold 1e-2; at SimPEG's
+    # default 1e-12 the deep 100 ohm.m host read p95 236, max 661 ohm.m)
+    deep = (ground - z > 80) & ~inb
+    print(f"deep host (> 80 m): median {np.median(res[deep]):.0f}, p95 {np.percentile(res[deep], 95):.0f}, max {res[deep].max():.0f} ohm.m (true 100)")
+    assert np.percentile(res[deep], 95) < 150 and res[deep].max() < 250
 
 
 def test_pole_dipole_homogeneous():
@@ -146,9 +151,131 @@ def test_ip_zero_reading_needs_a_floor():
         print("  run_job:", e)
 
 
+def test_flat_geometric_factor_on_a_ridge():
+    """TASKS.csv #580 — uniform 100 ohm.m under a 60 m ridge (flanks to ~40 %), apparent resistivity written the way
+    a receiver / contractor does: V over the geometric factor of the nominal FLAT spacings. Inverted with the
+    draped factor this came back 76-127 ohm.m in the shallow supported cells (the factor difference fitted as
+    structure); with the default flat factor it must stay within 85-115, and the run records the choice."""
+    from discretize.utils import active_from_xyz
+    from simpeg import maps
+    from simpeg.electromagnetics.static import resistivity as dc
+    from simpeg.electromagnetics.static.utils import static_utils
+    x = np.arange(48) * 10.0
+    rows = np.array([[x[i], x[i] + 20, x[i] + 20 + n * 20, x[i] + 40 + n * 20] for i in range(48) for n in range(1, 7) if x[i] + 40 + n * 20 <= x[-1]])
+    tx_ = np.linspace(-500, 1000, 301)
+    topo = np.c_[tx_, 1000 + 60 * np.exp(-((tx_ - 235) / 70.0) ** 2)]
+    pos = np.unique(rows.ravel())
+    idx = np.searchsorted(pos, rows)
+    mesh, _ = D._mesh(pos, topo, 5.0, 120.0)
+    tx = np.linspace(mesh.nodes_x[0], mesh.nodes_x[-1], 800)
+    active = active_from_xyz(mesh, np.c_[tx, np.interp(tx, topo[:, 0], topo[:, 1])])
+    survey = D._survey(idx, np.c_[pos, np.interp(pos, topo[:, 0], topo[:, 1])], "apparent_resistivity")
+    survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
+    g_draped = survey.set_geometric_factor()
+    volts = dc.Simulation2DNodal(mesh, survey=survey, sigmaMap=maps.InjectActiveCells(mesh, active, 1e-8)).dpred(np.full(int(active.sum()), 0.01)) * g_draped
+    rho = volts / static_utils.geometric_factor(D._survey(idx, np.c_[pos, np.zeros_like(pos)], "apparent_resistivity"))
+    out = D.run_job({"readings": rows.tolist(), "rho": rho.tolist(), "topo": topo.tolist(), "mesh": {"cell": 5.0, "depth": 120.0},
+                     "uncertainty": {"percent": 3}, "maxIter": 12}, lambda e: None)
+    c = out["cells"]
+    s, z, res, sup = (np.asarray(c[k]) for k in ("s", "z", "resistivity", "support"))
+    shallow = (sup > 0.05) & (np.interp(s, topo[:, 0], topo[:, 1]) - z < 25)
+    p5, p95 = np.percentile(res[shallow], [5, 95])
+    print(f"flat geometric factor on a ridge: shallow supported cells {p5:.1f}-{p95:.1f} ohm.m (true 100), recorded {out['geometricFactor']}")
+    assert out["geometricFactor"] == "flat" and out["reachedTarget"] and 85 < p5 and p95 < 115
+
+
+def test_n_block_file_order():
+    """TASKS.csv #652 — contractor TDIP files list readings by n-block (every source's n = 1, then n = 2 ...), not
+    source by source. SimPEG regroups them by source; before #652 the data were passed in file order and paired
+    with the wrong electrodes (this block scored phi_d/N = 508). The same synthetic, listed by n-block, must fit and
+    recover the block, and predicted[i] must belong to the file's reading i."""
+    rows, rho, ch, topo = _synthetic()
+    nlev = np.round((rows[:, 2] - rows[:, 1]) / 20.0).astype(int)
+    perm = np.argsort(nlev, kind="stable")
+    rows, rho, ch = rows[perm], rho[perm], ch[perm]
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "chargeability": ch.tolist(), "topo": topo.tolist(),
+           "mesh": {"cell": 5.0, "depth": 150.0}, "uncertainty": {"percent": 3, "floor": 0.0},
+           "ipUncertainty": {"percent": 3, "floor": 0.5}, "maxIter": 20}
+    out = D.run_job(req, lambda e: None)
+    pred, std = np.asarray(out["predicted"]), np.asarray(out["standardDeviation"])
+    chi_file = float(np.mean(((rho - pred) / std) ** 2))
+    ip_pred, ip_std = np.asarray(out["ip"]["predicted"]), np.asarray(out["ip"]["standardDeviation"])
+    chi_ip = float(np.mean(((ch - ip_pred) / ip_std) ** 2))
+    c = out["cells"]
+    s, z, res = (np.asarray(c[k]) for k in ("s", "z", "resistivity"))
+    ground = np.interp(s, topo[:, 0], topo[:, 1])
+    lo = int(np.argmin(res))
+    print(f"n-block order: {len(rows)} readings, DC chi {out['phi_d'] / out['target']:.2f} (file-order recompute {chi_file:.2f}), "
+          f"IP chi {chi_ip:.2f}, {out['iterations']} iterations, min resistivity {res[lo]:.1f} at s={s[lo]:.0f}")
+    assert out["reachedTarget"] and chi_file <= 1.05 and chi_ip <= 1.5
+    assert abs(chi_file - out["phi_d"] / out["target"]) < 1e-6
+    assert 260 <= s[lo] <= 380 and 5 <= ground[lo] - z[lo] <= 80
+
+
+def test_per_reading_floor_from_the_file():
+    """TASKS.csv #683 — the file's own error column as a per-reading floor: given in FILE order (here n-block order,
+    which SimPEG regroups), each reading's returned standard deviation must be percent * |d| + max(floor, its own)."""
+    rows, rho, ch, topo = _synthetic()
+    nlev = np.round((rows[:, 2] - rows[:, 1]) / 20.0).astype(int)
+    perm = np.argsort(nlev, kind="stable")
+    rows, rho, ch = rows[perm], rho[perm], ch[perm]
+    n = len(rho)
+    fl_pct = np.where(np.arange(n) % 3 == 0, 10.0, 0.5)          # every third reading noisy (10 %)
+    fl_ip = np.where(np.arange(n) % 4 == 0, 2.0, 0.0)            # every fourth chargeability reading +-2 mV/V
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "chargeability": ch.tolist(), "topo": topo.tolist(),
+           "mesh": {"cell": 5.0, "depth": 150.0}, "uncertainty": {"percent": 3, "floor": 0.0, "floorPerReadingPercent": fl_pct.tolist()},
+           "ipUncertainty": {"percent": 3, "floor": 0.5, "floorPerReadingMvV": fl_ip.tolist()}, "maxIter": 2}
+    out = D.run_job(req, lambda e: None)
+    std = np.asarray(out["standardDeviation"])
+    assert np.allclose(std, 0.03 * rho + np.maximum(0.0, fl_pct / 100.0 * rho))
+    ip_std = np.asarray(out["ip"]["standardDeviation"])  # mV/V
+    assert np.allclose(ip_std, 0.03 * np.abs(ch) + np.maximum(0.5, fl_ip))
+
+
+def test_depth_of_investigation_index():
+    """TASKS.csv #772 — the Oldenburg & Li DOI index: ~0 where the data control the model (the block and the
+    shallow ground under the line), ~1 at depth where each run returns its own reference model."""
+    rows, rho, _, topo = _synthetic()
+    req = {"readings": rows.tolist(), "rho": rho.tolist(), "topo": topo.tolist(), "mesh": {"cell": 5.0, "depth": 150.0},
+           "uncertainty": {"percent": 3, "floor": 0.0}, "maxIter": 20, "doi": True}
+    stages = set()
+    out = D.run_job(req, lambda e: stages.add(e.get("stage")))
+    c = out["cells"]
+    s, z, doi, sup = (np.asarray(c[k]) for k in ("s", "z", "doi", "support"))
+    ground = np.interp(s, topo[:, 0], topo[:, 1])
+    depth = ground - z
+    mid = (s > 150) & (s < 450)
+    # the top 5 m (half the 10 m electrode spacing) is not resolved cell by cell: measured doi median 0.47 there,
+    # although its sensitivity is the highest — so the data-controlled band is tested from 5 m down
+    shallow, deep = mid & (depth > 5) & (depth < 45), mid & (depth > 110)
+    blk = (s > 280) & (s < 360) & (depth > 20) & (depth < 60)
+    reach = []
+    for x in np.unique(s[mid]):
+        k = (s == x)
+        seen = k & (doi <= 0.2)
+        reach.append((depth[seen].max() if seen.any() else 0.0, depth[k & (sup >= 0.02)].max() if (k & (sup >= 0.02)).any() else 0.0))
+    reach = np.asarray(reach)
+    print(f"DOI: {out['seconds']:.0f} s, stages {sorted(stages)}; median doi 5-45 m {np.median(doi[shallow]):.3f}, block {np.median(doi[blk]):.3f}, deep {np.median(doi[deep]):.3f}; "
+          f"per column reach: DOI<=0.2 median {np.median(reach[:, 0]):.0f} m, support>=0.02 median {np.median(reach[:, 1]):.0f} m; method {out.get('doiMethod')}")
+    assert {"doi-low", "doi-high"} <= stages and out["doiMethod"]["threshold"] == 0.2
+    assert len(doi) == len(s) and np.all(doi >= 0)
+    # The per-cell index INSIDE the block depends on how the two reference runs end (0.19 started from the main
+    # result, 0.50 from the median half-space with fits 0.48x / 0.97x); the column reach does not (56-58 m every
+    # time), so that is what is asserted and what the panel draws.
+    assert np.median(doi[shallow]) < 0.25 and np.median(doi[deep]) > 0.8
+    assert np.median(reach[:, 0]) > np.median(reach[:, 1])
+    fits = out["doiMethod"]["misfitOfEachRun"]
+    assert len(fits) == 2 and all(0.3 < f <= 1.5 for f in fits), fits
+
+
 if __name__ == "__main__":
     test_ip_zero_reading_needs_a_floor()
     test_pole_dipole_homogeneous()
     test_dcip2d_recovers_block()
+    test_n_block_file_order()
     test_support_not_biased_against_conductors()
+    test_flat_geometric_factor_on_a_ridge()
+    test_per_reading_floor_from_the_file()
+    test_depth_of_investigation_index()
     print("ALL PASSED")
+

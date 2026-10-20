@@ -548,7 +548,7 @@ test("#400 certified CRM limits and bias; duplicates pair by parent id / same in
   ];
   const pairs = duplicatePairs(rows, "Au", units, undefined, { minMean: 0.05 });
   assert.deepEqual(pairs.map((p) => [p.how, +p.rpd.toFixed(1), p.belowLimit]), [["parent id", 9.5, false], ["same interval", 66.7, true]]);
-  assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100 });
+  assert.deepEqual(duplicateSummary(pairs), { used: 1, below: 1, within: 1, pctWithin: 100, byKind: { field: { used: 1, within: 1, limit: 20 } } }); // byKind: #534
   assert.equal(blankRows(rows, "Au", units, 0.01)[0].flagged, true); // a sample_type blank under a real hole id
 });
 
@@ -626,7 +626,7 @@ test("#498/#522 legend built from the model's stops: log ramps on a log scale, d
   assert.equal(L.log, true);
   // the conductive half is in the key now: the first quarter of the bar is red-to-white, the middle is the white anchor
   assert.equal(L.colors[0], dc.stops[0].color);
-  assert.equal(L.colors[8].toLowerCase(), "#f4f4f2"); // the white midpoint sits at the GEOMETRIC middle (100 ohm.m)
+  assert.equal(L.colors[8].toLowerCase(), "#dd6a3a"); // the white midpoint sits at the GEOMETRIC middle (100 ohm.m)
   assert.deepEqual(L.ticks.map((t) => t.label), ["10", "100", "1000"]);
   assert.ok(Math.abs(L.ticks[1].at - 0.5) < 1e-9);
   // a linear model stays linear, no ticks

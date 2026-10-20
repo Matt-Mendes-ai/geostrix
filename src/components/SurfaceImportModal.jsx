@@ -123,7 +123,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
                 <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                   <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                 </select>
-                <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" />
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" aria-label={`Remove the ${e.symbol} mapping`} />
               </div>
             ))}
             {modal.elements.length === 0 && (

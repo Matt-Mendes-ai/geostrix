@@ -14,6 +14,7 @@ import { buildZip } from "./shapefile.js";
 import { b64ToF32 } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
 import { ubcOctreeFromCells } from "./ubcOctree.js"; // TASKS.csv #324 follow-up
+import { NOT_A_RESOURCE } from "./provenance.js"; // TASKS.csv #529
 
 export const UBC_NODATA = -99999;
 const key = (v) => Math.round(v * 1000); // mm keys: cell centres from float32 storage are not bit-identical
@@ -123,6 +124,7 @@ export function provenanceText(model, t, files, epsg, notes) {
     `GeoStrix model export — ${new Date().toISOString()}`,
     `Model: ${model.name}`,
     `Source: ${model.source || "import"}${model.property ? ` | property: ${model.property}` : ""}`,
+    ...(p.unit ? [`Values: ${p.element || "value"} in ${p.unit}${p.capValue != null ? `; capped at ${p.capValue} ${p.capUnit || p.unit}` : ""}`] : []), // #529
     `CRS: EPSG:${epsg} (all coordinates, all files)`,
     t.adaptive // TASKS.csv #324 — an octree model has no single grid
       ? `Mesh: adaptive (octree), ${t.n} cells of ${t.sizes.join(" / ")} m, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`
@@ -137,7 +139,10 @@ export function provenanceText(model, t, files, epsg, notes) {
     "How the model was made (as recorded when it was created):",
     JSON.stringify(p, null, 2),
     "",
-    model.source === "simpeg" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
+    model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetization amplitude (SI-equivalent), with a direction per cell; depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
+    model.source === "simpeg" && model.style === "compact" ? "A compact (sparse-norm) inversion is ONE model that fits the data to the stated uncertainty, not the only one: it assumes a few compact bodies with sharp edges, so it draws them tighter than the smooth model, and peak values can overshoot. Not a geological boundary, not a volume, not a resource." : "", // #769
+    model.source === "simpeg" && model.style !== "compact" && model.style !== "vector" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
+    /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")) ? NOT_A_RESOURCE : "" /* geoml: #677 */, // #529 — an estimate package said nothing
   ].join("\n");
 }
 

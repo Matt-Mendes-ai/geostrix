@@ -18,6 +18,7 @@ import importlib.metadata
 import importlib.util
 import math
 import os
+import re
 import threading
 
 import numpy as np
@@ -33,9 +34,13 @@ app = FastAPI(title="GeoStrix Python sidecar", version="0.1.0")
 # this machine regardless of CORS policy — permissive CORS here just lets the Electron renderer
 # (origin file:// in a packaged build, http://localhost:5173 in dev) actually read the response.
 # Without this, the browser's same-origin policy would block it even though both sides are local.
+# TASKS.csv #745 — only the app's own origins (app://geostrix packaged, the vite dev server in development), not "*":
+# with "*" any web page in the user's browser could read the token-free /health (installed, busy, library versions).
+# The renderer's origin is fixed, so the wildcard bought nothing. Requests from the main process carry no Origin.
+_ORIGIN_RE = r"^(app://geostrix|http://(localhost|127\.0\.0\.1):517\d)$"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=_ORIGIN_RE,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -56,6 +61,15 @@ MAX_BODY_BYTES = 30 * 1024 * 1024
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 
+# TASKS.csv #594 — _guard is registered AFTER CORSMiddleware, so it runs OUTSIDE it: its early answers never got
+# Access-Control-Allow-Origin, and the renderer's cross-origin fetch saw an opaque failure ("engine not reachable")
+# instead of the 400 / 413 / 401 message. They carry the header themselves, like the 500 handler below.
+def _cors(request):
+    """The CORS header for an early or error answer: the caller's origin when it is the app's own (#745), else none."""
+    origin = request.headers.get("origin", "")
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"} if re.match(_ORIGIN_RE, origin) else {}
+
+
 @app.middleware("http")
 async def _guard(request: Request, call_next):
     if request.method == "OPTIONS":
@@ -65,13 +79,13 @@ async def _guard(request: Request, call_next):
     try:
         cl_n = int(cl) if cl is not None else None
     except ValueError:
-        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."})
+        return JSONResponse(status_code=400, content={"detail": "Content-Length is not a number."}, headers=_cors(request))
     if request.method in ("POST", "PUT") and (cl_n is None or cl_n > MAX_BODY_BYTES):
-        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."})
+        return JSONResponse(status_code=413, content={"detail": f"Request body missing a length or larger than {MAX_BODY_BYTES // (1024 * 1024)} MB."}, headers=_cors(request))
     if _TOKEN and request.url.path != "/health":
         sent = request.headers.get("x-geostrix-token", "")
         if not hmac.compare_digest(sent, _TOKEN):
-            return JSONResponse(status_code=401, content={"detail": "Missing or wrong sidecar token."})
+            return JSONResponse(status_code=401, content={"detail": "Missing or wrong sidecar token."}, headers=_cors(request))
     return await call_next(request)
 
 # TASKS.csv #62 — background gempy warm-up. Root cause of "why is modelling so slow / times out
@@ -122,7 +136,7 @@ def _on_startup():
 # binds to 127.0.0.1 only and its sole client is this app's own renderer, so the exception text is
 # going straight back to the person who triggered it, which is exactly who needs it.
 @app.exception_handler(Exception)
-async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signature fixed by FastAPI
+async def _unhandled_exception_handler(request, exc):
     # TASKS.csv #324 follow-up — Starlette runs this catch-all handler in ServerErrorMiddleware, OUTSIDE the
     # CORS middleware, so the 500 went out without Access-Control-Allow-Origin: the renderer's fetch() then
     # failed as a network error and the app said "Python engine isn't reachable" instead of showing this
@@ -130,7 +144,7 @@ async def _unhandled_exception_handler(request, exc):  # noqa: ARG001 — signat
     return JSONResponse(
         status_code=500,
         content={"detail": f"Unhandled sidecar error ({type(exc).__name__}): {exc}"},
-        headers={"Access-Control-Allow-Origin": "*"},
+        headers=_cors(request),
     )
 
 
@@ -234,6 +248,16 @@ def _validate_potential(req):
             t = c.get("tolerance")
             if not isinstance(t, (int, float)) or not math.isfinite(t) or t < 0:
                 raise HTTPException(400, "constraints.tolerance is required (0 or more, in model units).")
+    elif req.get("model") is not None:
+        # TASKS.csv #760 — a geology model against the survey: [x, y, z, dx, dy, dz, contrast] per cell
+        m = req["model"]
+        if not isinstance(m, dict):
+            raise HTTPException(400, "model must be an object.")
+        _finite_rows(m.get("cells"), 7, "model.cells", MAX_MODEL_CELLS)
+        if not m["cells"]:
+            raise HTTPException(400, "model.cells is empty: every unit has the background value, so there is nothing to model.")
+        if any(r[3] <= 0 or r[4] <= 0 or r[5] <= 0 for r in m["cells"]):
+            raise HTTPException(400, "model.cells: cell sizes must be above zero.")
     else:
         plates = req.get("plates") or ([req["plate"]] if req.get("plate") else [])
         if not plates or len(plates) > 40:
@@ -245,6 +269,7 @@ def _validate_potential(req):
 
 
 MAX_DC_READINGS = 5000
+MAX_MODEL_CELLS = 500_000  # TASKS.csv #760 — a 79^3 block; GeoStrix's own models are at most 100^3 below their tops
 
 
 def _validate_dcip2d(req):
@@ -290,7 +315,18 @@ def _validate_dcip2d(req):
             raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
         if not floor_ok and any((c is None) or (not isinstance(c, (int, float))) or c == 0 for c in req["chargeability"]):
             raise HTTPException(400, "some chargeability readings are 0 mV/V: a percent alone gives them no uncertainty — add a floor in mV/V.")
+    # TASKS.csv #683 — optional per-reading floors from the file's own error column (null = none for that reading)
+    for key, arr in (("uncertainty.floorPerReadingPercent", u.get("floorPerReadingPercent")),
+                     ("ipUncertainty.floorPerReadingMvV", (req.get("ipUncertainty") or {}).get("floorPerReadingMvV"))):
+        if arr is None:
+            continue
+        if not isinstance(arr, list) or len(arr) != len(r) or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v) and v >= 0) for v in arr):
+            raise HTTPException(400, f"{key} must hold one non-negative value (or null) per reading.")
     req["maxIter"] = int(min(40, max(1, int(req.get("maxIter", 20)))))
+    if req.get("doi") not in (None, True, False):  # TASKS.csv #772
+        raise HTTPException(400, "doi must be true or false.")
+    if req.get("geometricFactor") not in (None, "flat", "draped"):  # TASKS.csv #580
+        raise HTTPException(400, 'geometricFactor must be "flat" (the data used nominal flat-ground spacings) or "draped".')
 
 
 @app.post("/v1/geophys/plan")
@@ -484,6 +520,21 @@ class ImplicitModelRequest(BaseModel):
     # no geologist can reason about: 1.0 = exactly what GemPy would have done on its own (so the default
     # here is a strict no-op), <1 = tighter/more locally-controlled surfaces, >1 = smoother/stiffer.
     range_multiplier: float | None = Field(default=None, ge=0.1, le=10.0)
+    # TASKS.csv #767 — engine precision. float32 measured 27-31 % faster than float64 with the same surfaces (Harry-sized
+    # synthetic, 88 points / 317 orientations / 36^3: 81.5 -> 59.4 s; mesh vertices 0.11 m apart on average, 1.0 m at most,
+    # 3 of 46,656 block cells different). GemPy rescales its inputs to unit space before solving, which is why single
+    # precision holds; its own gravity tutorial runs float32. float64 stays available for comparison.
+    precision: Literal["float32", "float64"] = "float32"
+    # TASKS.csv #756 — points [x, y, z] (the request's frame) where the unit is wanted EXACTLY, evaluated in the same
+    # solve as the block (GemPy custom grid alongside the dense grid): the model check and the modelled-unit layer read
+    # these instead of the block cell the point falls in (measured: the 36^3 block put 1.3 % of 2 m drillhole samples in
+    # the wrong unit on a 1 km box; cells are 50-110 m on real extents). ~3 s extra per 5,000 points.
+    evaluate_at: List[List[float]] | None = Field(default=None, max_length=200_000)
+    # TASKS.csv #766 — how finely the surfaces are triangulated: GemPy's octree level for dual contouring (4 = GemPy's
+    # floor, what every run used). MEASURED (1 km box): 4 = 14.0 s, 348 vertices; 5 = 30.6 s, 1,392; 6 = 102 s, 5,575 -
+    # the surface's placement does not change (mean |dz| 1.58 / 1.57 / 1.57 m), only how finely it follows tight folds
+    # and fault steps. The block (model check, volumes) is set by `resolution`, not by this.
+    surface_detail: int = Field(default=4, ge=4, le=6)
 
 
 class MeshOut(BaseModel):
@@ -505,6 +556,12 @@ class ImplicitModelResponse(BaseModel):
     block: dict | None = None
     # TASKS.csv #512 — orientations dropped as exact repeats inside the one ONLAP group (see _dedupe_onlap_orientations)
     orientations_deduplicated: int | None = None
+    # TASKS.csv #655 — GemPy's per-axis input scale relative to its smallest (1, 1, 1 = isotropic, as it must be)
+    input_scale_ratios: List[float] | None = None
+    precision: str | None = None  # TASKS.csv #767 — the engine precision actually used
+    surface_detail: int | None = None  # TASKS.csv #766 — the surface octree level actually used
+    # TASKS.csv #756 — unit id at each evaluate_at point, numbered like block["ids"] (id 1 = above every modelled top)
+    evaluated: List[int] | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -646,6 +703,22 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
         if fault_group_names:
             gp.set_is_fault(model, fault_group_names)  # #360
+        # TASKS.csv #655 — GemPy's input rescale is NOT isotropic as built: transforms.py computes its per-axis
+        # ratios once and rewrites them with a stale list, so whenever the vertical span lies between the two
+        # horizontal spans the shorter horizontal axis is stretched (control points 500 x 1000 x 700 m -> scale
+        # ratios 1.429 : 1 : 1; a 300 x 2000 x 350 m fence 5.7 : 1; a third of random data boxes, worst 22 : 1)
+        # — a hidden anisotropy on top of the one the user chose. Re-running the transform with NONE (what
+        # GemPy's own examples_generator does) gives 1 : 1 : 1 for every span (checked on 20,000 random boxes).
+        model.update_transform(gp.data.GlobalAnisotropy.NONE)
+        if req.evaluate_at:  # TASKS.csv #756 — the exact points, in the SAME solve as the block (dense + custom grids)
+            from gempy.core.data import Grid
+            pts = np.asarray(req.evaluate_at, dtype=float)
+            if pts.ndim != 2 or pts.shape[1] != 3 or not np.all(np.isfinite(pts)):
+                raise ValueError("evaluate_at must be finite [x, y, z] points")
+            gp.set_custom_grid(model.grid, pts, reset=False)
+            gp.set_active_grid(model.grid, [Grid.GridTypes.DENSE, Grid.GridTypes.CUSTOM])
+        _sc = np.asarray(model.input_transform.scale, dtype=float)
+        input_scale_ratios = [round(float(v), 4) for v in (_sc / _sc.min())]
         # TASKS.csv #274 — capture GemPy's own default range BEFORE any override, so the response can
         # report both what GemPy would have used and what was actually used.
         kernel = model.interpolation_options.kernel_options
@@ -654,7 +727,13 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
             kernel.range = range_default * req.range_multiplier
         range_used = float(kernel.range)
         c_o = float(kernel.c_o)
-        sol = gp.compute_model(model)
+        if req.surface_detail != 4:  # #766 — the getter caps this at number_octree_levels, so raise that too if needed
+            ev = model.interpolation_options.evaluation_options
+            if ev.number_octree_levels < req.surface_detail:
+                ev.number_octree_levels = req.surface_detail
+            ev.number_octree_levels_surface = req.surface_detail
+        surface_level_used = int(model.interpolation_options.evaluation_options.number_octree_levels_surface)
+        sol = gp.compute_model(model, engine_config=gp.data.GemPyEngineConfig(backend=gp.data.AvailableBackends.numpy, dtype=req.precision))  # #767
     except Exception as err:  # GemPy raises a variety of exception types depending on what's ill-posed
         raise HTTPException(status_code=400, detail=f"GemPy could not solve this model: {err}")
 
@@ -688,4 +767,8 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         ids = (np.rint(np.asarray(sol.raw_arrays.lith_block)).astype(int) - len(fault_elements)).tolist()
         labels = [None] + [sf.name for sf in req.surfaces]
         block = {"resolution": res, "extent": list(req.extent), "ids": ids, "labels": labels}
-    return ImplicitModelResponse(surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped)
+    evaluated = None
+    if req.evaluate_at:  # #756 — same id shift as the block (fault elements take the first ids)
+        evaluated = (np.rint(np.asarray(sol.raw_arrays.custom)).astype(int) - len(fault_elements)).tolist()
+    return ImplicitModelResponse(evaluated=evaluated, surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
+                                 input_scale_ratios=input_scale_ratios, precision=req.precision, surface_detail=surface_level_used)

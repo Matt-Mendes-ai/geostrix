@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X, Database, Play, Loader2, Save, Trash2 } from "./icons.js";
-import { dbLiveQuery, dbLiveListTables } from "../lib/desktop.js";
+import { dbLiveQuery, dbLiveListTables, dbPasswordStatus, dbForgetPassword } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useSavedQueries } from "../lib/useSavedQueries.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -37,6 +37,15 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
   const liveEntry = config.name ? liveDbConnections[config.name] : null;
 
   const set = (k, v) => setConfig((p) => ({ ...p, [k]: v }));
+  // TASKS.csv #621 — is a password remembered (OS-encrypted, this computer only) for exactly this login?
+  const [pw, setPw] = useState({ saved: false, available: false });
+  const loginKey = `${config.engine}|${config.host}|${config.port}|${config.database}|${config.user}`;
+  useEffect(() => {
+    let live = true;
+    dbPasswordStatus(config).then((r) => { if (live) setPw(r || { saved: false, available: false }); });
+    return () => { live = false; };
+  }, [loginKey]);
+  const forgetPassword = async () => { await dbForgetPassword(config); setPw((p) => ({ ...p, saved: false })); set("rememberPassword", false); };
 
   const loadSaved = (name) => {
     const saved = dbConnections.find((c) => c.name === name);
@@ -50,6 +59,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
     setStatus(res);
     setTesting(false);
     if (res.ok) {
+      if (res.passwordSaved) setPw((p) => ({ ...p, saved: true })); // #621
       // save profile without the password
       const { password, ...safe } = config;
       setDbConnections((prev) => {
@@ -90,7 +100,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-            Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. Password is used for this session only; never saved to disk or to the project file. Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
+            Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick "Remember the password" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
           </div>
 
           {dbConnections.length > 0 && (
@@ -123,8 +133,25 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
               <input value={config.user} onChange={(e) => set("user", e.target.value)} style={inp} />
             </Field>
             <Field label="Password">
-              <input type="password" value={config.password} onChange={(e) => set("password", e.target.value)} style={inp} />
+              <input type="password" value={config.password} onChange={(e) => set("password", e.target.value)} style={inp}
+                placeholder={pw.saved ? "Saved on this computer — leave empty" : ""} aria-describedby="db-pw-note" />
             </Field>
+          </div>
+          {/* TASKS.csv #621 — opt-in remembered password */}
+          <div id="db-pw-note" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 6 }}>
+            {pw.saved ? (
+              <>
+                <span style={{ flex: 1 }}>A password is saved on this computer for this login (encrypted with your Windows account). Leave the box empty to use it.</span>
+                <button type="button" onClick={forgetPassword} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>Forget it</button>
+              </>
+            ) : pw.available ? (
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title="Kept encrypted by the operating system (Windows: only your Windows account on this computer can read it), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.">
+                <input type="checkbox" checked={!!config.rememberPassword} onChange={(e) => set("rememberPassword", e.target.checked)} style={{ marginTop: 2 }} />
+                <span>Remember the password on this computer (encrypted, never in the project file)</span>
+              </label>
+            ) : (
+              <span>The password is used for this session only (remembering it needs the desktop app with an OS key store).</span>
+            )}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginTop: 6, marginBottom: 10 }}>
             <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} /> Use SSL (server certificate is verified)

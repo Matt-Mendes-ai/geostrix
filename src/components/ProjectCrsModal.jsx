@@ -73,11 +73,11 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
               <div><b>{crsName(choice) || `EPSG:${choice}`}</b> <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{choice}</span></div>
               {collars.length > 0 && (landing
                 ? <div>Your {collars.length} collar{collars.length === 1 ? "" : "s"} would be at <b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? ` — ${kmFromStated.toLocaleString()} km from where you said` : ""}.{kmFromStated > 50
-                    ? <span style={{ color: "var(--color-danger-text)", fontWeight: 600 }}> That is {kmFromStated.toLocaleString()} km from where you said: almost certainly the wrong CRS or UTM zone.</span>
+                    ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}> That is {kmFromStated.toLocaleString()} km from where you said: almost certainly the wrong CRS or UTM zone.</span>
                     : " If that isn't the project, this is the wrong CRS or zone."}</div>
-                : <div style={{ color: "var(--color-danger-text)" }}>The collar coordinates don&apos;t fit this CRS (they land off the globe), so it is the wrong one.</div>)}
-              {datumNote(choice) && <div style={{ color: "#e0a030" }}>⚠ {datumNote(choice)}</div>}
-              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>This relabels the project: no coordinates change. To convert data into another CRS, use &quot;Reproject all data&quot; in the Cartography tab.</div>}
+                : <div style={{ color: "var(--color-danger-fg)" }}>The collar coordinates don&apos;t fit this CRS (they land off the globe), so it is the wrong one.</div>)}
+              {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
+              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>This relabels the project: no coordinates change. To convert data into another CRS, use &quot;Reproject all data&quot; in the Maps tab (Project CRS).</div>}
             </div>
           )}
         </div>

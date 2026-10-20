@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GeoStrix — free 3D software for mineral exploration</title>
+  <meta name="description" content="GeoStrix is free, open-source 3D software for mineral exploration: drillholes, geochemistry, geophysics, modelling and drill planning on an ordinary laptop, offline, with no licence to buy.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+  <meta property="og:title" content="GeoStrix — free 3D software for mineral exploration">
+  <meta property="og:description" content="From drill data to targets, in one desktop app — drillholes, geochemistry, geophysics and 3D modelling, free and open source.">
+  <meta property="og:image" content="https://geostrix.com/img/3dview-2.webp">
+  <meta property="og:url" content="https://geostrix.com/">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="img/icon-128.png" alt="" width="34" height="34">GeoStrix</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a class="hide-sm" href="#support">Support</a>
+        <a class="hide-sm" href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <h1>3D software for <span>mineral exploration</span>, free for everyone</h1>
+          <p class="lead">Drillholes, geochemistry, geophysics, modelling and drill planning in one place — on an ordinary laptop, offline, with no account and no licence to buy.</p>
+          <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Download for Windows</a>
+          <a class="btn ghost" href="https://github.com/Matt-Mendes-ai/geostrix">View the source</a>
+          <div class="dl-note" data-version>Windows 10 / 11 (64-bit) · free and open source (MIT)</div>
+        </div>
+        <img class="shot" src="img/3dview-2.webp" width="1419" height="803" alt="GeoStrix 3D view: drillholes coloured by lithology with structure planes, among blocks of an inverse-distance gold estimate">
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Why GeoStrix</h2>
+        <p class="sub">GeoStrix is made to support mineral exploration everywhere, especially where resources are scarce.</p>
+        <div class="pillars">
+          <div class="card"><h3>Built for exploration</h3><p>Made for exploration geologists: drillholes, geochemistry and geophysics come together to answer one question — where to drill next.</p></div>
+          <div class="card"><h3>Easy to use</h3><p>Drop in your files and GeoStrix recognises them, checks the data, and explains what it did in plain language.</p></div>
+          <div class="card"><h3>Light enough for a cheap computer</h3><p>Runs on an ordinary laptop with no special hardware and no internet connection.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="features">
+      <div class="wrap">
+        <h2>What it does</h2>
+        <p class="sub">Import CSV and Excel files, shapefiles, GeoPackages, GeoTIFFs and DXF, or connect straight to a PostgreSQL or MySQL database.</p>
+        <div class="features">
+          <div><h3>Drillholes in 3D</h3><p>Collars, surveys and every kind of log; desurveyed traces with terrain, cross-sections, level plans, fence diagrams, strip logs and data checks.</p></div>
+          <div><h3>Geochemistry</h3><p>Classification and alteration diagrams, statistics, compositing, best intercepts, and QA/QC of standards, blanks and duplicates.</p></div>
+          <div><h3>Geophysics</h3><p>Point surveys, grids and voxel models, plus magnetic, gravity and 2D DC resistivity / IP inversion.</p></div>
+          <div><h3>Modelling and targeting</h3><p>Implicit geological surfaces and faults, grade shells, block models, structural analysis and drill planning to a target.</p></div>
+          <div><h3>Maps and reports</h3><p>Any coordinate system worldwide, map and web layers, claims, and print-ready layouts exported to PDF.</p></div>
+          <div><h3>Your data stays yours</h3><p>No account, no telemetry, no cloud. Projects are files on your computer. <a href="privacy.html">Privacy</a></p></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap wide">
+        <h2>A look inside</h2>
+        <p class="sub">Shown with the bundled sample project: 37 real drillholes from British Columbia's public ARIS database (report 37584).</p>
+        <div class="carousel" data-carousel aria-roledescription="carousel" aria-label="GeoStrix screenshots">
+          <div class="slides">
+            <figure class="slide" aria-roledescription="slide" aria-label="1 of 5">
+              <a href="img/3dview-models.webp"><img src="img/3dview-models.webp" width="1911" height="883" alt="GeoStrix 3D view of the sample project: drillholes with structure planes and lithology, among block models built from the drilling, including an inverse-distance gold estimate in blue"></a>
+              <figcaption>The 3D view: drillholes, structure planes and block models built from the drilling, including an inverse-distance gold estimate (blue), with the layer list and legend.</figcaption>
+            </figure>
+            <figure class="slide" aria-roledescription="slide" aria-label="2 of 5">
+              <div class="pair">
+                <a href="img/tadpole.webp"><img src="img/tadpole.webp" width="685" height="655" loading="lazy" alt="Downhole tadpole plot for hole 17HR-268: structural picks plotted at depth against angle to core axis, with dip-direction tails, a lithology column and a frequency track"></a>
+                <a href="img/stereonet.webp"><img src="img/stereonet.webp" width="649" height="744" loading="lazy" alt="Equal-area stereonet of 578 downhole structure picks with their mean orientation and Fisher statistics"></a>
+              </div>
+              <figcaption>Structure: a downhole tadpole plot (left) and an equal-area stereonet with the mean orientation and Fisher statistics (right). The sample project's structural picks are illustrative.</figcaption>
+            </figure>
+            <figure class="slide" aria-roledescription="slide" aria-label="3 of 5">
+              <a href="img/ternary.webp"><img src="img/ternary.webp" width="618" height="543" loading="lazy" alt="Ternary diagram of Al2O3, FeOt plus TiO2 and MgO for every assayed interval, coloured by logged lithology, with a tooltip showing a sample's hole, depth and rock type"></a>
+              <figcaption>An Al₂O₃ – (FeOt + TiO₂) – MgO ternary of every assayed interval, coloured by logged lithology. Point at a sample to see its hole, depth and rock type.</figcaption>
+            </figure>
+            <figure class="slide" aria-roledescription="slide" aria-label="4 of 5">
+              <a href="img/geochem.webp"><img src="img/geochem.webp" width="1400" height="788" loading="lazy" alt="Alteration box plot: Ishikawa alteration index against the chlorite-carbonate-pyrite index, samples classified by alteration trend"></a>
+              <figcaption>Alteration box plot (Large et al. 2001), classified against the logged lithology.</figcaption>
+            </figure>
+            <figure class="slide" aria-roledescription="slide" aria-label="5 of 5">
+              <a href="img/striplog.webp"><img src="img/striplog.webp" width="760" height="769" loading="lazy" alt="Strip log of drillhole 17HR-272 with lithology, magnetic susceptibility, alteration, veins, RQD and gold"></a>
+              <figcaption>Strip log: every log and assay down one hole.</figcaption>
+            </figure>
+          </div>
+          <div class="controls" hidden>
+            <button type="button" class="nav prev" aria-label="Previous picture">&#8249;</button>
+            <div class="dots"></div>
+            <button type="button" class="pause" aria-label="Pause the slideshow">Pause</button>
+            <button type="button" class="nav next" aria-label="Next picture">&#8250;</button>
+          </div>
+        </div>
+        <p class="muted small">Click a picture to open it full size.</p>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap">
+        <div class="notice">
+          <h3>An exploration tool, not resource-estimation software</h3>
+          <p>GeoStrix's grade tools use nearest-neighbour, inverse-distance or moving-least-squares interpolation, with no kriging, classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101, JORC or any comparable code; public disclosure of tonnage or grade needs an estimate by a Qualified Person.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="wrap two">
+        <div>
+          <h2>Download</h2>
+          <p>GeoStrix is free and open source under the MIT licence. The installer includes everything, including the Python engine used for implicit modelling and inversions. It updates itself when a new version is out.</p>
+          <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Download for Windows</a>
+          <p class="dl-note muted" data-version>Windows 10 / 11 (64-bit)</p>
+          <p class="muted small">Every release, its checksums and the full source are on <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
+          <p class="muted small"><a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Code signing policy</a> · <a href="privacy.html">Privacy policy</a> · To uninstall: Windows Settings → Apps → Installed apps → GeoStrix → Uninstall (your project files are kept).</p>
+        </div>
+        <div>
+          <h3>If Windows warns you</h3>
+          <p class="muted mid">GeoStrix is not code-signed yet, so Windows SmartScreen or your antivirus may hold a brand-new installer the first time:</p>
+          <ol class="steps">
+            <li>On “Windows protected your PC”, click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+            <li>If nothing happens at all, your antivirus may have quarantined it: restore the file from its quarantine, or right-click it → <strong>Properties</strong> → tick <strong>Unblock</strong>.</li>
+            <li>Updates installed from inside GeoStrix are not affected.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="support">
+      <div class="wrap two">
+        <div>
+          <h2>Support</h2>
+          <p>Found a bug, or have an idea? Email <a href="mailto:support@geostrix.com">support@geostrix.com</a>, or open an issue on <a href="https://github.com/Matt-Mendes-ai/geostrix/issues">GitHub</a>. In GeoStrix, <strong>Help → Report a Problem</strong> puts your description, a picture of the window and the technical details into a zip file and opens the email for you — you attach the file and send it.</p>
+        </div>
+        <div>
+          <h2>Open source</h2>
+          <p>The code is on <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a> under the MIT licence: use it, study it, change it. Contributions are welcome — start with an issue.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <span>© 2026 Matt Mendes · GeoStrix is free software (MIT)</span>
+      <a href="privacy.html">Privacy</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Code signing policy</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a>
+      <span class="right">This site uses no cookies.</span>
+    </div>
+  </footer>
+  <script src="download.js" defer></script>
+  <script src="gallery.js" defer></script>
+</body>
+</html>

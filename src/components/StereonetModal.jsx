@@ -111,7 +111,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // one definition of "this population is a girdle" and can never disagree about whether to show it.
   // TASKS.csv #425 — Woodcock K/C (lib/stereonet.js fabricShape) instead of s1 - s2 < 0.12, which was
   // only reached after a "s1 > 0.65 = tight cluster" check and so called open folds tight clusters.
-  const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3) : null;
+  const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3, stats.n) : null; // #713 n: too few picks to judge
   const isGirdle = fabric?.shape === "girdle";
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
@@ -299,7 +299,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             </label>
             {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
-                domains the Modeling tab's tools use, so "Fault block A" means one thing app-wide. */}
+                domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
             {domainFilter && domains.length > 0 && (
               <label style={rowLabel} title="Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.">
                 Structural domain
@@ -330,7 +330,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             <label
               style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6, color: canTerzaghi ? "#55606e" : "#a8b0ba", cursor: canTerzaghi ? "pointer" : "default" }}
               title={canTerzaghi
-                ? "Terzaghi (1965) correction. Every pick here comes from a drillhole, and a hole intersects structures at a rate proportional to sin(alpha) — so it under-samples anything near-parallel to it and over-samples anything near-perpendicular. This weights each pick by 1/sin(alpha) to undo that, which can genuinely change which orientation reads as dominant."
+                ? "Terzaghi (1965) correction. A drillhole intersects structures at a rate proportional to sin(alpha) — so it under-samples anything near-parallel to it and over-samples anything near-perpendicular. This weights each drillhole pick by 1/sin(alpha) to undo that, which can genuinely change which orientation reads as dominant. Outcrop readings have no hole and keep weight 1; with both sources shown, the drillhole weights are scaled to average 1 so neither population outweighs the other by more than its number of readings."
                 : "Needs each pick's hole attitude at its own depth (collar + survey data for the holes these picks came from)."}
             >
               <input type="checkbox" checked={terzaghiOn && canTerzaghi} disabled={!canTerzaghi} onChange={(e) => setTerzaghiOn(e.target.checked)} /> Terzaghi correction
@@ -340,6 +340,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 <div style={{ fontWeight: 600, marginBottom: 2 }}>Terzaghi-corrected</div>
                 <div>{stats.terzaghi.weighted} of {stats.n} pick(s) weighted{stats.terzaghi.unweighted ? `; ${stats.terzaghi.unweighted} left at weight 1 (no hole attitude)` : ""}.</div>
                 <div>Effective n = {stats.nEff.toFixed(1)} <span style={{ color: "#9a7c46" }}>(k/α95 use this, not the raw count)</span></div>
+                {/* TASKS.csv #574 — mixed drillhole + outcrop set: say how the two were balanced */}
+                {stats.terzaghi.normalisedMixed && <div style={{ marginTop: 2 }}>Drillhole weights scaled to average 1, so the drillhole picks correct each other without outweighing the {stats.terzaghi.unweighted} unweighted reading(s).</div>}
                 {stats.terzaghi.cappedCount > 0 && (
                   <div style={{ marginTop: 2 }}>
                     {stats.terzaghi.cappedCount} pick(s) hit the ×{stats.terzaghi.maxWeight} weight cap. Anything within {stats.terzaghi.blindZoneDeg.toFixed(1)}° of parallel to its hole is in the blind zone — weighting cannot recover a set no hole ever crossed.
@@ -415,6 +417,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   <span title={`Woodcock shape K = ${fabric.K.toFixed(2)} (< 1 girdle, > 1 cluster), strength C = ${fabric.C.toFixed(1)}`}>
                     {isGirdle ? "Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below."
                       : fabric.shape === "cluster" ? "Tight cluster — a single dominant orientation."
+                      : fabric.shape === "few" ? "Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks."
                       : fabric.shape === "weak" ? "Weak / no preferred orientation — treat this mean with caution."
                       : "Moderate clustering."}
                   </span>
@@ -441,8 +444,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                     onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
-                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Copy this mean plane into the Modelling tab's anisotropy trend fields"}
-                  >Use as anisotropy trend</button>
+                    title={isGirdle ? "Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first." : "Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there (#671)"}
+                  >Add as structural trend</button>
                 )}
               </div>
             ) : (

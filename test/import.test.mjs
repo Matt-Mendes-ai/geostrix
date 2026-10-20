@@ -123,3 +123,19 @@ test("#600 collars in two files (Coordinates, then Headers with depth): fills me
   assert.equal(mergeCollar(headers[0], { ...headers[0], z: 970 }, false).z, 965.237);
   assert.equal(mergeCollar(headers[0], { ...headers[0], z: 970 }, true).z, 970);
 });
+
+test("#582 a hole-extension file is appended below the existing rows; an overlapping one still replaces", async () => {
+  const { replaceRowsByHole } = await import("../src/lib/layers.js");
+  const old = [{ hole_id: "A", from: 0, to: 80, value: "AND" }, { hole_id: "A", from: 80, to: 150, value: "DACT" }, { hole_id: "B", from: 0, to: 50, value: "AND" }];
+  const ext = replaceRowsByHole(old, [{ hole_id: "A", from: 150, to: 300, value: "VCL" }]);
+  assert.deepEqual(ext.appendedHoles, ["A"]); assert.deepEqual(ext.replacedHoles, []);
+  assert.equal(ext.rows.filter((r) => r.hole_id === "A").length, 3); // 0-150 kept, 150-300 added
+  const corr = replaceRowsByHole(old, [{ hole_id: "A", from: 0, to: 160, value: "DACT" }]);
+  assert.deepEqual(corr.replacedHoles, ["A"]); assert.equal(corr.rows.filter((r) => r.hole_id === "A").length, 1);
+  // survey: a deepening survey's first station repeats the old last one -> one station there, the new one
+  const sv = [{ hole_id: "A", depth: 0, azimuth: 90, dip: 60 }, { hole_id: "A", depth: 150, azimuth: 91, dip: 59 }];
+  const s2 = replaceRowsByHole(sv, [{ hole_id: "A", depth: 150, azimuth: 91.5, dip: 59 }, { hole_id: "A", depth: 300, azimuth: 93, dip: 57 }]);
+  assert.deepEqual(s2.appendedHoles, ["A"]); assert.deepEqual(s2.rows.map((r) => [r.depth, r.azimuth]), [[0, 90], [150, 91.5], [300, 93]]);
+  // rows without depths keep the old replace rule
+  assert.deepEqual(replaceRowsByHole([{ hole_id: "A", d: 0 }], [{ hole_id: "A", d: 1 }]).replacedHoles, ["A"]);
+});

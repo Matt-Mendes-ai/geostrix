@@ -46,6 +46,7 @@ export function parseDXF(text) {
   // so open strings are not drawn as loops.
   const polylines = [], layers = [], closed = [];
   let has3D = false, faces = 0;
+  const skipped = {}; // TASKS.csv #550 — entity types not imported, counted for the notice
   const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
   const push = (verts, layer, isClosed) => {
     if (verts.some((q) => q.z != null)) has3D = true;
@@ -71,7 +72,7 @@ export function parseDXF(text) {
       if ([pt.x, pt.y, pt2.x, pt2.y].every(Number.isFinite)) push([pt, pt2], layer, false);
     } else if (type === "LWPOLYLINE") {
       const verts = [];
-      let cur = null, layer = "0", elev = null, flags = 0;
+      let cur = null, layer = "0", elev = null, flags = 0; // elev: code 38 when present (0 included, #550)
       i++;
       while (i < entEnd && pairs[i][0] !== 0) {
         const [c, v] = pairs[i];
@@ -83,17 +84,18 @@ export function parseDXF(text) {
         i++;
       }
       if (cur) verts.push(cur);
-      const usable = verts.filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y)).map((q) => ({ ...q, z: elev != null && elev !== 0 ? elev : null }));
+      const usable = verts.filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y)).map((q) => ({ ...q, z: elev })); // #550 — 0 is resolved file-wide below
       if (usable.length > 1) push(usable, layer, flags & 1);
     } else if (type === "POLYLINE") {
       // Old-style polyline: the POLYLINE entity itself carries no vertices — each is a separate
       // VERTEX entity immediately following, terminated by a SEQEND. Flag 8 = 3D polyline, 1 = closed,
       // 16/64 = polygon/polyface mesh (a SOLID — see parseDXFMesh), skipped here.
-      let layer = "0", flags = 0;
+      let layer = "0", flags = 0, headerZ = null;
       i++;
       while (i < entEnd && pairs[i][0] !== 0) {
         if (pairs[i][0] === 8) layer = pairs[i][1];
         else if (pairs[i][0] === 70) flags = parseInt(pairs[i][1], 10) || 0;
+        else if (pairs[i][0] === 30) headerZ = num(pairs[i][1]); // #550 — a 2D polyline's elevation (R12 contours)
         i++;
       }
       const verts = [];
@@ -112,7 +114,8 @@ export function parseDXF(text) {
           i++;
         }
       }
-      if (!(flags & 16) && !(flags & 64) && verts.length > 1) push(flags & 8 ? verts : verts.map((q) => ({ ...q, z: q.z || null })), layer, flags & 1);
+      // #550 — a 2D polyline's vertices sit at the header's elevation (code 30); without one, a vertex's own non-zero z
+      if (!(flags & 16) && !(flags & 64) && verts.length > 1) push(flags & 8 ? verts : verts.map((q) => ({ ...q, z: headerZ != null ? headerZ : q.z || null })), layer, flags & 1);
       else if (flags & 64) faces++;
       i++; // past SEQEND
     } else if (type === "POINT") {
@@ -131,24 +134,59 @@ export function parseDXF(text) {
       // callers that only draw >=2-point loops (e.g. ViewerModule's LineLoop renderer) simply won't
       // render it, same as any other too-short loop.
       if (Number.isFinite(pt.x) && Number.isFinite(pt.y)) push([pt], layer, false);
+    } else if (type === "CIRCLE" || type === "ARC") {
+      // #550 — collar symbols, pit-shell arcs: drawn as polylines (48 segments a full turn) at the entity's elevation
+      let layer = "0", cx = null, cy = null, cz = null, r = null, a0 = 0, a1 = 360;
+      i++;
+      while (i < entEnd && pairs[i][0] !== 0) {
+        const [c, v] = pairs[i];
+        if (c === 8) layer = v; else if (c === 10) cx = num(v); else if (c === 20) cy = num(v); else if (c === 30) cz = num(v);
+        else if (c === 40) r = num(v); else if (c === 50) a0 = num(v) ?? 0; else if (c === 51) a1 = num(v) ?? 360;
+        i++;
+      }
+      if ([cx, cy, r].every(Number.isFinite) && r > 0) {
+        const full = type === "CIRCLE";
+        let sweep = full ? 360 : ((a1 - a0) % 360 + 360) % 360 || 360; // an ARC runs counter-clockwise from 50 to 51
+        const n = Math.max(4, Math.ceil(48 * sweep / 360));
+        const pts = [];
+        for (let k = 0; k <= (full ? n - 1 : n); k++) { const t = ((a0 + (sweep * k) / n) * Math.PI) / 180; pts.push({ x: cx + r * Math.cos(t), y: cy + r * Math.sin(t), z: cz }); }
+        push(pts, layer, full);
+      }
     } else {
       if (type === "3DFACE") faces++;
+      else if (!["SEQEND", "VERTEX", "ENDSEC", "EOF"].includes(type)) skipped[type] = (skipped[type] || 0) + 1; // #550
       i++;
     }
   }
+
+  // TASKS.csv #550 — elevation 0. AutoCAD writes a 0 elevation on nearly every 2D entity by default, so a file whose
+  // strings are ALL at 0 is a plan drawing (claims, outlines) with no elevation, not a drawing at sea level; but in a
+  // file that carries real elevations, a 0 is real too (a sea-level or mine-grid-zero string among contours).
+  const anyNonZero = polylines.some((pl) => pl.some((q) => q.z != null && q.z !== 0));
+  let zerosDropped = false;
+  if (!anyNonZero) {
+    polylines.forEach((pl, k) => { if (pl.some((q) => q.z === 0)) { zerosDropped = true; polylines[k] = pl.map((q) => ({ x: q.x, y: q.y })); } });
+    has3D = false;
+  } else has3D = true;
 
   if (!polylines.length) {
     const err = new Error(faces ? "This DXF contains only faces (3DFACE / polyface mesh) — it is a solid, not strings." : "No usable LINE/LWPOLYLINE/POLYLINE/POINT entities found in this DXF's ENTITIES section.");
     err.facesOnly = faces > 0;
     throw err;
   }
-  return { polylines, layers, closed, has3D };
+  return { polylines, layers, closed, has3D, skipped, zerosDropped };
+}
+
+// TASKS.csv #550 — "skipped 37 TEXT, 12 INSERT" for the import notice ("" when nothing was skipped)
+export function dxfSkippedText(skipped) {
+  const e = Object.entries(skipped || {}).sort((a, b) => b[1] - a[1]);
+  return e.length ? `skipped ${e.map(([t, n]) => `${n} ${t}`).join(", ")} (not imported: text, block references and fills carry no line geometry GeoStrix uses)` : "";
 }
 
 // TASKS.csv #408 — one boundary spec per DXF layer (a CAD file's layers are its real grouping: pit crest,
 // toe, centreline...), each keeping its vertices' Z when the file has any.
 export function dxfToBoundaries(text, baseName) {
-  const { polylines, layers, closed, has3D } = parseDXF(text);
+  const { polylines, layers, closed, has3D, skipped, zerosDropped } = parseDXF(text);
   const byLayer = new Map();
   polylines.forEach((pl, k) => {
     if (!byLayer.has(layers[k])) byLayer.set(layers[k], { polylines: [], closedFlags: [] });
@@ -161,6 +199,7 @@ export function dxfToBoundaries(text, baseName) {
     polylines: g.polylines, closedFlags: g.closedFlags,
     useVertexZ: has3D && g.polylines.some((pl) => pl.some((q) => q.z != null)),
     dxfLayer: layer,
+    dxfSkipped: skipped, dxfZerosDropped: zerosDropped, // #550 — for the import notice
   }));
 }
 
@@ -398,13 +437,11 @@ export function parseDXFMesh(text, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Export: writes a minimal, valid ASCII DXF (R12-compatible subset — just ENTITIES, no HEADER/
-// TABLES/BLOCKS — every DXF reader tested against, including QGIS and AutoCAD, accepts this) from the
-// same {features:[{geometry:[[x,y,z],...], attributes}], geomType} shape buildVectorFeatures()
-// (ViewerModule.jsx) already produces for Shapefile/GeoPackage export, so this is a third output
-// format on the exact same data path rather than a new one. Plan-view only (X/Y; Z is dropped) per
-// this task's own framing — DXF's LWPOLYLINE entity (used here for both "polyline" and multi-vertex
-// geometry) is inherently 2D-per-vertex anyway. Each entity's DXF layer is set to its attributes'
+// Export: writes a minimal ASCII R12 DXF (a HEADER with only $ACADVER = AC1009, then ENTITIES; no TABLES /
+// BLOCKS, which R12 does not require) from the same {features:[{geometry:[[x,y,z],...], attributes}], geomType}
+// shape buildVectorFeatures() (ViewerModule.jsx) already produces for Shapefile/GeoPackage export, so this is a
+// third output format on the exact same data path rather than a new one. Entities: POINT, and POLYLINE + VERTEX
+// (3D when the geometry has elevations, #408; 2D otherwise; closed for rings, #578). Each entity's DXF layer is set to its attributes'
 // hole_id when present (so a surveyor opening the file gets one CAD layer per drillhole, the way
 // they'd expect), falling back to a shared "GEOSTRIX" layer otherwise.
 function sanitizeLayerName(name) {
@@ -415,6 +452,11 @@ export function buildDXF({ features, geomType }) {
   const lines = [];
   const put = (code, value) => { lines.push(String(code), String(value)); };
 
+  // TASKS.csv #578 — the file says it is R12 (AC1009) and every entity is an R12 one. 2D strings used to be written
+  // as LWPOLYLINE, an R14 / R2000 entity, without the AcDbEntity / AcDbPolyline subclass markers and handles R2000
+  // readers expect, in a file with no header (so read as R12): lenient readers (GDAL / QGIS) coped, strict ones
+  // (AutoCAD, some Micromine / Surpac versions) could drop them. Closed rings set the closed bit.
+  put(0, "SECTION"); put(2, "HEADER"); put(9, "$ACADVER"); put(1, "AC1009"); put(0, "ENDSEC");
   put(0, "SECTION"); put(2, "ENTITIES");
 
   // TASKS.csv #408 — Z is written. Points carry their real elevation (they were all written at 0), and a
@@ -429,14 +471,17 @@ export function buildDXF({ features, geomType }) {
       });
       return;
     }
-    if (f.geometry.some((p) => Number.isFinite(p[2]))) {
-      put(0, "POLYLINE"); put(8, layer); put(66, 1); put(70, 8); put(10, "0.0"); put(20, "0.0"); put(30, "0.0");
-      f.geometry.forEach((p) => { put(0, "VERTEX"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4)); put(70, 32); });
-      put(0, "SEQEND"); put(8, layer);
-      return;
-    }
-    put(0, "LWPOLYLINE"); put(8, layer); put(90, f.geometry.length); put(70, 0);
-    f.geometry.forEach(([x, y]) => { put(10, x.toFixed(4)); put(20, y.toFixed(4)); });
+    // a ring (polygon, or a string that ends where it starts): closed bit, without repeating the first vertex
+    let g = f.geometry;
+    const [a, b] = [g[0], g[g.length - 1]];
+    const ring = g.length > 3 && a[0] === b[0] && a[1] === b[1] && z(a) === z(b);
+    const closed = ring || (geomType === "polygon" && g.length > 2);
+    if (ring) g = g.slice(0, -1);
+    const is3d = g.some((p) => Number.isFinite(p[2]));
+    // R12 POLYLINE: 3D (flag 8, VERTEX flag 32) when there are elevations, else a 2D one (flag 0, VERTEX flag 0)
+    put(0, "POLYLINE"); put(8, layer); put(66, 1); put(70, (is3d ? 8 : 0) | (closed ? 1 : 0)); put(10, "0.0"); put(20, "0.0"); put(30, "0.0");
+    g.forEach((p) => { put(0, "VERTEX"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4)); put(70, is3d ? 32 : 0); });
+    put(0, "SEQEND"); put(8, layer);
   });
 
   put(0, "ENDSEC");

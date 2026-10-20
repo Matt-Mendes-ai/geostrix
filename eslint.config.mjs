@@ -23,6 +23,7 @@ export default [
       "no-unused-vars": ["warn", { args: "none", ignoreRestSiblings: true, varsIgnorePattern: "^_|^React$", caughtErrors: "none" }],
       "react/jsx-uses-vars": "error", // JSX use counts as use (otherwise every component reads as unused)
       "react/jsx-uses-react": "error",
+      "react/jsx-no-undef": "error", // TASKS.csv #587 — a JSX component that is not imported (no-undef does not see JSX names); #445 nearly shipped ~50 of them
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off", // many deliberate, commented omissions; the rule would be noise
     },

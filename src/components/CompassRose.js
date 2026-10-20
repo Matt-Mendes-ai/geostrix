@@ -43,7 +43,9 @@ export function createCompassRose({ camStateRef, updateCamera, dragRef }) {
   ringGroup.add(new THREE.Mesh(new THREE.TorusGeometry(ringR, 0.03, 8, 48), new THREE.MeshBasicMaterial({ color: 0x3a4454 })));
 
   const compassPts = [
-    { dir: [0, 0, -1], label: "N", color: "#e05a4a" },
+    // TASKS.csv #523 — N was red, the colour the axis gizmo beside it uses for EAST. Now a dark North blue (the gizmo's
+    // North hue, darkened to 6.0:1 on the viewport) so the two widgets agree.
+    { dir: [0, 0, -1], label: "N", color: "#1f5f9e" },
     { dir: [1, 0, 0], label: "E", color: "#1a2028" },
     { dir: [0, 0, 1], label: "S", color: "#1a2028" },
     { dir: [-1, 0, 0], label: "W", color: "#1a2028" },

@@ -1,3 +1,4 @@
+import { desurveyHole } from "./desurvey.js"; // TASKS.csv #524 — the deviated planned trace
 // TASKS.csv #119 — drillhole planning / target design. #188 already built the planned-hole ENTITY
 // (store.jsx `plannedHoles`, the Targeting sidebar's CRUD + dashed-cyan 3D rendering + CSV export)
 // and the "does this plan collide with an existing hole / how many metres of a narrowed voxel band
@@ -199,4 +200,54 @@ export function comparePlannedToActual(plannedPts, actualPts, step = 5) {
     azimuthDiff: ap?.azimuth != null && aa?.azimuth != null ? azDiff(ap.azimuth, aa.azimuth) : null,
     dipDiff: ap && aa ? aa.dip - ap.dip : null,
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// TASKS.csv #524 — expected LIFT and DRIFT. A planned hole was a straight line, so pierce points on targets
+// at depth were optimistic: Golden Triangle diamond holes commonly lift / drift 1-3°/100 m, and 2°/100 m of
+// lift moves the toe of a 600 m -60° hole tens of metres. Per planned hole (user convention, ° per 100 m):
+//   lift  > 0 : the hole FLATTENS with depth (dip -60 -> -58 over 100 m at lift 2)
+//   drift > 0 : the azimuth turns CLOCKWISE with depth (right-hand drift)
+// The trace is built from synthetic survey stations every `step` m through the same minimum-curvature desurvey
+// a real hole uses.
+// ---------------------------------------------------------------------------------------------
+export const hasDeviation = (h) => (Number(h?.lift) || 0) !== 0 || (Number(h?.drift) || 0) !== 0;
+
+// survey rows in desurvey.js's INTERNAL convention (dip positive down) for a planned hole with lift / drift
+export function deviationStations(hole, step = 10) {
+  const L = Number(hole.length) > 0 ? Number(hole.length) : 300;
+  const lift = Number(hole.lift) || 0, drift = Number(hole.drift) || 0;
+  const out = [];
+  for (let md = 0; md < L + 1e-9; md = Math.min(L, md + step)) {
+    const dipUser = Math.min(90, Math.max(-90, hole.dip + (lift * md) / 100)); // flattening = less negative
+    out.push({ depth: md, azimuth: norm360(hole.azimuth + (drift * md) / 100), dip: -dipUser });
+    if (md >= L) break;
+  }
+  return out;
+}
+
+// The one trace builder for a planned hole (3D view, exports, the targeting tools): straight without deviation —
+// exactly the old behaviour — or minimum curvature through the deviation stations.
+export function plannedTrace(hole) {
+  if (!hasDeviation(hole)) return desurveyHole({ ...hole, dip: -hole.dip }, []);
+  return desurveyHole({ ...hole, dip: -hole.dip }, deviationStations(hole), "minimumCurvature");
+}
+
+// Aim off so the CURVED hole reaches the target: start from the straight solution, see where the deviated hole
+// actually passes, move the aim point by the miss, repeat (converges in a few steps for realistic lift / drift).
+// Returns { azimuth, dip, length (md at the target), miss, iterations } in the user convention, or null.
+export function solveWithDeviation(collar, target, { lift = 0, drift = 0, tol = 0.05, maxIter = 12 } = {}) {
+  let aim = { ...target }, best = null;
+  for (let k = 1; k <= maxIter; k++) {
+    const s = solveOrientationToTarget(collar, aim);
+    if (!s) return null;
+    const probe = plannedTrace({ ...collar, azimuth: s.azimuth, dip: s.dip, length: s.length * 1.25 + 50, lift, drift });
+    const m = missDistanceToTarget(probe, target);
+    if (!m) return null;
+    const cand = { azimuth: s.azimuth, dip: s.dip, length: m.md, miss: m.distance, iterations: k };
+    if (!best || cand.miss < best.miss) best = cand;
+    if (m.distance < tol) break;
+    aim = { x: aim.x + (target.x - m.point.x), y: aim.y + (target.y - m.point.y), z: aim.z + (target.z - m.point.z) };
+  }
+  return best;
 }

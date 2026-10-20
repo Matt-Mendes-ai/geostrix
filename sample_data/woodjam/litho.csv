@@ -1,0 +1,680 @@
+hole_id,from,to,lithology,description
+MT23-118,0,43.5,OB,
+MT23-118,43.5,47,IMMOQ,mg qtz monz wt perv hem alt and frac controlled chl alt.
+MT23-118,47,74,IMMOQ,mg qtz monz. wt strg pot. alt vein selvage strongly faulted interval between 53.5-55m wt hem alt vein selvage. rounded mafic clasts throughout becomes heavily hem alt twrds the bttm . 3cm thick apilite dyke at 71m
+MT23-118,74,74.8,Fdyk,apilite dyke with vfg groundmass and 5% hbl crystals
+MT23-118,74.8,125.1,IMMOQ,"mod pot alt mg qtz moz wt crosscutting carb-fecarb, carb, illite and qtz veins stronger hem. alt halos. som elocalized chl-ser alt. 2-3cm mafic xenolith sparsely dispersed"
+MT23-118,125.1,126,Fdyk,felsic strong pot alt. fg qtz monz dyke with kfs ad plag crystals still apparent
+MT23-118,126,134.5,IMMOQ,"mod pot alt mg qtz monz. wt crosscutting carb, frac controlled clay alt. py-qtz veins"
+MT23-118,134.5,135.5,Fdyk,"mod pot alt. fg qtz monz. dyke wt illite, ccp-chl-carb and clay veins."
+MT23-118,135.5,150.2,IMMOQ,"strong pot alt mg qtz monz wt indistint grain boundaries and shreddy bt. crosscutting py-chl-carb, carb,  frac controlled clay alt and mod ser-chl vein selvage. apilite dyke at 145.3m"
+MT23-118,150.2,151,Fdyk,pot alt apilitic dyke with ccp and py veinlets
+MT23-118,151,160,IMMOQ,"mod pot alt mg qtz monz with 5% mafic rounded xenoliths crosscutting carb, veins some localized chl-ser alt around fractures"
+MT23-118,160,181.7,IMMOQ,"mod frac. weak to mod pot. alt. with crosscutting qtz, carb veins. more intensive low angle ccp-py-chl veins 168-173.5m. strong pot. vein selvage.. localized frac clay alt. mior apilite dykes"
+MT23-118,181.7,181.9,IMMOQ,strong pot and chl-ser alt. mg qtz monz. wt banded alt. some rounded mafic clasts diss throughout
+MT23-118,181.9,182.4,UTB,rounded to subrounded fault breccia associated to underlying flt wt/ strg pot  and chl-ser alt.
+MT23-118,182.4,182.6,UTG,clayey and chl-ser alt. flt gouge wt predom. chl content. mag diss in chl
+MT23-118,182.6,182.8,IMMOQ,strong pot alt. mg qtz monz. with ser-chl overprinting
+MT23-118,182.8,182.9,UTG,clayey and chloritic flt breccia strongly fractured
+MT23-118,182.9,214.5,IMMOQ,mod-strong pot alt mg qtz monz.  with mod frac controlled clay alt. . stronger pot. alt vein selvage
+MT23-118,214.5,246.1,ICMOQ,mod pot alt cg qtz monz. wt rounded mafic clasts diss throughout strg vein alt some prop alt. trace vnhos py-ccp
+MT23-118,246.1,246.45,UTB,poorly sorted flt breccia wt perv. chl-ser alt.
+MT23-118,246.45,247.1,ICMOQ,strg pot alt. cp qtz monz. frac controlled chl and cabr alt.
+MT23-118,247.1,247.55,UTB,strongly faulted interval wt strong ser-chl alt.
+MT23-118,247.55,270.5,ICMOQ,mod pot alt. cg qtz monz. wt weak faulting throughout some rounded mafic clasts. some seritization of plag. prop and pot alt vein selvage around ep veins. trace vnhos py-ccp
+MT23-118,270.5,271.3,UTB,clay and pot alt faulted qtz monz with chl-ser overprinting
+MT23-118,271.3,286,ICMOQ,mod pot alt cg qtz monz. ser overprinting strg pot alt vein selvage.
+MT23-118,286,292,IMMOQ,mod pot alt and ser overprint. high proportion of hbl cont. in this interval of monz (30%)
+MT23-118,292,296.5,IMMOQ,mod pot alt. mg qtz monz wt intensifying alt twrds the bttm of the interval with crosscutting ccp-py veins
+MT23-118,296.5,299,BX,"strong pot and chl-ser alt mg qtz monz with perv. hem alt of kfs and illite alt of plag, shreddy bt perv. crosscutting anh-qtz veins strongly faulted throughout leading to a clayey gouge at 298.8m. overprinting of prop alt."
+MT23-118,299,311.1,ICMOQ,"strong pot alt cg qtz monz wt crosscutting low angle ccp-carb, ccp-py veins. strop overpriting prop and chl-ser vein selvage at 209.8m."
+MT23-118,311.1,312.5,BX,brecciated cg qtz monz. wtstrong pot and overprinting prop alt perv. stockwork of qtz veining at312-312.4m. bttm of the intervals marked by graphitic flt
+MT23-118,312.5,320.5,IMMOQ,strg pot alt qtz monz wt 3% rounded mafic clasts. at 318.7m strong prop and chl-ser overprinting proximal to flt. crosscutting ccp veins throuhgout
+MT23-118,320.5,322.5,BX,strong prop overprinted brecciated mg qtz monz wt low angle qtz-tou-Mo vein at 323m and associated flt surface
+MT23-118,322.5,343.6,ICMOQ,mod pot alt. mg qtz monz wt prpp alt vein selvage. trace vnhos ccp-py
+MT23-118,343.6,346,BX,strong prop and chl-ser overprint alt brecciated strong pto altered mg qtz monz. grains of 5mm grains of py cemented into breccia. trace vnhos ccp
+MT23-118,346,379,IMMOQ,mod pot alt mg qtz monz wt stronger pot alt vein selvage. trace vnhos py and ccp. short interval of cg qtz monz from 346-350m indistinct gran boundaries ue to pot alt
+MT23-118,379,418,IMMOQ,v weak to mod pot alt. mg qtz monz wt rounded mafic clasts throughout. crosscutting carb vens. trace vnhos ccp-py. Stronger pot alt and more vnhos ccp mineralization twrds the bttm.
+MT23-118,418,452,IMMOQ,"mod-strong pot alt cg qtz monz. localized chl-ser alt from 435.5-437m. perv low conc cnhos ccp-py. at 421-421.5m mod min 3cm thick carbonate vein wt Mo-py-ccp.. mafic rounded clasts 1-3cm.,"
+MT23-116,0,48,OB,
+MT23-116,48,62.75,IMMOQ,"Med grained Qzmonz, mod perv Pot alt w/ Kfs-Bt-Mag as secondary mins, weak-mod perv Chl overprint of the secondary Bt, mod-str Kfs vnhalos, 0.5-1% Ccp, trace Mo+Bn"
+MT23-116,62.75,62.85,Fdyk,"Aplitic dyke 1-2cm wide, dyke is crosscut by Py+Ccp bearing Qzcarb veins"
+MT23-116,62.85,89,IMMOQ,"Med grained Qzmonz, weak- mod perv Pot alt w/ Kfs-Bt-Mag as secondary mins, weak-mod perv Chl overprint of the secondary Bt, mod-str Kfs+Ep vnhalos, 0.5% vnhos Ccp, trace Mo, 5cm diam rounded Mafic Xeno at 69.6m"
+MT23-116,89,110,IMMOQ,"weak perv prop alt. wt crosscutting carb-qtz, carb-hem and fecarb-carb veins. frac controlled clay alt. 1-2cm mafic xenoliths vnhos py-qtz veinlets.  pot vein selvage."
+MT23-116,110,119,IMMOQ,faulted weak perv pot alt. wt crosscutting carb-hem veins wt strg. pot vein selvage diss py throughout. 1-2cm mafic subrounded xenolith clast. frac cntrolled clay alt.. at base one 1mm vein with ccp and Bo
+MT23-116,119,123,IMMOQ,mod prop alt.wt crosscutting carb veiins wt intensifying carb stockwork towards base. xenolith clasts still apparent at low conc. 1cm thick apilite dyke at 121.5m
+MT23-116,123,131,IMMOQ,"weak perv pot alt. wt crosscutting carb-chl, blebby py-carb and carb-hem. stronger pot alt. as vein selvage frac cntrolled chl alt. ccp appears in diss. blebs at 125-126m."
+MT23-116,131,143,IMMOQ,mod perv prop alt with localized pot alt vein selvage. crosscutting carb- chl veins. py hosted in veinlets. flt with strg ser-chl alt vein selvage at 136.5. . diss blebby py throughout.
+MT23-116,143,155,IMMOQ,heavily faulted wk perv pot alt. wt alt assemblage of kfs-mag-chl. (plag->kfs) frac cntrolled clay and chl alt.. diss and vnhos py throughout. at 146.8m carboate fault BX. carb veins throughout
+MT23-116,155,164,IMMOQ,mod perv pot alt. wt strong mag alt assemblage and indistinct grain boundaries. vnhos py veinlets throughout. frac controlled frac controlled. py-chl veins
+MT23-116,164,164.3,UTG,flt gouge in strong pot alt qtz monz. with clay groundmass and strongly brecciated host rock below
+MT23-116,164.3,171.5,IMMOQ,strongly frac. strong pot and chl-ser alt medium grained qtz monz. wt localized vnhos min
+MT23-116,171.5,213.6,IMMOQ,weak pot alt. medium grained qtz monz. with rounded mafic xenolith clasts crosscutting hem-carb veins trace vnhos ccp and py. wt/ pot alt halos. mag alt throughout
+MT23-116,213.6,216.5,IMMOQ,heavily faulted interval of medium grained qtz monz. with mutliple flt breccias and strong perv ser-chl-clay-hem alt.
+MT23-116,216.5,228.4,IMMOQ,mod perv ser-chl alt. with pot. alt vein selvage. frac cntrolled clay alt. vnhos py and ccp and diss
+MT23-116,228.4,237.6,IMMOQ,"transition from perv. chl-ser alt mg qtz monz to a strong pot alt mg qtz monz with more faulting and crosscutting py-ccp, carb  and clay veins."
+MT23-116,237.6,242,ICMOQ,mod perv. pot .alt coarse grained qtz monzonite with indistinct grain boundries and strong feldspar alt. crosscutting ccp-py veins
+MT23-116,242,255,ICMOQ,"weak to mod.  prop alt qtz monz wt mod. pot alt vein selvage. comp; 2-4mm hbl 20%, 3-5mm plag 50%, 3-5mm kfs 25%, 1-2mm Bt 15%."
+MT23-116,255,275.4,ICMOQ,"weak to mod.  prop alt qtz monz wt mod. pot alt vein selvage. comp; 2-4mm hbl 10%, 3-5mm plag 50%, 3-5mm kfs 45%, 1-2mm Bt 5%. crosscutting ccp-mo, fecarb-carb, fg qtz monz. dyke at 264.4m. diss ccp and py throughout"
+MT23-116,275.4,277.1,IFMOQ,vfg qtz monzonite dyke running parallels to core ori largely dom by plag-kfs assemblage
+MT23-116,277.1,286.5,ICMOQ,"weak pot alt coarse grained qtz monz. wt ccp-mo-qtz, carb, ccp-carb veins going parallel to core ori. from 0.1-1cm thick."
+MT23-116,286.5,296,ICMOQ,weak to mod pot alt. qtz monz. becoming more pto alt twrds the bttm. UST apparent at 286.7m  with qtz-kfs infill and crosscutting ccp- mo-py vein
+MT23-116,296,296.7,UTB,fault breccia associated to underlying flt. strong chl and clay alt
+MT23-116,296.7,314,IMMOQ,"mod pot alt medium grained monz. wt diss. ccp and veinlets throughout. clay and chl frac controlled alt. mafic clasts throughout. crosscutting carb-fecarb, ccp-py-mo, UST from 307.8-307.9m. with qtz-chl-kfs-hbl infill.( 2cm heterogranular crystals)."
+MT23-116,314,321,IMMOQ,"faulted strong pot alt qtz monz wt strong clay, ser-chl alt vein selvage. crosscutting ccp-mo veins crosscutting clay-carb veins"
+MT23-116,321,334,IMMOQ,chl-ser and strong pot alt mg qtz monz. with rounded mafic clasts. frac controlled chl alt. ccp-mo veins crosscutting
+MT23-116,334,365.3,ICMOQ,coarse grained qtz monz. with wk pot alt twrds the top transitioning into mag and prop alt twrds the bttm. py-ccp-mo vein hosted parrallel to core ori towards top.
+MT23-116,365.3,366.2,UTB,heavily faulted and chl-ser alt. cg qtz monz. with clay infilled fractures and strg chl alt.
+MT23-116,366.2,372.1,ICMOQ,mod pot alt. coarse grained qtz monz
+MT23-116,372.1,374.2,ICMOQ,strong  pot alt cg qtz monz.  wt localized frac controlled clay alt.
+MT23-116,374.2,416,ICMOQ,"weak to mod. pot alt coarse grained qtz monz. wt/ ccp-carb, py-carb veins runnign parallel to core ori. mafic clasts  throughout. becoming increasingly unaltered towards the bttm"
+MT23-116,416,419.5,IMMOQ,weakly faulted mod pot alt qtz monz frac cntrolled clay and chl alt
+MT23-116,419.5,458,IMMOQ,"mod pot alt. mg qtz monz wt crosscutting carb-py. chl-qtz, trace ccp-mo-qtz veins veins  UST at 421.8m"
+MT23-116,458,467,IMMOQ,mod. pot alt mg qtz monz with strong chl-ser vein selvage alt throughout
+MT23-116,467,476,IMMOQ,mod pot alt. mg qtz monz. with weak ch;-ser overprinting
+TK23-111,0,99,OB,
+TK23-111,99,115.4,VANSS,
+TK23-111,115.4,123.4,GDIO,
+TK23-111,123.4,124.1,VANSS,
+TK23-111,124.1,143.4,GDIO,
+TK23-111,143.4,147.6,IPMOQ,
+TK23-111,147.6,158.25,GDIO,
+TK23-111,158.25,162.3,VANSS,
+TK23-111,162.3,164.4,GDIO,
+TK23-111,164.4,196.36,VANSS,
+TK23-111,196.36,198.42,GDIO,
+TK23-111,198.42,236.3,VANSS,
+TK23-111,236.3,261.87,GDIO,
+TK23-111,261.87,270.2,VANSS,
+TK23-111,270.2,272,VANSS,
+TK23-111,272,274.75,VANSS,
+TK23-111,274.75,274.77,Fdyk,
+TK23-111,274.77,278.95,VANSS,
+TK23-111,278.95,279.07,Fdyk,
+TK23-111,279.07,292.2,VANSS,
+TK23-111,292.2,295.06,VANSS,
+TK23-111,295.06,359,VANSS,
+ME23-115,0,27,OB,
+ME23-115,27,30,GDIO,plagiospheric granodiorite mg with strg illite alt. in both vns and perv. poorly consolidated.
+ME23-115,30,52.4,VANAB,polymictic and. breccia wt/ varying degrees of alt in the clasts. strg. prop alt. perv and overprint. angular overpinting plag grains have largely been alt. to kfs. mafic min replaced by Ep. subrounded clasts. more felsic. clasts twrds bttm
+ME23-115,52.4,60.7,VANAB,polymict poorly sorted breccia with 2-4cm large angular to rounded clast and greater abundance than overlying unit. md. prop alt. with replacement of mafic mins with ep. coarser and more felsic andesitic sst groundmass than overlying unit
+ME23-115,60.7,75,VANAB,polymic breccia with fine mg groundmass and plag grains strg. alt to kfs. Ep alt evident throughout. crosscutting carb veins throughout
+ME23-115,75,81.3,VANSS,fine grained sst. wt/ strg chl alt perv. throughout
+ME23-115,81.3,84,BX,monomictic hydrothermal breccia with chl- ser alt. strong ccp min. in blebs strongly associated to carb-chl veins. 10cm thick carb vein 83m. py also appears diss. 4-6mm blebs.  bttm cont. marked by erosional cont. chaotic angular texture.
+ME23-115,84,85.4,VANSS,monomictic breccia with secondary clay infill strong perv. ser. alt. lower ocnc. of ccp min.
+ME23-115,85.4,87.4,BX,chaotic monomictic breccia cemented in clay-carb matrix. matrix strongly associated with ccp blebs (8-12mm) small py grains present troughout. some prop alt apparent throughout. spec hem. associated to ccp vns
+ME23-115,87.4,92,VANSS,strongly prop alt. andesitic sst. xcutting carb veins. blebby py present throughout. strg replacement of plag to kfs.
+ME23-115,92,96.5,VANSS,strong prop alt andesitic mg sst. wt/ crosscutting chl-carb-ccp vns  hem- ser alt perv.
+ME23-115,96.5,134,VANAB,prop alt polymict andesitic sst.hosted breccia twrds upper cot. mafic strong alt clasts contain perv. py min 2-4mm blebs sparse throughout. round-subrounded clasts 1-10cm (poor sort). clast gen. strong prop alt. with some plag-and. sst unalt. clasts
+ME23-115,134,162,VANAB,prop alt polymict andesitic sst.hosted breccia more felsic clast dominated than before. poorly sort subangular to angular clasts (dioritic?). tranisitions back into a more polymictic breccia  at 143m and contains smaller rounded clasts twrds bttm.
+ME23-115,162,162.8,BX,Bx hosted in strongly prop alt. VANAB unit. py strongly associated to clay-carb-chl veins.clayey infill. poorly sorted angular clast monomictic
+ME23-115,162.8,166.4,VANAB,prop alt. 9apapret as ep-kfs clasts) andesitic sst hosted breccia xcutting carb-qtz-chl and ccp-chl-carb veins
+ME23-115,166.4,166.7,BX,hydrothemral bx commencing with clayey infilled breccia and transitioning into m more consolidated breccia hosting a 1cm wide ccp vein
+ME23-115,166.7,172,VANAB,strong prop alt mod. faulted polymictic breccia hosted in andesitic sst poorly sorted clasts (some up to 30cm vfg and. sst.)
+ME23-115,172,206,VANSS,mod. prop alt. andesitic mg sst. wt/ 1-3cm blebs of ep-kfs throughout. some banded intervals associated to more intensive prop alt potentially due to vein selvage.
+ME23-115,206,218,IPAN,plag enriched (60%) andesite with itervals of weak. prop alt likely linked to v selvage. groundmass aphinitic . xcutting carb-qtz kfs-qtz vns.
+ME23-115,218,230.5,VANSS,"andesitic sandstone with xcutting kfs-carb, qtz-carb vns mod prop alt perv. becomiing more dom twrds the base of the unit. interbedded short succession of plag spheric andesite at 223.5-224.5m"
+ME23-115,230.5,235,VANSS,heavily faulted  andesitic fg sst. with mod. ser alt around the chl-py-carb veins. (often with spec. hem associated) with ep-kfs clasts.
+ME23-115,235,244,VANSS,"andesitic sst. wt/ mod prop alt in the form of cmscale kfs-ep clasts., banding around veins and plag replacement min. crosscutting spec hem. and carb vns."
+ME23-115,244,247.5,BX,hydro BX hosted in fg andesitic sst. with clay and carb infill. and hem alt. of clay. ccp and py min present throughout but strongest in the clay infill material. strong ser- chl alt of the groundmass
+ME23-115,247.5,262.6,VANSS,mg andesitic sst. wt/ some cm-scale kfs-ep clasts  and some interbedded mafic rounded clasts. crosscutting carb vns and closer to the bttm spec hem vns. tis sst appears sig more felsic than overlying ( qtz 40%)
+ME23-115,262.6,263.8,VANSS,fault breccia hosted in fg andesitic sst. with propagation fractures that have been infilled with carb. fault infilled with carb-clay. crosscutting vuggy qtz-carb0 anhydrite? veins just above
+ME23-115,263.8,299,VANSS,largely unalt. mg massive andesitic sst.  carb and pure spec hem veins. at 272-275m  cc. ep-kfs clasts sparse throughout
+ME23-115,299,299.2,UTG,clay supported fault gouge wt strong chl alt.
+ME23-115,299.2,300,UTB,fault breccia  hosted in mg sst  associated with above gouge with a series of crosscutting carbonate veins. plag replacement min with kfs.
+ME23-115,300,303.7,VANSS,prop alt. mg-fg andesitic sst.wt crosscutting carb veins plag replacement min wt kfs
+ME23-115,303.7,305.5,VANSS,faulted andesitic sst. with strong frac cntrolled chl alt and perv. prop alt. large fracture set with silvery metallic soft infill. (moly or graphite?) 1cm thick ccp vein at 305.2m.
+ME23-115,305.5,320,VANSS,"mod. prop alt mg andesitic sst wt/ xcutting chl-carb, qtz-carb vns some spec. hem-carb-chl veins twrds bttm"
+ME23-115,320,323,VANSS,mod. prop and ch;-ser alt mg andesitic sst wt py and ccp min  vnhos in carb-chl veins. ser alt pronounced around these veins.
+ME23-115,323,333,VANSS,low. prop alt fg andesitic sst wt  ep-kfs clasts. weak mag alt. rounded clatss appear at low conc.
+ME23-115,333,338.1,VANSS,mod prop alt. mg andesite sst. replacement min of plag to kfs. crosscutting carb  and  chl-carb. some  less alt. rounded clasts apparent here
+ME23-115,338.1,338.3,UTB,clayey gouge material supporting rounded clasts
+ME23-115,338.3,344,VANSS,mod. prop alt. fg andesitic sst.  wt heavy flting and perv. network of crosscutting carb vns. some mod ser-chl alt frac cntrlled
+ME23-115,344,345,VANSS,fg andesitic sst. with mottled texture due to intensive prop. alt. stockwork of chl veinlets running through this and overprinting with 4mm ep clasts
+ME23-115,345,358,VANSS,"mg andesitic sst. heavily faulted and mod. prop alt. going to low prop alt twrds the bttm. crosscutting carb-qtz , Mo and spec hem veins. at 357.5m 1cm thick carb-chl-ccp vein."
+ME23-115,358,388,VANSS,"massive mg andesitic sst. wt weak prop alt. ain some intervals, however overall unalt. carb veins appear throughout frac cntrolled chl alt."
+ME23-115,388,419,VANSS,mod. faulted massive fg andesitic sst. wt v weak prop alt. in m long intervals with 2mm ep clasts overprinting however overall unalt..crosscutting carb-ep veins
+SE23-110,0,69,OB,
+SE23-110,69,91,IFMOQ,
+SE23-110,91,99,IFMOQ,
+SE23-110,99,142,IFMOQ,
+SE23-110,142,146.5,IFMOQ,
+SE23-110,146.5,149.5,IFMOQ,
+SE23-110,149.5,174,IFMOQ,
+SE23-110,174,185.5,IMMOQ,
+SE23-110,185.5,199.7,IFMOQ,
+SE23-110,199.7,206.18,IMMOQ,
+SE23-110,206.18,209.5,IMMOQ,
+SE23-110,209.5,213.85,IMMOQ,
+SE23-110,213.85,214.55,UTB,
+SE23-110,214.55,216.22,IMMOQ,
+SE23-110,216.22,219,IFMOQ,
+SE23-110,219,235.66,IMMOQ,
+SE23-110,235.66,237.38,UTB,
+SE23-110,237.38,256.9,IMMOQ,
+SE23-110,256.9,269.18,ICMOQ,
+SE23-110,269.18,272.9,IMDQ,
+SE23-110,272.9,283.16,IFMOQ,
+SE23-110,283.16,284.32,IMDQ,
+SE23-110,284.32,292.25,IFMOQ,
+SE23-110,292.25,296.09,ICMOQ,
+SE23-110,296.09,306.54,IMDQ,
+SE23-110,306.54,308.05,UTB,
+SE23-110,308.05,315.09,IMMOQ,
+SE23-110,315.09,321.1,IMDQ,
+SE23-110,321.1,336.2,IFMOQ,
+SE23-110,336.2,336.98,Mdyk,
+SE23-110,336.98,339.61,IFMOQ,
+SE23-110,339.61,346.3,IPMD,
+SE23-110,346.3,347.85,IFMOQ,
+SE23-110,347.85,359.4,IMMOQ,
+SE23-110,359.4,362.1,IMMOQ,
+SE23-110,362.1,406.3,IMMOQ,
+SE23-110,406.3,406.6,Fdyk,
+SE23-110,406.6,411,IMMOQ,
+SE23-108,0,87,OB,
+SE23-108,87,89,IMMOQ,
+SE23-108,89,126.1,IFMOQ,
+SE23-108,126.1,169.6,IMMOQ,
+SE23-108,169.6,201.1,IFMOQ,
+SE23-108,201.1,202,IMMOQ,
+SE23-108,202,220.63,IFMOQ,
+SE23-108,220.63,224.5,IMMOQ,
+SE23-108,224.5,227.15,IFMOQ,
+SE23-108,227.15,235.35,IMMOQ,
+SE23-108,235.35,239.8,IFMOQ,
+SE23-108,239.8,255.9,IMMOQ,
+SE23-108,255.9,262.9,ICMOQ,
+SE23-108,262.9,325.72,IMMOQ,
+SE23-108,325.72,326.46,Mdyk,
+SE23-108,326.46,351,IMMOQ,
+SE23-108,351,360,ICMOQ,
+ME23-117,0,15,OB,
+ME23-117,15,26,VANSS,"faulted fg to mg andesitic sst. with weak prop alt. and low conc of vnhos min of ccp ad py.  crosscutting carb-chl, ccp-carb and larger carbonate hydrothermal bx extending from 23.2-23,5m. diss py throughout"
+ME23-117,26,39,VANSS,"fg-mg andesitic sst. with mottled texture from 2-8mm blebs of ep-kfs overprinting due to mod. prop. alt.. crosscutting carb-fecarb, and  carb, veins"
+ME23-117,39,53.8,VANSS,"fg-mg andesitiic sst. with mod prop alt. wt ep clasts and plag replacement min with kfs. crosscutting hem-carb, py-carb, and carb veins. frac controlled clay alt. red colouration from hem alt twrds the top of the unit. banded alt  (bedding?) at bttm."
+ME23-117,53.8,55.4,VANSS,strongly faulted interval in fg andesitic sst. with frac controlled hem alt and prop alt halos. twrds the bttm a few ccp-py-Bn-CC vein
+ME23-117,55.4,112.5,VANSS,fg-mg andesitic sst. wt weak to mod prop alt. faulted interval at 96.5-97.5m . ep/prop alt vein selvage for carb veins
+ME23-117,112.5,125.8,VANAB,"Andesitic breccia w/ clasts 1-10cm in diam hosted in a fg matrix, 20% clasts 80% SS matrix, mod perv Propy alt, variable amounts of Ep alt ""blobs"" and diss py throughout. carb hydro bx at 123.5m . frac cntrolled clay-chl alt.. more pot alt twrds bttm"
+ME23-117,125.8,131.2,VANAB,andesitic bx in fg andesitic sst wt heavily prop alt subrounded to rounded clasts . wk potassic alt twrds the bttm. crosscutting carb-chl veins
+ME23-117,131.2,132,BX,strong chl-ser alt. andesitic sst with crsoscutting stockwork of chl-carb veins . py hosted in fine groundmass  hem carn veins crosscutting (second gen overprint?) ccp veins just below this interval.
+ME23-117,132,151.9,VANAB,"polymict breccia hosted in fg-mg andesitic sst wt perv. prop alt in the form of ep-kfs clasts and kfs replacement min. shrt interval of more mafic largely unaltered breccia from 143-145m. crosscutting hem-chl-carbb, carb veins"
+ME23-117,151.9,153.9,VANSS,fg andesitic sst. with banded wk prop alt. composition is more mafic than overlying matrix sst
+ME23-117,153.9,176,VANAB,mg mod prop alt andesitic sst supported polymict breccia with  strongly prop alt mafic clasts
+ME23-117,176,191,VANSS,mg wk prop alt andesitic sst. wt/ blebs of ep throughout and kfs replacement min.
+ME23-117,191,198.5,VANAB,mod. faulted mod prop alt BX hosted in fg andesitic sst with 35% polymict clasts. crosscutting carb and carb-hem veins. rounded and subrounded strg prop alt. clasts
+ME23-117,198.5,208,VANSS,"fg andesitic sst. wt py-ep-carb, chl-carb and carb vns wt/ strg ser- and pot.  alt halos. strong mag replacement min"
+ME23-117,208,211,VANSS,faulted fg andesitic sst wt wk prop alt and stockwork of carb-anh veins.. a number of fault breccias with clay-carb infill
+ME23-117,211,215.5,VANSS,mg andesitic sst. wt/ wk pot alt. vein selvage
+ME23-117,215.5,217.4,UTB,strong ser-chl alt in fault breccia. strong frac controlled clay alt (illite). py mineralization throughout
+ME23-117,217.4,230,VANSS,mg andesitic sst. wt interbedded sections of strg prop alt. rounded clasts. in clasts appears to be mineralized that have been dissolved out producing a vuggy texture. groundmass of the clast fully altered to ep (potentially veins?)
+ME23-117,230,256,VANAB,mod prop alt mg andesitic sst matrix based  breccia with monomictic rounded strongly altered clasts . clasts are vuggy and contain euhedral py min.
+ME23-117,256,316.4,VANSS,"fg andesitic sst. wt interbedded sections of stronger prop alt. clasts and stronger prop vn selvage crosscutting carb veins. lower down carb veins are replaced by anh veins.  strong min with ccp-bn, py-carb-anh veins and 1cm py blebs from 279-284m."
+ME23-117,316.4,324,VANAB,mod to strg. perv. prop. alt. breccia hosted in fg andesitic sst. matrix with polymictic clasts. diss. py blebs throughout
+ME23-117,324,327,VANSS,"mod chl-ser and strg prop. alt fg andesitic sst with crosscutting system of carb-chl veins with the ""core"" at 326.5m hem alt halo around this.  diss py blebs throughout."
+ME23-117,327,379,VANAB,mod-strg prop alt polymict breccia supported in fg andesitic sst matrix. clast size poorly sorted. crosscutting carb-kfs veins. clasts are subrounded and vary in degree of prop alt. and. sst. some banded py min throughout
+ME23-117,379,382.5,BX,chaotic breccia with angular strong chl-ser alt. and. sst clasts. matrix infill is a ep-anh-ccp-py blend. 80% clasts. ccp appears to be concentrated in the center of the py blebs
+ME23-117,382.5,426.8,VANAB,mod-strg prop alt polymict breccia supported in fg andesitic sst matrix. mineralized matrix some faulted intervals with frac controlled chl-carb alt. hem alt clasts throughout. clasts are poorly sorted
+ME23-117,426.8,428.6,VANSS,weak prop alt. fg andesitic sst with gradational boundaries suggesting younging uphole.
+ME23-117,428.6,434,VANAB,mod-strg prop alt.poorly sorted breccia (75% clasts) supported in vfg andesitic sst matrix. chl-ser alt halo around carb-ccp and carb veins. diss py
+TK23-113,0,72,OB,
+TK23-113,72,88.75,IPDA,"Fg Hbl-Plag Phyric Dacite, sparse mafic Xenos up to 2cm in diam, weak perv Pot alt w/ Bt as main alt min, trace-0.5% Ccp found in stringers, mod Propy vnhalos"
+TK23-113,88.75,91.45,IPDA,"Interval of Med grained Hbl-Plag Phyric Dacite, weak perv Pot alt w/ Bt as main alt min"
+TK23-113,91.45,127.5,IPDA,"Fg Hbl-Plag Phyric Dacite, sparse mafic Xenos 1-10cm in diam,"
+TK23-113,127.5,177.9,IPDA,"Fg Hbl-Plag phyric Dacite, mod perv Pot alt w/ Bt as primary alt min, sub-rounded mafic+felsic xenos common throughout w/ an increase in concentration from 164-174m"
+TK23-113,177.9,196.4,IPDA,"Vfg Hbl-Plag phyric Dacite, mod perv Pot alt w/ Bt as primary alt min, rounded felsic clast <1cm common, 5cm wide Mag Bx w/ rounded polygenic clasts at 188.8m"
+TK23-113,196.4,209,IPDA,"Fg Hbl-Plag phyric Dacite, increase in diss Py"
+TK23-113,209,228.2,IPDA,"Vfg Hbl-Plag Dac, weak-mod perv Propy alt w/ Chl as primary alt min, some veins show weak-mod Propy alt halos w/ Ep as dominant min, decrease in abundance of xenos"
+TK23-113,228.2,246,IPDA,"Fg Hbl-Plag Dac, weak-mod perv Propy alt w/ Chl as primary alt min, decrease in abundance of xenos, Qzcarb veining from 231.65-233.6m that contains Py, Ccp, and specular Hem"
+TK23-113,246,263.9,IPDA,"Fg Hbl-Plag phyric Dacite, mod perv Chl-Ab alt, strongly Ep altered xenos 2-8cm in diam, abundant Tur from 254-263m, 1% diss Py+Ccp from 249.5-253m, not a lot of veining"
+TK23-113,263.9,302,VDAV,"Dacitic volcaniclastic, mod perv Ab+Chl alt, angular-subrounded clasts 1-10cm in diam, clasts appear dull due to alt fuzzing boundaries, some clasts show str Ep+Tur alt, trace min,"
+DH23-107,0,27,OB,
+DH23-107,27,41,IFAN,Weathered And. volcanic clast. Rubbly fg massive mod. prop. alt. with strong frac-controlled iron oxide alt.
+DH23-107,41,54,IFAN,And volc. clast. fg mod prop alt. w/perv. Kfs-Ep-Py 2-3mm clasts and Ep alt. vein selvage.
+DH23-107,54,56.6,VANTB,
+DH23-107,56.6,59,IFAN,And volc. clast. fg mod prop alt. with xcutting Kfs-Ep vns with min vein selvage
+DH23-107,59,63,BX,Chaotic angular breccia hosted in a gyp-hem alt carb matrix overlying a two-meter fault gouge. No apparent sulfides.
+DH23-107,63,75,IFAN,
+DH23-107,75,86,IFAN,
+DH23-107,86,87.6,IFAN,
+DH23-107,87.6,93,IFAN,
+DH23-107,93,98.2,IFAN,
+DH23-107,98.2,105.25,IFAN,
+DH23-107,105.25,105.7,BX,
+DH23-107,105.7,114,IFAN,
+DH23-107,114,155,IFAN,
+DH23-107,155,160.32,IFAN,
+DH23-107,160.32,160.54,BX,
+DH23-107,160.54,161.85,IFAN,
+DH23-107,161.85,166.2,UTB,
+DH23-107,166.2,180.55,IFAN,
+DH23-107,180.55,181,UTB,
+DH23-107,181,184.4,IFAN,
+DH23-107,184.4,184.9,UTB,
+DH23-107,184.9,188.15,IFAN,
+DH23-107,188.15,212,VANSS,
+DH23-107,212,216.8,VANSS,
+DH23-107,216.8,223.4,VANSS,
+DH23-107,223.4,225.5,VANSS,
+DH23-107,225.5,245.2,VANSS,
+DH23-107,245.2,246.7,VANSS,
+DH23-107,246.7,265,VANSS,
+DH23-107,265,272.45,VANSS,
+DH23-107,272.45,282,IMMOQ,
+DH23-107,282,287.5,VANSS,
+DH23-107,287.5,325,IMMOQ,
+DH23-107,325,348.5,IFMOQ,
+DH23-107,348.5,357.25,IMMOQ,
+DH23-107,357.25,375.2,VANSS,
+DH23-107,375.2,376.14,Fdyk,
+DH23-107,376.14,376.22,IMMOQ,
+DH23-107,376.22,376.42,Fdyk,
+DH23-107,376.42,386.55,IMMOQ,Small felsic dykes (~5cm in width) coming in and out of interval
+DH23-107,386.55,390.8,VANSS,Small felsic dykes intruding into interval ~5cm in width
+DH23-107,390.8,392,UT,
+DH23-107,392,394.4,VANSS,
+DH23-107,394.4,396,UTB,
+DH23-107,396,400.1,VANSS,
+DH23-107,400.1,400.7,VANSS,
+DH23-107,400.7,414,VANSS,
+WJ23-106,0,7.5,OB,
+WJ23-106,7.5,23,IFAN,"porphyritic andesite.  weak prop.  alt. crosscutting carb vns euhedral plag phenocrysts dom comp towards TOH and phase out twrds bttm. 20% amph, 30% px, 20% plag, 2% qtz, 28% dark grey matrix"
+WJ23-106,23,29,IFAN,"fine porphyritic andesite.  weak prop. (ep-kfs clasts) alt. crosscutting carb vns 40% amph, 20% px, 10% plag, 2% qtz, 28% dark grey matrix. low py min. both vnhos and dis."
+WJ23-106,29,42,IFAN,fine porphyritic andesite.  mod. prop. (ep-kfs clasts) alt. crosscutting carb vns 4 v low py min.
+WJ23-106,42,46,IFAN,fine  andesite.  wk. prop. (ep-kfs clasts) alt. crosscutting carb vnsv low py min
+WJ23-106,46,73,IFAN,"porphyritic andesite.  weak prop.  alt. wt int. of strg vn hosted prop. alt. crosscutting carb vns, variable plag. phenocryst comp. (5-30%) sig lower than overlying units"
+WJ23-106,73,75,IFAN,carb-dom. porphyritic andesite.  strg. stockwork of crosscutting carb vns with lighter groundmass
+WJ23-106,75,86,IFAN,"porphyritic andesite.  weak prop.  alt. wt int. of strg vn hosted prop. alt. crosscutting carb vns, much lower plag. phenocryst comp."
+WJ23-106,86,92,IFAN,Andesite aphanitic mod prop and sericite alt.
+WJ23-106,92,94,IFAN,strong prop. alt. andesite kfs and ep dom. assemblage likely associated to crosscutting qtz vns
+WJ23-106,94,107,IFAN,"Andesite aphanitic mod prop and sericite alt. wt crosscutting tou-qtz-kfs, ep-kfs vns"
+WJ23-106,107,113,IFAN,"porphyritic andesite.  weak prop.  alt. wt crosscutting carb vns, low plag. phenocryst comp. more felsic groundmass."
+WJ23-106,113,127,IFAN,Prop alt. Andesite  mod prop and alb alt. prevalent in vn selvage of ep-kfs colliform vns.+strg. plag replacement min. proximal to vns. groundmass more felsic
+WJ23-106,127,145,IFAN,"Andesite  weak prop and ser. alt. wt crosscutting tou-qtz-kfs, qtz-carb, hem-qtz vns wt alb. vn selvage. clasts are 60% amphibole and pyroxene (2-3mm large grains) hosted in a felsic groundmass"
+WJ23-106,145,162,IFAN,"weak prop and ser. alt. wt crosscutting tou-qtz-kfs, qtz-carb vns wt alb. vn selvage. groundmass more felsic once more. perv. mag alt. from 158-162m perv. carb. alt. in groundmass likely as vn selvage."
+WJ23-106,162,176,IFAN,"weak prop and ser. alt. wt crosscutting tou-qtz-kfs, qtz-carb vns wt alb. with hem alt. localized to frac"
+WJ23-106,176,179,IFAN,weak prop and ser. alt. wt two 10cm long hydrothermal breccia. contain 40% 2-3cm large angular clasts of strong. prop alt. host rock. held in a gyp-anh-carb matrix
+WJ23-106,179,198,IFAN,lighter groundmass prevalent mod perv. prop alt and weak sideritic alt proximal to crosscutting tou-qtz-carb vns
+WJ23-106,198,199.8,IFAN,"Strg. alt. fine porphy. Andesite with phenocrysts held in a light orange-green groundmass. subround. phenocrysts are 30% qtz, 5% chl and 65% kfs. replacement assemblage dom. by sid-fuchsite crosscutting gyp-anh, qtz-chl vns. groundmass=sid. alt."
+WJ23-106,199.8,204.5,IFAN,lighter groundmass prevalent mod perv. prop alt and weak sideritic alt proximal to crosscutting tou-qtz-carb vns. orange siderite? alt. dis.
+WJ23-106,204.5,214.4,IFAN,"larger interval of strg. alt. sideritic? fine porphy. Andesite with lower conc. of fuchs. crosscutting vns of chl-qtz, 1cm thick qtz vns. gradational cont. lighter and darker banding throughout"
+WJ23-106,214.4,227,IFAN,"strong prop., mod pot. and siderite alt. wt strg association with gyp-tou-qtz-carb vns strg overprinting of feldspars and kfs-bt assemblage prevalent."
+WJ23-106,227,234.6,IFAN,mod prop.and sil alt. wt strg association clasts largely dom. by mafic min whilst groundmass more felsic here. crosscutting carb and gyp-anh vns
+WJ23-106,234.6,254,VANSS,weak prop alt. massive vfg  wt crosscutting gyp-anh wt/ prop. alt. vn selvage. mottled texture in some intervals
+WJ23-106,254,263,VANSS,Prop alt. Andesitic volc. clast. medium grained with intervals of 2-3cm angular felsic and mafic clasts. strg. prop alt (perv. ep vein selvage) associated with tou-qtz vns. coarsening down bedding suggests this unit is RWU
+WJ23-106,263,269,VANSS,Prop alt. Andesitic volc. clast. medium grained perv. ep vein selvage associated with qtz-hem vns. with vein selvage.
+WJ23-106,269,276.3,BX,strong prop./epidote alt at top cont.  monomictic. mafic clasts 1-2cm crosscutting anh vns increased conc. at 275-275.4m into a perv. anh vein. white groundmass alt pervasive throughout (silica alt.?)
+WJ23-106,276.3,279,VANSS,Prop and clay alt. Andesitic volc. clast. med. grained perv. ep vein selvage associated with qtz-hem vns. with vein selvage.
+WJ23-106,279,280.1,VANSS,crystalline clast dominated interval with perv. white alt. and strong crosscutting anhydrite veins. this alteration section is confusing and will require further inspection after assay results are back. Fecarb pervasive in veins
+WJ23-106,280.1,299,VANSS,"Andesitic volc. clast. medium grained with intervals of larger angular felsic and mafic clasts. mod. prop alt crosscutting up 5cm thick anh, 0.5cm carb-qtz vns.."
+WJ23-106,299,316,VANSS,"Andesitic volc. clast. fine grained with intervals of 2-5cm rounded felsic and mafic clasts. mod. prop alt crosscutting anh-gyp, carb-qtz vns. wt sericitic vein halos"
+WJ23-106,316,325,VANSS,weak prop alt. volc. clast andesite with rounded mafic 1-2cm clasts. coarsening up to a medium grained sst. some diss. sulf. min.
+WJ23-106,325,332,VANSS,"mod prop alt present in vein selvage kfs and ep-kfs clasts diss, chlorite alt. brief flt breccia with clay infill at 328.6m for 10cm."
+WJ23-106,332,339,VANSS,"mod prop alt present in vein selvage kfs and ep-kfs clasts diss, chlorite alt. and 2-3cm strg. alt. clasts from both felsic and mafic origin"
+WJ23-106,339,347,VANSS,"Andesitic volc. clast. medium grained with 20mm long larger subrounded peb. cong. intervals suggesting overturned bedding. weak. prop alt crosscutting anh-gyp, carb-qtz vns. strg. prop. alt at bttm cont."
+WJ23-106,347,359,VANSS,"Prop. alt. (in groundmass)Andesitic volc. clast. medium grained well sort. 1-3cm clasts of ep-kfs-chl diss. crosscutting anh-gyp, carb-qtz vns. wt sericitic vein halos."
+WJ23-106,359,371,VANSS,Andesitic volc. clast. mottled texture med. grained weak. prop alt.
+WJ23-106,371,391,VANSS,Andesitic volc. clast.  fine. grained mod. prop alt. with strong prop alt. vein selvage with kfs-ep alt. of groundmass  more plag. dom. and prop alt.  twrds bttm and intrusive cont. at bttm.
+WJ23-106,391,406,IPAN,"strong alt. (siderite?) andesitic dyke.  intrusive phaneritic dyke wt ep-pyx clasts diss. throughout. 60% subrounded 2-4mm plag grains, 15% rounded 1-2mm qtz+ 5% carb associated to these grains, 20% 10-12mm amph/pyx. vfg at contact (chilled margin?)"
+WJ23-106,406,406.4,VANSS,strongly altered interval of andesitic volcaniclastic
+WJ23-106,406.4,407.2,IPAN,strongly altered dyke interval associated to the overlying dyke. very fine grained in comparison to previous comp.. stronglly altered groundmass
+WJ23-106,407.2,429,VANSS,"Andesitic volc. clast.  fine. to medium grained strg. prop and mod pot alt. with 1-2cm angular felsic and mafic clasts  (polymict) throughout. strong prop. alt. selvage. All clasts are from the same med. grain. volc sandstone, but wt dif alt varying"
+WJ23-106,429,441,VANSS,"Prop. alt Andesitic volc. clast.  fine. to medium grained strg. prop 1-2cm angular (largely felsic) clasts throughout with 437-439m perv. prop. alt. polymictic breccia, clast boundaries have been strongly altered and overprinted ith alt."
+WJ23-106,441,449.5,VANSS,mod. prop. alt Andesitic volc. clast.  fine. to medium grained. lower clast content and more dominated by felsic groundmass
+WJ23-106,449.5,450,UTB,Flt BX dom. by chlorite alt.  with hydrothermal breccia just below hosting angular ost rock clasts in a carb matrix. strg perv. hem alt.
+WJ23-106,450,452,VANSS,monomictic fine grained volc clast. with mafic subangular clasts 1-3cm large
+DH23-112,0,78,OB,
+DH23-112,78,121.65,IPAN,"Plag phyric Andesite, str perv Propy alt w/ Chl as primary alt min, local weak-mod Ab and Pot vnhalos surrounding Carb and Qzcarb veins, 0.5% vnhos+diss Py, 0.1% diss+vnhos Ccp"
+DH23-112,121.65,149.15,IPAN,"Plag phyric Andesite, mod perv Arg+Chl alt w/ Plag crystals altering to clay,  0.5% diss+vnhos Py, trace diss+vnhos Ccp"
+DH23-112,149.15,149.7,UTB,"Brecciated interval w/ clay gouge infill, Str Arg alt w/ Plag crystals turning to clay"
+DH23-112,149.7,150.8,IPAN,"Plag phyric Andesite, str perv Arg+Chl alt w/ Plag crystals altering to clay,  0.5% diss+vnhos Py, trace diss+vnhos Ccp"
+DH23-112,150.8,153.4,UTB,"Brecciated interval w/ clay gouge infill, Str Arg alt w/ Plag crystals turning to clay"
+DH23-112,153.4,159.3,IPAN,"Plag phyric Andesite, str perv Arg+Chl alt w/ Plag crystals altering to clay,  0.5% diss+vnhos Py, trace diss+vnhos Ccp"
+DH23-112,159.3,159.7,UTB,"Brecciated interval w/ clay gouge infill, Mod Arg+Chl alt w/ Plag crystals turning to clay"
+DH23-112,159.7,164.8,IPAN,"Plag phyric Andesite, mod perv Arg+Chl alt w/ Plag crystals altering to clay,  0.5% diss+vnhos Py, trace diss+vnhos Ccp"
+DH23-112,164.8,166.2,UTB,"Brecciated interval w/ clay gouge infill, Mod Arg+Chl alt w/ Plag crystals turning to clay"
+DH23-112,166.2,188.05,IPAN,"Plag phyric Andesite, mod perv Arg+Chl alt w/ Plag crystals altering to clay,  0.5% diss+vnhos Py, trace diss+vnhos Ccp"
+DH23-112,188.05,193.2,IPAN,"Porphyritic Plag phyric Andesite,"
+DH23-112,193.2,195.5,UTG,"Interval of clayey fault gouge, 5% diss Py"
+DH23-112,195.5,251,IPAN,"Plag phyric porphyritic Andesite, Mod perv Phyl alt w/ clays+Illite/Ser as primary alt mins, weak-mod Ab vnhalos present throughout, weak-mod Pot vnhalos from 222m-EOH, vnhos+diss Py tapers off from 3% to 0.5%, trace vnhos+diss Ccp"
+DH23-114,0,48,OB,
+DH23-114,48,51.15,IPAN,"Mg Plag phyric Andesite, weak-mod perv Chl+Ser alt, weak-mod Pot and Chl vnhalos surrounding carb+Py stringers, 0.5% Py"
+DH23-114,51.15,53,IPAN,"Fine grained Plag phyric porphyritic Andesite w/ pheno of Plag, weak-mod perv Chl+Ser alt, mod Pot vnhalos surrounding Carb+Py stringers, 0.5% Py"
+DH23-114,53,55.7,IPAN,"Med grained Plag phyric Andesite, weak-mod perv Chl+Ser alt, weak local Pot vnhalos surrounding carb+Py stringers, 0.5% Py"
+DH23-114,55.7,58.3,IPAN,"Fine grained Plag phyric porphyritic Andesite w/ pheno of Plag, weak-mod perv Chl+Ser alt, weak local Pot vnhalos surrounding Carb+Py stringers, local str Chl alt halo at 56.3m, 0.5% Py"
+DH23-114,58.3,71.4,IPAN,"Med grained Plag phyric Andesite, mod perv Chl+Ser alt, weak local Pot vnhalos surrounding carb+Py veins, 0.5% Py"
+DH23-114,71.4,71.9,UTB,"Fault Bx w/ 80% clasts 20% clay gouge, trace diss Py"
+DH23-114,71.9,90.5,IPAN,"Mg Andesite, mod perv Chl+Ser Alt, weak perv Pot alt giving the core a slight salmon pink color, Carb+Py veins show mod-str Pot vnhalos, local interval of str Pot alt from 73.25-74.3m, 0.5-1% vnhos+diss Py, trace Ccp, local 1.5cm wide Hyd Bx at 79.2m"
+DH23-114,90.5,94,IPAN,"Fg Plag phyric And, mod perv Chl+Ser alt, weak-mod Perv Pot alt giving the core a salmon pink color, 1% vnhos+diss Py, trace Ccp"
+DH23-114,94,96.45,IMMOQ,"Mg QzMonz, mod perv Chl+Ser alt, mod Perv Pot alt giving the core a salmon pink color, 1% vnhos+diss Py"
+DH23-114,96.45,96.9,UTB,"Interval of brecciated Mg QzMonz, 70% clasts 30% clay/carbonate gouge, trace-0.5% diss Py"
+DH23-114,96.9,153.85,IMMOQ,"Mg QzMonz, mod perv Phyl alt w/ Qz-Ser-Ilt as dominant alt mins, local regions of mod-str clay alt (105.3-112m, 118.5-119m, 120.2-120.5m), mod-str Pot vnhalos, 1% vnhos+diss Py, Hyd Bx from 148.75-148.9m w/ Pot alt clasts 1-20mm in diam"
+DH23-114,153.85,168.3,IFAN,"Fine-Med grained Plag phyric And, mod perv Phyl alt w/ Qz-Ser-Ilt as dominant alt mins, 0.5% vnhos+diss Py"
+DH23-114,168.3,172.5,UTB,"Interval of fault breccia/clayey gouge, surrounding rock is highly fractured making it difficult to distinguish lith boundary, strongly clay altered, 1% diss Py found in clayey gouge"
+DH23-114,172.5,174.75,IPAN,"Mg Plag phyric Andesite, mod perv Phyl alt w/ Clay alt overprint, trace diss Py"
+DH23-114,174.75,178.4,IMMOQ,"Mg QzMonz, mod perv Phyl alt w/ Clay alt overprint, 2% diss Py"
+DH23-114,178.4,183.75,UTB,"Interval of fault breccia/clayey gouge, surrounding rock is highly fractured making it difficult to distinguish lith boundary, moderately clay altered, trace diss Py found in clayey gouge"
+DH23-114,183.75,200,IPAN,"Mg Plag phyric Andesite, mod perv Phyl alt, unknown bright green alt mineral perv from 190-200m (possibly Ep), 2% diss+vnhos Py"
+DH23-114,200,221,IPAN,"Porphyritic And w/ mg phenos of Plag, mod perv Phyl alt w/ an interval of Propy alt from 214-221m, possible QzMonz xenos 3-20cm in size throughout, some showing str Ep alt and Hem staining"
+DH23-109,0,57,OB,
+DH23-109,57,73.5,VANSS,
+DH23-109,73.5,75.8,UTB,
+DH23-109,75.8,80.2,VANSS,
+DH23-109,80.2,86.8,UTB,
+DH23-109,86.8,92.6,VANSS,
+DH23-109,92.6,93.35,UTB,
+DH23-109,93.35,98,VANSS,
+DH23-109,98,140.75,VANSS,"Fg And V-clast, mod perv propy alt, local str propy vnhalos surrounding carb+Tur veins, Ep ""blobs"" 1-3cm in diam present throughout, ""blebby"" diss Py gradually increases in size and conc as you move downhole from, 2%-5%, Tur rosettes from 118-131.4m"
+DH23-109,140.75,169.4,VANSS,"Fg And V-clast, mod perv propy alt, variable ""blebby"" diss Py from 1-5%, two large Ccp bearing Carb-Tur veins from 141-142m, Tur stringers from 159.7-169.4m"
+DH23-109,169.4,170.2,BX,Chaotic Hyd Bx w/ carb+Tur+Py+Ccp vein infill+ clayey gouge
+DH23-109,170.2,170.3,VANSS,
+DH23-109,170.3,171.4,BX,"Chaotic Hyd Bx w/ carb+Tur+Py vein infill+ clayey gouge, mod propy alt surrounding w/ Ep as dominant alt mineral"
+DH23-109,171.4,204.5,VANSS,"Fg And V-clast, mod perv propy alt, local patches of Tur rosettes 1-2mm in diameter (180m, 185.3m, 186.8-188.3m, 195m), variable conc of diss Py from 0.1-1%"
+DH23-109,204.5,205,BX,Chaotic Hyd Bx w/ carb vein infill+ clayey gouge
+DH23-109,205,206.2,VANSS,"Fg And V-clast, mod perv propy alt,"
+DH23-109,206.2,206.6,Fdyk,Granodiorite dyke that has been faulted and filled w/ clayey gouge + carb veins
+DH23-109,206.6,215,VANSS,"Fg And V-clast, mod perv propy alt,"
+DH23-109,215,232,VANSS,"Fg And V-clast, mod perv propy alt, 2 unkwn frac mins are abundant (barf green soft powdery& dark red soft powdery, both react str w/ HCl),"
+DH23-109,232,237.5,BX,"Interval containing multiple Hyd Bx and Flt Gou, surrounding rock has been str Ab altered giving it a light cream color, Carb+Tur vein infill, 0.1-0.5% diss Py"
+DH23-109,237.5,252,VANSS,"Fg And V-clast, mod perv propy alt, 0.1-0.5% diss Py"
+DH23-109,252,252.2,Fdyk,"granodiorite dyke w/ sharp, undulating upper and lower boundaries, trace diss Py"
+DH23-109,252.2,260.85,VANSS,"Fg And V-clast, mod perv propy alt, 0.1-0.5% diss Py"
+DH23-109,260.85,267.55,Mdyk,"Porph Gab (Mafic Dyke), Mod perv Propy alt, Plag Pheno 0.5-3mm in diam, Trace diss Py"
+DH23-109,267.55,272.75,VANSS,"Fg And V-clast, mod perv propy alt, 0.1-0.5% diss Py"
+DH23-109,272.75,276.25,VANSS,"Fg And V-clast, mod perv propy alt, 0.1-0.5% diss Py, multiple zones of chaotic Hyd Bx and Flt Goug, Rubble zone from 272-273m"
+DH23-109,276.25,277.15,Mdyk,"Porph Gab (Mafic Dyke), Mod perv Propy alt, Plag Pheno <2mm in diam, Trace diss Py"
+DH23-109,277.15,287,VANSS,"Fg And V-clast, mod perv propy alt, 0.1-0.5% diss Py, variable perv Propy+Ab alt gives the core a ""mottled"" green-cream appearance"
+DH23-109,287,296.35,VANSS,"Fg And Volc clast, mod perv Propy alt, local weak propy vnhalos, abundant Tur stringers from 292.5-294m, trace diss+vnhos Py"
+DH23-109,296.35,296.5,UTG,"Zone of clayey fault gouge and rock fragments, faulted along a carb+Tur+Py vein, surrounding rock shows mod-str Propy alt w/ Ep as dominant alt min"
+DH23-109,296.5,308.6,VANSS,"Fg And Volc clast, mod perv Propy alt, local weak propy vnhalos, trace diss+vnhos Py, trace blebby Py, Hem or Chl coating most frac surfaces"
+DH23-109,308.6,310,VANSS,"Fg And Volc clast, mod perv Propy alt, Concentration of carb veins has increased making the rock more fragmental and close to a breccia,"
+DH23-109,310,317.85,BX,"Zone containing multiple Hyd Breccias of the And volc clast w/ Carb+Qz+Tur vein infill, surrounding rock is str altered to Ep+Chl+Ab, unknown Red/Maroon alt is also present (Possibly Hem dusting), 1-2% vnhos Ccp from 314-314.5m"
+DH23-109,317.85,318.8,UTG,"Interval of clayey Flt Gouge+Bx w/ Hyd Bx above and below, swelling clays gave the drillers problems, 60% clasts 40% clay"
+DH23-109,318.8,322.1,BX,"Zone w/ varying degrees of brecciation from chaotic-jigsaw, host rock is And Volc clast Carb vein infill, rock is str Ab+Propy altered, unkown red/maroon alt (possibly Hem dusting)"
+DH23-109,322.1,322.65,UTG,"Interval of clayey Flt Gouge+Bx w/ Hyd Bx above and below, swelling clays gave the drillers problems, 60% clasts 40% clays"
+DH23-109,322.65,330.25,BX,"Hyd crackle Bx of And Volc Clast w/ Qzcarb vein infill, Mod perv Propy+Ab alt, 1% vnhos Ccp from 325-326.3m"
+DH23-109,330.25,334.5,UTB,"Brecciated interval of And Volc Clast appearing to contain multiple fault zones, clayey gouge infill along fault planes, Carb vein infill in surrounding brecciated rock, str Propy alt along lower boundary"
+DH23-109,334.5,343.55,VANSS,"Andesitic Volc Clast, mod perv Propy alt, Rubble from 336.45-343.25m"
+DH23-109,343.55,344.35,BX,"Faulted Hyd Bx w/ clay infill along fault surface and Carb vein infill, strongly Ab altered, Qzcarb veins contain 0.5% Ccp"
+DH23-109,344.35,347.25,VANSS,"Andesitic Volc Clast, mod perv Propy alt, Ccp bearing  faulted Carb vein at 345.55m w/ str Ab alt halo"
+DH23-109,347.25,348.1,UTB,"Flt Bx in the And Volc clast, surrounding rock is str Ab altered giving it a cream/salmon color,"
+DH23-109,348.1,359.7,VANSS,"Andesitic Volc Clast, mod perv Propy alt, local mod Propy+Ab vnhalos, local low angle fault zones ~1cm in thickness from 351-353m w/ clayes gouge infill,"
+DH23-109,359.7,361.45,BX,"Faulted Hyd Bx within the And Volc clast, Carb vein+clayey gouge infill,"
+DH23-109,361.45,363.35,VANSS,"Andesitic Volc Clast, mod perv Propy alt,"
+DH23-109,363.35,363.85,UTB,"Fault brecciated interval containing ~80% clasts 20% clayey gouge, Carb vein infill"
+DH23-109,363.85,364.2,VANSS,"Andesitic Volc Clast, mod perv Propy alt,"
+DH23-109,364.2,364.75,BX,"Faulted Hyd Bx within the And Volc clast, Carb vein+clayey gouge infill,"
+DH23-109,364.75,379.2,VANSS,"Andesitic Volc Clast, mod perv Propy alt,"
+DH23-109,379.2,379.85,UTB,"Fault brecciated interval w/ ~65% clasts, 35% gouge, red/maroon in color (possibly due to Hem dusting), 1% diss Py, surrounding rock is str Ab+Propy altered"
+DH23-109,379.85,380.7,VANSS,"Str Ab altered making it difficult to distinguish initial rock type, likely And Volc Clast, 0.5% diss Py"
+DH23-109,380.7,381.75,UTB,"Fault brecciated interval w/ ~75% clasts, 25% gouge, Qzcarb vein running through center contains 0.1-0.5% Py, surrounding rock shows mod-str Ab alt"
+DH23-109,381.75,390.45,VANSS,"Andesitic Volc Clast, mod perv Propy alt, 5cm thick Qzcarb+Tur vein from 388-388.8m"
+DH23-109,390.45,390.9,BX,"Hydrothermally brecciated And Volc Clast w/ Carb vein+Clay frac infill, 0.5% diss Py"
+DH23-109,390.9,395.3,VANSS,"Andesitic Volc Clast, mod perv Propy+Ab alt"
+DH23-109,395.3,397.85,BX,"Strongly Ab+Propy altered hydrothermally brecciated interval, 10cm Qzcarb vein cutting steeply across middle which has been faulted above and below, 3-5% diss Py throughout, local trace vnhos Ccp"
+DH23-109,397.85,403.85,VANSS,"And volc clast, str perv Ab+Propy alt, unknown blotchy salmon colored alt, high density of carb and carb+Tur veins, 3-5% diss+vnhos Py"
+DH23-109,403.85,409.9,VANSS,"And volc clast, mod perv Propy+Ab alt, weak-mod local Pot vnhalo at 407.75m"
+DH23-109,409.9,410.9,BX,"brecciated interval of And Volc Clast, str mod-str Ab=Propy alt, contains ~3cm Qzcarb+Tur vein"
+DH23-109,410.9,413.1,VANSS,"And Volc Clast, Strongly Ab+Propy altered likely due to surrounding breccited zones, 2% diss Py"
+DH23-109,413.1,413.95,UTB,"Interval containing multiple brecciated fault zones, clayey gouge+carb vein infill, Str Propy+Ab alt, 1-2% diss Py"
+DH23-109,413.95,415.1,VANSS,"And Volc Clast, mod-str Ab+Propy alt 1-2mm Tur rosettes 2% diss Py"
+DH23-109,415.1,415.4,UTB,"Brecciated interval w/ str Propy+Ab alt, darker cream/salmon colored alt may be Pot, clay+carb vein infill, 5% diss+vnhos Py"
+DH23-109,415.4,417.9,VANSS,"And Volc Clast, Mod-str Ab+Propy alt, local Pot alt halos"
+DH23-109,417.9,420.2,UTB,"Brecciated interval of And volc clast, 50% clay 50% clasts, some carb vein infill, 1-2% diss Py"
+DH23-109,420.2,434.45,VANSS,"And Volc Clast, Mod perv Propy+Ab alt, mod Pot vnhalo surrounding lightly brecciated interval at 429.15m,  Sheeted Py stringers from 424-424.5m"
+DH23-109,434.45,434.85,BX,"Small interval of Hyd brecciated And Volc Clast, Carb vein infill, has been faulted, no alt halo"
+DH23-109,434.85,438.5,VANSS,"And Volc Clast, weak-mod perv Propy alt, 0.5% vnhos+diss Py"
+DH23-104,0,25,OB,
+DH23-104,25,30.8,IFAN,"fine grain dark massive bas. wt euhedral 1-2mm pyr blebs perv. overprint with weak plag alt., but strong hem. alt. on frac. surf.+ vnhos .gen. v blocky with several fault gouges present. 70% px, 25% amp. 5% qtz."
+DH23-104,30.8,48,IFAN,"fine grain dark massive bas. wt euhedral 1-2mm pyr blebs perv. overprint (2-6%).  stronger propy. alt. from 36-48m with incr. kfs, mag. cont. crosscutting vns of qtz, qtz+Fecarb, carb, pyr-qtz. series of 2-4mm pyr-sph-bt veins appear at 40.5-48.0m."
+DH23-104,48,50.8,IFAN,"fine grain dark massive poorly consolidated bas. wt euhedral 1-2mm pyr blebs perv. overprint (1-4%).  propy. alt. with mag.+ ep cont. stringers of qtz, py saturated 1-2mm vns. Chl alt. appears on frac surf."
+DH23-104,50.8,52.5,BX,strong prop. and silica alt. bas. hosted chaotic angular breccia in a carb-clay matrix wt 4-6mm Py vns and diss. Py. . strg. epi and mag alt. At upper cont. (50.80-51.40m) strg. min and planar clay rich cont.
+DH23-104,52.5,57.8,IFAN,"prop. alt. massive fine grain well consolidated weakly min. bas. with crosscutting vns of Qtz-Anh, carb. shrt hydrothermal BX interval at 55.30m with 5-10mm angular clasts in a carb matrix. mag alt. accounting for up to 3%."
+DH23-104,57.8,59.3,UTB,strong prop. and silica alt. bas. hosted chaotic angular to subangular breccia in a clay-carb matrix wt weak min. wt qtz-anh vns. top cont. marked by 20mm thick carb vn suggesting a sec. carb infill. strg. epi-kfs apparent.
+DH23-104,59.3,67.6,IFAN,prop alt. massive fine grain  v poorly consolidated weakly min. bas. wt strong carb and clay alt. on frac. surf. more compotent flt. brec. towards bttm wt carb-Fecarb infill. 15mm thick py vn at 64.5m. Core loss occured at 66 and 67.2m due to cave in
+DH23-104,67.6,69,UTB,strong prop. and silica alt. bas. hosted chaotic subangular breccia in a clay matrix. crosscutting carb. vns.
+DH23-104,69,69.3,UTG,60-70% clay supported gouge with some angular clasts + 2-3% py min.
+DH23-104,69.3,70.7,UTB,strong prop. and silica alt. bas. hosted chaotic subangular breccia in a clay matrix. crosscutting carb. vns.
+DH23-104,70.7,71.7,UTG,80%  dark grey clay supported gouge with some angular clasts
+DH23-104,71.7,80,IFAN,"prop. alt. massive fine grain  v well consolidated weakly min. bas. with crosscutting vns of Qtz-Anh, carb-Fecarb,"
+DH23-104,80,91,IFAN,"mod. prop. and Si alt. massive fine grain  v mod. consolidated mod. min. lighter and. with crosscutting vns of Qtz-Anh, carb-Fecarb, Py. stronger presence of qtz here and more vis. grains suggest porphyritic?"
+DH23-104,91,103,IFAN,low. prop. alt. massive fine grain consolidated v low min. and. with crosscutting vns of Qtz vns. lighter colouration as a result of qtz comp. increase.
+DH23-104,103,109,IFAN,"mod. prop. alt. massive fine grained  consolidated mod min. porphyritic and. with crosscutting vns of Qtz, Tou-qtz-py, carb., carb-Fecarb. stronger py min. twrds bttm of interval wt/ 20% blebby py.. frac-contr. clay+chl alt."
+DH23-104,109,112,VANSS,low. prop. alt. massive fine grained poorly consolidated low min. porphyritic and. with crosscutting vns of Qtz vns. 5-7mm large clasts of ep 5%.
+DH23-104,112,124,VANSS,"mod.-strg. prop. alt. massive aphanitic consolidated mod min. darker and. with strg frac. ctrlld. alt halos at 121m. crosscutting vns of Qtz, carb. frac-ctrlld chl al.."
+DH23-104,124,139,VANSS,low. prop. alt. massive fine grained poorly consolidated low min. porphyritic and. with crosscutting vns of Qtz and carb. vns 5-7mm ep.-py-kfs clasts perv. at 2%. cly alt
+DH23-104,139,177,VANSS,"mod. prop. and low perv. Si alt. massive aphanitic consolidated mod min. and. with crosscutting vns of Qtz, Fecarb-carb., Tou, cly and pyx-qtz-py. (2cm). frac cntrlld chl. alt. mag alt. perv.. vf grained andesite lighter colour due to high qtz cont.?"
+DH23-104,177,198,VANSS,"low. prop. alt. mas fine -med. grain poor consol. low min. and. (volc clast?) wt vns of tou-py , py- fecarb-carb and qtz..darker than above unit and apprs less alt. 50mm cly flt bx at 182.3m. low Si alt. after 188m.20% qtz, pyx+bt 40%"
+DH23-104,198,207,VANSS,"mod. prop. and low perv. Si alt. massive fg mod min. and. (volc clast?)  with crosscutting vns of Qtz, Fecarb-carb., Tou and pyx-qtz-py. increased ratio of qtz in grey groundmass (volc. clast?)"
+DH23-104,207,217.5,VANSS,"low. prop. alt. massive fine -med. grained poorly consolidated low min. and. with crosscutting vns of tou-py , py- fecarb-carb and qtz."
+DH23-104,217.5,218.2,UTB,chaotic cly and carb infill hosted in fg andesitic volc clast. strg. cly+prop. alt. in host rock
+DH23-104,218.2,218.4,UTG,clayey- carb gouge in chaotic flt bx. 75% dark cly and 25% clasts volc. clast.
+DH23-104,218.4,246.4,VANSS,"andesitic volc. clast. wk. prop. and mag. alt. massive fine -med. grained poorly consolidated v low min. with vns of tou-py-qtz, carb-hem and qtz. wt shrt rubble zone between 225-226m. hardly no min. in this interval. light and dark banding"
+DH23-104,246.4,248,BX,Hydrotherm. Bx associated to stockwork carb-fecarb vn hosted in fg grain andesitic volc. clast.. cly. and chl. alt. slickenlines on frac. suggest brit. def.. hosted in fg volc. clast. si alt apparent
+DH23-104,248,252.2,VANSS,"andesitic volc. clast. wk. prop. alt. massive fine -med. grained well consolidated v low min. with crosscutting vns of tou-py-qtz, carb-hem and qtz. weak si alt perv. and more felsic compo. than prior"
+DH23-104,252.2,257,UTB,flt bx. chaotic cly and carb infill hosted in fg andesitic volc clast. strg. cly+prop. alt.
+DH23-104,257,279,VANSS,"andesitic volc. clast. strg. prop. alt. massive fine -med. grained poor consolidated mod. min. with crosscutting vns of tou-py-qtz, carb-hem and fecarb-carb weak to strg. si and chl alt perv. light/dark bands ind. Si content"
+DH23-104,279,281,UT,flt bx. chaotic cly and carb infill hosted in fg andesitic volc clast. strg. sil+prop. alt. tex. 20mm white clay infill at flt interval. cockade texture to alt. for 1m halo.
+DH23-104,281,290,VANSS,"andesitic volc. clast. weak. prop. alt. dark grey massive v fine -fine. grained poor consolidated mod. min. with crosscutting vns of qtz, carb-hem and qtz-chl weak to strg. si and chl alt perv. younging direction from flame suggests RWU"
+DH23-104,290,292,BX,flt bx with associated strg. vein selvage. carb-py-cly-kfs-hornblende infill and strg. ser-alb-prop. alt. in host rock. strong min. with dark grey angular clasts 3-6mm large.
+DH23-104,292,297.2,VANSS,andesitic volc. clast. v weak. prop. alt. massive v fine -fine. grained poor consolidated low. min. with stockwork of qtz and carb vns at 295.5m . strg. frac cntrl.+perv chl alt. dark colouration indicates larger mafic contribution.
+DH23-104,297.2,302,VANSS,andesitic volc. clast. v brittle strg cly+ser alt. v weak. prop. alt. massive v fine -fine. grained poor consolidated low. min.
+DH23-104,302,312,VANSS,"andesitic volc. clast.  mod. prop. + chl. alt. massive v fine -fine. grained mod. min. crosscutting veins of carb-hem, py-ccp stringers, tou-py-qtz. Ep-kfs clasts present at 3%"
+DH23-104,312,321.8,VANSS,"andesitic volc. clast.  mod. prop. chl. weak ser. alt. massive v fine -fine. grained mod. min. crosscutting veins of carb-hem, qtz-mag-ccp-py. strong chlorite alt"
+DH23-104,321.8,323.2,VANSS,reddish colouration with medium grained volc. clast. appears more felsic than overlying unit. strg. brecciated. crosscutting 1mm py-tou veins
+DH23-104,323.2,324.5,UT,faulted volc clast. with perv. secondary hydrotherm. fluids throughout. illite veins throughout with strong chl alt. halo. anh-qtz 10mm vns appear. twrds bttm. strg albitization towards bttm (40% 2-3mm grains). kfs vnhos. perv. strg prop. alt
+DH23-104,324.5,326,VANSS,darker reddish colouration with fine grained volc. clast. med. prop. +alb. alt.
+DH23-104,326,327.5,VANSS,darker reddish colouration with fine grained volc. clast. med. prop. +alb. alt. strg brecciated with strg py and sph min up to 10%. strg tou sil and kfs alt.
+DH23-104,327.5,333,VANSS,"andesitic volc. clast.  massive v fine -fine. grained mod. prop and alb alt. mod. min. vns of 7-9mm carb-py-ccp, 1.5mm hem-carb, 0.5mmqtz-py-tou"
+DH23-104,333,337.5,VANSS,andesitic volc. clast.  massive fine grained mod. sil and prop alt. weak. min. sig. crosscutting 5-10mm veins of kfs-qtz-tou-py. more felsic comp. evident in lighter colouration
+DH23-104,337.5,347.5,VANSS,andesitic volc. clast.  massive fine- med. grained weak. prop and sil alt. weak. min. sig.  becoming increasingly bx and flt gouge present close to lower contact
+DH23-104,347.5,349,BX,Tou-enriched Hydrothermal BX. both vnhos and blebby (2-3mm) tor (up to 60% comp.) hosted in monzonite . sharp invasive upper cont. Il. vns throughout..
+DH23-104,349,354,IMMOQ,tou veins phase out and more dominated by qtz-alb kfs alt. monzonite. Il. qtz-tou vns throughout. increasingly dominated by heavily sil-kfs alt. rounded volc. clast. clasts towards lower cont. py min blebby throughout
+DH23-104,354,360,VANSS,"andesitic volc. clast.  massive vfg strg. sil, alb. and prop. alt. mod. min. strong clay alt. at upper cont. illite veinlets."
+DH23-104,360,362,VANSS,andesitic volc. clast.  massive vfg strg. sil and alb. alt. weak. min. 4mm thick kfs-qtz-ep vn
+DH23-104,362,367,VANSS,andesitic volc. clast.  massive vfg strg. prop. and weak pot. alt. weak. min.
+DH23-104,367,374,VANSS,andesitic volc. clast.  massive fg strg. prop. and mod pot. alt. perv. weak. min. strg clay and pot. alt. vn selvage 8mm thick tou-kfs-py vn at 370.5
+DH23-104,374,379,VANSS,andesitic volc. clast.  massive fg strg. prop. and mod pot. alt. perv. mod. min.. strg clay and pot. alt. vn selvage. rosette tou
+DH23-104,379,380.5,BX,Tou-enriched Hydrothermal BX. both vnhos and blebby tou (estimate 70% comp.) hosted in qtz-albitic groundmass. sharp invasive upper cont. Il. vns throughout.
+DH23-104,380.5,383.5,VANSS,strg. alt. andesitic volc. clast.  massive mg strg. prop. and mod pot. alt. perv. crosscutting vns of carb-kfs-ep.
+DH23-104,383.5,384,BX,Monzonite dyke strong sulf. enriched. hosted in strg. alt. plag-qtz (70% plag 30% qtz) dom. monzonite. strg. illite alt.. Bu fringes the sides of ccp grains.
+DH23-104,384,399,VANSS,"strg. alt. andesitic volc. clast.  massive mg strg. prop. and mod pot. alt. perv. crosscutting vns of carb-kfs-ep, carb-hem and cly vn selvage alt. some interbedded intervals of monz."
+DH23-104,399,429,IMMO,Monzonite plag-kfs dominated monz with strg. prop. alt. less plag. dom towards bttm. (qtz monzodiorite from 423-429m?) crosscutting carb and qtz vns. largely bt alt. to chl. mod. diss. sulfides throughout. kfs alt. around chl crystals
+WJ23-105,0,6.7,OB,
+WJ23-105,6.7,14,IFAN,"weathered porphyritic and. euhedral 8-12mm plag. phenocryst (30%), elongated subhedral amp. 1-3mm (10%), bt anhedral crystals (10%). dark grey matrix lighter felsic intervals interbedded frac cntrlled hem alt."
+WJ23-105,14,20,IFAN,porphyritic and poorly sorted with intervals wt sparse phenocrysts. alb alt. near frac-vns
+WJ23-105,20,32,IFAN,"porphyritic and. weak perv. sil and localized pot alt. crosscutting ccp-qtz, carb, py-qtz, vns"
+WJ23-105,32,40.4,IFAN,porphyritic and.  throughout with weak sil alt.. sulfide min. strong in dark groundmass and vnhos. plag phenocrysts less common here with more bt-amph comp. lighter groundmass where sil alt.
+WJ23-105,40.4,54.3,IFAN,porphyritic and.  throughout with weak propylitic alt. and lower phenocryst % than overlying units. main alteration assemblage is Chl and mag.
+WJ23-105,54.3,55.3,IFAN,v strg. perv. ep. alt. between 54.8-55.4m with strong carb alteration of elongated amphibole grains and veining. good example of strg porpylitic epidote alt.
+WJ23-105,55.3,72,IFAN,porphyritic and. with mod prop alt. going to low towards the bttm. main alteration assemblage is Chl and mag.
+WJ23-105,72,75,IFAN,carb-dom. porphyritic andesite.  strg. stockwork of crosscutting carb vns with lighter groundmass
+WJ23-105,75,86,IFAN,"porphyritic andesite.  weak prop.  alt. wt int. of strg vn hosted prop. alt. crosscutting carb vns, much lower plag. phenocryst comp."
+WJ23-105,86,92,IFAN,mod prop and sericite alt.
+WJ23-105,92,94,IFAN,strong prop. alt. andesite kfs and ep dom. assemblage likely associated to crosscutting qtz vns
+WJ23-105,94,107,IFAN,"aphanitic mod prop and sericite alt. wt crosscutting tou-qtz-kfs, ep-kfs vns"
+WJ23-105,107,111,IFAN,"weak prop.  alt. wt crosscutting carb vns, low plag. phenocryst comp."
+WJ23-103,0,3,OB,
+WJ23-103,3,35.5,MB,"Ptchy porph bas with Pl pheno ranging in size from 1-3mm, wk perv propy alt, mod propy vnhalos from 18-23.25m, diss Mag throughout but less abundant in areas with str propy alt, local trace frac Py Ccp Mo, local trace vnhos Ccp Py Hem"
+WJ23-103,35.5,35.85,BX,Hydrothermal crackle Bx filled with randomly oriented Cal veins ranging in size from 1-3mm
+WJ23-103,35.85,53.5,MB,"Ptchy porph bas with Pl pheno ranging in size from 1-3mm, wk perv propy alt, mod propy vnhalos, diss Mag throughout but less abundant in areas with str propy alt, trace vnhos Ccp, Py, Hem, density of sulphide bearing veins is higher in this interval"
+WJ23-103,53.5,54.05,UTB,Clast supported chaotic fault breccia with clay infill
+WJ23-103,54.05,67,MB,"Ptchy porph bas with Pl+Px pheno ranging in size from 1-3mm, wk perv propy alt, mod propy vnhalos, local weak pot vnhalos, trace vnhos Ccp, Py, Hem, density of sulphide bearing veins is higher in this interval than previous"
+WJ23-103,67,70.25,MB,Basalt rubble zone
+WJ23-103,70.25,110.65,MB,"porph bas with pheno of Pl Px and sec Chl approx 1mm in diameter, weak perv propy alt, patchy mod propy+pot vnhalos, local trace vnhos native Cu, Bn, Ccp from 101.5-102.75m found in Cal vns with pot alt halos"
+WJ23-103,110.65,112.45,IFAN,"Gradual change from porph Bas into porph And due to increase in Amph %, weak perv propy alt, patchy weak-mod propy vnhalos, Diss mag throughout, trace frac+vnhos Hem, no sig sulfide min"
+WJ23-103,112.45,113.2,UTB,Clast supported chaotic fault Bx with clay and carb vein infill
+WJ23-103,113.2,164.75,IFAN,"Porph And with variable concentrations of amphiboles making it unclear whether an Andesite or Basalt, weak perv propy alt, patchy mod-str propy+Ab vnhalos, possible Ep rich xeno at 137.3m (could be vnhalo), possibly amygdaloidal from 159.7-161.7m"
+WJ23-103,164.75,165.1,BX,Clast supported crackle hydrothermal Bx with carb+Fe-carb vein infill
+WJ23-103,165.1,181,IFAN,"Porph And w/ variable concentrations of amphiboles making it unclear whether And or Bas, weak perv propy alt, str propy+Ab vnhalos, 0.1% frac+vnhos Hem, no sig sulfide min,"
+WJ23-103,181,196.5,IFAN,"Porph And w/ variable wt% of amph making it unclear whether And or Bas, patchy weak-mod perv propy alt, str propy+Ab vnhalos, local str Ep alt/possible xeno from 188-189m, no sig sulfide min, trace vnhos+frac Hem, 0.5% diss Mag"
+WJ23-103,196.5,204.6,IFAN,"Porph And w/ vfg matrix, variable wt% of amph + aph matrix makes it unclear whether And or Bas, patchy mod-str perv propy alt, str propy+Ab vnhalos,, no sig sulfide min, trace vnhos+frac Hem, 0.5% diss Mag"
+WJ23-103,204.6,221.15,IFAN,"Porph And w/ variable wt% of amph making it unclear whether And or Bas, patchy mod perv propy alt, str propy+Ab vnhalos,, no sig sulfide min, trace vnhos+frac Hem,"
+WJ23-103,221.15,225.4,IMDQ,"Mg Qz diorite/gabbro, Patchy regions of more felsic composition unclear whether caused by propy alt or intrusions, no clear sharp contacts"
+WJ23-103,225.4,226.1,BX,Clast supported crackle hydrothermal Bx with carb vein infill
+WJ23-103,226.1,245.45,IMDQ,"Mg Qz diorite/gabbro, Patchy regions of more felsic composition unclear whether caused by propy alt or intrusions, no clear sharp contacts, 1-3cm Ep blobs from 234-238m"
+WJ23-103,245.45,246.5,IFAN,"Porph And w/ variable wt% of amph making it unclear whether And or Bas, mafic appearance, mod perv propy alt w/ Chl+Ep as dominant sec min, no sig sulfide min,"
+WJ23-103,246.5,258.5,IMDQ,"Mg Qz diorite/gabbro, Patchy regions of more felsic composition unclear whether caused by propy alt or intrusions, no clear sharp contacts, no sig sulfide min"
+WJ23-103,258.5,258.75,UTB,Clast supported crackle fault Bx with clay+carb vein infill
+WJ23-103,258.75,265.3,IMDQ,"Mg Qz diorite/gabbro, no sig sulfide min, weak-mod perv propy alt,"
+WJ23-103,265.3,275.45,MB,"Aphanitic basalt, weak perv propy alt w/ Chl as dominant sec min forming round blobs 1-5mm in diameter, planar and irregular Cal veinlets have weak to no propy alt halos, no sig sulfide min, trace frac+vnhos Hem, 1-2% diss Mag throughout"
+WJ23-103,275.45,299.3,SSCO,"Volcaniclastic, mafic+felsic clasts 0.5-5cm in diam hosted in a vfg-fg clastic matrix, rxn rims on clasts from 281-282m, possible repeating successions of fining downwards of clast size throughout(281-286.4m), contact at 287.7m, weak perv propy alt"
+WJ23-103,299.3,299.95,BX,"Matrix supported chaotic hyd bx with carb vein infill, angular clasts approx 1cm in diam, str propy alt surrounding Bx"
+WJ23-103,299.95,308.6,SSCO,"Volcaniclastic, mafic+felsic clasts 0.5-3cm in diam hosted in a vfg-fg clastic matrix, possible successions of fining downwards of clast size, weak perv propy alt, no sig sulfide min, trace frac+vnhos Hem"
+WJ23-103,308.6,308.85,Fdyk,"Fg dyke with upper sharp contact showing str Ab alt, dyke has been completely alt to Ep, no clear bottom contact, unmineralized"
+WJ23-103,308.85,328.7,SSCO,"Volcaniclastic, felsic clasts 0.5-3cm in diam hosted in a vfg-fg clastic matrix, accretionary lapili 0.5-1.5cm in diameter, weak perv propy alt, no sig sulfide min, trace frac+vnhos Hem"
+WJ23-103,328.7,330.7,Fdyk,"Intrusive body containing angular clasts of the surrounding volcaniclastics 1-10cm in diameter, clasts and intrusion show patchy mod-str Ep alt, patchy mod-str Ab alt surrounds some of the clasts, no well defined top or bottom contact"
+WJ23-103,330.7,340,SSCO,"Volcaniclastic, felsic clasts 0.5-2cm in diam hosted in a vfg-fg clastic matrix, accretionary lapili 0.5-3cm in diameter, clasts+lapilli show variable degrees of Ep alt, weak perv propy alt, no sig sulfide min, trace frac+vnhos Hem"
+WJ23-103,340,340.7,BX,Clast supported hydrothermal  crackle Bx with carb vein infill
+WJ23-103,340.7,360.75,SSCO,"Volcaniclastic w/ clasts 0.5-2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, weak perv propy alt, variable patchy propy vnhalos dominanted by Ep alt, no sig sulfide min, possible Ep altered intrusion at 342.9m"
+WJ23-103,360.75,361.25,UTG,"Fault breccia/gouge with clay+carb vein infill,"
+WJ23-103,361.25,380.05,SSCO,"Volcaniclastic w/ clasts 0.5-2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, clasts becoming less abundant, weak perv propy alt, variable patchy propy vnhalos dominanted by Ep alt, no sig sulfide min"
+WJ23-103,380.05,380.45,BX,Clast supported hydrothermal crackle Bx with carb vein infill
+WJ23-103,380.45,387.3,SSCO,"Volcaniclastic w/ clasts 0.5-2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, clasts becoming less abundant, weak perv propy alt, variable patchy propy vnhalos dominanted by Ep alt, no sig sulfide min"
+WJ23-103,387.3,387.85,BX,Volcaniclastics have been lightly hydrothermally brecciated by carb veins
+WJ23-103,387.85,398,SSCO,"V-clastic w/ clasts <2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, weak perv propy alt, variable patchy propy+Ab vnhalos dominanted by Ep alt, trace diss+vnhos+frac Ccp from 392-392.4m, trace Nat Cu from 393.25-393.8"
+WJ23-103,398,404,SSCO,"V-clastic w/ clasts <2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, weak perv propy alt, weak, Ep+Chl vnhalos, abundant randomly oriented cross-cutting carb veins throughout, some showing cm scale shearing,"
+WJ23-103,404,438.45,SSCO,"V-clastic w/ clasts 0.5-5cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, weak perv propy alt, mod Ep+Chl vnhalos, possible diss Nat Cu hosted in Ep alt blob at 406.15m"
+WJ23-103,438.45,439.25,UTB,"Lightly brecciated clast supported fault Bx with clay gouge+carb vein infill,"
+WJ23-103,439.25,452,SSCO,"V-clastic w/ clasts <2cm in diameter hosted in a vfg-fg clastic matrix, accretionary lapilli <1.5cm, weak perv propy alt, patchy weak Ep+Chl vnhalos, abundant colloform+crustiform carb veins w/ FeOx rims 0.2-1.5cm thick"
+SE23-102,0,136.87,OB,
+SE23-102,136.87,140.65,IMMOQ,Flt gouge at 140.5 with hem dusting
+SE23-102,140.65,153.3,IMMOQ,Light grey in color with weak to no pot alt
+SE23-102,153.3,165.7,IMMOQ,
+SE23-102,165.7,170,IMMOQ,
+SE23-102,170,223.6,IMMOQ,"No drastic lith changes in this interval, variable degrees of perv pot alt and chl+ser alt ovrprnt,, strong pot alt at 223m"
+SE23-102,223.6,226.4,IFMOQ,
+SE23-102,226.4,249.85,IMMOQ,
+SE23-102,249.85,252.75,IMMOQ,Porous region with strong pot alt
+SE23-102,252.75,254,IMMOQ,"light pink/grey porous region, strongly pot altered"
+SE23-102,254,257,IMMOQ,
+SE23-102,257,259,IMMOQ,light grey porous region
+SE23-102,259,285.25,IMMOQ,patchy regions of strong pot alt halos
+SE23-102,285.25,307.35,IMMOQ,
+SE23-102,307.35,316.3,IFMOQ,
+SE23-102,316.3,326,IFMOQ,2-5cm amethyst Qz veins w/ Ccp
+SE23-102,326,331.6,IFMOQ,S pot alt halos around Anh veins
+SE23-102,331.6,365.5,IFMOQ,
+SE23-102,365.5,365.75,Fdyk,
+SE23-102,365.75,369.4,IMMOQ,
+SE23-102,369.4,369.55,Fdyk,
+SE23-102,369.55,387.3,IMMOQ,
+SE23-102,387.3,387.35,Fdyk,
+SE23-102,387.35,388.05,IMMOQ,
+SE23-102,388.05,388.1,Fdyk,
+SE23-102,388.1,401.9,IMMOQ,
+SE23-102,401.9,405.2,IFMOQ,
+SE23-102,405.2,407,UTB,Crackle Bx
+SE23-102,407,414.65,IFMOQ,
+SE23-102,414.65,414.9,UTB,Crackle Bx
+SE23-102,414.9,422.45,IFMOQ,
+SE23-102,422.45,422.5,Fdyk,
+SE23-102,422.5,423,IFMOQ,
+SE23-102,423,423.05,Fdyk,
+SE23-102,423.05,430.1,IFMOQ,
+SE23-102,430.1,433.75,Mdyk,"Contains mag, weak perv chl alt"
+SE23-102,433.75,442,IFMOQ,
+SE23-102,442,442.7,IFMOQ,"Strong Hem dusting surrounding Qz, veins"
+SE23-102,442.7,445.2,IFMOQ,"Strong Chl, Ilt, Ser alt around Qz/amethyst veins giving it a patchy  green/purple color"
+SE23-102,445.2,448.2,IFMOQ,Mod-strong Hem dusting
+SE23-102,448.2,455.6,IFMOQ,"Strong Chl, Ilt, Ser alt and Hem dusting around Qz/amethyst veins giving a patchy green-purple-red color"
+SE23-102,455.6,459.35,IFMOQ,
+SE23-102,459.35,459.45,Fdyk,
+SE23-102,459.45,465.05,IFMOQ,
+SE23-102,465.05,466.1,IMMOQ,"Trace diss+vnhos Ccp, mod perv pot alt w/ weak Chl ovrprnt"
+SE23-102,466.1,466.2,Fdyk,Unaltered
+SE23-102,466.2,467.5,IMMOQ,"Ccp, Mo, Py bearing vein w/ pot vnhalo at 467.25m"
+SE23-102,467.5,468,Fdyk,"Ccp, Mo bearing vein within Ap dyke, ccp stringer cutting through  Ap dyke and host rock"
+SE23-102,468,475.25,IMMOQ,"mod perv pot alt w/ weak chl ovrprnt, Ccp+Mo veins have weak pot vnhalos"
+SE23-102,475.25,475.3,Fdyk,Ap dyke crosscut and sheared 1cm by ccp stringer
+SE23-102,475.3,481.75,IMMOQ,"Mod perv por alt w/ weak chl ovrprnt, trace vnhos+diss Ccp, trace vnhos+frac Py"
+SE23-102,481.75,482.75,IFMOQ,Mag rich fg mafic xenolith? at 481.85m
+SE23-102,482.75,484.55,IMMOQ,Weak perv pot alt w/ mod perv Chl ovrprnt
+SE23-102,484.55,484.65,Fdyk,Fg Ap dyke
+SE23-102,484.65,489.7,IFMOQ,"Cave in at 485.5m, Anh veins with mod Hem dusting"
+SE23-102,489.7,491.15,IMMOQ,Mod perv pot alt w/ weak Chl alt ovrprnt
+SE23-102,491.15,491.25,Fdyk,Ap dyke
+SE23-102,491.25,492.75,IFMOQ,"mod perv pot alt w/ weak Chl ovrprnt, frac hosted Py present"
+SE23-102,492.75,492.85,Fdyk,Ap dyke
+SE23-102,492.85,498.75,IMMOQ,"Weak perv pot alt w/ weak Chl ovrprnt, sparse Anh veins show mod Hem dusting"
+SE23-102,498.75,501,IFMOQ,"Mod perv pot alt w/ weak Chl ovrprnt,trace vnhos Ccp, trace frac Py"
+SE23-102,501,509,IMMOQ,"Trace vnhos Ccp, trace vnhos+frac Mol"
+SE23-101,0,177,OB,
+SE23-101,177,220.5,IFMOQ,
+SE23-101,220.5,247.57,IFMOQ,
+SE23-101,247.57,258,IFMOQ,
+SE23-101,258,264.07,IFMOQ,
+SE23-101,264.07,264.32,Fdyk,
+SE23-101,264.32,279.88,IFMOQ,
+SE23-101,279.88,280.12,Fdyk,
+SE23-101,280.12,301.42,IFMOQ,
+SE23-101,301.42,302.38,Fdyk,
+SE23-101,302.38,308.82,IFMOQ,
+SE23-101,308.82,309.15,Fdyk,
+SE23-101,309.15,323.75,IFMOQ,
+SE23-101,323.75,323.83,Fdyk,
+SE23-101,323.83,324.05,IFMOQ,
+SE23-101,324.05,332,IMMOQ,
+SE23-101,332,336.9,IFMOQ,
+SE23-101,336.9,357.61,IFMOQ,
+SE23-101,357.61,357.82,Fdyk,
+SE23-101,357.82,368,IMMOQ,
+SE23-101,368,368.31,Fdyk,
+SE23-101,368.31,368.59,IFMOQ,
+SE23-101,368.59,368.63,Fdyk,
+SE23-101,368.63,373.11,IFMOQ,
+SE23-101,373.11,389.6,IMMOQ,
+SE23-101,389.6,389.64,Fdyk,Tr dissem Ccp + Mag
+SE23-101,389.64,389.75,Idyk,Thin Pl phyric dyke w/ gradational bottom contact. K alt w/ Mag.
+SE23-101,389.75,402.3,IMMOQ,
+SE23-101,402.3,403.6,ICMOQ,
+SE23-101,403.6,412.2,IMMOQ,
+SE23-101,412.2,417.5,ICMOQ,"10cm wide vein with 0.1% vnhos Mo, 0.1% vnhos Ccp"
+SE23-101,417.5,434.8,IMMOQ,
+SE23-101,434.8,434.85,Mdyk,"Thin mafic dyke, 0.1% diss Ccp"
+SE23-101,434.85,454.1,IMMOQ,Regions of ser alt halos
+SE23-101,454.1,457.55,IMMOQ,
+SE23-101,457.55,457.6,Mdyk,"Thin mafic dyke, 0.1% Ccp"
+SE23-101,457.6,467,IMMOQ,
+SE23-101,467,477.45,IMMOQ,Mod perv ser alt overprint
+SE23-101,477.45,477.65,Fdyk,0.1% vnhos Ccp
+SE23-101,477.65,506,IMMOQ,
+SE23-100,0,115.2,OB,
+SE23-100,115.2,124.4,IMMOQ,
+SE23-100,124.4,124.7,Fdyk,
+SE23-100,124.7,133.25,IMMOQ,
+SE23-100,133.25,139,IFMOQ,
+SE23-100,139,144.3,IMMOQ,
+SE23-100,144.3,152.25,IFMOQ,
+SE23-100,152.25,153.5,Fdyk,
+SE23-100,153.5,153.9,IFMOQ,
+SE23-100,153.9,156.1,Fdyk,
+SE23-100,156.1,163.35,IFMOQ,
+SE23-100,163.35,164.75,IMMOQ,
+SE23-100,164.75,170.1,IFMOQ,
+SE23-100,170.1,182.5,Fdyk,
+SE23-100,182.5,189.5,IFMOQ,
+SE23-100,189.5,198.3,IMMOQ,
+SE23-100,198.3,202.85,Fdyk,
+SE23-100,202.85,203.7,IMMOQ,
+SE23-100,203.7,207,IMMOQ,
+SE23-100,207,241.5,IMMOQ,
+SE23-100,241.5,242.55,Fdyk,
+SE23-100,242.55,248.85,IMMOQ,
+SE23-100,248.85,249.25,Fdyk,
+SE23-100,249.25,262.45,IMMOQ,
+SE23-100,262.45,291.7,IMMOQ,
+SE23-100,291.7,301,IMMOQ,
+SE23-100,301,353.67,IMMOQ,
+SE23-100,353.67,358.4,Mdyk,
+SE23-100,358.4,389.98,IMMOQ,
+SE23-100,389.98,414.17,Mdyk,
+SE23-100,414.17,459.25,IMMOQ,
+SE23-100,459.25,459.54,ICMOQ,
+SE23-100,459.54,462.4,IFMOQ,
+SE23-100,462.4,471.37,Mdyk,
+SE23-100,471.37,473.72,IMMOQ,
+SE23-100,473.72,474.02,Mdyk,
+SE23-100,474.02,499.78,IMMOQ,
+SE23-100,499.78,505.59,IMMOQ,
+SE23-100,505.59,602.79,IMMOQ,

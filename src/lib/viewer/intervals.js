@@ -24,6 +24,31 @@ export function continuesUnitAbove(endIndex, r, codes) {
   const above = endIndex.get(depthKey(r.hole_id, r.from));
   return !!above && above.some((v) => codes.has(v));
 }
+// TASKS.csv #569 — rows indexed by START depth (hole|from), the mirror of intervalEndIndex, for up-holes below.
+export function intervalStartIndex(rows) {
+  const m = new Map();
+  (rows || []).forEach((r) => {
+    if (r.hole_id == null || !Number.isFinite(Number(r.from))) return;
+    const k = depthKey(r.hole_id, r.from);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r.value);
+  });
+  return m;
+}
+// TASKS.csv #569 — where a logged interval's UPPER contact is. Picking used to take `from` (the shallower end
+// along the hole) as the unit's top, which is right for a down-hole but, in a hole drilled UPWARD (common
+// underground), `from` is the stratigraphically LOWER end: every pick was the unit's base fed in as its top.
+// zAt(md) -> elevation on the hole's trace. When the trace rises from `from` to `to`, the top is at `to`, and
+// the unit "continues from above" when a row of `codes` STARTS at `to` (not when one ends at `from`).
+// Returns { md, upHole, continues }. Without elevations (no trace) it keeps the down-hole rule. An OVERTURNED
+// limb (down-hole, but the sequence upside down) cannot be told from geometry; that needs younging data.
+export function upperContactOf(r, zAt, { startIndex, endIndex, codes }) {
+  const zf = zAt ? zAt(Number(r.from)) : NaN, zt = zAt ? zAt(Number(r.to)) : NaN;
+  const upHole = Number.isFinite(zf) && Number.isFinite(zt) && zt > zf + 1e-6;
+  if (!upHole) return { md: Number(r.from), upHole: false, continues: continuesUnitAbove(endIndex, r, codes) };
+  const next = startIndex.get(depthKey(r.hole_id, r.to));
+  return { md: Number(r.to), upHole: true, continues: !!next && next.some((v) => codes.has(v)) };
+}
 // TASKS.csv #354 — back-to-back rows of one code in one hole (a vein logged as 12.0-12.4 + 12.4-13.1)
 // are one intercept, not two thin ones.
 export function mergeTouchingIntervals(rows) {

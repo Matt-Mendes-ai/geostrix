@@ -31,6 +31,9 @@ around each hole's own real assay anomalies (not arbitrary depths): intervals sc
 simple Au/Cu/Pb/Zn-weighted anomaly score got a QSP/SIL alteration halo, nearby quartz-sulphide
 veining, and mineralization points with the sulphide chosen by whichever base metal actually
 dominates that interval's real assays (Cu-dominant → chalcopyrite, Pb-dominant → galena, etc.).
+In `alt.csv` each QSP interval has a SIL row over exactly the same depths on purpose (two assemblages logged
+together), so Data QC lists those as overlaps; that is expected. (TASKS.csv #685: 35 chlorite rows with `from` > `to`, a
+by-product of the generator, were removed — the sample's own Data QC no longer reports errors for them.)
 Geotech RQD is lower through overburden and through those same anomalous zones. Magnetic
 susceptibility is lower in the synthesized alteration and higher in the real mafic units (BSL/MINT/
 ANDS). Structure picks are contacts at the real litho boundaries plus a few vein-related picks,

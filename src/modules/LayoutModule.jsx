@@ -20,7 +20,7 @@ import { PAGE_FORMATS, pageFormatOf, pagePx } from "../lib/pageFormats.js"; // T
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
 setIgrfModule(igrfModule);
-import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
+import { printPt, printPx } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -529,22 +529,22 @@ export default function LayoutModule() {
         <Ribbon label="Layout tools">
           <RibbonGroup label="Insert">
             <RibbonButton icon={Type} label="Text" tone="output" title="Add text" onClick={() => addElement("text")} />
-            <RibbonButton icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
+            <RibbonButton advanced icon={ImageIcon} label="Logo" tone="output" title="Add company logo" onClick={() => addElement("logo")} />
             <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
-            <RibbonButton icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
+            <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
-          <RibbonGroup label="Draw">
+          <RibbonGroup advanced label="Draw">
             <RibbonButton icon={Square} label="Rectangle" tone="neutral" title="Add rectangle" onClick={() => addElement("rect")} />
             <RibbonButton icon={ArrowUpRight} label="Arrow" tone="neutral" title="Add arrow" onClick={() => addElement("arrow")} />
             <RibbonButton icon={MessageSquare} label="Callout" tone="neutral" title="Add callout" onClick={() => addElement("callout")} />
             <RibbonButton icon={Pencil} label="Freehand" tone="neutral" active={freehandTool} title={freehandTool ? "Click and drag on the page to draw — click again to cancel" : "Freehand pen — click, then drag on the page"} onClick={() => setFreehandTool((v) => !v)} />
           </RibbonGroup>
-          <RibbonGroup label="Page">
+          <RibbonGroup advanced label="Page">
             <RibbonButton icon={Grid3x3} label="Grid + snap" tone="view" active={showGrid} title="Show the alignment grid and snap elements to it (spacing in the sidebar)" onClick={() => setShowGrid((v) => !v)} />
             <RibbonButton icon={Save} label="Save template" tone="data" title="Save this page as a reusable template" onClick={saveAsTemplate} />
             <RibbonButton icon={FolderOpen} label={`Templates (${layoutTemplates.length})`} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
@@ -1076,7 +1076,7 @@ function UtmGridOverlay({ el }) {
         return (
           <g key={l.key}>
             <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#1a2028" strokeOpacity="0.45" strokeWidth="0.6" />
-            <text x={Math.min(W - 2, Math.max(2, lab[0] + 2))} y={Math.min(H - 3, Math.max(9, lab[1] + 9))} fontSize="8" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>
+            <text x={Math.min(W - 2, Math.max(2, lab[0] + 2))} y={Math.min(H - 3, Math.max(9, lab[1] + 9))} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>
           </g>
         );
       })}
@@ -1267,16 +1267,16 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
     const [tx, ty] = ray(convergence, 58), [mx, my] = ray(mn, 52);
     return (
       <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown}>
-        <svg width="150" height="124" viewBox="0 0 150 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>
+        <svg width="170" height="124" viewBox="0 0 170 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
           <line x1="60" y1="80" x2="60" y2="14" stroke="#1a2028" strokeWidth="1.6" />
-          <text x="60" y="10" fontSize="10" fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
+          <text x="60" y="10" fontSize={printPx(printPt.small)} fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
           <line x1="60" y1="80" x2={tx} y2={ty} stroke="#1a2028" strokeWidth="1.2" />
-          <text x={tx} y={ty - 4} fontSize="11" textAnchor="middle" fill="#1a2028">★</text>
+          <text x={tx} y={ty - 4} fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028">★</text>
           <line x1="60" y1="80" x2={mx} y2={my} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
-          <text x={mx + 4} y={my - 2} fontSize={fontSizes.xs} fontWeight="700" fill="#1a2028">MN</text>
-          <text x="4" y="98" fontSize="8.5" fill="#1a2028">True north {fmt(convergence)} of grid north</text>
-          <text x="4" y="109" fontSize="8.5" fill="#1a2028">Magnetic declination {fmt(declination)} ({date.slice(0, 4)})</text>
-          <text x="4" y="120" fontSize="8" fill="#55606e">IGRF-14; changes about 0.1-0.2°/yr</text>
+          <text x={mx + 4} y={my - 2} fontSize={printPx(printPt.small)} fontWeight="700" fill="#1a2028">MN</text>
+          <text x="4" y="98" fontSize={printPx(printPt.caption)} fill="#1a2028">True north {fmt(convergence)} of grid north</text>
+          <text x="4" y="109" fontSize={printPx(printPt.caption)} fill="#1a2028">Magnetic declination {fmt(declination)} ({date.slice(0, 4)})</text>
+          <text x="4" y="120" fontSize={printPx(printPt.caption)} fill="#55606e">IGRF-14; changes about 0.1-0.2°/yr</text>
         </svg>
       </div>
     );
@@ -1286,7 +1286,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
       <svg width="54" height="70" viewBox="0 0 54 70">
         <polygon points="27,4 38,44 27,36 16,44" fill="#ffffff" stroke="#1a2028" strokeWidth="1.5" strokeLinejoin="round" />
         <polygon points="27,4 38,44 27,36" fill="#666" />
-        <text x="27" y="64" fontSize="18" fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">N</text>
+        <text x="27" y="64" fontSize={printPx(printPt.label)} fontWeight="700" textAnchor="middle" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">N</text>
       </svg>
     </div>
   );
@@ -1303,8 +1303,8 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
-          <text x="2" y="28" fontSize="11" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">0</text>
-          <text x={px + 2} y="28" fontSize="11" textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{el.meters} m</text>
+          <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">0</text>
+          <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{el.meters} m</text>
         </svg>
       </div>
     );

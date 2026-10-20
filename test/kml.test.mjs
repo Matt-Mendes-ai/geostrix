@@ -51,3 +51,17 @@ test("#424 KMZ (zipped doc.kml) is read", async () => {
   const { features } = await parseKMZ(new Uint8Array(Buffer.concat([body, central, eocd])));
   assert.equal(features.length, 3);
 });
+
+// TASKS.csv #705 — a space after the comma inside a tuple must not split it (it made vertices at latitude 0)
+test("KML tuples with spaces around the commas parse as one vertex each; junk is counted, not coerced", async () => {
+  const { parseKML } = await import("../src/lib/kml.js");
+  const kml = (c) => `<kml><Placemark><name>Claim</name><LineString><coordinates>${c}</coordinates></LineString></Placemark></kml>`;
+  const spaced = parseKML(kml("-121.30, 52.30, 0 -121.29, 52.31, 0\n -121.28 ,52.32"));
+  assert.deepEqual(spaced.features[0].coords, [[-121.3, 52.3, 0], [-121.29, 52.31, 0], [-121.28, 52.32]]);
+  assert.equal(spaced.badTuples, 0);
+  const plain = parseKML(kml("-121.30,52.30,0 -121.29,52.31,0"));
+  assert.deepEqual(plain.features[0].coords, [[-121.3, 52.3, 0], [-121.29, 52.31, 0]]);
+  const junk = parseKML(kml("-121.30,52.30 abc,52 -121.2,,0 400,10 -121.1,52.1"));
+  assert.deepEqual(junk.features[0].coords, [[-121.3, 52.3], [-121.1, 52.1]]);
+  assert.equal(junk.badTuples, 3);
+});

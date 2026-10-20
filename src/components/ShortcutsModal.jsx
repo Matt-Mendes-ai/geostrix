@@ -3,7 +3,7 @@ import { X, Keyboard, Info, Cpu } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
-import { version as APP_VERSION } from "../../package.json";
+import { version as APP_VERSION, description as APP_TAGLINE } from "../../package.json"; // #648 — one tagline: About + Windows app details
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
@@ -37,12 +37,11 @@ const SHORTCUT_GROUPS = [
     items: [
       ["Ctrl/Cmd+1", "3D View"],
       ["Ctrl/Cmd+2", "3D Modelling"],
-      ["Ctrl/Cmd+3", "Geochem"],
+      ["Ctrl/Cmd+3", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
       ["Ctrl/Cmd+4", "Geophysics"],
       ["Ctrl/Cmd+5", "Targeting"],
-      ["Ctrl/Cmd+6", "Raster"],
-      ["Ctrl/Cmd+7", "Cartography"],
-      ["Ctrl/Cmd+8", "Layout"], // #565 — in tab order
+      ["Ctrl/Cmd+6", "Maps"], // #749 — rasters, terrain, map layers, boundaries, CRS
+      ["Ctrl/Cmd+7", "Layout"], // #565 — in tab order
     ],
   },
   {
@@ -70,6 +69,7 @@ const SHORTCUT_GROUPS = [
       ["Middle-drag or Shift+Left-drag", "Pan"],
       ["Scroll", "Zoom in / out"],
       ["Right-click", "Context menu"],
+      ["Shift+F10 or the Menu key", "Context menu from the keyboard (the focused 3D view or a sidebar row); arrows move, Enter chooses, Escape closes"], // TASKS.csv #730
     ],
   },
   {
@@ -103,8 +103,8 @@ function PythonHelp({ pyStatus }) {
         <li>Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion</li>
         <li>2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP</li>
       </ul>
-      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, rasters,
-        Cartography — works without it.</p>
+      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, maps,
+        rasters and reprojection — works without it.</p>
       <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>If it doesn't start</div>
       <ol style={{ margin: 0, paddingLeft: 18 }}>
         <li>Try the feature again after a minute — the first start unpacks its libraries.</li>
@@ -171,10 +171,21 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
                     straight from package.json (a plain Vite JSON import, works identically in the desktop
                     build and the browser-fallback dev path — no IPC needed for a value this static). */}
                 <div style={{ color: "var(--color-text-muted)" }}>Version {APP_VERSION}</div>
-                <div style={{ color: "var(--color-text-muted)" }}>3D drillhole & geochemistry explorer</div>
+                <div style={{ color: "var(--color-text-muted)" }}>{APP_TAGLINE}</div>
+                {/* TASKS.csv #647 — the author, linked to his LinkedIn (opens in the real browser, like the links below) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, color: "var(--color-text-muted)" }}>
+                  by
+                  <a href={AUTHOR_URL} target="_blank" rel="noreferrer" title="Matt Mendes on LinkedIn" style={{ ...link, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    Matt Mendes <LinkedInMark />
+                  </a>
+                </div>
               </div>
             </div>
-            <div>MIT-licensed, built for smaller mineral exploration teams — drillhole visualization, geochemistry, geophysics, layout, and implicit geological modelling in one desktop app.</div>
+            {/* TASKS.csv #648 — refreshed: what GeoStrix covers today, who it is for, and credit for geoML */}
+            <div>Made for exploration geologists, especially small teams on modest budgets and ordinary laptops: drillholes and geochemistry, geophysics and inversions, implicit and predictive 3D modelling, targeting, maps and print-ready layouts, in one free desktop app that works offline.</div>
+            <div style={{ marginTop: 8, color: "var(--color-text-muted)" }}>
+              Predictive modelling is powered by <a href={GEOML_URL} target="_blank" rel="noreferrer" style={link}>geoML</a>, created by Ítalo Gonçalves (optional add-on, GPL-3.0).
+            </div>
             {/* TASKS.csv #310 — the licence and the repository were mentioned in prose but not reachable.
                 electron/main.js's setWindowOpenHandler (added in the same row) sends these to the user's
                 real browser instead of a chromeless Electron window; in the browser-fallback dev path
@@ -201,6 +212,17 @@ function TabBtn({ active, onClick, icon, label }) {
 // TASKS.csv #310 — kept next to the one place it is used rather than in a constants file; this is the
 // same URL electron/main.js already bakes into the SRTM fetch User-Agent and README links to.
 const REPO_URL = "https://github.com/Matt-Mendes-ai/geostrix";
+const AUTHOR_URL = "https://www.linkedin.com/in/matt-mendes-83639737/";
+const GEOML_URL = "https://github.com/italo-goncalves/geoML";
+// LinkedIn's "in" mark, drawn inline (brand blue; 16 px). Decorative: the link's text and title name it.
+function LinkedInMark() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect width="24" height="24" rx="4" fill="#0A66C2" />
+      <path fill="#fff" d="M7.1 9.5h-2.6V19h2.6V9.5zM5.8 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM19.5 13.6c0-2.6-.6-4.3-3.5-4.3-1.4 0-2.3.7-2.7 1.4h-.1V9.5h-2.5V19h2.6v-4.7c0-1.2.2-2.5 1.8-2.5 1.5 0 1.6 1.4 1.6 2.6V19h2.6v-5.4z" />
+    </svg>
+  );
+}
 const link = { color: "var(--color-primary)", textDecoration: "none", borderBottom: "1px solid var(--color-selected-border)", paddingBottom: 1 };
 const panel = { width: "min(420px, 92vw)", maxHeight: "80vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--color-border)" };

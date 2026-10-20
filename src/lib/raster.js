@@ -17,9 +17,26 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
-import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY } from "./reproject.js";
+import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
+
+// TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
+// CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
+// key, which the .prj sniffer can resolve (NAD_1983_CSRS_UTM_Zone_10N -> 3157). It used to be reported as
+// "EPSG:32767 isn't one GeoStrix can reproject". Returns null when nothing names a CRS GeoStrix knows.
+export function epsgFromGeoKeys(k) {
+  if (!k) return null;
+  const code = k.ProjectedCSTypeGeoKey || k.GeographicTypeGeoKey || null;
+  if (code && code !== 32767) return code;
+  for (const c of [k.PCSCitationGeoKey, k.GTCitationGeoKey, k.GeogCitationGeoKey]) {
+    if (typeof c !== "string" || !c.trim()) continue;
+    const g = guessEpsgFromPrjWkt(c);
+    if (g) return g;
+  }
+  return null;
+}
 
 // Cap so a huge source grid still makes a fast-to-render texture rather than bloating every project
 // save. Raised from 1024 -> 2048 (TASKS.csv, user report of "imported in a really bad quality") —
@@ -96,8 +113,9 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
     let ov;
     try { ov = await tiff.getImage(i); } catch { continue; }
     const fd = ov.fileDirectory || {};
-    if (fd.NewSubfileType != null && !(fd.NewSubfileType & 1)) continue; // a page, not a reduced-resolution copy
-    if (fd.NewSubfileType & 4) continue; // transparency mask
+    const nst = tiffTag(ov, "NewSubfileType") ?? fd.NewSubfileType; // #560 — geotiff.js 3: tags behind getValue
+    if (nst != null && !(nst & 1)) continue; // a page, not a reduced-resolution copy
+    if (nst & 4) continue; // transparency mask
     const f = ov.getWidth() / fullW;
     if (!(f > 0 && f < 1) || Math.abs(ov.getHeight() / fullH - f) > 0.05) continue;
     const win = [Math.floor(c0 * f), Math.floor(r0 * f), Math.max(Math.floor(c0 * f) + 1, Math.ceil(c1 * f)), Math.max(Math.floor(r0 * f) + 1, Math.ceil(r1 * f))];
@@ -108,7 +126,9 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
   throw new Error(`${label} is ${(c1 - c0).toLocaleString()} × ${(r1 - r0).toLocaleString()} px${bands > 1 ? ` × ${bands} bands` : ""} — over the ${(MAX_DECODE_SAMPLES / 1e6).toFixed(0)} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.`);
 }
 
-export async function parseGeoTIFF(file) {
+// TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
+// single-band path below: the same stretch, ramp, kept values and reprojection as any value grid.
+export async function parseGeoTIFF(file, { bandFn = null } = {}) {
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -118,9 +138,10 @@ export async function parseGeoTIFF(file) {
     throw new Error(`Not a readable GeoTIFF (${err.message}).`);
   }
 
+  assertNorthUp(image, `"${file.name}"`); // #560 — refuse rather than stretch a rotated GeoTIFF
   let bbox;
   try {
-    bbox = image.getBoundingBox(); // [xmin, ymin, xmax, ymax] in the file's own coordinate tags
+    bbox = rasterAreaBbox(image); // [xmin, ymin, xmax, ymax], pixel-area extent; #560: PixelIsPoint honoured
   } catch (err) {
     // geotiff.js throws rather than returning null/undefined when there's no affine transform at
     // all (a plain, non-georeferenced TIFF) — caught here so the message stays specific to what's
@@ -136,7 +157,12 @@ export async function parseGeoTIFF(file) {
   const outW = Math.max(1, Math.round(srcW * scale));
   const outH = Math.max(1, Math.round(srcH * scale));
 
-  const rasters = await readRastersCapped(tiff, image, { width: outW, height: outH }, `"${file.name}"`); // #561
+  let noData0 = null;
+  try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData0 = nd; } catch (_) { /* not all files have it */ }
+  const isNoData0 = (v) => noData0 !== null && v === noData0;
+  const read0 = await readRastersCapped(tiff, image, { width: outW, height: outH }, `"${file.name}"`); // #561
+  const sourceBands = read0.length;
+  const rasters = bandFn ? [bandFn(read0, isNoData0)] : read0; // #783
   const bandCount = rasters.length;
 
   const canvas = document.createElement("canvas");
@@ -147,6 +173,7 @@ export async function parseGeoTIFF(file) {
   let noData = null;
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData = nd; } catch (_) { /* not all files have it */ }
 
+  let singleBandStretch = null; // #708
   if (bandCount >= 3) {
     // Treat as RGB(A) — most orthophotos / basemap exports.
     const [r, g, b] = rasters;
@@ -160,12 +187,17 @@ export async function parseGeoTIFF(file) {
     // wash out the whole ramp.
     const band = rasters[0];
     let min = Infinity, max = -Infinity;
+    const valid = [];
     for (let i = 0; i < band.length; i++) {
       const v = band[i];
       if (!Number.isFinite(v) || (noData !== null && v === noData)) continue;
       if (v < min) min = v; if (v > max) max = v;
+      valid.push(v);
     }
     const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+    // TASKS.csv #708 — the 2-98 % stretch IDW grids got in #372: a plain min-max let one pipeline spike or a bad
+    // electrode squash every other pixel into the bottom of the ramp (one 100,000 among 0-99 put 99 at t < 0.001).
+    singleBandStretch = makeStretch(valid, "p2-98");
     for (let i = 0; i < outW * outH; i++) {
       const v = band[i];
       const isNodata = !Number.isFinite(v) || (noData !== null && v === noData);
@@ -173,7 +205,7 @@ export async function parseGeoTIFF(file) {
         imgData.data[i * 4 + 3] = 0; // transparent — lets holes/other layers show through instead of a false-color block
         continue;
       }
-      const t = hasRange ? (v - min) / (max - min) : 0.5;
+      const t = hasRange ? singleBandStretch.t(v) : 0.5; // #708
       const [cr, cg, cb] = rampColor(t);
       imgData.data[i * 4] = cr; imgData.data[i * 4 + 1] = cg; imgData.data[i * 4 + 2] = cb;
       imgData.data[i * 4 + 3] = 255;
@@ -188,7 +220,7 @@ export async function parseGeoTIFF(file) {
     // file is first read at 4096 on its longest side by geotiff's own resampling (nearest), then averaged.
     const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
     const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
-    const [band] = rw === outW && rh === outH ? rasters : await readRastersCapped(tiff, image, { width: rw, height: rh }, `"${file.name}"`); // #561
+    const [band] = rw === outW && rh === outH ? rasters : await (async () => { const r = await readRastersCapped(tiff, image, { width: rw, height: rh }, `"${file.name}"`); return bandFn ? [bandFn(r, isNoData0)] : r; })(); // #561; bandFn: #783
     const pw = (bbox[2] - bbox[0]) / rw, ph = (bbox[3] - bbox[1]) / rh; // pixel-area file: values sit at pixel centres
     grid = makeValueGrid(band, rw, rh, bbox[0] + pw / 2, bbox[3] - ph / 2, pw, ph, (v) => !Number.isFinite(v) || (noData !== null && v === noData));
     grid.sourceSize = [srcW, srcH];
@@ -198,7 +230,7 @@ export async function parseGeoTIFF(file) {
   let epsgTag = null;
   try {
     const geoKeys = image.getGeoKeys();
-    epsgTag = geoKeys?.ProjectedCSTypeGeoKey || geoKeys?.GeographicTypeGeoKey || null;
+    epsgTag = epsgFromGeoKeys(geoKeys); // #707
   } catch (_) { /* optional, best-effort */ }
 
   return {
@@ -208,12 +240,14 @@ export async function parseGeoTIFF(file) {
     height: srcH,
     dataUrl: canvas.toDataURL("image/png"),
     bandCount,
+    sourceBands, // #783
     epsgTag,
     // TASKS.csv #287 — the colour-mapped RGBA pixels are handed back alongside the PNG data URL so
     // buildRasterImport can reproject them directly (reprojectImageRGBA) without decoding the PNG it
     // just encoded. Only the importer reads this; nothing persists it to the project file.
     pixels: { width: outW, height: outH, data: imgData.data },
     grid, // #326
+    ...(singleBandStretch ? { stretch: { mode: singleBandStretch.mode, lo: singleBandStretch.lo, hi: singleBandStretch.hi } } : {}), // #708 — what the colours mean
   };
 }
 
@@ -273,7 +307,7 @@ async function readDemTile(file, crop = null) {
     throw new Error(`"${file.name}" is not a readable GeoTIFF (${err.message}).`);
   }
   let bbox;
-  try { bbox = demNodeBbox(image); } catch (err) { bbox = null; }
+  try { bbox = demNodeBbox(image); } catch (err) { if (/rotated or sheared/.test(err.message)) throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
     throw new Error(`"${file.name}" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.`);
   }
@@ -313,7 +347,7 @@ async function readDemTile(file, crop = null) {
   let epsgTag = null, geographic = false;
   try {
     const geoKeys = image.getGeoKeys();
-    epsgTag = geoKeys?.ProjectedCSTypeGeoKey || geoKeys?.GeographicTypeGeoKey || null;
+    epsgTag = epsgFromGeoKeys(geoKeys); // #707
     geographic = isGeographicGeoKeys(geoKeys);
   } catch (_) { /* optional, best-effort */ }
 
@@ -325,7 +359,7 @@ async function peekDemTile(file) {
   const tiff = await fromArrayBuffer(await file.arrayBuffer());
   const image = await tiff.getImage();
   let epsgTag = null;
-  try { const k = image.getGeoKeys(); epsgTag = k?.ProjectedCSTypeGeoKey || k?.GeographicTypeGeoKey || null; } catch (_) { /* optional */ }
+  try { epsgTag = epsgFromGeoKeys(image.getGeoKeys()); /* #707 */ } catch (_) { /* optional */ }
   return { epsgTag, bbox: demNodeBbox(image) };
 }
 
@@ -544,8 +578,10 @@ export async function parseGXF(file) {
   const outW = Math.max(1, Math.round(ncols * scale)), outH = Math.max(1, Math.round(nrows * scale));
 
   let min = Infinity, max = -Infinity;
-  for (let i = 0; i < total; i++) { const v = values[i]; if (v !== dummy && Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; } }
+  const valid = [];
+  for (let i = 0; i < total; i++) { const v = values[i]; if (v !== dummy && Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; valid.push(v); } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
+  const gxfStretch = makeStretch(valid, "p2-98"); // #708 — as single-band GeoTIFFs and IDW grids
 
   const canvas = document.createElement("canvas");
   canvas.width = outW; canvas.height = outH;
@@ -564,7 +600,7 @@ export async function parseGXF(file) {
       const idx = (oy * outW + ox) * 4;
       const isDummy = v === dummy || !Number.isFinite(v);
       if (isDummy) { imgData.data[idx + 3] = 0; continue; }
-      const t = hasRange ? (v - min) / (max - min) : 0.5;
+      const t = hasRange ? gxfStretch.t(v) : 0.5; // #708
       const [cr, cg, cb] = rampColor(t);
       imgData.data[idx] = cr; imgData.data[idx + 1] = cg; imgData.data[idx + 2] = cb; imgData.data[idx + 3] = 255;
     }
@@ -589,6 +625,7 @@ export async function parseGXF(file) {
     width: ncols,
     height: nrows,
     dataUrl: canvas.toDataURL("image/png"),
+    stretch: { mode: gxfStretch.mode, lo: gxfStretch.lo, hi: gxfStretch.hi }, // #708
     bandCount: 1,
     epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
     note: senseNote || null,
@@ -619,9 +656,10 @@ export async function parseGXF(file) {
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg } = {}) {
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, name = null } = {}) {
   const isGxf = /\.gxf$/i.test(file.name);
-  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file);
+  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn }); // bandFn: #783
+  if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
 
@@ -699,7 +737,37 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
 // W/(gridW-1) and the tiepoint half a pixel outside the first node, so each pixel's centre is its node.
 // demNodeBbox is the inverse on import (it was treating a GeoTIFF's pixel-area bounds as node positions,
 // the same half-cell error the other way), so an export re-imports to exactly the same nodes.
+// TASKS.csv #560 — geotiff.js 3 keeps TIFF tags behind fileDirectory.getValue(name); older code read fd[name] directly
+// (always undefined there). One reader for both.
+export function tiffTag(image, name) {
+  const fd = image?.fileDirectory || {};
+  try { if (typeof fd.getValue === "function") { const v = fd.getValue(name); if (v !== undefined) return v; } } catch { /* tag absent */ }
+  return fd[name];
+}
+// TASKS.csv #560 — a rotated or sheared GeoTIFF (a ModelTransformation with rotation terms: a scan georeferenced with a
+// rotation, a mine-grid export) has no north-up pixel grid: getBoundingBox returns the axis-aligned box of its rotated
+// corners and every raster path would stretch the image into it without a word. Refused, with what to do instead.
+export function assertNorthUp(image, label = "This GeoTIFF") {
+  const t = tiffTag(image, "ModelTransformation");
+  if (!t || t.length < 8) return;
+  const size = Math.max(Math.abs(t[0]), Math.abs(t[5]), 1e-12);
+  if (Math.abs(t[1]) > 1e-9 * size || Math.abs(t[4]) > 1e-9 * size) {
+    throw new Error(`${label} is rotated or sheared (its ModelTransformation has rotation terms). GeoStrix places north-up rasters only, and this one would be stretched into the wrong place. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.`);
+  }
+}
+// TASKS.csv #560 — the raster's PIXEL-AREA extent (what an image drape spans). geotiff.js's getBoundingBox treats the
+// tie point as the corner of the first pixel, which is right for PixelIsArea (the default) but, for PixelIsPoint
+// (common for gridded geophysics and some DEM exports), the tie point is the CENTRE of the first pixel: the whole
+// grid then sat half a cell off (12.5 m on a 25 m mag grid).
+export function rasterAreaBbox(image) {
+  const [b0, b1, b2, b3] = image.getBoundingBox();
+  if (image.getGeoKeys?.()?.GTRasterTypeGeoKey !== 2) return [b0, b1, b2, b3];
+  const [rx, ry] = image.getResolution();
+  const ax = Math.abs(rx), ay = Math.abs(ry);
+  return [b0 - ax / 2, b1 + ay / 2, b2 - ax / 2, b3 + ay / 2];
+}
 export function demNodeBbox(image) {
+  assertNorthUp(image); // #560
   const [b0, b1, b2, b3] = image.getBoundingBox();
   const [rx, ry] = image.getResolution();
   const ax = Math.abs(rx), ay = Math.abs(ry);

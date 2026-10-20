@@ -1,0 +1,9 @@
+// geostrix.com (TASKS.csv #597) — Cloudflare Workers static assets: the Worker only serves the website/ folder.
+// There is no build step; the GeoStrix desktop app's own build (npm run build) must NOT run on Cloudflare.
+{
+  "name": "geostrix",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./website"
+  }
+}

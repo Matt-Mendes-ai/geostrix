@@ -57,7 +57,7 @@ export const useSetCursor = () => useContext(CursorSetterContext);
 
 // TASKS.csv #226/#214 follow-up — taskProgress was the other candidate flagged (but not yet fixed)
 // when the cursor split above closed the measured case: setTaskProgress fires repeatedly during any
-// long-running foreground action (a modeling run's progress-bar tick, once per file in a multi-file
+// long-running foreground action (a modelling run's progress-bar tick, once per file in a multi-file
 // import queue — see ViewerModule.jsx's callers), and like cursor it lived in the single giant store
 // context, so every one of those ticks re-rendered every useStore() consumer including ViewerModule
 // itself — which, same as cursor, only ever calls the setter and never reads taskProgress's value in
@@ -296,13 +296,13 @@ export function StoreProvider({ children }) {
   const [gridBoundViewportId, setGridBoundViewportId] = useState("");
   const [gridMeters, setGridMeters] = useState(100);
 
-  // TASKS.csv #155 — "3D Modeling" promoted to its own top-level module (a peer of 3D View, not a
+  // TASKS.csv #155 — "3D Modelling" promoted to its own top-level module (a peer of 3D View, not a
   // sub-tab inside it), which means ViewerModule now fully unmounts/remounts when switching between
   // the two (same as switching to Geochem and back already did) — camState (theta/phi/radius/target)
   // lives in a plain useRef inside ViewerModule for performance (updated many times per second while
   // dragging; putting it in React state would re-render on every drag frame), so it was always lost on
   // unmount. Mirrored here on UNMOUNT ONLY (not every drag frame — same "cheap, infrequent write"
-  // discipline as viewerUiState above) so the camera survives a View<->Modeling round trip instead of
+  // discipline as viewerUiState above) so the camera survives a View<->Modelling round trip instead of
   // resetting to the default angle every time, which would make switching between them while working
   // genuinely annoying.
   const [lastCamState, setLastCamState] = useState(null);
@@ -448,6 +448,8 @@ export function StoreProvider({ children }) {
   const [alterationBoxes, setAlterationBoxes] = useState(null);
   // TASKS.csv #599 — modelling codes ({ codes, assign, ties }, see lib/modellingCodes.js)
   const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
+  // TASKS.csv #650 — named structural trends + which one each model uses (see lib/projectFields.js)
+  const [structuralTrends, setStructuralTrends] = useState({ trends: [], use: {} });
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
@@ -792,6 +794,18 @@ export function StoreProvider({ children }) {
     setModuleRequestSeq((s) => s + 1);
   }, []);
 
+  // TASKS.csv #630 — georeferenced vertical images (scanned / exported cross-sections) standing in the 3D view. Each:
+  // { id, name, dataUrl (JPEG/PNG, longest side <= 4096 px), width, height, corners: [[x,y,z] TL, TR, BR, BL] in the
+  // project CRS, line: { a: {x,y}, b: {x,y} }, opacity, visible, rmse }. Saved like map layers, not in Undo (images).
+  const [sectionImages, setSectionImages] = useState([]);
+  const addSectionImage = useCallback((img) => {
+    const id = `secimg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setSectionImages((p) => [...p, { opacity: 1, visible: true, ...img, id }]);
+    return id;
+  }, []);
+  const updateSectionImage = useCallback((id, patch) => setSectionImages((p) => p.map((l) => l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)), []);
+  const removeSectionImage = useCallback((id) => setSectionImages((p) => p.filter((l) => l.id !== id)), []);
+
   // Global task progress (status-bar "what's happening right now" indicator) moved to its own
   // TaskProgressProvider/useTaskProgressValue/useSetTaskProgress pair above (TASKS.csv #226 follow-up)
   // — see that context's own comment for why it's split out of this giant one.
@@ -803,10 +817,10 @@ export function StoreProvider({ children }) {
     project: [project, setProject], collars: [collars, setCollars], survey: [survey, setSurvey], layers: [layers, setLayers],
     assays: [assays, setAssays], assayElements: [assayElements, setAssayElements], customLayers: [customLayers, setCustomLayers],
     viewerUiState: [viewerUiState, setViewerUiState], themes: [themes, setThemes], rasters: [rasters, setRasters],
-    boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], surfaceStructures: [surfaceStructures, setSurfaceStructures],
+    boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], sectionImages: [sectionImages, setSectionImages], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], alterationBoxes: [alterationBoxes, setAlterationBoxes],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], alterationBoxes: [alterationBoxes, setAlterationBoxes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -1225,11 +1239,14 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       return q.ok ? { unreadable: q.unreadable } : null;
     }
     try {
-      if (!checkProjectFile(data).ok) return null; // #342
+      const chk = checkProjectFile(data);
+      if (!chk.ok) return null; // #342
       autosaveHoldRef.current = true; // #340 — keep it intact until the user chooses
       heldAutosaveRef.current = data; // #465
       const bgNames = (data.backgroundTabs || []).map((t) => t.name);
-      return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null };
+      // TASKS.csv #686 — say when the recovery copy was written by a NEWER GeoStrix (the banner shows it, and restore
+      // marks the tabs so Save asks first, as opening a newer file does).
+      return { data, projectName: data.project?.name || "Untitled project", otherTabs: bgNames, autosavedAt: data.autosavedAt || res.mtime || null, ...(chk.newer ? { newer: chk.newer } : {}) };
     } catch (_) {
       return null;
     }
@@ -1238,15 +1255,24 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     autosaveHoldRef.current = false; heldAutosaveRef.current = null;
     // TASKS.csv #465 — never replace a project the user has opened or started since launch: the recovered
     // work comes back as new tab(s) beside it (marked unsaved) instead.
+    // TASKS.csv #686 — a recovery copy from a newer GeoStrix: register every restored tab like openProject does for a
+    // newer file, so saving it with this (older) build asks before dropping what the newer one added.
+    const newer = !!checkProjectFile(data).newer;
     if (autosaveRef.current.hasWork) {
-      setWorkspaceTabs((prev) => [...prev, ...recoveredTabs(data)]);
+      const tabs = recoveredTabs(data);
+      if (newer) tabs.forEach((t) => newerFormatTabsRef.current.add(t.id));
+      setWorkspaceTabs((prev) => [...prev, ...tabs]);
       return { intoNewTab: true };
     }
     loadProjectPayload(data);
+    if (newer) newerFormatTabsRef.current.add(activeTabIdRef.current);
     // TASKS.csv #340 — unsaved background tabs come back as tabs, still marked unsaved.
     const bg = (data.backgroundTabs || []).filter((t) => t && t.payload);
     if (bg.length) {
-      setWorkspaceTabs((prev) => [...prev, ...bg.map((t, i) => ({ id: `tab_${Date.now()}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }))]);
+      const stamp = Date.now();
+      const tabs = bg.map((t, i) => ({ id: `tab_${stamp}_r${i}`, name: t.name || "Recovered project", payload: t.payload, dirty: true }));
+      if (newer) tabs.forEach((t) => newerFormatTabsRef.current.add(t.id));
+      setWorkspaceTabs((prev) => [...prev, ...tabs]);
     }
     setActiveTabDirty(data.activeDirty !== false);
     clearUndoHistory();
@@ -1461,6 +1487,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     surfaceElements, setSurfaceElements,
     customLayers, setCustomLayers,
     dbConnections, setDbConnections,
+    getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report
     liveDbConnections, connectDb, disconnectDb,
     excludedIntercepts, setExcludedIntercepts, toggleExcludedIntercept,
     softIntercepts, setSoftIntercepts, toggleSoftIntercept,
@@ -1476,6 +1503,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer, // TASKS.csv #316
+    sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet, // TASKS.csv #317
     fieldStructuralRefs, addFieldRef, removeFieldRef,
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
@@ -1483,6 +1511,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     crmCertificates, setCrmCertificate, // TASKS.csv #400
     dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
     modellingCodes, setModellingCodes, // TASKS.csv #599
+    structuralTrends, setStructuralTrends, // TASKS.csv #650
     alterationBoxes, setAlterationBoxes, // TASKS.csv #503
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,

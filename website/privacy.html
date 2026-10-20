@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy — GeoStrix</title>
+  <meta name="description" content="GeoStrix has no accounts and no telemetry. Your project data stays on your computer.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="img/icon-128.png" alt="" width="34" height="34">GeoStrix</a>
+      <nav>
+        <a href="/#features">Features</a>
+        <a href="/#download">Download</a>
+        <a class="hide-sm" href="/#support">Support</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap prose">
+        <h1>Privacy</h1>
+        <p>GeoStrix is a desktop application that runs on your own computer. It has no accounts, no sign-in, and no analytics or telemetry of any kind. This page describes GeoStrix 0.1.55 and this website.</p>
+
+        <h2>What GeoStrix collects</h2>
+        <p><strong>Nothing.</strong> GeoStrix does not collect, send or store personal information, usage data, crash reports or telemetry. There is no analytics code in the application and no server run by this project that receives data from it.</p>
+        <p><strong>Problem reports.</strong> <em>Help → Report a Problem</em> makes a zip file in your Downloads folder — what you wrote, a picture of the GeoStrix window, your system details (versions, operating system, memory, graphics card), recent error messages and, if you leave it ticked, the Python engine's recent log. Your project is included only if you tick it. GeoStrix sends nothing: it opens an email in your own email app, and the report goes only if you attach it and send it.</p>
+
+        <h2>Where your data lives</h2>
+        <p>Your project data — collars, surveys, logs, assays, rasters and everything else you import — stays on your computer: in the project file you save, and in an autosave file in GeoStrix's own settings folder. It is never uploaded anywhere.</p>
+        <p><strong>Database passwords.</strong> By default, a password typed in <em>Connect to database</em> is used for that session only. If you tick <em>Remember the password on this computer</em>, it is stored encrypted by the operating system (on Windows, readable only by your Windows account on that computer), in GeoStrix's settings folder — never in the project file. <em>Forget it</em> removes it.</p>
+
+        <h2>Network connections GeoStrix makes</h2>
+        <p>GeoStrix only goes online for features you use:</p>
+        <table>
+          <tr><th>When</th><th>Where</th><th>Why</th></tr>
+          <tr><td>You add a basemap</td><td>tile.openstreetmap.org, tile.tracestrack.com, tiles.maps.eox.at</td><td>Map tiles for display</td></tr>
+          <tr><td>You fetch imagery for a spectral index</td><td>earth-search.aws.element84.com, sentinel-cogs.s3.us-west-2.amazonaws.com, planetarycomputer.microsoft.com, astersa.blob.core.windows.net</td><td>Search the public Sentinel-2 / ASTER catalogues for your area (its bounding box is sent) and download that part of the image</td></tr>
+          <tr><td>You fetch terrain</td><td>s3.amazonaws.com (public elevation tiles)</td><td>SRTM / Terrarium elevation</td></tr>
+          <tr><td>At startup (can be turned off in the Help menu), and Help → Check for Updates</td><td>github.com, then release-assets.githubusercontent.com (GitHub's download server)</td><td>Check for a newer version, and download it if you choose to update</td></tr>
+          <tr><td>You click Install in the Predictive tab</td><td>github.com, then release-assets.githubusercontent.com</td><td>Download the optional predictive-modelling add-on (its checksum is checked before it is installed)</td></tr>
+          <tr><td>You connect to a database</td><td>The server you enter</td><td>Query your own database</td></tr>
+          <tr><td>You add a WMS / WMTS / WFS layer</td><td>The server you enter</td><td>Fetch the layer you asked for</td></tr>
+        </table>
+        <p>Like visiting any website, these requests show your IP address to the service contacted, which has its own privacy policy. No identifier for you or your project is sent. The built-in spell checker is off, so no dictionary is downloaded. If you use none of these features, GeoStrix makes no network connections at all.</p>
+        <p>The Python engine used for modelling and inversions, and the optional predictive-modelling add-on, run on your computer, listen only to <code>127.0.0.1</code>, and make no outbound connections.</p>
+
+        <h2>This website</h2>
+        <p>geostrix.com sets no cookies. It is a static site hosted by Cloudflare; the web host necessarily sees your IP address when your browser asks for a page, as with any website. The download button asks GitHub's public API which installer is newest, so your browser also contacts api.github.com.</p>
+        <p><strong>Visitor counts.</strong> The site uses Cloudflare Web Analytics to count page views. It sets no cookies, stores nothing on your device, does not fingerprint your browser and does not follow you across other sites; it reports which page was viewed, the referring site, and your browser, operating system and country, in aggregate. The GeoStrix application itself has no analytics of any kind.</p>
+
+        <h2>Changes and contact</h2>
+        <p>Changes to this policy come with a release and are noted in the release notes. Questions: <a href="mailto:support@geostrix.com">support@geostrix.com</a> or <a href="https://github.com/Matt-Mendes-ai/geostrix/issues">GitHub issues</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <span>© 2026 Matt Mendes · GeoStrix is free software (MIT)</span>
+      <a href="/">Home</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Code signing policy</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a>
+      <span class="right">This site uses no cookies.</span>
+    </div>
+  </footer>
+</body>
+</html>

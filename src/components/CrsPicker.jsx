@@ -40,7 +40,7 @@ export default function CrsPicker({ value, onChange, label, height = 190 }) {
             </div>
           );
         })}
-        {!shown.length && <div style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No CRS matches. GeoStrix builds only the CRSs it has verified definitions for (TASKS.csv #489 adds more).</div>}
+        {!shown.length && <div style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No CRS matches. GeoStrix builds only the CRSs it has verified definitions for.</div>}{/* TASKS.csv #489 adds more */}
       </div>
     </div>
   );

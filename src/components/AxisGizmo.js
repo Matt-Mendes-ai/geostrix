@@ -50,8 +50,13 @@ export function createAxisGizmo({ camStateRef }) {
     const tex = new THREE.CanvasTexture(c);
     drawWhenFontReady(46, () => {
       ctx.clearRect(0, 0, c.width, c.height);
-      ctx.fillStyle = `#${colorHex.toString(16).padStart(6, "0")}`;
+      // TASKS.csv #523 — the letters were drawn in their arrow's hue: against the viewport (#f4f5f7) Z measured
+      // 1.95:1, N 2.73:1, E 3.36:1 (WCAG 1.4.11 asks 3:1, text 4.5:1), and for deuteranopes the letters were the
+      // only E / Z cue. Dark ink (15:1) with a light halo, as the hole labels; the hue stays on the arrow shafts.
       ctx.font = LABEL_FONT(46); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineJoin = "round"; ctx.lineWidth = 8; ctx.strokeStyle = "#f4f5f7";
+      ctx.strokeText(text, 32, 34);
+      ctx.fillStyle = "#1a2028";
       ctx.fillText(text, 32, 34);
       tex.needsUpdate = true;
     });

@@ -215,3 +215,16 @@ export function seedBreaks(range, baseColor) {
     { max: round(max), color: C[2], label: "High", seeded: true },
   ];
 }
+
+// TASKS.csv #701 — the colour for a class added ABOVE the last one in the assay style editor: the element's own hue,
+// 10 L* darker than that last class (never below L* 24, the ramp's own floor). "Add class" used to append a fixed
+// red #e05a4a (L* 55.7), lighter than the seeded High class on every element (by 17-27 L*) and the same red for Cu
+// as for Au, so a "bonanza" class receded instead of advancing — the defect #306 / #319 removed from the seed.
+export function nextDarkerClassColor(baseHex, lastHex) {
+  const lastL = labLightness(lastHex) ?? labLightness(baseHex) ?? PALETTE_REFERENCE_L;
+  const baseL = labLightness(baseHex);
+  if (baseL == null) return lastHex || "#7a1f1f";
+  const target = Math.max(24, lastL - 10);
+  const out = lightnessRamp(baseHex, [target - RAMP_BASE_L_WEIGHT * (baseL - PALETTE_REFERENCE_L)], [0.95]);
+  return out ? out[0] : lastHex;
+}

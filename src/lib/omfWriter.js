@@ -9,6 +9,9 @@
 // volume_to_vtk reads it and as omf.js's importer (verified on a real Geosoft file) reads it.
 // Empty cells are NaN (OMF has no no-data sentinel; Leapfrog shows NaN as blank).
 import { tensorFromCells } from "./modelExport.js";
+import { valueColumnName } from "./blockModelExport.js"; // TASKS.csv #529
+import { SUPPORT_CODES } from "./estimation.js";
+import { NOT_A_RESOURCE } from "./provenance.js";
 
 const MAGIC = [0x84, 0x83, 0x82, 0x81];
 const iso = () => new Date().toISOString().replace(/\.\d+Z$/, "Z");
@@ -92,8 +95,8 @@ export function volumeElementFromModel(model) {
   const t = tensorFromCells(model.cells || []);
   if (t.error) return { error: t.error };
   const n = t.nx * t.ny * t.nz;
-  const value = new Float64Array(n).fill(NaN), support = new Float64Array(n).fill(NaN);
-  let hasSupport = false;
+  const value = new Float64Array(n).fill(NaN), support = new Float64Array(n).fill(NaN), sIndex = new Float64Array(n).fill(NaN);
+  let hasSupport = false, hasIndex = false;
   const k = (v) => Math.round(v * 1000);
   for (const c of model.cells) {
     const iu = t.x.index.get(k(c.x)), iv = t.y.index.get(k(c.y)), iw = t.z.index.get(k(c.z)); // z index 0 = bottom
@@ -101,13 +104,17 @@ export function volumeElementFromModel(model) {
     const idx = (iu * t.ny + iv) * t.nz + iw; // C order over (nu, nv, nw): w fastest
     value[idx] = c.value;
     if (Number.isFinite(c.support)) { support[idx] = c.support; hasSupport = true; }
+    else if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) { support[idx] = SUPPORT_CODES[c.support]; hasSupport = true; } // #529 — the class as its code
+    if (Number.isFinite(c.supportIndex)) { sIndex[idx] = c.supportIndex; hasIndex = true; }
   }
-  const valueName = String(model.property || model.params?.element || "value");
+  const valueName = valueColumnName(model); // #529 — "Au_ppm"
+  const estimate = /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")); // geoml: #677
+  const codes = model.cells.some((c) => typeof c.support === "string") ? ` support = ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} ${k}`).join(", ")}.` : "";
   return {
     element: {
-      type: "volume", name: model.name, description: `Exported from GeoStrix ${new Date().toISOString().slice(0, 10)}${model.source ? ` (source: ${model.source})` : ""}`,
+      type: "volume", name: model.name, description: `Exported from GeoStrix ${new Date().toISOString().slice(0, 10)}${model.source ? ` (source: ${model.source})` : ""}${model.params?.unit ? `; values in ${model.params.unit}` : ""}.${codes}${estimate ? ` ${NOT_A_RESOURCE}` : ""}`,
       origin: [t.x.min, t.y.min, t.z.min], tensor: { u: t.x.widths, v: t.y.widths, w: t.z.widths },
-      data: [{ name: valueName, values: value }, ...(hasSupport ? [{ name: "support", values: support }] : [])],
+      data: [{ name: valueName, values: value }, ...(hasSupport ? [{ name: "support", values: support }] : []), ...(hasIndex ? [{ name: "support_index", values: sIndex }] : [])],
       color: [197, 176, 213],
     },
     shape: [t.nx, t.ny, t.nz],

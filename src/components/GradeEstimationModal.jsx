@@ -1,9 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { X, Play } from "./icons.js";
-import { compositeDownhole, PRECIOUS_METALS } from "../lib/geochem.js";
+import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from "../lib/geochem.js"; // rawSampleIntervals: #571
+import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, estimateBlockModel, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
+import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
+import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -11,6 +16,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -19,7 +25,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose }) {
+export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
@@ -67,17 +73,51 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     return { xmin: arrMin(xs), xmax: arrMax(xs), ymin: arrMin(ys), ymax: arrMax(ys), zmin: arrMin(zs), zmax: arrMax(zTops) };
   }, [collars, surveyMaxDepth]);
 
+  // TASKS.csv #521 — the grid used to be the COLLAR box in x / y and "collar z minus hole length" in z, as if every
+  // hole were vertical: on Harry 93 of 3,650 composites (2.5%, 3 inclined holes) lay outside it, up to 111 m, and
+  // were never estimated around, while z was padded 45 m below the deepest sample. Now the box of the desurveyed
+  // traces of the holes that carry assays (the grade-shell tool already works from the samples' own box), with the
+  // collar box only as the fallback when nothing can be desurveyed.
+  const traceBounds = useMemo(() => {
+    const assayed = new Set(assays.map((a) => a.hole_id));
+    const byHole = new Map();
+    survey.forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
+    let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity, holes = 0;
+    for (const c of collars) {
+      if (assayed.size && !assayed.has(c.hole_id)) continue;
+      let tr = [];
+      try { tr = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { tr = []; }
+      if (!tr.length) continue;
+      holes++;
+      for (const p of tr) {
+        if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
+        if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z;
+      }
+    }
+    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes } : null;
+  }, [assays, collars, survey, desurveyMethod]);
+  const gridBox = traceBounds || collarBounds;
+
   const [padding, setPadding] = useState(25);
   const [cellSize, setCellSize] = useState(10);
+  // TASKS.csv #626 — block budget, as the grade shell's (#625): a per-computer preference, 200,000 by default
+  const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_MODEL_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
+  const setBlockBudget = (v) => { setBlockBudgetState(v); try { localStorage.setItem("geostrix.estimateBlockBudget", String(v)); } catch { /* private window */ } };
   const [method, setMethod] = useState("idw2");
+  // TASKS.csv #709 — ordinary kriging's variogram: blank = fitted to the composites at run time
+  const [vgModel, setVgModel] = useState("spherical");
+  const [vgNugget, setVgNugget] = useState(""), [vgSill, setVgSill] = useState(""), [vgRange, setVgRange] = useState("");
+  const [addedKv, setAddedKv] = useState(false);
   const [searchRadius, setSearchRadius] = useState(50);
   const [minSamples, setMinSamples] = useState(1);
   const [minHoles, setMinHoles] = useState(2);          // TASKS.csv #258
   const [maxSamples, setMaxSamples] = useState(16);
+  const [maxPerHole, setMaxPerHole] = useState(0); // TASKS.csv #709 — 0 = no explicit cap
   const [capValue, setCapValue] = useState(NaN);        // TASKS.csv #259
   const [includeQAQC, setIncludeQAQC] = useState(false); // TASKS.csv #266
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
   const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
+  const [shellId, setShellId] = useState(""); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
@@ -98,10 +138,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     return (Math.sqrt(variance) / mean) * 100;
   }, [srcAssays, symbol]);
 
-  const bounds = collarBounds ? {
-    xmin: collarBounds.xmin - padding, xmax: collarBounds.xmax + padding,
-    ymin: collarBounds.ymin - padding, ymax: collarBounds.ymax + padding,
-    zmin: collarBounds.zmin - padding, zmax: collarBounds.zmax + padding,
+  const bounds = gridBox ? { // #521 — the traces' box (collar box only as a fallback)
+    xmin: gridBox.xmin - padding, xmax: gridBox.xmax + padding,
+    ymin: gridBox.ymin - padding, ymax: gridBox.ymax + padding,
+    zmin: gridBox.zmin - padding, zmax: gridBox.zmax + padding,
   } : null;
   const gridPreview = bounds ? {
     nx: Math.max(1, Math.round((bounds.xmax - bounds.xmin) / cellSize)),
@@ -109,11 +149,19 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     nz: Math.max(1, Math.round((bounds.zmax - bounds.zmin) / cellSize)),
   } : null;
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
-  const overLimit = totalBlocksPreview > MAX_BLOCKS;
+  const overLimit = totalBlocksPreview > blockBudget; // #626
+  const fitCell = overLimit && bounds ? cellToFit(bounds, blockBudget, cellSize) : null;
+  const fitCellMax = overLimit && bounds && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
 
+  // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
+  const [progress, setProgress] = useState(null); // 0..1 while running
+  const abortRef = useRef(null);
+  const cancelRun = () => abortRef.current?.abort();
   const run = () => {
-    setError(""); setResult(null);
+    setError(""); setResult(null); setProgress(0);
     if (!collars.length) { setError("No collars loaded — nothing to estimate from."); return; }
+    // TASKS.csv #676 — with fewer samples than holes, no block can ever reach the hole rule (it just reported 0 blocks)
+    if (maxSamples < minHoles) { setError(`Max samples per block (${maxSamples}) is below Min distinct holes (${minHoles}), so no block could ever be estimated. Raise Max samples or lower Min holes.`); return; }
     if (!bounds) { setError("None of the loaded collars has a recorded length or any survey data, so there's no defensible depth to build a grid down to. Import hole lengths or survey records first — GeoStrix will not assume one (TASKS #265)."); return; }
     setRunning(true);
     // Synchronous but deferred so the "Running…" state actually paints before the estimation loop
@@ -126,10 +174,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     // timer for the same reason; this modal kept the rAF and had the same latent bug, confirmed live
     // during #258's verification (the run sat on "Running…" indefinitely in a hidden preview pane and
     // completed the moment the same code ran under a timer).
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const cap = Number.isFinite(capValue) && capValue > 0 ? capValue : null; // TASKS.csv #259
-        let intervals;
+        let intervals, rawStats = null;
         if (useComposites) {
           intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
             length: compositeLength, minCoverage, // TASKS.csv #262 — was hardcoded 0.5
@@ -137,42 +185,72 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             domainRows: domainKey ? layers[domainKey] : null,
           });
         } else {
-          intervals = srcAssays
-            .filter((a) => a.hole_id != null && a.from != null && a.to != null)
-            .map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, avgGrade: a.values[symbol] != null ? a.values[symbol] : null }))
-            .filter((iv) => iv.avgGrade != null)
-            .map((iv) => (cap != null && iv.avgGrade > cap ? { ...iv, avgGrade: cap } : iv));
+          // TASKS.csv #571 — duplicates / overlaps resolved, values in `unit`, as in compositing
+          const raw = rawSampleIntervals(srcAssays, symbol, unit, elementUnits, { capValue: cap });
+          intervals = raw.intervals;
+          rawStats = raw.stats;
         }
-        const { points, dropped, clamped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!points.length) { setError("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data."); setRunning(false); return; }
+        let { points, dropped, clamped, beyondTrace } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
+        // TASKS.csv #517 — a hard boundary at a closed modelled volume: only samples inside it inform the estimate,
+        // and only blocks whose centre is inside it are kept (a block outside is not estimated, not set to zero)
+        let inShell = null, shellInfo = null;
+        if (shellId) {
+          const sh = (volumeShells || []).find((v) => v.id === shellId);
+          const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
+          if (!sh || !closed?.closed) { setError(sh ? `"${sh.name}" is not a closed solid (${closed.boundaryEdges} open edges) — it has no inside to restrict to.` : "That volume is no longer in the project."); setRunning(false); return; }
+          const q = buildMeshQuery(sh.positions, sh.indices);
+          inShell = (p) => isPointInsideMesh(q, p);
+          const before = points.length;
+          points = points.filter((p) => inShell(p));
+          shellInfo = { name: sh.name, samplesInside: points.length, samplesOutside: before - points.length };
+        }
+        if (!points.length) { setError(shellInfo ? `No ${symbol} samples fall inside "${shellInfo.name}".` : "No sample points could be placed in 3D — check that holes have collars and (ideally) survey data."); setRunning(false); return; }
         // TASKS.csv #292 — an unbounded search makes every sample a candidate for every block
         // (measured: 81 s of blocked main thread at 62,500 blocks x 5,000 points). 0 now means "cap at
         // the grid's own diagonal", which is a mathematical no-op but a real computational bound.
         const gridDiagonal = Math.sqrt(
           (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
         );
-        const est = estimateBlockModel(points, {
-          bounds, cellSize: { dx: cellSize, dy: cellSize, dz: cellSize },
-          method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples,
+        const ac = new AbortController(); abortRef.current = ac;
+        const est = await runEstimation("block", points, {
+          bounds, cellSize: { dx: cellSize, dy: cellSize, dz: cellSize }, maxBlocks: blockBudget, // #626
+          method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
-        });
+          ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
+          ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
+        }, { onProgress: setProgress, signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         const params = {
           tool: "Grade estimation", element: symbol, method, cellSizeM: cellSize, paddingM: padding,
+          gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
-          minSamples, maxSamples, minHoles,
+          minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
+          searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
-          capValue: Number.isFinite(cap) ? cap : null, includeQAQC, domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
+          capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
+          // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
+          // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
+          unit, capUnit: cap != null ? unit : null, domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
         };
-        setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, intervalCount: intervals.length });
-        setAdded(false); setAddedSupport(false); // a fresh run invalidates both "Added ✓" states
+        if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
+        if (est.variogram) { params.variogram = { ...est.variogram, frame: trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic" }; params.krigingBlocks = est.okCounts; } // #709
+        if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; // #676 — 2+ holes, one with >= 95 % of the weight
+        if (inShell) { // #517
+          const before = est.cells.length;
+          est.cells = est.cells.filter((c) => inShell(c));
+          est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
+          params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
+        }
+        setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
-        setError(e.message || "Estimation failed.");
+        setError(e.cancelled ? "Estimation cancelled." : (e.message || "Estimation failed."));
       }
+      abortRef.current = null; setProgress(null);
       setRunning(false);
     }, 40);
   };
@@ -193,10 +271,22 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     });
     setAddedSupport(true);
   };
+  // TASKS.csv #709 — the kriging variance as its own block model, named so it can't be read as an error bar on grade
+  const addKvModel = () => {
+    if (!result || !result.cells.length) return;
+    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    const cells = result.cells.filter((c) => Number.isFinite(c.kv)).map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.kv, nSamples: c.nSamples, nHoles: c.nHoles }));
+    onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
+    setAddedKv(true);
+  };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
     const name = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
-    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, params: result.params }); // params: TASKS.csv #404
+    // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
+    let gMin = Infinity, gMax = -Infinity;
+    for (const c of result.cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
+    const ramp = gMin <= gMax ? { min: gMin, max: gMax, colorMode: "continuous", stops: gradeStops(gMin, gMax) } : {};
+    onAddModel({ name, source: `estimate-${method}`, cells: result.cells, ...ramp, params: result.params }); // params: TASKS.csv #404
     setAdded(true);
   };
 
@@ -225,15 +315,36 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 {ESTIMATION_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </label>
+            {method === "ok" && (
+              <div style={{ flex: "1 1 100%", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}
+                title="The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to these composites at run time (omnidirectional; with a trend, in the trend's frame, so the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.">
+                <label style={fieldLabel}>Variogram model
+                  <select value={vgModel} onChange={(e) => setVgModel(e.target.value)} style={inp} aria-label="Variogram model">
+                    <option value="spherical">Spherical</option><option value="exponential">Exponential</option><option value="gaussian">Gaussian</option>
+                  </select>
+                </label>
+                {[["Nugget", vgNugget, setVgNugget], ["Sill (total)", vgSill, setVgSill], ["Range (m)", vgRange, setVgRange]].map(([l, v, set]) => (
+                  <label key={l} style={{ ...fieldLabel, width: 90 }}>{l}
+                    <input type="number" min="0" step="any" value={v} placeholder="fit" onChange={(e) => set(e.target.value)} style={inp} aria-label={`Variogram ${l}`} />
+                  </label>
+                ))}
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.</div>
+              </div>
+            )}
             <label style={fieldLabel} title="No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang (TASKS #292).">
               Search radius (m, 0 = no limit)
               <input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+              {trend && searchRadius > 0 && (
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>
+                  Along trend "{trend.name}": an ellipsoid of {searchRadius} × {Math.round((searchRadius * trend.ratios.int) / trend.ratios.max)} × {Math.round((searchRadius * trend.ratios.min) / trend.ratios.max)} m ({describeTrend(trend)})
+                </span>
+              )}
             </label>
             <label style={fieldLabel} title="Counts sample POINTS, not holes — one hole composited at 2m supplies ~25 of them inside a 50m radius, so this alone can never express 'more than one hole must see this block'. Use Min distinct holes for that.">Min samples/block
               <input type="number" min="1" value={minSamples} onChange={(e) => setMinSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
             {/* TASKS.csv #258 */}
-            <label style={fieldLabel} title="A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three.">
+            <label style={fieldLabel} title="A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three. With 2 or more, each hole supplies at most (max samples / min holes) of a block's samples, e.g. 8 of 16 (#642).">
               Min distinct holes per block
               <input type="number" min="1" step="1" value={minHoles} onChange={(e) => setMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={inp} />
             </label>
@@ -246,7 +357,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               Max samples/block
               <input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
+            <label style={fieldLabel} title="At most this many of a block's samples from any one hole, so a hole drilled straight through the block can't supply them all (0 = no cap beyond the one Min distinct holes implies).">
+              Max samples/hole
+              <input type="number" min="0" value={maxPerHole} onChange={(e) => setMaxPerHole(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={inp} aria-label="Max samples per hole" />
+            </label>
           </div>
+          {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
+          <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
               for an uncapped bonanza assay driving IDW² over its whole search neighbourhood. */}
@@ -305,6 +422,17 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             )}
           </div>
 
+          {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
+          {volumeShells.length > 0 && (
+            <label style={fieldLabel} title="Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).">
+              Restrict to a modelled volume
+              <select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label="Restrict to a modelled volume">
+                <option value="">— none (whole grid) —</option>
+                {volumeShells.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+            </label>
+          )}
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title="Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.">
               Padding around collars (m)
@@ -332,10 +460,24 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             </div>
           </div>
 
+          {/* TASKS.csv #626 — the block budget (runs in a worker with progress and Cancel since #520) */}
+          <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 8 }}
+            title="How many blocks the grid may have. Larger budgets allow smaller blocks over a large area, at the cost of time, memory (about 0.4 GB for 1 million blocks, 0.9 GB for 2 million) and project-file size (every estimated block is saved with the project). Block models stop at 2 million so an 8 GB laptop keeps working; the grade shell goes higher. Remembered on this computer.">
+            Block budget
+            <select value={blockBudget} onChange={(e) => setBlockBudget(Number(e.target.value))} style={{ ...inp, width: "auto" }} aria-label="Block model block budget">
+              {BLOCK_MODEL_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()} blocks ({blockModelBudgetNote(b)})</option>)}
+            </select>
+          </label>
           {gridPreview && (
             <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>
               Grid: {gridPreview.nx} × {gridPreview.ny} × {gridPreview.nz} = {totalBlocksPreview.toLocaleString()} blocks
-              {overLimit && ` — over the ${MAX_BLOCKS.toLocaleString()}-block limit. Use a larger cell size.`}
+              {overLimit && ` — over the ${blockBudget.toLocaleString()}-block budget.`}
+              {overLimit && (
+                <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>Use {fitCell} m blocks</button>
+                  {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>Largest budget + {fitCellMax} m blocks</button>}
+                </span>
+              )}
             </div>
           )}
           {/* TASKS.csv #292 — warn BEFORE doing the work (the same pattern #209 used for the 10M-row
@@ -344,8 +486,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           {searchRadius === 0 && totalBlocksPreview > 25000 && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>
               With no search radius, every one of these {totalBlocksPreview.toLocaleString()} blocks gets
-              estimated from the whole dataset — this run can take a minute or more and the window will be
-              unresponsive while it does. It is also rarely what you want: a block with no sample anywhere
+              estimated from the whole dataset — this run can take a minute or more (it runs in the background
+              with a progress count, and Cancel stops it). It is also rarely what you want: a block with no sample anywhere
               near it still gets a grade. Set a real search radius (50 m is the default) unless you
               specifically want an unbounded first pass.
             </div>
@@ -375,19 +517,45 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           )}
 
           <button onClick={run} disabled={!bounds || overLimit || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
-            <Play size={14} /> {running ? "Running…" : "Run estimation"}
+            <Play size={14} /> {running ? `Running… ${progress != null ? Math.round(progress * 100) + "%" : ""}` : "Run estimation"}
           </button>
+          {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>Cancel</button>}
 
           {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-icon-strong)" }}>{error}</div>}
 
           {result && (
             <div style={{ padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
-              <div>{result.samplePointCount} sample point(s) placed ({result.intervalCount} interval(s), {result.droppedCount} dropped — no collar/survey to place them{result.clampedCount ? `; ${result.clampedCount} negative grade(s) clamped to zero` : ""}).</div>
+              <div>{result.samplePointCount} sample point(s) placed ({result.intervalCount} interval(s), {result.droppedCount} dropped — no collar/survey to place them{result.beyondTraceCount ? `, ${result.beyondTraceCount} of them deeper than the hole's trace` : ""}{result.clampedCount ? `; ${result.clampedCount} negative grade(s) clamped to zero` : ""}).</div>
+              {/* TASKS.csv #571 */}
+              {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
+                <div>Raw assays: {result.rawStats.duplicatesSkipped} exact duplicate row(s) left out; {result.rawStats.overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.</div>
+              )}
               <div>{result.blocksEstimated.toLocaleString()} block(s) estimated, {result.blocksSkipped.toLocaleString()} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).</div>
               {/* TASKS.csv #258 */}
+              {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
+              {result.variogram && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  Kriged with a {result.variogram.model} variogram{result.variogram.fitted ? " fitted to these composites" : " as entered"}: nugget {+result.variogram.nugget.toPrecision(3)}, sill {+result.variogram.sill.toPrecision(3)}, range {Math.round(result.variogram.range)} m{trend ? ` (along the trend "${trend.name}")` : ""}{result.variogram.fitted ? " — check it against the Variogram tool before trusting it" : ""}.
+                  {result.variogram.nugget / result.variogram.sill > 0.8 && <span style={{ color: "var(--color-warn-text)" }}> The nugget is {Math.round((100 * result.variogram.nugget) / result.variogram.sill)}% of the sill: the composites are barely alike even close together, so kriging gives close to a plain average of the neighbours — the variogram, not the method, is the limit here.</span>}
+                  {result.okCounts && <> {result.okCounts.kriged.toLocaleString()} block(s) kriged{result.okCounts.exact ? `, ${result.okCounts.exact.toLocaleString()} on a composite` : ""}{result.okCounts.negativeWeights ? `, ${result.okCounts.negativeWeights.toLocaleString()} with a negative weight (normal for kriging; such a block can fall slightly outside its samples' range)` : ""}{result.okCounts.fallbackIdw ? `, ${result.okCounts.fallbackIdw.toLocaleString()} fell back to IDW² (their kriging system had no unique solution)` : ""}.</>}
+                </div>
+              )}
+              {result.mlsCounts && (result.mlsCounts.reduced + result.mlsCounts.idw) > 0 && (
+                <div style={{ color: "var(--color-text-secondary)" }}>
+                  MLS (linear): {result.mlsCounts.full.toLocaleString()} block(s) with a full 3D trend
+                  {result.mlsCounts.reduced ? `, ${result.mlsCounts.reduced.toLocaleString()} with the trend fitted in the plane / line of their samples (e.g. holes on one section — nothing is known about the trend across it)` : ""}
+                  {result.mlsCounts.idw ? `, ${result.mlsCounts.idw.toLocaleString()} fell back to IDW² (their samples gave no direction to fit)` : ""}.
+                </div>
+              )}
               {result.singleHoleCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
                   {result.singleHoleCells.toLocaleString()} of the estimated blocks ({((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise "Min distinct holes per block" to exclude them.
+                </div>
+              )}
+              {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
+              {result.dominatedCells > 0 && (
+                <div style={{ color: "var(--color-warn-text)" }}>
+                  {result.dominatedCells.toLocaleString()} of the estimated blocks ({((result.dominatedCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0)}%) use samples from two or more holes, but one hole carries at least 95% of the weight — in effect a single-hole estimate. These blocks sit close to one hole; raising Min distinct holes does not change that, so read their grade as that hole's.
                 </div>
               )}
               {/* TASKS.csv #265 */}
@@ -435,6 +603,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   </button>
                 </div>
               )}
+              {result.variogram && result.blocksEstimated > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <button onClick={addKvModel} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title="Kriging variance: how well the samples' layout constrains each block under this variogram. It does not depend on the grades themselves, so it is not an error bar on the estimate.">
+                    {addedKv ? "Added ✓" : "Add kriging variance as a separate block model"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -447,8 +622,10 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), but none of them is ordinary kriging — kriging needs a fitted variogram (nugget/sill/range) as a genuine prerequisite, which isn't built yet. A block with no sample inside its search radius is left un-estimated rather than guessed at.
-            {" "}The search is <strong>isotropic</strong> (a plain sphere — no anisotropy or trend), there is
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretization), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            {" "}{trend
+              ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is</>
+              : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}
             no declustering, no variogram, and no classification. Domain control applies only if you both
             select a domain layer and tick "restrict the interpolation search"; high-grade capping applies
             only if you enter a cap. Every one of those is an assumption you are making, not a property

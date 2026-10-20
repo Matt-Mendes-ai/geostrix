@@ -64,14 +64,16 @@ async function urlBlockReason(urlString, lookup = dns.lookup) {
 
 // fetch with per-hop checks, manual redirects, timeout and a byte cap. Resolves to
 // { ok, status, contentType, buffer } or { ok: false, status, message }.
-async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = fetch, lookup } = {}) {
+// init (TASKS.csv #784): optional { method, headers, body } for the first request; a redirect is followed with GET and
+// the same headers (a Range keeps applying), never re-sending the body.
+async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = fetch, lookup, init = null } = {}) {
   const signal = AbortSignal.timeout(timeoutMs);
   let url = urlString;
   try {
     for (let hop = 0; hop <= maxRedirects; hop++) {
       const reason = await urlBlockReason(url, lookup);
       if (reason) return { ok: false, status: 0, message: hop ? `Redirected to a blocked address: ${reason}` : reason };
-      const res = await fetchImpl(url, { redirect: "manual", signal });
+      const res = await fetchImpl(url, { redirect: "manual", signal, ...(init ? (hop ? { headers: init.headers } : init) : {}) });
       if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
         url = new URL(res.headers.get("location"), url).toString();
         continue;
@@ -90,7 +92,7 @@ async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024
           chunks.push(Buffer.from(value));
         }
       }
-      return { ok: res.ok, status: res.status, contentType, buffer: Buffer.concat(chunks) };
+      return { ok: res.ok, status: res.status, contentType, contentRange: res.headers.get("content-range") || "", buffer: Buffer.concat(chunks) }; // contentRange: #784
     }
     return { ok: false, status: 0, message: `Too many redirects (more than ${maxRedirects}).` };
   } catch (err) {

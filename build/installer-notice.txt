@@ -1,0 +1,28 @@
+GeoStrix - free, open-source 3D software for mineral exploration
+https://geostrix.com
+
+PRIVACY
+GeoStrix has no accounts and no telemetry. It does not collect or send personal information, usage data or crash reports. Your project data stays on your computer.
+
+GeoStrix only goes online for features you use:
+ - map tiles and terrain, when you add a basemap or fetch terrain;
+ - your own database or web-map (WMS / WMTS / WFS) servers, when you connect to them;
+ - GitHub, to check for a newer version at startup and when you choose Help > Check for Updates. The startup check can be turned off in the Help menu.
+These requests show your IP address to the service contacted; nothing that identifies you or your project is sent.
+
+Help > Report a Problem makes a zip file on your computer and opens an email for you to send yourself; nothing is sent automatically.
+
+Full privacy policy: https://geostrix.com/privacy
+Code signing policy: https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md
+
+UNINSTALLING
+Windows Settings > Apps > Installed apps > GeoStrix > Uninstall (or Control Panel > Programs and Features). Your project files are not deleted.
+
+LICENCE (MIT)
+Copyright (c) 2026 Matt Mendes
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

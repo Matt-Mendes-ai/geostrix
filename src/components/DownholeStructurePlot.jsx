@@ -50,14 +50,17 @@ import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min
 // correlation questions above: a fracture-frequency spike that lines up with a contact is the single
 // most common thing a geologist is looking for here, and requiring them to hold two windows side by
 // side to see it would defeat the purpose of the view.
+const isOriented = (p) => p.dip != null && p.azimuth != null && p.dip !== "" && p.azimuth !== "" && !isNaN(p.dip) && !isNaN(p.azimuth); // #527
+
 export default function DownholeStructurePlot({ picks, holes, litho = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
   // Only holes that actually have structure picks are offered — a hole selector listing 37 holes of
   // which 4 have any structural logging is a menu of dead ends.
+  // TASKS.csv #527 — a pick with only a measured alpha (non-oriented core, kept by the #427 import) counts too
   const holeIds = useMemo(() => {
-    const withPicks = new Set((picks || []).filter((p) => p.dip != null && p.azimuth != null && !isNaN(p.dip) && !isNaN(p.azimuth)).map((p) => p.hole_id));
+    const withPicks = new Set((picks || []).filter((p) => isOriented(p) || Number.isFinite(Number(p.alpha)) && p.alpha !== null && p.alpha !== "").map((p) => p.hole_id));
     return (holes || []).map((h) => h.hole_id).filter((id) => withPicks.has(id)).sort();
   }, [picks, holes]);
 
@@ -79,24 +82,34 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   // usable survey gets alpha = null rather than a guessed value: the alpha view then says so instead of
   // plotting a number that isn't real.
   const holePicks = useMemo(() => {
+    // #527 — the MEASURED alpha (p.alpha, logged on the core) wins; it is back-calculated from dip / dip direction
+    // and the hole's attitude only when it wasn't logged. Alpha-only picks (no orientation) are kept: they plot in
+    // alpha mode as a dot with no tail, and always count in the frequency track.
+    const measured = (p) => (p.alpha !== null && p.alpha !== "" && Number.isFinite(Number(p.alpha)) ? Number(p.alpha) : null);
     const rows = (picks || [])
-      .filter((p) => p.hole_id === activeHole && p.dip != null && p.azimuth != null && !isNaN(p.dip) && !isNaN(p.azimuth) && p.depth != null && !isNaN(p.depth))
+      .filter((p) => p.hole_id === activeHole && p.depth != null && !isNaN(p.depth) && (isOriented(p) || measured(p) != null))
       .filter((p) => typeFilter === "all" || (String(p.value || "").trim() || "(unlabeled)") === typeFilter)
-      .map((p) => ({
-        ...p,
-        depth: Number(p.depth),
-        dip: Number(p.dip),
-        azimuth: Number(p.azimuth),
-        alpha: (p.holeAz != null && p.holeDip != null && !isNaN(p.holeAz) && !isNaN(p.holeDip))
-          ? alphaAngle(Number(p.azimuth), Number(p.dip), Number(p.holeAz), Number(p.holeDip))
-          : null,
-      }));
+      .map((p) => {
+        const oriented = isOriented(p);
+        return {
+          ...p,
+          oriented,
+          depth: Number(p.depth),
+          dip: oriented ? Number(p.dip) : null,
+          azimuth: oriented ? Number(p.azimuth) : null,
+          alphaMeasured: measured(p) != null,
+          alpha: measured(p) ?? (oriented && p.holeAz != null && p.holeDip != null && !isNaN(p.holeAz) && !isNaN(p.holeDip)
+            ? alphaAngle(Number(p.azimuth), Number(p.dip), Number(p.holeAz), Number(p.holeDip))
+            : null),
+        };
+      });
     rows.sort((a, b) => a.depth - b.depth);
     return rows;
   }, [picks, activeHole, typeFilter]);
 
   const hasAlpha = holePicks.some((p) => p.alpha != null);
   const effectiveMode = xMode === "alpha" && !hasAlpha ? "dip" : xMode;
+  const alphaOnly = holePicks.filter((p) => !p.oriented).length; // #527 — not drawable in true-dip mode
 
   const holeLitho = useMemo(
     () => (litho || []).filter((r) => r.hole_id === activeHole && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to)).sort((a, b) => a.from - b.from),
@@ -168,7 +181,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
 
         {!holeIds.length ? (
           <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6 }}>
-            No hole has any structure picks with a dip and dip direction yet. Import a structure layer (or
+            No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or
             save picks from the Core Orientation calculator) and this plot will fill in.
           </div>
         ) : (
@@ -221,14 +234,22 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 const ang = effectiveMode === "alpha" ? p.alpha : p.dip;
                 if (ang == null || isNaN(ang)) return null;
                 const cx = xFor(ang), cy = yFor(p.depth);
+                const color = colorForStructure(p.value);
+                // #527 — an alpha-only pick has no dip direction: a hollow dot, no tail
+                if (!p.oriented) {
+                  return (
+                    <circle key={`tp_${i}`} cx={cx} cy={cy} r={3.1} fill="#ffffff" stroke={color} strokeWidth={1.4}>
+                      <title>{`${p.value || "(unlabeled)"} @ ${p.depth} m — alpha ${p.alpha.toFixed(1)}° (measured; core not oriented, no dip direction)`}</title>
+                    </circle>
+                  );
+                }
                 const a = (Number(p.azimuth) * Math.PI) / 180;
                 const tx = cx + TAIL * Math.sin(a), ty = cy - TAIL * Math.cos(a);
-                const color = colorForStructure(p.value);
                 return (
                   <g key={`tp_${i}`}>
                     <line x1={cx} y1={cy} x2={tx} y2={ty} stroke={color} strokeWidth={1.4} opacity={0.95} />
                     <circle cx={cx} cy={cy} r={3.1} fill={color} stroke="#1a2028" strokeWidth={0.5}>
-                      <title>{`${p.value || "(unlabeled)"} @ ${p.depth} m — dip ${p.dip}° / dipdir ${p.azimuth}°${p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°` : ""}`}</title>
+                      <title>{`${p.value || "(unlabeled)"} @ ${p.depth} m — dip ${p.dip}° / dipdir ${p.azimuth}°${p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°${p.alphaMeasured ? " (measured)" : ""}` : ""}`}</title>
                     </circle>
                   </g>
                 );
@@ -288,6 +309,11 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               </label>
             )}
 
+            {effectiveMode === "dip" && alphaOnly > 0 && (
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
+                {alphaOnly} alpha-only pick{alphaOnly === 1 ? "" : "s"} (non-oriented core) not shown in true-dip mode — they have no true dip. Switch to alpha to see them; they are counted in the frequency track.
+              </div>
+            )}
             {xMode === "alpha" && !hasAlpha && (
               <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
                 Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires
@@ -303,6 +329,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 right is dipping east.
               </div>
               <div style={{ color: "#55606e", marginTop: 4 }}>
+                A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail. {/* #527 */}
                 Clustered tails = a consistent set. Tails fanning through 360° over a short interval
                 usually means a core-orientation problem rather than real geology. Alpha does not depend
                 on the orientation line, so alpha jumping wildly between adjacent picks points to a

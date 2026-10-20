@@ -121,6 +121,13 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
     });
     count("map layers", f.mapLayers.length);
   }
+  if (live.sectionImages?.length) { // TASKS.csv #630 — corners and the section line move; elevations don't
+    f.sectionImages = live.sectionImages.map((im) => {
+      const [ax, ay] = xy(im.line?.a?.x, im.line?.a?.y), [bx, by] = xy(im.line?.b?.x, im.line?.b?.y);
+      return { ...im, corners: (im.corners || []).map(([x, y, z]) => [...xy(x, y), z]), ...(im.line ? { line: { a: { x: ax, y: ay }, b: { x: bx, y: by } } } : {}) };
+    });
+    count("section images", f.sectionImages.length);
+  }
   if (live.omfObjects?.length) {
     f.omfObjects = live.omfObjects.map((o) => {
       const org = o.origin || [0, 0, 0];
@@ -241,6 +248,50 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
     notes.push("Layout pages: refresh each map viewport and north arrow (their pictures and grid-north angle were captured in the old CRS).");
   }
   if (live.layoutTemplates?.length) f.layoutTemplates = live.layoutTemplates.map((t) => (Array.isArray(t.elements) ? { ...t, elements: layoutEls(t.elements) } : t));
+
+  // ---- TASKS.csv #675 — structural trends, field structural references and saved DC/IP lines ----
+  // Trends and field references carry a grid bearing but no position: they turn at the collar centroid (the
+  // project's own centre). Before this they kept the old bearing while the structures beside them turned (5.0 deg
+  // apart at the Golden Triangle, NAD83 UTM 9N -> 10N), and a saved DC/IP line kept its old coordinates, so re-running
+  // it after a zone change placed its section ~400 km away.
+  const cs = (live.collars || []).filter((c) => fin(c.x) && fin(c.y));
+  const cxy = cs.length ? [cs.reduce((a, c) => a + c.x, 0) / cs.length, cs.reduce((a, c) => a + c.y, 0) / cs.length] : null;
+  if (live.structuralTrends?.trends?.length) {
+    if (cxy) {
+      f.structuralTrends = { ...live.structuralTrends, trends: live.structuralTrends.trends.map((t) => (fin(Number(t.dipAzimuth)) ? { ...t, dipAzimuth: Math.round(az(cxy[0], cxy[1], Number(t.dipAzimuth)) * 100) / 100 } : t)) };
+      count("structural trends", f.structuralTrends.trends.length);
+    } else notes.push("Structural trends were not turned (no collars to tell where grid north changes); check their dip azimuths.");
+  }
+  if (live.fieldStructuralRefs?.length && cxy) {
+    f.fieldStructuralRefs = live.fieldStructuralRefs.map((r) => (fin(Number(r.dipDirDeg)) ? { ...r, dipDirDeg: Math.round(az(cxy[0], cxy[1], Number(r.dipDirDeg)) * 10) / 10 } : r));
+  }
+  if (live.dcipLines?.length) {
+    const s2 = (v) => String(+v.toFixed(2));
+    const pair = (o, kx, ky) => {
+      const x = Number(o[kx]), y = Number(o[ky]);
+      if (o[kx] === "" || o[ky] === "" || !fin(x) || !fin(y)) return {};
+      const [nx, ny] = xy(x, y);
+      return typeof o[kx] === "string" ? { [kx]: s2(nx), [ky]: s2(ny) } : { [kx]: nx, [ky]: ny };
+    };
+    f.dcipLines = live.dcipLines.map((d) => {
+      if (!d.line) return d;
+      const L = d.line;
+      const line = { ...L, ...pair(L, "x0", "y0"), ...pair(L, "x1", "y1") };
+      if (L.pts && typeof L.pts === "object") line.pts = { ...L.pts, ...pair(L.pts, "x1", "y1"), ...pair(L.pts, "x2", "y2") };
+      if (L.stations?.list) line.stations = { ...L.stations, list: L.stations.list.map((st) => { const [x, y] = xy(st.x, st.y); return { ...st, x, y }; }) };
+      return { ...d, line };
+    });
+    count("DC/IP lines", f.dcipLines.length);
+  }
+  // a generated surface's #650 anisotropy is { trend, dip, dipAzimuth, pitch, ratios } — turn its dip azimuth too
+  if (f.generatedSurfaces) {
+    f.generatedSurfaces = f.generatedSurfaces.map((g, i) => {
+      const a = g.params?.anisotropy, src = live.generatedSurfaces[i];
+      if (!a || !fin(a.dipAzimuth) || !src?.vertices?.length) return g;
+      const v = src.vertices, cx = (v[0] + v[v.length - 3]) / 2, cy = (v[1] + v[v.length - 2]) / 2;
+      return { ...g, params: { ...g.params, anisotropy: { ...a, dipAzimuth: Math.round(az(cx, cy, a.dipAzimuth) * 100) / 100 } } };
+    });
+  }
 
   f.project = { ...live.project, epsg: Number(toEpsg), crsSet: true }; // #615
   if (maxRot > 0.005) notes.push(`Azimuths and dip directions were turned by up to ${maxRot.toFixed(2)}° so they still point the same way on the ground (grid north differs between the two CRSs).`);

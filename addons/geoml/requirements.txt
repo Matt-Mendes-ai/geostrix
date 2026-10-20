@@ -1,0 +1,7 @@
+# GeoStrix predictive-modelling add-on (TASKS.csv #638). Python 3.11. Versions tested 2026-10-17.
+geoml @ git+https://github.com/italo-goncalves/geoML@4eb7121c178b0cca3d12cf52472a6ab75907a380
+tensorflow==2.21.0
+tensorflow-probability==0.25.0
+tf-keras==2.21.0
+fastapi==0.141.1
+uvicorn==0.52.3

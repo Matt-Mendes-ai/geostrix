@@ -121,7 +121,7 @@ export function colorForLithology(u) { const k = (u || "").toLowerCase(); return
 
 // TASKS.csv #241 — Matt's own synthetic-dataset request came bundled with a second, standing ask: a
 // way to tell overburden and cross-cutting units (faults, dykes, breccias) apart from ordinary
-// stratigraphic ones, since today every lithology code is treated identically by the Modeling tools
+// stratigraphic ones, since today every lithology code is treated identically by the Modelling tools
 // (an implicit-surface run has no idea "OBN" isn't basement, or that "FLT" cuts across everything else
 // rather than sitting in stratigraphic order with it). This is the per-unit classification that
 // downstream code (ViewerModule's Stack/Implicit tools, gatherLithoSurfaceSpec's surface `type`) reads
@@ -550,7 +550,7 @@ export const TARGET_SCHEMAS = {
     { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme"] },
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
-    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azi", "az", "brg", "bearing"] }, // az / brg / bearing: #546
+    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing"] }, // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
@@ -634,12 +634,45 @@ export function num(v) {
 // TASKS.csv #605 — keepRows (a Set/WeakSet of row objects): rows committed earlier in the SAME drop are never
 // replaced. Two files of one delivery feeding one layer (a workbook's Alteration and Breccia sheets) add up;
 // before, the second wiped the first's rows for every hole they shared.
+// TASKS.csv #582 — a hole-EXTENSION file (a deepening / re-entry campaign shipping only the new metres, e.g.
+// 150-300 m) used to wipe the hole's 0-150 m logging and its upper survey stations. Per hole now: when everything
+// incoming lies at or below the deepest existing row (touching allowed), the rows are APPENDED (appendedHoles);
+// only overlapping depth ranges replace. Rows without depths (from / to / depth) keep the #336 replace rule. For
+// point rows (survey stations, structure picks) a station repeated at exactly the join depth is not doubled: the
+// incoming one wins.
+const rowTop = (r) => (Number.isFinite(r.from) ? r.from : Number.isFinite(r.depth) ? r.depth : NaN);
+const rowBottom = (r) => (Number.isFinite(r.to) ? r.to : Number.isFinite(r.depth) ? r.depth : NaN);
 export function replaceRowsByHole(prev, incoming, keepRows = null) {
   const incomingHoles = new Set(incoming.map((r) => r.hole_id));
-  const replacedHoles = new Set();
+  const inTop = new Map();
+  incoming.forEach((r) => { const t = rowTop(r); if (Number.isFinite(t)) inTop.set(r.hole_id, Math.min(inTop.get(r.hole_id) ?? Infinity, t)); });
+  const oldBottom = new Map(), oldUndated = new Set();
+  (prev || []).forEach((r) => {
+    if (!incomingHoles.has(r.hole_id) || keepRows?.has(r)) return;
+    const b = rowBottom(r);
+    if (Number.isFinite(b)) oldBottom.set(r.hole_id, Math.max(oldBottom.get(r.hole_id) ?? -Infinity, b)); else oldUndated.add(r.hole_id);
+  });
+  const appendHole = (h) => inTop.has(h) && oldBottom.has(h) && !oldUndated.has(h) && inTop.get(h) >= oldBottom.get(h) - 1e-6;
+  const replacedHoles = new Set(), appendedHoles = new Set();
   const kept = [];
-  (prev || []).forEach((r) => { if (incomingHoles.has(r.hole_id) && !keepRows?.has(r)) replacedHoles.add(r.hole_id); else kept.push(r); });
-  return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles] };
+  (prev || []).forEach((r) => {
+    if (!incomingHoles.has(r.hole_id) || keepRows?.has(r)) { kept.push(r); return; }
+    if (appendHole(r.hole_id)) {
+      appendedHoles.add(r.hole_id);
+      // a point row at exactly the join depth is the same station / pick: the incoming one replaces it
+      if (!Number.isFinite(r.from) && Number.isFinite(r.depth) && Math.abs(r.depth - inTop.get(r.hole_id)) < 1e-6) return;
+      kept.push(r);
+      return;
+    }
+    replacedHoles.add(r.hole_id);
+  });
+  return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles], appendedHoles: [...appendedHoles] };
+}
+const holeList = (hs) => `${hs.length} hole(s) (${hs.slice(0, 6).join(", ")}${hs.length > 6 ? ", …" : ""})`;
+// the import notice's sentence about what happened to holes that were already loaded
+export function replaceNote(res, what) {
+  return (res.replacedHoles.length ? ` Replaced the earlier ${what} of ${holeList(res.replacedHoles)} — Ctrl+Z to undo.` : "")
+    + (res.appendedHoles?.length ? ` Added below the existing ${what} of ${holeList(res.appendedHoles)} (the file starts at or below where they end, so it was read as an extension) — Ctrl+Z to undo.` : "");
 }
 
 // TASKS.csv #426 — one place that turns (target, headers) into a first-guess mapping. For structure

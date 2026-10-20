@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell, unitAssumed } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -12,21 +12,36 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const checkedCount = modal.elements.filter((e) => e.checked).length;
   // TASKS.csv #333 — count negative numbers in the columns being imported, so the user decides what they
   // mean before they become grades.
+  // TASKS.csv #583 — counted per COLUMN once and cached (ticking an element re-sums, it doesn't rescan), with plain
+  // loops: the old flatMap built one array of every checked cell (12 x 190,000 = 2.3 M entries) on every tick.
+  const negByColumn = useMemo(() => new Map(), [modal.allRows]);
+  const negativesOf = (h) => {
+    let c = negByColumn.get(h);
+    if (!c) {
+      c = { codes: 0, sentinels: 0 };
+      const rows = modal.allRows;
+      for (let i = 0; i < rows.length; i++) { const v = parseAssayValue(rows[i][h]); if (v != null && v < 0) { if (v <= NO_DATA_SENTINEL_MAX) c.sentinels++; else c.codes++; } }
+      negByColumn.set(h, c);
+    }
+    return c;
+  };
   const negatives = useMemo(() => {
-    let codes = 0, sentinels = 0;
-    const cells = modal.format === "long"
-      ? modal.allRows.map((r) => r[modal.mapping.value])
-      : modal.elements.filter((e) => e.checked).flatMap((e) => modal.allRows.map((r) => r[e.header]));
-    cells.forEach((raw) => { const v = parseAssayValue(raw); if (v != null && v < 0) { if (v <= NO_DATA_SENTINEL_MAX) sentinels++; else codes++; } });
-    return { codes, sentinels };
+    const hs = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
+    return hs.reduce((t, h) => { const c = negativesOf(h); return { codes: t.codes + c.codes, sentinels: t.sentinels + c.sentinels }; }, { codes: 0, sentinels: 0 });
   }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
   // TASKS.csv #502 — empty element cells (in rows that have at least one result: a row with none had nothing
   // analysed). The user says what they mean for this file; GeochemModule applies it.
   const blanks = useMemo(() => {
-    if (modal.format === "long") return modal.allRows.filter((r) => isBlankAssayCell(r[modal.mapping.value])).length;
+    const rows = modal.allRows;
+    if (modal.format === "long") { let n = 0; for (let i = 0; i < rows.length; i++) if (isBlankAssayCell(rows[i][modal.mapping.value])) n++; return n; }
     const cols = modal.elements.filter((e) => e.checked).map((e) => e.header);
     let n = 0;
-    modal.allRows.forEach((r) => { const empty = cols.filter((h) => isBlankAssayCell(r[h])).length; if (empty < cols.length) n += empty; });
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      let empty = 0;
+      for (let j = 0; j < cols.length; j++) if (isBlankAssayCell(r[cols[j]])) empty++;
+      if (empty < cols.length) n += empty;
+    }
     return n;
   }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
   // TASKS.csv #334 — elements already in the project under a different unit get converted on import.
@@ -39,7 +54,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
-  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit } : e) });
+  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
+  // TASKS.csv #718 — a unit the header did not state, until the user picks one
+  const assumedTag = (e) => (!e.unitChosen && unitAssumed(e.header) ? <span title={`"${e.header}" does not say its unit, so ${e.unit} was assumed from the element. Check it against the lab certificate.`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontStyle: "italic", flexShrink: 0 }}>assumed</span> : null);
   // TASKS.csv #210 — lets the user repoint an auto-detected (or manually added) element at a
   // DIFFERENT raw column, e.g. when a file has both "Ag_XRF_Corrected_ppm_D" and "Ag_pXRF_ppm" and
   // the auto-picked one isn't the one they want. commitAssayImport already reads `values[e.symbol]`
@@ -119,10 +136,11 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   </select>
                   {/* TASKS.csv #600 / #542 — the over-limit column that fills capped samples, while the auto-picked column is used */}
                   {e.overLimit && e.header === e.mainHeader && <span title={`Samples at ${e.overLimit.limit} (the cap of this column) take their value from "${e.overLimit.header}" (${e.overLimit.n} values), converted to ${e.unit}`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>+ over-limit</span>}
+                  {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                     <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                   </select>
-                  <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" />
+                  <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeEl(e.symbol)} title="Remove this element mapping" aria-label={`Remove the ${e.symbol} mapping`} />
                 </div>
               ))}
               {modal.elements.length === 0 && (
@@ -135,6 +153,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                 <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                   <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
                   <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", flex: 1 }}>{e.symbol}</span>
+                  {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px" }}>
                     <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                   </select>
@@ -204,7 +223,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Cancel</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }}>Import {checkedCount} element{checkedCount === 1 ? "" : "s"}</button>
+          <button onClick={onCommit} disabled={!!modal.busy} style={{ ...btn(true), flex: 2, opacity: modal.busy ? 0.6 : 1 }}>{modal.busy ? "Importing…" : `Import ${checkedCount} element${checkedCount === 1 ? "" : "s"}`}</button>{/* busy: #583 */}
         </div>
       </div>
     </div>

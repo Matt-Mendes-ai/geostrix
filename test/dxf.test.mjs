@@ -31,6 +31,25 @@ test("#408 export writes a 3D POLYLINE that re-imports with the same Z", () => {
   assert.equal(r.layers[0], "DH-1");
 });
 
+test("#578 export is consistent R12: $ACADVER AC1009, no LWPOLYLINE, closed rings flagged", () => {
+  const ring = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]; // 2D, ends where it starts
+  const open2d = [[0, 0], [5, 5], [9, 1]];
+  const text = buildDXF({ geomType: "line", features: [{ geometry: ring, attributes: { hole_id: "CLAIM-1" } }, { geometry: open2d, attributes: {} }] });
+  assert.ok(text.startsWith(["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "0", "ENDSEC", ""].join("\n")));
+  assert.doesNotMatch(text, /LWPOLYLINE/);
+  const r = parseDXF(text);
+  assert.equal(r.polylines.length, 2);
+  assert.deepEqual(r.closed, [true, false]);
+  assert.equal(r.polylines[0].length, 4); // the repeated closing vertex is not written; the closed bit says it
+  assert.deepEqual(r.polylines[1].map((p) => [p.x, p.y]), open2d);
+  // a polygon layer closes even when its ring is not repeated
+  assert.deepEqual(parseDXF(buildDXF({ geomType: "polygon", features: [{ geometry: [[0, 0], [4, 0], [4, 4]], attributes: {} }] })).closed, [true]);
+  // 3D strings keep flag 8 (+1 when closed) and their Z
+  const r3 = parseDXF(buildDXF({ geomType: "line", features: [{ geometry: [[0, 0, 5], [1, 0, 6], [1, 1, 7], [0, 0, 5]], attributes: {} }] }));
+  assert.deepEqual(r3.closed, [true]);
+  assert.deepEqual(r3.polylines[0].map((p) => p.z), [5, 6, 7]);
+});
+
 import { sectionStringsToRows, sectionStringsToDXF, kindOf } from "../src/lib/sectionExport.js";
 import { parseDXF as parseDXF409 } from "../src/lib/dxf.js";
 test("#409 section contacts/faults/strings export as vertex CSV rows and 3D DXF polylines", () => {
@@ -160,4 +179,47 @@ test("#491 sceneVertsToWorldFlat gives exactly sceneVertsToWorld's numbers, flat
     assert.deepEqual(flat.indices, ref.indices);
     assert.ok(Array.isArray(flat.indices) && Array.isArray(flat.vertices));
   }
+});
+
+// TASKS.csv #550 — R12 2D polyline elevation, zero elevations, CIRCLE / ARC, skipped entity counts
+import { dxfSkippedText } from "../src/lib/dxf.js";
+const contour = (z, x0) => ["0", "POLYLINE", "8", "CONTOURS", "66", "1", "70", "0", "10", "0", "20", "0", "30", String(z),
+  "0", "VERTEX", "8", "CONTOURS", "10", String(x0), "20", "0", "30", "0",
+  "0", "VERTEX", "8", "CONTOURS", "10", String(x0 + 50), "20", "40", "30", "0", "0", "SEQEND"];
+const lwAt = (elev) => ["0", "LWPOLYLINE", "8", "DESIGN", "38", String(elev), "90", "2", "70", "0", "10", "5", "20", "5", "10", "25", "20", "5"];
+
+test("#550 a 2D POLYLINE takes the header's elevation (R12 contours); a 0 among real elevations is real", () => {
+  const r = parseDXF(dxf([...contour(450, 0), ...contour(460, 100), ...lwAt(0)]));
+  assert.deepEqual(r.polylines.map((pl) => pl.map((q) => q.z)), [[450, 450], [460, 460], [0, 0]]);
+  assert.equal(r.has3D, true);
+  assert.equal(r.zerosDropped, false);
+});
+
+test("#550 a file whose strings are ALL at 0 is a 2D plan (no elevation), and says so", () => {
+  const r = parseDXF(dxf([...contour(0, 0), ...lwAt(0), ...lw]));
+  assert.ok(r.polylines.every((pl) => pl.every((q) => q.z === undefined)));
+  assert.equal(r.has3D, false);
+  assert.equal(r.zerosDropped, true);
+});
+
+test("#550 CIRCLE and ARC become polylines; TEXT / INSERT / MTEXT are counted, not silently dropped", () => {
+  const body = [
+    "0", "CIRCLE", "8", "COLLARS", "10", "100", "20", "200", "30", "950", "40", "2",
+    "0", "ARC", "8", "PIT", "10", "0", "20", "0", "30", "900", "40", "10", "50", "0", "51", "90",
+    "0", "TEXT", "8", "LABELS", "10", "100", "20", "200", "1", "DDH-01",
+    "0", "TEXT", "8", "LABELS", "10", "110", "20", "200", "1", "DDH-02",
+    "0", "INSERT", "8", "COLLARS", "2", "CROSS", "10", "100", "20", "200",
+    "0", "MTEXT", "8", "NOTES", "1", "note",
+  ];
+  const r = parseDXF(dxf(body));
+  assert.equal(r.polylines.length, 2);
+  const circle = r.polylines[0], arc = r.polylines[1];
+  assert.equal(r.closed[0], true);
+  assert.ok(circle.every((q) => Math.abs(Math.hypot(q.x - 100, q.y - 200) - 2) < 1e-9 && q.z === 950));
+  assert.equal(r.closed[1], false);
+  assert.ok(Math.abs(arc[0].x - 10) < 1e-9 && Math.abs(arc[0].y) < 1e-9); // starts at 0 degrees
+  assert.ok(Math.abs(arc[arc.length - 1].x) < 1e-9 && Math.abs(arc[arc.length - 1].y - 10) < 1e-9); // ends at 90
+  assert.deepEqual(r.skipped, { TEXT: 2, INSERT: 1, MTEXT: 1 });
+  assert.match(dxfSkippedText(r.skipped), /^skipped 2 TEXT, 1 INSERT, 1 MTEXT/);
+  assert.equal(dxfSkippedText({}), "");
 });

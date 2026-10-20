@@ -21,6 +21,7 @@ say more about the regularisation than the ground), predicted data and misfit hi
 import time
 
 import numpy as np
+from . import fit_target  # TASKS.csv #536
 
 
 def _mesh(stations_s, topo_sz, cell, depth, pad=8, factor=1.3):
@@ -49,9 +50,28 @@ def _mesh(stations_s, topo_sz, cell, depth, pad=8, factor=1.3):
 
 
 def _survey(ab_mn, locs, data_type):
+    """The SimPEG survey for these readings. Call it only with readings already in survey order (see
+    _survey_order): SimPEG groups readings by source and its data vectors follow THAT order, not the file's."""
     from simpeg.electromagnetics.static.utils import generate_survey_from_abmn_locations
     a, b, m, n = (locs[ab_mn[:, k]] for k in range(4))
     return generate_survey_from_abmn_locations(locations_a=a, locations_b=b, locations_m=m, locations_n=n, data_type=data_type)
+
+
+def _survey_order(ab_mn, locs):
+    """TASKS.csv #652 — the order SimPEG will hold these readings in. generate_survey_from_abmn_locations groups
+    the readings by current electrode pair (in order of first appearance, pole receivers before dipoles), so a
+    contractor file written by n-block (every source's n = 1 readings, then every source's n = 2 ...) comes out
+    in a different order from the file. Before this, rho / chargeability / std were passed in FILE order and
+    97-100 % of the Woodjam readings were paired with another reading's electrodes (a synthetic block listed by
+    n-block scored phi_d/N = 508 instead of 0). Returns indices into the file rows, in survey order."""
+    import warnings
+    from simpeg.electromagnetics.static.utils import generate_survey_from_abmn_locations
+    a, b, m, n = (locs[ab_mn[:, k]] for k in range(4))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # the "ordering changed" warning: handled here
+        _, order = generate_survey_from_abmn_locations(locations_a=a, locations_b=b, locations_m=m, locations_n=n,
+                                                       data_type="apparent_resistivity", output_sorting=True)
+    return np.asarray(order, dtype=int)
 
 
 def run_job(req, progress):
@@ -79,6 +99,13 @@ def run_job(req, progress):
     z_at = np.interp(pos, topo[:, 0], topo[:, 1])
     locs = np.c_[pos, z_at]
     idx = np.searchsorted(pos, np.round(abmn, 6))
+    # TASKS.csv #652 — put every per-reading vector in the order SimPEG holds the readings; outputs go back
+    # to file order (`back`) so result["predicted"][i] still belongs to the file's reading i.
+    order = _survey_order(idx, locs)
+    back = np.argsort(order)
+    idx, rho = idx[order], rho[order]
+    if charge is not None:
+        charge = charge[order]
 
     mesh, core = _mesh(pos, topo, cell, depth)
     # topography as (x, z) points sampled across the whole mesh width (flat extension beyond the profile)
@@ -90,16 +117,49 @@ def run_job(req, progress):
     # shift_horizontal=False: the default moves every electrode to the nearest cell centre (2.5 m with 5 m
     # cells) and short-offset readings came out up to 140 % wrong on uniform ground; unshifted <= 2 %.
     survey = _survey(idx, locs, "apparent_resistivity")
+    if not np.array_equal(_survey_order(idx, locs), np.arange(len(idx))):  # #652 — must hold after the reorder
+        raise RuntimeError("Internal error: the readings could not be put in SimPEG's survey order.")
     survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
+    # TASKS.csv #580 — WHICH geometric factor turns the predicted volts into apparent resistivity must be the one the
+    # data were computed with. A receiver / contractor computes rho_a with K from the nominal electrode spacings on
+    # FLAT ground; SimPEG's set_geometric_factor() uses the electrodes draped on the topography. On a rugged line
+    # the two differ per reading (0.80-1.65x over a 60 m ridge) and that difference was fitted as near-surface
+    # structure (uniform 100 ohm.m came back 76-127). Default "flat": predict rho_a = V / G_flat, like the file.
+    # "draped": the data were already computed with the true 3D electrode positions (a topography-corrected file).
+    gf_mode = req.get("geometricFactor") or "flat"
     survey.set_geometric_factor()
+    if gf_mode == "flat":
+        from simpeg.electromagnetics.static.utils import static_utils
+        g_flat = static_utils.geometric_factor(_survey(idx, np.c_[pos, np.zeros_like(pos)], "apparent_resistivity"))
+        slices = survey.get_all_slices()
+        for src in survey.source_list:
+            for rx in src.receiver_list:
+                rx._geometric_factor[src] = g_flat[slices[src, rx]]
+
+    # TASKS.csv #683 — an optional per-reading floor from the file's own error column (file order -> survey order):
+    # each reading's floor is the larger of the typed floor and its own error, so a noisy reading is trusted less
+    def _per_reading(arr, name):
+        if arr is None:
+            return None
+        a = np.asarray([np.nan if v is None else v for v in arr], dtype=float)
+        if a.shape != (len(order),):
+            raise ValueError(f"{name}: one value per reading expected.")
+        a = a[order]
+        a[~np.isfinite(a)] = 0.0
+        return np.clip(a, 0.0, None)
 
     unc = req["uncertainty"]
-    std = float(unc["percent"]) / 100.0 * np.abs(rho) + float(unc.get("floor", 0))
+    _fl_pct = _per_reading(unc.get("floorPerReadingPercent"), "uncertainty.floorPerReadingPercent")
+    _floor = float(unc.get("floor", 0))
+    _floor_dc = np.maximum(_floor, _fl_pct / 100.0 * np.abs(rho)) if _fl_pct is not None else _floor
+    std = float(unc["percent"]) / 100.0 * np.abs(rho) + _floor_dc
     if np.any(~np.isfinite(std)) or np.any(std <= 0):
         raise ValueError("Every reading needs a positive uncertainty.")
     if charge is not None:  # #564 — checked here, before the DC inversion, not after it
         _iu = req.get("ipUncertainty") or {}
-        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + float(_iu.get("floor", 0)) / 1000.0
+        _ip_fl = _per_reading(_iu.get("floorPerReadingMvV"), "ipUncertainty.floorPerReadingMvV")
+        _ip_floor = np.maximum(float(_iu.get("floor", 0)), _ip_fl) / 1000.0 if _ip_fl is not None else float(_iu.get("floor", 0)) / 1000.0
+        _ip_std = float(_iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor
         if np.any(~np.isfinite(_ip_std)) or np.any(_ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
     dc_data = sdata.Data(survey, dobs=rho, standard_deviation=std)
@@ -111,8 +171,9 @@ def run_job(req, progress):
     sim = dc.Simulation2DNodal(mesh, survey=survey, sigmaMap=cmap, storeJ=True)
     max_iter = int(req.get("maxIter", 20))
 
-    def inv_run(dmis, reg, opt, m_start, label, target):
+    def inv_run(dmis, reg, opt, m_start, label, target, phi_fn=None, opt_factory=None):
         history = []
+        track = fit_target.Track(target)  # TASKS.csv #536
 
         class Progress(directives.InversionDirective):
             def endIter(self):
@@ -121,10 +182,23 @@ def run_job(req, progress):
                 progress({"stage": label, "iter": h["iter"], "maxIter": max_iter, "phi_d": h["phi_d"], "target": target})
 
         prob = inverse_problem.BaseInvProblem(dmis, reg, opt)
-        dirs = [directives.UpdateSensitivityWeights(), directives.BetaEstimate_ByEig(beta0_ratio=1.0, random_seed=1),
+        # TASKS.csv #771 — threshold 1e-2 as in SimPEG's own 2.5D DC/IP tutorials. At the default 1e-12 the weights
+        # freed the deep cells the data barely see, and the inversion invented resistive patches there (synthetic
+        # 100 ohm.m host: deep cells up to 661 ohm.m, p95 236; at 1e-2: max 121, p95 103, block 20 vs 22 ohm.m, true 10).
+        dirs = [directives.UpdateSensitivityWeights(every_iteration=False, threshold_value=1e-2), directives.BetaEstimate_ByEig(beta0_ratio=1.0, random_seed=1),
+                fit_target.track_directive(directives, track),  # #536 — before BetaSchedule
                 directives.BetaSchedule(coolingFactor=2.0, coolingRate=1), directives.TargetMisfit(chifact=1.0),
                 directives.UpdatePreconditioner(), Progress()]
-        return inversion.BaseInversion(prob, directiveList=dirs).run(m_start), history
+        m = inversion.BaseInversion(prob, directiveList=dirs).run(m_start)
+
+        # #536 — the iterate that fits to the stated uncertainty, not the one beta-cooling overshot to
+        def refine(m0_, beta):
+            p = inverse_problem.BaseInvProblem(dmis, reg, opt_factory())
+            p.beta = beta
+            mm = inversion.BaseInversion(p, directiveList=[directives.UpdatePreconditioner()]).run(m0_)
+            return mm, phi_fn(mm)
+        choice = fit_target.choose(track, refine if (phi_fn and opt_factory) else None)
+        return (choice["model"] if choice else m), history, fit_target.fit_report(choice)
 
     progress({"stage": "dc", "iter": 0, "maxIter": max_iter, "message": "Inverting resistivity"})
     reg = regularization.WeightedLeastSquares(mesh, active_cells=active, reference_model=m0)
@@ -132,7 +206,9 @@ def run_job(req, progress):
     # absurd conductivity during the line search and make the forward matrix singular ("Factor is exactly
     # singular" — hit on the synthetic test before these bounds). Real rocks are well inside them.
     opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30)
-    m_dc, hist_dc = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg, opt, m0, "dc", float(len(rho)))
+    m_dc, hist_dc, fit_dc = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg, opt, m0, "dc", float(len(rho)),
+                                    phi_fn=lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2)),
+                                    opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
     pred = sim.dpred(m_dc)
     phi_d = float(np.sum(((rho - pred) / std) ** 2))
     J = sim.getJ(m_dc)
@@ -145,6 +221,40 @@ def run_job(req, progress):
     sens = np.sqrt(np.einsum("ij,ij->j", Jw, Jw))
     sens = sens / sens.max() if sens.max() > 0 else sens
 
+    # TASKS.csv #772 — optional depth-of-investigation index (Oldenburg & Li 1999, Geophysics 64(2)): invert again
+    # with the reference model 10x below and 10x above the median apparent resistivity. Where the
+    # data control a cell both runs agree; where they don't, each run returns its own reference.
+    # doi = |m_low - m_high| / |ref_low - ref_high| in log conductivity: ~0 data-controlled, ~1 reference-controlled.
+    # Measured on the test_dcip2d synthetic (#768): it reaches a median 55 m per column vs 40 m for the support
+    # cutoff, at ~3x the run time (two more inversions).
+    doi = None
+    doi_fit = None
+    if req.get("doi"):
+        refs = []
+        for k, factor in enumerate((0.1, 10.0)):
+            label = "doi-low" if factor < 1 else "doi-high"
+            progress({"stage": label, "iter": 0, "maxIter": max_iter, "message": f"Depth of investigation: inversion {k + 1} of 2 (reference {factor:g}x the median)"})
+            m_ref = np.full(n_act, np.log(1.0 / (factor * np.median(rho))))
+            reg_k = regularization.WeightedLeastSquares(mesh, active_cells=active, reference_model=m_ref)
+            phi_fn = lambda m: float(np.sum(((rho - sim.dpred(m)) / std) ** 2))
+            # Started like the main run, from the uniform median half-space; only the reference differs. On Woodjam
+            # 115N the high-reference run's line search broke at iteration 3 (149x the target) whatever the start
+            # (reference: stalled at 17x; fitted main model: 58x after one step), CG or line-search limits: restart
+            # it from where it stopped with a fresh solver, up to three times (115N: 149x -> 1.70x -> 0.997x). A smaller
+            # smallness weight (alpha_s 0.01) made the high run worse (9x -> 18.9x over the restarts).
+            m_k, chi = m0.copy(), np.inf
+            for attempt in range(4):
+                opt_k = optimization.ProjectedGNCG(maxIter=max_iter, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30, maxIterLS=20)
+                m_k, _, _ = inv_run(data_misfit.L2DataMisfit(data=dc_data, simulation=sim), reg_k, opt_k, m_k, label, float(len(rho)),
+                                    phi_fn=phi_fn, opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=np.log(1e-5), upper=np.log(1e2), cg_maxiter=30))
+                chi = phi_fn(m_k) / len(rho)
+                if chi <= 1.5:
+                    break
+            refs.append((m_k, m_ref[0], chi))
+        (m_lo, r_lo, chi_lo), (m_hi, r_hi, chi_hi) = refs
+        doi = np.abs(m_lo - m_hi) / abs(r_lo - r_hi)
+        doi_fit = [round(chi_lo, 3), round(chi_hi, 3)]
+
     out_ip = None
     if charge is not None:
         progress({"stage": "ip", "iter": 0, "maxIter": max_iter, "message": "Inverting chargeability"})
@@ -153,7 +263,7 @@ def run_job(req, progress):
         ip_survey.drape_electrodes_on_topography(mesh, active, topo_cell_cutoff="top", shift_horizontal=False)
         ip_unc = req.get("ipUncertainty") or {}
         # TASKS.csv #564 — no 5 % / 1 mV/V fallback (nothing physical is defaulted), and every std positive
-        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + float(ip_unc.get("floor", 0)) / 1000.0
+        ip_std = float(ip_unc.get("percent", 0)) / 100.0 * np.abs(eta_obs) + _ip_floor  # #683 — with the file's per-reading floor
         if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
             raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
         ip_data = sdata.Data(ip_survey, dobs=eta_obs, standard_deviation=ip_std)
@@ -161,10 +271,14 @@ def run_job(req, progress):
         ip_sim = ip.Simulation2DNodal(mesh, survey=ip_survey, etaMap=eta_map, sigma=cmap * m_dc, storeJ=True)
         ip_reg = regularization.WeightedLeastSquares(mesh, active_cells=active, mapping=maps.IdentityMap(nP=n_act))
         ip_opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=0.0, upper=1.0, cg_maxiter=30)
-        m_ip, hist_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(len(eta_obs)))
+        m_ip, hist_ip, fit_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(len(eta_obs)),
+                                        phi_fn=lambda m: float(np.sum(((eta_obs - ip_sim.dpred(m)) / ip_std) ** 2)),
+                                        opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=0.0, upper=1.0, cg_maxiter=30))
         ip_pred = ip_sim.dpred(m_ip)
-        out_ip = {"model": m_ip, "predicted": (ip_pred * 1000).tolist(), "phi_d": float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2)),
-                  "history": hist_ip, "standardDeviation": (ip_std * 1000).tolist()}
+        ip_phi = float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2))
+        # TASKS.csv #581 — the IP fit gets its own status, judged the same way as the DC one
+        out_ip = {"model": m_ip, "predicted": (ip_pred[back] * 1000).tolist(), "phi_d": ip_phi, "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
+                  "history": hist_ip, "standardDeviation": (ip_std[back] * 1000).tolist(), "fitChoice": fit_ip}
 
     keep_full = core & np.isin(np.arange(mesh.n_cells), np.flatnonzero(active))
     act_index = np.full(mesh.n_cells, -1)
@@ -174,16 +288,20 @@ def run_job(req, progress):
     ii, jj = np.unravel_index(np.flatnonzero(keep_full), mesh.shape_cells, order="F")
     f32 = lambda a: np.asarray(a, dtype=np.float32).astype(float).tolist()
     result = {
-        "kind": "dcip2d",
+        "kind": "dcip2d",  # #652 — predicted / standardDeviation are in FILE order
         "cells": {"s": np.round(cc[:, 0], 3).tolist(), "z": np.round(cc[:, 1], 3).tolist(),
                   "ds": np.round(mesh.h[0][ii], 3).tolist(), "dz": np.round(mesh.h[1][jj], 3).tolist(),
                   "resistivity": f32(1.0 / np.exp(m_dc[ai])), "support": np.round(sens[ai], 4).tolist(),
+                  **({"doi": np.round(doi[ai], 3).tolist()} if doi is not None else {}),
                   **({"chargeability": f32(out_ip["model"][ai] * 1000)} if out_ip else {})},
         "electrodes": np.round(survey.unique_electrode_locations, 3).tolist(),
-        "predicted": pred.tolist(), "standardDeviation": std.tolist(), "phi_d": phi_d, "target": float(len(rho)),
-        "reachedTarget": phi_d <= 1.05 * len(rho), "history": hist_dc, "iterations": len(hist_dc),
+        "predicted": pred[back].tolist(), "standardDeviation": std[back].tolist(), "phi_d": phi_d, "target": float(len(rho)),
+        "reachedTarget": phi_d <= 1.05 * len(rho), "history": hist_dc, "iterations": len(hist_dc), "fitChoice": fit_dc,
         "ip": ({k: v for k, v in out_ip.items() if k != "model"} if out_ip else None),
         "mesh": {"shape": list(mesh.shape_cells), "cell": cell, "depth": depth, "nActive": n_act, "nCore": int(keep_full.sum())},
+        "geometricFactor": gf_mode,  # #580 — recorded with the result
+        **({"doiMethod": {"name": "Oldenburg & Li (1999) DOI index", "referenceFactors": [0.1, 10.0], "of": "resistivity",
+                          "threshold": 0.2, "misfitOfEachRun": doi_fit}} if doi is not None else {}),
         "seconds": time.time() - t0,
     }
     import simpeg, discretize

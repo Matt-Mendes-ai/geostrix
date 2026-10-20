@@ -164,7 +164,9 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
               </div>
               <div style={{ position: "relative", height: 14, width: 180, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
                 <span style={{ position: "absolute", left: 0 }}>{fmtR(g.ramp.min)}</span>
-                {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
+                {/* a tick label that would run into the min/max label is left out (its tick mark stays): ~6 px per character */}
+                {(g.ramp.ticks || []).filter((t) => { const half = String(t.label).length * 3, x = t.at * 180; return x - half > fmtR(g.ramp.min).length * 6 + 4 && x + half < 180 - fmtR(g.ramp.max).length * 6 - 4; })
+                  .map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, transform: "translateX(-50%)" }}>{t.label}</span>)}
                 <span style={{ position: "absolute", right: 0 }}>{fmtR(g.ramp.max)}</span>
               </div>
             </div>

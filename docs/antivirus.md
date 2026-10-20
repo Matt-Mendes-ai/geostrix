@@ -53,16 +53,19 @@ open-source project like GeoStrix (MIT, public on GitHub):
    individual open-source developers after identity verification.
 3. **Azure Trusted Signing** (Microsoft) — about US$10/month; requires identity validation.
 
-Once you have a certificate as a `.pfx` file, add two repository secrets on GitHub
-(Settings → Secrets and variables → Actions):
+**GeoStrix uses option 2** (TASKS.csv #777, from 0.1.53): a Certum Open Source certificate whose private
+key lives in Certum's SimplySign cloud and is unlocked with the maintainer's phone, so GitHub's runner
+cannot sign by itself. The Release workflow builds and tests on GitHub and uploads the unpacked app;
+on the maintainer's PC, with SimplySign Desktop connected,
 
-- `WIN_CSC_LINK` — the `.pfx` file, base64-encoded (PowerShell:
-  `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | Set-Clipboard`)
-- `WIN_CSC_KEY_PASSWORD` — its password
+    git checkout v<version>
+    powershell -ExecutionPolicy Bypass -File scripts\sign-release.ps1
 
-The release workflow then signs the Python engine's executables and electron-builder signs GeoStrix.exe,
-the installer and the uninstaller automatically. (SignPath and Azure use their own CI integration
-instead of a .pfx; the workflow step would be swapped for theirs.)
+signs GeoStrix.exe and the Python engine, packages the installer and zip from that same app, signs the
+installer, its uninstaller and its elevation helper (timestamped by Certum), checks every signature,
+regenerates `latest.yml` and `SHA256SUMS.txt` from the signed files and, after a confirmation, publishes.
+`-DryRun` does everything except upload. If signing is ever unavailable, setting the repository variable
+`PUBLISH_UNSIGNED` to `true` lets the workflow publish an unsigned build as before.
 
 ## Reporting a false positive
 

@@ -8,7 +8,8 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle } from "../components/icons.js";
+import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
@@ -17,7 +18,12 @@ import {
   isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
 } from "../lib/geochem.js";
+import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
+import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
+import { assayFileSummary, removeAssayFile, removeAssayElement } from "../lib/geochem.js"; // TASKS.csv #624
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import GeochemPlot from "../components/GeochemPlot.jsx";
+import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
@@ -47,7 +53,10 @@ export default function GeochemModule() {
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useState("boxplot");
-  const [colorMode, setColorMode] = useState("hole"); // hole | element | uniform
+  const [colorMode, setColorMode] = useState("hole"); // hole | element | lithology (#619) | uniform
+  // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
+  const [lithFilter, setLithFilter] = useState(null); // null | Set of codes (NOT_LOGGED = samples with no log)
+  const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useState(null);
   const [assayModal, setAssayModal] = useState(null);
   const [certReview, setCertReview] = useState(null); // TASKS.csv #601
@@ -80,14 +89,35 @@ export default function GeochemModule() {
     return map;
   }, [assays]);
 
+  // TASKS.csv #619 — each sample's logged lithology (largest overlap with the 3D View's lithology log)
+  const sampleLith = useMemo(() => lithologyBySample(assays, layers?.litho), [assays, layers?.litho]);
+  const lithCounts = useMemo(() => lithologyCounts(sampleLith), [sampleLith]);
+  const hasLithLog = (layers?.litho || []).length > 0;
+  const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k], i) => [k, k === NOT_LOGGED ? "#b8bec7" : `hsl(${(i * 137) % 360}, 60%, 50%)`])), [lithCounts]);
+  const plotted = useMemo(() => (lithFilter ? assays.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : assays), [assays, lithFilter, sampleLith]);
+  const describeSample = (sm) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace(/\.?0+$/, "") : "?");
+    return [
+      `${sm.hole_id}  ${num(sm.from)}–${num(sm.to)} m`,
+      `Sample ID: ${sm.sample_id || "— (none in the assay file)"}`,
+      `Lithology (logged): ${hasLithLog ? sampleLith.get(sm) ?? "not logged here" : "no lithology log loaded"}`,
+    ];
+  };
+  // TASKS.csv #619 (#618 click review) — the element colour range was recomputed over ALL assays for EVERY point
+  // (6,297 samples: ~40 million value lookups per redraw, enough to freeze the tab); now once per change
+  const colorRange = useMemo(() => {
+    if (colorMode !== "element" || !colorElement) return null;
+    const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
+    return vals.length ? { min: arrMin(vals), max: arrMax(vals) } : null;
+  }, [colorMode, colorElement, assays, elementUnits]);
   const colorBy = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
+    if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
     if (colorMode === "element" && colorElement) {
       const v = valueIn(sample, colorElement, "ppm", elementUnits);
-      if (v == null) return "#eef1f4";
-      const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
-      const min = arrMin(vals), max = arrMax(vals);
+      if (v == null || !colorRange) return "#eef1f4";
+      const { min, max } = colorRange;
       const t = max > min ? (v - min) / (max - min) : 0.5;
       const lo = [70, 110, 190], hi = [220, 70, 60];
       return `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`;
@@ -108,7 +138,7 @@ export default function GeochemModule() {
       const [file] = await loadSampleFiles("harry_property", ["assay_wide.csv"]);
       handleFile(file, false);
     } catch (err) {
-      setNotices((p) => [...p, `Couldn't load the sample assays: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`Couldn't load the sample assays: ${err.message}`)]);
     } finally {
       setSampleLoading(false);
     }
@@ -122,9 +152,17 @@ export default function GeochemModule() {
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
         // import path (src/lib/numberLocale.js) — and the note is surfaced, not swallowed.
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
-        if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
+        // TASKS.csv #623 — a long export (analyte + concentration / value + units + method + flag, one row per element)
+        // becomes one row per sample with an element column each, then goes through the normal wide import
+        const pv = detectLongAssay(headers) ? pivotLongAssays(data, headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
+        if (pv && pv.rows.length) {
+          setNotices((p) => [...p, `${file.name}: ${longAssayNote(pv.report)}`]);
+          openAssayModal(file, pv.headers, pv.rows, isPxrf);
+          return;
+        }
         openAssayModal(file, headers, data, isPxrf);
     });
   };
@@ -175,12 +213,12 @@ export default function GeochemModule() {
       if (!isLabCertificateText(text)) { skipped.push(f.name); continue; }
       parsed.push(parseLabCertificate(text, f.name));
     }
-    if (skipped.length) setNotices((p) => [...p, `Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`]);
+    if (skipped.length) setNotices((p) => [...p, errorNotice(`Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`)]);
     if (!parsed.length) return;
     const all = combineCertificates(parsed);
     const join = joinCertificatesToAssays(all.rows, assays);
     if (!join.matched.length) {
-      setNotices((p) => [...p, `None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`]);
+      setNotices((p) => [...p, errorNotice(`None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`)]);
       return;
     }
     const columns = parsed.flatMap((p) => p.columns).filter((c, i, a) => a.findIndex((x) => x.header === c.header) === i);
@@ -252,10 +290,11 @@ export default function GeochemModule() {
     setCertReview(null);
   };
 
-  const commitAssayImport = (modal) => {
+  const commitAssayImport = async (modal) => {
+    if (modal.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, "Map hole ID, from, and to columns."]); return; }
+    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice("Map hole ID, from, and to columns.")]); return; }
     // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every
     // stored value in it, so importing a batch in a different unit used to silently rescale all the
     // EARLIER values (Au in ppm, then a ppb batch: every earlier Au read 1000x too low). Incoming values
@@ -267,21 +306,23 @@ export default function GeochemModule() {
     const negativeMode = modal.negativeMode || "bdl";
     let negBdl = 0, negMissing = 0;
     const oxideNotes = new Set(); // #403
+    const oxideCache = new Map(); // #583 — per header, not per cell (2.3 M lookups on a 190,000-row file)
+    const oxideOf = (header) => { let o = oxideCache.get(header); if (o === undefined) { o = oxideOfHeader(header) || null; oxideCache.set(header, o); } return o; };
     const read = (raw, sym, header) => {
       const c = readAssayCell(raw, negativeMode);
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
       const e = chosenBySymbol.get(sym);
       // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%.
-      const ox = oxideOfHeader(header);
+      const ox = oxideOf(header);
       if (ox && c.value != null) oxideNotes.add(`${ox.oxide} → ${ox.symbol} (÷${ox.factor})`);
-      const elemPct = fromOxideHeader(c.value, header);
+      const elemPct = ox ? fromOxideHeader(c.value, header) : c.value;
       return { v: e ? convertUnit(elemPct, ox ? "%" : e.unit, existingUnit[sym] || (ox ? "%" : e.unit)) : elemPct, q: c.qualifier };
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
     const findCol = (names) => (modal.headers || []).find((h) => names.includes(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"))) || null;
-    const typeCol = findCol(["sample_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"]);
+    const typeCol = findCol(["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"]);
     const idCol = findCol(["sample_id", "sampleid", "sample_no", "sample_number", "sample"]);
     // #400 — the original a duplicate was split from, and which CRM a standard is
     const parentCol = findCol(["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "orig_sample_id", "primary_id", "original_sample"]);
@@ -318,7 +359,9 @@ export default function GeochemModule() {
       return read(`<${L.limit}`, sym, header);
     };
     if (format === "wide") {
-      rows = allRows.map((r) => {
+      // TASKS.csv #583 — built in chunks that yield to the UI (190,000 rows x 12 elements was a 1.45 s freeze)
+      if (allRows.length > 20000) setAssayModal((m) => (m ? { ...m, busy: true } : m));
+      rows = await mapInChunks(allRows, (r) => {
         const values = {};
         // TASKS.csv #261 — keep the censoring qualifier ('<' below detection / '>' over-range) alongside
         // the substituted number so the substitution stops being invisible downstream (dataQC warns on
@@ -327,11 +370,12 @@ export default function GeochemModule() {
         const valueSources = {}; // #542 — element -> the ore-grade column a value came from
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
-          let { v, q } = read(r[e.header], e.symbol, e.header);
+          const cell = r[e.header]; // #583 — read once (a columnar row's value is a getter)
+          let { v, q } = read(cell, e.symbol, e.header);
           // #600 / #542 — a sample at the main column's cap takes its ore-grade re-assay (converted to the main
           // column's unit) when the file has one; only while the element still reads the auto-picked column
           const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
-          if (ol && parseAssayValue(r[e.header]) === ol.limit) {
+          if (ol && parseAssayValue(cell) === ol.limit) {
             const og = parseAssayValue(r[ol.header]);
             if (og != null && Number.isFinite(og)) {
               v = convertUnit(og, ol.unit, existingUnit[e.symbol] || e.unit); q = null;
@@ -339,17 +383,18 @@ export default function GeochemModule() {
               valueSources[e.symbol] = ol.header;
             }
           }
-          if (v == null && anyResult && isBlankAssayCell(r[e.header])) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
+          if (v == null && anyResult && isBlankAssayCell(cell)) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
           if (v != null) {
             values[e.symbol] = v;
             if (q) quals[e.symbol] = q;
           }
         });
-        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay" };
+        const out = { hole_id: String(r[mapping.hole_id] ?? "").trim(), from: num(r[mapping.from]), to: num(r[mapping.to]), values, source: modal.isPxrf ? "pXRF" : "assay", ...(modal.fileName ? { srcFile: modal.fileName } : {}) }; // srcFile: #624
         if (Object.keys(quals).length) out.qualifiers = quals;
         if (Object.keys(valueSources).length) out.valueSources = valueSources; // #542 — which method each over-limit value is
         return tagQC(out, r);
       });
+      setAssayModal((m) => (m ? { ...m, busy: false } : m));
       const before = rows.length;
       rows = rows.filter(validInterval);
       skippedNoDepth = before - rows.length;
@@ -360,7 +405,7 @@ export default function GeochemModule() {
         if (!sym || !chosen.find((c) => c.symbol === sym)) return;
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = num(r[mapping.from]), to = num(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
-        if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay" }, r));
+        if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay", ...(modal.fileName ? { srcFile: modal.fileName } : {}) }, r)); // srcFile: #624
         let { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
         if (v == null && blankMode === "bdl" && isBlankAssayCell(r[mapping.value])) ({ v, q } = blankAsBdl(sym, String(r[mapping.analyte] ?? "")) || { v, q }); // #502
         if (v != null) {
@@ -389,8 +434,10 @@ export default function GeochemModule() {
       if (ok) replaceHoles = changed;
     }
     const base = replaceHoles.length ? dropHoleAssays(assays, replaceHoles) : assays;
-    const { merged: mergedCount, repeatedInFile } = mergeAssayRows(base, rows); // for the notice only
-    setAssays((prev) => mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows);
+    // #583 — merged ONCE (it was run twice, ~0.3 s each on 190,000 rows); recomputed only if the store moved on
+    const mergeRes = mergeAssayRows(base, rows);
+    const { merged: mergedCount, repeatedInFile } = mergeRes;
+    setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
     setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
@@ -426,7 +473,7 @@ export default function GeochemModule() {
     parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
-        if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
@@ -464,7 +511,7 @@ export default function GeochemModule() {
   const commitSurfaceImport = (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, "Map the X and Y columns."]); return; }
+    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice("Map the X and Y columns.")]); return; }
     // TASKS.csv #606 — Z is optional: a blank z, or a Z column that is 0 on every row (an MX soil export whose
     // elevation was never filled in), is MISSING, not sea level; the 3D view places those samples on the terrain.
     const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
@@ -539,7 +586,7 @@ export default function GeochemModule() {
     e.preventDefault(); setDragOver(false);
     const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name)); // #605
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv or .xlsx files can be dropped in directly."]); return; }
+    if (!files.length) { setNotices((p) => [...p, errorNotice("Only .csv or .xlsx files can be dropped in directly.")]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} other file(s) skipped.`]);
     files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
   };
@@ -547,7 +594,7 @@ export default function GeochemModule() {
   const runMethod = (methodKey, altSetup = null) => {
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
-    if (missing.length) { setNotices((p) => [...p, `${method.label}: missing ${missing.join(", ")}.`]); return; }
+    if (missing.length) { setNotices((p) => [...p, errorNotice(`${method.label}: missing ${missing.join(", ")}.`)]); return; }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
@@ -640,34 +687,34 @@ export default function GeochemModule() {
         <Ribbon label="Geochem tools">
           <RibbonGroup label="Import">
             <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
-            <RibbonButton icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
-            <RibbonButton icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
-            <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
+            <RibbonButton advanced icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
+            <RibbonButton advanced icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
+            <RibbonButton advanced icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
           </RibbonGroup>
-          <RibbonGroup label="Classify">
+          <RibbonGroup advanced label="Classify">
             <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
             <RibbonButton icon={GTriangle} label="Winchester" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology from immobile elements (Winchester & Floyd) — screening level" onClick={() => runMethod("litho_winchester")} />
             <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
           </RibbonGroup>
-          <RibbonGroup label="Calculate">
+          <RibbonGroup advanced label="Calculate">
             <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", msg: null }))} />
             <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyze">
-            <RibbonButton icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
-            <RibbonButton icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
-            <RibbonButton icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
+            <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
+            <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
             <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
-            <RibbonButton icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
+            <RibbonButton advanced icon={GRows} label="Compositing" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Downhole compositing" onClick={() => setCompositingOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Export">
-            <RibbonButton icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Assays → CSV" onClick={exportAssaysCSV} />
-            <RibbonButton icon={Download} label="Plot data" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot data → CSV" onClick={exportProjectedCSV} />
+            <RibbonButton advanced icon={GSheet} label="Assays CSV" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Assays → CSV" onClick={exportAssaysCSV} />
+            <RibbonButton advanced icon={Download} label="Plot data" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot data → CSV" onClick={exportProjectedCSV} />
             <RibbonButton icon={GImage} label="Plot PNG" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot → PNG" onClick={exportPlotPNG} />
-            <RibbonButton icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot → SVG" onClick={exportPlotSVG} />
+            <RibbonButton advanced icon={GImage} label="Plot SVG" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Plot → SVG" onClick={exportPlotSVG} />
           </RibbonGroup>
         </Ribbon>
         <input ref={certRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { handleCertificates(e.target.files); e.target.value = ""; }} />
@@ -679,6 +726,8 @@ export default function GeochemModule() {
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {assays.length ? `${assays.length} intervals · ${assayElements.length} elements` : "No assays loaded"}
         </div>
+        {/* TASKS.csv #624 — remove what was imported: a whole file, one element, or everything (all undoable) */}
+        {assays.length > 0 && <AssayRemovePanel assays={assays} assayElements={assayElements} setAssays={setAssays} setAssayElements={setAssayElements} setNotices={setNotices} colorElement={colorElement} setColorElement={setColorElement} />}
         <div className="ge-section-label" style={{ marginTop: 14 }}>Surface samples</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? `${surfaceSamples.length} samples · ${surfaceElements.length} elements` : "No surface samples loaded"}
@@ -724,8 +773,15 @@ export default function GeochemModule() {
             the same moment as its text is routinely missed. */}
         <div aria-live="polite" aria-relevant="additions text" aria-label="Import and analysis messages">
           {notices.length > 0 && (
-            <div style={{ marginTop: 16, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10.5, color: "#7b8794", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
-              {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
+            // TASKS.csv #729 — #390's severity and #384's contrast here too: a failure gets an icon and the danger
+            // colour, the rest the caption grey (4.98:1, was #7b8794 at 3.66:1); the newest message is bold.
+            <div style={{ marginTop: 16, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
+              {notices.slice(-6).map((n, i, shown) => {
+                const last = i === shown.length - 1 ? { fontWeight: 600 } : null;
+                return noticeLevel(n) === "error"
+                  ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start", ...last }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span><span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>Error: </span>{noticeText(n)}</span></div>
+                  : <div key={i} style={{ marginBottom: 4, ...last }}>{noticeText(n)}</div>;
+              })}
             </div>
           )}
         </div>
@@ -744,12 +800,45 @@ export default function GeochemModule() {
             <select value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">by hole</option>
               <option value="element">by element</option>
+              <option value="lithology" disabled={!hasLithLog}>by logged lithology</option>
               <option value="uniform">uniform</option>
             </select>
             {colorMode === "element" && (
               <select value={colorElement || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
                 {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
               </select>
+            )}
+          </div>
+          {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
+          <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>
+            Lithology:
+            <button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"
+              title={hasLithLog ? "Plot only samples from the chosen logged lithologies" : "Load a lithology log in the 3D View to filter by it"}
+              style={{ ...selectStyle, padding: "5px 8px", cursor: hasLithLog ? "pointer" : "not-allowed", opacity: hasLithLog ? 1 : 0.55 }}>
+              {!hasLithLog ? "no log loaded" : !lithFilter ? `all (${lithCounts.length})` : `${lithFilter.size} of ${lithCounts.length} selected`} ▾
+            </button>
+            {lithMenuOpen && hasLithLog && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 20 }} onClick={() => setLithMenuOpen(false)} />
+                <div role="menu" onKeyDown={(e) => { if (e.key === "Escape") setLithMenuOpen(false); }} style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 21, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.15)", padding: 8, minWidth: 220, maxHeight: 360, overflowY: "auto" }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <button type="button" onClick={() => setLithFilter(null)} style={{ ...selectStyle, padding: "3px 8px" }}>All</button>
+                    <button type="button" onClick={() => setLithFilter(new Set())} style={{ ...selectStyle, padding: "3px 8px" }}>None</button>
+                  </div>
+                  {lithCounts.map(([code, n]) => {
+                    const on = !lithFilter || lithFilter.has(code);
+                    const toggle = () => setLithFilter((prev) => { const next = new Set(prev || lithCounts.map(([k]) => k)); if (next.has(code)) next.delete(code); else next.add(code); return next.size === lithCounts.length ? null : next; });
+                    return (
+                      <label key={code} role="menuitemcheckbox" aria-checked={on} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 2px", cursor: "pointer", fontSize: 12, color: "var(--color-text)" }}>
+                        <input type="checkbox" checked={on} onChange={toggle} />
+                        <span style={{ width: 9, height: 9, borderRadius: 2, background: lithColors[code], flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{code === NOT_LOGGED ? "not logged" : code}</span>
+                        <span style={{ color: "var(--color-text-muted)" }}>{n}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -792,11 +881,12 @@ export default function GeochemModule() {
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>
-            <GeochemPlot diagramId={diagramId} samples={assays} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} />
+            <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
               {diagram.spider
-                ? `${assays.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
-                : `${assays.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}
+                ? `${plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length} of ${assays.length} samples have at least one plottable element.`
+                : `${plotted.filter((a) => diagram.project(a, elementUnits)).length} of ${assays.length} samples plotted.`}
+              {lithFilter ? ` ${assays.length - plotted.length} hidden by the lithology filter.` : ""}
               {" "}Below-detection values substituted at half the detection limit.
             </div>
           </div>
@@ -910,3 +1000,64 @@ export default function GeochemModule() {
 const panelBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 12, cursor: "pointer" };
 const genBtn = { ...panelBtn, background: "#1e3629", border: "1px solid #3d6b52", color: "#8fd9ab" };
 const selectStyle = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 10px", color: "#1a2028", fontSize: 12.5 };
+
+// TASKS.csv #624 — "currently there is no way to deleted imported assays". The imported files (each interval
+// remembers which file it came from), the elements, and Remove all — every removal goes through the undo history.
+function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, setNotices, colorElement, setColorElement }) {
+  const [open, setOpen] = useState(false);
+  const files = useMemo(() => (open ? assayFileSummary(assays) : []), [open, assays]);
+  const xBtn = { background: "none", border: "none", cursor: "pointer", color: "var(--color-danger-icon)", padding: "0 2px", lineHeight: 1 };
+  const row = { display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", padding: "2px 0" };
+  const dropUnusedElements = (rows) => {
+    const used = new Set(); rows.forEach((r) => Object.keys(r.values || {}).forEach((k) => used.add(k)));
+    setAssayElements((prev) => prev.filter((e) => used.has(e.symbol)));
+    if (colorElement && !used.has(colorElement)) setColorElement(null);
+  };
+  const removeFile = (f) => {
+    const label = f.file == null ? "the assays imported before file names were recorded" : `"${f.file}"`;
+    if (!confirmDestructive(`Remove ${label} (${f.intervals.toLocaleString()} interval(s))?`, { undoable: true })) return;
+    const r = removeAssayFile(assays, f.file);
+    setAssays(r.assays); dropUnusedElements(r.assays);
+    setNotices((p) => [...p, `Removed ${r.removed.toLocaleString()} assay interval(s) from ${label}.${r.keptShared ? ` ${r.keptShared.toLocaleString()} interval(s) also came from another file and were kept (their values can't be separated by file).` : ""} Ctrl+Z to undo.`]);
+  };
+  const removeElement = (sym) => {
+    if (!confirmDestructive(`Remove ${sym} from every assay interval?`, { undoable: true })) return;
+    const r = removeAssayElement(assays, sym);
+    setAssays(r.assays);
+    setAssayElements((prev) => prev.filter((e) => e.symbol !== sym));
+    if (colorElement === sym) setColorElement(null);
+    setNotices((p) => [...p, `Removed ${sym} from ${r.cleared.toLocaleString()} interval(s)${r.emptied ? `; ${r.emptied.toLocaleString()} interval(s) had no other element and were removed` : ""}. Ctrl+Z to undo.`]);
+  };
+  const removeAll = () => {
+    if (!confirmDestructive(`Remove all ${assays.length.toLocaleString()} assay intervals and ${assayElements.length} element(s)?`, { undoable: true })) return;
+    setAssays([]); setAssayElements([]); setColorElement(null);
+    setNotices((p) => [...p, "Removed all assays. Ctrl+Z to undo."]);
+  };
+  return (
+    <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>
+      <summary style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Imported files &amp; elements — remove…</summary>
+      {open && (
+        <div style={{ paddingTop: 4 }}>
+          <div style={{ color: "var(--color-text-muted)", margin: "2px 0" }}>Files</div>
+          {files.map((f) => (
+            <div key={f.file ?? "(untracked)"} style={row}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.file ?? "Imported before GeoStrix recorded file names"}>{f.file ?? "(imported earlier — file not recorded)"}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{f.intervals.toLocaleString()}</span>
+              <button type="button" style={xBtn} onClick={() => removeFile(f)} aria-label={`Remove assays from ${f.file ?? "files imported earlier"}`} title="Remove this file's assay intervals"><X size={14} /></button>
+            </div>
+          ))}
+          <div style={{ color: "var(--color-text-muted)", margin: "6px 0 2px" }}>Elements</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {assayElements.map((e) => (
+              <span key={e.symbol} style={{ display: "inline-flex", alignItems: "center", gap: 2, border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 2px 1px 6px" }}>
+                {e.symbol}
+                <button type="button" style={xBtn} onClick={() => removeElement(e.symbol)} aria-label={`Remove element ${e.symbol}`} title={`Remove ${e.symbol} from every interval`}><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+          <button type="button" onClick={removeAll} style={{ marginTop: 8, width: "100%", padding: "5px 8px", border: "1px solid var(--color-danger-fg)", color: "var(--color-danger-fg)", background: "var(--color-bg)", borderRadius: 5, cursor: "pointer" }}>Remove all assays</button>
+        </div>
+      )}
+    </details>
+  );
+}

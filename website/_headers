@@ -1,0 +1,12 @@
+# Cloudflare Pages headers (TASKS.csv #597). Strict: the site loads only its own files, plus GitHub's API for the
+# latest-installer lookup in download.js, and Cloudflare Web Analytics (cookieless visitor counts): its beacon script
+# comes from static.cloudflareinsights.com and reports to /cdn-cgi/rum on this site (or cloudflareinsights.com).
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' https://api.github.com https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+/img/*
+  Cache-Control: public, max-age=604800
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

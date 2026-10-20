@@ -95,7 +95,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <option value="number">number</option>
                   <option value="category">category</option>
                 </select>
-                <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Remove field "${cf.name || cf.column}"`} title="Remove this field" size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />{/* #596: was named "Close" */}
               </div>
             ))}
             <div style={{ display: "flex", gap: 6 }}>

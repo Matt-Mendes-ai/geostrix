@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochem.js";
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -6,7 +6,8 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 
 const W = 620, H = 560, PAD = 60;
 
-export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null }) {
+// describe(sample) -> lines for the hover tooltip (hole, depth, sample id, lithology: TASKS.csv #619)
+export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null, describe = null }) {
   const diagram = DIAGRAMS[diagramId] || SPIDER_DIAGRAMS[diagramId];
   const localRef = useRef(null);
   const ref = svgRef || localRef;
@@ -22,13 +23,43 @@ export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy,
 
   if (!diagram) return null;
 
-  if (diagram.spider) return <SpiderPlot diagram={diagram} samples={samples} elementUnits={elementUnits} colorBy={colorBy} svgRef={ref} />;
-  if (diagram.ternary) return <TernaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} />;
-  return <BinaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} altBoxes={altBoxes} />;
+  if (diagram.spider) return <SpiderPlot diagram={diagram} samples={samples} elementUnits={elementUnits} colorBy={colorBy} svgRef={ref} describe={describe} />;
+  if (diagram.ternary) return <TernaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} describe={describe} />;
+  return <BinaryPlot diagram={diagram} projected={projected} colorBy={colorBy} svgRef={ref} altBoxes={altBoxes} describe={describe} />;
+}
+
+// TASKS.csv #619 — hover a point: hole, depth, sample id, lithology and the plotted values. ONE mousemove handler
+// over the plot finds the nearest point (within 8 units of the viewBox) instead of a listener per circle (thousands
+// of samples). The tooltip is an HTML overlay outside the <svg>, so PNG / SVG exports never include it.
+const HOVER_RADIUS = 8;
+function usePointHover(svgRef, pts) {
+  const [hover, setHover] = useState(null); // { i, left, top }
+  const onMove = (e) => {
+    const svg = svgRef?.current;
+    if (!svg || !pts.length) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    let best = -1, bestD = HOVER_RADIUS * HOVER_RADIUS;
+    for (let i = 0; i < pts.length; i++) { const dx = pts[i].cx - q.x, dy = pts[i].cy - q.y, d = dx * dx + dy * dy; if (d <= bestD) { bestD = d; best = i; } }
+    if (best < 0) { if (hover) setHover(null); return; }
+    const box = svg.parentElement.getBoundingClientRect();
+    if (!hover || hover.i !== best) setHover({ i: best, left: e.clientX - box.left, top: e.clientY - box.top, w: box.width, h: box.height });
+  };
+  return { hover: hover && pts[hover.i] ? hover : null, onMove, onLeave: () => setHover(null) };
+}
+const fmtVal = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toPrecision(3));
+function HoverTip({ hover, lines }) {
+  if (!hover) return null;
+  return (
+    <div role="tooltip" style={{ position: "absolute", ...(hover.left > hover.w - 300 ? { right: hover.w - hover.left + 14 } : { left: hover.left + 14 }), ...(hover.top > hover.h - 130 ? { bottom: hover.h - hover.top + 10 } : { top: hover.top + 10 }), pointerEvents: "none", zIndex: 5, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", boxShadow: "0 4px 14px rgba(0,0,0,0.15)", fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "pre", lineHeight: 1.45, maxWidth: 320 }}>
+      {lines.join("\n")}
+    </div>
+  );
 }
 
 // ---------- binary (x-y, optional log) ----------
-function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes }) {
+function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe }) {
   let [xmin, xmax] = diagram.xRange || [0, 1];
   let [ymin, ymax] = diagram.yRange || [0, 1];
   if (diagram.dynamicRange && projected.length) {
@@ -55,11 +86,19 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes }) {
     return H - PAD - ((y - ymin) / (ymax - ymin)) * (H - 2 * PAD);
   };
 
+  // #619 — on-plot points with their screen positions (the same filter the circles always had)
+  // memoized: a hover re-renders only the ring + tooltip, not 6,000 circles (~49 ms per hover change before)
+  const pts = useMemo(() => projected.filter((p) => !(p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax)).map((p) => ({ cx: sx(p.x), cy: sy(p.y), p })), [projected, xmin, xmax, ymin, ymax, lx, ly]);
+  const dots = useMemo(() => pts.map((q, i) => <circle key={i} cx={q.cx} cy={q.cy} r="3" fill={colorBy(q.p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />), [pts, colorBy]);
+  const { hover, onMove, onLeave } = usePointHover(svgRef, pts);
+  const hp = hover ? pts[hover.i] : null;
+
   const xticks = lx ? logTicks(xmin, xmax) : linTicks(xmin, xmax, 6);
   const yticks = ly ? logTicks(ymin, ymax) : linTicks(ymin, ymax, 6);
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }}>
+    <div style={{ position: "relative" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }} onMouseMove={onMove} onMouseLeave={onLeave}>
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
       {/* reference fields */}
@@ -120,15 +159,15 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes }) {
       ))}
 
       {/* points */}
-      {projected.map((p, i) => {
-        if (p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax) return null;
-        return <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r="3" fill={colorBy(p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />;
-      })}
+      {dots}
+      {hp && <circle cx={hp.cx} cy={hp.cy} r="6" fill="none" stroke="#1f2933" strokeWidth="1.5" pointerEvents="none" />}
 
       {/* axis labels */}
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.xLabel}</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{diagram.yLabel}</text>
     </svg>
+    <HoverTip hover={hover} lines={hp ? [...(describe ? describe(hp.p.sample) : [String(hp.p.sample.hole_id ?? "")]), `${diagram.xLabel}: ${fmtVal(hp.p.x)}`, `${diagram.yLabel}: ${fmtVal(hp.p.y)}`] : []} />
+    </div>
   );
 }
 
@@ -158,15 +197,20 @@ function BoxplotGuides({ sx, sy, boxes }) {
 }
 
 // ---------- ternary ----------
-function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
+function TernaryPlot({ diagram, projected, colorBy, svgRef, describe }) {
   // triangle corners in svg space
   const cx = W / 2, top = PAD, bottom = H - PAD, half = (W - 2 * PAD) / 2;
   const A = [cx, top], Fp = [cx - half, bottom], M = [cx + half, bottom];
   const tx = (p) => Fp[0] + p.x * (M[0] - Fp[0]);
   const ty = (p) => bottom - (p.y / (Math.sqrt(3) / 2)) * (bottom - top);
+  const pts = useMemo(() => projected.map((p) => ({ cx: tx(p), cy: ty(p), p })), [projected]); // #619
+  const dots = useMemo(() => pts.map((q, i) => <circle key={i} cx={q.cx} cy={q.cy} r="3" fill={colorBy(q.p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />), [pts, colorBy]);
+  const { hover, onMove, onLeave } = usePointHover(svgRef, pts);
+  const hp = hover ? pts[hover.i] : null;
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }}>
+    <div style={{ position: "relative" }}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }} onMouseMove={onMove} onMouseLeave={onLeave}>
       <polygon points={`${A[0]},${A[1]} ${Fp[0]},${Fp[1]} ${M[0]},${M[1]}`} fill="#ffffff" stroke="#d9dce1" strokeWidth="1.5" />
       {/* gridlines every 20% */}
       {[0.2, 0.4, 0.6, 0.8].map((f, i) => {
@@ -188,9 +232,8 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
       )}
 
       {/* points */}
-      {projected.map((p, i) => (
-        <circle key={i} cx={tx(p)} cy={ty(p)} r="3" fill={colorBy(p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />
-      ))}
+      {dots}
+      {hp && <circle cx={hp.cx} cy={hp.cy} r="6" fill="none" stroke="#1f2933" strokeWidth="1.5" pointerEvents="none" />}
 
       {/* corner labels */}
       <text x={A[0]} y={A[1] - 10} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[0]}</text>
@@ -198,6 +241,8 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
       <text x={M[0] + 6} y={M[1] + 18} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.corners[2]}</text>
       {diagram.dividers && <text x={cx} y={bottom - 30} fill="#c07a4a" fontSize={fontSizes.xs} textAnchor="middle">calc-alkaline ↑ / tholeiitic ↓</text>}
     </svg>
+    <HoverTip hover={hover} lines={hp ? (describe ? describe(hp.p.sample) : [String(hp.p.sample.hole_id ?? "")]) : []} />
+    </div>
   );
 }
 
@@ -207,7 +252,7 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef }) {
 // opaque smear with no readable pattern, so this caps at the most recently-imported MAX_LINES and
 // tells the user how many were left out rather than silently dropping the rest.
 const MAX_LINES = 250;
-function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
+function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe }) {
   const order = diagram.order, norm = diagram.norm;
   const n = order.length;
   const innerW = W - 2 * PAD, innerH = H - 2 * PAD;
@@ -256,7 +301,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef }) {
       ))}
 
       {shown.map((l, i) => (
-        <path key={i} d={pathFor(l.profile)} fill="none" stroke={colorBy(l.sample)} strokeWidth="1" strokeOpacity="0.55" />
+        <path key={i} d={pathFor(l.profile)} fill="none" stroke={colorBy(l.sample)} strokeWidth="1" strokeOpacity="0.55">{describe && <title>{describe(l.sample).join("\n")}</title>}</path>
       ))}
 
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">Element (chondrite/primitive-mantle order)</text>
