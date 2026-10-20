@@ -19,7 +19,7 @@ export default function CrsPicker({ value, onChange, label, height = 190 }) {
     <div>
       {label && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 4 }}>{label}</div>}
       <div style={{ fontSize: "var(--font-size-base)", color: current ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6 }}>
-        {value ? <>{current || "Unrecognised CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : "No CRS chosen"}
+        {value ? <>{current || "Unrecognized CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : "No CRS chosen"}
       </div>
       <input
         value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search: name, zone or EPSG code (e.g. 9N, Albers, 32722)"

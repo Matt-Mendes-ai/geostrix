@@ -129,12 +129,21 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
 
 ## Conventions worth knowing
 
+- **Canadian spelling is the default** for everything a person reads: UI labels, tooltips, messages,
+  docs and READMEs. That means *colour, centre, metre, grey, modelling, labelled, cancelled,
+  behaviour, favourite, neighbour, catalogue, licence* (noun), *sulphide*, but **-ize/-yze**:
+  *recognize, normalize, visualize, realization, mineralization, magnetization, analyze*. "Dialog"
+  (the UI element) and "program" (software) stay as they are. **Never respell code**: identifiers,
+  CSS properties and values (`color`, `center`, `--color-*`), option `value`s and anything saved in a
+  project file (e.g. the `"equalise"` stretch value), file-format keywords (WKT `UNIT["Meter"]`,
+  KML `<color>`), and third-party API names all keep their existing spelling. Old code comments
+  don't need a sweep, but write new ones in Canadian spelling.
 - Comments throughout the codebase cite `TASKS.csv #<id>` liberally — when you see one, that's
   telling you *why* code is shaped the way it is; check that row's notes before assuming you
   understand the constraint well enough to change it.
 - Persisted-vs-session-only state is a recurring, deliberate distinction: project data goes in the
   `.geostrix.json` save file (via `store.jsx`); personal UI/workspace preferences (sidebar widths,
-  Browser-panel favorites/recent folders, etc) go in `localStorage` instead, via small dedicated
+  Browser-panel favourites/recent folders, etc) go in `localStorage` instead, via small dedicated
   hooks (`useSidebarWidth.js`, `useBrowserPanelHeight.js`, `useBrowserPanelPrefs.js`) — follow that
   pattern for new UI-only state rather than adding it to the project file.
 - Security-sensitive copy is taken seriously and shouldn't regress: e.g. Postgres passwords are

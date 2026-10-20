@@ -8,7 +8,7 @@ const cells = { value: [0.02, 0.01], x: [0, 1], y: [0, 1], z: [0, 1], dx: [25, 2
 
 test("vector result: amplitude property, per-cell direction, style vector", () => {
   const m = resultToVoxelModel({ method: "mag", magModel: "vector", style: "vector", cells }, { surveyName: "s" });
-  assert.equal(m.property, "Magnetisation amplitude (SI)");
+  assert.equal(m.property, "Magnetization amplitude (SI)");
   assert.match(m.name, /vector inversion of s/);
   assert.equal(m.style, "vector");
   assert.deepEqual([m.cells[0].inc, m.cells[0].dec, m.cells[1].dec], [-19.3, 91.6, 200]);

@@ -617,12 +617,12 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>
             <strong>Not a resource estimate.</strong> This is an interpolated block model to help you
-            visualise and target mineralisation. Nothing it produces is a Mineral Resource under
+            visualize and target mineralization. Nothing it produces is a Mineral Resource under
             NI 43-101 or JORC, and it must not be reported publicly as one — that requires an estimate
             prepared by a Qualified Person.
           </div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretisation), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
+            Nearest-neighbour, inverse-distance weighting and moving least squares are complete, defensible estimation methods (IDW especially for early-stage/scoping estimates; pick the one that suits the geology — hover the Method dropdown for what each is good for, per TASKS #87), and ordinary kriging weights the composites by a variogram (entered, or fitted at run time) and reports a kriging variance. Kriging here is point kriging at each block centre (no block discretization), with the same search as the other methods; its variance measures the samples' layout under the variogram, not the uncertainty of the grade. A block with no sample inside its search radius is left un-estimated rather than guessed at.
             {" "}{trend
               ? <>The search follows the structural trend "{trend.name}" (an ellipsoid; change it in 3D Modelling → Model settings → Structural trends), there is</>
               : <>The search is <strong>isotropic</strong> (a plain sphere — choose a trend for block estimation in 3D Modelling → Model settings → Structural trends to make it an ellipsoid), there is</>}{" "}

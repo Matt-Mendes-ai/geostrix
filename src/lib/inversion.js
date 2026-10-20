@@ -165,7 +165,7 @@ export function remanenceText(direction, convergence) {
   const verdict = a >= 135 ? "nearly opposite today's field. That is what a magnetic LOW looks like to a vector inversion — rock less magnetic than its surroundings (magnetite destroyed by alteration, for example), once the base level is removed — as well as genuinely reversed remanence. Check against the geology and the logs before calling it remanence"
     : a >= 30 ? "far from today's field, so a remanent component is likely and a susceptibility inversion would misplace this body"
     : a >= 15 ? "somewhat off today's field: some remanence is possible"
-      : "close to today's field: mostly induced magnetisation, so the susceptibility inversion is a fair model too";
+      : "close to today's field: mostly induced magnetization, so the susceptibility inversion is a fair model too";
   const scatter = direction.consistency < 0.7 ? ` The cells' directions scatter (consistency ${direction.consistency.toFixed(2)} of 1), so treat the direction as rough.` : "";
   return `The ${direction.cells.toLocaleString()} strongest cells point at inclination ${direction.inclination.toFixed(0)}°, declination ${dec.toFixed(0)}° (true north) — ${a.toFixed(0)}° from the inducing field: ${verdict}.${scatter}`;
 }
@@ -181,7 +181,7 @@ export function resultToVoxelModel(result, meta) {
   // and each cell carries its own inclination / declination (grid north)
   if (result.magModel === "vector") {
     if (c.inc && c.dec) cells.forEach((cell, i) => { cell.inc = c.inc[i]; cell.dec = c.dec[i]; });
-    const p = "Magnetisation amplitude (SI)";
+    const p = "Magnetization amplitude (SI)";
     return { name: `${p} — vector inversion of ${meta.surveyName}`, cells, source: "simpeg", property: p, method: result.method, style: "vector" };
   }
   const style = result.style === "compact" ? "compact" : "smooth"; // TASKS.csv #769

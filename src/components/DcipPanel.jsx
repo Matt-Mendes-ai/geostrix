@@ -359,7 +359,7 @@ export default function DcipPanel({ pBtn, numInput }) {
               </div>
             ) : null;
           })()}
-          <div style={row} title="Depth of investigation: in each column of the section, cells below the deepest cell whose normalised sensitivity reaches this value are greyed in the section and hidden in 3D — the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
+          <div style={row} title="Depth of investigation: in each column of the section, cells below the deepest cell whose normalized sensitivity reaches this value are greyed in the section and hidden in 3D — the data barely see them."><span style={lbl}>Hide cells below support</span><input type="number" step={0.005} min={0} max={1} value={opts.supportCutoff} onChange={(e) => setOpts((o) => ({ ...o, supportCutoff: e.target.value }))} style={inp} aria-label="Support cutoff" /></div>
           {/* TASKS.csv #772 — the standard depth-of-investigation check */}
           <label style={{ ...row, cursor: "pointer" }} title="Oldenburg & Li (1999): the resistivity is inverted twice more, with the reference model 10x below and 10x above the median. Where the data control a cell, all runs agree; where they don't, each run returns its own reference. A dashed line on the section marks the DOI index 0.2 — below it the model reflects the reference, not the data. About 3x the run time.">
             <input type="checkbox" checked={!!opts.doi} onChange={(e) => setOpts((o) => ({ ...o, doi: e.target.checked }))} />
@@ -568,7 +568,7 @@ function exportCsv(last, epsg, cutoff) {
   const stamp = stampLines({ tool: "2D DC resistivity / IP inversion (SimPEG) — section cells", version: APP_VERSION, epsg, params: [
     `Line: ${last.name}; azimuth ${last.geom.azimuth.toFixed(2)} deg (grid); distance 0 at the line start`,
     `Fit: resistivity misfit ${(r.phi_d / r.target).toFixed(2)}x the target${r.ip ? `, chargeability ${(r.ip.phi_d / r.target).toFixed(2)}x` : ""}`,
-    "support = normalised sensitivity (how much the data see the cell); low-support cells are poorly constrained",
+    "support = normalized sensitivity (how much the data see the cell); low-support cells are poorly constrained",
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
     ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2}); single-cell values depend on how closely the two runs fit (${(r.doiMethod?.misfitOfEachRun || []).map((v) => `${v}x`).join(" / ")}) - read the depth per column, not one cell`] : []), // #772
   ] });

@@ -258,7 +258,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
           </div>
 
           <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "72vh", overflow: "auto" }}>
-            <label style={rowLabel} title="Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimises perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.">
+            <label style={rowLabel} title="Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.">
               Section line
               <select value={azMode} onChange={(e) => setAzMode(e.target.value)} style={sel}>
                 <option value="fit">Best fit through collars</option>

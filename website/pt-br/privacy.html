@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacidade — GeoStrix</title>
+  <meta name="description" content="O GeoStrix não tem contas nem telemetria. Os dados do seu projeto ficam no seu computador.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html">
+  <link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html">
+  <link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html">
+  <link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="/pt-br/"><img src="/img/icon-128.png" alt="" width="34" height="34">GeoStrix</a>
+      <nav>
+        <a class="hide-xs" href="/pt-br/#features">Recursos</a>
+        <a href="/pt-br/#download">Baixar</a>
+        <a class="hide-sm" href="/pt-br/#support">Suporte</a>
+      </nav>
+      <div class="lang" role="navigation" aria-label="Language / Idioma">
+        <a href="/privacy.html" hreflang="en" lang="en" title="English">EN</a>
+        <a href="/es/privacy.html" hreflang="es" lang="es" title="Español">ES</a>
+        <a href="/pt-br/privacy.html" hreflang="pt-BR" lang="pt-BR" aria-current="true" title="Português (Brasil)">PT</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap prose">
+        <h1>Privacidade</h1>
+        <p>O GeoStrix é um aplicativo para desktop que roda no seu próprio computador. Ele não tem contas, nem login, nem análise de uso ou telemetria de nenhum tipo. Esta página descreve o GeoStrix 0.1.55 e este site.</p>
+        <p class="muted small">Esta é uma tradução da <a href="/privacy.html">política de privacidade em inglês</a>. Se as duas versões forem diferentes, vale a versão em inglês.</p>
+
+        <h2>O que o GeoStrix coleta</h2>
+        <p><strong>Nada.</strong> O GeoStrix não coleta, envia nem armazena informações pessoais, dados de uso, relatórios de falha ou telemetria. Não há código de análise de uso no aplicativo nem nenhum servidor deste projeto que receba dados dele.</p>
+        <p><strong>Relatórios de problema.</strong> <em>Help → Report a Problem</em> cria um arquivo zip na sua pasta Downloads — o que você escreveu, uma imagem da janela do GeoStrix, os dados do seu sistema (versões, sistema operacional, memória, placa de vídeo), as mensagens de erro recentes e, se você deixar marcado, o log recente do motor Python. Seu projeto só é incluído se você marcar essa opção. O GeoStrix não envia nada: ele abre um e-mail no seu próprio aplicativo de e-mail, e o relatório só é enviado se você o anexar e enviar.</p>
+
+        <h2>Onde ficam seus dados</h2>
+        <p>Os dados do seu projeto — bocas de furo, medidas de desvio, descrições, análises, rasters e tudo o que você importar — ficam no seu computador: no arquivo de projeto que você salva e em um arquivo de salvamento automático na pasta de configurações do GeoStrix. Eles nunca são enviados para lugar nenhum.</p>
+        <p><strong>Senhas de banco de dados.</strong> Por padrão, uma senha digitada em <em>Connect to database</em> é usada só naquela sessão. Se você marcar <em>Remember the password on this computer</em>, ela é guardada criptografada pelo sistema operacional (no Windows, legível só pela sua conta do Windows naquele computador), na pasta de configurações do GeoStrix — nunca no arquivo de projeto. <em>Forget it</em> a remove.</p>
+
+        <h2>Conexões de rede que o GeoStrix faz</h2>
+        <p>O GeoStrix só se conecta à internet para os recursos que você usa:</p>
+        <div class="table-scroll"><table>
+          <tr><th>Quando</th><th>Para onde</th><th>Por quê</th></tr>
+          <tr><td>Você adiciona um mapa base</td><td>tile.openstreetmap.org, tile.tracestrack.com, tiles.maps.eox.at</td><td>Blocos de mapa para exibição</td></tr>
+          <tr><td>Você baixa imagens para um índice espectral</td><td>earth-search.aws.element84.com, sentinel-cogs.s3.us-west-2.amazonaws.com, planetarycomputer.microsoft.com, astersa.blob.core.windows.net</td><td>Buscar a sua área nos catálogos públicos do Sentinel-2 / ASTER (o retângulo envolvente é enviado) e baixar essa parte da imagem</td></tr>
+          <tr><td>Você baixa topografia</td><td>s3.amazonaws.com (blocos públicos de elevação)</td><td>Elevação SRTM / Terrarium</td></tr>
+          <tr><td>Ao iniciar (pode ser desativado no menu Help) e em Help → Check for Updates</td><td>github.com, depois release-assets.githubusercontent.com (o servidor de downloads do GitHub)</td><td>Verificar se há uma versão mais nova e baixá-la se você decidir atualizar</td></tr>
+          <tr><td>Você clica em Install na aba Predictive</td><td>github.com, depois release-assets.githubusercontent.com</td><td>Baixar o complemento opcional de modelagem preditiva (a soma de verificação é conferida antes da instalação)</td></tr>
+          <tr><td>Você se conecta a um banco de dados</td><td>O servidor que você informar</td><td>Consultar o seu próprio banco de dados</td></tr>
+          <tr><td>Você adiciona uma camada WMS / WMTS / WFS</td><td>O servidor que você informar</td><td>Buscar a camada que você pediu</td></tr>
+        </table></div>
+        <p>Como ao visitar qualquer site, essas solicitações mostram seu endereço IP ao serviço contatado, que tem sua própria política de privacidade. Nenhum identificador seu ou do seu projeto é enviado. O corretor ortográfico integrado está desativado, então nenhum dicionário é baixado. Se você não usar nenhum desses recursos, o GeoStrix não faz nenhuma conexão de rede.</p>
+        <p>O motor Python usado na modelagem e nas inversões, e o complemento opcional de modelagem preditiva, rodam no seu computador, escutam apenas em <code>127.0.0.1</code> e não fazem conexões de saída.</p>
+
+        <h2>Este site</h2>
+        <p>O geostrix.com não usa cookies. É um site estático hospedado na Cloudflare; o servidor necessariamente vê seu endereço IP quando o navegador pede uma página, como em qualquer site. O botão de download consulta a API pública do GitHub para saber qual é o instalador mais recente e quantas vezes o GeoStrix foi baixado, então o seu navegador também se conecta a api.github.com.</p>
+        <p><strong>Contagem de visitas.</strong> O site usa o Cloudflare Web Analytics para contar as visualizações de página. Ele não usa cookies, não guarda nada no seu dispositivo, não identifica o seu navegador por impressão digital nem segue você em outros sites; informa qual página foi vista, o site de origem, e o seu navegador, sistema operacional e país, de forma agregada. O aplicativo GeoStrix em si não tem nenhuma análise de uso.</p>
+
+        <h2>Alterações e contato</h2>
+        <p>As alterações nesta política vêm com uma nova versão e são indicadas nas notas da versão. Dúvidas: <a href="mailto:support@geostrix.com">support@geostrix.com</a> ou <a href="https://github.com/Matt-Mendes-ai/geostrix/issues">issues no GitHub</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <span>© 2026 Matt Mendes · GeoStrix é software livre (MIT)</span>
+      <a href="/pt-br/">Início</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Política de assinatura de código</a>
+      <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a>
+      <a href="https://www.youtube.com/@GeoStrix-AI">YouTube</a>
+      <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>
+      <span class="right">Este site não usa cookies.</span>
+    </div>
+  </footer>
+</body>
+</html>

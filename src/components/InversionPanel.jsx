@@ -173,7 +173,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       const lo = num(adv.lower), up = num(adv.upper);
       request.bounds = { ...(Number.isFinite(lo) ? { lower: lo } : {}), ...(Number.isFinite(up) ? { upper: up } : {}) };
       request.baseLevel = baseLevel; // #368
-      if (dh.on && method === "mag" && magModel === "vector") return { problems: ["Drillhole susceptibility logs can't constrain a vector (remanence) inversion — turn the constraints off, or choose induced magnetisation."] }; // #770
+      if (dh.on && method === "mag" && magModel === "vector") return { problems: ["Drillhole susceptibility logs can't constrain a vector (remanence) inversion — turn the constraints off, or choose induced magnetization."] }; // #770
       if (dh.on) { // #323
         const cp = dhConstraintPoints();
         if (cp.problem) return { problems: [cp.problem] };
@@ -232,7 +232,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     const params = {
       tool: `${method === "mag" ? "magnetic" : "gravity"} inversion (SimPEG)`,
       interpretation: vector
-        ? "One vector (MVI) model that fits the data to the stated uncertainty — not the only one. Each cell has a magnetisation amplitude and direction, so a body magnetised away from today's field (remanence) is placed where it is rather than where a susceptibility inversion would push it. Depth is still weakly resolved and amplitudes are approximate. Not a geological boundary, not an orebody, not a volume."
+        ? "One vector (MVI) model that fits the data to the stated uncertainty — not the only one. Each cell has a magnetization amplitude and direction, so a body magnetized away from today's field (remanence) is placed where it is rather than where a susceptibility inversion would push it. Depth is still weakly resolved and amplitudes are approximate. Not a geological boundary, not an orebody, not a volume."
         : regStyle === "compact"
         ? "One compact (sparse-norm) model that fits the data to the stated uncertainty — not the only one. It assumes the source is a few compact bodies with sharp edges, so it draws them tighter and nearer their true depth than the smooth model, but the peak value can overshoot. Compare it with the smooth model: what both agree on is better supported. Not a geological boundary, not an orebody, not a volume."
         : "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
@@ -367,7 +367,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Invert a survey to a 3D model, or test a body against it</span>
           </span>
         </span>
-        <InfoButton title="Magnetics / gravity modelling" width={420} text={"Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point cloud above.\n\nTest a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all.\n\nInvert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetisation (common in pyrrhotite-bearing Golden Triangle rocks) breaks the assumption behind a susceptibility inversion.\n\nNothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered."} />
+        <InfoButton title="Magnetics / gravity modelling" width={420} text={"Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point cloud above.\n\nTest a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all.\n\nInvert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetization (common in pyrrhotite-bearing Golden Triangle rocks) breaks the assumption behind a susceptibility inversion.\n\nNothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered."} />
       </div>
       </>)}
       {open && (
@@ -479,9 +479,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 </div>
                 {/* TASKS.csv #770 — induced only, or a vector inversion when remanence is possible */}
                 {method === "mag" && (
-                  <div style={row} title="Induced: the rocks are magnetised along today's field, so the inversion solves for susceptibility (fast). Remanence possible: pyrrhotite- and magnetite-bearing rocks can carry their own magnetisation in another direction; a susceptibility inversion then puts the body in the wrong place. The vector inversion solves for the magnetisation's amplitude AND direction in each cell — about 3x the memory and 5-30x the time.">
-                    <span style={lbl}>Magnetisation</span>
-                    <select value={magModel} onChange={(e) => setMagModel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Magnetisation">
+                  <div style={row} title="Induced: the rocks are magnetized along today's field, so the inversion solves for susceptibility (fast). Remanence possible: pyrrhotite- and magnetite-bearing rocks can carry their own magnetization in another direction; a susceptibility inversion then puts the body in the wrong place. The vector inversion solves for the magnetization's amplitude AND direction in each cell — about 3x the memory and 5-30x the time.">
+                    <span style={lbl}>Magnetization</span>
+                    <select value={magModel} onChange={(e) => setMagModel(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Magnetization">
                       <option value="scalar">Induced (susceptibility)</option>
                       <option value="vector">Remanence possible (vector, slower)</option>
                     </select>
@@ -523,7 +523,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                     {["lx", "ly", "lz"].map((k) => <input key={k} type="number" min={0.1} step={0.5} value={adv[k]} onChange={(e) => setAdv((p) => ({ ...p, [k]: e.target.value }))} style={{ ...inp, width: 44 }} aria-label={`Smoothness ${k.slice(1)}`} />)}
                   </div>
                   <div style={row}><span style={lbl}>Bounds (optional)</span><input type="number" placeholder="lower" value={adv.lower} onChange={(e) => setAdv((p) => ({ ...p, lower: e.target.value }))} style={{ ...inp, width: 60 }} aria-label="Lower bound" /><input type="number" placeholder="upper" value={adv.upper} onChange={(e) => setAdv((p) => ({ ...p, upper: e.target.value }))} style={{ ...inp, width: 60 }} aria-label="Upper bound" /></div>
-                  <div style={row} title="Cells whose normalised sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularisation than about the rock. Display only — it does not change the inversion."><span style={lbl}>Hide cells below support</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
+                  <div style={row} title="Cells whose normalized sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularization than about the rock. Display only — it does not change the inversion."><span style={lbl}>Hide cells below support</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
                 </>}
               </>)}
               <button onClick={() => doPlan("inversion")} disabled={planBusy || running} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? "Estimating…" : "Estimate size and memory"}</button>
@@ -588,7 +588,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                       <div style={row}><span style={lbl}>Background</span><input type="number" step="any" value={geo.background} onChange={(e) => setGeo((g) => ({ ...g, background: e.target.value }))} style={inp} aria-label="Background value" /><span style={small}>{method === "grav" ? "g/cm³" : "SI"}</span></div>
                       <div style={small}>{method === "grav"
                         ? "Densities in g/cm³. The background is the rock around the model and in the space it leaves out (above its tops, outside its box) — usually the density used for the Bouguer correction. Typical: sediments 1.9–2.4, felsic rocks 2.5–2.7, mafic rocks 2.8–3.0, massive sulphide 3.5–4.5."
-                        : "Susceptibilities in SI. The background is the rock around the model and in the space it leaves out. Typical: sediments under 0.001, felsic rocks 0.001–0.01, mafic rocks 0.01–0.1; magnetite-rich rock higher. Remanent magnetisation is not modelled."}</div>
+                        : "Susceptibilities in SI. The background is the rock around the model and in the space it leaves out. Typical: sediments under 0.001, felsic rocks 0.001–0.01, mafic rocks 0.01–0.1; magnetite-rich rock higher. Remanent magnetization is not modelled."}</div>
                       {geoMedians?.needUnits && <div style={small}>A susceptibility log is loaded: choose its units under the drillhole constraints in the inversion settings to see each unit's median here.</div>}
                       {geoMedians?.by && Object.keys(geoMedians.by).length > 0 && (
                         <button onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }} title="Fills each unit that has log samples with their median. A median of a few samples is a weak estimate; units without samples stay as entered.">Use the log medians</button>
