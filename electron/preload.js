@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("desktop", {
   onUpdaterEvent: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("updater-event", h); return () => ipcRenderer.removeListener("updater-event", h); },
   dbConnect: (config) => ipcRenderer.invoke("db-connect", config),
   refocusAfterDialog: () => ipcRenderer.send("refocus-after-dialog"), // TASKS.csv #622
+  setLanguage: (code) => ipcRenderer.send("set-language", code), // TASKS.csv #786 — the native menu follows the interface language
   // TASKS.csv #598 — Help > Report a problem
   problemReportInfo: () => ipcRenderer.invoke("problem-report-info"),
   captureWindow: () => ipcRenderer.invoke("capture-window"),

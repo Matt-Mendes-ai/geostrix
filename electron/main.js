@@ -1129,21 +1129,36 @@ ipcMain.handle("fs-list-drives", async () => {
   return { ok: true, drives: drives.length ? drives : ["C:\\"] };
 });
 
+// TASKS.csv #786 — the native menu in the interface language (the renderer tells it which: set-language). Role items
+// (Reload, Zoom, Quit...) keep Electron's own labels.
+const MENU_TR = {
+  es: { "File": "Archivo", "New Project": "Nuevo proyecto", "Open Project…": "Abrir proyecto…", "Save Project": "Guardar proyecto", "Save Project As…": "Guardar proyecto como…", "Import CSV…": "Importar CSV…", "Import Assays…": "Importar ensayes…", "Import pXRF…": "Importar pXRF…", "Export PDF…": "Exportar PDF…", "Edit": "Editar", "Undo": "Deshacer", "Redo": "Rehacer", "View": "Ver", "Tools": "Herramientas", "Draw a cross-section": "Dibujar una sección", "Project CRS (Cartography)…": "SRC del proyecto (Cartografía)…", "Help": "Ayuda", "Keyboard Shortcuts": "Atajos de teclado", "Check for Updates at Startup": "Buscar actualizaciones al iniciar", "Check for Updates…": "Buscar actualizaciones…", "Report a Problem…": "Informar de un problema…", "Third-party Licences…": "Licencias de terceros…", "About GeoStrix": "Acerca de GeoStrix" },
+  pt: { "File": "Arquivo", "New Project": "Novo projeto", "Open Project…": "Abrir projeto…", "Save Project": "Salvar projeto", "Save Project As…": "Salvar projeto como…", "Import CSV…": "Importar CSV…", "Import Assays…": "Importar análises…", "Import pXRF…": "Importar pXRF…", "Export PDF…": "Exportar PDF…", "Edit": "Editar", "Undo": "Desfazer", "Redo": "Refazer", "View": "Exibir", "Tools": "Ferramentas", "Draw a cross-section": "Desenhar uma seção", "Project CRS (Cartography)…": "SRC do projeto (Cartografia)…", "Help": "Ajuda", "Keyboard Shortcuts": "Atalhos de teclado", "Check for Updates at Startup": "Procurar atualizações ao iniciar", "Check for Updates…": "Procurar atualizações…", "Report a Problem…": "Relatar um problema…", "Third-party Licences…": "Licenças de terceiros…", "About GeoStrix": "Sobre o GeoStrix" },
+};
+let menuLang = null;
+const L = (text) => MENU_TR[menuLang ?? (menuLang = readPrefs().language || "en")]?.[text] || text;
+ipcMain.on("set-language", (_e, code) => {
+  if (!["en", "es", "pt"].includes(code) || code === menuLang) return;
+  menuLang = code;
+  writePrefs({ language: code });
+  buildMenu();
+});
+
 function buildMenu() {
   const template = [
     {
-      label: "File",
+      label: L("File"),
       submenu: [
-        { label: "New Project", accelerator: "CmdOrCtrl+N", click: () => mainWindow?.webContents.send("menu", "new-project") },
-        { label: "Open Project…", accelerator: "CmdOrCtrl+O", click: () => mainWindow?.webContents.send("menu", "open-project") },
-        { label: "Save Project", accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
-        { label: "Save Project As…", accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
+        { label: L("New Project"), accelerator: "CmdOrCtrl+N", click: () => mainWindow?.webContents.send("menu", "new-project") },
+        { label: L("Open Project…"), accelerator: "CmdOrCtrl+O", click: () => mainWindow?.webContents.send("menu", "open-project") },
+        { label: L("Save Project"), accelerator: "CmdOrCtrl+S", click: () => mainWindow?.webContents.send("menu", "save-project") }, // #553 — to its own file
+        { label: L("Save Project As…"), accelerator: "CmdOrCtrl+Shift+S", click: () => mainWindow?.webContents.send("menu", "save-project-as") },
         { type: "separator" },
-        { label: "Import CSV…", accelerator: "CmdOrCtrl+I", click: () => sendMenuWithGesture("import-csv") }, // #565 — the current tab's import
-        { label: "Import Assays…", click: () => sendMenuWithGesture("import-assays") },
-        { label: "Import pXRF…", click: () => sendMenuWithGesture("import-pxrf") },
+        { label: L("Import CSV…"), accelerator: "CmdOrCtrl+I", click: () => sendMenuWithGesture("import-csv") }, // #565 — the current tab's import
+        { label: L("Import Assays…"), click: () => sendMenuWithGesture("import-assays") },
+        { label: L("Import pXRF…"), click: () => sendMenuWithGesture("import-pxrf") },
         { type: "separator" },
-        { label: "Export PDF…", accelerator: "CmdOrCtrl+P", click: () => mainWindow?.webContents.send("menu", "export-pdf") },
+        { label: L("Export PDF…"), accelerator: "CmdOrCtrl+P", click: () => mainWindow?.webContents.send("menu", "export-pdf") },
         { type: "separator" },
         { role: "quit" },
       ],
@@ -1156,14 +1171,14 @@ function buildMenu() {
       // Ctrl+Z/Ctrl+Shift+Z handling lives in App.jsx's own keydown listener instead, which can check
       // document.activeElement and defer to native text-undo when a text field has focus — something
       // a Menu accelerator has no way to do. These items exist for menu discoverability/mouse use only.
-      label: "Edit",
+      label: L("Edit"),
       submenu: [
-        { label: "Undo", click: () => mainWindow?.webContents.send("menu", "undo") },
-        { label: "Redo", click: () => mainWindow?.webContents.send("menu", "redo") },
+        { label: L("Undo"), click: () => mainWindow?.webContents.send("menu", "undo") },
+        { label: L("Redo"), click: () => mainWindow?.webContents.send("menu", "redo") },
       ],
     },
     {
-      label: "View",
+      label: L("View"),
       submenu: [
         // TASKS.csv #32 — module-switch accelerators (Ctrl/Cmd+1..4). Previously these four had no
         // keyboard shortcut at all despite being the most-used navigation in the app; added now partly
@@ -1182,28 +1197,28 @@ function buildMenu() {
       ],
     },
     {
-      label: "Tools",
+      label: L("Tools"),
       submenu: [
-        { label: "Draw a cross-section", accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") }, // #565 — starts Draw section
-        { label: "Project CRS (Cartography)…", click: () => mainWindow?.webContents.send("menu", "set-epsg") },
+        { label: L("Draw a cross-section"), accelerator: "CmdOrCtrl+Shift+C", click: () => mainWindow?.webContents.send("menu", "cross-section") }, // #565 — starts Draw section
+        { label: L("Project CRS (Cartography)…"), click: () => mainWindow?.webContents.send("menu", "set-epsg") },
       ],
     },
     {
-      label: "Help",
+      label: L("Help"),
       submenu: [
-        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
+        { label: L("Keyboard Shortcuts"), accelerator: "CmdOrCtrl+/", click: () => mainWindow?.webContents.send("menu", "shortcuts") },
         // TASKS.csv #591 — the startup check is network contact the user didn't start (camp satellite links,
         // firewalled laptops, "offline and private"): it can be switched off; the manual check stays
-        { label: "Check for Updates at Startup", type: "checkbox", checked: readPrefs().checkUpdatesAtStartup !== false, click: (item) => writePrefs({ checkUpdatesAtStartup: item.checked }) },
-        { label: "Check for Updates…", click: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); } },
+        { label: L("Check for Updates at Startup"), type: "checkbox", checked: readPrefs().checkUpdatesAtStartup !== false, click: (item) => writePrefs({ checkUpdatesAtStartup: item.checked }) },
+        { label: L("Check for Updates…"), click: () => { manualCheckInFlight = true; autoUpdater.checkForUpdates().catch((err) => { manualCheckInFlight = false; mainWindow?.webContents.send("updater-event", { event: "error", message: err.message, manual: true }); }); } },
         // Bug fix while touching this menu: "About GeoStrix" sent a "menu"/"about" action that nothing
         // on the renderer side ever handled — clicking it silently did nothing. Now shares the same
         // modal as the new Keyboard Shortcuts entry (see ShortcutsModal in App.jsx), just opened to a
         // different tab.
         { type: "separator" },
-        { label: "Report a Problem…", click: () => mainWindow?.webContents.send("menu", "report-problem") }, // TASKS.csv #598
-        { label: "Third-party Licences…", click: () => mainWindow?.webContents.send("menu", "licenses") }, // TASKS.csv #639
-        { label: "About GeoStrix", click: () => mainWindow?.webContents.send("menu", "about") },
+        { label: L("Report a Problem…"), click: () => mainWindow?.webContents.send("menu", "report-problem") }, // TASKS.csv #598
+        { label: L("Third-party Licences…"), click: () => mainWindow?.webContents.send("menu", "licenses") }, // TASKS.csv #639
+        { label: L("About GeoStrix"), click: () => mainWindow?.webContents.send("menu", "about") },
       ],
     },
   ];

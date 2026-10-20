@@ -166,6 +166,8 @@ input, select { font-family: inherit; }
 .ge-ui-mode { display: inline-flex; align-self: center; flex: 0 0 auto; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; margin: 0 10px; }
 .ge-ui-mode button { border: none; background: transparent; padding: 3px 8px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); cursor: pointer; }
 .ge-ui-mode button[aria-pressed="true"] { background: var(--color-bg-subtle); color: var(--color-text); font-weight: 600; }
+/* TASKS.csv #786 — interface language picker, after the interface mode */
+.ge-lang { align-self: center; flex: 0 0 auto; margin: 0 10px 0 0; padding: 2px 4px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
 .ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--color-border); }
 .ge-ribbon-group:last-child { border-right: none; }
 .ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }

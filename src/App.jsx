@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon } from "./components/icons.js";
@@ -405,24 +406,24 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
               aria-current={active === m.id ? "page" : undefined} // TASKS.csv #388
               onClick={() => !m.disabled && setActive(m.id)}
               disabled={m.disabled}
-              title={m.disabled ? "Coming soon" : undefined}
+              title={m.disabled ? tr("Coming soon") : undefined}
               style={m.disabled ? { opacity: 0.45, cursor: "default" } : undefined}
             >
-              <Icon size={14} /> {m.label}
+              <Icon size={14} /> {tr(m.label)}
             </button>
           );
         })}
         <div className="ge-tool-sep" />
         {/* TASKS.csv #449 — below 1280 px these action labels collapse to icons (app.css), the module tabs keep theirs. */}
-        <button className="ge-tool-btn" onClick={doNew} title="New project" aria-label="New project"><FilePlus2 size={14} /> <span className="ge-tool-label-opt">New</span></button>
-        <button className="ge-tool-btn" onClick={doOpen} title="Open project" aria-label="Open project"><FolderOpen size={14} /> <span className="ge-tool-label-opt">Open</span></button>
-        <button className="ge-tool-btn" onClick={() => doSave()} title="Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)" aria-label="Save project"><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? "Saved ✓" : "Save"}</span></button>
+        <button className="ge-tool-btn" onClick={doNew} title={tr("New project")} aria-label={tr("New project")}><FilePlus2 size={14} /> <span className="ge-tool-label-opt">{tr("New")}</span></button>
+        <button className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
+        <button className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl/Cmd+Z)")} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={doExportPdf} title="Exports the Layout page (switches to it first if needed)" aria-label="Export PDF"><FileDown size={14} /> <span className="ge-tool-label-opt">Export PDF</span></button>
-        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title="Consolidated drillhole/assay project summary (CSV)" aria-label="Project report"><FileBarChart2 size={14} /> <span className="ge-tool-label-opt">Report</span></button>
+        <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt">{tr("Export PDF")}</span></button>
+        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt">{tr("Report")}</span></button>
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by
@@ -445,10 +446,14 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
         <div className="ge-ribbon" ref={setRibbonEl} />
         {/* TASKS.csv #748 — Simple shows each tab's basic tools; Advanced shows every tool. At the ribbon's right end: the
             same place on every tab, and the top bar has no room left at 1,424 px. */}
-        <div className="ge-ui-mode" role="group" aria-label="Interface mode" title="Simple shows each tab's basic tools; Advanced shows every tool. Remembered on this computer.">
-          <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>Simple</button>
-          <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>Advanced</button>
+        <div className="ge-ui-mode" role="group" aria-label={tr("Interface mode")} title={tr("Simple shows each tab's basic tools; Advanced shows every tool. Remembered on this computer.")}>
+          <button type="button" aria-pressed={uiMode === "simple"} onClick={() => setUiMode("simple")}>{tr("Simple")}</button>
+          <button type="button" aria-pressed={uiMode === "advanced"} onClick={() => setUiMode("advanced")}>{tr("Advanced")}</button>
         </div>
+        {/* TASKS.csv #786 — interface language, beside the interface mode (a per-computer preference) */}
+        <select className="ge-lang" value={currentLanguage()} onChange={(e) => setLanguage(e.target.value)} aria-label={tr("Language")} title={tr("Language — remembered on this computer")}>
+          {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+        </select>
       </div>
 
       <RibbonSlotContext.Provider value={ribbonEl}>
@@ -547,7 +552,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
   return (
     <div className="ge-status">
       <span>{project.name}</span>
-      <span>Holes: <span className="val">{collars.length}</span></span>
+      <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>
       <span>Z <span className="val">{fmt(cursor.z)}</span></span>
@@ -563,8 +568,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           exact same modal the Help menu opens, from a spot that's visible on every screen. */}
       <button
         onClick={() => onHelp?.()}
-        title="Help — keyboard shortcuts & about GeoStrix"
-        aria-label="Help — keyboard shortcuts and about GeoStrix"
+        title={tr("Help — keyboard shortcuts & about GeoStrix")}
+        aria-label={tr("Help — keyboard shortcuts and about GeoStrix")}
         // TASKS.csv #386 — a 24 px target (WCAG 2.5.8) around the same 16 px circle: the bare circle sat
         // within 12 px of the sidebar's last row and failed the target-spacing rule.
         style={{ background: "none", border: "none", color: "inherit", width: 24, height: 24, padding: 0, margin: "-4px 0", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}
@@ -575,7 +580,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       <button type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
         style={{ background: "none", border: "none", color: "inherit", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
         <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
-        Py: {pyStatus === "connected" ? "on" : pyStatus === "checking" ? "…" : pyStatus === "standby" ? "idle" : "off"}
+        Py: {pyStatus === "connected" ? tr("on") : pyStatus === "checking" ? "…" : pyStatus === "standby" ? tr("idle") : tr("off")}
       </button>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>

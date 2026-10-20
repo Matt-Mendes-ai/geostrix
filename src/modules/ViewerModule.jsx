@@ -31,6 +31,7 @@ import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; //
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
@@ -9389,7 +9390,7 @@ function ViewToolbar({
       <RibbonGroup label="View">
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
-            <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Grid</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
             <div style={popoverStyle}>
@@ -9420,7 +9421,7 @@ function ViewToolbar({
         </div>
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
-            <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Figure</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Figure")}</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
             <div style={{ ...popoverStyle, width: 268 }}>
@@ -9468,7 +9469,7 @@ function ViewToolbar({
         </div>
         <div className="ge-ribbon-cell ge-adv">
           <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
-            <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">Themes</span></button>
+            <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Themes")}</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
             <div style={{ ...popoverStyle, width: 260 }}>
@@ -9521,7 +9522,7 @@ function ViewToolbar({
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Draw cross-section" text={sectionMode ? "Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included." : "Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included."}>
-            <button className={`ge-ribbon-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}><Scissors size={22} strokeWidth={1.7} color={RIBBON_TONES.section} aria-hidden="true" /><span className="ge-ribbon-label">Draw section</span></button>
+            <button className={`ge-ribbon-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}><Scissors size={22} strokeWidth={1.7} color={RIBBON_TONES.section} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Draw section")}</span></button>
           </HoverToolInfo>
         </div>
         {sectionMode && (
@@ -9537,37 +9538,37 @@ function ViewToolbar({
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Measure" text={measureMode ? "Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout." : "Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on."}>
-            <button className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><Ruler size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Measure</span></button>
+            <button className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><Ruler size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Measure")}</span></button>
           </HoverToolInfo>
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling."}>
-            <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Data QC</span></button>
+            <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
-            <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">Intercepts</span></button>
+            <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Intercepts")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
-            <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">Database</span></button>
+            <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Database")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="SQL workspace" text={sqlDisabled ? "Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar." : "Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar."}>
-            <button className={`ge-ribbon-btn${sqlDisabled ? " is-disabled" : ""}`} onClick={sqlDisabled ? undefined : onSqlWorkspace} aria-disabled={sqlDisabled || undefined}><TerminalSquare size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">SQL</span></button>
+            <button className={`ge-ribbon-btn${sqlDisabled ? " is-disabled" : ""}`} onClick={sqlDisabled ? undefined : onSqlWorkspace} aria-disabled={sqlDisabled || undefined}><TerminalSquare size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("SQL")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
       <RibbonGroup label="Output">
         <div className="ge-ribbon-cell">
           <HoverToolInfo title="Snapshot to Layout" text={snapshotDisabled ? "Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead." : "Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead."}>
-            <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onSnapshot} aria-disabled={snapshotDisabled || undefined}><Camera size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">Snapshot</span></button>
+            <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onSnapshot} aria-disabled={snapshotDisabled || undefined}><Camera size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Snapshot")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>

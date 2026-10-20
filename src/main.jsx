@@ -4,6 +4,7 @@ import App from "./App.jsx";
 // TASKS.csv #476 — the pop-out section window is its own chunk: the main window never renders it.
 const SectionWindow = React.lazy(() => import("./components/SectionWindow.jsx"));
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import { initLanguage, currentLanguage, onLanguageChange } from "./lib/i18n.js"; // TASKS.csv #786
 import { StoreProvider, CursorProvider, TaskProgressProvider } from "./lib/store.jsx";
 // TASKS.csv #185 — "Let's use Exo 2 for all fonts." Bundled via @fontsource/exo-2 (not a Google
 // Fonts <link>) so the app-wide font still loads with no network access — this is an Electron
@@ -46,7 +47,17 @@ if (window.desktop?.refocusAfterDialog) {
 }
 window.addEventListener("drop", (e) => e.preventDefault());
 
+// TASKS.csv #786 — the interface language: its dictionary is loaded before the first render; a later change re-mounts
+// <App> under a new key (the store above it keeps the project).
+function LanguageKeyed({ children }) {
+  const [lang, setLang] = React.useState(currentLanguage());
+  React.useEffect(() => onLanguageChange(setLang), []);
+  return <React.Fragment key={lang}>{children}</React.Fragment>;
+}
+
 const root = createRoot(document.getElementById("root"));
+initLanguage().then((code) => { window.desktop?.setLanguage?.(code); render(); }); // the native menu in the same language
+function render() {
 if (route === "/section") {
   // pop-out cross-section window: standalone, receives data via IPC
   root.render(
@@ -60,7 +71,7 @@ if (route === "/section") {
       <StoreProvider>
         <CursorProvider>
           <TaskProgressProvider>
-            <App />
+            <LanguageKeyed><App /></LanguageKeyed>
           </TaskProgressProvider>
         </CursorProvider>
       </StoreProvider>
@@ -74,3 +85,4 @@ if (route === "/section") {
 // directly so a working app is never hidden behind it.
 if (window.__hideSplash) window.__hideSplash();
 else document.getElementById("splash")?.remove();
+}

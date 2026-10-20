@@ -13,6 +13,7 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, u
 import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 import { createPortal } from "react-dom";
 import { X } from "./icons.js";
+import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon labels, captions and tooltips translated here
 
 export const RibbonSlotContext = createContext(null);
 
@@ -30,17 +31,17 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
   });
   if (!slot || !show) return null;
   return createPortal(
-    <div ref={innerRef} className={`ge-ribbon-inner${mode === "simple" ? " ge-ribbon-simple" : ""}`} role="toolbar" aria-label={label}>
+    <div ref={innerRef} className={`ge-ribbon-inner${mode === "simple" ? " ge-ribbon-simple" : ""}`} role="toolbar" aria-label={t(label)}>
       {children}
       {hidden > 0 && (
         <div className="ge-ribbon-group ge-ribbon-more">
           <div className="ge-ribbon-items">
-            <button type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title="Show every tool on this tab (Advanced mode — switch back any time from the top bar)">
+            <button type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (Advanced mode — switch back any time from the top bar)")}>
               <span className="ge-ribbon-more-count">+{hidden}</span>
-              <span className="ge-ribbon-label">more tools</span>
+              <span className="ge-ribbon-label">{t("more tools")}</span>
             </button>
           </div>
-          <div className="ge-ribbon-caption">Advanced</div>
+          <div className="ge-ribbon-caption">{t("Advanced")}</div>
         </div>
       )}
     </div>, slot);
@@ -49,9 +50,9 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
 // advanced (#748): the whole group is hidden in Simple mode
 export function RibbonGroup({ label, children, advanced = false }) {
   return (
-    <div className={`ge-ribbon-group${advanced ? " ge-adv" : ""}`} role="group" aria-label={label}>
+    <div className={`ge-ribbon-group${advanced ? " ge-adv" : ""}`} role="group" aria-label={t(label)}>
       <div className="ge-ribbon-items">{children}</div>
-      <div className="ge-ribbon-caption">{label}</div>
+      <div className="ge-ribbon-caption">{t(label)}</div>
     </div>
   );
 }
@@ -73,7 +74,8 @@ export const RIBBON_TONES = {
 // plain `disabled` button is skipped by the keyboard, so a screen-reader user never learned why it was off.
 // expanded (TASKS.csv #595): for a button that shows / hides a task pane or popover, aria-expanded instead of
 // aria-pressed, so a screen reader announces "expanded / collapsed" rather than a toggle.
-export function RibbonButton({ icon: Icon, label, title, onClick, active = false, expanded, disabled = false, disabledReason, tone = "neutral", ariaLabel, children, buttonRef, advanced = false }) {
+export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick, active = false, expanded, disabled = false, disabledReason: reason0, tone = "neutral", ariaLabel: aria0, children, buttonRef, advanced = false }) {
+  const label = t(label0), title = t(title0), disabledReason = t(reason0), ariaLabel = t(aria0); // #786
   const soft = disabled && !!disabledReason;
   return (
     <div className={`ge-ribbon-cell${advanced ? " ge-adv" : ""}`}>
@@ -117,8 +119,8 @@ export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral" })
   return (
     <div className="ge-pane-header">
       {Icon && <Icon size={16} strokeWidth={1.8} color={RIBBON_TONES[tone] || tone} aria-hidden="true" />}
-      <span ref={titleRef} tabIndex={-1} className="ge-pane-title">{title}</span>
-      {onClose && <button type="button" className="ge-pane-close" onClick={onClose} aria-label={`Close ${title}`} title="Close — back to the data"><X size={14} /></button>}
+      <span ref={titleRef} tabIndex={-1} className="ge-pane-title">{t(title)}</span>
+      {onClose && <button type="button" className="ge-pane-close" onClick={onClose} aria-label={t("Close {name}", { name: t(title) })} title={t("Close — back to the data")}><X size={14} /></button>}
     </div>
   );
 }
