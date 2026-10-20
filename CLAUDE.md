@@ -145,6 +145,10 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   (Electron safeStorage / Windows DPAPI, `electron/dbCredentials.js`, never a plain-text fallback),
   only in userData — never in the project file or localStorage — and it is never sent back to the
   renderer. Keep all four of those properties if you touch this.
+- **Errors (TASKS.csv #739).** IPC wrappers in `src/lib/desktop.js` return `{ ok, error }`; pure code in `src/lib` throws;
+  the UI turns a caught error into `errorNotice(...)` from `src/lib/notices.js` (or pushes the `Error` itself). A plain
+  string notice gets its severity from a wording regex, and most thrown messages don't match it, so a caught error
+  pushed as a plain string shows as grey info and auto-dismisses.
 - **Design tokens (colour + type).** `src/styles/app.css`'s `:root` block is the single source of
   truth for both, mirrored value-for-value in `src/lib/theme.js` (`colors`, `fontSizes`). Reach for
   `var(--color-*)` / `var(--font-size-*)` by default — they work in class rules AND in the inline

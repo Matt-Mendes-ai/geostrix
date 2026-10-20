@@ -6,6 +6,7 @@
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
 import { useRef, useState, useCallback } from "react";
+import { errorNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
@@ -123,7 +124,7 @@ export function useImportPipeline(ctx) {
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
         addRaster(raster);
         setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.`]);
-      } catch (err) { setNotices((p) => [...p, `${file.name}: ${err.message}`]); }
+      } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
       return;
     }
     if (/\.dxf$/.test(name)) {
@@ -136,7 +137,7 @@ export function useImportPipeline(ctx) {
         setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.${specs[0]?.dxfZerosDropped ? " Every string had elevation 0, so the file was read as a 2D plan (no elevation)." : ""}${dxfSkippedText(specs[0]?.dxfSkipped) ? ` ${dxfSkippedText(specs[0].dxfSkipped)[0].toUpperCase()}${dxfSkippedText(specs[0].dxfSkipped).slice(1)}.` : ""}`]); // #550
       } catch (err) {
         if (err.facesOnly) { importSolidFile(file); return; } // #408 — 3DFACE / polyface only: import as a solid
-        setNotices((p) => [...p, `${file.name}: couldn't read DXF (${err.message}).`]);
+        setNotices((p) => [...p, errorNotice(`${file.name}: couldn't read DXF (${err.message}).`)]);
       }
       return;
     }
@@ -489,7 +490,7 @@ export function useImportPipeline(ctx) {
       let grid = null;
       if (gridOn) {
         try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
-        catch (e) { setNotices((p) => [...p, `${importModal.fileName}: local grid — ${e.message} Nothing was imported.`]); return; }
+        catch (e) { setNotices((p) => [...p, errorNotice(`${importModal.fileName}: local grid — ${e.message} Nothing was imported.`)]); return; } // #739
         if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
           setNotices((p) => [...p, `${importModal.fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:${importModal.sourceEpsg}). Nothing was imported.`]);
           return;
@@ -603,7 +604,7 @@ export function useImportPipeline(ctx) {
           const sheets = await xlsxToCsvFiles(new Uint8Array(await f.arrayBuffer()), f.name);
           setNotices((p) => [...p, `${f.name}: ${sheets.length} sheet(s) with data — ${sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ")}. Each is imported like a CSV.`]);
           sheets.forEach((s) => expanded.push(new File([s.text], s.name, { type: "text/csv" })));
-        } catch (err) { setNotices((p) => [...p, `${f.name}: could not read the workbook (${err.message}).`]); }
+        } catch (err) { setNotices((p) => [...p, errorNotice(`${f.name}: could not read the workbook (${err.message}).`)]); }
       }
       files = expanded;
       if (!files.length) return;
@@ -671,7 +672,7 @@ export function useImportPipeline(ctx) {
       processImportQueue();
       return true;
     } catch (err) {
-      setNotices((p) => [...p, `Couldn't load the sample project: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`Couldn't load the sample project: ${err.message}`)]);
       return false;
     } finally {
       setSampleLoading(false);

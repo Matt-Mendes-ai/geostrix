@@ -3710,7 +3710,7 @@ ${describeTrend(t)}` };
       fitBox(box);
     } catch (e) {
       clearProgress();
-      setNotices((p) => [...p, `${file.name}: couldn't import as a solid (${e.message || e}).`]);
+      setNotices((p) => [...p, errorNotice(`${file.name}: couldn't import as a solid (${e.message || e}).`)]); // #739
     }
   }, [fitBox, project?.epsg, setTaskProgress]);
 
@@ -5864,7 +5864,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const notes = await loadWoodjamExtras(readFile, { setAssays, setAssayElements, addVoxelModel, addOmfObject, saveDcipLine },
         { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined, existingElements: assayElements }); // existingElements: #722
       setNotices((p) => [...p, ...notes]);
-    } catch (e) { setNotices((p) => [...p, `The Woodjam sample's assays, IP and ZTEM could not be loaded: ${e.message}`]); }
+    } catch (e) { setNotices((p) => [...p, errorNotice(`The Woodjam sample's assays, IP and ZTEM could not be loaded: ${e.message}`)]); } // #739
   };
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
