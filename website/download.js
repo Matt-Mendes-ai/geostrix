@@ -14,3 +14,28 @@
     });
   } catch { /* keep the fallback link */ }
 })();
+
+// Download count: every GeoStrix installer and portable zip ever downloaded from GitHub Releases, all versions.
+// Counts only the app itself (not latest.yml, blockmaps, checksums or the geoML add-on). GitHub counts each
+// download of the installer, so updates installed from inside GeoStrix are included. Hidden if GitHub can't be reached.
+(async () => {
+  try {
+    const el = document.querySelector("[data-downloads]");
+    if (!el) return;
+    let total = 0;
+    for (let page = 1; page <= 10; page++) {
+      const r = await fetch(`https://api.github.com/repos/Matt-Mendes-ai/geostrix/releases?per_page=100&page=${page}`, { headers: { Accept: "application/vnd.github+json" } });
+      if (!r.ok) return;
+      const releases = await r.json();
+      for (const rel of releases) {
+        for (const a of rel.assets || []) {
+          if (/^GeoStrix-Setup-.*\.exe$/.test(a.name) || /^GeoStrix-.*-win\.zip$/.test(a.name)) total += a.download_count || 0;
+        }
+      }
+      if (releases.length < 100) break;
+    }
+    if (!total) return;
+    el.textContent = `Downloaded ${total.toLocaleString("en-CA")} times from GitHub (all versions, including updates).`;
+    el.hidden = false;
+  } catch { /* leave the count hidden */ }
+})();
