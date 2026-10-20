@@ -50,6 +50,7 @@ import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain,
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -106,19 +107,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const exportModelPackage = async (model) => {
     const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
     const r = await buildModelExportZip(model, project.epsg);
-    if (r.error) { setVoxelError({ text: `Could not export "${model.name}": ${r.error}` }); return; }
+    if (r.error) { setVoxelError({ text: tr("Could not export \"{name}\": {error}", { name: model.name, error: r.error }) }); return; }
     const res = await saveFile({ suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
-    if (res?.ok) setVoxelError({ info: true, text: `Exported "${model.name}": ${r.files.length} files (${r.files.filter((f) => f.endsWith(".tif")).length} depth slices).${r.warnings.length ? " " + r.warnings.join(" ") : ""}` });
+    if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
   const evaluateOnHoles = (model) => {
     const { rows, holes } = sampleModelOnHoles({ model, collars, survey, desurveyMethod });
-    if (!rows.length) { setVoxelError({ text: `No drillhole passes through "${model.name}".` }); return; }
+    if (!rows.length) { setVoxelError({ text: tr("No drillhole passes through \"{name}\".", { name: model.name }) }); return; }
     const discrete = model.colorMode === "discrete";
     const labelOf = (v) => (model.valueLabels && model.valueLabels[v]) || v;
     const out = rows.map((r) => ({ ...r, value: discrete ? labelOf(r.value) : r.value, modelled: true, ...(discrete ? {} : { numeric: true }), modelColor: colorForVoxelValue(model, r.value) }));
     const id = `custom_${Date.now()}`;
     setCustomLayers((p) => [...p, { id, name: `On holes: ${model.name}`, rows: out, sourceModel: model.id, unit: model.property || model.unitLabel || null }]);
-    setVoxelError({ info: true, text: `Added "On holes: ${model.name}" — the model's value in ${rows.length.toLocaleString()} cell crossing(s) along ${holes} hole(s). Open a hole's strip log to compare it with the logs.` });
+    setVoxelError({ info: true, text: tr("Added \"On holes: {name}\" — the model's value in {rows} cell crossing(s) along {holes} hole(s). Open a hole's strip log to compare it with the logs.", { name: model.name, rows: rows.length.toLocaleString(), holes }) });
   };
   // User question after the MAX_CELLS coarsening budget was lowered (perf investigation done in this
   // sandbox, which has no real GPU — see voxel.js's MAX_CELLS comment): "do you think we can increase
@@ -194,7 +195,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (!terrain) return;
     const { rows: out, done, outside } = aglToElevation(layers.geophys_pts || [], key, (x, y) => terrainElevationAt(terrain, x, y));
     setLayers((l) => ({ ...l, geophys_pts: out }));
-    setError({ info: true, text: `"${key}": ${done.toLocaleString()} point(s) now at terrain + their height above ground${outside ? `; ${outside} outside the terrain have no elevation (not drawn)` : ""}. The original heights are kept on each point.` });
+    setError({ info: true, text: tr("\"{key}\": {done} point(s) now at terrain + their height above ground{v}. The original heights are kept on each point.", { key, done: done.toLocaleString(), v: outside ? tr("; {outside} outside the terrain have no elevation (not drawn)", { outside }) : "" }) });
   };
 
   const importFile = async (file) => {
@@ -207,11 +208,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const cols = firstLine.split(/[,;\t]/).map((c) => c.trim().replace(/^"|"$/g, ""));
     const blocky = (cols.includes("i") && cols.includes("j") && cols.includes("k")) || /centroid|xinc|yinc|zinc|\bdx\b|block/.test(firstLine);
     if (blocky) {
-      setError(`"${file.name}" looks like a BLOCK MODEL (cell indices / cell-centre columns${file.size > 50e6 ? `, ${(file.size / 1e6).toFixed(0)} MB` : ""}), not a point survey. Import it under Geophysics → Block models: the UBC mesh + model files (.msh + .mod) or OMF if you have them (streamed and reduced to fit the 3D view), or "Block model CSV" for smaller files.`);
+      setError(tr("\"{name}\" looks like a BLOCK MODEL (cell indices / cell-centre columns{v}), not a point survey. Import it under Geophysics → Block models: the UBC mesh + model files (.msh + .mod) or OMF if you have them (streamed and reduced to fit the 3D view), or \"Block model CSV\" for smaller files.", { name: file.name, v: file.size > 50e6 ? tr(", {v} MB", { v: (file.size / 1e6).toFixed(0) }) : "" }));
       return;
     }
     if (file.size > 150e6) {
-      setError(`"${file.name}" is ${(file.size / 1e6).toFixed(0)} MB — too large to import as a point survey in one go (it would freeze GeoStrix). Thin it first (every n-th reading, or grid it), or import it as a grid (GeoTIFF / GXF) if it is gridded data.`);
+      setError(tr("\"{name}\" is {v} MB — too large to import as a point survey in one go (it would freeze GeoStrix). Thin it first (every n-th reading, or grid it), or import it as a grid (GeoTIFF / GXF) if it is gridded data.", { name: file.name, v: (file.size / 1e6).toFixed(0) }));
       return;
     }
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
@@ -221,11 +222,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         const cols = guessGeophysColumns(res.meta.fields || []);
         const openPicker = (why) => {
           setXyzPending({ fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label });
-          setError({ info: true, text: `${why} Pick the columns below, then Import.` });
+          setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
         if (!cols.ok) {
           const missing = [!cols.x && "X / easting", !cols.y && "Y / northing", !cols.value && "the measured value"].filter(Boolean).join(", ");
-          openPicker(`"${file.name}": couldn't tell which column is ${missing} from the headers (${(res.meta.fields || []).join(", ") || "none"}).`);
+          openPicker(tr("\"{name}\": couldn't tell which column is {missing} from the headers ({fields}).", { name: file.name, missing, fields: (res.meta.fields || []).join(", ") || tr("none") }));
           return;
         }
         const parsed = rowsToGeophysPoints(res.data, cols);
@@ -233,7 +234,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)).map((r) => ({ ...r, _src: file.name }));
         const noZ = good.filter((r) => r.z == null).length; // #365
         if (!good.length) {
-          openPicker(`"${file.name}": none of its ${res.data.length.toLocaleString()} row(s) had numbers in ${cols.x} / ${cols.y} / ${cols.value}.`);
+          openPicker(tr("\"{name}\": none of its {n} row(s) had numbers in {x} / {y} / {value}.", { name: file.name, n: res.data.length.toLocaleString(), x: cols.x, y: cols.y, value: cols.value }));
           return;
         }
         // Longitude/latitude columns and no Source CRS typed: they can only be WGS84.
@@ -247,18 +248,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             return { ...r, x: p.x, y: p.y };
           });
           reprojectNote = failed
-            ? ` Couldn't resolve a proj4 definition for EPSG:${srcEpsg} or EPSG:${project.epsg} — no reprojection happened.`
-            : ` Reprojected from EPSG:${srcEpsg}${!geophysSourceEpsg && cols.geographic ? " (longitude/latitude columns)" : ""} to the project's EPSG:${project.epsg}.`;
+            ? tr(" Couldn't resolve a proj4 definition for EPSG:{srcEpsg} or EPSG:{epsg} — no reprojection happened.", { srcEpsg, epsg: project.epsg })
+            : tr(" Reprojected from EPSG:{srcEpsg}{v} to the project's EPSG:{epsg}.", { srcEpsg, v: !geophysSourceEpsg && cols.geographic ? tr(" (longitude/latitude columns)") : "", epsg: project.epsg });
         }
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
-        if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
-        const zNote = noZ ? ` ${noZ} point(s) have no elevation: they are kept for modelling with "sensor at a fixed height above terrain", and are not drawn in 3D.` : ""; // #365
+        if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
+        const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
         const others = cols.valueCandidates.filter((c) => c !== cols.value);
-        const colNote = ` Columns: X = ${cols.x}, Y = ${cols.y}, Z = ${cols.z || "(none)"}, value = ${cols.value}${others.length ? ` (also looked like measurements: ${others.join(", ")} — import again and pick one to use it instead)` : ""}.`;
-        setError({ info: true, text: `Imported ${good.length.toLocaleString()} point(s) from "${file.name}"${bad.length ? `; skipped ${bad.length} row(s) missing x/y or a value` : ""}.${colNote}${zNote}${reprojectNote}${readNote}` });
-    }).catch((err) => setError(`Could not parse ${file.name}: ${err.message}`));
+        const colNote = tr(" Columns: X = {x}, Y = {y}, Z = {v}, value = {value}{v2}.", { x: cols.x, y: cols.y, v: cols.z || "(none)", value: cols.value, v2: others.length ? tr(" (also looked like measurements: {others} — import again and pick one to use it instead)", { others: others.join(", ") }) : "" });
+        setError({ info: true, text: tr("Imported {good} point(s) from \"{name}\"{v}.{colNote}{zNote}{reprojectNote}{readNote}", { good: good.length.toLocaleString(), name: file.name, v: bad.length ? tr("; skipped {bad} row(s) missing x/y or a value", { bad: bad.length }) : "", colNote, zNote, reprojectNote, readNote }) });
+    }).catch((err) => setError(tr("Could not parse {name}: {message}", { name: file.name, message: err.message })));
   };
 
   // Default drape elevation: average collar elevation if holes are loaded (drapes usually make most
@@ -272,11 +273,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // helper (raster.js) the Raster module's own import button calls — one shared parse/message path.
   const importRaster = async (file) => {
     if (!file) return;
-    setRasterError({ info: true, text: `Importing ${file.name}…` }); // a large GeoTIFF takes a few seconds
+    setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
       const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
       addRaster(raster);
-      setRasterError({ info: true, text: `${msg} (Tip: raster imports now have their own "Raster" tab — this drop still works here too.)` });
+      setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg }) });
     } catch (err) {
       setRasterError({ info: false, text: err.message });
     }
@@ -302,21 +303,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
       const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
-      if (terrain && !window.confirm(`Replace the current terrain ("${terrain.name}") with "${parsed.name}"? Only one terrain surface is supported at a time.`)) {
+      if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
         return;
       }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
-      let msg = `Imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh (source ${parsed.srcWidth}×${parsed.srcHeight}px, ${(xmax - xmin).toFixed(0)}×${(ymax - ymin).toFixed(0)} world units)${parsed.tileCount > 1 ? ` from ${parsed.tileCount} merged tiles` : ""}.`;
+      let msg = tr("Imported \"{name}\" as a {gridW}×{gridH} terrain mesh (source {srcWidth}×{srcHeight}px, {v}×{v2} world units){v3}.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, srcWidth: parsed.srcWidth, srcHeight: parsed.srcHeight, v: (xmax - xmin).toFixed(0), v2: (ymax - ymin).toFixed(0), v3: parsed.tileCount > 1 ? tr(" from {tileCount} merged tiles", { tileCount: parsed.tileCount }) : "" });
       if (parsed.reprojectedTo) {
-        msg += ` Reprojected from ${parsed.epsgOverridden ? "the Source CRS you set, " : "its native "}EPSG:${parsed.epsgTag} to the project's EPSG:${parsed.reprojectedTo} on import.`;
+        msg += tr(" Reprojected from {v}EPSG:{epsgTag} to the project's EPSG:{reprojectedTo} on import.", { v: parsed.epsgOverridden ? tr("the Source CRS you set, ") : tr("its native "), epsgTag: parsed.epsgTag, reprojectedTo: parsed.reprojectedTo });
       }
       if (parsed.cropped) { // #422
-        msg += ` Cropped to the drillholes + ${Math.max(1000, Number(demCropBuffer) || 2000)} m: read ${parsed.readPixels.toLocaleString()} of ${parsed.fullPixels.toLocaleString()} source pixels, cell size ~${(((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0)} m.`;
+        msg += tr(" Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels, cell size ~{v2} m.", { v: Math.max(1000, Number(demCropBuffer) || 2000), readPixels: parsed.readPixels.toLocaleString(), fullPixels: parsed.fullPixels.toLocaleString(), v2: (((parsed.bbox[2] - parsed.bbox[0]) / Math.max(1, parsed.gridW - 1))).toFixed(0) });
       } else if (parsed.reprojectNote) {
-        msg += ` Note: ${parsed.reprojectNote}`;
+        msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
       } else if (parsed.epsgTag && project?.epsg && Number(parsed.epsgTag) !== Number(project.epsg)) {
-        msg += ` Note: this file's own CRS tag (EPSG:${parsed.epsgTag}) doesn't match the project's EPSG:${project.epsg} — no reprojection happens on import.`;
+        msg += tr(" Note: this file's own CRS tag (EPSG:{epsgTag}) doesn't match the project's EPSG:{epsg} — no reprojection happens on import.", { epsgTag: parsed.epsgTag, epsg: project.epsg });
       }
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
       setTerrainError({ info: true, text: msg });
@@ -337,7 +338,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const base64 = terrainToGeoTIFFBase64(terrain, project?.epsg);
       saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
     } catch (err) {
-      setTerrainError({ info: false, text: `Couldn't export terrain: ${err.message}` });
+      setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
     }
   };
 
@@ -403,18 +404,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const openSrtmPickerRef = useRef(null);
   const openSrtmPicker = async () => {
     if (project?.crsSet === false) {
-      const chosen = await ensureProjectCrs(project, "Terrain is downloaded for the place your coordinates point to, so the project needs its coordinate system first.");
+      const chosen = await ensureProjectCrs(project, tr("Terrain is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
       if (chosen) setTimeout(() => openSrtmPickerRef.current?.(), 0);
       return;
     }
     if (!project?.epsg) {
-      setTerrainError({ info: false, text: "Project EPSG isn't set — can't reproject fetched elevation into project coordinates." });
+      setTerrainError({ info: false, text: tr("Project EPSG isn't set — can't reproject fetched elevation into project coordinates.") });
       return;
     }
     setTerrainError(null);
     const seed = await defaultSrtmBboxLonLat();
     if (collars.length && !seed) {
-      setTerrainError({ info: false, text: `Couldn't convert the project's EPSG:${project.epsg} to lon/lat (unrecognized code) — automatic SRTM fetch needs that conversion. Use manual GeoTIFF import instead.` });
+      setTerrainError({ info: false, text: tr("Couldn't convert the project's EPSG:{epsg} to lon/lat (unrecognized code) — automatic SRTM fetch needs that conversion. Use manual GeoTIFF import instead.", { epsg: project.epsg }) });
       return;
     }
     setSrtmSeedBbox(seed);
@@ -428,7 +429,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
     const targetEpsg = epsgOverride || project.epsg; // #614 — a zone fix re-fetches before the new label reaches this closure
-    if (terrain && !epsgOverride && !window.confirm(`Replace the current terrain ("${terrain.name}") with freshly-fetched SRTM for this area? Only one terrain surface is supported at a time.`)) {
+    if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly-fetched SRTM for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
     setSrtmPickerOpen(false);
@@ -444,27 +445,27 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       let misfitNote = "";
       if (misfit && misfit.medianDz > 100) {
         setSrtmProgress(null);
-        setTerrainError({ info: true, text: `The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain — checking whether the project's CRS is one UTM zone off…` });
+        setTerrainError({ info: true, text: tr("The collars sit a median {v} m off this terrain — checking whether the project's CRS is one UTM zone off…", { v: Math.round(misfit.medianDz) }) });
         const better = await findBetterUtmZone(collars, targetEpsg, misfit);
-        if (better && window.confirm(`The ${misfit.n} collars sit a median ${Math.round(misfit.medianDz)} m above or below the terrain fetched for ${crsName(targetEpsg) || `EPSG:${targetEpsg}`}, but read as ${better.name} they sit within ${Math.round(better.medianDz)} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as ${better.name} (EPSG:${better.code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.`)) {
+        if (better && window.confirm(tr("The {n} collars sit a median {v} m above or below the terrain fetched for {v2}, but read as {name} they sit within {v3} m of the ground.\n\nThe project CRS is probably the wrong UTM zone (new projects start as EPSG:3156, zone 9N; a collar CSV carries no CRS).\n\nOK — relabel the project as {name} (EPSG:{code}; no coordinates change) and fetch the terrain there.\nCancel — keep this terrain.", { n: misfit.n, v: Math.round(misfit.medianDz), v2: crsName(targetEpsg) || tr("EPSG:{targetEpsg}", { targetEpsg }), name: better.name, v3: Math.round(better.medianDz), code: better.code }))) {
           setEpsg(better.code);
           const T = pointTransform(better.code, 4326);
           const [bx0, by0, bx1, by1] = parsed.bbox;
           const c = [[bx0, by0], [bx1, by0], [bx0, by1], [bx1, by1]].map(([x, y]) => T(x, y));
-          relabelNote.current = ` Project CRS relabelled from EPSG:${targetEpsg} to ${better.name} (EPSG:${better.code}): the collars sit on the ground there. Re-fetch any satellite imagery, hillshade or other online layer — those were fetched for the old zone.`;
+          relabelNote.current = tr(" Project CRS relabelled from EPSG:{targetEpsg} to {name} (EPSG:{code}): the collars sit on the ground there. Re-fetch any satellite imagery, hillshade or other online layer — those were fetched for the old zone.", { targetEpsg, name: better.name, code: better.code });
           return await runSrtmFetch([Math.min(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[0])), Math.max(...c.map((p) => p[1]))], better.code);
         }
         misfitNote = better
-          ? ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain (in ${better.name} they would sit within ${Math.round(better.medianDz)} m) — kept as you chose.`
-          : ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).`;
+          ? tr(" The collars sit a median {v} m off this terrain (in {name} they would sit within {v2} m) — kept as you chose.", { v: Math.round(misfit.medianDz), name: better.name, v2: Math.round(better.medianDz) })
+          : tr(" The collars sit a median {v} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).", { v: Math.round(misfit.medianDz) });
       }
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
-      let msg = `Fetched and imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh covering ${(txmax - txmin).toFixed(0)}×${(tymax - tymin).toFixed(0)} world units for the area you drew.`;
-      if (parsed.source) msg += ` Source: ${parsed.source.service}, zoom ${parsed.source.zoom} (its own pixels ~${Math.round(parsed.source.sourcePixelM)} m), resampled to nodes ~${Math.round(parsed.source.nodeM)} m apart — features smaller than that are smoothed out.`; // #726
-      if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
-      else if (parsed.reprojectNote) msg += ` Note: ${parsed.reprojectNote}`;
-      if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to download — check your connection.`;
+      let msg = tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
+      if (parsed.source) msg += tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }); // #726
+      if (parsed.reprojectedTo) msg += tr(" Reprojected from WGS84 to the project's EPSG:{reprojectedTo}.", { reprojectedTo: parsed.reprojectedTo });
+      else if (parsed.reprojectNote) msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
+      if (parsed.failedTiles) msg += tr(" {failedTiles} tile(s) failed to download — check your connection.", { failedTiles: parsed.failedTiles });
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
       msg += misfitNote + relabelNote.current; relabelNote.current = ""; // #614
       setTerrainError({ info: true, text: msg });
@@ -502,7 +503,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (name.endsWith(".kml") || name.endsWith(".kmz")) {
       const { features } = await readKmlFile(file);
       const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg);
-      if (!polylines.length) throw new Error(failed ? `KML coordinates could not be converted to EPSG:${project?.epsg}.` : "No lines or polygons found in this KML (points are imported through the 3D View importer).");
+      if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
       return polylines;
     }
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
@@ -514,7 +515,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const buf = await file.arrayBuffer();
       const { layers } = await parseGeoPackage(buf);
       const layer = layers.find((l) => l.features.length);
-      if (!layer) throw new Error("No usable features found in this GeoPackage.");
+      if (!layer) throw new Error(tr("No usable features found in this GeoPackage."));
       return layer.features.map((f) => f.geometry.map(([x, y]) => ({ x, y })));
     }
     return null; // not a vector format this helper handles — caller falls back to .ply/.dxf
@@ -549,9 +550,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         failed.push(`${file.name}: ${err.message}`);
       }
     }
-    let msg = imported ? `Imported ${imported} boundary file(s) (${boundaries.length + imported} total).` : "";
+    let msg = imported ? tr("Imported {imported} boundary file(s) ({v} total).", { imported, v: boundaries.length + imported }) : "";
     if (dxfNotes.length) msg += ` ${dxfNotes.join(" ")}.`; // #550
-    if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
+    if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
 
@@ -590,8 +591,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         failed.push(`${file.name}: ${err.message}`);
       }
     }
-    let msg = imported ? `Imported ${imported} claim boundary file(s) (${claims.length + imported} total).` : "";
-    if (failed.length) msg += `${msg ? " " : ""}Failed: ${failed.join("; ")}`;
+    let msg = imported ? tr("Imported {imported} claim boundary file(s) ({v} total).", { imported, v: claims.length + imported }) : "";
+    if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
 
@@ -616,13 +617,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       res.voxelModels.forEach((m) => addVoxelModel(m));
       const skipped = res.skipped, coarsenNotes = res.notes;
       const parts = [];
-      if (pointsCount) parts.push(`${pointsCount} point set(s)`);
-      if (linesCount) parts.push(`${linesCount} line set(s)`);
-      if (surfacesCount) parts.push(`${surfacesCount} surface(s)`);
-      if (volumesCount) parts.push(`${volumesCount} block model(s)`);
-      let msg = parts.length ? `Imported "${file.name}" — ${parts.join(", ")}.` : `"${file.name}" parsed but nothing usable was found.`;
+      if (pointsCount) parts.push(tr("{pointsCount} point set(s)", { pointsCount }));
+      if (linesCount) parts.push(tr("{linesCount} line set(s)", { linesCount }));
+      if (surfacesCount) parts.push(tr("{surfacesCount} surface(s)", { surfacesCount }));
+      if (volumesCount) parts.push(tr("{volumesCount} block model(s)", { volumesCount }));
+      let msg = parts.length ? tr("Imported \"{name}\" — {parts}.", { name: file.name, parts: parts.join(", ") }) : tr("\"{name}\" parsed but nothing usable was found.", { name: file.name });
       if (coarsenNotes.length) msg += ` ${coarsenNotes.join(" ")}`;
-      if (skipped.length) msg += ` Skipped: ${skipped.join("; ")}.`;
+      if (skipped.length) msg += tr(" Skipped: {skipped}.", { skipped: skipped.join("; ") });
       setOmfError({ info: parts.length > 0, text: msg });
     } catch (err) {
       setOmfError({ info: false, text: err.message });
@@ -658,14 +659,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
       });
     } catch (err) {
-      setXyzError({ info: false, text: `Could not parse ${file.name}: ${err.message}` });
+      setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) });
     }
   };
   const confirmImportXYZ = () => {
     if (!xyzPending) return;
     const { fileName, rows: parsedRows, xCol, yCol, zCol, valueCol } = xyzPending;
     if (!xCol || !yCol || !valueCol) {
-      setXyzError({ info: false, text: "Pick an X, Y, and Value column before importing." });
+      setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
       return;
     }
     // TASKS.csv #484 — a CSV that fell through to the picker: same row mapping as the automatic path
@@ -687,7 +688,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const noFix = mapped.filter((r) => r.x === 0 && r.y === 0).length;
     if (noFix) mapped = mapped.filter((r) => !(r.x === 0 && r.y === 0));
     if (!mapped.length) {
-      setXyzError({ info: false, text: `None of the ${parsedRows.length} row(s) had usable values in the chosen columns (likely all "*"/no-data for this combination) — try different columns.` });
+      setXyzError({ info: false, text: tr("None of the {parsedRows} row(s) had usable values in the chosen columns (likely all \"*\"/no-data for this combination) — try different columns.", { parsedRows: parsedRows.length }) });
       return;
     }
     let reprojectNote = "";
@@ -699,16 +700,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         return { ...r, x: p.x, y: p.y };
       });
       reprojectNote = failed
-        ? ` Couldn't resolve a proj4 definition for EPSG:${geophysSourceEpsg} or EPSG:${project.epsg} — no reprojection happened.`
-        : ` Reprojected from EPSG:${geophysSourceEpsg} to the project's EPSG:${project.epsg}.`;
+        ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: project.epsg })
+        : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: project.epsg });
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    if (replacedN) reprojectNote += ` Replaced the ${replacedN.toLocaleString()} point(s) of the earlier import of this file.`;
+    if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = parsedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately
-    if (noFix) reprojectNote += ` Left out ${noFix} reading(s) at X = 0, Y = 0 (no GPS fix).`;
+    if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
     const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
-    setXyzError({ info: true, text: `Imported ${mapped.length} point(s) from "${fileName}"${skipped ? ` (skipped ${skipped} row(s) with ${xyzPending.source === "csv" ? "blank or non-numeric" : "no-data \"*\""} values in the chosen columns)` : ""}.${reprojectNote}${dcNote}` });
+    setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) });
     setXyzPending(null);
     if (xyzPending.source === "csv") setError(null);
   };
@@ -727,7 +728,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const meshFile = files.find((f) => /\.msh$/i.test(f.name));
       const modelFile = files.find((f) => f !== meshFile);
       if (!meshFile || !modelFile) {
-        throw new Error("Select both the .msh mesh file and its matching model file (.mod/.con/.den/etc.) together.");
+        throw new Error(tr("Select both the .msh mesh file and its matching model file (.mod/.con/.den/etc.) together."));
       }
       const meshText = await meshFile.text();
       let mesh = parseUBCMesh(meshText);
@@ -750,10 +751,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz);
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
-        coarsenNote = ` Original mesh had ${rawTotal.toLocaleString()} cells — over GeoStrix's ${effectiveMaxCells.toLocaleString()}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging ${fx}×${fy}×${fz} fine cells into each coarse cell) to ${coarseTotal.toLocaleString()} cells. Raise the "3D view cell budget" setting above and re-import if you want finer detail.`;
+        coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
       }
       const cells = ubcMeshToCells(mesh, values);
-      if (!cells.length) throw new Error("Every cell in this model is no-data — nothing to render.");
+      if (!cells.length) throw new Error(tr("Every cell in this model is no-data — nothing to render."));
       const { min, max } = cellValueRange(cells);
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
@@ -761,7 +762,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
       setVoxelError({
         info: true,
-        text: `Imported "${meshFile.name}" — ${mesh.nx}×${mesh.ny}×${mesh.nz} mesh, ${cells.length.toLocaleString()} cell(s) with data.${air.count ? ` ${air.count.toLocaleString()} cells at ${Number(air.value).toPrecision(3)} (the tiny value this model uses for air above the ground) were treated as air (no data).` : ""}${logColours ? ` Values span ${min.toPrecision(2)} to ${max.toPrecision(2)} (${Math.round(Math.log10(max / min))} decades), so colours are log-spaced.` : ""}${coarsenNote}`,
+        text: tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: meshFile.name, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }),
       });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });
@@ -788,16 +789,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     // TASKS.csv #482 — this reader holds the whole file (and every row as an object) in memory; a 320 MB
     // inversion-mesh CSV would freeze the app the way #481's point import did. Large models have streamed routes.
     if (file.size > 150e6) {
-      setVoxelError({ info: false, text: `"${file.name}" is ${(file.size / 1e6).toFixed(0)} MB — too large for the block-model CSV reader. Import the same model as UBC (.msh + .mod) or OMF, which are streamed and reduced to fit the 3D view.` });
+      setVoxelError({ info: false, text: tr("\"{name}\" is {v} MB — too large for the block-model CSV reader. Import the same model as UBC (.msh + .mod) or OMF, which are streamed and reduced to fit the 3D view.", { name: file.name, v: (file.size / 1e6).toFixed(0) }) });
       return;
     }
     parseTableFile(file) // TASKS.csv #444 — comma decimals (Datamine/Micromine exports on a European locale) + encoding fallback
       .then((t) => {
         // TASKS.csv #410 — confirm the columns first (BlockModelMappingModal) instead of fixed synonyms.
-        if (!t.rows.length) { setVoxelError({ info: false, text: `${file.name}: no rows.` }); return; }
+        if (!t.rows.length) { setVoxelError({ info: false, text: tr("{name}: no rows.", { name: file.name }) }); return; }
         setBmPending({ fileName: file.name, rows: t.rows, headers: t.headers, numeric: numericColumns(t.headers, t.rows), guess: guessBlockModelMapping(t.headers, t.rows), note: t.note });
       })
-      .catch((err) => setVoxelError({ info: false, text: `Could not parse ${file.name}: ${err.message}` }));
+      .catch((err) => setVoxelError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) }));
   };
   // TASKS.csv #410 — one block model per chosen attribute; over the cell budget, volume-weighted merge.
   const importMappedBlockModel = (mapping, attrs) => {
@@ -807,17 +808,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const msgs = [];
     attrs.forEach((attr) => {
       const { cells: raw, badRows, inferred } = blockModelCellsFromRows(p.rows, mapping, attr);
-      if (!raw.length) { msgs.push(`${attr}: no usable rows (x/y/z and ${attr} all need numbers).`); return; }
+      if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
       const { cells, factors } = coarsenBlockCells(raw, effectiveMaxCells);
       const { min, max } = cellValueRange(cells);
       addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max });
-      let m = `${attr}: ${cells.length.toLocaleString()} block(s)`;
-      if (factors) m += ` (${raw.length.toLocaleString()} merged ${factors.fx}×${factors.fy}×${factors.fz} to fit the ${effectiveMaxCells.toLocaleString()}-cell budget — volume-weighted means)`;
-      if (badRows) m += `, ${badRows.toLocaleString()} row(s) without numbers skipped`;
+      let m = tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() });
+      if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
+      if (badRows) m += tr(", {n} row(s) without numbers skipped", { n: badRows.toLocaleString() });
       msgs.push(m + ".");
-      if (inferred && msgs.length === 1) msgs.push(`Block size inferred from centroid spacing: ${["dx", "dy", "dz"].map((k) => (inferred[k] != null ? `${k} ${+inferred[k].toFixed(3)}` : null)).filter(Boolean).join(", ")} — check it matches the model.`);
+      if (inferred && msgs.length === 1) msgs.push(tr("Block size inferred from centroid spacing: {v} — check it matches the model.", { v: ["dx", "dy", "dz"].map((k) => (inferred[k] != null ? `${k} ${+inferred[k].toFixed(3)}` : null)).filter(Boolean).join(", ") }));
     });
-    setVoxelError({ info: true, text: `Imported "${p.fileName}": ${msgs.join(" ")}${p.note ? ` ${p.note.trim()}` : ""}` });
+    setVoxelError({ info: true, text: tr("Imported \"{fileName}\": {msgs}{v}", { fileName: p.fileName, msgs: msgs.join(" "), v: p.note ? ` ${p.note.trim()}` : "" }) });
   };
   // Plain loop, not Math.min(...vals)/Math.max(...vals) — a large geophysics point cloud (real
   // airborne survey exports easily run into hundreds of thousands of points) can exceed the JS
@@ -875,7 +876,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         // a follow-up drop/click rather than silently skipping them with no explanation.
         if (xyzs.length) {
           importXYZFile(xyzs[0]);
-          if (xyzs.length > 1) setXyzError({ info: true, text: `Opened the column picker for "${xyzs[0].name}". Import it, then drop the other ${xyzs.length - 1} file(s) one at a time — .xyz files need their columns picked individually.` });
+          if (xyzs.length > 1) setXyzError({ info: true, text: tr("Opened the column picker for \"{name}\". Import it, then drop the other {v} file(s) one at a time — .xyz files need their columns picked individually.", { name: xyzs[0].name, v: xyzs.length - 1 }) });
         }
       }}
     >
@@ -913,29 +914,25 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         />
         {geoPane === "points" && (<>
         <TaskPaneHeader title="Point survey (CSV / XYZ)" icon={RRadar} tone="data" />
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Point cloud (CSV)
-          <InfoButton title="Point cloud (CSV)" text={'Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the "Geophysics points" layer on the Viewer’s Home tab).'} />
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Point cloud (CSV)")}<InfoButton title={tr("Point cloud (CSV)")} text={tr("Import a CSV point cloud (x, y, z, value) — mag, IP, gravity, radiometrics, or any other point-sampled survey. Points render in the same 3D scene as drillholes for co-visualization (see the \"Geophysics points\" layer on the Viewer’s Home tab).")} />
         </div>
 
         {/* TASKS.csv #120 — optional source EPSG, shared by the CSV and .xyz importers below. Left
             blank, x/y is assumed to already be in the project's EPSG (unchanged behavior). */}
         <SourceCrsField
           value={geophysSourceEpsg} onChange={(c) => setGeophysSourceEpsg(c === "" ? "" : String(c))}
-          defaultText={`Same as project — ${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`} (longitude/latitude columns: WGS 84)`}
-          title="The CRS these points' x/y are in. They are reprojected into the project CRS on import."
+          defaultText={tr("Same as project — {crs} (longitude/latitude columns: WGS 84)", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
+          title={tr("The CRS these points' x/y are in. They are reprojected into the project CRS on import.")}
         />
 
         <button onClick={() => fileInput.current.click()} style={pBtn}>
-          <Upload size={14} /> Import CSV…
-        </button>
+          <Upload size={14} />{" "}{tr("Import CSV…")}</button>
 
         {/* Geosoft .xyz line/profile import — its column layout isn't fixed like the CSV importer
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
             picker rather than a name-guessed single button — see importXYZFile/confirmImportXYZ. */}
         <button onClick={() => xyzInput.current.click()} style={{ ...pBtn, marginTop: 6 }}>
-          <MapPin size={14} /> Import Geosoft .xyz…
-        </button>
+          <MapPin size={14} />{" "}{tr("Import Geosoft .xyz…")}</button>
         <input
           ref={xyzInput}
           type="file"
@@ -946,35 +943,35 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         {/* TASKS.csv #451 / #327 — the loaded surveys, each with what it is */}
         {surveyList.length > 0 && (
           <div style={{ marginTop: 10 }}>
-            <div className="ge-section-label" style={{ marginBottom: 6 }}>Surveys loaded</div>
+            <div className="ge-section-label" style={{ marginBottom: 6 }}>{tr("Surveys loaded")}</div>
             {surveyList.map((sv) => {
               const meta = geophysSurveys[sv.key] || {};
               return (
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>
-                    <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={`Remove survey "${sv.key}"`} title={`Remove survey "${sv.key}"`} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}
-                      onClick={() => { if (window.confirm(`Remove the ${sv.count.toLocaleString()} points of "${sv.key}"?`)) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
+                    <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}
+                      onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
                   </div>
                   <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>
-                    {sv.count.toLocaleString()} points{sv.lines ? `, ${sv.lines} line(s)` : ""}, {sv.withZ.toLocaleString()} with elevation · values {Number.isFinite(sv.min) ? `${sv.min.toPrecision(4)} to ${sv.max.toPrecision(4)}` : "—"}{meta.units ? ` ${meta.units}` : ""}
+                    {tr("{count} points{v}, {withZ} with elevation · values {v2}{v3}", { count: sv.count.toLocaleString(), v: sv.lines ? `, ${sv.lines} line(s)` : "", withZ: sv.withZ.toLocaleString(), v2: Number.isFinite(sv.min) ? `${sv.min.toPrecision(4)} to ${sv.max.toPrecision(4)}` : "—", v3: meta.units ? ` ${meta.units}` : "" })}
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
-                    <select value={meta.method || ""} aria-label={`Method of "${sv.key}"`} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
+                    <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                       onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...(e.target.value && !meta.units ? { units: SURVEY_METHODS[e.target.value].units } : {}) })}>
-                      <option value="">Method…</option>
+                      <option value="">{tr("Method…")}</option>
                       {Object.entries(SURVEY_METHODS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
                     </select>
-                    <input value={meta.units || ""} placeholder="units" aria-label={`Units of "${sv.key}"`} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
+                    <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
                   </div>
-                  <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={`What z means in "${sv.key}"`} style={{ ...numInput, width: "100%", marginTop: 5 }}
+                  <select value={meta.zMeaning || (sv.withZ ? "elevation" : "none")} aria-label={tr("What z means in \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "100%", marginTop: 5 }}
                     onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                   </select>
                   {(meta.zMeaning === "agl") && (
                     <button type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)} style={{ ...pBtn, marginTop: 5, opacity: terrain ? 1 : 0.5 }}
-                      title={terrain ? "elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)" : "Load a terrain first"}>
-                      {sv.withAgl ? "Recompute elevations from the terrain" : "Convert heights to elevations (terrain + height)"}
+                      title={terrain ? tr("elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)") : tr("Load a terrain first")}>
+                      {sv.withAgl ? tr("Recompute elevations from the terrain") : tr("Convert heights to elevations (terrain + height)")}
                     </button>
                   )}
                 </div>
@@ -984,11 +981,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         )}
         {xyzPending && (
           <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 8 }}>
-              "{xyzPending.fileName}" — {xyzPending.rows.length.toLocaleString()} row(s), {xyzPending.columns.length} column(s). Pick which columns to import as points:
-            </div>
+            <div style={{ color: "var(--color-text)", marginBottom: 8 }}>{tr("\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:", { fileName: xyzPending.fileName, rows: xyzPending.rows.length.toLocaleString(), columns: xyzPending.columns.length })}</div>
             {[
-              ["X", "xCol"], ["Y", "yCol"], ["Value", "valueCol"], ["Z / elevation (optional)", "zCol"],
+              ["X", "xCol"], ["Y", "yCol"], [tr("Value"), "valueCol"], [tr("Z / elevation (optional)"), "zCol"],
             ].map(([label, key]) => (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
                 <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{label}</span>
@@ -997,7 +992,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                   onChange={(e) => setXyzPending((p) => ({ ...p, [key]: e.target.value }))}
                   style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                 >
-                  <option value="">{key === "zCol" ? "(none — elevation not recorded)" : "(choose a column)"}</option>
+                  <option value="">{key === "zCol" ? tr("(none — elevation not recorded)") : tr("(choose a column)")}</option>
                   {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -1005,11 +1000,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {xyzPending.source !== "csv" && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
-                <Upload size={14} /> Import
-              </button>
-              <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>
-                Cancel
-              </button>
+                <Upload size={14} />{" "}{tr("Import")}</button>
+              <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
             </div>
           </div>
         )}
@@ -1031,9 +1023,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 
         {rows.length > 0 && (
           <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{rows.length} point{rows.length === 1 ? "" : "s"} loaded</div>
+            <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{rows} {v} loaded", { rows: rows.length, v: tr(rows.length === 1 ? "point" : "points") })}</div>
             {min !== null && (
-              <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Value range: {min.toLocaleString()} – {max.toLocaleString()}</div>
+              <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: min.toLocaleString(), max: max.toLocaleString() })}</div>
             )}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
@@ -1053,58 +1045,54 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
               />
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
-                View in 3D <ArrowRight size={14} />
+              <button onClick={() => goToModule("viewer")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("View in 3D")}{" "}<ArrowRight size={14} />
               </button>
               <button
-                onClick={() => { if (window.confirm(`Clear all ${rows.length} geophysics point(s)?`)) replaceLayer("geophys_pts", []); }}
+                onClick={() => { if (window.confirm(tr("Clear all {rows} geophysics point(s)?", { rows: rows.length }))) replaceLayer("geophys_pts", []); }}
                 style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-danger-fg)" }}
               >
-                <Trash2 size={14} /> Clear
-              </button>
+                <Trash2 size={14} />{" "}{tr("Clear")}</button>
             </div>
             {/* TASKS.csv #51 — Voronoi/Delaunay tessellation + polygonal declustering, over whatever
                 point cloud is currently loaded. Needs >=3 points to be meaningful (see SpatialAnalysis's
                 own guard), so only shown once points exist rather than as a separately-gated button. */}
             <button onClick={() => setSpatialOpen(true)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center" }}>
-              <Triangle size={14} /> Spatial analysis (Voronoi / declustering)…
-            </button>
+              <Triangle size={14} />{" "}{tr("Spatial analysis (Voronoi / declustering)…")}</button>
             {/* TASKS.csv #235 — grid this point cloud into a raster (inverse-distance weighting), pure JS. */}
             <button onClick={() => setIdwOpen((v) => !v)} style={{ ...pBtn, marginTop: 8, marginBottom: 0, justifyContent: "center", background: idwOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Box size={14} /> Grid to raster (IDW)…
-            </button>
+              <Box size={14} />{" "}{tr("Grid to raster (IDW)…")}</button>
             {idwOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.</div>
+                <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.")}</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Cell size</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <input type="number" min="0.1" step="any" value={idwCellSize} onChange={(e) => setIdwCellSize(Math.max(0.1, Number(e.target.value) || 25))} style={numInput} />
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title="How sharply influence falls off with distance — higher means nearer points dominate more.">Power</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }} title={tr("How sharply influence falls off with distance — higher means nearer points dominate more.")}>{tr("Power")}</span>
                   <input type="number" min="0.5" step="0.5" value={idwPower} onChange={(e) => setIdwPower(Math.max(0.5, Number(e.target.value) || 2))} style={numInput} />
                 </div>
                 {/* TASKS.csv #538 — which survey, and how far from the data a cell may be */}
                 {surveyList.length > 1 && (
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Survey</span>
-                    <select value={idwKey} onChange={(e) => setIdwSurvey(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Survey to grid">
+                    <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Survey")}</span>
+                    <select value={idwKey} onChange={(e) => setIdwSurvey(e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Survey to grid")}>
                       {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()})</option>)}
                     </select>
                   </div>
                 )}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title="Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.">
-                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Blank &gt; (m)</span>
-                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label="Blanking distance" />
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }} title={tr("Cells farther than this from every point are left empty (transparent) instead of extrapolated. Default: 1.5x the median spacing between lines (2x the station spacing for scattered stations). 0 = fill everything.")}>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Blank > (m)")}</span>
+                  <input type="number" min="0" step="any" value={idwBlank} placeholder={idwSuggest ? String(Math.round(idwSuggest.distance)) : "none"} onChange={(e) => setIdwBlank(e.target.value)} style={numInput} aria-label={tr("Blanking distance")} />
                 </div>
-                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>Default {Math.round(idwSuggest.distance)} m: median {idwSuggest.basis} {idwSuggest.spacing.toFixed(1)} m.</div>}
+                {idwSuggest && idwBlank === "" && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{tr("Default {v} m: median {basis} {spacing} m.", { v: Math.round(idwSuggest.distance), basis: idwSuggest.basis, spacing: idwSuggest.spacing.toFixed(1) })}</div>}
                 {/* TASKS.csv #372 — colour stretch */}
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title="Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalise: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).">
-                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>Colours</span>
-                  <select value={idwStretch} onChange={(e) => setIdwStretch(e.target.value)} style={{ ...numInput, flex: 1 }} aria-label="Colour stretch">
-                    <option value="p2-98">2-98% percentile clip</option>
-                    <option value="equalise">Histogram equalised</option>
-                    <option value="linear">Linear min-max</option>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }} title={tr("Percentile clip: the 2nd-98th percentile spans the colours, extremes saturate (default). Equalise: every colour covers the same number of cells (shows texture; colour no longer scales with value). Linear: min to max (a few extreme values squeeze everything else into one colour).")}>
+                  <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Colours")}</span>
+                  <select value={idwStretch} onChange={(e) => setIdwStretch(e.target.value)} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch")}>
+                    <option value="p2-98">{tr("2-98% percentile clip")}</option>
+                    <option value="equalise">{tr("Histogram equalised")}</option>
+                    <option value="linear">{tr("Linear min-max")}</option>
                   </select>
                 </div>
                 <button
@@ -1114,20 +1102,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
-                    if (gridW * gridH > 4_000_000) { setError(`That cell size would produce a ${gridW}×${gridH} grid — too large. Use a bigger cell size.`); return; }
+                    if (gridW * gridH > 4_000_000) { setError(tr("That cell size would produce a {gridW}×{gridH} grid — too large. Use a bigger cell size.", { gridW, gridH })); return; }
                     const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
                     const label = String(idwKey).replace(/\.[^.]+$/, "");
                     const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
                       name: `${label} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` });
                     addRaster({ ...raster, elevation: defaultElevation, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
                     const cells = raster.grid.nx * raster.grid.ny;
-                    setError({ info: true, text: `Gridded "${idwKey}" (${pts.length.toLocaleString()} points) at ${idwCellSize} m: ${raster.grid.valid.toLocaleString()} of ${cells.toLocaleString()} cells have a value${Number.isFinite(blank) ? `; cells more than ${Math.round(blank)} m from any point are left empty` : ""}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.` });
+                    setError({ info: true, text: tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" }) });
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
-                >
-                  Generate raster
-                </button>
+                >{tr("Generate raster")}</button>
               </div>
             )}
           </div>
@@ -1149,38 +1135,33 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Terrain (SRTM/DEM)
-          <InfoButton title="Terrain (SRTM/DEM)" text={'Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it ("Drape on terrain" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.'} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Terrain (SRTM/DEM)")}<InfoButton title={tr("Terrain (SRTM/DEM)")} text={tr("Import a georeferenced elevation GeoTIFF (SRTM or any other DEM) to build real terrain geometry in the 3D view, instead of a flat ground plane — raster drapes above can then optionally conform to it (\"Drape on terrain\" per raster) instead of sitting at a fixed elevation. Select multiple adjacent tiles at once (e.g. two neighboring SRTM tiles) to merge them into one terrain surface. A geographic (lon/lat) source is automatically reprojected into the project’s own EPSG if possible, so it lines up with the rest of the project. Downsampled to a modest mesh resolution regardless of source size. Only one terrain surface per project.")} />
         </div>
         {/* TASKS.csv #419 — for a DEM with no CRS tag or a wrong one */}
         <SourceCrsField
-          label="DEM source CRS" value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))}
-          defaultText="From the file's own CRS tag"
-          title="Leave it on the file's own tag. Change it when the DEM has no tag or a wrong one (e.g. NAD83 / BC Albers for a BC TRIM DEM, NAD83(CSRS) longitude/latitude for NRCan CDEM)."
+          label={tr("DEM source CRS")} value={demSourceEpsg} onChange={(c) => setDemSourceEpsg(c === "" ? "" : String(c))}
+          defaultText={tr("From the file's own CRS tag")}
+          title={tr("Leave it on the file's own tag. Change it when the DEM has no tag or a wrong one (e.g. NAD83 / BC Albers for a BC TRIM DEM, NAD83(CSRS) longitude/latitude for NRCan CDEM).")}
         />
         {(collars || []).length > 0 && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.">
-            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} /> Crop to the drillholes +
-            <input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label="Crop buffer in metres" /> m
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Reads only the part of each DEM tile around the drillholes, at a resolution that suits the 200 x 200 terrain grid — much less memory than decoding whole tiles, and much finer cells. Untick to import whole tiles.")}>
+            <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
           </label>
         )}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
-            {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? "Reading…" : terrain ? "Replace terrain…" : "Import SRTM/DEM…"}
+            {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}
           </button>
           <button
             onClick={openSrtmPicker}
             style={{ ...pBtn, flex: 1 }}
             disabled={terrainBusy}
-            title="Pick an area on a map and fetch elevation for it — no manual download needed"
+            title={tr("Pick an area on a map and fetch elevation for it — no manual download needed")}
           >
-            {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? `Fetching ${srtmProgress.done}/${srtmProgress.total}…` : "Fetch SRTM for this area"}
+            {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? tr("Fetching {done}/{total}…", { done: srtmProgress.done, total: srtmProgress.total }) : tr("Fetch SRTM for this area")}
           </button>
         </div>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>
-          "Fetch SRTM for this area" opens a map to draw the exact area you want — pre-filled around your drillholes if any are loaded, but you can pan/redraw to widen or shift it. Pulls public elevation data, no manual USGS download needed. Sourced from AWS's public Terrain Tiles (SRTM-heritage, no account required), not usgs.gov directly.
-        </div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch SRTM for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes if any are loaded, but you can pan/redraw to widen or shift it. Pulls public elevation data, no manual USGS download needed. Sourced from AWS's public Terrain Tiles (SRTM-heritage, no account required), not usgs.gov directly.")}</div>
         {srtmPickerOpen && (
           <BasemapView
             mode="draw"
@@ -1213,33 +1194,31 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{terrain.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{terrain.gridW}×{terrain.gridH}</span>
-              <Trash2 aria-label={`Remove terrain "${terrain.name}"`} title={`Remove terrain "${terrain.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the terrain surface "${terrain.name}"? Any rasters draped on it will fall back to a flat elevation.`)) removeTerrain(); }} />
+              <Trash2 aria-label={tr("Remove terrain \"{name}\"", { name: terrain.name })} title={tr("Remove terrain \"{name}\"", { name: terrain.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the terrain surface \"{name}\"? Any rasters draped on it will fall back to a flat elevation.", { name: terrain.name }))) removeTerrain(); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Color")}</span>
               <input type="color" value={terrain.color || "#8a7f68"} onChange={(e) => updateTerrain({ color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Opacity</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1} onChange={(e) => updateTerrain({ opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
-            <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title="Export the merged/processed terrain's elevation grid as a single-band GeoTIFF">
-              <Download size={14} /> Export to GeoTIFF…
-            </button>
+            <button onClick={exportTerrainGeoTIFF} style={{ ...pBtn, marginTop: 8, marginBottom: 0 }} title={tr("Export the merged/processed terrain's elevation grid as a single-band GeoTIFF")}>
+              <Download size={14} />{" "}{tr("Export to GeoTIFF…")}</button>
             {/* TASKS.csv #237 — raster derivative: hillshade from the terrain's own elevation grid,
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
             <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Mountain size={14} /> Generate hillshade…
-            </button>
+              <Mountain size={14} />{" "}{tr("Generate hillshade…")}</button>
             {hillshadeOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).">Sun azimuth</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).")}>{tr("Sun azimuth")}</span>
                   <input type="number" min="0" max="360" value={hillshadeAzimuth} onChange={(e) => setHillshadeAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={numInput} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Height of the sun above the horizon, in degrees.">Sun altitude</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Height of the sun above the horizon, in degrees.")}>{tr("Sun altitude")}</span>
                   <input type="number" min="1" max="90" value={hillshadeAltitude} onChange={(e) => setHillshadeAltitude(Math.max(1, Math.min(90, Number(e.target.value) || 45)))} style={numInput} />
                 </div>
                 <button
@@ -1249,9 +1228,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     setHillshadeOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
-                >
-                  Generate
-                </button>
+                >{tr("Generate")}</button>
               </div>
             )}
 
@@ -1261,35 +1238,32 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 vector data, and that pipeline already gives them colour, opacity and drape-on-terrain
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
             <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Waypoints size={14} /> Generate contours…
-            </button>
+              <Waypoints size={14} />{" "}{tr("Generate contours…")}</button>
             {contourOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Vertical spacing between contour lines, in the DEM's own elevation units (metres).">Interval (m)</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Vertical spacing between contour lines, in the DEM's own elevation units (metres).")}>{tr("Interval (m)")}</span>
                   <input type="number" min="1" value={contourInterval} onChange={(e) => setContourInterval(Math.max(1, Number(e.target.value) || 50))} style={numInput} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title="Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).">Colour</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).")}>{tr("Colour")}</span>
                   <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer" }} />
                 </div>
                 <button
                   onClick={() => {
                     const { levels, truncated, min, max } = contourTerrain(terrain, { interval: contourInterval });
                     if (!levels.length) {
-                      setError(`No contours generated — the terrain spans ${Number.isFinite(min) ? min.toFixed(1) : "?"}–${Number.isFinite(max) ? max.toFixed(1) : "?"} m, so an interval of ${contourInterval} m doesn't cross it anywhere. Try a smaller interval.`);
+                      setError(tr("No contours generated — the terrain spans {v}–{v2} m, so an interval of {contourInterval} m doesn't cross it anywhere. Try a smaller interval.", { v: Number.isFinite(min) ? min.toFixed(1) : "?", v2: Number.isFinite(max) ? max.toFixed(1) : "?", contourInterval }));
                       return;
                     }
                     levels.forEach(({ level, polylines }) => {
                       addBoundary({ name: `${terrain.name} ${level} m`, polylines, color: contourColor, elevation: level, drapeMode: "flat" });
                     });
-                    setError({ info: true, text: `Generated ${levels.length} contour level${levels.length === 1 ? "" : "s"} (${contourInterval} m interval) as boundaries.${truncated ? " Stopped at the 200-level cap — use a larger interval for full coverage." : ""}` });
+                    setError({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as boundaries.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as boundaries.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
                     setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
-                >
-                  Generate
-                </button>
+                >{tr("Generate")}</button>
               </div>
             )}
           </div>
@@ -1298,13 +1272,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "boundaries" && (<>
         <TaskPaneHeader title="Boundaries" icon={RShapes} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Boundaries (.ply / DXF / shapefile / GeoPackage)
-          <InfoButton title="Boundaries" text={`Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG (${project?.epsg ?? "?"}) — there's no on-import reprojection yet for any of these formats.`} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG ({v}) — there's no on-import reprojection yet for any of these formats.", { v: project?.epsg ?? "?" })} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={14} /> Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…
-        </button>
+          <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…")}</button>
         <input
           ref={boundaryInput}
           type="file"
@@ -1325,20 +1296,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{b.polylines?.length || 0} part(s)</span>
-              <Trash2 aria-label={`Remove boundary "${b.name}"`} title={`Remove boundary "${b.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${b.name}"?`)) removeBoundary(b.id); }} />
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
+              <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={b.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(b.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM above first)") : "" })}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: b.drapeMode === "terrain" ? 0.4 : 1 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Elev.</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
               <input type="number" value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(e) => updateBoundary(b.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Color")}</span>
               <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1365,28 +1336,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           />
         )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Web layers (WMS / WFS)
-          <InfoButton title="Web layers" text="Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer." />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer.")} />
         </div>
         <button onClick={async () => {
           // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
-          if (project?.crsSet === false) { if (await ensureProjectCrs(project, "Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")) setWebLayerModalOpen(true); return; }
+          if (project?.crsSet === false) { if (await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first."))) setWebLayerModalOpen(true); return; }
           setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true);
         }} style={pBtn}>
-          <Globe size={14} /> Add web layer (WMS / WFS)…
-        </button>
+          <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
 
         </>)}
         {geoPane === "claims" && (<>
         <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Mineral claims / tenure
-          <InfoButton title="Mineral claims / tenure" text="Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG." />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default color (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG.")} />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={14} /> Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…
-        </button>
+          <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…")}</button>
         <input
           ref={claimInput}
           type="file"
@@ -1396,7 +1361,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
         />
         {claims.length === 0 && (
-          <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No claims imported yet.</div>
+          <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No claims imported yet.")}</div>
         )}
         {claims.map((c) => (
           <div key={c.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -1408,43 +1373,43 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 value={c.name} onChange={(e) => updateBoundary(c.id, { name: e.target.value })}
                 style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: 0 }}
               />
-              <Trash2 aria-label={`Remove claim "${c.name}"`} title={`Remove claim "${c.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove claim "${c.name}"?`)) removeBoundary(c.id); }} />
+              <Trash2 aria-label={tr("Remove claim \"{name}\"", { name: c.name })} title={tr("Remove claim \"{name}\"", { name: c.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove claim \"{name}\"?", { name: c.name }))) removeBoundary(c.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Tenure #</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Tenure #")}</span>
               <input value={c.tenureNumber || ""} placeholder="e.g. 1234567" onChange={(e) => updateBoundary(c.id, { tenureNumber: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Status</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Status")}</span>
               <select
                 value={c.status || "active"}
                 onChange={(e) => updateBoundary(c.id, { status: e.target.value, color: claimStatusColor(e.target.value) })}
                 style={{ ...numInput, flex: 1 }}
               >
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="expired">Expired</option>
+                <option value="active">{tr("Active")}</option>
+                <option value="pending">{tr("Pending")}</option>
+                <option value="expired">{tr("Expired")}</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Expiry</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Expiry")}</span>
               <input type="date" value={c.expiryDate || ""} onChange={(e) => updateBoundary(c.id, { expiryDate: e.target.value })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontSize: "var(--font-size-sm)", color: "var(--color-text-faint)" }}>
-              <span style={{ width: 60, flexShrink: 0 }}>Area</span>
-              <span>{boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 })} ha</span>
+              <span style={{ width: 60, flexShrink: 0 }}>{tr("Area")}</span>
+              <span>{tr("{v} ha", { v: boundaryAreaHectares(c.polylines).toLocaleString(undefined, { maximumFractionDigits: 1 }) })}</span>
             </div>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={c.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(c.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM above first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM above first)") : "" })}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: c.drapeMode === "terrain" ? 0.4 : 1 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Elev.</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Elev.")}</span>
               <input type="number" value={Math.round(c.elevation)} disabled={c.drapeMode === "terrain"} onChange={(e) => updateBoundary(c.id, { elevation: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Color")}</span>
               <input type="color" value={c.color || claimStatusColor(c.status)} onChange={(e) => updateBoundary(c.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1462,9 +1427,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
-          3D view cell budget
-          <InfoButton title="3D view cell budget" text="A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) — it won't crash GeoStrix either way, just gets laggier. Only affects new imports, not models already in the project." />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) — it won't crash GeoStrix either way, just gets laggier. Only affects new imports, not models already in the project.")} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <input
@@ -1473,21 +1436,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             onChange={(e) => { const v = Number(e.target.value); setVoxelCellBudget(Number.isFinite(v) && v > 0 ? v : null); }}
             style={{ ...numInput, width: 100 }}
           />
-          <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>cells (default {MAX_CELLS.toLocaleString()})</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("cells (default {MAX_CELLS})", { MAX_CELLS: MAX_CELLS.toLocaleString() })}</span>
           {voxelCellBudget != null && (
-            <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>Reset to default</span>
+            <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setVoxelCellBudget(null)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "auto" }}>{tr("Reset to default")}</span>
           )}
         </div>
 
         </>)}
         {geoPane === "omf" && (<>
         <TaskPaneHeader title="Open Mining Format (.omf)" icon={RPackage} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Open Mining Format (.omf)
-          <InfoButton title="Open Mining Format (.omf)" text="Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet." />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Open Mining Format (.omf)")}<InfoButton title={tr("Open Mining Format (.omf)")} text={tr("Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet.")} />
         </div>
         <button onClick={() => omfInput.current.click()} style={pBtn} disabled={omfBusy}>
-          {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? "Reading…" : "Import OMF (.omf)…"}
+          {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import OMF (.omf)…")}
         </button>
         <input
           ref={omfInput}
@@ -1509,10 +1470,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0, textTransform: "capitalize" }}>{o.kind}</span>
-              <Trash2 aria-label={`Remove "${o.name}"`} title={`Remove "${o.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${o.name}"?`)) removeOmfObject(o.id); }} />
+              <Trash2 aria-label={tr("Remove \"{name}\"", { name: o.name })} title={tr("Remove \"{name}\"", { name: o.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: o.name }))) removeOmfObject(o.id); }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Color</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Color")}</span>
               <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(o.color) ? o.color : "#5a9bd4"} onChange={(e) => updateOmfObject(o.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
           </div>
@@ -1521,12 +1482,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "voxel" && (<>
         <TaskPaneHeader title="Voxel / block models" icon={RBox} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Voxel / block models (UBC mesh, block model CSV)
-          <InfoButton title="Voxel / block models" text="Import a UBC-GIF tensor mesh (select the .msh mesh file together with its matching model file, e.g. .mod/.con/.den, in one dialog), or a block-model CSV export (x/y/z centroid, cell size, and a value column; the common exchange format from Datamine, Micromine, Surpac, Vulcan, Leapfrog and similar). Geosoft's own proprietary voxel format isn't supported — no public spec to implement against, same reasoning as .grd elsewhere — the CSV path covers the same underlying need. Rendered as coloured 3D blocks with an adjustable value cutoff." />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Voxel / block models (UBC mesh, block model CSV)")}<InfoButton title={tr("Voxel / block models")} text={tr("Import a UBC-GIF tensor mesh (select the .msh mesh file together with its matching model file, e.g. .mod/.con/.den, in one dialog), or a block-model CSV export (x/y/z centroid, cell size, and a value column; the common exchange format from Datamine, Micromine, Surpac, Vulcan, Leapfrog and similar). Geosoft's own proprietary voxel format isn't supported — no public spec to implement against, same reasoning as .grd elsewhere — the CSV path covers the same underlying need. Rendered as coloured 3D blocks with an adjustable value cutoff.")} />
         </div>
         <button onClick={() => ubcInput.current.click()} style={pBtn} disabled={voxelBusy}>
-          {voxelBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {voxelBusy ? (voxelProgress ? `Reading… ${voxelProgress.toLocaleString()} values` : "Reading…") : "Import UBC mesh + model…"}
+          {voxelBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {voxelBusy ? (voxelProgress ? tr("Reading… {voxelProgress} values", { voxelProgress: voxelProgress.toLocaleString() }) : tr("Reading…")) : tr("Import UBC mesh + model…")}
         </button>
         <input
           ref={ubcInput}
@@ -1537,8 +1496,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           onChange={(e) => { importUBC(e.target.files); e.target.value = ""; }}
         />
         <button onClick={() => blockModelInput.current.click()} style={pBtn}>
-          <Upload size={14} /> Import block model CSV…
-        </button>
+          <Upload size={14} />{" "}{tr("Import block model CSV…")}</button>
         <input
           ref={blockModelInput}
           type="file"
@@ -1556,9 +1514,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
-          <div style={{ color: "var(--color-text)", marginBottom: 6 }}>Also planned:</div>
-          <div>• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above</div>
-          <div>• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)</div>
+          <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{tr("Also planned:")}</div>
+          <div>{tr("• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above")}</div>
+          <div>{tr("• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)")}</div>
         </div>
         </>)}
       </div>
@@ -1587,23 +1545,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             // string) — that approach stopped scaling once boundaries joined rasters/terrain as a
             // third thing that may or may not be loaded.
             const parts = [];
-            if (rows.length) parts.push(`${rows.length} geophysics point(s)`);
-            if (rasters.length) parts.push(`${rasters.length} raster drape(s)`);
-            if (terrain) parts.push("a terrain surface");
-            if (boundaries.length) parts.push(`${boundaries.length} boundary(ies)`);
-            if (!parts.length) return "No geophysics data yet";
-            const joined = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0];
-            return `${joined} loaded`;
+            if (rows.length) parts.push(tr("{rows} geophysics point(s)", { rows: rows.length }));
+            if (rasters.length) parts.push(tr("{rasters} raster drape(s)", { rasters: rasters.length }));
+            if (terrain) parts.push(tr("a terrain surface"));
+            if (boundaries.length) parts.push(tr("{boundaries} boundary(ies)", { boundaries: boundaries.length }));
+            if (!parts.length) return tr("No geophysics data yet");
+            const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
+            return tr("{items} loaded", { items: joined });
           })()}
-          actionLabel="Import CSV…"
+          actionLabel={tr("Import CSV…")}
           onAction={() => fileInput.current?.click()}
-          actionTitle="Pick a point-cloud CSV — x/y/z plus a value column"
-          secondary={<InfoButton title="Every supported format" width={430} text={FORMAT_REFERENCE} />}
-          footnote="Or drag a file straight onto this pane. Everything imported here renders in the 3D View alongside your drillholes."
+          actionTitle={tr("Pick a point-cloud CSV — x/y/z plus a value column")}
+          secondary={<InfoButton title={tr("Every supported format")} width={430} text={tr(FORMAT_REFERENCE)} />}
+          footnote={tr("Or drag a file straight onto this pane. Everything imported here renders in the 3D View alongside your drillholes.")}
         >
-          <div style={{ marginBottom: 12 }}>
-            Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft <code>.gxf</code>, <code>.ply</code>/<code>.dxf</code> or <code>.xyz</code> here, or use the buttons on the left — the <b>i</b> beside the button lists exactly what each format does on import.
-          </div>
+          <div style={{ marginBottom: 12 }}>{tr("Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft")}{" "}<code>.gxf</code>, <code>.ply</code>/<code>.dxf</code>{" "}{tr("or")}{" "}<code>.xyz</code>{" "}{tr("here, or use the buttons on the left — the")}{" "}<b>i</b>{" "}{tr("beside the button lists exactly what each format does on import.")}</div>
         </EmptyState>
       </div>)}
 
@@ -1663,39 +1619,38 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
-        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title="Edit color legend / range / classification" />
+        <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title={tr("Edit color legend / range / classification")} />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}
-        {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Evaluate block model "${model.name}" onto the drillholes`} title="Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log" onClick={() => onEvaluate(model)} />}
+        {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Evaluate block model \"{name}\" onto the drillholes", { name: model.name })} title={tr("Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log")} onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
-        {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" for other software`} title="Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt" onClick={() => onExportPackage(model)} />}
+        {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
-        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model, epsg)} />
-        <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={() => exportBlockModelCSV(model, epsg)} />
+        <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }))) onRemove(model.id); }} />
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only
           show the attribute name: the user says what the values are (stored as model.property). */}
       {(model.source === "omf" || model.source === "ubc" || model.propertyChosen) && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-          <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Values are</span>
-          <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={`What the values of "${model.name}" are`}
-            onChange={(e) => { const v = e.target.value; const other = v === "__other" ? window.prompt("What are the values (property and unit)?", model.property || "") : null; if (v === "__other" && !other) return; onUpdate(model.id, { property: v === "__other" ? other.trim() : v || null, propertyChosen: true }); }}
+          <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Values are")}</span>
+          <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
+            onChange={(e) => { const v = e.target.value; const other = v === "__other" ? window.prompt(tr("What are the values (property and unit)?"), model.property || "") : null; if (v === "__other" && !other) return; onUpdate(model.id, { property: v === "__other" ? other.trim() : v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
-            <option value="">Not stated (the file names no unit)</option>
-            {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{v}</option>)}
-            <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : "Other…"}</option>
+            <option value="">{tr("Not stated (the file names no unit)")}</option>
+            {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}
+            <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : tr("Other…")}</option>
           </select>
         </div>
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Cutoff</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Cutoff")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
         <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{displayThreshold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s) (value ≥ cutoff) — range {model.min.toLocaleString(undefined, { maximumFractionDigits: 2 })} to {model.max.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString(), min: model.min.toLocaleString(undefined, { maximumFractionDigits: 2 }), max: model.max.toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Opacity</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>
         <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1 }} />
       </div>
       {legendOpen && <VoxelLegendEditor model={model} onUpdate={onUpdate} />}
@@ -1753,23 +1708,22 @@ function VoxelLegendEditor({ model, onUpdate }) {
   return (
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Range</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Range")}</span>
         <input type="number" value={model.min} onChange={(e) => onUpdate(model.id, { min: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
-        <span style={{ color: "var(--color-text-muted)" }}>to</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
         <input type="number" value={model.max} onChange={(e) => onUpdate(model.id, { max: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Style</span>
+        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Style")}</span>
         <select value={model.colorMode || "continuous"} onChange={(e) => onUpdate(model.id, { colorMode: e.target.value })} style={{ ...numInput, flex: 1 }}>
-          <option value="continuous">Continuous gradient</option>
-          <option value="discrete">Classified (stepped)</option>
+          <option value="continuous">{tr("Continuous gradient")}</option>
+          <option value="discrete">{tr("Classified (stepped)")}</option>
         </select>
       </div>
 
       <div style={{ marginTop: 8 }}>
-        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>
-          Color legend {stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : "(default gradient — no custom stops yet)"}
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Color legend {v}", { v: stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : tr("(default gradient — no custom stops yet)") })}
         </div>
         {stops.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
@@ -1777,10 +1731,10 @@ function VoxelLegendEditor({ model, onUpdate }) {
             <input type="number" value={s.value} onChange={(e) => updateStop(i, { value: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
             {model.colorMode === "discrete" && (
               <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", width: 60, flexShrink: 0 }}>
-                {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : `to ${model.max} (max)`}
+                {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : tr("to {max} (max)", { max: model.max })}
               </span>
             )}
-            <Trash2 aria-label={"Remove this colour stop"} title={"Remove this colour stop"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
+            <Trash2 aria-label={tr("Remove this colour stop")} title={tr("Remove this colour stop")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
           </div>
         ))}
         {/* User report: "the values never got to the max value" — each stop's own number IS its class's
@@ -1789,21 +1743,21 @@ function VoxelLegendEditor({ model, onUpdate }) {
             as broken with nothing showing the top class actually still reaches the real max. The "to …"
             captions above make each row's actual covered range explicit instead of a bare number. */}
         <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-          <button onClick={addStop} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}><Plus size={12} /> Add stop</button>
+          <button onClick={addStop} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}><Plus size={12} />{" "}{tr("Add stop")}</button>
           {stops.length > 0 && (
-            <button onClick={resetToDefault} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}>Reset to default</button>
+            <button onClick={resetToDefault} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, justifyContent: "center" }}>{tr("Reset to default")}</button>
           )}
         </div>
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Color palette</div>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Color palette")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }}>
             {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}
           </select>
           {stops.length > 0 && (
-            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title="Re-color the existing stops with this palette, keeping their current values">Recolor</button>
+            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-color the existing stops with this palette, keeping their current values")}>{tr("Recolor")}</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 2, marginTop: 4, height: 10, borderRadius: 3, overflow: "hidden" }}>
@@ -1812,23 +1766,21 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>Classify</div>
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Classify")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <select value={method} onChange={(e) => setMethod(e.target.value)} style={{ ...numInput, flex: 1 }}>
-            <option value="equal">Linear (equal interval)</option>
-            <option value="log">Log-linear</option>
-            <option value="quantile">Histogram equalization (quantile)</option>
-            <option value="normal">Normal distribution</option>
+            <option value="equal">{tr("Linear (equal interval)")}</option>
+            <option value="log">{tr("Log-linear")}</option>
+            <option value="quantile">{tr("Histogram equalization (quantile)")}</option>
+            <option value="normal">{tr("Normal distribution")}</option>
             {/* TASKS.csv #291 — QGIS parity: natural breaks minimizes within-class variance, the
                 right default for the clustered background + anomalous tail real survey data has. */}
-            <option value="jenks">Natural breaks (Jenks)</option>
+            <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
           </select>
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
-          <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>Apply</button>
+          <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>
-          Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount })}</div>
       </div>
     </div>
   );

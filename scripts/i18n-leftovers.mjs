@@ -32,6 +32,7 @@ const notText = (p) => {
 const inTranslation = (p) => { for (let q = p.parentPath; q; q = q.parentPath) { if (q.isCallExpression() && ["t", "tr", "tx"].includes(q.node.callee.name)) return true; if (q.isJSXExpressionContainer()) return false; } return false; };
 const TEXT_ATTRS = new Set(["title", "aria-label", "placeholder", "label", "alt", "text", "headline", "aria-description", "disabledReason"]);
 const childOfJsx = (p) => {
+  if (p.parentPath.isJSXAttribute()) return false; // a quoted attribute value: i18n-wrap's job, and tr() there is not valid JSX
   for (let q = p.parentPath; q; q = q.parentPath) {
     if (q.isJSXExpressionContainer()) {
       if (q.parentPath.isJSXElement() || q.parentPath.isJSXFragment()) return true;

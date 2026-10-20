@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import CrsPicker from "./CrsPicker.jsx";
 import { crsName, datumNote } from "../lib/reproject.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", fontFamily: "inherit", flexShrink: 0 };
 
@@ -16,12 +17,12 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
   return (
     <div style={{ marginBottom: 10 }} title={title}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--font-size-sm)" }}>
-        <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{label}</span>
+        <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr(label)}</span>
         <span style={{ flex: 1, minWidth: 0, color: set ? "var(--color-text)" : "var(--color-text-secondary)" }}>
-          {set ? <>{name || "Unrecognised CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : defaultText}
+          {set ? <>{name || tr("Unrecognised CRS")} <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{value}", { value })}</span></> : defaultText}
         </span>
-        {set && <button type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title="Back to the default">Reset</button>}
-        <button type="button" style={linkBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? "Close" : "Change"}</button>
+        {set && <button type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title={tr("Back to the default")}>{tr("Reset")}</button>}
+        <button type="button" style={linkBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{open ? tr("Close") : tr("Change")}</button>
       </div>
       {open && (
         <div style={{ marginTop: 6 }}>
@@ -29,9 +30,7 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
         </div>
       )}
       {set && !name && (
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)", marginTop: 4, lineHeight: 1.4 }}>
-          GeoStrix can't convert from EPSG:{value}, so the coordinates would be used as they are. Pick a CRS from the list.
-        </div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)", marginTop: 4, lineHeight: 1.4 }}>{tr("GeoStrix can't convert from EPSG:{value}, so the coordinates would be used as they are. Pick a CRS from the list.", { value })}</div>
       )}
       {set && datumNote(value) && (
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>

@@ -29,6 +29,10 @@ test("every ribbon button label and group caption in the code is translated in b
     for (const m of s.matchAll(/<Ribbon(?:Button|Group)\b(?:(?!<Ribbon)[\s\S])*?\blabel="([^"]+)"/g)) {
       for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[m[1]]) missing.push(`${code}: ${m[1]} (${path.basename(f)})`);
     }
+    // TaskPaneHeader translates its title the same way
+    for (const m of s.matchAll(/<TaskPaneHeader\b[^>]*?\btitle="([^"]+)"/g)) {
+      for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[m[1]]) missing.push(`${code}: pane "${m[1]}" (${path.basename(f)})`);
+    }
   }
   assert.deepEqual(missing, []);
 });

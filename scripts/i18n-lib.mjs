@@ -8,8 +8,10 @@
 //   return MESSAGE  inside a function named …Note / …Text / …Advice / …Message / …Warning / …Summary
 // A MESSAGE that is a ternary / && / + chain is followed into its parts. Placeholders and nested text as in
 // scripts/i18n-notices.mjs. Adds `import { t as tr } from ".../i18n.js"` (refuses if tr is already a local name).
-// usage: node scripts/i18n-lib.mjs <file> [--dry] [--only=errors]   (--only=errors: just new Error(…), e.g. in an exporter
+// usage: node scripts/i18n-lib.mjs <file> [--dry] [--only=errors] [--ui]   (--only=errors: just new Error(…), e.g. in an exporter
 // whose written file text must stay English)
+// --ui (component files): also variables / refs named …Note / …Msg / …Message / …Warning / …Hint / …Text (not csv/file/svg…
+// text), problems.push(…), { problem: … }, window.confirm / alert / prompt(MESSAGE), ensureProjectCrs(project, MESSAGE).
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -19,7 +21,10 @@ const traverse = require("@babel/traverse").default;
 
 const file = process.argv[2];
 const dry = process.argv.includes("--dry");
-const errorsOnly = process.argv.includes("--only=errors"); // exporters: their file text (provenance lines) stays English
+const errorsOnly = process.argv.includes("--only=errors");
+const ui = process.argv.includes("--ui");
+const UI_NAME = /^(problem|problems)$|[a-z](Note|Msg|Message|Warning|Hint)$|[a-z]Text$/;
+const msgName = (nm) => MSG_NAME.test(nm) || (ui && UI_NAME.test(nm) && !/csv|file|svg|json|xml|dxf|raw|default|search|filter|query/i.test(nm)); // exporters: their file text (provenance lines) stays English
 const src = fs.readFileSync(file, "utf8");
 const ast = parse(src, { sourceType: "module", plugins: ["jsx"] });
 const isText = (s) => /[A-Za-z]{2}/.test(s) && /\s/.test(s.trim()); // a phrase, not a code or a key
@@ -86,7 +91,7 @@ function message(p) {
   if (n.type === "CallExpression" && n.callee.type === "MemberExpression" && ["join", "filter", "concat", "trim"].includes(n.callee.property.name)) message(p.get("callee.object"));
 }
 const MSG_NAME = /^(note|notes|message|msg|warning|reason|detail)$/i; // not text / name / label: those also hold data (layout element text, default names)
-const LIST_NAME = /^(notes|warnings|messages|parts|reasons|lines|msgs|bits)$/i;
+const LIST_NAME = /^(notes|warnings|messages|parts|reasons|lines|msgs|bits|problems)$/i;
 const FN_NAME = /(Note|Text|Advice|Message|Warning|Summary)$/;
 traverse(ast, {
   CallExpression(p) {
@@ -100,19 +105,21 @@ traverse(ast, {
       else message(a0);
       return;
     }
+    if (ui && ((c.type === "MemberExpression" && c.object.name === "window" && ["confirm", "alert", "prompt"].includes(c.property.name)) || (c.type === "Identifier" && ["confirm", "alert"].includes(c.name)))) { message(p.get("arguments.0")); return; }
+    if (ui && c.type === "Identifier" && c.name === "ensureProjectCrs") { message(p.get("arguments.1")); return; }
     if (c.type === "MemberExpression" && c.property.name === "push" && LIST_NAME.test(c.object.name || c.object.property?.name || "")) p.get("arguments").forEach(message);
   },
   NewExpression(p) { if (p.node.callee.type === "Identifier" && /Error$/.test(p.node.callee.name)) message(p.get("arguments.0")); },
   AssignmentExpression(p) {
     if (errorsOnly) return;
-    const l = p.node.left, nm = l.type === "Identifier" ? l.name : l.type === "MemberExpression" && !l.computed ? l.property.name : "";
-    if (MSG_NAME.test(nm) && ["=", "+="].includes(p.node.operator)) message(p.get("right"));
+    const l = p.node.left, nm = l.type === "Identifier" ? l.name : l.type === "MemberExpression" && !l.computed ? (l.property.name === "current" ? l.object.name || "" : l.property.name) : "";
+    if (msgName(nm) && ["=", "+="].includes(p.node.operator)) message(p.get("right"));
   },
-  VariableDeclarator(p) { if (!errorsOnly && p.node.id.type === "Identifier" && MSG_NAME.test(p.node.id.name)) message(p.get("init")); },
+  VariableDeclarator(p) { if (!errorsOnly && p.node.id.type === "Identifier" && msgName(p.node.id.name)) message(p.get("init")); },
   ObjectProperty(p) {
     if (errorsOnly) return;
     const k = p.node.key, nm = k.type === "Identifier" ? k.name : k.type === "StringLiteral" ? k.value : "";
-    if (MSG_NAME.test(nm) && !p.node.computed) message(p.get("value"));
+    if (msgName(nm) && !p.node.computed) message(p.get("value"));
   },
   ReturnStatement(p) {
     if (errorsOnly) return;
