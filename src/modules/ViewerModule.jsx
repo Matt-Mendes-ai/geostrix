@@ -3354,7 +3354,7 @@ ${describeTrend(t)}` };
       if (!p) return;
       const api = sceneToApi(p);
       // #430 — an overturned pick tells GemPy the younger side is the other way (polarity -1)
-      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth, ...(s.overturned ? { polarity: -1 } : {}) });
+      orientations.push({ x: api.x, y: api.y, z: api.z, dip: s.dip, azimuth: s.azimuth, hole_id: s.hole_id, ...(s.overturned ? { polarity: -1 } : {}) }); // hole_id: #762 (the sidecar ignores it)
     });
     return orientations;
   };

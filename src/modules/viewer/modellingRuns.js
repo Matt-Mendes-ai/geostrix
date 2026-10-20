@@ -23,6 +23,7 @@ import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
 import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
 import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
+import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -148,6 +149,16 @@ export function createModellingRuns(ctx, mcRef) {
       specs.push({ ...spec, points, orientations });
     });
     if (!specs.length) { setNotices((p) => [...p, "Nothing left to model after removing invalid points/orientations — see notices above for which columns to check."]); return; }
+    // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
+    const pickIssues = specs.map((sp) => pickReport(sp, { origin: originRef.current })).filter(Boolean);
+    if (pickIssues.length) {
+      setNotices((p) => [...p, `Pick check before solving — ${pickIssues.map((r) => [
+        `${r.label}:`,
+        r.duplicates ? ` ${r.duplicates} pick(s) repeated at the same spot (${r.duplicateExamples.join(", ")}${r.duplicates > 3 ? "…" : ""}) — GemPy honours every copy, which only slows and stiffens the solve;` : "",
+        r.conflicts ? ` ${r.conflicts} pair(s) of picks almost on top of each other but far apart in elevation (${r.conflictExamples.join("; ")}${r.conflicts > 3 ? "…" : ""}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, or the unit repeated by a fold or fault;` : "",
+        r.orientations ? ` ${r.orientations} of ${r.orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them (${r.orientationExamples.join(", ")}${r.orientations > 3 ? "…" : ""}) — GemPy bends the surface between the two;` : "",
+      ].join("")).join(" ").replace(/;(?=\s|$)/g, ".")} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.`]);
+    }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
     // Extent spans every hole trace (not just these surfaces' own points) so the modelled surface(s)
@@ -764,6 +775,7 @@ export function createModellingRuns(ctx, mcRef) {
         const api = sceneToApi(p);
         if (softIntercepts.includes(interceptId("litho", r))) api.nugget = SOFT_NUGGET;
         api.srcCode = r.value;
+        api.hole_id = t.hole_id; // #762 — named in the pick check
         const pickSigma = r.uncertainty_m == null || r.uncertainty_m === "" ? NaN : Number(r.uncertainty_m);
         if (Number.isFinite(pickSigma) && pickSigma >= 0) api.sigma = pickSigma;
         points.push(api);
@@ -795,6 +807,7 @@ export function createModellingRuns(ctx, mcRef) {
           // can say WHICH codes make up each spatial cluster. Rides along on the point object the same
           // way #88's nugget does; the sidecar's pydantic models ignore fields they don't declare.
           api.srcCode = r.value;
+          api.hole_id = t.hole_id; // #762 — named in the pick check
           // TASKS.csv #52 (a) — a per-pick uncertainty the geologist recorded (an `uncertainty_m` column
           // mapped as an extra number field on import) overrides the run's global sigma for this pick in
           // a sensitivity run. Rides along like srcCode; the sidecar ignores fields it doesn't declare.
