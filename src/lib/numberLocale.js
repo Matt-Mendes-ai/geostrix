@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #284 (Micromine-specialist review) — comma-decimal (European-locale) CSV values silently
 // became NaN and their whole row was dropped, with nothing telling the user why the row count came
 // back short.
@@ -93,10 +94,10 @@ export function normalizeCommaDecimals(rows) {
 
   let note = "";
   if (convert.length) {
-    note += ` Comma decimals detected (European number format, e.g. "${convert[0].sample}") — ${changed} value(s) across ${convert.length} column(s) (${convert.map((c) => c.column).join(", ")}) were converted to ${convert.length === 1 ? "a decimal point" : "decimal points"} so those rows import instead of being dropped as non-numeric.`;
+    note += tr(" Comma decimals detected (European number format, e.g. \"{sample}\") — {changed} value(s) across {convert} column(s) ({v}) were converted to {v2} so those rows import instead of being dropped as non-numeric.", { sample: convert[0].sample, changed, convert: convert.length, v: convert.map((c) => c.column).join(", "), v2: convert.length === 1 ? tr("a decimal point") : tr("decimal points") });
   }
   if (ambiguous.length) {
-    note += ` Heads-up: ${ambiguous.map((c) => `"${c.column}"`).join(", ")} contain${ambiguous.length === 1 ? "s" : ""} values like "${ambiguous[0].sample}" that could be either a decimal comma (${parseCommaDecimal(ambiguous[0].sample)}) or a thousands separator (${Number(ambiguous[0].sample.replace(/[.,]/g, ""))}). They were left exactly as-is — re-export that column with a decimal point if it should be numeric.`;
+    note += tr(ambiguous.length === 1 ? " Heads-up: {v} contains values like \"{sample}\" that could be either a decimal comma ({v3}) or a thousands separator ({v4}). They were left exactly as-is — re-export that column with a decimal point if it should be numeric." : " Heads-up: {v} contain values like \"{sample}\" that could be either a decimal comma ({v3}) or a thousands separator ({v4}). They were left exactly as-is — re-export those columns with a decimal point if they should be numeric.", { v: ambiguous.map((c) => `"${c.column}"`).join(", "), sample: ambiguous[0].sample, v3: parseCommaDecimal(ambiguous[0].sample), v4: Number(ambiguous[0].sample.replace(/[.,]/g, "")) });
   }
   return { rows, note, converted: convert, ambiguous };
 }

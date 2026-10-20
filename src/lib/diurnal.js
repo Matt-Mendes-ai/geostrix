@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #610 — diurnal correction of ground magnetics from base-station recordings.
 //
 // Found testing ARIS 40958Z (Lawyers, #600): the GEM GSM-19 walk-mag rover files carry "cormag" = 0 on every
@@ -72,7 +73,7 @@ export function parseBaseStation(text, { minQuality = 50, name = "" } = {}) {
     if (q != null && q <= 99 && q < minQuality) { lowQuality++; continue; }
     samples.push({ t, nT });
   }
-  if (samples.length < 2) throw new Error(`${name || "This file"} has no base-station readings GeoStrix can read (expected rows of "time  nT" such as "07:55:05.0  57117.85 99").`);
+  if (samples.length < 2) throw new Error(tr("{v} has no base-station readings GeoStrix can read (expected rows of \"time  nT\" such as \"07:55:05.0  57117.85 99\").", { v: name || tr("This file") }));
   samples.sort((a, b) => a.t - b.t);
   const sorted = samples.map((s) => s.nT).sort((a, b) => a - b);
   const mid = sorted.length >> 1;
@@ -101,7 +102,7 @@ function baseAt(base, t, maxGapSec, cursor) {
 //   datum: the level corrected values are referred to; default = mean of the bases' medians.
 //   timeShiftSec: added to every rover time before the lookup (a rover clock in UTC against a base in local time).
 export function diurnalCorrect(times, raw, bases, { datum = null, maxGapSec = 60, timeShiftSec = 0 } = {}) {
-  if (!bases.length) throw new Error("Load at least one base-station file.");
+  if (!bases.length) throw new Error(tr("Load at least one base-station file."));
   const level = Number.isFinite(datum) ? datum : bases.reduce((s, b) => s + b.median, 0) / bases.length;
   const order = times.map((_, i) => i).filter((i) => Number.isFinite(times[i])).sort((a, b) => times[a] - times[b]);
   const cursors = bases.map(() => ({ i: 0 }));
@@ -149,5 +150,5 @@ export function diurnalSummaryText(res, roverCount) {
     res.gaps ? `${res.gaps.toLocaleString("en-US")} in a base gap over a minute` : "",
     res.noTime ? `${res.noTime.toLocaleString("en-US")} without a time` : "",
   ].filter(Boolean).join(", ");
-  return `Diurnal-corrected ${res.used.toLocaleString("en-US")} of ${roverCount.toLocaleString("en-US")} reading(s) against ${b}; datum ${res.datum.toFixed(1)} nT, largest correction ${(-res.maxDev).toFixed(1)} nT.${left ? ` Not corrected (left out of the corrected channel): ${left}.` : ""}`;
+  return tr("Diurnal-corrected {used} of {roverCount} reading(s) against {b}; datum {datum} nT, largest correction {v} nT.{v2}", { used: res.used.toLocaleString("en-US"), roverCount: roverCount.toLocaleString("en-US"), b, datum: res.datum.toFixed(1), v: (-res.maxDev).toFixed(1), v2: left ? tr(" Not corrected (left out of the corrected channel): {left}.", { left }) : "" });
 }

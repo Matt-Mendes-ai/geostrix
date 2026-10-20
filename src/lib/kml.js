@@ -10,6 +10,7 @@
 // (and counted, so the caller can say so).
 import { readZipEntries } from "./shapefile.js";
 import { reprojectXY } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const decode = (s) => String(s ?? "")
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -73,7 +74,7 @@ export function parseKML(text) {
 export async function parseKMZ(bytes) {
   const entries = await readZipEntries(bytes, /\.kml$/i);
   const names = Object.keys(entries).filter((n) => entries[n] && /\.kml$/i.test(n));
-  if (!names.length) throw new Error("No .kml document found inside this .kmz.");
+  if (!names.length) throw new Error(tr("No .kml document found inside this .kmz."));
   const main = names.find((n) => /(^|\/)doc\.kml$/i.test(n)) || names[0];
   return parseKML(new TextDecoder().decode(entries[main]));
 }

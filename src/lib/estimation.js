@@ -19,6 +19,7 @@ export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
 import { valueIn } from "./geochem.js";
 import { experimentalVariogram, fitVariogramModel, suggestLagDistance, variogramModelValue } from "./variogram.js"; // #709
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Squared distance below which a query point counts as sitting ON a sample: every non-nearest-neighbour
 // method here is an EXACT interpolator, i.e. it must return the sample's own value at the sample's
@@ -118,7 +119,7 @@ function resolveVariogram(pts, given, cellSize) {
   const lag = suggestLagDistance(pts) || cellSize?.dx || 10;
   const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: 12 });
   const fit = fitVariogramModel(ev.bins, { model });
-  if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them.");
+  if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error(tr("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them."));
   return { model, nugget: Math.min(Math.max(0, fit.nugget), fit.sill), sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2) };
 }
 
@@ -218,7 +219,7 @@ function gridDims(bounds, cellSize, maxBlocks = MAX_BLOCKS) {
   const nz = Math.max(1, Math.round((bounds.zmax - bounds.zmin) / dz));
   const totalBlocks = nx * ny * nz;
   if (totalBlocks > limit) {
-    throw new Error(`Block grid would be ${totalBlocks.toLocaleString()} blocks (${nx}×${ny}×${nz}) — over the ${limit.toLocaleString()}-block limit kept for a responsive in-app estimation pass. Use a larger cell size or a smaller extent.`);
+    throw new Error(tr("Block grid would be {totalBlocks} blocks ({nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size or a smaller extent.", { totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz, limit: limit.toLocaleString() }));
   }
   return { dx, dy, dz, nx, ny, nz, totalBlocks };
 }

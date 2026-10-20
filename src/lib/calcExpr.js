@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #344 — a small expression compiler for the field calculator (and anything else that needs user
 // formulas, e.g. calculated assay columns, #401). It replaces `new Function(...columns, "return (" + expr + ")")`,
 // which checked only the identifiers in the EXPRESSION and then passed every COLUMN NAME in as a function
@@ -36,17 +37,17 @@ function tokenize(src) {
     if (/\s/.test(c)) { i++; continue; }
     if (/[0-9.]/.test(c)) {
       const m = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/.exec(src.slice(i));
-      if (!m) throw new Error(`Bad number at position ${i + 1}.`);
+      if (!m) throw new Error(tr("Bad number at position {v}.", { v: i + 1 }));
       tokens.push({ t: "num", v: Number(m[0]) }); i += m[0].length; continue;
     }
     if (c === "'" || c === '"') {
       const end = src.indexOf(c, i + 1);
-      if (end < 0) throw new Error(`Text started at position ${i + 1} is never closed with ${c}.`);
+      if (end < 0) throw new Error(tr("Text started at position {v} is never closed with {c}.", { v: i + 1, c }));
       tokens.push({ t: "str", v: src.slice(i + 1, end) }); i = end + 1; continue;
     }
     if (c === "[") {
       const end = src.indexOf("]", i + 1);
-      if (end < 0) throw new Error(`"[" at position ${i + 1} has no closing "]".`);
+      if (end < 0) throw new Error(tr("\"[\" at position {v} has no closing \"]\".", { v: i + 1 }));
       tokens.push({ t: "qname", v: src.slice(i + 1, end) }); i = end + 1; continue;
     }
     if (/[A-Za-z_]/.test(c)) {
@@ -59,7 +60,7 @@ function tokenize(src) {
     if (["<=", ">=", "==", "!=", "<>", "&&", "||"].includes(two)) { tokens.push({ t: two === "&&" ? "and" : two === "||" ? "or" : two === "==" ? "=" : two === "<>" ? "!=" : two }); i += 2; continue; }
     if ("<>=!".includes(c)) { tokens.push({ t: c === "!" ? "not" : c }); i++; continue; }
     if ("+-*/%^(),".includes(c)) { tokens.push({ t: c }); i++; continue; }
-    throw new Error(`"${c}" isn't allowed — use numbers, 'text', column names (or [Column name]), + - * / % ^ ( ), comparisons, and / or / not, if() and the listed functions.`);
+    throw new Error(tr("\"{c}\" isn't allowed — use numbers, 'text', column names (or [Column name]), + - * / % ^ ( ), comparisons, and / or / not, if() and the listed functions.", { c }));
   }
   return tokens;
 }
@@ -77,10 +78,10 @@ const isBlank = (v) => v == null || v === "" || (typeof v === "number" && !Numbe
 export function compileCalc(expr, columns, { allowText = false } = {}) {
   const colSet = new Set(columns);
   const tokens = tokenize(String(expr ?? ""));
-  if (!tokens.length) throw new Error("Enter an expression.");
+  if (!tokens.length) throw new Error(tr("Enter an expression."));
   let p = 0;
   const peek = () => tokens[p];
-  const eat = (t) => { if (tokens[p]?.t !== t) throw new Error(`Expected "${t}".`); p++; };
+  const eat = (t) => { if (tokens[p]?.t !== t) throw new Error(tr("Expected \"{t}\".", { t })); p++; };
 
   function parseOr() { let n = parseAnd(); while (peek()?.t === "or") { p++; n = { op: "or", a: n, b: parseAnd() }; } return n; }
   function parseAnd() { let n = parseNot(); while (peek()?.t === "and") { p++; n = { op: "and", a: n, b: parseNot() }; } return n; }
@@ -112,16 +113,16 @@ export function compileCalc(expr, columns, { allowText = false } = {}) {
   }
   function parsePrimary() {
     const tok = tokens[p];
-    if (!tok) throw new Error("The expression ends too early.");
+    if (!tok) throw new Error(tr("The expression ends too early."));
     if (tok.t === "num") { p++; return { num: tok.v }; }
     if (tok.t === "str") {
-      if (!allowText) throw new Error("Text values ('…') can't be used here — this formula must give a number.");
+      if (!allowText) throw new Error(tr("Text values ('…') can't be used here — this formula must give a number."));
       p++; return { str: tok.v };
     }
     if (tok.t === "(") { p++; const e = parseOr(); eat(")"); return e; }
     if (tok.t === "qname") {
       p++;
-      if (!colSet.has(tok.v)) throw new Error(`Unknown column [${tok.v}] — columns: ${columns.join(", ") || "none"}.`);
+      if (!colSet.has(tok.v)) throw new Error(tr("Unknown column [{v}] — columns: {v2}.", { v: tok.v, v2: columns.join(", ") || "none" }));
       return { col: tok.v };
     }
     if (tok.t === "name") {
@@ -129,25 +130,25 @@ export function compileCalc(expr, columns, { allowText = false } = {}) {
       if (peek() && peek().t === "(") {
         const fname = tok.v.toLowerCase();
         const special = SPECIAL.includes(fname);
-        if (!special && !Object.prototype.hasOwnProperty.call(CALC_FUNCTIONS, tok.v)) throw new Error(`Unknown function "${tok.v}" — available: if, ${Object.keys(CALC_FUNCTIONS).join(", ")}.`);
+        if (!special && !Object.prototype.hasOwnProperty.call(CALC_FUNCTIONS, tok.v)) throw new Error(tr("Unknown function \"{v}\" — available: if, {v2}.", { v: tok.v, v2: Object.keys(CALC_FUNCTIONS).join(", ") }));
         p++;
         const args = [];
         if (peek() && peek().t !== ")") { args.push(parseOr()); while (peek() && peek().t === ",") { p++; args.push(parseOr()); } }
         eat(")");
         if (fname === "if") {
-          if (args.length !== 3) throw new Error("if() takes three parts: if(condition, value if true, value if false).");
+          if (args.length !== 3) throw new Error(tr("if() takes three parts: if(condition, value if true, value if false)."));
           return { iff: args };
         }
         return { fn: tok.v, args };
       }
-      if (!colSet.has(tok.v)) throw new Error(`Unknown name "${tok.v}" — must be a column (${columns.join(", ") || "none"}; use [Column name] for names with spaces or symbols) or a listed function.`);
+      if (!colSet.has(tok.v)) throw new Error(tr("Unknown name \"{v}\" — must be a column ({v2}; use [Column name] for names with spaces or symbols) or a listed function.", { v: tok.v, v2: columns.join(", ") || "none" }));
       return { col: tok.v };
     }
-    throw new Error(`Unexpected "${tok.t}".`);
+    throw new Error(tr("Unexpected \"{t}\".", { t: tok.t }));
   }
 
   const ast = parseOr();
-  if (p !== tokens.length) { const t = tokens[p]; throw new Error(`Unexpected "${t.t === "name" || t.t === "num" || t.t === "str" ? t.v : t.t}" after the end of the expression.`); }
+  if (p !== tokens.length) { const t = tokens[p]; throw new Error(tr("Unexpected \"{v}\" after the end of the expression.", { v: t.t === "name" || t.t === "num" || t.t === "str" ? t.v : t.t })); }
 
   // comparison of two values: both numeric -> numeric; otherwise as text (case-insensitive, trimmed). Unknown (null)
   // when either side is blank.
@@ -183,7 +184,7 @@ export function compileCalc(expr, columns, { allowText = false } = {}) {
       case "/": return a / toNum(val(n.b, row));
       case "%": return a % toNum(val(n.b, row));
       case "^": return Math.pow(a, toNum(val(n.b, row)));
-      default: throw new Error("Bad expression.");
+      default: throw new Error(tr("Bad expression."));
     }
   };
   if (allowText) return (row) => { const v = val(ast, row || {}); return isBlank(v) ? null : v; };

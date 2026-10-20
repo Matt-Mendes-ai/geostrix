@@ -20,6 +20,7 @@
 import Papa from "papaparse";
 import { parseAssayValue, isElementColumn } from "./geochem.js";
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export function isLabCertificateText(text) {
   const head = String(text || "").slice(0, 20000);
@@ -162,7 +163,7 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
     const ore = ranks.filter(([sym]) => sym === "Au" || sym === "Cu").map(([, r]) => r);
     if (med <= blankRank && ore.every((r) => r <= 0.25)) {
       const show = ranks.slice(0, 4).map(([s]) => `${s} ${c.v[s]}`).join(", ");
-      out.set(c.id, { sample_id: c.id, type: "blank", reason: `Pathfinders at the bottom of the drill samples (median percentile ${Math.round(med * 100)}): ${show}` });
+      out.set(c.id, { sample_id: c.id, type: "blank", reason: tr("Pathfinders at the bottom of the drill samples (median percentile {v}): {show}", { v: Math.round(med * 100), show }) });
     }
   }
   // 2. duplicates FIRST: an insert within ~30 % of a drill sample just before / after it in the numbering. (Checked
@@ -183,7 +184,7 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
       if (d.p.n < c.p.n && (!before || d.p.n > before.d.p.n)) before = { d, dist }; // the nearest sample BEFORE it
     }
     if (before) best = before; // a field duplicate follows its original: prefer that one when it matches at all
-    if (best) out.set(c.id, { sample_id: c.id, type: "duplicate", parent_id: best.d.id, strong: tol <= strongDuplicateTol, reason: `Within ~${Math.round((10 ** best.dist - 1) * 100)} % of ${best.d.id} (median over its elements) — a duplicate of that sample` });
+    if (best) out.set(c.id, { sample_id: c.id, type: "duplicate", parent_id: best.d.id, strong: tol <= strongDuplicateTol, reason: tr("Within ~{v} % of {id} (median over its elements) — a duplicate of that sample", { v: Math.round((10 ** best.dist - 1) * 100), id: best.d.id }) });
   }
   };
   markDuplicates(strongDuplicateTol); // a close match (~10 %) first; looser ones only after the standards (step 3b)
@@ -207,12 +208,12 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
   const medRank = (v) => { const r = PATHFINDERS.filter((x) => v[x] !== undefined && sorted[x]).map((x) => rank(x, v[x])).sort((a, b) => a - b); return r.length >= 3 ? r[Math.floor(r.length / 2)] : 1; };
   const oreLow = (v) => ["Au", "Cu"].every((x) => v[x] === undefined || !sorted[x] || rank(x, v[x]) <= 0.5);
   const blankGroups = multi.filter((g) => medRank(g.centre) <= blankRank && oreLow(g.centre));
-  blankGroups.forEach((g) => g.members.forEach((c) => out.set(c.id, { sample_id: c.id, type: "blank", reason: `One of ${g.members.length} inserts with the same LOW signature (median percentile ${Math.round(medRank(g.centre) * 100)} of the drill samples${g.centre.Cu != null ? `, Cu ≈ ${g.centre.Cu}` : ""}) — blank material` })));
+  blankGroups.forEach((g) => g.members.forEach((c) => out.set(c.id, { sample_id: c.id, type: "blank", reason: tr("One of {members} inserts with the same LOW signature (median percentile {v} of the drill samples{v2}) — blank material", { members: g.members.length, v: Math.round(medRank(g.centre) * 100), v2: g.centre.Cu != null ? tr(", Cu ≈ {Cu}", { Cu: g.centre.Cu }) : "" }) })));
   multi.filter((g) => !blankGroups.includes(g)).forEach((g, k) => {
     const code = `CRM-${String.fromCharCode(65 + (k % 26))}${k >= 26 ? Math.floor(k / 26) : ""}`;
     const cu = g.centre.Cu, au = g.centre.Au;
     const sig = [cu != null ? `Cu ≈ ${cu}` : null, au != null ? `Au ≈ ${au}` : null].filter(Boolean).join(", ");
-    g.members.forEach((c) => out.set(c.id, { sample_id: c.id, type: "standard", qc_code: code, reason: `Same multi-element signature as ${g.members.length - 1} other insert(s)${sig ? ` (${sig})` : ""} — one reference material` }));
+    g.members.forEach((c) => out.set(c.id, { sample_id: c.id, type: "standard", qc_code: code, reason: tr("Same multi-element signature as {v} other insert(s){v2} — one reference material", { v: g.members.length - 1, v2: sig ? ` (${sig})` : "" }) }));
   });
   // 3b. looser duplicates (up to ~30 %) among what is left — after the standards, so a standard that happens to
   //     resemble a nearby high-grade sample (Woodjam L690330: ~21 % from L690328) stays a standard
@@ -245,12 +246,12 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
         const [type, n] = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
         if (tot < 5 || n / tot < 0.9 || r?.type === type) continue;
         if (type === "duplicate") continue; // a duplicate needs its own original: the pattern cannot supply one
-        const was = r ? `its own match was weak (${r.type === "duplicate" ? `~${r.reason.match(/~(\d+) %/)?.[1] ?? "?"} % from ${r.parent_id}` : "none"})` : "no match of its own";
-        out.set(c.id, { sample_id: c.id, type, ...(type === "standard" ? { qc_code: `Unknown (${c.id})` } : {}), reason: `Sits in a ${type} slot of the insertion pattern (every ${bestP.P} numbers: ${n} of ${tot} inserts in this slot are ${type}s); ${was}${type === "standard" ? " — a reference material used only here: name it if you know it" : ""}` });
+        const was = r ? tr("its own match was weak ({m})", { m: r.type === "duplicate" ? `~${r.reason.match(/~(\d+) %/)?.[1] ?? "?"} % — ${r.parent_id}` : tr("none") }) : tr("no match of its own"); // #786: every translation of the duplicate reason keeps "~{v} %"
+        out.set(c.id, { sample_id: c.id, type, ...(type === "standard" ? { qc_code: `Unknown (${c.id})` } : {}), reason: tr("Sits in a {type} slot of the insertion pattern (every {P} numbers: {n} of {tot} inserts in this slot are of type {type}); {was}{v}", { type, P: bestP.P, n, tot, was, v: type === "standard" ? tr(" — a reference material used only here: name it if you know it") : "" }) });
       }
     }
   }
-  return cand.map((c) => (out.get(c.id) ? (({ strong, ...r }) => r)(out.get(c.id)) : null) || { sample_id: c.id, type: "unclassified", reason: "No clear match: not low enough for a blank, no repeated signature, no close neighbour — decide from the lab's QC list" });
+  return cand.map((c) => (out.get(c.id) ? (({ strong, ...r }) => r)(out.get(c.id)) : null) || { sample_id: c.id, type: "unclassified", reason: tr("No clear match: not low enough for a blank, no repeated signature, no close neighbour — decide from the lab's QC list") });
 }
 
 // Where an accepted QC row sits in the drillhole data: a duplicate on its parent's interval; a standard or blank

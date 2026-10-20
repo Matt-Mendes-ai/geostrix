@@ -6,6 +6,7 @@ import { parseShapefileZip, buildZip, readZipEntries, prjWktFor } from "./shapef
 import { guessEpsgFromPrjWkt, pointTransform, crsName, getProj4DefSync, reprojectGrid } from "./reproject.js";
 import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
 import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // zipBytes -> { layers: [{ name, epsg (from its .prj, or null), features, geomType }] }
 export async function readShapefileLayers(zipBytes) {
@@ -31,7 +32,7 @@ export async function readShapefileLayers(zipBytes) {
 export function reprojectShpBytes(shpBytes, T) {
   const shp = new Uint8Array(shpBytes); // a copy
   const dv = new DataView(shp.buffer, shp.byteOffset, shp.byteLength);
-  if (shp.length < 100 || dv.getInt32(0, false) !== 9994) throw new Error("Not a shapefile .shp (bad file code).");
+  if (shp.length < 100 || dv.getInt32(0, false) !== 9994) throw new Error(tr("Not a shapefile .shp (bad file code)."));
   let records = 0, vertices = 0, failed = 0, unsupported = 0;
   let fx0 = Infinity, fy0 = Infinity, fx1 = -Infinity, fy1 = -Infinity;
   // moves n points starting at byte `at`; returns the bbox of the (moved) points
@@ -87,7 +88,7 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
   const entries = await readZipEntries(zipBytes);
   const names = Object.keys(entries);
   const bases = [...new Set(names.filter((n) => /\.shp$/i.test(n)).map((n) => n.replace(/\.shp$/i, "")))];
-  if (!bases.length) throw new Error("No .shp file found inside this .zip.");
+  if (!bases.length) throw new Error(tr("No .shp file found inside this .zip."));
   const entry = (base, ext) => { const k = names.find((n) => n.toLowerCase() === `${base}.${ext}`.toLowerCase()); return k && entries[k] ? { name: k, data: entries[k] } : null; };
   const wkt = prjWktFor(toEpsg);
   const files = [], report = [];
@@ -95,9 +96,9 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
     const prj = entry(base, "prj");
     const epsg = prj ? guessEpsgFromPrjWkt(new TextDecoder().decode(prj.data)) : null;
     const from = fromEpsg ? Number(fromEpsg) : epsg;
-    if (!from) throw new Error(`"${base}" has ${prj ? "a .prj GeoStrix doesn't recognise" : "no .prj"} — choose its CRS under "From".`);
+    if (!from) throw new Error(tr(prj ? "\"{base}\" has a .prj GeoStrix doesn't recognise — choose its CRS under \"From\"." : "\"{base}\" has no .prj — choose its CRS under \"From\".", { base }));
     const T = pointTransform(from, toEpsg);
-    if (!T) throw new Error(`Can't convert from EPSG:${from} to EPSG:${toEpsg}.`);
+    if (!T) throw new Error(tr("Can't convert from EPSG:{from} to EPSG:{toEpsg}.", { from, toEpsg }));
     const r = reprojectShpBytes(entry(base, "shp").data, T);
     files.push({ name: `${base}.shp`, data: r.shp }, { name: `${base}.shx`, data: shxFor(r.shp, entry(base, "shx")?.data) });
     for (const ext of ["dbf", "cpg", "qml"]) { const e = entry(base, ext); if (e) files.push({ name: e.name, data: e.data }); }
@@ -112,7 +113,7 @@ export function reportShapefileText(report, toEpsg) {
   const lines = report.map((r) => `${r.name}: ${r.features.toLocaleString()} feature(s), ${r.vertices.toLocaleString()} vertices from ${crsName(r.from) || `EPSG:${r.from}`}`
     + (r.failed ? `; ${r.failed} vertices could not be converted and were kept as they were` : "")
     + (r.unsupported ? `; ${r.unsupported} record(s) of a shape type GeoStrix doesn't know were copied unchanged` : ""));
-  return `Saved ${report.length} layer(s) in ${crsName(toEpsg) || `EPSG:${toEpsg}`}, each with a new .prj. Only the coordinates changed: shape types, Z / M, parts and the attribute table (.dbf, field types and encoding) are as they were. ${lines.join(". ")}.`;
+  return tr("Saved {report} layer(s) in {v}, each with a new .prj. Only the coordinates changed: shape types, Z / M, parts and the attribute table (.dbf, field types and encoding) are as they were. {lines}.", { report: report.length, v: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), lines: lines.join(". ") });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -140,12 +141,12 @@ export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
   const info = await readGeoTiffInfo(buf);
   const { image, width: w, height: h, bands: nb } = info;
   const from = fromEpsg ? Number(fromEpsg) : info.epsg;
-  if (!from) throw new Error('This GeoTIFF has no EPSG code in its tags — choose its CRS under "From".');
+  if (!from) throw new Error(tr("This GeoTIFF has no EPSG code in its tags — choose its CRS under \"From\"."));
   const fromDef = getProj4DefSync(from), toDef = getProj4DefSync(toEpsg);
-  if (!fromDef || !toDef) throw new Error(`Can't convert from EPSG:${from} to EPSG:${toEpsg}.`);
-  if (w * h * nb > GEOTIFF_REPROJECT_MAX_SAMPLES) throw new Error(`This GeoTIFF is ${w.toLocaleString()} × ${h.toLocaleString()} × ${nb} band(s) — over the ${(GEOTIFF_REPROJECT_MAX_SAMPLES / 1e6).toFixed(0)} million-value limit for reprojecting in GeoStrix. Use QGIS / gdalwarp for a file this size.`);
+  if (!fromDef || !toDef) throw new Error(tr("Can't convert from EPSG:{from} to EPSG:{toEpsg}.", { from, toEpsg }));
+  if (w * h * nb > GEOTIFF_REPROJECT_MAX_SAMPLES) throw new Error(tr("This GeoTIFF is {w} × {h} × {nb} band(s) — over the {v} million-value limit for reprojecting in GeoStrix. Use QGIS / gdalwarp for a file this size.", { w: w.toLocaleString(), h: h.toLocaleString(), nb, v: (GEOTIFF_REPROJECT_MAX_SAMPLES / 1e6).toFixed(0) }));
   let nodes;
-  try { nodes = demNodeBbox(image); } catch (err) { if (/rotated or sheared/.test(err.message)) throw err; throw new Error("This GeoTIFF has no georeferencing (bounding box)."); } // #560
+  try { nodes = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; throw new Error(tr("This GeoTIFF has no georeferencing (bounding box).")); } // #560; #786 — matched by code: the message is translated
   const [xmin, ymin, xmax, ymax] = nodes;
   const src = await image.readRasters(); // one typed array per band
   const Ctor = src[0].constructor;
@@ -197,6 +198,6 @@ export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
 
 export function reportGeoTiffText(r, toEpsg) {
   const size = r.geographic ? `${(r.pixel * 3600).toFixed(2)} arc-second` : `${r.pixel.toFixed(2)} m`;
-  return `Saved a ${r.outW.toLocaleString()} × ${r.outH.toLocaleString()} GeoTIFF (${r.bands} band${r.bands > 1 ? "s" : ""}, ${size} pixels, ${r.resampling} resampling) in ${crsName(toEpsg) || `EPSG:${toEpsg}`}, from ${crsName(r.from) || `EPSG:${r.from}`} (${r.width.toLocaleString()} × ${r.height.toLocaleString()}).`
-    + (r.emptyFraction > 0.001 ? ` ${(r.emptyFraction * 100).toFixed(1)}% of it lies outside the original footprint (the corners of the new rectangle) and is nodata.` : "");
+  return tr("Saved a {outW} × {outH} GeoTIFF ({bands} band(s), {size} pixels, {resampling} resampling) in {v2}, from {v3} ({width} × {height}).", { outW: r.outW.toLocaleString(), outH: r.outH.toLocaleString(), bands: r.bands, size, resampling: r.resampling, v2: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), v3: crsName(r.from) || tr("EPSG:{from}", { from: r.from }), width: r.width.toLocaleString(), height: r.height.toLocaleString() })
+    + (r.emptyFraction > 0.001 ? tr(" {v}% of it lies outside the original footprint (the corners of the new rectangle) and is nodata.", { v: (r.emptyFraction * 100).toFixed(1) }) : "");
 }

@@ -12,6 +12,7 @@ import { tensorFromCells } from "./modelExport.js";
 import { valueColumnName } from "./blockModelExport.js"; // TASKS.csv #529
 import { SUPPORT_CODES } from "./estimation.js";
 import { NOT_A_RESOURCE } from "./provenance.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const MAGIC = [0x84, 0x83, 0x82, 0x81];
 const iso = () => new Date().toISOString().replace(/\.\d+Z$/, "Z");
@@ -73,7 +74,7 @@ export async function writeOMF({ name = "GeoStrix export", description = "", ele
       objects[gid] = { ...stamp(), origin: [0, 0, 0], vertices: v, segments: sgm, __class__: "LineSetGeometry" };
       const data = []; for (const d of el.data || []) data.push(await addData(d, "segments"));
       objects[id] = { ...stamp(), name: el.name, description: el.description || "", data, color, subtype: "line", geometry: gid, __class__: "LineSetElement" };
-    } else throw new Error(`Unknown OMF element type "${el.type}".`);
+    } else throw new Error(tr("Unknown OMF element type \"{type}\".", { type: el.type }));
     elementIds.push(id);
   }
   const pid = uuid();

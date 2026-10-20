@@ -6,6 +6,7 @@
 // model's range: beyond it the prediction is the prior). The ground is the project's terrain where it covers
 // the block, otherwise a surface through the collar elevations (inverse distance, nearest 8).
 import { sampleTerrainElevation } from "./viewer/geomath.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export function makeGround({ terrain, collars }) {
   const cz = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z));
@@ -99,7 +100,7 @@ export function checkBlocks(blocks, fields) {
   const n = blocks?.x?.length;
   const bad = !(Number.isFinite(blocks?.cell) && blocks.cell > 0) || !Number.isInteger(n)
     || ["y", "z", ...fields].some((f) => blocks[f]?.length !== n);
-  if (bad) throw new Error(`the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, ${fields.join(", ")} of equal length) — update GeoStrix or the add-on.`);
+  if (bad) throw new Error(tr("the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, {fields} of equal length) — update GeoStrix or the add-on.", { fields: fields.join(", ") }));
   return n;
 }
 export const blockPoints = (b) => Array.from(b.x, (x, i) => ({ x, y: b.y[i], z: b.z[i] }));

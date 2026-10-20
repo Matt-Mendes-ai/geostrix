@@ -35,6 +35,7 @@
 
 import { MAX_CELLS, planCoarsenFactors, maskAirCells } from "./voxel.js";
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const MAGIC = [0x84, 0x83, 0x82, 0x81];
 const VERSION_PREFIX = "OMF-v0.9.0";
@@ -231,7 +232,7 @@ async function convertSurface(fileBytes, project, el) {
   const geom = get(project, geomUuid, "geometry");
   const geomCls = attr(geom, "__class__");
   if (geomCls === "SurfaceGridGeometry") {
-    return { kind: "skipped", reason: "grid-based surface (SurfaceGridGeometry) — not implemented, only triangulated surfaces are; the geometry itself doesn't carry per-node elevation the way a triangulated mesh's vertices do, and needs separate handling" };
+    return { kind: "skipped", reason: tr("grid-based surface (SurfaceGridGeometry) — not implemented, only triangulated surfaces are; the geometry itself doesn't carry per-node elevation the way a triangulated mesh's vertices do, and needs separate handling") };
   }
   if (geomCls !== "SurfaceGeometry") throw new InvalidOMFFile(`Unsupported surface geometry "${geomCls}".`);
   const origin = attr(geom, "origin", false) || [0, 0, 0];
@@ -267,7 +268,7 @@ async function convertElement(fileBytes, project, elementUuid) {
     else if (cls === "LineSetElement") converted = await convertLineSet(fileBytes, project, el);
     else if (cls === "SurfaceElement") converted = await convertSurface(fileBytes, project, el);
     else if (cls === "VolumeElement") converted = await convertVolume(fileBytes, project, el);
-    else return { name, description, kind: "skipped", reason: `unrecognized element class "${cls}"` };
+    else return { name, description, kind: "skipped", reason: tr("unrecognized element class \"{cls}\"", { cls }) };
   } catch (err) {
     return { name, description, kind: "skipped", reason: err.message };
   }

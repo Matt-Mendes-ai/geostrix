@@ -6,6 +6,7 @@
 // field containing a comma or quote. Pure (no DOM, no Electron): unit-tested in Node.
 import Papa from "papaparse";
 import { normalizeCommaDecimals } from "./numberLocale.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Bytes -> text. UTF-8 first (BOM stripped); if that produced replacement characters, the file was not
 // UTF-8 — almost always an Excel export on Windows (Windows-1252: degree signs, accented names).
@@ -175,7 +176,7 @@ export function rowsFromColumns({ headers, cols, n, errors }) {
 // worker can't start, the file is read on this thread as before.
 const WORKER_MIN_BYTES = 2_000_000;
 const encodingNote = (out, encoding) => {
-  if (encoding !== "utf-8") out.note = `${out.note ? `${out.note} ` : ""}Read as Windows-1252 (the file is not UTF-8 — typical of an Excel export).`.trim();
+  if (encoding !== "utf-8") out.note = tr("{v}Read as Windows-1252 (the file is not UTF-8 — typical of an Excel export).", { v: out.note ? `${out.note} ` : "" }).trim();
   return { ...out, encoding };
 };
 function parseInWorker(buf, opts) {
@@ -187,9 +188,9 @@ function parseInWorker(buf, opts) {
       const d = e.data || {};
       if (d.type === "columns") resolve(encodingNote(rowsFromColumns(d.raw), d.encoding));
       else if (d.type === "rows") resolve(encodingNote(d.out, d.encoding));
-      else reject(new Error(d.message || "The file reader stopped."));
+      else reject(new Error(d.message || tr("The file reader stopped.")));
     };
-    worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || "worker failed")); };
+    worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || tr("worker failed"))); };
     worker.postMessage({ buf, opts }, [buf]);
   });
 }

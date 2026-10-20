@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #635 — per-layer 3D style (Matt: "the option to edit the styles of each layer, colour, size, type
 // (circle, plane, cylinder), etc"). A style is a small override saved in the project's view state
 // (viewerUiState.layerStyles[key]); anything not set falls back to the layer's built-in look, so an untouched
@@ -63,6 +64,6 @@ export function describeLayerStyle(style, kind) {
   if (c.shape) parts.push((SHAPES[kind] || []).find((x) => x.id === c.shape)?.label || c.shape);
   if (c.size) parts.push(`×${+c.size.toFixed(2)}`);
   if (c.opacity != null) parts.push(`${Math.round(c.opacity * 100)}%`);
-  if (c.color) parts.push("one colour");
+  if (c.color) parts.push(tr("one colour"));
   return parts.join(" · ");
 }

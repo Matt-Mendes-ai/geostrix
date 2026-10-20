@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #623 — LONG-format assay exports: one row per sample per element (analyte + value + units, often a
 // method / analysis_code and a flag), as a database query gives them. Matt's Treaty Creek export (SELECT … FROM
 // analysis_geochem JOIN …, 62,518 rows: hole_id, from, to, sample_id, analysis_code, samp_type, analyte, units,
@@ -115,12 +116,12 @@ export function pivotLongAssays(rows, headers, unitOfSymbol = () => "ppm", symbo
 export function longAssayNote(rep) {
   const methods = [...rep.methods.entries()].map(([sym, m]) => `${sym} ${[...m.keys()].join(" / ")}`).join("; ");
   return [
-    `Long format (one row per element): ${rep.rows.toLocaleString()} rows → ${rep.samples.toLocaleString()} samples.`,
-    methods ? `Methods: ${methods}; every sample is kept, whichever method measured it.` : null,
-    rep.overReplaced ? `${rep.overReplaced} over-range result(s) replaced by the sample's ore-grade re-assay.` : null,
-    rep.overKept ? `${rep.overKept} over-range result(s) with no re-assay kept as '>limit'.` : null,
-    rep.reruns ? `${rep.reruns} lab re-run(s) not used (the original result is kept; re-runs are a QC check).` : null,
-    rep.conflicts ? `${rep.conflicts} sample(s) with two different methods for one element: the first in the file is used.` : null,
-    rep.unknownAnalyte ? `${rep.unknownAnalyte} row(s) with an analyte that is not an element were skipped.` : null,
+    tr("Long format (one row per element): {rows} rows → {samples} samples.", { rows: rep.rows.toLocaleString(), samples: rep.samples.toLocaleString() }),
+    methods ? tr("Methods: {methods}; every sample is kept, whichever method measured it.", { methods }) : null,
+    rep.overReplaced ? tr("{overReplaced} over-range result(s) replaced by the sample's ore-grade re-assay.", { overReplaced: rep.overReplaced }) : null,
+    rep.overKept ? tr("{overKept} over-range result(s) with no re-assay kept as '>limit'.", { overKept: rep.overKept }) : null,
+    rep.reruns ? tr("{reruns} lab re-run(s) not used (the original result is kept; re-runs are a QC check).", { reruns: rep.reruns }) : null,
+    rep.conflicts ? tr("{conflicts} sample(s) with two different methods for one element: the first in the file is used.", { conflicts: rep.conflicts }) : null,
+    rep.unknownAnalyte ? tr("{unknownAnalyte} row(s) with an analyte that is not an element were skipped.", { unknownAnalyte: rep.unknownAnalyte }) : null,
   ].filter(Boolean).join(" ");
 }

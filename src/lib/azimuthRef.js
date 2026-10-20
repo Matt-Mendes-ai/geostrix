@@ -20,6 +20,7 @@ let igrf = null;
 export const setIgrfModule = (mod) => { igrf = mod; };
 export const loadIgrf = () => (igrf ? Promise.resolve(igrf) : import("./igrf.js").then((m) => (igrf = m)));
 import { trueNorthBearingInGridDeg } from "./inversion.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export const AZIMUTH_REFS = {
   grid: "Grid north (the project's grid, or the grid of the CRS given here)",
@@ -36,7 +37,7 @@ export function azimuthToGridOffset(ref, x, y, epsg, isoDate) {
   if (convergence == null || !Number.isFinite(convergence)) return null;
   if (ref === "true") return { offset: convergence, convergence };
   if (ref === "magnetic") {
-    if (!igrf) throw new Error("azimuthToGridOffset: magnetic north needs loadIgrf() first");
+    if (!igrf) throw new Error(tr("azimuthToGridOffset: magnetic north needs loadIgrf() first"));
     const year = igrf.decimalYear(String(isoDate || ""));
     if (!Number.isFinite(year)) return null;
     const ll = reprojectXY(x, y, epsg, 4326);
@@ -74,7 +75,7 @@ export function bearingsToGrid(rows, ref, epsg, isoDate) {
 // "magnetic north (IGRF-14 at 2021-06-19: declination +16.9°, grid convergence -1.2°)" for notices
 export function northRefText(ref, isoDate, example) {
   const s = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}°`;
-  if (ref === "magnetic") return `magnetic north (IGRF-14 at ${isoDate}${example ? `: declination ${s(example.declination)}, grid convergence ${s(example.convergence)}` : ""})`;
-  if (ref === "true") return `true north${example ? ` (grid convergence ${s(example.convergence)})` : ""}`;
-  return "grid north";
+  if (ref === "magnetic") return tr("magnetic north (IGRF-14 at {isoDate}{v})", { isoDate, v: example ? tr(": declination {v}, grid convergence {v2}", { v: s(example.declination), v2: s(example.convergence) }) : "" });
+  if (ref === "true") return tr("true north{v}", { v: example ? tr(" (grid convergence {v})", { v: s(example.convergence) }) : "" });
+  return tr("grid north");
 }

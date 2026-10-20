@@ -1,4 +1,5 @@
 import { getCol } from "./layers.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // TASKS.csv #27/#28 — voxel / block model import + shared rendering data prep.
 //
@@ -46,11 +47,11 @@ const COARSEN_NODATA_SENTINEL = -1e30; // below NODATA_MAX, so a coarse cell wit
 export function parseUBCMesh(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length && !l.startsWith("!"));
   if (lines.length < 5) {
-    throw new Error("Not a recognizable UBC mesh file — expected at least 5 non-comment lines (dimensions, origin, then X/Y/Z cell-width lists). Only the plain tensor-mesh format is supported, not OcTree/unstructured UBC variants.");
+    throw new Error(tr("Not a recognizable UBC mesh file — expected at least 5 non-comment lines (dimensions, origin, then X/Y/Z cell-width lists). Only the plain tensor-mesh format is supported, not OcTree/unstructured UBC variants."));
   }
   const [nx, ny, nz] = lines[0].split(/\s+/).map(Number);
   if (![nx, ny, nz].every((v) => Number.isInteger(v) && v > 0)) {
-    throw new Error(`Bad mesh dimensions on line 1: "${lines[0]}" — expected "NX NY NZ".`);
+    throw new Error(tr("Bad mesh dimensions on line 1: \"{v}\" — expected \"NX NY NZ\".", { v: lines[0] }));
   }
   // TASKS.csv follow-up (user report, real UBC inversion mesh — 41,841,072 cells): this used to hard-
   // reject anything over MAX_CELLS with no path forward except re-exporting a coarser mesh from
@@ -59,7 +60,7 @@ export function parseUBCMesh(text) {
   // mesh down to fit instead of refusing it outright — see coarsenUBCModel below. This function stays
   // a pure structural parser; it no longer enforces MAX_CELLS itself.
   const [x0, y0, z0] = lines[1].split(/\s+/).map(Number);
-  if (![x0, y0, z0].every(Number.isFinite)) throw new Error(`Bad mesh origin on line 2: "${lines[1]}" — expected "X0 Y0 Z0".`);
+  if (![x0, y0, z0].every(Number.isFinite)) throw new Error(tr("Bad mesh origin on line 2: \"{v}\" — expected \"X0 Y0 Z0\".", { v: lines[1] }));
 
   const allTokens = lines.slice(2).join(" ").split(/\s+/).filter(Boolean);
   let cursor = 0;
@@ -83,7 +84,7 @@ export function parseUBCMesh(text) {
   };
   const dx = takeWidths(nx), dy = takeWidths(ny), dz = takeWidths(nz);
   if (dx.length !== nx || dy.length !== ny || dz.length !== nz) {
-    throw new Error(`Could not read ${nx}+${ny}+${nz} cell widths from the file (got ${dx.length}/${dy.length}/${dz.length}) — the mesh may use a UBC variant this parser doesn't support.`);
+    throw new Error(tr("Could not read {nx}+{ny}+{nz} cell widths from the file (got {dx}/{dy}/{dz}) — the mesh may use a UBC variant this parser doesn't support.", { nx, ny, nz, dx: dx.length, dy: dy.length, dz: dz.length }));
   }
   return { nx, ny, nz, x0, y0, z0, dx, dy, dz };
 }
@@ -134,13 +135,13 @@ export function parseUBCModel(text, mesh) {
     throw new Error(mismatchMessage(values.length, expected, mesh, 0));
   }
   if (values.some((v) => !Number.isFinite(v))) {
-    throw new Error("Model file contains a non-numeric token — check for a stray header/footer line.");
+    throw new Error(tr("Model file contains a non-numeric token — check for a stray header/footer line."));
   }
   return reorderUBCValues(values, mesh.nx, mesh.ny, mesh.nz); // see reorderUBCValues — file order is z-fastest(from bottom)/then-x/then-y; this returns the x-fastest/then-z/then-y order the rest of this module expects
 }
 
 function mismatchMessage(gotCount, expected, mesh, fileSize) {
-  let msg = `Model file has ${gotCount.toLocaleString()} value(s) but the mesh expects ${expected.toLocaleString()} (${mesh.nx}×${mesh.ny}×${mesh.nz}) — this model doesn't match the selected mesh.`;
+  let msg = tr("Model file has {gotCount} value(s) but the mesh expects {expected} ({nx}×{ny}×{nz}) — this model doesn't match the selected mesh.", { gotCount: gotCount.toLocaleString(), expected: expected.toLocaleString(), nx: mesh.nx, ny: mesh.ny, nz: mesh.nz });
   // User report (real 622MB UBC model file, on a OneDrive-synced folder): parseUBCModel came back with
   // 0 values even though the file's own listed size was correct (600MB+). A file this large that reads
   // as completely empty content, despite having a real non-zero size on disk, is a strong signal the
@@ -148,7 +149,7 @@ function mismatchMessage(gotCount, expected, mesh, fileSize) {
   // "Files On-Demand" placeholder (OneDrive/Dropbox/Google Drive) that hasn't actually been downloaded
   // to this machine yet, so the local read returns nothing even though Explorer shows the real size.
   if (gotCount === 0 && fileSize > 1024 * 1024) {
-    msg += ` The file itself is ${(fileSize / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 0 })} MB, so getting 0 values back usually means the read itself failed rather than the file being empty — if this file lives in OneDrive/Dropbox/Google Drive, it may be a "cloud-only" placeholder that hasn't actually downloaded to this machine yet. Right-click it and choose "Always keep on this device" (or the equivalent for your sync tool), wait for the download to finish, then try importing again.`;
+    msg += tr(" The file itself is {v} MB, so getting 0 values back usually means the read itself failed rather than the file being empty — if this file lives in OneDrive/Dropbox/Google Drive, it may be a \"cloud-only\" placeholder that hasn't actually downloaded to this machine yet. Right-click it and choose \"Always keep on this device\" (or the equivalent for your sync tool), wait for the download to finish, then try importing again.", { v: (fileSize / (1024 * 1024)).toLocaleString(undefined, { maximumFractionDigits: 0 }) });
   }
   return msg;
 }
@@ -194,7 +195,7 @@ export async function parseUBCModelStream(file, mesh, onProgress) {
     throw new Error(mismatchMessage(count, expected, mesh, file.size || 0));
   }
   for (let i = 0; i < expected; i++) {
-    if (!Number.isFinite(values[i])) throw new Error("Model file contains a non-numeric token — check for a stray header/footer line.");
+    if (!Number.isFinite(values[i])) throw new Error(tr("Model file contains a non-numeric token — check for a stray header/footer line."));
   }
   // See reorderUBCValues (above parseUBCModel) — same file-order-to-canonical-order fix (#170), applied
   // here too so a large streamed model is reordered identically to a small synchronously-read one.
@@ -306,7 +307,7 @@ export function parseBlockModelCSV(rows) {
   // eventual cells.length (bad rows only ever shrink that count, never grow it), so checking it FIRST
   // rejects an oversized file near-instantly instead of after fully processing it for nothing.
   if (rows.length > MAX_CELLS) {
-    throw new Error(`CSV has ${rows.length.toLocaleString()} row(s) — over GeoStrix's ${MAX_CELLS.toLocaleString()}-cell import limit (kept low enough to stay responsive in the 3D view).`);
+    throw new Error(tr("CSV has {rows} row(s) — over GeoStrix's {MAX_CELLS}-cell import limit (kept low enough to stay responsive in the 3D view).", { rows: rows.length.toLocaleString(), MAX_CELLS: MAX_CELLS.toLocaleString() }));
   }
   const parsed = rows.map((r) => ({
     x: Number(getCol(r, ["x", "xc", "centroid_x", "easting", "east"])),

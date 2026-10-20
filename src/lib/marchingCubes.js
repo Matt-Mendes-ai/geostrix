@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #142 — marching cubes isosurface extraction from a dense regular scalar grid. This is the
 // standard Lorensen & Cline (1987) algorithm using the public-domain 256-case lookup tables as
 // published by Paul Bourke ("Polygonising a scalar field") — the same tables every open isosurface
@@ -111,10 +112,10 @@ export function marchingCubes(values, nx, ny, nz, isoLevel, opts = {}) {
   // accepts {x,y,z} or estimateDenseGrid's own {dx,dy,dz} cellSize object directly
   const sp = opts.spacing || {};
   const spacing = { x: sp.x ?? sp.dx ?? 1, y: sp.y ?? sp.dy ?? 1, z: sp.z ?? sp.dz ?? 1 };
-  if (![spacing.x, spacing.y, spacing.z, origin.x, origin.y, origin.z].every(Number.isFinite)) throw new Error("marchingCubes: origin/spacing must be finite numbers");
+  if (![spacing.x, spacing.y, spacing.z, origin.x, origin.y, origin.z].every(Number.isFinite)) throw new Error(tr("marchingCubes: origin/spacing must be finite numbers"));
   const closeOutside = opts.noData === "outside";
   if (!(nx >= 1 && ny >= 1 && nz >= 1)) return { vertices: [], faces: [], skippedCubes: 0 };
-  if (!Number.isFinite(isoLevel)) throw new Error("marchingCubes: isoLevel must be a finite number");
+  if (!Number.isFinite(isoLevel)) throw new Error(tr("marchingCubes: isoLevel must be a finite number"));
 
   // In "outside" mode a virtual one-node no-data shell wraps the grid so a shell that reaches the grid
   // boundary still closes; the grid lookup returns NaN off-grid and the corner-value substitution below

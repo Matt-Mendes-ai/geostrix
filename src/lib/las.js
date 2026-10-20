@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #492 — LAS (Log ASCII Standard, CWLS) downhole log import. Written from the public LAS 2.0 specification
 // (clean room: nothing taken from any other implementation). A LAS file is turned into an ordinary table —
 // hole_id, depth (m) and one column per curve — and handed to the normal import dialog, so a curve becomes a
@@ -50,10 +51,10 @@ export function parseLAS(text, fileName = "file.las") {
   }
   const get = (sec, m) => sections[sec].find((h) => h.mnem.toUpperCase() === m);
   const vers = get("V", "VERS")?.data || "";
-  if (/^3/.test(vers)) throw new Error(`${fileName} is LAS ${vers}. GeoStrix reads LAS 1.2 and 2.0; save it as LAS 2.0 from the logging software (or from Python lasio).`);
-  if (dataStart < 0) throw new Error(`${fileName} has no ~A (data) section — not a LAS file GeoStrix can read.`);
+  if (/^3/.test(vers)) throw new Error(tr("{fileName} is LAS {vers}. GeoStrix reads LAS 1.2 and 2.0; save it as LAS 2.0 from the logging software (or from Python lasio).", { fileName, vers }));
+  if (dataStart < 0) throw new Error(tr("{fileName} has no ~A (data) section — not a LAS file GeoStrix can read.", { fileName }));
   const curves = sections.C.map((h) => ({ mnem: h.mnem, unit: h.unit, desc: h.desc }));
-  if (curves.length < 2) throw new Error(`${fileName} lists ${curves.length} curve(s) in ~C; a log needs the depth curve and at least one more.`);
+  if (curves.length < 2) throw new Error(tr("{fileName} lists {curves} curve(s) in ~C; a log needs the depth curve and at least one more.", { fileName, curves: curves.length }));
   const wrapped = /^y/i.test(get("V", "WRAP")?.data || "");
 
   const nullDecl = get("W", "NULL");
@@ -71,7 +72,7 @@ export function parseLAS(text, fileName = "file.las") {
   const n = curves.length;
   const records = Math.floor(tokens.length / n);
   const leftover = tokens.length - records * n;
-  if (!records) throw new Error(`${fileName}: the ~A section has no complete data records.`);
+  if (!records) throw new Error(tr("{fileName}: the ~A section has no complete data records.", { fileName }));
 
   const depthFeet = isFeet(curves[0].unit) || (!curves[0].unit && isFeet(get("W", "STRT")?.unit));
   const holeId = (get("W", "WELL")?.data || get("W", "UWI")?.data || fileName.replace(/\.las$/i, "")).trim();
@@ -95,10 +96,10 @@ export function parseLAS(text, fileName = "file.las") {
   }
   const headers = ["hole_id", "depth", ...names];
   const unitList = curves.slice(1).map((c, i) => `${names[i]}${c.unit ? ` (${c.unit})` : ""}`).join(", ");
-  const note = ` LAS ${vers || "?"}${wrapped ? " (wrapped)" : ""}: well "${holeId}", ${rows.length.toLocaleString("en-US")} depth readings ${rows.length ? `${rows[0].depth}–${rows[rows.length - 1].depth} m` : ""}${depthFeet ? " (converted from feet)" : ""}; curves ${unitList}.`
-    + (nullVal != null ? ` NULL ${nullVal}: ${nulls.toLocaleString("en-US")} value(s) left blank.` : ` No NULL value declared — ${COMMON_NULLS.join(" / ")} read as missing (${nulls} value(s)).`)
-    + (bad ? ` ${bad} record(s) without a usable depth were skipped.` : "")
-    + (leftover ? ` ${leftover} trailing value(s) didn't make a full record and were ignored.` : "")
-    + ` Map the curve you want to a layer (Mag. susceptibility takes point depths; any curve can go to a Custom layer). The hole id comes from the file's WELL field — it must match a collar.`;
+  const note = tr(" LAS {v}{v2}: well \"{holeId}\", {rows} depth readings {v3}{v4}; curves {unitList}.", { v: vers || "?", v2: wrapped ? " (wrapped)" : "", holeId, rows: rows.length.toLocaleString("en-US"), v3: rows.length ? `${rows[0].depth}–${rows[rows.length - 1].depth} m` : "", v4: depthFeet ? tr(" (converted from feet)") : "", unitList })
+    + (nullVal != null ? tr(" NULL {nullVal}: {nulls} value(s) left blank.", { nullVal, nulls: nulls.toLocaleString("en-US") }) : tr(" No NULL value declared — {COMMON_NULLS} read as missing ({nulls} value(s)).", { COMMON_NULLS: COMMON_NULLS.join(" / "), nulls }))
+    + (bad ? tr(" {bad} record(s) without a usable depth were skipped.", { bad }) : "")
+    + (leftover ? tr(" {leftover} trailing value(s) didn't make a full record and were ignored.", { leftover }) : "")
+    + tr(" Map the curve you want to a layer (Mag. susceptibility takes point depths; any curve can go to a Custom layer). The hole id comes from the file's WELL field — it must match a collar.");
   return { rows, headers, note, well: holeId, curves, version: vers, wrapped, nullValue: nullVal, depthFeet };
 }

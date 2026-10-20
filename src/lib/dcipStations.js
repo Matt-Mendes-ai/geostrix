@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #602 — DC/IP line stations: place the line and take the ground profile from the contractor's station /
 // GPS file instead of only a terrain grid or one flat elevation.
 //
@@ -76,7 +77,7 @@ export function parseStationFile(text, name = "This file") {
   const lines = String(text).split(/\r\n|\r|\n/);
   let res = lines.some((l) => /^W\s/.test(l.trim())) ? parseGpsUtility(lines) : null;
   if (!res || !res.stations.length) res = parseTable(lines) || res;
-  if (!res || !res.stations.length) throw new Error(`${name} has no line stations GeoStrix can read (expected GPS waypoints named "<line> <station>", or a table with station, X and Y columns).`);
+  if (!res || !res.stations.length) throw new Error(tr("{name} has no line stations GeoStrix can read (expected GPS waypoints named \"<line> <station>\", or a table with station, X and Y columns).", { name }));
   const byLine = {};
   for (const st of res.stations) (byLine[st.line] ||= []).push(st);
   for (const k of Object.keys(byLine)) {

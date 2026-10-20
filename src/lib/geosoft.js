@@ -7,6 +7,7 @@
 // "what real exported files actually look like".
 
 import { parseClock } from "./diurnal.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // ---------------------------------------------------------------------------------------------
 // .ply — Geosoft boundary/polygon format. Real samples show two shapes: (1) an optional block of
@@ -46,7 +47,7 @@ export function parsePLYBoundary(text) {
   }
   const usable = polylines.filter((p) => p.length > 1);
   if (!usable.length) {
-    throw new Error("No usable boundary vertices found — expected whitespace-separated \"X Y\" lines (Geosoft .ply format).");
+    throw new Error(tr("No usable boundary vertices found — expected whitespace-separated \"X Y\" lines (Geosoft .ply format)."));
   }
   return { meta, polylines: usable };
 }
@@ -122,7 +123,7 @@ export function parseXYZ(text) {
     }
     rows.push(row);
   }
-  if (!columns) throw new Error("No column header line found — expected a \"/\"-prefixed header row (Geosoft .xyz format).");
-  if (!rows.length) throw new Error("No data rows found in this .xyz file.");
+  if (!columns) throw new Error(tr("No column header line found — expected a \"/\"-prefixed header row (Geosoft .xyz format)."));
+  if (!rows.length) throw new Error(tr("No data rows found in this .xyz file."));
   return { columns, rows };
 }

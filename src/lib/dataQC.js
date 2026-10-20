@@ -16,6 +16,7 @@ import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
 import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #558
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -32,21 +33,21 @@ function validateCollars(collars) {
   collars.forEach((c) => {
     const id = c.hole_id || "(blank)";
     seenIds.set(id, (seenIds.get(id) || 0) + 1);
-    if (!c.hole_id) pushIssue(issues, "error", "Collars", null, "A collar row has no hole ID.");
+    if (!c.hole_id) pushIssue(issues, "error", "Collars", null, tr("A collar row has no hole ID."));
     if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(c.z)) {
-      pushIssue(issues, "error", "Collars", id, "Missing or non-numeric X/Y/Z — this hole cannot be positioned at all.");
+      pushIssue(issues, "error", "Collars", id, tr("Missing or non-numeric X/Y/Z — this hole cannot be positioned at all."));
     }
     // Azimuth/dip are optional on a collar (only used as a straight-hole fallback when no survey
     // exists for this hole) — checked properly in validateSurveyAndTrajectory below, where the
     // fallback actually gets applied, not here.
     if (c.azimuth != null && Number.isFinite(c.azimuth) && (c.azimuth < 0 || c.azimuth >= 360)) {
-      pushIssue(issues, "warning", "Collars", id, `Collar azimuth ${c.azimuth}° is outside 0–360°.`);
+      pushIssue(issues, "warning", "Collars", id, tr("Collar azimuth {azimuth}° is outside 0–360°.", { azimuth: c.azimuth }));
     }
     if (c.dip != null && Number.isFinite(c.dip) && (c.dip < -90 || c.dip > 90)) {
-      pushIssue(issues, "warning", "Collars", id, `Collar dip ${c.dip}° is outside -90–90°.`);
+      pushIssue(issues, "warning", "Collars", id, tr("Collar dip {dip}° is outside -90–90°.", { dip: c.dip }));
     }
     if (c.length != null && Number.isFinite(c.length) && c.length <= 0) {
-      pushIssue(issues, "warning", "Collars", id, `Collar hole length ${c.length} is zero or negative.`);
+      pushIssue(issues, "warning", "Collars", id, tr("Collar hole length {c} is zero or negative.", { c: c.length }));
     }
     if (Number.isFinite(c.x) && Number.isFinite(c.y)) {
       const key = `${Math.round(c.x)},${Math.round(c.y)}`;
@@ -56,11 +57,11 @@ function validateCollars(collars) {
     }
   });
   seenIds.forEach((count, id) => {
-    if (count > 1) pushIssue(issues, "warning", "Collars", id, `Hole ID "${id}" appears ${count} times in collars — duplicate import, or a genuine re-drill sharing a name?`);
+    if (count > 1) pushIssue(issues, "warning", "Collars", id, tr("Hole ID \"{id}\" appears {count} times in collars — duplicate import, or a genuine re-drill sharing a name?", { id, count }));
   });
   seenCoords.forEach((ids, key) => {
     const unique = Array.from(new Set(ids));
-    if (unique.length > 1) pushIssue(issues, "warning", "Collars", null, `${unique.length} holes (${unique.join(", ")}) share essentially the same collar location (within 1m) — check for a duplicate import or a coordinate entry error.`);
+    if (unique.length > 1) pushIssue(issues, "warning", "Collars", null, tr("{unique} holes ({unique2}) share essentially the same collar location (within 1m) — check for a duplicate import or a coordinate entry error.", { unique: unique.length, unique2: unique.join(", ") }));
   });
   return issues;
 }
@@ -75,10 +76,10 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
     byHole.get(s.hole_id).push(s);
   });
   survey.forEach((s) => {
-    if (!collarIds.has(s.hole_id)) pushIssue(issues, "error", "Survey", s.hole_id, `Survey row references hole "${s.hole_id}", which has no matching collar — this hole cannot be desurveyed and won't render.${didYouMean(collarIds, s.hole_id)}`);
-    if (!Number.isFinite(s.depth) || s.depth < 0) pushIssue(issues, "error", "Survey", s.hole_id, `Survey station has an invalid depth (${s.depth}).`);
-    if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey azimuth ${s.azimuth}° is outside 0–360° @ ${s.depth}m.`);
-    if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey dip ${s.dip}° is outside -90–90° @ ${s.depth}m.`);
+    if (!collarIds.has(s.hole_id)) pushIssue(issues, "error", "Survey", s.hole_id, tr("Survey row references hole \"{hole_id}\", which has no matching collar — this hole cannot be desurveyed and won't render.{v}", { hole_id: s.hole_id, v: didYouMean(collarIds, s.hole_id) }));
+    if (!Number.isFinite(s.depth) || s.depth < 0) pushIssue(issues, "error", "Survey", s.hole_id, tr("Survey station has an invalid depth ({depth}).", { depth: s.depth }));
+    if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey azimuth {azimuth}° is outside 0–360° @ {depth}m.", { azimuth: s.azimuth, depth: s.depth }));
+    if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey dip {dip}° is outside -90–90° @ {depth}m.", { dip: s.dip, depth: s.depth }));
   });
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   byHole.forEach((stations, holeId) => {
@@ -90,11 +91,11 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
     const eoh = lengthOf.get(holeId), last = sorted.length ? sorted[sorted.length - 1].depth : NaN;
     const gap = eoh - last;
     if (Number.isFinite(eoh) && Number.isFinite(last) && (gap > 30 || (gap > 15 && gap > 0.2 * eoh))) {
-      pushIssue(issues, "warning", "Survey", holeId, `The survey ends at ${+last.toFixed(1)} m, ${+(eoh - last).toFixed(1)} m above the end of the hole (${+eoh.toFixed(1)} m, ${Math.round((100 * (eoh - last)) / eoh)}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.`);
+      pushIssue(issues, "warning", "Survey", holeId, tr("The survey ends at {v} m, {v2} m above the end of the hole ({v3} m, {v4}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.", { v: +last.toFixed(1), v2: +(eoh - last).toFixed(1), v3: +eoh.toFixed(1), v4: Math.round((100 * (eoh - last)) / eoh) }));
     }
     // Duplicate-depth stations.
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i].depth === sorted[i - 1].depth) pushIssue(issues, "warning", "Survey", holeId, `Two survey stations at the same depth (${sorted[i].depth}m) — only one will be used.`);
+      if (sorted[i].depth === sorted[i - 1].depth) pushIssue(issues, "warning", "Survey", holeId, tr("Two survey stations at the same depth ({depth}m) — only one will be used.", { depth: sorted[i].depth }));
     }
     // TASKS.csv #545 — dogleg severity (°/30 m), the check Micromine and most packages use, replacing separate
     // azimuth (>45°) and dip (>30°) jumps that ignored both inclination and interval length: a gyro-surveyed hole
@@ -114,7 +115,7 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
       // tie-in readings) turned instrument noise into 15-25°/30 m "errors" on the real 41597Z and Copley surveys
       const dls = (dl * 30) / Math.max(dMD, 10);
       if (dl >= 1 && dls > doglegWarn) {
-        pushIssue(issues, dls > doglegError ? "error" : "warning", "Survey", holeId, `Dogleg ${dl.toFixed(1)}° over ${dMD.toFixed(1)} m between ${a.depth} m and ${b.depth} m (${dls.toFixed(1)}°/30 m${dMD < 10 ? ", rated over 10 m" : ""}, over ${dls > doglegError ? doglegError : doglegWarn}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).`);
+        pushIssue(issues, dls > doglegError ? "error" : "warning", "Survey", holeId, tr("Dogleg {dl}° over {dMD} m between {depth} m and {depth2} m ({dls}°/30 m{v}, over {v2}°/30 m) — check for a typo or a bad shot, or a real deflection (wedge).", { dl: dl.toFixed(1), dMD: dMD.toFixed(1), depth: a.depth, depth2: b.depth, dls: dls.toFixed(1), v: dMD < 10 ? tr(", rated over 10 m") : "", v2: dls > doglegError ? doglegError : doglegWarn }));
       }
     }
   });
@@ -123,11 +124,11 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   // stationsWithInclination): no collar azimuth/dip means the hole has NO trace at all (it and every
   // interval on it vanish from 3D, sections and modelling), and no length means it is drawn 300 m long.
   const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
-  untraceable.forEach((c) => pushIssue(issues, "error", "Survey", c.hole_id, "No survey rows and no collar azimuth/dip — this hole cannot be traced, so it and every interval, assay and pick on it are missing from the 3D view, sections and models."));
+  untraceable.forEach((c) => pushIssue(issues, "error", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — this hole cannot be traced, so it and every interval, assay and pick on it are missing from the 3D view, sections and models.")));
   const traceable = noSurvey.filter((c) => !untraceable.includes(c));
-  traceable.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, "No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file."));
+  traceable.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file.")));
   if (traceable.length) {
-    pushIssue(issues, "info", "Survey", null, `${traceable.length} hole(s) have no survey data — using the straight-hole fallback (collar azimuth/dip/length). Real deviation, if any, isn't captured for ${traceable.length === 1 ? "this hole" : "these holes"}.`);
+    pushIssue(issues, "info", "Survey", null, tr("{traceable} hole(s) have no survey data — using the straight-hole fallback (collar azimuth/dip/length). Real deviation, if any, isn't captured for {v}.", { traceable: traceable.length, v: traceable.length === 1 ? tr("this hole") : tr("these holes") }));
   }
   // TASKS.csv #339 — dips are stored as degrees BELOW horizontal (import flips a negative-down file), so a
   // stored negative dip draws the hole upward. Right for an underground up-hole; for surface drilling it
@@ -136,13 +137,13 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   const upward = new Set();
   byHole.forEach((stations, holeId) => { if (stations.some((s) => Number.isFinite(s.dip) && s.dip < 0)) upward.add(holeId); });
   traceable.forEach((c) => { if (c.dip < 0) upward.add(c.hole_id); });
-  upward.forEach((holeId) => pushIssue(issues, "warning", "Survey", holeId, "Points upward (a dip above horizontal). Correct for an underground up-hole; for surface drilling, re-import the survey/collars with the other dip sign convention."));
+  upward.forEach((holeId) => pushIssue(issues, "warning", "Survey", holeId, tr("Points upward (a dip above horizontal). Correct for an underground up-hole; for surface drilling, re-import the survey/collars with the other dip sign convention.")));
   // TASKS.csv #339 — a survey deeper than the collar's end-of-hole depth: one of the two is wrong.
   byHole.forEach((stations, holeId) => {
     const c = collarById.get(holeId);
     const maxDepth = arrMax(stations.map((s) => s.depth).filter(Number.isFinite));
     if (c && Number.isFinite(c.length) && c.length > 0 && maxDepth > c.length + 0.5) {
-      pushIssue(issues, "warning", "Survey", holeId, `Survey goes to ${maxDepth} m but the collar's end-of-hole depth is ${c.length} m — one of them is wrong.`);
+      pushIssue(issues, "warning", "Survey", holeId, tr("Survey goes to {maxDepth} m but the collar's end-of-hole depth is {c} m — one of them is wrong.", { maxDepth, c: c.length }));
     }
   });
   return issues;
@@ -171,15 +172,15 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
     if (Number.isFinite(L) && r.to > L + 0.5) pastEoh++;
   }
   const parts = [];
-  if (noTo) parts.push(`${noTo} with a blank or non-numeric from/to`);
-  if (swapped) parts.push(`${swapped} with from > to`);
-  if (negative) parts.push(`${negative} with a negative depth`);
-  if (pastEoh) parts.push(`${pastEoh} past the end of their hole`);
+  if (noTo) parts.push(tr("{noTo} with a blank or non-numeric from/to", { noTo }));
+  if (swapped) parts.push(tr("{swapped} with from > to", { swapped }));
+  if (negative) parts.push(tr("{negative} with a negative depth", { negative }));
+  if (pastEoh) parts.push(tr("{pastEoh} past the end of their hole", { pastEoh }));
   if (orphans.size) {
     const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
-    parts.push(`${orphans.size} hole id(s) with no collar (${ex.join("; ")}${orphans.size > 3 ? "; …" : ""})`);
+    parts.push(tr("{size} hole id(s) with no collar ({ex}{v})", { size: orphans.size, ex: ex.join("; "), v: orphans.size > 3 ? "; …" : "" }));
   }
-  return parts.length ? `Check these ${label}: ${parts.join(", ")}. They were imported as they are — Data QC lists each one.` : "";
+  return parts.length ? tr("Check these {label}: {parts}. They were imported as they are — Data QC lists each one.", { label, parts: parts.join(", ") }) : "";
 }
 
 function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true } = {}) {
@@ -188,13 +189,13 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
   rows.forEach((r) => {
     if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
     byHole.get(r.hole_id).push(r);
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Interval references hole "${r.hole_id}", which has no matching collar.${didYouMean(collarIds, r.hole_id)}`);
+    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: r.hole_id, v: didYouMean(collarIds, r.hole_id) }));
     if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) {
-      pushIssue(issues, "error", layerLabel, r.hole_id, `Interval has a non-numeric from/to (${r.from}–${r.to}).`);
+      pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval has a non-numeric from/to ({from}–{to}).", { from: r.from, to: r.to }));
     } else if (r.from > r.to) {
-      pushIssue(issues, "error", layerLabel, r.hole_id, `Interval from (${r.from}) is greater than to (${r.to}) — swapped or mis-entered.`);
+      pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval from ({from}) is greater than to ({to}) — swapped or mis-entered.", { from: r.from, to: r.to }));
     } else if (r.from === r.to) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, `Zero-length interval at ${r.from}m.`);
+      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Zero-length interval at {from}m.", { from: r.from }));
     }
     // TASKS.csv #285 (Micromine-specialist review) — survey rows have had a `depth < 0` ERROR check
     // since day one (see validateSurvey above), but interval and assay from/to depths never got the
@@ -204,13 +205,13 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     // another `else if` on the chain above: from=-5, to=-2 is perfectly self-consistent (from < to,
     // non-zero length), so it slips through every branch there and needs its own test.
     if (Number.isFinite(r.from) && Number.isFinite(r.to) && (r.from < 0 || r.to < 0)) {
-      pushIssue(issues, "error", layerLabel, r.hole_id, `Interval has a negative depth (${r.from}–${r.to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.`);
+      pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval has a negative depth ({from}–{to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.", { from: r.from, to: r.to }));
     }
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, `Interval to=${r.to}m extends past this hole's own recorded length/survey extent (~${maxDepth.toFixed(0)}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.`);
+      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
     }
-    if (!r.value || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, `Interval at ${Number.isFinite(r.from) ? r.from : "?"}–${Number.isFinite(r.to) ? r.to : "?"}m has no code/value.`);
+    if (!r.value || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
   });
   byHole.forEach((intervals, holeId) => {
     const sorted = [...intervals].filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
@@ -226,10 +227,10 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
       if (i > 0) {
         const prev = sorted[i - 1];
         if (cur.from < maxEnd - 0.01 && maxEndOwner) {
-          pushIssue(issues, "warning", layerLabel, holeId, `Overlapping intervals: ${maxEndOwner.from}–${maxEndOwner.to}m (${maxEndOwner.value}) and ${cur.from}–${cur.to}m (${cur.value}).`);
+          pushIssue(issues, "warning", layerLabel, holeId, tr("Overlapping intervals: {from}–{to}m ({value}) and {from2}–{to2}m ({value2}).", { from: maxEndOwner.from, to: maxEndOwner.to, value: maxEndOwner.value, from2: cur.from, to2: cur.to, value2: cur.value }));
         } else if (cur.from > prev.to + 0.01 && cur.from >= maxEnd - 0.01) {
           const gap = cur.from - prev.to;
-          if (gaps && gap > 1) pushIssue(issues, "info", layerLabel, holeId, `Gap of ${gap.toFixed(1)}m between ${prev.to}m and ${cur.from}m (unlogged interval).`);
+          if (gaps && gap > 1) pushIssue(issues, "info", layerLabel, holeId, tr("Gap of {gap}m between {to}m and {from}m (unlogged interval).", { gap: gap.toFixed(1), to: prev.to, from: cur.from }));
         }
       }
       if (cur.to > maxEnd) { maxEnd = cur.to; maxEndOwner = cur; }
@@ -238,7 +239,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     const seen = new Set();
     sorted.forEach((r) => {
       const key = `${r.from}|${r.to}|${r.value}`;
-      if (seen.has(key)) pushIssue(issues, "warning", layerLabel, holeId, `Duplicate interval ${r.from}–${r.to}m (${r.value}) — likely imported twice.`);
+      if (seen.has(key)) pushIssue(issues, "warning", layerLabel, holeId, tr("Duplicate interval {from}–{to}m ({value}) — likely imported twice.", { from: r.from, to: r.to, value: r.value }));
       seen.add(key);
     });
   });
@@ -249,12 +250,12 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
 function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
   const issues = [];
   rows.forEach((r) => {
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, `Point references hole "${r.hole_id}", which has no matching collar.${didYouMean(collarIds, r.hole_id)}`);
+    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Point references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: r.hole_id, v: didYouMean(collarIds, r.hole_id) }));
     const depth = r.depth ?? r.from;
-    if (!Number.isFinite(depth) || depth < 0) pushIssue(issues, "error", layerLabel, r.hole_id, `Point has an invalid depth (${depth}).`);
+    if (!Number.isFinite(depth) || depth < 0) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Point has an invalid depth ({depth}).", { depth }));
     const maxDepth = holeLengths.get(r.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(depth) && depth > maxDepth + 0.5) {
-      pushIssue(issues, "warning", layerLabel, r.hole_id, `Point at ${depth}m extends past this hole's own recorded length/survey extent (~${maxDepth.toFixed(0)}m).`);
+      pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Point at {depth}m extends past this hole's own recorded length/survey extent (~{maxDepth}m).", { depth, maxDepth: maxDepth.toFixed(0) }));
     }
   });
   return issues;
@@ -279,38 +280,38 @@ function validateAssays(assays, collarIds, holeLengths) {
     Object.keys(q).forEach((sym) => { if (q[sym] === ">") overRange.set(sym, (overRange.get(sym) || 0) + 1); });
   });
   overRange.forEach((count, sym) => {
-    pushIssue(issues, "warning", "Assays", null, `${count} ${sym} assay value${count === 1 ? " is" : "s are"} over-range (reported by the lab as ">x"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.`);
+    pushIssue(issues, "warning", "Assays", null, tr(count === 1 ? "{count} {sym} assay value is over-range (reported by the lab as \">x\"). It is a placeholder that needs a re-assay before any estimation — GeoStrix uses it at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on it is defensible." : "{count} {sym} assay values are over-range (reported by the lab as \">x\"). These are placeholders that need a re-assay before any estimation — GeoStrix uses them at exactly the detection ceiling x, which understates the true grade, and no cap or estimate built on them is defensible.", { count, sym }));
   });
   assays.forEach((a) => {
     if (isMarkedQcRow(a)) return; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
-    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval references hole "${a.hole_id}", which has no matching collar.${didYouMean(collarIds, a.hole_id)}`);
+    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: a.hole_id, v: didYouMean(collarIds, a.hole_id) }));
     if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) {
-      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval has a non-numeric from/to (${a.from}–${a.to}).`);
+      pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval has a non-numeric from/to ({from}–{to}).", { from: a.from, to: a.to }));
     } else if (a.from > a.to) {
-      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval from (${a.from}) is greater than to (${a.to}) — swapped or mis-entered.`);
+      pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval from ({from}) is greater than to ({to}) — swapped or mis-entered.", { from: a.from, to: a.to }));
     } else if (a.from === a.to) {
-      pushIssue(issues, "warning", "Assays", a.hole_id, `Zero-length assay interval at ${a.from}m.`);
+      pushIssue(issues, "warning", "Assays", a.hole_id, tr("Zero-length assay interval at {from}m.", { from: a.from }));
     }
     // TASKS.csv #285 — same negative-depth check as validateIntervalLayer above (and as survey depths
     // have always had); see that comment for why it can't be folded into the else-if chain.
     if (Number.isFinite(a.from) && Number.isFinite(a.to) && (a.from < 0 || a.to < 0)) {
-      pushIssue(issues, "error", "Assays", a.hole_id, `Assay interval has a negative depth (${a.from}–${a.to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.`);
+      pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval has a negative depth ({from}–{to}m) — downhole depths are measured from the collar and can't be below zero. Usually a sign flip or a stray minus.", { from: a.from, to: a.to }));
     }
     const maxDepth = holeLengths.get(a.hole_id);
     if (Number.isFinite(maxDepth) && Number.isFinite(a.to) && a.to > maxDepth + 0.5) {
-      pushIssue(issues, "warning", "Assays", a.hole_id, `Assay interval to=${a.to}m extends past this hole's own recorded length/survey extent (~${maxDepth.toFixed(0)}m).`);
+      pushIssue(issues, "warning", "Assays", a.hole_id, tr("Assay interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m).", { to: a.to, maxDepth: maxDepth.toFixed(0) }));
     }
     const values = a.values || {};
     const symbols = Object.keys(values);
     if (!symbols.length) {
-      pushIssue(issues, "info", "Assays", a.hole_id, `Assay interval at ${Number.isFinite(a.from) ? a.from : "?"}–${Number.isFinite(a.to) ? a.to : "?"}m has no element results.`);
+      pushIssue(issues, "info", "Assays", a.hole_id, tr("Assay interval at {v}–{v2}m has no element results.", { v: Number.isFinite(a.from) ? a.from : "?", v2: Number.isFinite(a.to) ? a.to : "?" }));
     } else {
       symbols.forEach((sym) => {
         const v = values[sym];
-        if (v != null && !Number.isFinite(v)) pushIssue(issues, "warning", "Assays", a.hole_id, `${sym} value "${v}" at ${a.from}–${a.to}m is not numeric.`);
-        else if (Number.isFinite(v) && v < 0) pushIssue(issues, "warning", "Assays", a.hole_id, `${sym} value ${v} at ${a.from}–${a.to}m is negative — assay results shouldn't be below zero.`);
+        if (v != null && !Number.isFinite(v)) pushIssue(issues, "warning", "Assays", a.hole_id, tr("{sym} value \"{v}\" at {from}–{to}m is not numeric.", { sym, v, from: a.from, to: a.to }));
+        else if (Number.isFinite(v) && v < 0) pushIssue(issues, "warning", "Assays", a.hole_id, tr("{sym} value {v} at {from}–{to}m is negative — assay results shouldn't be below zero.", { sym, v, from: a.from, to: a.to }));
       });
     }
   });
@@ -320,14 +321,14 @@ function validateAssays(assays, collarIds, holeLengths) {
     for (let i = 0; i < sorted.length; i++) {
       const cur = sorted[i];
       if (i > 0 && cur.from < maxEnd - 0.01 && maxEndOwner) {
-        pushIssue(issues, "warning", "Assays", holeId, `Overlapping assay intervals: ${maxEndOwner.from}–${maxEndOwner.to}m and ${cur.from}–${cur.to}m.`);
+        pushIssue(issues, "warning", "Assays", holeId, tr("Overlapping assay intervals: {from}–{to}m and {from2}–{to2}m.", { from: maxEndOwner.from, to: maxEndOwner.to, from2: cur.from, to2: cur.to }));
       }
       if (cur.to > maxEnd) { maxEnd = cur.to; maxEndOwner = cur; }
     }
     const seen = new Set();
     sorted.forEach((a) => {
       const key = `${a.from}|${a.to}`;
-      if (seen.has(key)) pushIssue(issues, "warning", "Assays", holeId, `Duplicate assay interval ${a.from}–${a.to}m — likely imported twice.`);
+      if (seen.has(key)) pushIssue(issues, "warning", "Assays", holeId, tr("Duplicate assay interval {from}–{to}m — likely imported twice.", { from: a.from, to: a.to }));
       seen.add(key);
     });
   });
@@ -337,7 +338,7 @@ function validateAssays(assays, collarIds, holeLengths) {
 // ---- Project-level ----
 function validateProject(project) {
   const issues = [];
-  if (!project?.epsg) pushIssue(issues, "warning", "Project", null, "No EPSG/CRS set for this project — collars/survey/rasters are assumed to already share one consistent CRS, but nothing here confirms it.");
+  if (!project?.epsg) pushIssue(issues, "warning", "Project", null, tr("No EPSG/CRS set for this project — collars/survey/rasters are assumed to already share one consistent CRS, but nothing here confirms it."));
   return issues;
 }
 
@@ -368,7 +369,7 @@ function checkRingTopology(pts, label, boundaryName, issues) {
   for (let i = 0; i < n; i++) {
     const a = pts[i], b = pts[(i + 1) % n];
     if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) {
-      pushIssue(issues, "warning", label, boundaryName, `Two consecutive vertices are at (near) the same point (~${a.x.toFixed(1)}, ${a.y.toFixed(1)}) — a zero-length edge.`);
+      pushIssue(issues, "warning", label, boundaryName, tr("Two consecutive vertices are at (near) the same point (~{x}, {y}) — a zero-length edge.", { x: a.x.toFixed(1), y: a.y.toFixed(1) }));
     }
   }
   for (let i = 0; i < n; i++) {
@@ -377,7 +378,7 @@ function checkRingTopology(pts, label, boundaryName, issues) {
       // always "touch", which isn't a self-intersection.
       if (j === i + 1 || (i === 0 && j === n - 1)) continue;
       if (segmentsIntersect(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) {
-        pushIssue(issues, "error", label, boundaryName, `Self-intersecting boundary — edge ${i + 1} crosses edge ${j + 1}. This will render as a bowtie/twisted shape and its area calculation will be wrong.`);
+        pushIssue(issues, "error", label, boundaryName, tr("Self-intersecting boundary — edge {v} crosses edge {v2}. This will render as a bowtie/twisted shape and its area calculation will be wrong.", { v: i + 1, v2: j + 1 }));
         return; // one reported crossing is enough to flag the ring as bad — avoids a wall of redundant messages for a badly-ordered vertex list
       }
     }
@@ -408,7 +409,7 @@ function validateBoundaryTopology(boundaries) {
       const aInB = (a.polylines || []).some((pts) => pts.some((p) => pointInBoundary(p.x, p.y, b.polylines)));
       const bInA = !aInB && (b.polylines || []).some((pts) => pts.some((p) => pointInBoundary(p.x, p.y, a.polylines)));
       if (aInB || bInA) {
-        pushIssue(issues, "warning", "Boundaries", null, `"${a.name}" and "${b.name}" appear to overlap — check whether this is intentional (e.g. a renewed claim) or a duplicate import.`);
+        pushIssue(issues, "warning", "Boundaries", null, tr("\"{name}\" and \"{name2}\" appear to overlap — check whether this is intentional (e.g. a renewed claim) or a duplicate import.", { name: a.name, name2: b.name }));
       }
     }
   }
@@ -443,8 +444,8 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   const med = abs[Math.floor(abs.length / 2)];
   const off = offs.filter((o) => Math.abs(o.dz) > threshold);
   const grid = terrain.source?.nodeM ? ` The terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
-  pushIssue(issues, "info", "Collar vs terrain", null, `${offs.length} collar(s) compared with the terrain "${terrain.name || "DEM"}": median difference ${med.toFixed(1)} m, ${off.length} over ${threshold} m.${grid}${off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? ` All ${off.length} are ${off[0].dz > 0 ? "above" : "below"} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?` : ""}`);
-  off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, `Collar elevation ${o.z.toFixed(1)} m is ${Math.abs(o.dz).toFixed(1)} m ${o.dz > 0 ? "above" : "below"} the terrain (${o.dem.toFixed(1)} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.`));
+  pushIssue(issues, "info", "Collar vs terrain", null, tr("{offs} collar(s) compared with the terrain \"{v}\": median difference {med} m, {off} over {threshold} m.{grid}{v2}", { offs: offs.length, v: terrain.name || "DEM", med: med.toFixed(1), off: off.length, threshold, grid, v2: off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? tr(" All {off} are {v} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?", { off: off.length, v: off[0].dz > 0 ? "above" : "below" }) : "" }));
+  off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, tr("Collar elevation {z} m is {v} m {v2} the terrain ({dem} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.", { z: o.z.toFixed(1), v: Math.abs(o.dz).toFixed(1), v2: o.dz > 0 ? "above" : "below", dem: o.dem.toFixed(1) })));
   return issues;
 }
 

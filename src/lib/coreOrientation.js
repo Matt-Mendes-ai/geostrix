@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv — "we need to find a way to calculate the beta angle for non-oriented drilling based on
 // field structural measurements." Implements the standard "alpha-beta method" for recovering a
 // structural pick's TRUE dip/dip-direction from non-oriented core: alpha (the acute angle between the
@@ -144,7 +145,7 @@ export function solveUnoriented({ holeDir, refLine, knownDipDirDeg, knownDipDeg,
   const refNearPerpendicular = calcRef.alphaDeg > 85 || refAlphaDeg > 85;
   const unkNearPerpendicular = unkAlphaDeg > 85;
   if (calcRef.betaDeg == null || refBetaDeg == null || unkBetaDeg == null) {
-    return { ok: false, reason: "One of the reference/unknown structures is ~perpendicular to the hole axis — its intersection with the core is a circle, so beta (and therefore the true orientation) can't be recovered from it." };
+    return { ok: false, reason: tr("One of the reference/unknown structures is ~perpendicular to the hole axis — its intersection with the core is a circle, so beta (and therefore the true orientation) can't be recovered from it.") };
   }
   let gammaDeg = calcRef.betaDeg - refBetaDeg;
   gammaDeg = ((gammaDeg % 360) + 360) % 360;

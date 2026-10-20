@@ -9,6 +9,7 @@ import { omfToProjectObjects } from "./omfImport.js";
 import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export const WOODJAM_EPSG = 26910; // NAD83 / UTM zone 10N — the drillhole database's grid
 export const WOODJAM_TABLES = ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "sg.csv", "structure.csv"];
@@ -48,10 +49,10 @@ export function alignAssayUnits(rows, elements, existing = []) {
 // one IP line file + the parsed GPS station file → a saved DC/IP line ({ name, readings, rho, ip, line, opts })
 export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
   const w = parseDcipWhitespaceText(datText);
-  if (!w) throw new Error(`${name}: not a recognised IP data file`);
+  if (!w) throw new Error(tr("{name}: not a recognised IP data file", { name }));
   const m = guessDcipColumns(w.headers);
   const p = m.a && m.m && m.rho ? parseDcipRows(w.rows, m) : null;
-  if (!p?.readings.length) throw new Error(`${name}: no readings`);
+  if (!p?.readings.length) throw new Error(tr("{name}: no readings", { name }));
   const line = { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null, positions: "horizontal" };
   const key = matchStationLine(Object.keys(stationFile.lines), name);
   if (key != null) {
@@ -80,8 +81,8 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
     const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements); // #722
     store.setAssays((prev) => mergeAssayRows(prev || [], rows).rows);
     store.setAssayElements((prev) => { const m = new Map((prev || []).map((e) => [e.symbol, e])); elements.forEach((e) => { if (!m.has(e.symbol)) m.set(e.symbol, e); }); return Array.from(m.values()); });
-    notes.push(`Woodjam assays: ${rows.length.toLocaleString()} samples, ${elements.length} elements (ALS four-acid ICP-MS; Cu above 10,000 ppm from the ore-grade re-assay) — in the Geochem tab.${converted.length ? ` Converted to the units this project already uses: ${converted.map((c) => `${c.symbol} ${c.from} -> ${c.to}`).join(", ")}.` : ""}`);
-  } catch (e) { notes.push(`Woodjam assays could not be loaded: ${e.message}`); }
+    notes.push(tr("Woodjam assays: {rows} samples, {elements} elements (ALS four-acid ICP-MS; Cu above 10,000 ppm from the ore-grade re-assay) — in the Geochem tab.{v}", { rows: rows.length.toLocaleString(), elements: elements.length, v: converted.length ? tr(" Converted to the units this project already uses: {v}.", { v: converted.map((c) => `${c.symbol} ${c.from} -> ${c.to}`).join(", ") }) : "" }));
+  } catch (e) { notes.push(tr("Woodjam assays could not be loaded: {message}", { message: e.message })); }
   try {
     // the OMF holds two inversion iterations (m_03_01, m_05_03); m_05_03 is the final model (Matt, 2026-10-17)
     const res = await omfToProjectObjects(await (await readFile("ztem_inversion_2023.omf")).arrayBuffer(), maxCells, { attribute: "Woodjam_ZTEM_m_05_03" });
@@ -96,8 +97,8 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
       // would be 0.0002 ohm.m rock), so the property is set and the README says it is inferred from the values
       store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: p85, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
     });
-    notes.push(`Woodjam ZTEM: ${res.voxelModels.length} block model(s) from the 2023 3D inversion${res.notes.length ? ` (${res.notes.join(" ")})` : ""} — listed under Geophysics in the 3D View, showing its most conductive 15% (set the display range in the Geophysics tab to see the rest).`);
-  } catch (e) { notes.push(`The Woodjam ZTEM model could not be loaded: ${e.message}`); }
+    notes.push(tr("Woodjam ZTEM: {voxelModels} block model(s) from the 2023 3D inversion{v} — listed under Geophysics in the 3D View, showing its most conductive 15% (set the display range in the Geophysics tab to see the rest).", { voxelModels: res.voxelModels.length, v: res.notes.length ? ` (${res.notes.join(" ")})` : "" }));
+  } catch (e) { notes.push(tr("The Woodjam ZTEM model could not be loaded: {message}", { message: e.message })); }
   try {
     const gps = await readFile("ip/2357GPS_All.txt");
     const stationFile = { name: "2357GPS_All.txt", ...parseStationFile(await gps.text(), "2357GPS_All.txt") };
@@ -107,12 +108,12 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
       store.saveDcipLine(entry);
       placed.push(`${l}${entry.line.stations ? "" : " (not placed)"}`);
       const sc = Number(entry.line.scale);
-      if (sc && Math.abs(sc - 1) > 0.01) scaled.push(`${l} by ${Math.abs((1 / sc - 1) * 100).toFixed(1)}% (chaining scale ${sc.toFixed(3)}; the stations scatter ${entry.line.fitRmsM} m rms about the line)`);
+      if (sc && Math.abs(sc - 1) > 0.01) scaled.push(tr("{line} by {pct}% (chaining scale {scale}; the stations scatter {rms} m rms about the line)", { line: l, pct: Math.abs((1 / sc - 1) * 100).toFixed(1), scale: sc.toFixed(3), rms: entry.line.fitRmsM }));
     }
-    notes.push(`Woodjam IP: ${placed.length} pole-dipole lines (${placed.join(", ")}) kept in the project and placed from the GPS stations — open Geophysics › DC / IP to view or invert them.`);
+    notes.push(tr("Woodjam IP: {placed} pole-dipole lines ({placed2}) kept in the project and placed from the GPS stations — open Geophysics › DC / IP to view or invert them.", { placed: placed.length, placed2: placed.join(", ") }));
     // TASKS.csv #712 — said, not applied silently: the file's electrode distances on these lines are longer than the
     // ground between the GPS stations (slope chaining, most likely); the inversion uses the file's distances
-    if (scaled.length) notes.push(`Woodjam IP: the file's electrode distances are longer than the ground between the GPS stations on ${scaled.join("; ")} — probably chained along the slope. The inversion uses the file's distances; the 3D section is stretched to fit the stations.`);
-  } catch (e) { notes.push(`The Woodjam IP lines could not be loaded: ${e.message}`); }
+    if (scaled.length) notes.push(tr("Woodjam IP: the file's electrode distances are longer than the ground between the GPS stations on {scaled} — probably chained along the slope. The inversion uses the file's distances; the 3D section is stretched to fit the stations.", { scaled: scaled.join("; ") }));
+  } catch (e) { notes.push(tr("The Woodjam IP lines could not be loaded: {message}", { message: e.message })); }
   return notes;
 }

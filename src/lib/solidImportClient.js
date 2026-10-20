@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #414 — UI-thread side of solid import: parse the file in solidImport.worker.js so a large pit
 // shell / stope DXF (hundreds of MB, a million faces) never freezes the app. Kept apart from solidImport.js
 // because the worker itself imports that file.
@@ -28,7 +29,7 @@ export function parseSolidInWorker(file, onProgress) {
       e.preventDefault?.();
       worker.terminate();
       if (!heard) fallback();
-      else reject(new Error(e.message || "The solid import worker stopped unexpectedly."));
+      else reject(new Error(e.message || tr("The solid import worker stopped unexpectedly.")));
     };
     worker.postMessage({ file });
   });

@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #412 — legacy data on a LOCAL MINE GRID, and depths in FEET.
 //
 // Much pre-1990 BC data (ARIS assessment reports, old mine plans) is on a local grid — an arbitrary
@@ -16,7 +17,7 @@ export const FEET = 0.3048;
 // solved on coordinates centred at each set's mean (numerically stable at UTM magnitudes).
 export function fitSimilarity(pairs) {
   const P = (pairs || []).filter((p) => [p.lx, p.ly, p.wx, p.wy].every(Number.isFinite));
-  if (P.length < 2) throw new Error("Need at least two control points (local and project coordinates of the same place).");
+  if (P.length < 2) throw new Error(tr("Need at least two control points (local and project coordinates of the same place)."));
   const n = P.length;
   const mlx = P.reduce((s, p) => s + p.lx, 0) / n, mly = P.reduce((s, p) => s + p.ly, 0) / n;
   const mwx = P.reduce((s, p) => s + p.wx, 0) / n, mwy = P.reduce((s, p) => s + p.wy, 0) / n;
@@ -27,7 +28,7 @@ export function fitSimilarity(pairs) {
     num_a += x * u + y * v;
     num_b += x * v - y * u;
   });
-  if (!(sxx > 0)) throw new Error("The control points coincide on the local grid — they must be at different places.");
+  if (!(sxx > 0)) throw new Error(tr("The control points coincide on the local grid — they must be at different places."));
   const a = num_a / sxx, b = num_b / sxx;
   const t = { a, b, tx: mwx - (a * mlx - b * mly), ty: mwy - (b * mlx + a * mly) };
   const res = P.map((p) => { const w = applySimilarity(t, p.lx, p.ly); return Math.hypot(w.x - p.wx, w.y - p.wy); });

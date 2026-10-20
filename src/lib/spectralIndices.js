@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #783 — spectral indices from a multiband GeoTIFF (Matt, 2026-10-20, after the #782 review: "yes, go ahead
 // with the spectral indices"). Band arithmetic with exploration presets: ASTER thermal-infrared emissivity indices for
 // silica / carbonate / mafic rock (Ninomiya 2003), and the common Sentinel-2 / Landsat 8-9 ratios for ferric iron,
@@ -51,7 +52,7 @@ function tokenize(src) {
     if (/\s/.test(src[i])) { i++; continue; }
     re.lastIndex = i;
     const m = re.exec(src);
-    if (!m) throw new Error(`Unexpected "${src[i]}" at position ${i + 1}.`);
+    if (!m) throw new Error(tr("Unexpected \"{v}\" at position {v2}.", { v: src[i], v2: i + 1 }));
     i = re.lastIndex;
     if (m[1] != null) out.push({ t: "num", v: Number(m[1]) });
     else if (m[2] != null) out.push({ t: "id", v: m[2] });
@@ -65,23 +66,23 @@ function tokenize(src) {
 // power = atom ('^' unary)?  (right-associative); atom = number | name | '(' expr ')'.
 export function compileExpression(src, allowed) {
   const toks = tokenize(String(src || ""));
-  if (!toks.length) throw new Error("The expression is empty.");
+  if (!toks.length) throw new Error(tr("The expression is empty."));
   let p = 0;
   const used = new Set();
   const peek = () => toks[p], take = () => toks[p++];
   const isOp = (v) => peek()?.t === "op" && peek().v === v;
   const atom = () => {
     const t = take();
-    if (!t) throw new Error("The expression ends too early.");
+    if (!t) throw new Error(tr("The expression ends too early."));
     if (t.t === "num") { const v = t.v; return () => v; }
     if (t.t === "id") {
-      if (allowed && !allowed.includes(t.v)) throw new Error(`Unknown band "${t.v}" (use ${allowed.join(", ")}).`);
+      if (allowed && !allowed.includes(t.v)) throw new Error(tr("Unknown band \"{v}\" (use {allowed}).", { v: t.v, allowed: allowed.join(", ") }));
       used.add(t.v);
       const k = t.v;
       return (b) => b[k];
     }
-    if (t.v === "(") { const e = expr(); if (!isOp(")")) throw new Error("A bracket is not closed."); take(); return e; }
-    throw new Error(`Unexpected "${t.v}".`);
+    if (t.v === "(") { const e = expr(); if (!isOp(")")) throw new Error(tr("A bracket is not closed.")); take(); return e; }
+    throw new Error(tr("Unexpected \"{v}\".", { v: t.v }));
   };
   const power = () => { const a = atom(); if (isOp("^")) { take(); const b = unary(); return (x) => Math.pow(a(x), b(x)); } return a; };
   const unary = () => { if (isOp("-")) { take(); const a = unary(); return (x) => -a(x); } if (isOp("+")) { take(); return unary(); } return power(); };
@@ -102,7 +103,7 @@ export function compileExpression(src, allowed) {
     return a;
   };
   const fn = expr();
-  if (p < toks.length) throw new Error(`Unexpected "${toks[p].v}" after the end of the expression.`);
+  if (p < toks.length) throw new Error(tr("Unexpected \"{v}\" after the end of the expression.", { v: toks[p].v }));
   return { fn, uses: [...used] };
 }
 
@@ -114,7 +115,7 @@ export function evaluateIndex(bands, mapping, expr, { isNoData = () => false } =
   const { fn, uses } = compileExpression(expr, Object.keys(mapping));
   const cols = uses.map((r) => {
     const k = Number(mapping[r]) - 1;
-    if (!(k >= 0 && k < bands.length)) throw new Error(`Band ${r} is mapped to band ${mapping[r]}, but the file has ${bands.length}.`);
+    if (!(k >= 0 && k < bands.length)) throw new Error(tr("Band {r} is mapped to band {v}, but the file has {bands}.", { r, v: mapping[r], bands: bands.length }));
     return [r, bands[k]];
   });
   const n = bands[0].length, values = new Float32Array(n), env = {};

@@ -1,5 +1,6 @@
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 import { getProj4DefSync, crsName } from "./reproject.js"; // TASKS.csv #415
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // Minimal ESRI Shapefile (+ DBF attribute table, + PRJ projection file) writer, zipped, for the new
 // "Export Shapefile" right-click action on vector layers (collars, survey/drillhole traces, litho/alt/
 // vein/structure/geochem intervals, geophysics points). Hand-written rather than an npm dependency —
@@ -335,7 +336,7 @@ export function buildShapefileZip(layer) {
 }
 // TASKS.csv #487 — the zip entries of one layer (several layers can share a zip: Cartography's file tool)
 export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false }) {
-  if (!features || !features.length) throw new Error("Nothing to export — this layer has no rows with usable coordinates.");
+  if (!features || !features.length) throw new Error(tr("Nothing to export — this layer has no rows with usable coordinates."));
   const columns = Array.from(features.reduce((set, f) => { Object.keys(f.attributes || {}).forEach((k) => set.add(k)); return set; }, new Set()));
   const { shp, shx } = buildShpShx(features, geomType);
   const dbf = buildDbf(features, columns, { keepCase: keepFieldCase });
@@ -399,16 +400,16 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
   for (let i = bytes.length - 22; i >= searchStart; i--) {
     if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
   }
-  if (eocd < 0) throw new Error("Not a valid .zip file (no end-of-central-directory record found).");
+  if (eocd < 0) throw new Error(tr("Not a valid .zip file (no end-of-central-directory record found)."));
   const entryCount = dv.getUint16(eocd + 10, true);
   const centralStart = dv.getUint32(eocd + 16, true);
 
   const entries = {};
   let off = centralStart;
-  const corrupt = () => new Error("Corrupt .zip (an entry points outside the file).");
+  const corrupt = () => new Error(tr("Corrupt .zip (an entry points outside the file)."));
   for (let i = 0; i < entryCount; i++) {
     if (off + 46 > bytes.length) throw corrupt();
-    if (dv.getUint32(off, true) !== 0x02014b50) throw new Error("Corrupt .zip central directory.");
+    if (dv.getUint32(off, true) !== 0x02014b50) throw new Error(tr("Corrupt .zip central directory."));
     const method = dv.getUint16(off + 10, true);
     const compSize = dv.getUint32(off + 20, true);
     const declaredSize = dv.getUint32(off + 24, true);
@@ -420,7 +421,7 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
     const name = new TextDecoder().decode(bytes.subarray(off + 46, off + 46 + nameLen));
     off += 46 + nameLen + extraLen + commentLen;
     if (!wanted.test(name)) { entries[name] = null; continue; } // listed, never decompressed
-    if (declaredSize > ZIP_ENTRY_MAX) throw new Error(`"${name}" in this .zip says it is ${Math.round(declaredSize / MB)} MB uncompressed — over the ${ZIP_ENTRY_MAX / MB} MB limit.`);
+    if (declaredSize > ZIP_ENTRY_MAX) throw new Error(tr("\"{name}\" in this .zip says it is {v} MB uncompressed — over the {v2} MB limit.", { name, v: Math.round(declaredSize / MB), v2: ZIP_ENTRY_MAX / MB }));
     if (localOff + 30 > bytes.length) throw corrupt();
     // Jump to the local file header to find where the actual (possibly differently-ordered/sized)
     // compressed data starts — its own name/extra field lengths can differ from the central record's.
@@ -438,7 +439,7 @@ export async function readZipEntries(zipBytes, wanted = ZIP_WANTED) {
     if (!e) { out[name] = null; continue; }
     const data = e.method === 8 ? await inflateCapped(e.raw, "deflate-raw", Math.min(ZIP_ENTRY_MAX, ZIP_TOTAL_MAX - total), `"${name}" in this .zip`) : e.raw; // 0 = STORED, 8 = DEFLATE
     total += data.byteLength;
-    if (total > ZIP_TOTAL_MAX) throw new Error(`This .zip expands to more than ${ZIP_TOTAL_MAX / MB} MB — not imported.`);
+    if (total > ZIP_TOTAL_MAX) throw new Error(tr("This .zip expands to more than {v} MB — not imported.", { v: ZIP_TOTAL_MAX / MB }));
     out[name] = data;
   }
   return out;
@@ -606,7 +607,7 @@ export async function listZipNames(zipBytes) {
 }
 export async function parseShapefileZip(zipBytes, wantLayer = null) {
   const shpNames = (await listZipNames(zipBytes)).filter((n) => /\.shp$/i.test(n));
-  if (!shpNames.length) throw new Error("No .shp file found inside this .zip.");
+  if (!shpNames.length) throw new Error(tr("No .shp file found inside this .zip."));
   const baseNames = Array.from(new Set(shpNames.map((n) => n.replace(/\.shp$/i, ""))));
   // An unknown/stale requested name falls back to the first layer rather than throwing — the caller's
   // picker is built from `layerNames`, so this only happens if the two ever get out of sync.
@@ -625,7 +626,7 @@ export async function parseShapefileZip(zipBytes, wantLayer = null) {
 // files together (grouped by basename) rather than a zip, matching how a lot of real-world shapefiles
 // actually arrive (unzipped, straight off a USB drive or an old FTP archive).
 export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0, prjWkt = null) {
-  if (!shp) throw new Error("No .shp data found.");
+  if (!shp) throw new Error(tr("No .shp data found."));
   const { geoms, skippedCount } = parseShp(shp);
   const attrRows = dbf ? parseDbf(dbf, dbfEncoding(cpg, dbf)) : [];
   let deletedCount = 0; // #706 — a record flagged deleted in the .dbf drops its shape too (as OGR does)
@@ -636,7 +637,7 @@ export function parseShapefileParts({ shp, dbf, cpg = null }, otherBaseNames = 0
     if (g.multi) return g.multi.map((pt) => ({ geometry: [pt], parts: [[pt]], attributes })); // #415 MultiPoint
     return [{ geometry: g.pts, parts: g.parts || [g.pts], attributes }];
   });
-  if (!features.length) throw new Error("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads).");
+  if (!features.length) throw new Error(tr("No usable Point/PolyLine/Polygon features found in this shapefile (or every feature's shape type isn't one GeoStrix reads)."));
   const geomType = geoms.find((g) => g)?.type || "point";
   return { features, geomType, skippedCount, deletedCount, otherBaseNames, hasAttributes: !!dbf, prjWkt };
 }

@@ -21,6 +21,7 @@ import { fetchSRTMTile } from "./desktop.js";
 import { getProj4Def, reprojectGrid, pointTransform, neighbourUtmZones } from "./reproject.js";
 import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #614
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requests/~1-2MB, not runaway
 const MIN_ZOOM = 4;
@@ -154,9 +155,9 @@ export async function findBetterUtmZone(collars, epsg, misfit) {
 // onProgress(done, total) is called after each tile finishes downloading, for a progress indicator.
 export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress }) {
   if (!(Number.isFinite(lonMin) && Number.isFinite(latMin) && Number.isFinite(lonMax) && Number.isFinite(latMax))) {
-    throw new Error("Invalid area — couldn't determine a bounding box to fetch.");
+    throw new Error(tr("Invalid area — couldn't determine a bounding box to fetch."));
   }
-  if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error("Invalid area — check the coordinates.");
+  if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
 
   const zoom = pickZoom(lonMin, latMin, lonMax, latMax);
   const nw = lonLatToTileXY(lonMin, latMax, zoom);
@@ -177,7 +178,7 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
       const [tx, ty] = jobs[next++];
       try {
         const tile = await decodeTerrariumTile(zoom, nw.x + tx, nw.y + ty);
-        if (tile.width !== TILE || tile.height !== TILE) throw new Error(`unexpected tile size ${tile.width} x ${tile.height}`);
+        if (tile.width !== TILE || tile.height !== TILE) throw new Error(tr("unexpected tile size {width} x {height}", { width: tile.width, height: tile.height }));
         for (let row = 0; row < TILE; row++) mosaic.set(tile.data.subarray(row * TILE, (row + 1) * TILE), (ty * TILE + row) * mw + tx * TILE);
         got++;
       } catch (err) {
@@ -189,7 +190,7 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   };
   await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, worker));
   if (!got) {
-    throw new Error(`Couldn't fetch any elevation tiles (${failed[0] || "unknown error"}). Check your internet connection — this needs to reach a public AWS-hosted elevation service.`);
+    throw new Error(tr("Couldn't fetch any elevation tiles ({v}). Check your internet connection — this needs to reach a public AWS-hosted elevation service.", { v: failed[0] || tr("unknown error") }));
   }
 
   // Resample onto a regular lon/lat grid over exactly the requested area (#726: at pixel centres, in Mercator Y)

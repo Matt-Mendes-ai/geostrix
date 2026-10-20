@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #421 — DEM cells with no data. After reprojection a DEM's footprint is a rotated/curved
 // quadrilateral inside an axis-aligned grid, so its corners are empty wedges (measured 2.5-11.6% of cells
 // for single tiles around -127..-133 longitude). Those cells used to be filled with the mean elevation
@@ -38,7 +39,7 @@ export function isNoData(maskBytes, i) {
 // Human-readable line for the import message.
 export function noDataNote(fill) {
   if (!fill.filledCount) return "";
-  return ` ${fill.filledPct.toFixed(1)}% of the grid (${fill.filledCount.toLocaleString()} cells) has no source data — usually the empty corners left by reprojection, or tiles that failed to download. Those cells are left out of the 3D surface; anything that samples elevation there (collars, sections, geophysics stations) gets the mean elevation ${fill.fillValue.toFixed(0)} m, not a real height.`;
+  return tr(" {filledPct}% of the grid ({filledCount} cells) has no source data — usually the empty corners left by reprojection, or tiles that failed to download. Those cells are left out of the 3D surface; anything that samples elevation there (collars, sections, geophysics stations) gets the mean elevation {fillValue} m, not a real height.", { filledPct: fill.filledPct.toFixed(1), filledCount: fill.filledCount.toLocaleString(), fillValue: fill.fillValue.toFixed(0) });
 }
 
 function bytesToB64(bytes) {

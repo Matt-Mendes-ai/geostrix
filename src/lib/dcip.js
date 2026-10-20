@@ -8,6 +8,7 @@
 // and end coordinates in the project CRS (distance 0 = start).
 import { terrainElevationAt } from "./inversion.js";
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const norm = (h) => String(h).trim().toLowerCase().replace(/[\s()\[\]./-]+/g, "_").replace(/_+$/, "");
 // TASKS.csv #600 — contractor TDIP files (IRIS / Geosoft-style .dat / .ipg, e.g. a BC ARIS pole-dipole survey):
@@ -44,7 +45,7 @@ export function parseDcipWhitespaceText(text) {
     rows.push(Object.fromEntries(headers.map((h, i) => [h, t[i]])));
   }
   const meta = lines.slice(0, hi).map((l) => l.trim()).filter(Boolean).join(" · ");
-  return { headers, rows, note: `Whitespace-separated line file${meta ? ` (${meta.slice(0, 160)})` : ""}; ${rows.length} readings${skipped ? `, ${skipped} line(s) with a different column count skipped` : ""}.` };
+  return { headers, rows, note: tr("Whitespace-separated line file{v}; {rows} readings{v2}.", { v: meta ? ` (${meta.slice(0, 160)})` : "", rows: rows.length, v2: skipped ? tr(", {skipped} line(s) with a different column count skipped", { skipped }) : "" }) };
 }
 // Two passes: the full header (units included: "M (mV/V)" -> m_mv_v, a chargeability) first, then the header
 // without a bracketed unit ("Rho_a (ohm.m)" -> rho_a). A header is used for one field only.

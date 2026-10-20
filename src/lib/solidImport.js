@@ -24,6 +24,7 @@
 import { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds } from "./solidImportMeta.js"; // #552
 export { SOLID_FACE_WARN, SOLID_IMPORT_EXTENSIONS, solidBounds };
 import { createDXFMeshParser, lineFeeder } from "./dxf.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Above this the import asks first: fine on a gaming PC, slow to orbit on the modest laptops GeoStrix is
 // built for, and (until imported solids are stored compactly) tens of MB in every save.
@@ -78,7 +79,7 @@ export function createOBJMeshParser() {
         p.local.forEach((g, l) => { positions[l * 3] = pos[g * 3]; positions[l * 3 + 1] = pos[g * 3 + 1]; positions[l * 3 + 2] = pos[g * 3 + 2]; });
         return { layer: p.layer, positions, indices: Uint32Array.from(p.idx) };
       });
-      if (!nv || !out.length) throw new Error("No usable vertices/faces found — this OBJ has no `v` and `f` lines this importer could read.");
+      if (!nv || !out.length) throw new Error(tr("No usable vertices/faces found — this OBJ has no `v` and `f` lines this importer could read."));
       const triangleCount = out.reduce((s, p) => s + p.indices.length / 3, 0);
       return { parts: out, triangleCount, vertexCount: out.reduce((s, p) => s + p.positions.length / 3, 0), quads, ngons };
     },
@@ -91,7 +92,7 @@ function parserFor(fileName) {
   const name = String(fileName || "").toLowerCase();
   if (name.endsWith(".dxf")) return { format: "DXF", parser: createDXFMeshParser() };
   if (name.endsWith(".obj")) return { format: "OBJ", parser: createOBJMeshParser() };
-  throw new Error(`Unsupported solid format "${name.split(".").pop()}" — import a .dxf (3DFACE / polyface mesh) or .obj file.`);
+  throw new Error(tr("Unsupported solid format \"{v}\" — import a .dxf (3DFACE / polyface mesh) or .obj file.", { v: name.split(".").pop() }));
 }
 function describe(format, m) {
   const layers = m.parts.length > 1 ? `, ${m.parts.length} ${format === "DXF" ? "layers" : "objects"}` : "";

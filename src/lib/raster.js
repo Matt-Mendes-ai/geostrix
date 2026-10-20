@@ -22,6 +22,7 @@ import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -122,7 +123,7 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
     if (n <= MAX_DECODE_SAMPLES && (!best || n > best.n)) best = { ov, win, n };
   }
   if (best) return best.ov.readRasters({ ...opts, window: best.win });
-  throw new Error(`${label} is ${(c1 - c0).toLocaleString()} × ${(r1 - r0).toLocaleString()} px${bands > 1 ? ` × ${bands} bands` : ""} — over the ${(MAX_DECODE_SAMPLES / 1e6).toFixed(0)} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.`);
+  throw new Error(tr("{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.", { label, v: (c1 - c0).toLocaleString(), v2: (r1 - r0).toLocaleString(), v3: bands > 1 ? tr(" × {bands} bands", { bands }) : "", v4: (MAX_DECODE_SAMPLES / 1e6).toFixed(0) }));
 }
 
 // TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
@@ -134,7 +135,7 @@ export async function parseGeoTIFF(file, { bandFn = null } = {}) {
     tiff = await fromArrayBuffer(buf);
     image = await tiff.getImage();
   } catch (err) {
-    throw new Error(`Not a readable GeoTIFF (${err.message}).`);
+    throw new Error(tr("Not a readable GeoTIFF ({message}).", { message: err.message }));
   }
 
   assertNorthUp(image, `"${file.name}"`); // #560 — refuse rather than stretch a rotated GeoTIFF
@@ -148,7 +149,7 @@ export async function parseGeoTIFF(file, { bandFn = null } = {}) {
     bbox = null;
   }
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
-    throw new Error("This GeoTIFF has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.");
+    throw new Error(tr("This GeoTIFF has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF."));
   }
 
   const srcW = image.getWidth(), srcH = image.getHeight();
@@ -303,12 +304,12 @@ async function readDemTile(file, crop = null) {
     tiff = await fromArrayBuffer(buf);
     image = await tiff.getImage();
   } catch (err) {
-    throw new Error(`"${file.name}" is not a readable GeoTIFF (${err.message}).`);
+    throw new Error(tr("\"{name}\" is not a readable GeoTIFF ({message}).", { name: file.name, message: err.message }));
   }
   let bbox;
-  try { bbox = demNodeBbox(image); } catch (err) { if (/rotated or sheared/.test(err.message)) throw err; bbox = null; } // #560
+  try { bbox = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
-    throw new Error(`"${file.name}" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.`);
+    throw new Error(tr("\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.", { name: file.name }));
   }
   const fullW = image.getWidth(), fullH = image.getHeight();
   const rx = (bbox[2] - bbox[0]) / Math.max(1, fullW - 1), ry = (bbox[3] - bbox[1]) / Math.max(1, fullH - 1); // node spacing
@@ -323,7 +324,7 @@ async function readDemTile(file, crop = null) {
   const srcW = Math.max(2, Math.round(winW * scale)), srcH = Math.max(2, Math.round(winH * scale));
   const resampled = srcW !== winW || srcH !== winH;
   const rasters = await readRastersCapped(tiff, image, { window: [c0, r0, c1 + 1, r1 + 1], ...(resampled ? { width: srcW, height: srcH, resampleMethod: "bilinear" } : {}) }, `"${file.name}"`); // #561
-  if (!rasters.length) throw new Error(`"${file.name}" has no readable elevation band.`);
+  if (!rasters.length) throw new Error(tr("\"{name}\" has no readable elevation band.", { name: file.name }));
   const rawBand = rasters[0]; // DEMs are single-band; if given a multi-band file, just take the first
   // Node bbox of what was read: the window's nodes, or — resampled — the centres of srcW x srcH pixels
   // spread over the window's pixel AREA (half a source pixel beyond its outer nodes).
@@ -370,7 +371,7 @@ async function peekDemTile(file) {
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
 export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null } = {}) {
   const list = Array.from(files || []).filter(Boolean);
-  if (!list.length) throw new Error("No file selected.");
+  if (!list.length) throw new Error(tr("No file selected."));
   const tiles = [];
   // TASKS.csv #422 — cropTo: [xmin, ymin, xmax, ymax] in the PROJECT CRS. Converted into each tile's CRS
   // (corners + edge midpoints, then their bbox, padded 2%) before reading.
@@ -391,13 +392,13 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
     const t = await readDemTile(file, crop);
     if (t) tiles.push(t);
   }
-  if (!tiles.length) throw new Error("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS.");
+  if (!tiles.length) throw new Error(tr("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS."));
 
   if (tiles.length > 1) {
     const first = tiles[0].epsgTag;
     const mismatched = tiles.find((t) => String(t.epsgTag) !== String(first));
     if (mismatched) {
-      throw new Error(`These tiles don't share the same coordinate system tag ("${tiles[0].name}": EPSG:${first ?? "unknown"} vs "${mismatched.name}": EPSG:${mismatched.epsgTag ?? "unknown"}) — only merge tiles from the same source/CRS.`);
+      throw new Error(tr("These tiles don't share the same coordinate system tag (\"{name}\": EPSG:{v} vs \"{name2}\": EPSG:{v2}) — only merge tiles from the same source/CRS.", { name: tiles[0].name, v: first ?? "unknown", name2: mismatched.name, v2: mismatched.epsgTag ?? "unknown" }));
     }
   }
 
@@ -503,7 +504,7 @@ export async function parseGXF(file) {
       header[curKey].push(trimmed);
     }
   }
-  if (gridStart < 0) throw new Error("Not a readable GXF file — no #GRID section found.");
+  if (gridStart < 0) throw new Error(tr("Not a readable GXF file — no #GRID section found."));
 
   const num = (key, fallback) => {
     const v = header[key]?.[0] !== undefined ? parseFloat(header[key][0]) : NaN;
@@ -511,7 +512,7 @@ export async function parseGXF(file) {
   };
   const ncols = num("POINTS", NaN), nrows = num("ROWS", NaN);
   if (!Number.isFinite(ncols) || !Number.isFinite(nrows) || ncols < 2 || nrows < 2) {
-    throw new Error("This GXF file is missing #POINTS/#ROWS (grid dimensions) or they're invalid.");
+    throw new Error(tr("This GXF file is missing #POINTS/#ROWS (grid dimensions) or they're invalid."));
   }
   const dx = num("PTSEPARATION", 1), dy = num("RWSEPARATION", dx);
   const x0 = num("XORIGIN", 0), y0 = num("YORIGIN", 0);
@@ -523,7 +524,7 @@ export async function parseGXF(file) {
   // raster drape model assumes (same assumption parseGeoTIFF's bbox makes) — rather than silently
   // draping it in the wrong place, surface this as an explicit limitation.
   if (Math.abs(rotation) > 0.01) {
-    throw new Error(`This GXF grid has a #ROTATION of ${rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated if your software supports that, or open it in GIS software first to reproject/re-grid to north-up.`);
+    throw new Error(tr("This GXF grid has a #ROTATION of {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated if your software supports that, or open it in GIS software first to reproject/re-grid to north-up.", { rotation }));
   }
 
   const total = ncols * nrows;
@@ -559,10 +560,10 @@ export async function parseGXF(file) {
     const digitRatio = gridCharCount > 0 ? gridDigitCount / gridCharCount : 0;
     if (gridCharCount > 1000 && digitRatio < 0.3) {
       throw new Error(
-        `This GXF's #GRID section doesn't look like plain-text numbers (only ${(digitRatio * 100).toFixed(1)}% digit characters across ${gridCharCount.toLocaleString()} characters read) — it's very likely using a proprietary/compressed Geosoft grid encoding this reader doesn't support, not a truncated file. If your workflow already exported this same grid as a GeoTIFF (.tif), import that instead — it carries the same data and is fully supported. Otherwise, re-export from Oasis montaj as an uncompressed/plain-text .gxf if that option is available.`
+        tr("This GXF's #GRID section doesn't look like plain-text numbers (only {v}% digit characters across {gridCharCount} characters read) — it's very likely using a proprietary/compressed Geosoft grid encoding this reader doesn't support, not a truncated file. If your workflow already exported this same grid as a GeoTIFF (.tif), import that instead — it carries the same data and is fully supported. Otherwise, re-export from Oasis montaj as an uncompressed/plain-text .gxf if that option is available.", { v: (digitRatio * 100).toFixed(1), gridCharCount: gridCharCount.toLocaleString() })
       );
     }
-    throw new Error(`This GXF's #GRID section has fewer values (${filled}) than #POINTS×#ROWS (${total}) declares — the file may be truncated.`);
+    throw new Error(tr("This GXF's #GRID section has fewer values ({filled}) than #POINTS×#ROWS ({total}) declares — the file may be truncated.", { filled, total }));
   }
 
   // SENSE controls how the flat value list maps onto rows/columns. GXF's most common cases: 1 = each
@@ -713,7 +714,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   }
 
   const [bx0, by0, bx1, by1] = bbox;
-  let msg = `Imported "${parsed.name}" (${parsed.width}×${parsed.height}px, ${(bx1 - bx0).toFixed(0)}×${(by1 - by0).toFixed(0)} world units).`;
+  let msg = tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
   msg += crsNote;
   if (parsed.note) msg += parsed.note;
   msg += gridNote;
@@ -751,7 +752,7 @@ export function assertNorthUp(image, label = "This GeoTIFF") {
   if (!t || t.length < 8) return;
   const size = Math.max(Math.abs(t[0]), Math.abs(t[5]), 1e-12);
   if (Math.abs(t[1]) > 1e-9 * size || Math.abs(t[4]) > 1e-9 * size) {
-    throw new Error(`${label} is rotated or sheared (its ModelTransformation has rotation terms). GeoStrix places north-up rasters only, and this one would be stretched into the wrong place. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.`);
+    throw Object.assign(new Error(tr("{label} is rotated or sheared (its ModelTransformation has rotation terms). GeoStrix places north-up rasters only, and this one would be stretched into the wrong place. Warp it north-up first — QGIS: Raster > Projections > Warp (Reproject), or gdalwarp.", { label })), { code: "rotated" }); // #786 — callers match the code: the message is translated
   }
 }
 // TASKS.csv #560 — the raster's PIXEL-AREA extent (what an image drape spans). geotiff.js's getBoundingBox treats the
@@ -838,7 +839,7 @@ export function gridToSurveyRows(raster, maxPoints = 20000) {
 export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {} }) {
   const finite = [];
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
-  if (!finite.length) throw new Error("The filter produced no values.");
+  if (!finite.length) throw new Error(tr("The filter produced no values."));
   finite.sort((a, b) => a - b);
   const lo = percentileSorted(finite, 0.02), hi = percentileSorted(finite, 0.98); // #740 — makeStretch's rule (was floor)
   const canvas = document.createElement("canvas");
@@ -884,7 +885,7 @@ export function ternaryValues(kG, thG, uG) {
     return { lo, hi, t: (v) => (hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5) };
   };
   const s = ch.map(stretch);
-  if (s.some((x) => !x)) throw new Error("One of the three grids has no values where the K grid is.");
+  if (s.some((x) => !x)) throw new Error(tr("One of the three grids has no values where the K grid is."));
   const rgba = new Uint8ClampedArray(n * 4);
   let covered = 0;
   for (let k = 0; k < n; k++) {
@@ -898,7 +899,7 @@ export function ternaryValues(kG, thG, uG) {
 export function ternaryRaster({ kRaster, thRaster, uRaster, elevation }) {
   const g = kRaster.grid;
   const { rgba, covered, ranges } = ternaryValues(g, thRaster.grid, uRaster.grid);
-  if (!covered) throw new Error("The three grids do not overlap.");
+  if (!covered) throw new Error(tr("The three grids do not overlap."));
   const canvas = document.createElement("canvas");
   canvas.width = g.nx; canvas.height = g.ny;
   canvas.getContext("2d").putImageData(new ImageData(rgba, g.nx, g.ny), 0, 0);

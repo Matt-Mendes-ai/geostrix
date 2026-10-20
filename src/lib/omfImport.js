@@ -5,6 +5,7 @@
 import { parseOMF, omfVolumeToCells } from "./omf.js";
 import { cellValueRange } from "./voxel.js";
 import { logStops, SEQUENTIAL_ANCHORS } from "./inversion.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // attribute: the cell attribute to show when a volume carries several (e.g. two inversion iterations); null = the first.
 export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null } = {}) {
@@ -33,7 +34,7 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
       } else if (min > 0 && max / min >= 100) {
         colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
       }
-      if (air?.count) notes.push(`${el.name}: ${air.count.toLocaleString()} cells at ${Number(air.value).toPrecision(3)} (the tiny value this model uses for air above the ground) treated as air (no data).`);
+      if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the tiny value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
       voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit });
       if (coarsenNote) notes.push(`${el.name}: ${coarsenNote}`);
     }

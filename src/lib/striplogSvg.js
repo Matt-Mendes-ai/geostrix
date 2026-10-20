@@ -16,6 +16,7 @@
 // per-hole in an unattended batch run).
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, rqdColor } from "./layers.js";
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
@@ -118,7 +119,7 @@ export async function buildStripLogDataUrl({ holeId, collars, layers }) {
     const img = await new Promise((resolve, reject) => {
       const el = new Image();
       el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error(`Couldn't rasterize the strip log for "${holeId}".`));
+      el.onerror = () => reject(new Error(tr("Couldn't rasterize the strip log for \"{holeId}\".", { holeId })));
       el.src = url;
     });
     const scale = 2;

@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // Bridges to Electron when available; degrades gracefully in a plain browser (dev in Vite).
 const d = typeof window !== "undefined" ? window.desktop : null;
 
@@ -262,12 +263,12 @@ export async function loadSampleFiles(subdir, names) {
   const rel = (n) => `${subdir ? subdir + "/" : ""}${n}`;
   if (d && d.sampleDataPath) {
     const res = await d.sampleDataPath();
-    if (!res.ok) throw new Error(res.error || "Sample data folder not found.");
+    if (!res.ok) throw new Error(res.error || tr("Sample data folder not found."));
     const sep = res.path.includes("\\") ? "\\" : "/";
     const files = [];
     for (const n of names) {
       const r = await d.fsReadFile(`${res.path}${sep}${rel(n).split("/").join(sep)}`);
-      if (!r.ok) throw new Error(`${n}: ${r.error || "couldn't be read"}`);
+      if (!r.ok) throw new Error(`${n}: ${r.error || tr("couldn't be read")}`);
       files.push(readResultToFile(r, n)); // #346
     }
     return files;
@@ -275,7 +276,7 @@ export async function loadSampleFiles(subdir, names) {
   const files = [];
   for (const n of names) {
     const r = await fetch(`/sample_data/${rel(n)}`);
-    if (!r.ok) throw new Error(`${n}: sample data isn't available in this preview (HTTP ${r.status}).`);
+    if (!r.ok) throw new Error(tr("{n}: sample data isn't available in this preview (HTTP {status}).", { n, status: r.status }));
     files.push(new File([await r.blob()], n));
   }
   return files;
@@ -290,7 +291,7 @@ export async function loadSampleFiles(subdir, names) {
 export async function fetchSRTMTile(z, x, y) {
   if (d && d.fetchSRTMTile) {
     const res = await d.fetchSRTMTile(z, x, y);
-    if (!res.ok) throw new Error(res.message || `Tile fetch failed (z${z}/${x}/${y}).`);
+    if (!res.ok) throw new Error(res.message || tr("Tile fetch failed (z{z}/{x}/{y}).", { z, x, y }));
     const bin = atob(res.base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -298,7 +299,7 @@ export async function fetchSRTMTile(z, x, y) {
   }
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.`);
+  if (!res.ok) throw new Error(tr("Tile fetch failed (HTTP {status}) for z{z}/{x}/{y}.", { status: res.status, z, x, y }));
   return res.arrayBuffer();
 }
 
@@ -325,14 +326,14 @@ export async function remoteSensingFetch(req) {
 export async function fetchWebLayerUrl(url) {
   if (d && d.fetchWebLayerUrl) {
     const res = await d.fetchWebLayerUrl(url);
-    if (!res.ok) throw new Error(res.message || `Request failed for ${url}`);
+    if (!res.ok) throw new Error(res.message || tr("Request failed for {url}", { url }));
     const bin = atob(res.base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return { contentType: res.contentType || "", arrayBuffer: bytes.buffer };
   }
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Request failed (HTTP ${res.status}) for ${url}`);
+  if (!res.ok) throw new Error(tr("Request failed (HTTP {status}) for {url}", { status: res.status, url }));
   return { contentType: res.headers.get("content-type") || "", arrayBuffer: await res.arrayBuffer() };
 }
 
@@ -343,15 +344,15 @@ export async function fetchWebLayerUrl(url) {
 // harmless no-ops since there's nothing to download/install without an active update in progress).
 export async function checkForUpdates() {
   if (d && d.updaterCheck) return d.updaterCheck();
-  return { ok: false, message: "Update checks require the desktop app." };
+  return { ok: false, message: tr("Update checks require the desktop app.") };
 }
 export async function downloadUpdate() {
   if (d && d.updaterDownload) return d.updaterDownload();
-  return { ok: false, message: "Update checks require the desktop app." };
+  return { ok: false, message: tr("Update checks require the desktop app.") };
 }
 export async function installUpdate() {
   if (d && d.updaterInstall) return d.updaterInstall();
-  return { ok: false, message: "Update checks require the desktop app." };
+  return { ok: false, message: tr("Update checks require the desktop app.") };
 }
 export function onUpdaterEvent(cb) {
   if (d && d.onUpdaterEvent) return d.onUpdaterEvent(cb);
@@ -388,7 +389,7 @@ async function verifySidecarIdentity(token) {
   const res = await fetch(`${PY_SIDECAR_BASE}/health?nonce=${nonce}`, { signal: AbortSignal.timeout(3000) });
   const j = await res.json().catch(() => ({}));
   if (j?.proof !== (await sidecarProof(token, nonce))) {
-    const e = new Error("Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again.");
+    const e = new Error(tr("Another program is using the Python engine's port (127.0.0.1:8765), so GeoStrix did not send it your data. Close that program (or restart the computer) and try again."));
     e.code = "SIDECAR_IDENTITY";
     throw e;
   }

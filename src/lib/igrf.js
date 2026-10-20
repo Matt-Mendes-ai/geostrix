@@ -9,6 +9,7 @@
 // The button FILLS the three field boxes; it never runs silently. The panel records "computed from
 // IGRF-14 for <date> at <lat, lon, height>" as the field's source, and the user can overwrite any value.
 import { IGRF14_EPOCHS, IGRF14_ROWS } from "./igrf14Coeffs.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const RE = 6371.2; // IGRF reference radius, km
 const WGS84_A = 6378.137, WGS84_B = 6356.7523142; // km
@@ -17,7 +18,7 @@ const WGS84_A = 6378.137, WGS84_B = 6356.7523142; // km
 // published secular variation, valid to 5 years past it (IGRF-14: 2025.0-2030.0).
 function coeffsAt(year) {
   const first = IGRF14_EPOCHS[0], last = IGRF14_EPOCHS[IGRF14_EPOCHS.length - 1];
-  if (!(year >= first && year <= last + 5)) throw new RangeError(`IGRF-14 covers ${first}-${last + 5}; got ${year}.`);
+  if (!(year >= first && year <= last + 5)) throw new RangeError(tr("IGRF-14 covers {first}-{v}; got {year}.", { first, v: last + 5, year }));
   const nmax = 13;
   const g = Array.from({ length: nmax + 1 }, () => new Float64Array(nmax + 1));
   const h = Array.from({ length: nmax + 1 }, () => new Float64Array(nmax + 1));

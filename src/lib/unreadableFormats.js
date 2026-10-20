@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #603 — files GeoStrix cannot read because the format is proprietary and undocumented, with the way out
 // for each. A dropped Geosoft .gdb (where IP / mag line data often live: 43141Z's seven IP surveys are .gdb only)
 // used to be counted as "unrecognized file(s) skipped", which tells the user nothing they can act on.
@@ -12,5 +13,5 @@ const ADVICE = [
 // name -> one sentence for a notice, or null when the file is not one of these
 export function unreadableFormatAdvice(name) {
   const a = ADVICE.find((x) => x.re.test(String(name || "")));
-  return a ? `${name} is ${a.what} that GeoStrix cannot read: ${a.how}.` : null;
+  return a ? tr("{name} is {what} that GeoStrix cannot read: {how}.", { name, what: a.what, how: a.how }) : null;
 }

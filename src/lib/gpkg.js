@@ -27,6 +27,7 @@ import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { prjWktFor } from "./shapefile.js";
 import { crsName, guessEpsgFromPrjWkt } from "./reproject.js"; // TASKS.csv #415
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 let sqlPromise = null;
 function loadSQL() {
@@ -225,7 +226,7 @@ export async function parseGeoPackage(gpkgBytes) {
   const db = new SQL.Database(gpkgBytes instanceof Uint8Array ? gpkgBytes : new Uint8Array(gpkgBytes));
   try {
     const contentsRes = db.exec("SELECT table_name, srs_id FROM gpkg_contents WHERE data_type = 'features';");
-    if (!contentsRes.length) throw new Error("No feature tables found in this GeoPackage (gpkg_contents has no data_type='features' rows).");
+    if (!contentsRes.length) throw new Error(tr("No feature tables found in this GeoPackage (gpkg_contents has no data_type='features' rows)."));
     const geomColRes = db.exec("SELECT table_name, column_name, srs_id FROM gpkg_geometry_columns;");
     const geomColByTable = {};
     (geomColRes[0]?.values || []).forEach(([table, col, srsId]) => { geomColByTable[table] = { col, srsId }; });

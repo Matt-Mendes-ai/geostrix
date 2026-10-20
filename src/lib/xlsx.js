@@ -8,6 +8,7 @@
 // numbers (no drillhole field needs them); formulas give their cached value. Pure; tested in test/core.test.mjs.
 import { readZipEntries } from "./shapefile.js";
 import { toCsv, parseTableFile, parseTableText } from "./tabular.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 const unxml = (s) => String(s).replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) =>
@@ -24,7 +25,7 @@ export async function readXlsxSheets(bytes) {
   const z = await readZipEntries(bytes, want);
   const dec = (k) => (z[k] ? new TextDecoder().decode(z[k]) : null);
   const wb = dec("xl/workbook.xml");
-  if (!wb) throw new Error("Not an Excel workbook (no xl/workbook.xml).");
+  if (!wb) throw new Error(tr("Not an Excel workbook (no xl/workbook.xml)."));
   const rels = {};
   (dec("xl/_rels/workbook.xml.rels") || "").replace(/<Relationship\b([^>]*)\/?>/g, (_, a) => { const r = attrs(a); rels[r.Id] = r.Target; return ""; });
   const shared = [];
@@ -83,10 +84,10 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
 export async function parseTableOrWorkbook(file, scoreHeaders = () => 0, opts = {}) {
   if (!isXlsxName(file.name)) return parseTableFile(file, opts); // opts.columnar: #611
   const sheets = await xlsxToCsvFiles(new Uint8Array(await file.arrayBuffer()), file.name);
-  if (!sheets.length) return { rows: [], headers: [], note: "No sheet with a header row and data in this workbook.", errors: [] };
+  if (!sheets.length) return { rows: [], headers: [], note: tr("No sheet with a header row and data in this workbook."), errors: [] };
   const parsed = sheets.map((s) => ({ s, t: parseTableText(s.text) }));
   let best = parsed[0], bestScore = scoreHeaders(best.t.headers);
   for (const p of parsed.slice(1)) { const sc = scoreHeaders(p.t.headers); if (sc > bestScore) { best = p; bestScore = sc; } }
   const others = sheets.length > 1 ? ` (${sheets.length} sheets with data; only this one is read here — drop the workbook in the 3D view for collars, surveys and logs)` : "";
-  return { ...best.t, sheet: best.s.sheet, note: `Sheet "${best.s.sheet}"${others}.${best.t.note ? ` ${best.t.note}` : ""}` };
+  return { ...best.t, sheet: best.s.sheet, note: tr("Sheet \"{sheet}\"{others}.{v}", { sheet: best.s.sheet, others, v: best.t.note ? ` ${best.t.note}` : "" }) };
 }

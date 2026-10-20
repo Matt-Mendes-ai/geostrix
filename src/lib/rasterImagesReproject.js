@@ -3,6 +3,7 @@
 // Numeric value grids were already re-gridded by projectReproject.js. Kept apart from that pure module
 // because it needs a canvas.
 import { getProj4DefSync, reprojectImageRGBA } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 async function decode(dataUrl) {
   const img = new Image();
@@ -17,7 +18,7 @@ async function decode(dataUrl) {
 
 export async function reprojectRasterImages(rasters, fromEpsg, toEpsg, onProgress) {
   const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
-  if (!fromDef || !toDef) throw new Error(`Can't reproject rasters from EPSG:${fromEpsg} to EPSG:${toEpsg}.`);
+  if (!fromDef || !toDef) throw new Error(tr("Can't reproject rasters from EPSG:{fromEpsg} to EPSG:{toEpsg}.", { fromEpsg, toEpsg }));
   const out = [];
   for (let i = 0; i < rasters.length; i++) {
     const r = rasters[i];

@@ -1,4 +1,5 @@
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601 (qaqc.js imports geochem.js too: used at call time only)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // ============================================================
 // Geochemistry: element handling + diagram projections
 // ============================================================
@@ -893,7 +894,7 @@ export function lengthWeightedPercentile(assays, symbol, unit, elementUnits, p) 
 }
 export function capAuditText(a, unitLabel = "") {
   if (!a || a.capValue == null) return "";
-  return `cap ${a.capValue}${unitLabel ? ` ${unitLabel}` : ""}: ${a.nCapped} of ${a.nSamples} samples capped (${a.pctCapped.toFixed(1)}%), ${a.pctMetalRemoved.toFixed(1)}% of the metal (grade x length) removed`;
+  return tr("cap {capValue}{v}: {nCapped} of {nSamples} samples capped ({pctCapped}%), {pctMetalRemoved}% of the metal (grade x length) removed", { capValue: a.capValue, v: unitLabel ? ` ${unitLabel}` : "", nCapped: a.nCapped, nSamples: a.nSamples, pctCapped: a.pctCapped.toFixed(1), pctMetalRemoved: a.pctMetalRemoved.toFixed(1) });
 }
 
 // ---------- diagram definitions ----------

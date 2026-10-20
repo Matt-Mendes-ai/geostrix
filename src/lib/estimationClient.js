@@ -1,4 +1,5 @@
 import { cellsFromColumns } from "./estimationCells.js"; // TASKS.csv #661
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #520 — UI-thread side of estimation.worker.js. runEstimation("block" | "dense", points, opts,
 // { onProgress(fraction), signal }) resolves with exactly what estimateBlockModel / estimateDenseGrid return.
 // Aborting the signal terminates the worker and rejects with an error whose .cancelled is true. If a worker
@@ -34,7 +35,7 @@ export function runEstimation(kind, points, opts, { onProgress, signal } = {}) {
     };
     worker.onerror = (e) => {
       e.preventDefault?.();
-      if (heard) { finish(reject, new Error(e.message || "The estimation worker stopped.")); return; }
+      if (heard) { finish(reject, new Error(e.message || tr("The estimation worker stopped."))); return; }
       // never started (module workers unavailable, a blocked script): run here instead
       if (settled) return;
       settled = true; worker.terminate(); signal?.removeEventListener?.("abort", onAbort);

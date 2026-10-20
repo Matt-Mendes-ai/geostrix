@@ -46,6 +46,7 @@
 // conversion happens in here at all. Callers convert to scene coordinates themselves.
 import { trueWidthFactor } from "./trueWidth.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const DEG = 180 / Math.PI;
 
@@ -141,9 +142,9 @@ export function fitPlane(points) {
     auu += a * a; auv += a * b; avv += b * b;
   }
   auu /= n; auv /= n; avv /= n;
-  const tr = auu + avv, det2 = auu * avv - auv * auv;
-  const disc = Math.max(0, tr * tr / 4 - det2);
-  const l1 = tr / 2 + Math.sqrt(disc), l2 = Math.max(0, tr / 2 - Math.sqrt(disc));
+  const trace = auu + avv, det2 = auu * avv - auv * auv;
+  const disc = Math.max(0, trace * trace / 4 - det2);
+  const l1 = trace / 2 + Math.sqrt(disc), l2 = Math.max(0, trace / 2 - Math.sqrt(disc));
   const collinearity = l1 > 1e-12 ? Math.sqrt(l2 / l1) : 0;
   return { centroid: c, normal: nv, rmsOffPlane: rms, planarity: spread > 1e-9 ? rms / spread : Infinity, collinearity, ...normalToDipDipDir(nv) };
 }
@@ -199,7 +200,7 @@ const MAX_NODES = 250000;
  */
 export function buildVeinModel(intercepts, opts = {}) {
   const pts = (intercepts || []).filter((i) => i && i.hw && i.fw);
-  if (pts.length < 1) throw new Error("No vein intercepts with both contacts located in 3D.");
+  if (pts.length < 1) throw new Error(tr("No vein intercepts with both contacts located in 3D."));
 
   const mids = pts.map((i) => ({ x: (i.hw.x + i.fw.x) / 2, y: (i.hw.y + i.fw.y) / 2, z: (i.hw.z + i.fw.z) / 2 }));
   // Hole direction ACROSS the interval — the chord from one contact to the other, which is exactly
@@ -221,8 +222,8 @@ export function buildVeinModel(intercepts, opts = {}) {
     attitudeSource = "user-supplied";
   } else {
     plane = fitPlane(mids);
-    if (!plane) throw new Error("At least three vein intercepts (or an explicit dip / dip direction) are needed to establish the vein's attitude.");
-    if (plane.collinearity < 0.02) throw new Error("The vein intercepts lie along a single line (one section of holes), so their midpoints cannot fix the vein's attitude — the fitted plane could be rotated freely about that line. Enter the vein's dip and dip direction to model it.");
+    if (!plane) throw new Error(tr("At least three vein intercepts (or an explicit dip / dip direction) are needed to establish the vein's attitude."));
+    if (plane.collinearity < 0.02) throw new Error(tr("The vein intercepts lie along a single line (one section of holes), so their midpoints cannot fix the vein's attitude — the fitted plane could be rotated freely about that line. Enter the vein's dip and dip direction to model it."));
     attitudeSource = "fitted to intercept midpoints";
   }
 
@@ -294,13 +295,13 @@ export function buildVeinModel(intercepts, opts = {}) {
         const uu = uMin + i * (nu > 1 ? (uMax - uMin) / (nu - 1) : 0);
         const wr = idw2(wSamples, uu, vv, searchRadius, power);
         if (!wr) continue;
-        const tr = idw2(tSamples, uu, vv, searchRadius, power);
+        const tv = idw2(tSamples, uu, vv, searchRadius, power);
         const idx = j * nu + i;
         wGrid[idx] = wr.value;
         // Thickness is a convex combination of non-negative sampled thicknesses, so it is already >= 0.
         // The clamp is defensive only (a future non-convex interpolator would need it) and is counted,
         // so if it ever fires the caller can say so rather than silently producing a crossing.
-        tGrid[idx] = Math.max(0, tr ? tr.value : 0);
+        tGrid[idx] = Math.max(0, tv ? tv.value : 0);
         ok[idx] = 1;
       }
     }
@@ -361,7 +362,7 @@ export function buildVeinModel(intercepts, opts = {}) {
     fw.push(toWorld(uu, vv, wGrid[idx] - tGrid[idx] / 2));
     mid.push(toWorld(uu, vv, wGrid[idx]));
   }
-  if (!informed) throw new Error("No grid node had a vein intercept within the search radius — increase the search radius.");
+  if (!informed) throw new Error(tr("No grid node had a vein intercept within the search radius — increase the search radius."));
 
   const faces = [];
   for (let j = 0; j < nv - 1; j++) {
@@ -372,7 +373,7 @@ export function buildVeinModel(intercepts, opts = {}) {
       faces.push([a, b, c], [a, c, d]);
     }
   }
-  if (!faces.length) throw new Error("The informed area is smaller than one grid cell — use a smaller cell size or a larger search radius.");
+  if (!faces.length) throw new Error(tr("The informed area is smaller than one grid cell — use a smaller cell size or a larger search radius."));
 
   // Closed solid: hangingwall sheet (outward = +N) + footwall sheet (reversed, outward = -N) + a rim
   // quad on every boundary edge, so the vein has a watertight volume. The rim is built from the edges

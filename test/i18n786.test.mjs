@@ -39,7 +39,7 @@ test("every literal t(\"...\") / tr(\"...\") in the code is in both dictionaries
   for (const f of files("src")) {
     if (f.endsWith("i18n.js")) continue;
     const s = fs.readFileSync(f, "utf8");
-    if (!s.includes("lib/i18n.js") && !s.includes("notice(")) continue;
+    if (!s.includes("i18n.js") && !s.includes("notice(")) continue; // lib files import "./i18n.js"
     const keys = [...s.matchAll(/(?<![\w.])(?:tr?|tx|notice)\("((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]); // t / tr / tx (rich text)
     // tr(cond ? "A" : "B") — both branches
     for (const m of s.matchAll(/(?<![\w.])(?:tr?|notice)\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*?\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) keys.push(...[m[1], m[2]].filter((x) => /[A-Za-z]{2}/.test(x))); // a plural "s" / "" is not a key

@@ -3,6 +3,7 @@
 // this file prepares honest inputs for it and turns its output into a GeoStrix voxel model.
 import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // ---------- grid convergence ----------
 // SimPEG's x/y axes are the project grid's easting/northing, so the inducing field's declination has to
@@ -167,7 +168,7 @@ export function remanenceText(direction, convergence) {
     : a >= 15 ? "somewhat off today's field: some remanence is possible"
       : "close to today's field: mostly induced magnetisation, so the susceptibility inversion is a fair model too";
   const scatter = direction.consistency < 0.7 ? ` The cells' directions scatter (consistency ${direction.consistency.toFixed(2)} of 1), so treat the direction as rough.` : "";
-  return `The ${direction.cells.toLocaleString()} strongest cells point at inclination ${direction.inclination.toFixed(0)}°, declination ${dec.toFixed(0)}° (true north) — ${a.toFixed(0)}° from the inducing field: ${verdict}.${scatter}`;
+  return tr("The {cells} strongest cells point at inclination {inclination}°, declination {dec}° (true north) — {a}° from the inducing field: {verdict}.{scatter}", { cells: direction.cells.toLocaleString(), inclination: direction.inclination.toFixed(0), dec: dec.toFixed(0), a: a.toFixed(0), verdict, scatter });
 }
 
 // Sidecar result -> a GeoStrix voxel model (only core, below-ground cells are ever sent). `supportCutoff`

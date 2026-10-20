@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #237 sub-item (5), the last item left open on that row: "no offline basemap tile
 // pre-cache for field use without internet access." Matt's own drilling is in BC's Golden Triangle —
 // exactly the kind of place a laptop has no signal — so the corner locator (LocatorMap.jsx) and full
@@ -40,7 +41,7 @@ let dbPromise = null;
 function openDb() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    if (typeof indexedDB === "undefined") { reject(new Error("IndexedDB not available")); return; }
+    if (typeof indexedDB === "undefined") { reject(new Error(tr("IndexedDB not available"))); return; }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (ev) => {
       const db = req.result;

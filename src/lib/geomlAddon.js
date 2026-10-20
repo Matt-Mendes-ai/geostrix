@@ -3,6 +3,7 @@
 // per-launch token. Without the desktop app (browser preview) a developer can run the add-on by hand on 8766 with no
 // token, and this talks to it directly.
 import { sidecarProof } from "./desktop.js"; // TASKS.csv #667 — the same HMAC check as the engine
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 const d = typeof window !== "undefined" ? window.desktop : null;
 const ID = "geoml";
 const DEFAULT_PORT = 8766;
@@ -23,7 +24,7 @@ let conn = null;
 async function connection() {
   if (!d?.addonEnsure) return { port: DEFAULT_PORT, token: null };
   const e = await d.addonEnsure(ID);
-  if (!e.ok) throw new Error(e.error || "The predictive-modelling add-on could not start.");
+  if (!e.ok) throw new Error(e.error || tr("The predictive-modelling add-on could not start."));
   conn = await d.addonConnection(ID);
   return conn;
 }
@@ -44,7 +45,7 @@ async function call(path, { method = "GET", body, timeoutMs = 30000 } = {}, retr
   }
   const json = await res.json().catch(() => ({}));
   if (res.status === 401 && !retried && d?.addonEnsure) { conn = null; return call(path, { method, body, timeoutMs }, true); }
-  if (!res.ok) throw Object.assign(new Error(json.detail || `The add-on answered HTTP ${res.status}.`), { status: res.status, body: json });
+  if (!res.ok) throw Object.assign(new Error(json.detail || tr("The add-on answered HTTP {status}.", { status: res.status })), { status: res.status, body: json });
   return json;
 }
 
@@ -68,7 +69,7 @@ export async function addonReady(onWait, maxMs = 120000) {
       if (r.ok) health = await r.json();
     } catch { /* not up yet */ }
     if (health) {
-      const stranger = () => new Error(`Another program answered on port ${c.port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.`);
+      const stranger = () => new Error(tr("Another program answered on port {port} instead of GeoStrix's predictive-modelling add-on, so no data was sent. Close other copies of GeoStrix and try again.", { port: c.port }));
       if (c.token && (health.proof || expectProof)) {
         if (health.proof !== (await sidecarProof(c.token, nonce))) throw stranger();
       } else if (c.token) {
@@ -78,7 +79,7 @@ export async function addonReady(onWait, maxMs = 120000) {
       }
       return health;
     }
-    if (Date.now() - t0 > maxMs) throw new Error("The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log).");
+    if (Date.now() - t0 > maxMs) throw new Error(tr("The predictive-modelling add-on didn't start within two minutes. Its log is in GeoStrix's settings folder (addons/geoml/addon.log)."));
     onWait?.(Math.round((Date.now() - t0) / 1000));
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -103,7 +104,7 @@ export async function runJob(kind, params, onProgress, signal, { pollMs = 1000 }
   let job;
   try { job = await startJob(kind, params); }
   catch (e) {
-    if (e.status === 409 && e.body?.job?.id) throw Object.assign(new Error("A predictive model is already running in the add-on (started earlier). Cancel it, then run this again."), { busyJobId: e.body.job.id });
+    if (e.status === 409 && e.body?.job?.id) throw Object.assign(new Error(tr("A predictive model is already running in the add-on (started earlier). Cancel it, then run this again.")), { busyJobId: e.body.job.id });
     throw e;
   }
   const giveUp = async (err) => { await cancelJob(job.id).catch(() => {}); throw err; };
@@ -114,14 +115,14 @@ export async function runJob(kind, params, onProgress, signal, { pollMs = 1000 }
     let s;
     try { s = await jobStatus(job.id); misses = 0; }
     catch (e) {
-      if (e.status === 404) return giveUp(new Error("The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log)."));
+      if (e.status === 404) return giveUp(new Error(tr("The add-on stopped while the model was running (it was restarted, so the job is gone). Its log is in GeoStrix's settings folder (addons/geoml/addon.log).")));
       misses++; lastErr = e;
-      if (misses >= MAX_MISSES) return giveUp(new Error(`Lost contact with the add-on (${MAX_MISSES} status checks in a row failed: ${lastErr.message}). The model was cancelled.`));
+      if (misses >= MAX_MISSES) return giveUp(new Error(tr("Lost contact with the add-on ({MAX_MISSES} status checks in a row failed: {message}). The model was cancelled.", { MAX_MISSES, message: lastErr.message })));
       continue;
     }
     onProgress?.(s);
     if (s.state === "done") return jobResult(job.id);
-    if (s.state === "error" || s.state === "failed") throw new Error(s.error || "The model failed.");
+    if (s.state === "error" || s.state === "failed") throw new Error(s.error || tr("The model failed."));
     if (s.state === "cancelled") throw new Error("Cancelled.");
   }
 }

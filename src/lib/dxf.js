@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #128 — DXF import/export, the CAD/GIS lingua franca in mineral exploration (drillhole
 // plans, claim maps, section templates handed back and forth with surveyors/mine planners). Distinct
 // from any 3D mesh/wireframe export elsewhere in the app — this is 2D vector CAD data (lines,
@@ -34,7 +35,7 @@ export function parseDXF(text) {
   for (let i = 0; i < pairs.length - 1; i++) {
     if (pairs[i][0] === 2 && pairs[i][1] === "ENTITIES") { entStart = i + 1; break; }
   }
-  if (entStart === -1) throw new Error("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported).");
+  if (entStart === -1) throw new Error(tr("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported)."));
   for (let i = entStart; i < pairs.length; i++) {
     if (pairs[i][0] === 0 && pairs[i][1] === "ENDSEC") { entEnd = i; break; }
   }
@@ -170,7 +171,7 @@ export function parseDXF(text) {
   } else has3D = true;
 
   if (!polylines.length) {
-    const err = new Error(faces ? "This DXF contains only faces (3DFACE / polyface mesh) — it is a solid, not strings." : "No usable LINE/LWPOLYLINE/POLYLINE/POINT entities found in this DXF's ENTITIES section.");
+    const err = new Error(faces ? tr("This DXF contains only faces (3DFACE / polyface mesh) — it is a solid, not strings.") : tr("No usable LINE/LWPOLYLINE/POLYLINE/POINT entities found in this DXF's ENTITIES section."));
     err.facesOnly = faces > 0;
     throw err;
   }
@@ -180,7 +181,7 @@ export function parseDXF(text) {
 // TASKS.csv #550 — "skipped 37 TEXT, 12 INSERT" for the import notice ("" when nothing was skipped)
 export function dxfSkippedText(skipped) {
   const e = Object.entries(skipped || {}).sort((a, b) => b[1] - a[1]);
-  return e.length ? `skipped ${e.map(([t, n]) => `${n} ${t}`).join(", ")} (not imported: text, block references and fills carry no line geometry GeoStrix uses)` : "";
+  return e.length ? tr("skipped {v} (not imported: text, block references and fills carry no line geometry GeoStrix uses)", { v: e.map(([t, n]) => `${n} ${t}`).join(", ") }) : "";
 }
 
 // TASKS.csv #408 — one boundary spec per DXF layer (a CAD file's layers are its real grouping: pit crest,
@@ -418,10 +419,10 @@ export function createDXFMeshParser(opts = {}) {
     get triangleCount() { let t = 0; buckets.forEach((b) => { t += b.triangles; }); return t; },
     finish() {
       lines.end(); finishEntity(); if (poly) finishPolyline();
-      if (!sawEntities) throw new Error("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported).");
+      if (!sawEntities) throw new Error(tr("No ENTITIES section found — this may not be a valid DXF file, or uses the binary DXF variant (unsupported)."));
       const parts = [...buckets.values()].filter((b) => b.triangles > 0).map((b) => b.result());
       if (!parts.length) {
-        throw new Error("No 3D faces found — this DXF has no 3DFACE entities or polyface mesh. A plan-view DXF (lines/polylines) can be imported as a boundary from the Geophysics tab instead.");
+        throw new Error(tr("No 3D faces found — this DXF has no 3DFACE entities or polyface mesh. A plan-view DXF (lines/polylines) can be imported as a boundary from the Geophysics tab instead."));
       }
       const triangleCount = parts.reduce((s, p) => s + p.indices.length / 3, 0);
       const vertexCount = parts.reduce((s, p) => s + p.positions.length / 3, 0);

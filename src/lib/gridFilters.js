@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #373 — potential-field grid filters on a raster's kept values (#326): reduction to the pole,
 // first vertical derivative, upward continuation (Fourier domain), and the tilt derivative and analytic
 // signal built from those derivatives. These, not inversion, are how most mag grids are read day to day;
@@ -75,7 +76,7 @@ function prepare(values, nx, ny, dx, dy) {
     const z = v[j * nx + i]; if (!Number.isFinite(z)) continue;
     n++; sx += i; sy += j; sz += z; sxx += i * i; syy += j * j; sxy += i * j; sxz += i * z; syz += j * z;
   }
-  if (n < 16) throw new Error("Too few valid grid values to filter.");
+  if (n < 16) throw new Error(tr("Too few valid grid values to filter."));
   const A = [[n, sx, sy], [sx, sxx, sxy], [sy, sxy, syy]], b = [sz, sxz, syz];
   const plane = solve3(A, b) || [sz / n, 0, 0];
   for (let k = 0; k < v.length; k++) if (Number.isFinite(v[k])) v[k] -= plane[0] + plane[1] * (k % nx) + plane[2] * Math.floor(k / nx);
@@ -171,20 +172,20 @@ export function applyGridFilter(grid, kind, opts = {}) {
   const vd = () => applyOperator(P, nx, ny, (kx, ky, k) => [k, 0], { keepLevel: false });
   if (kind === "upward") {
     const h = Number(opts.height);
-    if (!(h > 0)) throw new Error("Enter the height to continue upward (m).");
+    if (!(h > 0)) throw new Error(tr("Enter the height to continue upward (m)."));
     return { values: applyOperator(P, nx, ny, (kx, ky, k) => [Math.exp(-k * h), 0], { keepLevel: true }) };
   }
   if (kind === "vd1") return { values: vd() };
   if (kind === "rtp") {
     const I = (Number(opts.inclination) * Math.PI) / 180, D = (Number(opts.declination) * Math.PI) / 180;
-    if (!Number.isFinite(I) || !Number.isFinite(D)) throw new Error("Enter the field inclination and (grid) declination.");
+    if (!Number.isFinite(I) || !Number.isFinite(D)) throw new Error(tr("Enter the field inclination and (grid) declination."));
     const warning = Math.abs(opts.inclination) < 20
-      ? `At an inclination of ${opts.inclination}° RTP is unstable (it amplifies noise along the declination); the tilt derivative or analytic signal is the safer product here.` : null;
+      ? tr("At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); the tilt derivative or analytic signal is the safer product here.", { inclination: opts.inclination }) : null;
     const sI = Math.sin(I), cI = Math.cos(I), sD = Math.sin(D), cD = Math.cos(D);
     const out = applyOperator(P, nx, ny, (kx, ky, k) => {
       if (k === 0) return [1 / (sI * sI), 0];
-      const tr = sI, ti = (cI * (kx * sD + ky * cD)) / k; // Theta
-      const t2r = tr * tr - ti * ti, t2i = 2 * tr * ti; // Theta^2
+      const thr = sI, ti = (cI * (kx * sD + ky * cD)) / k; // Theta
+      const t2r = thr * thr - ti * ti, t2i = 2 * thr * ti; // Theta^2
       const d = t2r * t2r + t2i * t2i;
       return d < 1e-6 ? [0, 0] : [t2r / d, -t2i / d]; // 1 / Theta^2 (zeroed where it would blow up)
     }, { keepLevel: false });
@@ -202,5 +203,5 @@ export function applyGridFilter(grid, kind, opts = {}) {
     }
     return { values: out };
   }
-  throw new Error(`Unknown filter "${kind}".`);
+  throw new Error(tr("Unknown filter \"{kind}\".", { kind }));
 }

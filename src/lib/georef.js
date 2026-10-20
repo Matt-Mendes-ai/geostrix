@@ -1,4 +1,5 @@
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #129 — QGIS-specialist audit finding: "Raster/GeoTIFF import trusts embedded tags;
 // there's no way to georeference an ungeoreferenced scanned map (old assessment-report maps, scanned
 // claim sketches — a common field/legacy-data need) the way QGIS's Georeferencer does with manual
@@ -18,7 +19,7 @@ function solve3x3(A, b) {
   const det = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
   const D = det(A);
   if (Math.abs(D) < 1e-9) {
-    throw new Error("Control points are degenerate (collinear, or duplicated pixel locations) — a transform can't be solved. Use at least 3 points that aren't all on one line.");
+    throw new Error(tr("Control points are degenerate (collinear, or duplicated pixel locations) — a transform can't be solved. Use at least 3 points that aren't all on one line."));
   }
   const replaceCol = (m, col, vec) => m.map((row, i) => row.map((v, j) => (j === col ? vec[i] : v)));
   return [0, 1, 2].map((col) => det(replaceCol(A, col, b)) / D);
@@ -41,7 +42,7 @@ function fitLinear3(rows, target) {
 // canvas/image convention), x/y in world/project coordinates. Returns { a,b,c,d,e,f } for
 // x = a*px + b*py + c, y = d*px + e*py + f.
 export function fitAffine(points) {
-  if (points.length < 3) throw new Error("Need at least 3 control points to fit a georeferencing transform.");
+  if (points.length < 3) throw new Error(tr("Need at least 3 control points to fit a georeferencing transform."));
   const rows = points.map((p) => [p.px, p.py, 1]);
   const [a, b, c] = fitLinear3(rows, points.map((p) => p.x));
   const [d, e, f] = fitLinear3(rows, points.map((p) => p.y));
@@ -56,7 +57,7 @@ export function forwardMap(t, px, py) {
 // to sample the source image per output cell — see georeferenceImage below).
 function invertLinear(t) {
   const det = t.a * t.e - t.b * t.d;
-  if (Math.abs(det) < 1e-12) throw new Error("This set of control points defines a degenerate (zero-area) transform — can't invert it to resample the image.");
+  if (Math.abs(det) < 1e-12) throw new Error(tr("This set of control points defines a degenerate (zero-area) transform — can't invert it to resample the image."));
   return { ia: t.e / det, ib: -t.b / det, id: -t.d / det, ie: t.a / det };
 }
 

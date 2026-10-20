@@ -17,6 +17,7 @@
 import { fetchWebLayerUrl } from "./desktop.js";
 import { reprojectXY, reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { arrMin, arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 function stripTrailingParams(url) {
   return url.split("?")[0];
@@ -35,7 +36,7 @@ async function fetchText(url) {
 function parseXml(text) {
   const doc = new DOMParser().parseFromString(text, "text/xml");
   const errEl = doc.querySelector("parsererror");
-  if (errEl) throw new Error("Server response wasn't valid XML — check the URL points at a real WMS/WFS service.");
+  if (errEl) throw new Error(tr("Server response wasn't valid XML — check the URL points at a real WMS/WFS service."));
   // OGC services return HTTP 200 with a ServiceExceptionReport/ExceptionReport body as the WHOLE
   // document (not embedded inside a real one) on a bad request (wrong VERSION, unknown layer, etc) —
   // checked via the document's own ROOT element name, not a query for an <Exception> tag ANYWHERE in
@@ -48,7 +49,7 @@ function parseXml(text) {
   if (/ServiceExceptionReport|ExceptionReport/i.test(rootName)) {
     const exc = doc.querySelector("ServiceException, Exception, ExceptionText");
     const msg = exc?.textContent?.trim();
-    throw new Error(msg ? `Server rejected the request: ${msg}` : "Server rejected the request.");
+    throw new Error(msg ? tr("Server rejected the request: {msg}", { msg }) : tr("Server rejected the request."));
   }
   return doc;
 }
@@ -124,7 +125,7 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
     // A GetMap failure comes back as an XML exception with an image content-type NOT set — same
     // exception shape GetCapabilities uses, so the same parser/message extraction applies.
     const bodyText = new TextDecoder("utf-8").decode(arrayBuffer);
-    let message = "Server rejected the map request — check the layer name and area.";
+    let message = tr("Server rejected the map request — check the layer name and area.");
     try { message = parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || message; } catch { /* fall through to the generic message */ }
     throw new Error(message);
   }
@@ -135,7 +136,7 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
   // drapes (#287), fast since the converter caching in #416. Pixels outside the source footprint stay
   // transparent.
   const fromDef = getProj4DefSync(4326), toDef = getProj4DefSync(projectEpsg);
-  if (!fromDef || !toDef) throw new Error(`Can't reproject WGS84 into the project's EPSG:${projectEpsg} — unrecognized target CRS.`);
+  if (!fromDef || !toDef) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
   const blob = new Blob([arrayBuffer], { type: contentType || format });
   const bmp = await createImageBitmap(blob);
   const src = document.createElement("canvas");
@@ -208,8 +209,8 @@ function epsgFromCrsName(name) {
 async function wfsGetFeature(baseUrl, params) {
   const { contentType, arrayBuffer } = await fetchWebLayerUrl(buildQuery(baseUrl, params));
   const bodyText = new TextDecoder("utf-8").decode(arrayBuffer);
-  if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || "Server rejected the feature request — check the layer name."), { serverRejected: true });
-  try { return JSON.parse(bodyText); } catch { throw new Error("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have)."); }
+  if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || tr("Server rejected the feature request — check the layer name.")), { serverRejected: true });
+  try { return JSON.parse(bodyText); } catch { throw new Error(tr("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have).")); }
 }
 export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
   const base = { SERVICE: "WFS", REQUEST: "GetFeature", VERSION: "2.0.0", TYPENAMES: typeName, OUTPUTFORMAT: "application/json", COUNT: maxFeatures };
@@ -236,14 +237,14 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
   }
   if (!geojson) geojson = await wfsGetFeature(baseUrl, base);
   const features = geojson.features || [];
-  if (!features.length) throw new Error(usedServerFilter ? "No features of this layer fall inside the project area." : "No features returned for this layer.");
+  if (!features.length) throw new Error(usedServerFilter ? tr("No features of this layer fall inside the project area.") : tr("No features returned for this layer."));
   // Which CRS are these coordinates in? The server's own statement wins, then what we asked for, then
   // WGS84 only if the numbers actually look like degrees.
   let fromEpsg = epsgFromCrsName(geojson.crs?.properties?.name) || askedEpsg;
   if (!fromEpsg) {
     const first = features.find((f) => f.geometry)?.geometry;
     const probe = JSON.stringify(first?.coordinates || []).match(/-?\d+(\.\d+)?/g)?.slice(0, 2).map(Number) || [];
-    if (probe.some((v) => Math.abs(v) > 180)) throw new Error("This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server.");
+    if (probe.some((v) => Math.abs(v) > 180)) throw new Error(tr("This server returned projected coordinates (metres) without saying which coordinate system they are in, so they can't be placed correctly. Try another layer or server."));
     fromEpsg = 4326;
   }
   // TASKS.csv #544 — keep each feature's attributes (tenure number, owner, good-to date...) with its parts, so the
@@ -271,7 +272,7 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
       clippedCount = before - polylines.length;
     }
   }
-  if (!polylines.length) throw new Error("Every feature fell outside the current project area after clipping — try without clipping, or check this is really the right layer.");
+  if (!polylines.length) throw new Error(tr("Every feature fell outside the current project area after clipping — try without clipping, or check this is really the right layer."));
   // #544 — one map-layer feature per source feature, with its properties as attributes (flat values only:
   // a nested object becomes its JSON text so it still shows up rather than as "[object Object]")
   const partsByFeature = new Map();
@@ -304,5 +305,5 @@ export function pickWfsStyleField(features, fields, current) {
 
 // TASKS.csv #544 — "the server's first 2,000 features — there may be more" for the import notice ("" when complete)
 export function wfsTruncationText({ truncated, maxFeatures }) {
-  return truncated ? `This is only the server's first ${Number(maxFeatures).toLocaleString("en-US")} features — the layer may have more here. Tick "Limit to the current project area", or work in a smaller area, to get all of them.` : "";
+  return truncated ? tr("This is only the server's first {v} features — the layer may have more here. Tick \"Limit to the current project area\", or work in a smaller area, to get all of them.", { v: Number(maxFeatures).toLocaleString("en-US") }) : "";
 }

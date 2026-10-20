@@ -31,7 +31,8 @@ import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; //
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
-import { t as tr, tx } from "../lib/i18n.js"; // TASKS.csv #786 — "tr": this file uses t as a local name
+import { t as tr } from "../lib/i18n.js";
+import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";

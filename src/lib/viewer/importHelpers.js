@@ -10,6 +10,7 @@ const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
 import { num, isOverturnedValue, targetFromName, guessTargetFor } from "../layers.js";
 import { parseTableFile, parseTableText } from "../tabular.js";
+import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export function normInterval(r, mapping, customFields) {
   return applyCustomFields({
@@ -220,9 +221,9 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       if (!features.length) { onDone(null, "No placemarks with coordinates found in this KML."); return; }
       const { rows, headers } = kmlFeaturesToRows(features);
       const nPts = features.filter((f) => f.geomType === "point").length;
-      let note = ` KML: ${nPts} point(s), ${features.length - nPts} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.`;
-      if (skipped) note += ` ${skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.`;
-      if (badTuples) note += ` ${badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out (#705).`;
+      let note = tr(" KML: {nPts} point(s), {v} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.", { nPts, v: features.length - nPts });
+      if (skipped) note += tr(" {skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.", { skipped });
+      if (badTuples) note += tr(" {badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out (#705).", { badTuples });
       onDone(rows, null, { headers, note, detectedEpsg: 4326 });
     }).catch((err) => onDone(null, err.message));
     return;
@@ -236,7 +237,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
       if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => ({ name: s.sheet, count: s.rows, unit: "row" })) }); return; }
       const t = parseTableText(pick.text);
-      onDone(t.rows, null, { headers: t.headers, note: ` Sheet "${pick.sheet}" of ${file.name}.${t.note ? ` ${t.note}` : ""}` });
+      onDone(t.rows, null, { headers: t.headers, note: tr(" Sheet \"{sheet}\" of {name}.{v}", { sheet: pick.sheet, name: file.name, v: t.note ? ` ${t.note}` : "" }) });
     }).catch((err) => onDone(null, err.message));
     return;
   }
@@ -252,13 +253,13 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       const layer = (chosenLayer && usable.find((l) => l.name === chosenLayer)) || usable[0];
       const { rows, headers } = gpkgFeaturesToRows(layer);
       let note = "";
-      if (usable.length > 1) note += ` Imported the "${layer.name}" table of ${usable.length} in this GeoPackage — open the file again to bring in another one.`;
-      if (layer.skippedCount) note += ` ${layer.skippedCount} feature(s) with an unsupported/empty geometry were skipped.`;
+      if (usable.length > 1) note += tr(" Imported the \"{name}\" table of {usable} in this GeoPackage — open the file again to bring in another one.", { name: layer.name, usable: usable.length });
+      if (layer.skippedCount) note += tr(" {skippedCount} feature(s) with an unsupported/empty geometry were skipped.", { skippedCount: layer.skippedCount });
       // TASKS.csv #223 — GeoPackage already read its own SRS registry properly (gpkg_spatial_ref_sys,
       // a structured field, more reliable than shapefile's .prj WKT-name-sniffing above) but never
       // surfaced it as a Source CRS suggestion — same fix, same "only ever suggests" caveat.
       const detectedEpsg = layer.epsg ? Number(layer.epsg) : null;
-      if (detectedEpsg) note += ` Detected source CRS EPSG:${detectedEpsg} from this GeoPackage's own SRS registry — pre-filled below, double-check it's correct.`;
+      if (detectedEpsg) note += tr(" Detected source CRS EPSG:{detectedEpsg} from this GeoPackage's own SRS registry — pre-filled below, double-check it's correct.", { detectedEpsg });
       onDone(rows, null, { headers, note, detectedEpsg });
     }).catch((err) => onDone(null, err.message));
     return;
@@ -276,10 +277,10 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       }
       const { rows, headers } = shapefileFeaturesToRows(parsed);
       let note = "";
-      if (parsed.otherBaseNames) note += ` This .zip bundles ${parsed.otherBaseNames + 1} separate shapefiles — "${parsed.layerName}" was imported; open the file again to pick another.`;
-      if (parsed.skippedCount) note += ` ${parsed.skippedCount} feature(s) with an unsupported shape type were skipped.`;
-      if (parsed.deletedCount) note += ` ${parsed.deletedCount} record(s) flagged deleted in the .dbf were left out (#706).`;
-      if (parsed.hasAttributes === false) note += " No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).";
+      if (parsed.otherBaseNames) note += tr(" This .zip bundles {v} separate shapefiles — \"{layerName}\" was imported; open the file again to pick another.", { v: parsed.otherBaseNames + 1, layerName: parsed.layerName });
+      if (parsed.skippedCount) note += tr(" {skippedCount} feature(s) with an unsupported shape type were skipped.", { skippedCount: parsed.skippedCount });
+      if (parsed.deletedCount) note += tr(" {deletedCount} record(s) flagged deleted in the .dbf were left out (#706).", { deletedCount: parsed.deletedCount });
+      if (parsed.hasAttributes === false) note += tr(" No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).");
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't
       // reproject unasked) — guessEpsgFromPrjWkt returns null for anything it can't confidently
@@ -288,8 +289,8 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       if (parsed.prjWkt) {
         detectedEpsg = guessEpsgFromPrjWkt(parsed.prjWkt);
         note += detectedEpsg
-          ? ` Detected source CRS EPSG:${detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.`
-          : " This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.";
+          ? tr(" Detected source CRS EPSG:{detectedEpsg} from the bundled .prj file — pre-filled below, double-check it's correct.", { detectedEpsg })
+          : tr(" This shapefile includes a .prj file, but its CRS wasn't one GeoStrix recognizes automatically — set Source CRS manually below if it's not already in the project's EPSG.");
       }
       onDone(rows, null, { headers, note, detectedEpsg, vector: parsed }); // vector: #609 (lines / polygons -> Map layers)
     }).catch((err) => onDone(null, err.message));

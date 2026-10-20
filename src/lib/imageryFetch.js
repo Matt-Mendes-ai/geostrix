@@ -15,6 +15,7 @@ import { BaseClient, BaseResponse, fromCustomClient, writeArrayBuffer } from "ge
 import { remoteSensingFetch } from "./desktop.js";
 import { reprojectXY, reprojectGrid, getProj4DefSync } from "./reproject.js";
 import { pointInRings } from "./mapLayers.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const EARTH_SEARCH = "https://earth-search.aws.element84.com/v1/search";
 const PC_SEARCH = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
@@ -49,7 +50,7 @@ class RsClient extends BaseClient {
   constructor(url, stats) { super(url); this.stats = stats; this.blocks = new Map(); this.inflight = new Map(); this.size = null; }
   async fetchRange(a, b) {
     const r = await remoteSensingFetch({ url: this.url, range: [a, b] });
-    if (!r.ok) throw new Error(r.message || `HTTP ${r.status} reading ${this.url.split("?")[0]}`);
+    if (!r.ok) throw new Error(r.message || tr("HTTP {status} reading {v}", { status: r.status, v: this.url.split("?")[0] }));
     if (this.stats) { this.stats.requests++; this.stats.bytes += r.data?.byteLength || 0; }
     const total = /\/(\d+)\s*$/.exec(r.contentRange || "");
     if (total) this.size = Number(total[1]);
@@ -89,7 +90,7 @@ const openCog = (href, stats) => fromCustomClient(new RsClient(href, stats)); //
 
 async function stacSearch(url, body) {
   const r = await remoteSensingFetch({ url, json: body });
-  if (!r.ok) throw new Error(`The catalogue search failed (${r.message || `HTTP ${r.status}`}).`);
+  if (!r.ok) throw new Error(tr("The catalogue search failed ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
   return JSON.parse(new TextDecoder().decode(r.data));
 }
 
@@ -113,7 +114,7 @@ let pcToken = null;
 async function signPc(href) {
   if (!pcToken || Date.parse(pcToken.expiry) - Date.now() < 5 * 60 * 1000) {
     const r = await remoteSensingFetch({ url: PC_TOKEN });
-    if (!r.ok) throw new Error(`Could not get a read token from the Planetary Computer (${r.message || `HTTP ${r.status}`}).`);
+    if (!r.ok) throw new Error(tr("Could not get a read token from the Planetary Computer ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
     const t = JSON.parse(new TextDecoder().decode(r.data));
     pcToken = { token: t.token, expiry: t["msft:expiry"] };
   }
@@ -151,13 +152,13 @@ export async function searchScenes(source, bbox, { from, to, maxCloud = 20, limi
     return (d.features || []).filter((f) => f.assets.TIR).map((f) => ({ source, id: f.id, date: String(f.properties.datetime).slice(0, 10), cloud: f.properties["eo:cloud_cover"], epsg: f.properties["proj:epsg"], coverage: areaCoverage(f.geometry, bbox), tir: f.assets.TIR.href }))
       .sort((a, b) => b.coverage - a.coverage || a.cloud - b.cloud).slice(0, limit);
   }
-  throw new Error(`Unknown imagery source ${source}`);
+  throw new Error(tr("Unknown imagery source {source}", { source }));
 }
 
 // The output grid: the area's box in the scene CRS at `cellM` metres or coarser, at most maxPx on its longest side
 export function windowGrid(bbox, epsg, cellM, maxPx = 2000) {
   const corners = [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[3]], [bbox[0], bbox[3]]].map(([x, y]) => reprojectXY(x, y, 4326, epsg));
-  if (corners.some((c) => !c)) throw new Error(`EPSG:${epsg} is not a CRS GeoStrix can project to.`);
+  if (corners.some((c) => !c)) throw new Error(tr("EPSG:{epsg} is not a CRS GeoStrix can project to.", { epsg }));
   const xs = corners.map((c) => c.x), ys = corners.map((c) => c.y);
   const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
   const cell = Math.max(cellM, Math.max(box[2] - box[0], box[3] - box[1]) / maxPx);
@@ -182,7 +183,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
   if (scene.source === "sentinel2") {
     const want = roles.filter((r) => scene.bands[r]);
     const missing = roles.filter((r) => !scene.bands[r]);
-    if (missing.length) throw new Error(`This scene has no ${missing.join(", ")} band.`);
+    if (missing.length) throw new Error(tr("This scene has no {missing} band.", { missing: missing.join(", ") }));
     let done = 0;
     const total = want.length + (scene.scl ? 1 : 0);
     for (const r of want) {
@@ -204,9 +205,9 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
       }
       onProgress?.(total, total);
       const parts = Object.entries(masked).filter(([, c]) => c).map(([k, c]) => `${k} ${((100 * c) / n).toFixed(1)}%`);
-      note = parts.length ? ` Masked with the scene classification: ${parts.join(", ")}.` : " The scene classification found no cloud, shadow, snow or water over the area.";
+      note = parts.length ? tr(" Masked with the scene classification: {parts}.", { parts: parts.join(", ") }) : tr(" The scene classification found no cloud, shadow, snow or water over the area.");
     }
-    note = ` Sentinel-2 L2A ${scene.id} (${scene.date}, ${scene.cloud?.toFixed(1)}% cloud over the whole tile), surface reflectance${scene.baseline ? ` (processing baseline ${scene.baseline}${Object.values(scene.bands)[0]?.offset ? ", baseline offset removed" : ", values already harmonised"})` : ""}, read at ${Math.round(g.cell)} m.${note}`;
+    note = tr(" Sentinel-2 L2A {id} ({date}, {v}% cloud over the whole tile), surface reflectance{v2}, read at {v3} m.{note}", { id: scene.id, date: scene.date, v: scene.cloud?.toFixed(1), v2: scene.baseline ? tr(" (processing baseline {baseline}{v})", { baseline: scene.baseline, v: Object.values(scene.bands)[0]?.offset ? tr(", baseline offset removed") : tr(", values already harmonised") }) : "", v3: Math.round(g.cell), note });
   } else if (scene.source === "aster_tir") {
     onProgress?.(0, 1);
     const tir = await read(await signPc(scene.tir), [0, 1, 2, 3, 4]);
@@ -216,7 +217,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
       bands.push(v); mapping[`B${10 + k}`] = k + 1;
     });
     onProgress?.(1, 1);
-    note = ` ASTER L1T ${scene.id.split("_").slice(0, 3).join("_")} (${scene.date}, ${scene.cloud}% cloud over the scene), thermal bands 10-14 as at-sensor radiance (no atmospheric or temperature correction: compare values within this scene, not between scenes), ${Math.round(g.cell)} m.`;
+    note = tr(" ASTER L1T {v} ({date}, {cloud}% cloud over the scene), thermal bands 10-14 as at-sensor radiance (no atmospheric or temperature correction: compare values within this scene, not between scenes), {v2} m.", { v: scene.id.split("_").slice(0, 3).join("_"), date: scene.date, cloud: scene.cloud, v2: Math.round(g.cell) });
   }
   // The importer keeps an index's VALUES only when it needs no reprojection (#326: a picture resample is not a value
   // re-grid), and the scenes come in WGS 84 / UTM while projects are often NAD83(CSRS) / UTM: so the stack is resampled
@@ -228,7 +229,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
     const rp = reprojectGrid({ xmin: g.box[0] + h, ymin: g.box[1] + h, xmax: g.box[2] - h, ymax: g.box[3] - h, gridW: g.width, gridH: g.height, bands }, getProj4DefSync(scene.epsg), getProj4DefSync(dst), g.width, g.height, { nearest: true });
     const sx = (rp.bbox[2] - rp.bbox[0]) / Math.max(1, rp.gridW - 1), sy = (rp.bbox[3] - rp.bbox[1]) / Math.max(1, rp.gridH - 1);
     out = { width: rp.gridW, height: rp.gridH, bands: rp.bandsOut, epsg: dst, scaleX: sx, scaleY: sy, x0: rp.bbox[0] - sx / 2, y1: rp.bbox[3] + sy / 2 };
-    note += ` Resampled (nearest pixel) from EPSG:${scene.epsg} into the project's EPSG:${dst} so the values are kept.`;
+    note += tr(" Resampled (nearest pixel) from EPSG:{epsg} into the project's EPSG:{dst} so the values are kept.", { epsg: scene.epsg, dst });
   }
   // interleave into one Float32 multiband GeoTIFF (NaN = no data)
   const S = out.bands.length, m = out.width * out.height, data = new Float32Array(m * S);

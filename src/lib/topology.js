@@ -29,6 +29,7 @@
 // on the result says when that happened, so a "no violation" answer is never silently over-claimed.
 
 import { buildMeshQuery, segmentIntersections } from "./meshQuery.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const EDGE_BUDGET = 20000; // max edges tested per direction per pair
 
@@ -337,7 +338,7 @@ export function checkTopology(surfaces, opts = {}) {
         violations.push({
           kind: "intersection",
           surfaceId: a.id, targetId: b.id,
-          message: `"${a.name}" is declared ${rel.relation.replace(/_/g, " ")} "${b.name}", but the two surfaces intersect.`,
+          message: tr("\"{name}\" is declared {v} \"{name2}\", but the two surfaces intersect.", { name: a.name, v: rel.relation.replace(/_/g, " "), name2: b.name }),
           point: cross.point,
         });
       }
@@ -350,7 +351,7 @@ export function checkTopology(surfaces, opts = {}) {
           violations.push({
             kind: "wrong_side",
             surfaceId: a.id, targetId: b.id,
-            message: `"${a.name}" is declared ${expected} "${b.name}", but ${side.wrong} of ${side.compared} sampled locations have it on the wrong side (worst gap ${side.worst ? side.worst.gap.toFixed(1) : "?"} m).`,
+            message: tr("\"{name}\" is declared {expected} \"{name2}\", but {wrong} of {compared} sampled locations have it on the wrong side (worst gap {v} m).", { name: a.name, expected, name2: b.name, wrong: side.wrong, compared: side.compared, v: side.worst ? side.worst.gap.toFixed(1) : "?" }),
             point: side.worst ? null : null,
           });
         }
@@ -371,7 +372,7 @@ export function checkTopology(surfaces, opts = {}) {
       violations.push({
         kind: "inverted",
         surfaceId: a.id, targetId: null,
-        message: `"${a.name}" folds back over itself at ${inv.folded} of ${inv.sampled} sampled locations (a contact surface should have one elevation per location) — usually an interpolation artefact rather than a real overturned fold.`,
+        message: tr("\"{name}\" folds back over itself at {folded} of {sampled} sampled locations (a contact surface should have one elevation per location) — usually an interpolation artefact rather than a real overturned fold.", { name: a.name, folded: inv.folded, sampled: inv.sampled }),
         point: null,
       });
     }

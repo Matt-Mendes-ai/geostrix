@@ -14,6 +14,7 @@
 // identically in Electron and in a plain-browser dev/vite session.
 import { getBaseLayer } from "./baseLayers.js";
 import { getProj4Def, reprojectGrid } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const TILE = 256;
 const MIN_ZOOM = 2;
@@ -82,7 +83,7 @@ export function planSatelliteFetch([lonMin, latMin, lonMax, latMax], level = "st
 async function fetchTileBitmap(z, x, y) {
   const url = getBaseLayer("satellite").tileUrl(z, x, y);
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Tile fetch failed (HTTP ${res.status}) for z${z}/${x}/${y}.`);
+  if (!res.ok) throw new Error(tr("Tile fetch failed (HTTP {status}) for z{z}/{x}/{y}.", { status: res.status, z, x, y }));
   const blob = await res.blob();
   return createImageBitmap(blob);
 }
@@ -194,9 +195,9 @@ export function unpremultiply(r, g, b, a, out) {
 
 export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, level = "standard" }) {
   if (!(Number.isFinite(lonMin) && Number.isFinite(latMin) && Number.isFinite(lonMax) && Number.isFinite(latMax))) {
-    throw new Error("Invalid area — couldn't determine a bounding box to fetch.");
+    throw new Error(tr("Invalid area — couldn't determine a bounding box to fetch."));
   }
-  if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error("Invalid area — check the coordinates.");
+  if (!(lonMax > lonMin) || !(latMax > latMin)) throw new Error(tr("Invalid area — check the coordinates."));
 
   const plan = planSatelliteFetch([lonMin, latMin, lonMax, latMax], level); // #781
   const { zoom, tilesX, tilesY } = plan;
@@ -205,7 +206,7 @@ export async function fetchSatelliteImagery({ lonMin, latMin, lonMax, latMax, ta
   const total = tilesX * tilesY;
   const { rgba: mdata, mw, mh, failed } = await buildMosaic(zoom, nw, tilesX, tilesY, onProgress);
   if (failed.length === total) {
-    throw new Error(`Couldn't fetch any satellite imagery tiles (${failed[0]}). Check your internet connection — this needs to reach a public EOX-hosted imagery service.`);
+    throw new Error(tr("Couldn't fetch any satellite imagery tiles ({v}). Check your internet connection — this needs to reach a public EOX-hosted imagery service.", { v: failed[0] }));
   }
 
   const nwLL = tileXYToLonLat(nw.x, nw.y, zoom), seLL = tileXYToLonLat(se.x + 1, se.y + 1, zoom);

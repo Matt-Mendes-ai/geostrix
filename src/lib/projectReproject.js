@@ -18,13 +18,14 @@
 import { pointTransform, getProj4DefSync, reprojectGrid, turnGridBearing, bearingTurn } from "./reproject.js";
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { fillNoData } from "./demFill.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const DEG = 180 / Math.PI;
 const fin = Number.isFinite;
 
 export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   const T = pointTransform(fromEpsg, toEpsg);
-  if (!T) throw new Error(`Can't reproject from EPSG:${fromEpsg} to EPSG:${toEpsg} — one of them isn't a CRS GeoStrix can build.`);
+  if (!T) throw new Error(tr("Can't reproject from EPSG:{fromEpsg} to EPSG:{toEpsg} — one of them isn't a CRS GeoStrix can build.", { fromEpsg, toEpsg }));
   const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
   const rotate = opts.rotateAzimuths !== false;
   const counts = {}, notes = [];
@@ -219,7 +220,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
       return { ...m, cells, ...(params ? { params } : {}), ...(stationData ? { stationData } : {}) };
     });
     count("voxel models", f.voxelModels.length);
-    if (worst > 0.2) notes.push(`Voxel models: cell centres moved exactly, but cells stay aligned to the new grid axes — grid north differs by ${worst.toFixed(2)}° between the two CRSs, so blocks are now turned by that much relative to the ground they describe. Fine for display; re-run an inversion in the new CRS if the orientation matters.`);
+    if (worst > 0.2) notes.push(tr("Voxel models: cell centres moved exactly, but cells stay aligned to the new grid axes — grid north differs by {worst}° between the two CRSs, so blocks are now turned by that much relative to the ground they describe. Fine for display; re-run an inversion in the new CRS if the orientation matters.", { worst: worst.toFixed(2) }));
   }
 
   // ---- terrain (node grid) and raster value grids ----
@@ -245,7 +246,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   });
   if (live.layoutPages?.some((p) => p.elements?.some((e) => e.type === "viewport" || (e.type === "north" && e.decl)))) {
     f.layoutPages = live.layoutPages.map((p) => ({ ...p, elements: layoutEls(p.elements) }));
-    notes.push("Layout pages: refresh each map viewport and north arrow (their pictures and grid-north angle were captured in the old CRS).");
+    notes.push(tr("Layout pages: refresh each map viewport and north arrow (their pictures and grid-north angle were captured in the old CRS)."));
   }
   if (live.layoutTemplates?.length) f.layoutTemplates = live.layoutTemplates.map((t) => (Array.isArray(t.elements) ? { ...t, elements: layoutEls(t.elements) } : t));
 
@@ -260,7 +261,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
     if (cxy) {
       f.structuralTrends = { ...live.structuralTrends, trends: live.structuralTrends.trends.map((t) => (fin(Number(t.dipAzimuth)) ? { ...t, dipAzimuth: Math.round(az(cxy[0], cxy[1], Number(t.dipAzimuth)) * 100) / 100 } : t)) };
       count("structural trends", f.structuralTrends.trends.length);
-    } else notes.push("Structural trends were not turned (no collars to tell where grid north changes); check their dip azimuths.");
+    } else notes.push(tr("Structural trends were not turned (no collars to tell where grid north changes); check their dip azimuths."));
   }
   if (live.fieldStructuralRefs?.length && cxy) {
     f.fieldStructuralRefs = live.fieldStructuralRefs.map((r) => (fin(Number(r.dipDirDeg)) ? { ...r, dipDirDeg: Math.round(az(cxy[0], cxy[1], Number(r.dipDirDeg)) * 10) / 10 } : r));
@@ -294,7 +295,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   }
 
   f.project = { ...live.project, epsg: Number(toEpsg), crsSet: true }; // #615
-  if (maxRot > 0.005) notes.push(`Azimuths and dip directions were turned by up to ${maxRot.toFixed(2)}° so they still point the same way on the ground (grid north differs between the two CRSs).`);
+  if (maxRot > 0.005) notes.push(tr("Azimuths and dip directions were turned by up to {maxRot}° so they still point the same way on the ground (grid north differs between the two CRSs).", { maxRot: maxRot.toFixed(2) }));
   return { fields: f, report: { counts, notes, maxRotationDeg: maxRot } };
 }
 

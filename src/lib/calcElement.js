@@ -8,6 +8,7 @@
 // the unit each element is stored in (see the element list). Rows missing any element in the formula get
 // no value (NaN is never stored), so an index is never computed from a partial analysis.
 import { compileCalc } from "./calcExpr.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Element wt% -> oxide wt% factors are written into the presets so AI/CCPI use oxides as defined.
 export const CALC_PRESETS = [
@@ -20,8 +21,8 @@ export const CALC_PRESETS = [
 // Returns { assays, element, computed, skipped, min, max } or throws with a readable message.
 export function addCalculatedElement(assays, assayElements, name, expr, unit = "index") {
   const n = String(name || "").trim();
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) throw new Error("Name must start with a letter and use only letters, digits and _.");
-  if ((assayElements || []).some((e) => e.symbol === n)) throw new Error(`"${n}" already exists — pick another name.`);
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) throw new Error(tr("Name must start with a letter and use only letters, digits and _."));
+  if ((assayElements || []).some((e) => e.symbol === n)) throw new Error(tr("\"{n}\" already exists — pick another name.", { n }));
   const symbols = (assayElements || []).map((e) => e.symbol);
   const fn = compileCalc(expr, symbols); // throws on bad syntax / unknown names
   let computed = 0, skipped = 0, min = Infinity, max = -Infinity;
@@ -31,6 +32,6 @@ export function addCalculatedElement(assays, assayElements, name, expr, unit = "
     computed++; if (v < min) min = v; if (v > max) max = v;
     return { ...a, values: { ...(a.values || {}), [n]: v } };
   });
-  if (!computed) throw new Error("The formula gave no value on any assay row — check that every element in it has results.");
+  if (!computed) throw new Error(tr("The formula gave no value on any assay row — check that every element in it has results."));
   return { assays: out, element: { symbol: n, unit, calculated: { expr: String(expr).trim() } }, computed, skipped, min, max };
 }
