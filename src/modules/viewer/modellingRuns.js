@@ -21,6 +21,7 @@ import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TAS
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
 import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
+import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/modelSection.js"; // TASKS.csv #759
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 
 export function createModellingRuns(ctx, mcRef) {
@@ -243,7 +244,25 @@ export function createModellingRuns(ctx, mcRef) {
     const [mx0, mx1] = pad(rxMap.min, rxMap.max), [my0, my1] = pad(ryMap.min, ryMap.max);
     const mapGrid = mapTerrain ? terrainGrid(mapTerrain, [mx0 + o0.x, my0 + o0.y, mx1 + o0.x, my1 + o0.y], { maxPts: 20000, minSpacing: 25 }) : null;
     const mapApi = mapGrid ? mapGrid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }) : [];
-    const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z])];
+    // TASKS.csv #759 — the most recent saved cross-sections, a vertical grid each over the depths of the holes near the
+    // line (nodes above the ground left out), evaluated in the same solve so the section window can draw the model
+    // behind the holes
+    const rzSec = minMax(extentApiPts.map((q) => q.z));
+    const [sz0, sz1] = pad(rzSec.min, rzSec.max);
+    const groundAt = mapTerrain ? (x, y) => {
+      const [tx0, ty0, tx1, ty1] = mapTerrain.bbox;
+      return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(mapTerrain, x, y) : NaN;
+    } : null;
+    const secPick = pickSections(sections);
+    const tracePts = secPick.sections.length ? traces.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] }))) : [];
+    const secGrids = secPick.sections.map((sc) => {
+      const A = { x: sc.ax, y: sc.ay }, B = { x: sc.bx, y: sc.by };
+      const [zl, zh] = sectionZRange(tracePts, A, B, Number(sc.corridor) || 100, sz0 + o0.z, sz1 + o0.z);
+      return { sc, grid: sectionGrid(A, B, zl, zh, { maxPts: secPick.perSection, minSpacing: 2, groundAt }) };
+    })
+      .filter((g) => g.grid?.nodes.length);
+    const secApi = secGrids.flatMap(({ grid }) => grid.nodes.map((n) => { const a = { x: n.x - o0.x, y: n.y - o0.y, z: n.z - o0.z }; return anisotropy.enabled ? anisoWarpPoint(a, anisoCenter, anisoBasis, anisoScl) : a; }));
+    const evalAll = [...evalRows.map((q) => [q.x, q.y, q.z]), ...mapApi.map((q) => [q.x, q.y, q.z]), ...secApi.map((q) => [q.x, q.y, q.z])];
     const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
     const res = await pythonImplicitModel(
       extent,
@@ -390,7 +409,7 @@ export function createModellingRuns(ctx, mcRef) {
       const unitOfRow = (r) => { if (mcodeUnits.size) { const ec = effectiveCode(r, mcRef.current, mcodeGroupOf); if (mcodeUnits.has(ec)) return ec; } return codeToUnit.get(r.value); };
       // TASKS.csv #756 — the exact unit at each midpoint when the engine evaluated them (same numbering as the block);
       // a midpoint outside the model box keeps no unit, so it counts as "outside the model" as before
-      const exact = Array.isArray(res.evaluated) && res.evaluated.length === evalRows.length + mapApi.length;
+      const exact = Array.isArray(res.evaluated) && res.evaluated.length === evalRows.length + mapApi.length + secApi.length;
       if (exact) {
         const [x0, x1, y0, y1, z0, z1] = res.block.extent;
         evalRows.forEach((q, i) => { if (q.x >= x0 && q.x <= x1 && q.y >= y0 && q.y <= y1 && q.z >= z0 && q.z <= z1) q.modelled = res.block.labels[res.evaluated[i] - 1] ?? null; });
@@ -412,7 +431,25 @@ export function createModellingRuns(ctx, mcRef) {
         const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
         lbBlock = resampleWarpedBlock(res.block, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
       }
-      setLastLithBlock({ ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      // TASKS.csv #759 — each evaluated section's units (packed), keyed by section id with the line it was evaluated on
+      const secResults = {};
+      if (exact && secGrids.length) {
+        const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
+        const aboveSec = `above the top of ${specs[0].meshName} (not modelled)`;
+        let off = evalRows.length + mapApi.length;
+        secGrids.forEach(({ sc, grid }) => {
+          const units = grid.nodes.map((_, k) => {
+            const q = secApi[off - evalRows.length - mapApi.length + k];
+            if (!(q.x >= bx0 && q.x <= bx1 && q.y >= by0 && q.y <= by1 && q.z >= bz0 && q.z <= bz1)) return null;
+            const id = res.evaluated[off + k];
+            return id <= 1 ? aboveSec : res.block.labels[id - 1] ?? null;
+          });
+          off += grid.nodes.length;
+          secResults[sc.id] = { ax: sc.ax, ay: sc.ay, bx: sc.bx, by: sc.by, grid: { len: grid.len, z0: grid.z0, z1: grid.z1, nx: grid.nx, ny: grid.ny, dl: grid.dl, dz: grid.dz, ij: Int32Array.from(grid.nodes, (n) => n.j * grid.nx + n.i) }, units: packUnits(units) };
+        });
+        setNotices((p) => [...p, `Modelled units evaluated exactly on ${secGrids.length} saved cross-section${secGrids.length > 1 ? "s" : ""} (${secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", ")}; ${secApi.length.toLocaleString()} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).`]);
+      }
+      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: `above the top of ${specs[0].meshName} (not modelled)` } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;

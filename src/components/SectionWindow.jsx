@@ -57,6 +57,7 @@ export default function SectionWindow() {
   // since faking exaggeration inside a fixed box would just be a different, undisclosed distortion.
   const [vExag, setVExag] = useState(1);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
+  const [showModel, setShowModel] = useState(true); // TASKS.csv #759
 
   // Layout's "assign a scale bar" feature (mirrors the existing viewport worldHeightAtTarget pattern —
   // see LayoutModule.jsx's onSyncScaleBar) needs to know the true real-world scale of whatever gets
@@ -119,7 +120,7 @@ export default function SectionWindow() {
       // Layout image element this snapshot becomes, so a legend can be bound directly to THIS
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
-      legendItems: data?.legendItems || null,
+      legendItems: data?.legendItems ? data.legendItems.filter(([label]) => showModel || !data.modelBackdrop || !label.startsWith("Model: ")) : null, // #759
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
@@ -282,6 +283,11 @@ export default function SectionWindow() {
           <button onClick={snapshotToLayout} style={btnStyle(snapped)}>
             <Camera size={14} /> {snapped ? "Sent ✓" : "Snapshot to Layout"}
           </button>
+          {data.modelBackdrop && ( // TASKS.csv #759
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={`${data.modelBackdrop.name}: the modelled units on this section, behind the logged holes, ${data.modelBackdrop.source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).`}>
+              <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} /> Modelled units
+            </label>
+          )}
           {data.sectionImages?.length > 0 && ( // TASKS.csv #631
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={`Georeferenced section image(s) on this line, drawn behind the holes and contacts: ${data.sectionImages.map((i) => i.name).join(", ")}`}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} /> Section image
@@ -339,7 +345,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>Editing "{editing?.unit}": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{snapOn ? " (snapping to holes)" : ""}. Click the pencil again to finish; Save contacts keeps the changes.</div>}
-        <SectionSVG showSectionImages={showSectionImages} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} />
       </div>
     </div>
@@ -351,7 +357,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ showSectionImages = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints }) {
+function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints }) {
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [] } = data;
   const W = SECTION_W, PAD = 60;
@@ -477,6 +483,15 @@ function SectionSVG({ showSectionImages = true, data, svgRef, contacts, drawing,
               ))}
             </g>
           ))}
+        </g>
+      )}
+      {/* TASKS.csv #759 — the last model's units on this section, one pixel per evaluated node, stretched over its
+          (distance, elevation) box so it follows the vertical exaggeration; pixelated, not smoothed, so its spacing shows. */}
+      {showModel && data.modelBackdrop && (
+        <g clipPath="url(#sectionPlotArea)">
+          <image href={data.modelBackdrop.dataUrl} x={sx(0)} y={sz(data.modelBackdrop.z1)} width={Math.max(1, sx(data.modelBackdrop.len) - sx(0))} height={Math.max(1, sz(data.modelBackdrop.z0) - sz(data.modelBackdrop.z1))} preserveAspectRatio="none" opacity={0.5} style={{ imageRendering: "pixelated" }}>
+            <title>{`${data.modelBackdrop.name}, ${data.modelBackdrop.source}`}</title>
+          </image>
         </g>
       )}
       {/* TASKS.csv #631 — a georeferenced section image on this line (an old interpretation, a report figure), stretched

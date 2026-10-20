@@ -16,7 +16,8 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { blockToCells, modelledIntervals, ABOVE_TOPS } from "../lib/modelCheck.js"; // TASKS.csv #356
+import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
+import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
@@ -6346,7 +6347,43 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     return { intervals, points };
   };
 
-  const buildSectionPayload = (a, b, corridor, scope = {}) => {
+  // TASKS.csv #759 — the last model's units on this section as a picture (drawn behind the holes in the section
+  // window): exact when the run evaluated this saved section on this same line, else read from the model's block at its
+  // cell size, and said so. Nodes above the ground are left out. Coordinates: world E / N / elevation.
+  const modelBackdropFor = (a, b, secId, showTerrain, corridor) => {
+    const lb = lastLithBlock;
+    if (!lb?.block) return null;
+    const colorOf = (u) => (u === lb.aboveLabel || /^above the top of /.test(u) ? "#d4d4d4" : lithUnitColor(lb, u));
+    const ev = secId && lb.sections?.[secId];
+    let grid, units, source;
+    if (ev && sameLine({ ax: a.x, ay: a.y, bx: b.x, by: b.y }, ev)) {
+      const g = ev.grid;
+      grid = { len: g.len, z0: g.z0, z1: g.z1, nx: g.nx, ny: g.ny, dl: g.dl, nodes: Array.from(g.ij, (k) => ({ i: k % g.nx, j: Math.floor(k / g.nx) })) };
+      units = unpackUnits(ev.units);
+      source = `evaluated exactly every ${Math.round(g.dl)} m`;
+    } else {
+      const o = lb.origin, [, , , , bz0, bz1] = lb.block.extent, sp = blockSpacing(lb.block);
+      const groundAt = terrain && showTerrain ? (x, y) => {
+        const [tx0, ty0, tx1, ty1] = terrain.bbox;
+        return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN;
+      } : null;
+      const tracePts = tracesRef.current.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] })));
+      const [zl, zh] = sectionZRange(tracePts, a, b, corridor, bz0 + o.z, bz1 + o.z);
+      grid = sectionGrid(a, b, zl, zh, { maxPts: 40000, minSpacing: Math.max(1, Math.min(sp.horizontal, sp.vertical) / 2), groundAt });
+      if (!grid) return null;
+      const above = `above the top of ${lb.units[0]?.name || "the model"} (not modelled)`;
+      units = grid.nodes.map((n) => { const u = unitAt(lb.block, n.x - o.x, n.y - o.y, n.z - o.z); return u === undefined ? null : u === null ? above : u; });
+      source = `read from the model's block (cells about ${Math.round(sp.horizontal)} x ${Math.round(sp.vertical)} m; a model run evaluates the most recent sections exactly)`;
+    }
+    if (!units.some((u) => u != null)) return null;
+    const cv = document.createElement("canvas");
+    cv.width = grid.nx; cv.height = grid.ny;
+    cv.getContext("2d").putImageData(new ImageData(sectionPixels(grid, units, colorOf), grid.nx, grid.ny), 0, 0);
+    const seen = [...new Set(units.filter((u) => u != null))];
+    return { name: `Model: ${lb.title} (${lb.when})`, source, len: grid.len, z0: grid.z0, z1: grid.z1, dataUrl: cv.toDataURL("image/png"), legend: seen.map((u) => [`Model: ${u}`, colorOf(u)]) };
+  };
+
+  const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
     const holeIds = new Set(holesInBand.map((t) => t.hole_id));
@@ -6527,7 +6564,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       plannedOnSection.push({ name: h.name || h.id, trace: tr.map((p) => ({ x: p.x, y: p.y, z: p.z })) });
     });
 
-    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection };
+    const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
+    if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
+    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop };
   };
 
   // TASKS.csv #525 — a LEVEL PLAN: everything cut by the horizontal plane z = rl, keeping what lies in the slab
@@ -6632,7 +6671,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const launchSection = async () => {
     const [a, b] = sectionPts.current;
     const corridor = sectionCorridor;
-    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, corridor);
+    const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, corridor);
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const name = `Section ${azimuth.toFixed(0)}°`;
     upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor, contacts: [] });
@@ -6642,17 +6681,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
     // contacts into 3D surface generation as real interface points later).
     const sectionImgs = await sectionImagesFor(a, b, corridor);
-    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs,
+    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections) }); // #519
   };
 
   const reopenSection = useCallback(async (s) => {
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
-    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection } = buildSectionPayload(a, b, s.corridor, s.scope || {});
+    const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
-    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs,
+    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: ghostStrings(s, sections) }); // #519 — the neighbouring sections' strings
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages]);
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
