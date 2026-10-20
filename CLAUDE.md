@@ -142,6 +142,10 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   project file (e.g. the `"equalise"` stretch value), file-format keywords (WKT `UNIT["Meter"]`,
   KML `<color>`), and third-party API names all keep their existing spelling. Old code comments
   don't need a sweep, but write new ones in Canadian spelling.
+- **Social posts (LinkedIn, YouTube descriptions) Matt asks you to draft:** plain and factual, in his
+  voice — short, few or no emojis, no marketing filler. Always include **#AIGeology** in the hashtags
+  (Matt, 2026-10-21), alongside #GeoStrix and topic tags. Only claim what has shipped in a released
+  version (check the latest GitHub release, not just `master`).
 - Comments throughout the codebase cite `TASKS.csv #<id>` liberally — when you see one, that's
   telling you *why* code is shaped the way it is; check that row's notes before assuming you
   understand the constraint well enough to change it.
