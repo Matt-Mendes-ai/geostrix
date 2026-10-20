@@ -12,7 +12,8 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   names (*Help → Report a Problem*) in English.
 - `download.js` — points the download buttons at the newest `GeoStrix-Setup-*.exe` on GitHub Releases
   (falls back to the latest-release page without JavaScript or if GitHub's API is unreachable), and shows the
-  total GitHub download count of the installer + portable zip. Its text, and `gallery.js`'s button labels,
+  total GitHub download count of the installer + portable zip: as a badge above the home page's headline (linked
+  to the releases, space reserved so nothing jumps) and as a full sentence by the Download button. Its text, and `gallery.js`'s button labels,
   follow the page's `<html lang>`
 - `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts

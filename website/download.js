@@ -3,9 +3,9 @@
 // The page's language (<html lang>) picks the wording: en, es or pt-BR.
 const LANG = document.documentElement.lang || "en";
 const TEXT = {
-  en: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64-bit) · ${mb} MB`, downloads: (n) => `Downloaded ${n} times from GitHub (all versions, including updates).` },
-  es: { version: (v, mb) => `Versión ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Descargado ${n} veces desde GitHub (todas las versiones, incluidas las actualizaciones).` },
-  pt: { version: (v, mb) => `Versão ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Baixado ${n} vezes do GitHub (todas as versões, incluindo atualizações).` },
+  en: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64-bit) · ${mb} MB`, downloads: (n) => `Downloaded ${n} times from GitHub (all versions, including updates).`, badge: (n) => `${n} downloads from GitHub` },
+  es: { version: (v, mb) => `Versión ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Descargado ${n} veces desde GitHub (todas las versiones, incluidas las actualizaciones).`, badge: (n) => `${n} descargas desde GitHub` },
+  pt: { version: (v, mb) => `Versão ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Baixado ${n} vezes do GitHub (todas as versões, incluindo atualizações).`, badge: (n) => `${n} downloads pelo GitHub` },
 };
 const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
 
@@ -26,11 +26,14 @@ const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
 
 // Download count: every GeoStrix installer and portable zip ever downloaded from GitHub Releases, all versions.
 // Counts only the app itself (not latest.yml, blockmaps, checksums or the geoML add-on). GitHub counts each
-// download of the installer, so updates installed from inside GeoStrix are included. Hidden if GitHub can't be reached.
+// download of the installer, so updates installed from inside GeoStrix are included. Shown twice: the badge above the
+// headline (number + "downloads", linked to the releases so anyone can check it) and the full sentence by the Download
+// button, which says updates are included. Both stay hidden if GitHub can't be reached.
 (async () => {
   try {
-    const el = document.querySelector("[data-downloads]");
-    if (!el) return;
+    const line = document.querySelector("[data-downloads]");
+    const badge = document.querySelector("[data-downloads-badge]");
+    if (!line && !badge) return;
     let total = 0;
     for (let page = 1; page <= 10; page++) {
       const r = await fetch(`https://api.github.com/repos/Matt-Mendes-ai/geostrix/releases?per_page=100&page=${page}`, { headers: { Accept: "application/vnd.github+json" } });
@@ -44,7 +47,8 @@ const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
       if (releases.length < 100) break;
     }
     if (!total) return;
-    el.textContent = T.downloads(total.toLocaleString(LANG === "en" ? "en-CA" : LANG));
-    el.hidden = false;
+    const n = total.toLocaleString(LANG === "en" ? "en-CA" : LANG);
+    if (line) { line.textContent = T.downloads(n); line.hidden = false; }
+    if (badge) { badge.querySelector("[data-n]").textContent = T.badge(n); badge.classList.add("ready"); }
   } catch { /* leave the count hidden */ }
 })();
