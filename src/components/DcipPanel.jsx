@@ -325,6 +325,12 @@ export default function DcipPanel({ pBtn, numInput }) {
             </div>
           ))}
           {geom && <div style={small}>Line placed: azimuth {geom.azimuth.toFixed(1)}° (grid){span ? `; electrodes ${span[0]}–${span[1]} m run from ${geom.at(span[0]).map((v) => v.toFixed(0)).join(", ")} to ${geom.at(span[1]).map((v) => v.toFixed(0)).join(", ")}` : ""}.{line.stations ? "" : " Check these against your GPS file or map."}</div>}
+          {/* TASKS.csv #712 — a chaining scale from the stations was applied silently (Woodjam 109N / 112N, 3 %): said whenever the line is shown */}
+          {!line.pts && Number(line.scale) > 0 && Math.abs(Number(line.scale) - 1) > 0.01 && (
+            <div style={{ ...small, color: "var(--color-warn-text)" }}>
+              Chaining scale {Number(line.scale).toFixed(3)}: the file's electrode distances are {Math.abs((1 / Number(line.scale) - 1) * 100).toFixed(1)}% {Number(line.scale) < 1 ? "longer" : "shorter"} than the ground between the stations{line.fitRmsM != null ? ` (station scatter rms ${line.fitRmsM} m)` : ""}. The 3D section is stretched to fit the stations; the inversion uses the file's distances{(line.positions || "horizontal") === "horizontal" ? " — if they were chained along the slope, set the electrode positions below to “chained along the ground (slope)”" : ""}.
+            </div>
+          )}
           {ptScaleOff && <div style={{ ...small, color: "var(--color-warn-text)" }}>The two points are {Math.abs((ptScaleOff - 1) * 100).toFixed(0)}% {ptScaleOff > 1 ? "further apart" : "closer together"} than their positions say — check the positions and coordinates (or the distances were chained along a slope).</div>}
           <div style={row} title="How the electrode distances in the file were measured. Chained along the ground on a slope, they are longer than the horizontal distance (cos 30° = 0.87): converted using the line stations, or the terrain."><span style={lbl}>Positions are</span>
             <select value={line.positions || "horizontal"} onChange={(e) => setLine((l) => ({ ...l, positions: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label="Electrode position convention">

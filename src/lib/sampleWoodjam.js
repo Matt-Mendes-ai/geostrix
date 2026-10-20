@@ -63,7 +63,8 @@ export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
     const fit = fitStationLine(list);
     if (fit) {
       const r1 = (v) => String(+v.toFixed(1));
-      Object.assign(line, { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), scale: Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "", stations: { file: stationFile.name, line: key, list } });
+      Object.assign(line, { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), scale: Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "", stations: { file: stationFile.name, line: key, list },
+        fitRmsM: +fit.rmsResidual.toFixed(1) }); // #712 — kept with the line: how well the stations fit it
     }
   }
   const half = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
@@ -100,13 +101,18 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
   try {
     const gps = await readFile("ip/2357GPS_All.txt");
     const stationFile = { name: "2357GPS_All.txt", ...parseStationFile(await gps.text(), "2357GPS_All.txt") };
-    const placed = [];
+    const placed = [], scaled = []; // scaled: #712
     for (const l of WOODJAM_IP_LINES) {
       const entry = woodjamIpLine(l, await (await readFile(`ip/${l}.dat`)).text(), stationFile, projectEpsg);
       store.saveDcipLine(entry);
       placed.push(`${l}${entry.line.stations ? "" : " (not placed)"}`);
+      const sc = Number(entry.line.scale);
+      if (sc && Math.abs(sc - 1) > 0.01) scaled.push(`${l} by ${Math.abs((1 / sc - 1) * 100).toFixed(1)}% (chaining scale ${sc.toFixed(3)}; the stations scatter ${entry.line.fitRmsM} m rms about the line)`);
     }
     notes.push(`Woodjam IP: ${placed.length} pole-dipole lines (${placed.join(", ")}) kept in the project and placed from the GPS stations — open Geophysics › DC / IP to view or invert them.`);
+    // TASKS.csv #712 — said, not applied silently: the file's electrode distances on these lines are longer than the
+    // ground between the GPS stations (slope chaining, most likely); the inversion uses the file's distances
+    if (scaled.length) notes.push(`Woodjam IP: the file's electrode distances are longer than the ground between the GPS stations on ${scaled.join("; ")} — probably chained along the slope. The inversion uses the file's distances; the 3D section is stretched to fit the stations.`);
   } catch (e) { notes.push(`The Woodjam IP lines could not be loaded: ${e.message}`); }
   return notes;
 }
