@@ -69,6 +69,7 @@ const SHORTCUT_GROUPS = [
       ["Middle-drag or Shift+Left-drag", "Pan"],
       ["Scroll", "Zoom in / out"],
       ["Right-click", "Context menu"],
+      ["Shift+F10 or the Menu key", "Context menu from the keyboard (the focused 3D view or a sidebar row); arrows move, Enter chooses, Escape closes"], // TASKS.csv #730
     ],
   },
   {

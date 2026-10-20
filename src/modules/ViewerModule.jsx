@@ -30,6 +30,7 @@ const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGe
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
+import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
@@ -1184,7 +1185,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   };
   const menuItemsOf = (el) => [...(el?.querySelectorAll('[tabindex="0"], input, button') || [])];
   const onContextMenuKeyDown = (e) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setContextMenu(null); return; }
+    if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); setContextMenu(null); return; }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
     const items = menuItemsOf(contextMenuRef.current);
@@ -1199,6 +1200,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     contextMenuByKeyRef.current = false;
     viewFocusRef.current?.focus();
   }, [contextMenu]);
+  // TASKS.csv #730 — the same keys for the layer and sidebar-row menus (lib/useMenuKeys.js)
+  const layerMenuKeys = useMenuKeys(layerContextMenu, () => setLayerContextMenu(null));
+  const rowMenuKeys = useMenuKeys(rowMenu, () => setRowMenu(null));
   const [showSectionStrings, setShowSectionStrings] = useState(true); // TASKS.csv #519
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
@@ -9028,7 +9032,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const vectorKind = layerContextMenu.key === "__collars__" ? "collars" : layerContextMenu.key === "__survey__" ? "survey" : "layer";
         return (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setLayerContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu(null); }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={layerMenuKeys.menuRef} role="menu" aria-label={`${layerContextMenu.label} menu`} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{layerContextMenu.label}</div>
             {!isVector && <>
               <ContextItem label="Zoom to layer" onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
@@ -9072,7 +9076,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       {rowMenu && ( // TASKS.csv #635
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setRowMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRowMenu(null); }}>
-          <div role="menu" aria-label={`${rowMenu.title} menu`} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: Math.max(4, Math.min(rowMenu.x, window.innerWidth - 240)), top: Math.max(4, Math.min(rowMenu.y, window.innerHeight - 44 - rowMenu.items.length * 30)), background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={rowMenuKeys.menuRef} role="menu" aria-label={`${rowMenu.title} menu`} onKeyDown={rowMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: Math.max(4, Math.min(rowMenu.x, window.innerWidth - 240)), top: Math.max(4, Math.min(rowMenu.y, window.innerHeight - 44 - rowMenu.items.length * 30)), background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rowMenu.title}</div>
             {rowMenu.items.map((it, i) => (it === "-"
               ? <div key={i} style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
@@ -9575,9 +9579,10 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 
 function ContextItem({ label, onClick, disabled, title }) {
   if (disabled) {
-    return <div title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
+    return <div role="menuitem" aria-disabled="true" title={title} style={{ padding: "7px 10px", borderRadius: 5, cursor: "default", color: "var(--color-text-disabled)" }}>{label}</div>;
   }
-  return <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
+  // TASKS.csv #730 — menuitem (was button); tabIndex 0 stays, #575's menuItemsOf finds items by it
+  return <div role="menuitem" tabIndex={0} onKeyDown={activateOnKey} onClick={onClick} title={title} onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")} style={{ padding: "7px 10px", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}>{label}</div>;
 }
 // TASKS.csv #222 (QGIS-specialist audit finding: 38ms blocking per single hole-visibility toggle at
 // 200 holes) — collars.map(...) recreated every hole row's JSX on every render, so toggling ONE hole's

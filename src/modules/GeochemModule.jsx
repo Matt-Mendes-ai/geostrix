@@ -8,7 +8,8 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle } from "../components/icons.js";
+import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
@@ -137,7 +138,7 @@ export default function GeochemModule() {
       const [file] = await loadSampleFiles("harry_property", ["assay_wide.csv"]);
       handleFile(file, false);
     } catch (err) {
-      setNotices((p) => [...p, `Couldn't load the sample assays: ${err.message}`]);
+      setNotices((p) => [...p, errorNotice(`Couldn't load the sample assays: ${err.message}`)]);
     } finally {
       setSampleLoading(false);
     }
@@ -151,7 +152,7 @@ export default function GeochemModule() {
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
         // import path (src/lib/numberLocale.js) — and the note is surfaced, not swallowed.
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
-        if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #623 — a long export (analyte + concentration / value + units + method + flag, one row per element)
@@ -212,12 +213,12 @@ export default function GeochemModule() {
       if (!isLabCertificateText(text)) { skipped.push(f.name); continue; }
       parsed.push(parseLabCertificate(text, f.name));
     }
-    if (skipped.length) setNotices((p) => [...p, `Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`]);
+    if (skipped.length) setNotices((p) => [...p, errorNotice(`Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`)]);
     if (!parsed.length) return;
     const all = combineCertificates(parsed);
     const join = joinCertificatesToAssays(all.rows, assays);
     if (!join.matched.length) {
-      setNotices((p) => [...p, `None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`]);
+      setNotices((p) => [...p, errorNotice(`None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`)]);
       return;
     }
     const columns = parsed.flatMap((p) => p.columns).filter((c, i, a) => a.findIndex((x) => x.header === c.header) === i);
@@ -293,7 +294,7 @@ export default function GeochemModule() {
     if (modal.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, "Map hole ID, from, and to columns."]); return; }
+    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice("Map hole ID, from, and to columns.")]); return; }
     // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every
     // stored value in it, so importing a batch in a different unit used to silently rescale all the
     // EARLIER values (Au in ppm, then a ppb batch: every earlier Au read 1000x too low). Incoming values
@@ -472,7 +473,7 @@ export default function GeochemModule() {
     parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
-        if (!data.length) { setNotices((p) => [...p, `${file.name}: empty file.`]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
@@ -510,7 +511,7 @@ export default function GeochemModule() {
   const commitSurfaceImport = (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, "Map the X and Y columns."]); return; }
+    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice("Map the X and Y columns.")]); return; }
     // TASKS.csv #606 — Z is optional: a blank z, or a Z column that is 0 on every row (an MX soil export whose
     // elevation was never filled in), is MISSING, not sea level; the 3D view places those samples on the terrain.
     const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
@@ -585,7 +586,7 @@ export default function GeochemModule() {
     e.preventDefault(); setDragOver(false);
     const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name)); // #605
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, "Only .csv or .xlsx files can be dropped in directly."]); return; }
+    if (!files.length) { setNotices((p) => [...p, errorNotice("Only .csv or .xlsx files can be dropped in directly.")]); return; }
     if (skipped) setNotices((p) => [...p, `${skipped} other file(s) skipped.`]);
     files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
   };
@@ -593,7 +594,7 @@ export default function GeochemModule() {
   const runMethod = (methodKey, altSetup = null) => {
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
-    if (missing.length) { setNotices((p) => [...p, `${method.label}: missing ${missing.join(", ")}.`]); return; }
+    if (missing.length) { setNotices((p) => [...p, errorNotice(`${method.label}: missing ${missing.join(", ")}.`)]); return; }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
@@ -772,8 +773,15 @@ export default function GeochemModule() {
             the same moment as its text is routinely missed. */}
         <div aria-live="polite" aria-relevant="additions text" aria-label="Import and analysis messages">
           {notices.length > 0 && (
-            <div style={{ marginTop: 16, padding: "8px 10px", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, fontSize: 10.5, color: "#7b8794", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
-              {notices.slice(-6).map((n, i) => <div key={i} style={{ marginBottom: 4 }}>{n}</div>)}
+            // TASKS.csv #729 — #390's severity and #384's contrast here too: a failure gets an icon and the danger
+            // colour, the rest the caption grey (4.98:1, was #7b8794 at 3.66:1); the newest message is bold.
+            <div style={{ marginTop: 16, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
+              {notices.slice(-6).map((n, i, shown) => {
+                const last = i === shown.length - 1 ? { fontWeight: 600 } : null;
+                return noticeLevel(n) === "error"
+                  ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start", ...last }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span><span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>Error: </span>{noticeText(n)}</span></div>
+                  : <div key={i} style={{ marginBottom: 4, ...last }}>{noticeText(n)}</div>;
+              })}
             </div>
           )}
         </div>
