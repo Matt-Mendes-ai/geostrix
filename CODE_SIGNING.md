@@ -60,8 +60,10 @@ The workflow does not publish anything by itself. The maintainer then runs
    signs the installer, its uninstaller and its elevation helper,
 4. checks every signature and timestamp, writes `latest.yml` (the auto-updater's checksum) and
    `SHA256SUMS.txt` from the **signed** files,
-5. after the maintainer confirms, creates the GitHub Release, uploads the files (`latest.yml` last),
-   publishes it and verifies that the installer attached is the one `latest.yml` describes.
+5. creates the GitHub Release, uploads the files (`latest.yml` last), publishes it and verifies that the
+   installer attached is the one `latest.yml` describes. It asks the maintainer first, unless run with
+   `-Yes` because the maintainer has already decided to release; it never publishes if a check in steps 1-4
+   failed.
 
 Because the application is compiled and tested from the tagged commit on a hosted runner, every binary
 traces back to public source; the maintainer's computer only adds signatures and wraps the same files

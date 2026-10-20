@@ -17,6 +17,7 @@ Usage (from the repository root, at the tagged commit):
   powershell -ExecutionPolicy Bypass -File scripts\sign-release.ps1              # tag = v<package.json version>
   powershell -ExecutionPolicy Bypass -File scripts\sign-release.ps1 -Tag v0.1.53
   ... -DryRun                       # sign and package, but do not touch GitHub
+  ... -Yes                          # publish without asking (every check above still has to pass first)
   ... -UnpackedDir release\win-unpacked -DryRun   # test with a local build instead of the CI artifact
 
 The private key never leaves SimplySign; this script never sees a password or one-time code.
@@ -25,7 +26,8 @@ param(
   [string]$Tag = "",
   [string]$Thumbprint = "",
   [string]$UnpackedDir = "",
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$Yes  # TASKS.csv #780 — publish without the y/N prompt: "release" in chat is the go-ahead
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -189,8 +191,12 @@ if ($DryRun) { Write-Host ""; Write-Host "Dry run: nothing was uploaded. Files a
 
 # ---- publish
 Step "Publish $Tag"
-$answer = Read-Host "Upload these files and publish $Tag on GitHub now? (y/N)"
-if ($answer -ne "y") { Write-Host "Not published. Files are in $files"; exit 0 }
+if ($Yes) {
+  Write-Host "Publishing without asking (-Yes): every signature and latest.yml check above passed."
+} else {
+  $answer = Read-Host "Upload these files and publish $Tag on GitHub now? (y/N)"
+  if ($answer -ne "y") { Write-Host "Not published. Files are in $files"; exit 0 }
+}
 $notes = "Download **GeoStrix-Setup-$version.exe** below (Windows 10 / 11, 64-bit), or the portable **GeoStrix-$version-win.zip**. Signed by Open Source Developer Matheus Mendes de Albuquerque (Certum). Checksums: SHA256SUMS.txt.`n`n[Code signing policy](https://github.com/$repo/blob/master/CODE_SIGNING.md) · [Privacy policy](https://geostrix.com/privacy) · [geostrix.com](https://geostrix.com)"
 if (-not (Probe { gh release view $Tag --repo $repo }).ok) {
   gh release create $Tag --repo $repo --title $Tag --notes $notes --draft --verify-tag
