@@ -91,7 +91,9 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
     res.voxelModels.forEach((v) => {
       const vals = v.cells.map((c) => c.value).filter(Number.isFinite).sort((a, b) => a - b);
       const p85 = vals.length ? percentileSorted(vals, 0.85) : v.min; // #740
-      store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: p85, opacity: 0.55 });
+      // TASKS.csv #711 — the OMF names no unit; 1.8e-4 to 0.196 can only be conductivity in S/m (as resistivity in ohm.m it
+      // would be 0.0002 ohm.m rock), so the property is set and the README says it is inferred from the values
+      store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: p85, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
     });
     notes.push(`Woodjam ZTEM: ${res.voxelModels.length} block model(s) from the 2023 3D inversion${res.notes.length ? ` (${res.notes.join(" ")})` : ""} — listed under Geophysics in the 3D View, showing its most conductive 15% (set the display range in the Geophysics tab to see the rest).`);
   } catch (e) { notes.push(`The Woodjam ZTEM model could not be loaded: ${e.message}`); }

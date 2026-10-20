@@ -1819,7 +1819,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
       // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
       if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
-      pushScale(`voxel_${m.id}`, m.name, m, lo, hi);
+      pushScale(`voxel_${m.id}`, m.property && !m.name.includes(m.property) ? `${m.name} — ${m.property}` : m.name, m, lo, hi); // #711 — say what the values are
     });
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {

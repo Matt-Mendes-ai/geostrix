@@ -1624,6 +1624,8 @@ function exportBlockModelCSV(model, epsg) {
   const stamp = stampLines({ tool: "Block model export", version: APP_VERSION, epsg, params: blockModelParamLines(model) }); // #529 — version + CRS
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }
+// TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
+const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, epsg }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -1670,6 +1672,20 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Export block model "${model.name}" as CSV`} title="Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)" onClick={() => exportBlockModelCSV(model, epsg)} />
         <Trash2 aria-label={`Remove block model "${model.name}"`} title={`Remove block model "${model.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${model.name}"?`)) onRemove(model.id); }} />
       </div>
+      {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only
+          show the attribute name: the user says what the values are (stored as model.property). */}
+      {(model.source === "omf" || model.source === "ubc" || model.propertyChosen) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+          <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Values are</span>
+          <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={`What the values of "${model.name}" are`}
+            onChange={(e) => { const v = e.target.value; const other = v === "__other" ? window.prompt("What are the values (property and unit)?", model.property || "") : null; if (v === "__other" && !other) return; onUpdate(model.id, { property: v === "__other" ? other.trim() : v || null, propertyChosen: true }); }}
+            style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
+            <option value="">Not stated (the file names no unit)</option>
+            {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{v}</option>)}
+            <option value="__other">{model.property && !VOXEL_PROPERTIES.includes(model.property) ? model.property : "Other…"}</option>
+          </select>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>Cutoff</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
