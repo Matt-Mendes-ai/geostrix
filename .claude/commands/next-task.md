@@ -16,7 +16,7 @@ Then implement it end to end, following `CLAUDE.md`'s verification discipline:
 
 - Syntax-check every touched/new file with esbuild (`--bundle=false`).
 - Hand-verify any pure logic/math in Node before wiring it into the UI.
-- Reproduce bugs with a real Playwright script BEFORE attempting a fix, if this is a bug fix —
+- Reproduce bugs in the running app (scripts/drive-electron.mjs) or with a failing test BEFORE attempting a fix, if this is a bug fix —
   don't trust a plausible theory about root cause without seeing it fail first.
 - Verify against a real running dev server (`npm run dev` for full Electron IPC coverage, or
   `vite` alone if the feature doesn't need IPC) with screenshots, checking for zero new

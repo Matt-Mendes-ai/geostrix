@@ -34,4 +34,15 @@ export default [
     rules: { "no-undef": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
   },
   { files: ["electron/**/*.js"], languageOptions: { sourceType: "commonjs" } },
+  // TASKS.csv #743 — the build config (the CSP plugin, #347) and the website's two scripts were never linted
+  {
+    files: ["vite.config.js"],
+    languageOptions: { ecmaVersion: 2023, sourceType: "module", globals: { ...globals.node } },
+    rules: { "no-undef": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
+  },
+  {
+    files: ["website/**/*.js"],
+    languageOptions: { ecmaVersion: 2023, sourceType: "script", globals: { ...globals.browser } },
+    rules: { "no-undef": "error", "no-dupe-keys": "error", "no-unreachable": "error" },
+  },
 ];

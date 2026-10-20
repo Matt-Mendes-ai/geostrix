@@ -1,5 +1,5 @@
 ---
-description: Run the full syntax-check + Playwright verification pass against uncommitted changes
+description: Run the full syntax-check + live-app verification pass against uncommitted changes
 ---
 
 Run the full verification discipline from `CLAUDE.md` against whatever is currently uncommitted
@@ -14,8 +14,11 @@ NOT update `TASKS.csv` as part of this command (that's `/log-task`'s job once th
 3. **Hand-verify pure logic/math changes in Node** wherever there's a checkable input/output
    (coordinate transforms, desurvey math, grade calculations, reprojection, etc) — write a small
    throwaway script and actually run it, don't eyeball the diff.
-4. **Start (or confirm) a real dev server** — `npm run dev` for full Electron IPC coverage, or
-   plain `vite` if the change doesn't touch IPC — and drive it with Playwright:
+4. **Run the real app and drive it** — `npx vite --port 5173` in the background, then
+   `NODE_ENV=development npx electron . --remote-debugging-port=9333 --user-data-dir=<a scratch folder>`, and drive it
+   with `node scripts/drive-electron.mjs eval|click|key|file|shot ...` (the DevTools-protocol harness; see its header).
+   Also run `npx eslint . --max-warnings 0`, `npm test`, `npx vite build`, `node scripts/check-bundle-size.mjs` and
+   `node scripts/audit-shipped.mjs`. Stop the test Electron and vite by PID when done:
    - If this diff is a bug fix, first confirm you can reproduce the ORIGINAL bug against a clean
      checkout (or by temporarily reverting), then confirm the fix actually resolves it with the
      same script.

@@ -17,21 +17,22 @@ The early versions were built in Claude in Cowork mode (a cloud sandbox); since 
 developed in Claude Code on Matt's own machine, as a git repository with CI and tagged releases,
 working through a backlog tracked in `TASKS.csv` and new requests Matt makes in chat, with a
 specific delivery/verification discipline (below). That discipline is the main thing worth carrying
-forward — it's what keeps a large codebase (the biggest file, `ViewerModule.jsx`, is ~860 KB /
-~11,000 lines as of 2026-09-24) coherent and low-regression despite near-continuous feature work.
+forward — it's what keeps a large codebase (the biggest file, `ViewerModule.jsx`, is ~820 KB /
+~10,200 lines as of 2026-10-20) coherent and low-regression despite near-continuous feature work.
 
 ## TASKS.csv — read this before starting anything
 
 `TASKS.csv` (repo root) is both the backlog AND the changelog. Columns:
-`id, module, feature, priority, status, Approved, notes`. Status is one of `Planned` / `Done`
-(occasionally `Blocked` or similar — check current values, don't assume). It has ~450 rows spanning
-the whole project history (rows #331-#453 came from the #330 full-app specialist review).
+`id, module, feature, priority, status, Approved, notes`. Status is exactly one of `Planned`, `In progress`,
+`Done`, `Blocked`, `Postponed`, `Cancelled`, `Needs decision` (TASKS.csv #743) — put any qualifier ("Done, but X is
+still open") at the start of the notes, not in the status, so a `status == 'Done'` filter stays honest. It has ~790
+rows spanning the whole project history (rows #331-#453, #494-#550 and #651-#747 came from full-app specialist reviews).
 **It is gitignored — local only, never committed.** Update it alongside each commit, but don't expect
 it in `git status` or in a fresh clone.
 
 **Before starting new work:**
 1. Read `TASKS.csv` (it's large — grep/filter rather than loading it all into context at once,
-   e.g. `python3 -c "import csv; ..."` filtering to `status == 'Planned'`, sorted by priority).
+   e.g. `python -c "import csv; ..."` (on this Windows machine it is `python`, not `python3`) filtering to `status == 'Planned'`, sorted by priority).
 2. If Matt asks for something new that isn't in there yet, **add a row for it first**, before
    writing any code — he's asked for this explicitly in the past ("add them to the file first so
    we don't lose them"). Don't wait until the work is done to log it if there's any risk of losing
@@ -62,16 +63,19 @@ This project has a strong "prove it works before calling it done" habit. Keep do
 2. **Hand-verify pure logic/math** in Node before UI wiring, wherever a function has a checkable
    input/output (coordinate transforms, desurvey math, grade calculations, etc) — write a small
    throwaway script, don't just eyeball it.
-3. **Playwright-verify against a real running dev server** (`npm run dev`, or `vite` alone if you
-   only need the browser-fallback path) with screenshots for visual confirmation, checking for zero
-   new console/page errors.
+3. **Verify in the real Electron app** over the DevTools protocol with `scripts/drive-electron.mjs` (TASKS.csv #743;
+   there is no Playwright in this repo): `npx vite --port 5173` in the background, then
+   `NODE_ENV=development npx electron . --remote-debugging-port=9333 --user-data-dir=<a scratch folder>` (a throwaway
+   profile, never the user's), and `eval` / `click` / `key` / `file` / `shot` against it — see the script's header.
+   Unset NODE_ENV to load `dist/` over app://, as an installed copy does. Check for zero new console/page errors, and
+   stop the test Electron and vite by PID afterwards (never the user's installed GeoStrix).
 4. **Reproduce bugs before fixing them.** Don't trust a plausible-sounding theory about root cause —
-   write a Playwright script that actually triggers the reported bug first, confirm it fails, apply
+   drive the app (scripts/drive-electron.mjs) or write a test that actually triggers the reported bug first, confirm it fails, apply
    the fix, confirm the *same* script now passes. This caught real, non-obvious bugs this session
    (a theme-apply side effect that only showed up via a specific Layout-viewport workflow, plus a
    second bug hiding behind the first one) that pure code-reading would have missed or misdiagnosed.
 5. Watch for **stale dev-server flakiness**: a `vite` server's very first request after a restart
-   can be slow enough to throw off fixed Playwright wait times, producing a false failure. If a test
+   can be slow enough to throw off fixed wait times, producing a false failure. If a test
    fails right after restarting the dev server, re-run once against the warm server before trusting
    the failure.
 
@@ -92,8 +96,8 @@ actually run:
 
 **You can now do all of this for real.** Run `npm run dev` (from repo root) — it launches the
 actual Electron window via `concurrently`, not just the Vite dev server. Use it to click through
-IPC-dependent features directly, or drive the real window with Playwright/Electron's own testing
-hooks if you set that up. When picking up a task in `TASKS.csv` that was previously verified only
+IPC-dependent features directly, or drive the real window over the DevTools protocol with
+`scripts/drive-electron.mjs`. When picking up a task in `TASKS.csv` that was previously verified only
 "via code-trace review" or "couldn't be exercised end-to-end in this sandbox" (search the notes for
 that phrasing), that's a flag this task deserves a *real* verification pass now that you can.
 
@@ -108,7 +112,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   collections: collars/survey/layers/themes/rasters/voxelModels/etc, save/load/autosave).
 - `src/modules/*.jsx` — one file per top-level tab (`ViewerModule` handles View/Modelling/Targeting
   via a `mode` prop — see its own header comments for why; `GeophysicsModule`, `RasterModule`,
-  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~860 KB, ~11k lines)** — use targeted
+  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~820 KB, ~10k lines)** — use targeted
   Read/Grep rather than reading it front-to-back, and lean on its extensive inline comments (many
   reference specific TASKS.csv ids) to orient before editing.
 - `src/components/*` — modals, panels, and small reusable pieces.
@@ -163,7 +167,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
 - A lot of past bugs turned out to be state-synchronization races between local component state and
   the shared store (mount-time hydration effects, restore-after-side-effect flows) rather than
   logic errors — when something "resets" unexpectedly after a tab switch or an async operation,
-  suspect this class of bug first and reproduce it with Playwright before theorizing further.
+  suspect this class of bug first and reproduce it in the running app before theorizing further.
 
 ## First actions in a new Claude Code session on this repo
 
@@ -223,7 +227,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   full verification discipline above, and updates TASKS.csv.
 - `/log-task` — appends a completed (or explicitly-deferred) unit of work to TASKS.csv in the
   established format, without doing any new implementation work.
-- `/verify` — runs the full syntax-check + Playwright verification pass against currently
+- `/verify` — runs the full syntax-check + live-app verification pass against currently
   uncommitted changes, without assuming anything is "done" yet.
 
 (See each command's file under `.claude/commands/` for exactly what it does.)
