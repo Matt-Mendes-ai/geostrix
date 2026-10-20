@@ -7,7 +7,7 @@ import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { fetchSatelliteImagery } from "../lib/satelliteFetch.js";
+import { fetchSatelliteImagery, planSatelliteFetch, SAT_LEVELS } from "../lib/satelliteFetch.js";
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import InfoButton from "../components/InfoButton.jsx";
@@ -114,6 +114,9 @@ export default function RasterModule({ embedded = false } = {}) {
   const [satAreaOptions, setSatAreaOptions] = useState(null);
   const [satBusy, setSatBusy] = useState(false);
   const [satProgress, setSatProgress] = useState(null);
+  // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
+  const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
+  const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
   // TASKS.csv #129 — manual tie-point georeferencer for a scanned map/claim sketch with no embedded
   // geo tags at all (a GeoTIFF/gxf still trusts its own tags, per buildRasterImport above — this is
   // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
@@ -191,11 +194,11 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatProgress({ done: 0, total: 1 });
     try {
       const parsed = await fetchSatelliteImagery({
-        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg,
+        lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg, level: satLevel, // #781
         onProgress: (done, total) => setSatProgress({ done, total }),
       });
       addRaster({ name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation });
-      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}).`;
+      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}, image ${parsed.gridW} × ${parsed.gridH} px).`;
       if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
       if (parsed.reprojectNote) msg += ` ${parsed.reprojectNote}`;
       if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to fetch and are left transparent.`;
@@ -288,6 +291,18 @@ export default function RasterModule({ embedded = false } = {}) {
             areaOptions={satAreaOptions}
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
+            extraControls={(bbox) => { // TASKS.csv #781 — resolution, and what it would fetch for this area
+              const p = bbox ? planSatelliteFetch(bbox, satLevel) : null;
+              return (
+                <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label="Image resolution" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
+                    title="Higher levels download more tiles for a sharper image of large areas. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.">
+                    {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{l.label} resolution</option>)}
+                  </select>
+                  {p && <span title={`zoom ${p.zoom}: ${p.tilesX} × ${p.tilesY} tiles; image ${p.gridW} × ${p.gridH} px`}>~{Math.round(p.pixelM)} m pixels · {p.tiles} tiles · ~{p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB)} MB{p.nativeLimited ? " · imagery's finest (10 m)" : ""}</span>}
+                </span>
+              );
+            }}
           />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
