@@ -8814,7 +8814,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {sidebarTab === "home" && (<>
         <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title="Drag to resize the Browser panel" />
         <div style={{ height: browserHeight, flexShrink: 0 }}>
-          <Suspense fallback={null}><DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} /></Suspense>
+          <Suspense fallback={null}><DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} onError={(m) => setNotices((p) => [...p, m])} /></Suspense>
         </div>
       </>)}
       </div>

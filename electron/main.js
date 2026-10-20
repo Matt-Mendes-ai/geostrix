@@ -1020,8 +1020,11 @@ ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
 // hold: this handler used to read ANY path the renderer named (whole-disk exfiltration for any script that
 // got into a window), whole, then base64 it (+33%) for the renderer to atob-loop back into bytes — a
 // 500 MB mis-click held ~1.5 GB at once. The Buffer is now returned as-is (IPC delivers a Uint8Array).
+// TASKS.csv #717 — .las logs (#492), .xlsx (#605) and .kml / .kmz (#424) import from their buttons but were missing here,
+// so the Browser panel's click on them did nothing (test/browserImportExt717 pins the panel's list as a subset)
 const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".shp", ".shx", ".dbf", ".prj", ".cpg",
-  ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod"]);
+  ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod",
+  ".las", ".xlsx", ".kml", ".kmz"]);
 const READ_MAX_BYTES = 200 * 1024 * 1024;
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {

@@ -18,7 +18,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // as importable in the Browser tree at all — a QGIS user treats the Browser as the one place to pull
 // in ANY supported file. The routing per extension lives in ViewerModule's importBrowserFile (the
 // `onImportFile` prop), which dispatches to the handler each format already had.
-const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las"]; // .las: TASKS.csv #492
+export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717
 
 // TASKS.csv #282 — bounds for the Postgres table import below. Found independently by BOTH the
 // security and Micromine specialist reviews: #255 correctly removed the old hard `LIMIT 500` (a real
@@ -44,7 +44,7 @@ const CHUNK_ROWS = 20000;
 // hostile-looking name out of information_schema can't terminate the identifier and inject a second
 // statement. TASKS.csv #349 — quoting and chunked reads are per engine (lib/dbSql.js).
 
-export default function DbBrowserPanel({ onImportFile, onImportRows }) {
+export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) {
   const { dbConnections, liveDbConnections, connectDb, disconnectDb } = useStore();
   const { recent, favorites, noteRecentFolder, addFavorite, removeFavorite } = useBrowserPanelPrefs();
   const [drives, setDrives] = useState(null);
@@ -60,11 +60,11 @@ export default function DbBrowserPanel({ onImportFile, onImportRows }) {
 
   const handleFilePick = useCallback(async (entry) => {
     const res = await fsReadFile(entry.path);
-    if (!res.ok) return;
+    if (!res.ok) { onError?.(`${entry.name}: ${res.error || "could not be read."}`); return; } // #717 — was silent
     const file = readResultToFile(res, res.name); // #346
     noteRecentFolder(entry.path.slice(0, Math.max(0, entry.path.length - entry.name.length - 1)) || entry.path);
     onImportFile(file);
-  }, [onImportFile, noteRecentFolder]);
+  }, [onImportFile, noteRecentFolder, onError]);
 
   return (
     <div style={{ padding: "10px 12px", overflowY: "auto", height: "100%", fontSize: "var(--font-size-base)" }}>
