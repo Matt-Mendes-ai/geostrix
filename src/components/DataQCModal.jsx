@@ -32,7 +32,12 @@ export default function DataQCModal({ onCancel }) {
   const { project, collars, survey, layers, boundaries, assays, terrain, setCollars } = useStore();
   // TASKS.csv #558 — collars vs the loaded terrain, with an adjustable threshold and an (undoable) snap
   const [terrainThreshold, setTerrainThreshold] = useState(15);
-  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 });
+  // TASKS.csv #723 — the dogleg warning level (deg per 30 m), remembered on this computer: ordinary deviated
+  // holes run 3-7 deg/30 m, so the fixed 3 left a permanent yellow list. Errors stay at 10 (or the warning, if higher).
+  const [doglegWarn, setDoglegWarn] = useState(() => { try { return Number(localStorage.getItem("geostrix.qc.doglegWarn")) || 3; } catch { return 3; } });
+  useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
+  const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
+  const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
   const [result, setResult] = useState(() => runDataQC(qcArgs()));
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
   const snapToTerrain = () => {
@@ -121,6 +126,10 @@ export default function DataQCModal({ onCancel }) {
         )}
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title="Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.">
+            Dogleg over
+            <input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label="Dogleg warning threshold (degrees per 30 m)" /> °/30 m
+          </span>
           {terrain && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={`Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres)${terrain.source?.nodeM ? `. This terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart.` : ""}`}>
               Collar vs terrain over

@@ -111,7 +111,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // one definition of "this population is a girdle" and can never disagree about whether to show it.
   // TASKS.csv #425 — Woodcock K/C (lib/stereonet.js fabricShape) instead of s1 - s2 < 0.12, which was
   // only reached after a "s1 > 0.65 = tight cluster" check and so called open folds tight clusters.
-  const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3) : null;
+  const fabric = stats ? fabricShape(stats.s1, stats.s2, stats.s3, stats.n) : null; // #713 n: too few picks to judge
   const isGirdle = fabric?.shape === "girdle";
 
   const SIZE = 420, PAD = 24, R = SIZE / 2 - PAD, CX = SIZE / 2, CY = SIZE / 2;
@@ -417,6 +417,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                   <span title={`Woodcock shape K = ${fabric.K.toFixed(2)} (< 1 girdle, > 1 cluster), strength C = ${fabric.C.toFixed(1)}`}>
                     {isGirdle ? "Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below."
                       : fabric.shape === "cluster" ? "Tight cluster — a single dominant orientation."
+                      : fabric.shape === "few" ? "Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks."
                       : fabric.shape === "weak" ? "Weak / no preferred orientation — treat this mean with caution."
                       : "Moderate clustering."}
                   </span>

@@ -121,7 +121,7 @@ export default function SculptPanel({ surface, sculpt, pBtn, smallSel }) {
             Moving vertices never changes which triangles share which edges, so a watertight shell stays
             watertight and an open surface stays exactly as open as it was. Undo history is for this
             session only — once the project is saved, an edit is permanent (and coordinates round to 1 cm
-            in the project file). Vertex/triangle deletion and pinning are not implemented — see TASKS.csv #145.
+            in the project file). Vertex/triangle deletion and pinning are not implemented yet.
           </div>
         </div>
       )}

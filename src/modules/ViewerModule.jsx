@@ -5004,7 +5004,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               vertexCount: Math.floor(part.positions.length / 3), faceCount: Math.floor(part.indices.length / 3),
               relationships: [{ relation: "terminates_against", targetId: cutterId }],
               params: {
-                tool: "fault block split (TASKS.csv #52)", derivedFrom: host.name, fault: cutter.name, block: sense,
+                tool: "fault block split" /* TASKS.csv #52 */, derivedFrom: host.name, fault: cutter.name, block: sense,
                 triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
                 edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
                 note: "Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here.",
@@ -7625,7 +7625,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             Search ellipsoid
-            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately (TASKS.csv #650).`} />
+            <InfoButton title="Search ellipsoid" width={300} text={`GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbor count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately.`} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} /> On
@@ -8654,7 +8654,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     <button onClick={() => exportImplicitSurface(s.id, "obj")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Wavefront OBJ — universal, human-readable">OBJ</button>
                     <button onClick={() => exportImplicitSurface(s.id, "dxf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="AutoCAD DXF (3DFACE) — Vulcan/Surpac/Datamine and most mining software read this">DXF</button>
                     <button onClick={() => exportImplicitSurface(s.id, "glb")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="glTF Binary — modern standard, keeps normals, good for Blender/web viewers">glTF</button>
-                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it (TASKS.csv #411)">OMF</button>
+                    <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title="Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it">OMF</button>
                   </div>
                 </div>
               )}

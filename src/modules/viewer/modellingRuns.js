@@ -515,7 +515,7 @@ export function createModellingRuns(ctx, mcRef) {
         (rasters || []).filter((r) => r.name === mapName && r.provenance?.tool?.includes("#758")).forEach((r) => removeRaster?.(r.id)); // a rerun replaces it
         addRaster({
           name: mapName, bbox: mapGrid.bbox, dataUrl: cv.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8,
-          provenance: { tool: "GemPy implicit model evaluated on the terrain (TASKS.csv #758)", cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
+          provenance: { tool: "GemPy implicit model evaluated on the terrain" /* TASKS.csv #758 */, cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
             note: "the model's unit at the ground surface, evaluated exactly at each node in the same solve; grey where the ground is above the youngest modelled top; blank outside the model box", agreement: agreements.map((a) => ({ layer: a.layer, field: a.field, overall: a.overall, units: a.units.map((u) => ({ unit: u.unit, pct: u.pct, nodes: u.nodes })) })) },
         });
         const pctTxt = (v) => (v == null ? "—" : `${Math.round(100 * v)}%`);
@@ -1271,7 +1271,7 @@ export function createModellingRuns(ctx, mcRef) {
         const id = `impl_${Date.now()}_alt_${altValue}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "alteration_envelope", relationships: [], closure, params }]);
-        setNotices((p) => [...p, `Added "${label}": ${insideCount} altered of ${pts.length} indicator sample point(s)${dropped ? `, ${dropped} unplaceable` : ""} → ${grid.nx}×${grid.ny}×${grid.nz} grid (${cell.toFixed(1)} m cells${coarsened ? ", coarsened to stay under the grid limit" : ""}, ${Math.round(radius)} m search${anisotropy.enabled ? ", anisotropy applied" : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : ", open"}. Closed indicator envelope, not a draped contact — see TASKS.csv #272.`]);
+        setNotices((p) => [...p, `Added "${label}": ${insideCount} altered of ${pts.length} indicator sample point(s)${dropped ? `, ${dropped} unplaceable` : ""} → ${grid.nx}×${grid.ny}×${grid.nz} grid (${cell.toFixed(1)} m cells${coarsened ? ", coarsened to stay under the grid limit" : ""}, ${Math.round(radius)} m search${anisotropy.enabled ? ", anisotropy applied" : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : ", open"}. Closed indicator envelope, not a draped contact.`]);
         if (closure === "artificial") setNotices((p) => [...p, `"${label}" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the ${Math.round(radius)} m search radius, not the data.`]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {

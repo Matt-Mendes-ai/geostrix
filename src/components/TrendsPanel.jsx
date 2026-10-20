@@ -102,7 +102,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       // TASKS.csv #672 — the stereonet's own statistics: spread (alpha95), shape, and the girdle refusal it applies,
       // so a near-random or folded population is not turned into a confident trend plane without a word.
       const st = picks.length >= 2 ? fisherStats(picks) : null;
-      const fab = st ? fabricShape(st.s1, st.s2, st.s3) : null;
+      const fab = st ? fabricShape(st.s1, st.s2, st.s3, picks.length) : null;
       if (fab && picks.length >= 4 && fab.shape === "girdle") {
         setNote({ id: t.id, text: `Not set: the ${picks.length} ${key} picks form a girdle (spread along a great circle — a fold), so a single mean plane is not a real orientation. Filter to one fold limb in the Stereonet first, or use the fold axis.` });
         return;

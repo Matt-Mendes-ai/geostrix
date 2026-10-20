@@ -546,13 +546,17 @@ export function kambContourGrid(picks, { gridSize = 48, projection = "equalArea"
 // C = ln(s1/s3) is the fabric strength. The old test (s1 - s2 < 0.12, checked only AFTER "s1 > 0.65 =
 // tight cluster") called perfect cylindrical folds with open limbs (+-30 deg: S = 0.75/0.25/0.00) a
 // "tight cluster", hid the fold axis, and let the horizontal "mean plane" of a fold be pushed to
-// anisotropy. Returns "girdle" | "cluster" | "moderate" | "weak".
-export function fabricShape(s1, s2, s3) {
+// anisotropy. Returns "girdle" | "cluster" | "moderate" | "weak" | "few".
+// TASKS.csv #713 — two picks always span a plane (s3 = 0 exactly, so K -> 0) and two or three near-identical
+// picks give s2 ~ 0.001 and s3 ~ 0, which K also read as a girdle. With fewer than 4 picks (n, when given)
+// the shape is "few"; and a girdle needs the picks actually spread along the circle (s2 >= 0.05).
+export function fabricShape(s1, s2, s3, n) {
   const e = 1e-9;
   const C = Math.log(Math.max(s1, e) / Math.max(s3, e));
   const K = Math.log(Math.max(s1, e) / Math.max(s2, e)) / Math.max(Math.log(Math.max(s2, e) / Math.max(s3, e)), e);
+  if (n != null && n < 4) return { shape: "few", K, C };
   if (C < 1) return { shape: "weak", K, C };
-  if (K < 1 && C > 2) return { shape: "girdle", K, C };
+  if (K < 1 && C > 2 && s2 >= 0.05) return { shape: "girdle", K, C };
   if (s1 > 0.65) return { shape: "cluster", K, C };
   if (s1 < 0.45) return { shape: "weak", K, C };
   return { shape: "moderate", K, C };

@@ -155,7 +155,7 @@ export function anisotropyLine(a) {
 // OBJ — plain text, universally supported. 1-indexed faces per the OBJ spec.
 export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
-  const lines = [`# ${name} — exported from GeoStrix (TASKS.csv #143)`];
+  const lines = [`# ${name} — exported from GeoStrix`]; // TASKS.csv #143
   provenanceLines(name, provenance, extra).forEach((l) => lines.push(`# ${l}`)); // TASKS.csv #269
   lines.push(`o ${sanitizeName(name)}`);
   for (const [x, y, z] of vertices) lines.push(`v ${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
