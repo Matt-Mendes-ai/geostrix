@@ -525,6 +525,39 @@ def test_vector_inversion_finds_a_remanent_body():
     assert out["phi_d"] <= 1.6 * out["target"]
 
 
+def test_geology_model_forward_matches_plate():
+    """TASKS.csv #760 — a geology model (cells with a property contrast) on the forward mesh: a box built from
+    10 m model cells must give the same response as the plate tool's box of the same size on 20 m mesh cells,
+    the base level must be fitted, and the volume must be kept; cells above the terrain must drop out."""
+    st = _grid_stations(13, 40.0, 1030.0)
+    topo = _grid_stations(30, 25.0, 1000.0)
+    field = {"strength": 56000.0, "inclination": 75.0, "declination": 18.0}
+    base = {"kind": "forward", "method": "mag", "stations": st.tolist(), "topo": topo.tolist(), "field": field,
+            "mesh": {"coreCell": 20.0, "depth": 400.0, "padCells": 4}}
+    plate = {"cx": 500000.0, "cy": 6250000.0, "cz": 880.0, "dip": 90.0, "dipDirection": 90.0, "strikeLength": 300.0,
+             "dipExtent": 200.0, "thickness": 40.0, "contrast": 0.05}
+    ref = np.array(P.run_job(dict(base, plates=[plate]), lambda e: None, ram_cap_bytes=int(1.5e9))["predicted"])
+    xs = 500000.0 - 20 + 5 + 10 * np.arange(4)
+    ys = 6250000.0 - 150 + 5 + 10 * np.arange(30)
+    zs = 780.0 + 5 + 10 * np.arange(20)
+    cells = [[x, y, z, 10.0, 10.0, 10.0, 0.05] for x in xs for y in ys for z in zs]
+    out = P.run_job(dict(base, model={"cells": cells}, observed=(ref + 150.0).tolist()), lambda e: None, ram_cap_bytes=int(1.5e9))
+    pred = np.array(out["predicted"])
+    rel = float(np.max(np.abs(pred - ref)) / np.max(np.abs(ref)))
+    run = out["runs"][0]
+    print(f"geology model forward: {len(cells)} model cells -> {run['modelCells']} mesh cells, max diff to the plate {rel:.2%}, "
+          f"volume ratio {run['volumeRatio']:.3f}, base level {run['baseLevel']:.2f} nT, residual {run['rmsResidual']:.3f} nT, r {run['correlation']:.4f}, {out['seconds']:.1f} s")
+    assert out["body"] == "model"
+    assert rel < 0.03
+    assert abs(run["volumeRatio"] - 1) < 0.02
+    assert abs(run["baseLevel"] - 150) < 1.0 and run["correlation"] > 0.999
+    # the same box raised so its top half is above the ground (terrain at 1000 m): that half is not counted
+    up = [[x, y, z + 120.0, 10.0, 10.0, 10.0, 0.05] for x, y, z, *_ in cells]
+    r2 = P.run_job(dict(base, model={"cells": up}), lambda e: None, ram_cap_bytes=int(1.5e9))["runs"][0]
+    print(f"box straddling the ground: volume ratio {r2['volumeRatio']:.3f}")
+    assert 0.35 < r2["volumeRatio"] < 0.65
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

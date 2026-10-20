@@ -453,6 +453,51 @@ def plate_fraction(mesh, plate, local, sub=None):
     return frac
 
 
+def model_contrast(mesh, cells, local, sub=None):
+    """TASKS.csv #760 — a geology model's property contrast on the forward mesh.
+
+    cells: [[x, y, z, dx, dy, dz, contrast], ...] (project metres, cell centres and sizes; only cells whose unit
+    differs from the background are sent). Each mesh cell near the model is sampled at sub^3 points; a point takes
+    the contrast of the model cell that contains it (nearest centre, then a containment test, so a point in a
+    gap of the model - above its tops, outside its box - is background). The mesh value is the mean over the
+    points: a model cell smaller than a mesh cell, or a contact through one, keeps its share of the volume.
+    Returns (contrast per mesh cell, sample points that fell in a model cell).
+    """
+    from scipy.spatial import cKDTree
+    c = np.asarray(cells, dtype=float)
+    out = np.zeros(mesh.n_cells)
+    if not len(c):
+        return out
+    ctr = c[:, :3] - local
+    half = c[:, 3:6] / 2
+    val = c[:, 6]
+    lo = (ctr - half).min(axis=0)
+    hi = (ctr + half).max(axis=0)
+    cc = mesh.cell_centers
+    h = mesh.h_gridded
+    if sub is None:
+        # samples at most half the smallest model cell apart inside a core mesh cell (3 per 20 m cell put a 40 m
+        # box at 1.022x its volume and 3.6% off the plate tool's response), 4-8 per axis
+        core = float(np.min(h, axis=0).max())
+        sub = int(min(8, max(4, math.ceil(2 * core / max(float(c[:, 3:6].min()), 1e-6)))))
+    near = np.all((cc + h / 2 >= lo) & (cc - h / 2 <= hi), axis=1)
+    idx = np.nonzero(near)[0]
+    if not len(idx):
+        return out
+    tree = cKDTree(ctr)
+    g = (np.arange(sub) + 0.5) / sub - 0.5
+    offs = np.stack(np.meshgrid(g, g, g, indexing="ij"), axis=-1).reshape(-1, 3)
+    step = max(1, 2_000_000 // len(offs))
+    for start in range(0, len(idx), step):
+        k = idx[start:start + step]
+        pts = (cc[k, None, :] + offs[None, :, :] * h[k, None, :]).reshape(-1, 3)
+        _, j = tree.query(pts)
+        inside = np.all(np.abs(pts - ctr[j]) <= half[j] + 1e-9, axis=1)
+        v = np.where(inside, val[j], 0.0).reshape(len(k), len(offs))
+        out[k] = v.mean(axis=1)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------------------------
@@ -554,8 +599,35 @@ def run_job(req, progress, ram_cap_bytes):
         # One or more plates in ONE job (a dip sweep is N plates): each job is a fresh process that pays the
         # SimPEG/numba import once (~9 s measured), so N separate jobs would cost N times that.
         survey, sim = _survey_and_sim(method, mesh, actv, st, field, "forward_only")
-        plates = req.get("plates") or [req["plate"]]
         obs = np.asarray(req.get("observed") or [], dtype=float)
+        if req.get("model"):
+            # TASKS.csv #760 — a geology model (unit properties entered by the user) against the survey: no inversion
+            progress({"stage": "forward", "message": "Placing the geology model on the mesh", "iter": 1, "maxIter": 1})
+            mc = model_contrast(mesh, req["model"]["cells"], local)
+            pred = _to_user(method, sim.dpred(mc[actv]))
+            cells = np.asarray(req["model"]["cells"], dtype=float)
+            want = float(np.sum(np.abs(cells[:, 6]) * cells[:, 3] * cells[:, 4] * cells[:, 5]))
+            vol = mesh.cell_volumes
+            run = {"predicted": pred.tolist(), "modelCells": int((np.abs(mc[actv]) > 0).sum()),
+                   # contrast x volume the mesh holds below ground / what was sent: ~1 = the model is represented;
+                   # below 1 = part of it is above the terrain (inactive) or outside the mesh
+                   "volumeRatio": float(np.sum(np.abs(mc[actv]) * vol[actv]) / want) if want > 0 else None}
+            if len(obs) == len(pred):
+                offset = float(np.mean(obs - pred))  # #366 — the data's arbitrary base level
+                r = obs - pred - offset
+                run["rmsResidual"] = float(np.sqrt(np.mean(r ** 2)))
+                run["baseLevel"] = offset
+                if np.std(pred) > 0 and np.std(obs) > 0:
+                    run["correlation"] = float(np.corrcoef(obs, pred)[0, 1])
+            out = {"kind": "forward", "body": "model", "method": method, "runs": [run], "predicted": run["predicted"], "plateCells": 0,
+                   "versions": versions, "seconds": time.time() - t0, "localOrigin": local.tolist(),
+                   "mesh": {"shape": spec["n"], "coreCell": req["mesh"]["coreCell"]}}
+            if len(obs) == len(stations):
+                out["rmsObserved"] = float(np.sqrt(np.mean((obs - obs.mean()) ** 2)))
+                out["rmsResidual"] = run.get("rmsResidual")
+                out["baseLevel"] = run.get("baseLevel")
+            return out
+        plates = req.get("plates") or [req["plate"]]
         runs = []
         for k, plate in enumerate(plates):
             # TASKS.csv #367 — fractional occupancy, not centre-in-plate (see plate_fraction).

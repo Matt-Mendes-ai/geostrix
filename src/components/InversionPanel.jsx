@@ -27,6 +27,7 @@ import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "..
 import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { constraintSamples, SUSC_UNITS } from "../lib/drillholeConstraints.js"; // TASKS.csv #323
+import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total-field ANOMALY in nT — the IGRF/regional field has already been removed (not RTP, not a derivative, not the raw total field).", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -36,7 +37,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys } = useStore();
+  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels } = useStore();
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
@@ -75,6 +76,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
   // test). The first default, 0.02, hid 41% of the strongest recovered cells — the anomaly itself; 0.005
   // hides none of them and still drops the deep, far-edge cells the data genuinely cannot see.
   const [plate, setPlate] = useState({ open: false, cx: "", cy: "", cz: "", dipDirection: "", dip: "", strikeLength: "", dipExtent: "", thickness: "", contrast: "", sweep: false });
+  // TASKS.csv #760 — test a geology model against the survey: a categorical block model, a property per unit, a background
+  const [geo, setGeo] = useState({ open: false, modelId: "", props: {}, background: "" });
   const [plan, setPlan] = useState(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -298,6 +301,32 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     if (!p) return;
     const meta = { label: `${M.label} forward model`, surveyName: `${activeSurvey}: ${rows.length} stations`, ...p.meta }; // #364
     const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null }) });
+    if (!res.ok) setMsg({ ok: false, text: res.error });
+  };
+
+  // TASKS.csv #760 — the geology model's units, and the downhole logs' median in each (a hint, applied only on request)
+  const geoModels = useMemo(() => categoricalModels(voxelModels), [voxelModels]);
+  const geoModel = geoModels.find((m) => m.id === geo.modelId) || (geoModels.length === 1 ? geoModels[0] : null);
+  const geoUnits = useMemo(() => (geoModel ? modelUnits(geoModel) : []), [geoModel]);
+  const geoMedians = useMemo(() => {
+    if (!geo.open || !geoModel || !method || !dhRows.length) return null;
+    if (method === "mag" && !SUSC_UNITS[dh.units]) return { needUnits: true };
+    // gravity: the SG log as densities (background 0); magnetics: the susceptibility log converted to SI
+    const r = constraintSamples({ collars, survey: drillSurvey, rows: dhRows, method, units: dh.units, background: 0, desurveyMethod, step: 5 });
+    return { by: unitMedians(geoModel, r.points), samples: r.points.length };
+  }, [geo.open, geoModel, method, dhRows, dh.units, collars, drillSurvey, desurveyMethod]);
+
+  const runGeoForward = async () => {
+    if (!geoModel) { setMsg({ ok: false, text: "Choose a block model whose cells are units (3D Modelling: Add as block model, on a finished model)." }); return; }
+    const props = Object.fromEntries(Object.entries(geo.props).map(([k, v]) => [k, num(v)]));
+    const body = modelBody(geoModel, props, num(geo.background));
+    if (body.problem) { setMsg({ ok: false, text: body.problem }); return; }
+    if (method === "grav" && [num(geo.background), ...Object.values(props)].some((v) => !(v >= 1 && v <= 6))) { setMsg({ ok: false, text: "Densities are in g/cm³ (between 1 and 6) — check the values entered." }); return; }
+    const p = await doPlan("forward", { model: { cells: body.cells } });
+    if (!p) return;
+    const meta = { label: `${M.label}: geology model "${geoModel.name}"`, surveyName: `${activeSurvey}: ${rows.length} stations`, ...p.meta };
+    const geoInfo = { modelName: geoModel.name, units: body.units, background: num(geo.background), cellsSent: body.cells.length };
+    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, geo: geoInfo }) });
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
 
@@ -529,6 +558,47 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 </div>
               )}
 
+              {/* TASKS.csv #760 — test a geology model against the survey */}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGeo((g) => ({ ...g, open: !g.open }))} aria-expanded={geo.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
+                {geo.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Test a geology model (forward model)
+              </div>
+              {geo.open && (
+                <div style={{ paddingLeft: 4 }}>
+                  <div style={small}>Gives each unit of a block model a {method === "grav" ? "density" : "susceptibility"} and computes the {M ? M.unit : ""} response it would produce at these stations, to compare with the data. Does a modelled intrusion or basin explain the anomaly before anyone drills it? Uses steps 1{method === "mag" ? "–2" : ""} and the mesh settings; no inversion.</div>
+                  {!M ? <div style={small}>Choose magnetics or gravity first.</div> : !geoModels.length ? (
+                    <div style={small}>No block model has unit cells yet. In 3D Modelling, run a geology model and use Add as block model.</div>
+                  ) : (<>
+                    <div style={row}><span style={lbl}>Model</span>
+                      <select value={geoModel?.id || ""} onChange={(e) => setGeo((g) => ({ ...g, modelId: e.target.value, props: {} }))} style={{ ...inp, width: "auto", maxWidth: 220 }} aria-label="Geology block model">
+                        {geoModels.length > 1 && <option value="">Choose…</option>}
+                        {geoModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                    </div>
+                    {geoModel && (<>
+                      {geoUnits.map((u) => {
+                        const h = geoMedians?.by?.[u.value];
+                        return (
+                          <div key={u.value} style={row} title={`${u.cells.toLocaleString()} cells`}>
+                            <span style={lbl}>{u.label}</span>
+                            <input type="number" step="any" value={geo.props[u.value] ?? ""} onChange={(e) => setGeo((g) => ({ ...g, props: { ...g.props, [u.value]: e.target.value } }))} style={inp} aria-label={`${u.label} ${method === "grav" ? "density (g/cm³)" : "susceptibility (SI)"}`} />
+                            <span style={small}>{h ? `logs: ${+h.median.toPrecision(3)} (${h.n})` : ""}</span>
+                          </div>
+                        );
+                      })}
+                      <div style={row}><span style={lbl}>Background</span><input type="number" step="any" value={geo.background} onChange={(e) => setGeo((g) => ({ ...g, background: e.target.value }))} style={inp} aria-label="Background value" /><span style={small}>{method === "grav" ? "g/cm³" : "SI"}</span></div>
+                      <div style={small}>{method === "grav"
+                        ? "Densities in g/cm³. The background is the rock around the model and in the space it leaves out (above its tops, outside its box) — usually the density used for the Bouguer correction. Typical: sediments 1.9–2.4, felsic rocks 2.5–2.7, mafic rocks 2.8–3.0, massive sulphide 3.5–4.5."
+                        : "Susceptibilities in SI. The background is the rock around the model and in the space it leaves out. Typical: sediments under 0.001, felsic rocks 0.001–0.01, mafic rocks 0.01–0.1; magnetite-rich rock higher. Remanent magnetisation is not modelled."}</div>
+                      {geoMedians?.needUnits && <div style={small}>A susceptibility log is loaded: choose its units under the drillhole constraints in the inversion settings to see each unit's median here.</div>}
+                      {geoMedians?.by && Object.keys(geoMedians.by).length > 0 && (
+                        <button onClick={() => setGeo((g) => ({ ...g, props: { ...g.props, ...Object.fromEntries(Object.entries(geoMedians.by).map(([k, v]) => [k, String(+v.median.toPrecision(3))])) } }))} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }} title="Fills each unit that has log samples with their median. A median of a few samples is a weak estimate; units without samples stay as entered.">Use the log medians</button>
+                      )}
+                      <button onClick={runGeoForward} disabled={running || planBusy} style={{ ...pBtn, marginTop: 6, marginBottom: 0, opacity: running ? 0.5 : 1 }}><Activity size={14} /> Forward model the geology</button>
+                    </>)}
+                  </>)}
+                </div>
+              )}
+
               {running && (
                 <div style={{ marginTop: 8, padding: "7px 9px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                   <div style={{ color: "var(--color-text)" }}>{job.meta.label}: {prog.stage === "iterating" && prog.iter ? `iteration ${prog.iter} of ${prog.maxIter}` : prog.message || prog.stage || "starting"}</div>
@@ -550,7 +620,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
 
 // ---------- "did it fit?" view ----------
 function FitView({ last, method }) {
-  const { result, prepared, verdict } = last;
+  const { result, prepared, verdict, geo } = last;
   const unit = METHODS[result.method]?.unit || "";
   const st = prepared.stations, obs = result.observedUsed || prepared.observed; // #368 — after base-level removal
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -558,12 +628,13 @@ function FitView({ last, method }) {
     const runs = result.runs || [];
     return (
       <div style={{ marginTop: 10 }}>
-        <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>Forward model result</div>
-        {runs.length === 1 && <div style={small}>RMS of the data about its mean {result.rmsObserved?.toFixed(2)} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {runs[0].baseLevel?.toFixed(2)} {unit}: {runs[0].rmsResidual?.toFixed(2)} {unit} ({runs[0].plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.</div>}
+        <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>{result.body === "model" ? "Geology model against the data" : "Forward model result"}</div>
+        {result.body === "model" && runs[0] && <GeoModelFit run={runs[0]} rmsObserved={result.rmsObserved} geo={geo} unit={unit} />}
+        {runs.length === 1 && result.body !== "model" && <div style={small}>RMS of the data about its mean {result.rmsObserved?.toFixed(2)} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {runs[0].baseLevel?.toFixed(2)} {unit}: {runs[0].rmsResidual?.toFixed(2)} {unit} ({runs[0].plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.</div>}
         {runs.length > 1 && <DipSweep runs={runs} unit={unit} />}
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {Math.round((runs[0].volumeRatio || 0) * 100)}% of the plate's true volume{runs.length > 1 ? ` at ${runs[0].dip}°` : ""}).</div>}
-        {runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100)}%) — those responses are for a smaller body than the one entered.</div>}
+        {result.body !== "model" && runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100)}%) — those responses are for a smaller body than the one entered.</div>}
         {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} />}
         {runs.length === 1 && Number.isFinite(runs[0].baseLevel) && <div style={small}>Predicted map shown with the base level ({runs[0].baseLevel.toFixed(2)} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.</div>}
       </div>
@@ -585,6 +656,24 @@ function FitView({ last, method }) {
       {result.direction && <div role="status" style={{ ...small, color: "var(--color-text-secondary)", marginTop: 6 }}>{remanenceText(result.direction, prepared.meta?.convergence)}</div>}
       <div style={{ ...small, marginTop: 6 }}>Added to Voxel / block models as "{resultToVoxelModel({ ...result, cells: { value: [], x: [], y: [], z: [], dx: [], dy: [], dz: [], support: [] } }, { surveyName: "" }).property}". {result.magModel === "vector" ? "It is one vector model of many that fit these data — amplitude in each cell, with its own direction; depth is weakly resolved" : result.style === "compact" ? "It is one compact model of many that fit these data — it assumes a few sharp-edged bodies, so they come out tighter than in the smooth model and peak values can overshoot; compare the two" : "It is one smooth model of many that fit these data — amplitudes are underestimated and bodies smeared with depth"}; cells the data barely see are hidden. No volume or tonnage is computed from it.</div>
     </div>
+  );
+}
+
+// TASKS.csv #760 — how far a geology model explains the data: share of the anomaly left over, correlation, what was entered
+function GeoModelFit({ run, rmsObserved, geo, unit }) {
+  const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
+  const left = rmsObserved > 0 && Number.isFinite(run.rmsResidual) ? run.rmsResidual / rmsObserved : null;
+  return (
+    <>
+      <div role="status" style={{ ...small, color: "var(--color-text-secondary)" }}>
+        RMS of the data about its mean {rmsObserved?.toFixed(2)} {unit}; left over after subtracting the model's response and a best-fit base level of {run.baseLevel?.toFixed(2)} {unit}: {run.rmsResidual?.toFixed(2)} {unit}
+        {left != null ? ` (${Math.round(100 * left)}% of it)` : ""}{Number.isFinite(run.correlation) ? `; correlation between the data and the model's response ${run.correlation.toFixed(2)}` : ""}.
+        {left != null && (left < 0.5 ? " The model explains most of the anomaly with these properties." : left < 0.9 ? " The model explains part of the anomaly." : left <= 1.02 ? " The model explains almost none of the anomaly." : " The model's response makes the fit WORSE than no model at all: its anomaly is in the wrong place or far too strong.")}
+        {" "}A good fit does not prove the model (other geometries and properties can fit as well); a poor one says the geometry, the properties or both are wrong.
+      </div>
+      {geo && <div style={small}>{geo.modelName}: {geo.units.map((u) => `${u.label} ${u.value} (contrast ${u.contrast >= 0 ? "+" : ""}${+u.contrast.toPrecision(3)})`).join(", ")}; background {geo.background}. {run.modelCells.toLocaleString()} mesh cells carry the model.</div>}
+      {run.volumeRatio != null && run.volumeRatio < 0.9 && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>Only {Math.round(100 * run.volumeRatio)}% of the model's contrast (by volume) is on the mesh below the ground — the rest is above the terrain or outside the mesh (widen the model depth or check the terrain).</div>}
+    </>
   );
 }
 

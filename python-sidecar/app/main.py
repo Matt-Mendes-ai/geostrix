@@ -240,6 +240,16 @@ def _validate_potential(req):
             t = c.get("tolerance")
             if not isinstance(t, (int, float)) or not math.isfinite(t) or t < 0:
                 raise HTTPException(400, "constraints.tolerance is required (0 or more, in model units).")
+    elif req.get("model") is not None:
+        # TASKS.csv #760 — a geology model against the survey: [x, y, z, dx, dy, dz, contrast] per cell
+        m = req["model"]
+        if not isinstance(m, dict):
+            raise HTTPException(400, "model must be an object.")
+        _finite_rows(m.get("cells"), 7, "model.cells", MAX_MODEL_CELLS)
+        if not m["cells"]:
+            raise HTTPException(400, "model.cells is empty: every unit has the background value, so there is nothing to model.")
+        if any(r[3] <= 0 or r[4] <= 0 or r[5] <= 0 for r in m["cells"]):
+            raise HTTPException(400, "model.cells: cell sizes must be above zero.")
     else:
         plates = req.get("plates") or ([req["plate"]] if req.get("plate") else [])
         if not plates or len(plates) > 40:
@@ -251,6 +261,7 @@ def _validate_potential(req):
 
 
 MAX_DC_READINGS = 5000
+MAX_MODEL_CELLS = 500_000  # TASKS.csv #760 — a 79^3 block; GeoStrix's own models are at most 100^3 below their tops
 
 
 def _validate_dcip2d(req):
