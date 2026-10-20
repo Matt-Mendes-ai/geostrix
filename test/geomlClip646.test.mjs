@@ -29,3 +29,21 @@ test("clip: above-ground first, then far from data; the rest kept", () => {
   assert.deepEqual(r.keep, [false, true, false, false]);
   assert.equal(r.air, 2); assert.equal(r.far, 1);
 });
+
+// TASKS.csv #738 — the finer, pruned bucket search answers exactly like a brute-force scan
+test("near data equals brute force (random points, queries on and around cell edges, negative coordinates)", () => {
+  let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (const maxDist of [7, 50, 150]) {
+    const pts = Array.from({ length: 400 }, () => [rnd() * 600 - 300, rnd() * 600 - 300, rnd() * 300 - 150]);
+    const near = makeNearData(pts, maxDist);
+    const brute = (x, y, z) => pts.some((p) => (p[0] - x) ** 2 + (p[1] - y) ** 2 + (p[2] - z) ** 2 <= maxDist * maxDist);
+    for (let q = 0; q < 3000; q++) {
+      const x = q % 3 ? rnd() * 800 - 400 : Math.round(rnd() * 16) * (maxDist / 2); // every third query on a cell edge
+      const y = rnd() * 800 - 400, z = rnd() * 500 - 250;
+      assert.equal(near(x, y, z), brute(x, y, z), `${maxDist}: ${x},${y},${z}`);
+    }
+    const p = pts[0]; // exactly at the radius counts as near
+    assert.equal(near(p[0] + maxDist, p[1], p[2]), true);
+  }
+  assert.equal(makeNearData([], 100)(0, 0, 0), false);
+});

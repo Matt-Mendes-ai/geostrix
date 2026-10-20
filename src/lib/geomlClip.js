@@ -35,19 +35,42 @@ export function makeGround({ terrain, collars }) {
   };
 }
 
-// Is any of `points` ([[x, y, z], ...]) within maxDist of (x, y, z)? A bucket grid of maxDist-sized cells.
+// Is any of `points` ([[x, y, z], ...]) within maxDist of (x, y, z)?
+// TASKS.csv #738 — buckets of maxDist / 2 with numeric keys (was maxDist-sized buckets keyed by strings, scanning all 27
+// neighbours point by point: ~3 s for 100k blocks against 60k samples). A cell's diagonal is 0.87 maxDist, so any
+// sample in the block's own cell is close enough; of the 5 x 5 x 5 neighbours, a cell that cannot reach the block is
+// skipped, and a non-empty cell lying wholly inside the radius answers without looking at its points.
 export function makeNearData(points, maxDist) {
-  const s = maxDist, b = new Map(), r2 = maxDist * maxDist;
-  const key = (i, j, k) => `${i}|${j}|${k}`;
-  for (const p of points) {
-    const kk = key(Math.floor(p[0] / s), Math.floor(p[1] / s), Math.floor(p[2] / s));
-    let a = b.get(kk); if (!a) b.set(kk, (a = [])); a.push(p);
-  }
+  const s = maxDist / 2, r2 = maxDist * maxDist;
+  if (!points.length || !(s > 0)) return () => false;
+  let mi = Infinity, mj = Infinity, mk = Infinity, Mi = -Infinity, Mj = -Infinity, Mk = -Infinity;
+  const cells = points.map((p) => {
+    const i = Math.floor(p[0] / s), j = Math.floor(p[1] / s), k = Math.floor(p[2] / s);
+    if (i < mi) mi = i; if (j < mj) mj = j; if (k < mk) mk = k; if (i > Mi) Mi = i; if (j > Mj) Mj = j; if (k > Mk) Mk = k;
+    return [i, j, k];
+  });
+  const NJ = Mj - mj + 1, NK = Mk - mk + 1;
+  const key = (i, j, k) => ((i - mi) * NJ + (j - mj)) * NK + (k - mk);
+  const b = new Map();
+  points.forEach((p, n) => { const kk = key(...cells[n]); let a = b.get(kk); if (!a) b.set(kk, (a = [])); a.push(p[0], p[1], p[2]); });
+  // squared distance from a coordinate to the interval [c*s, (c+1)*s] on one axis: nearest and farthest
+  const near1 = (v, c) => { const lo = c * s, hi = lo + s; return v < lo ? lo - v : v > hi ? v - hi : 0; };
+  const far1 = (v, c) => Math.max(Math.abs(v - c * s), Math.abs(v - (c + 1) * s));
   return (x, y, z) => {
     const i = Math.floor(x / s), j = Math.floor(y / s), k = Math.floor(z / s);
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) for (let dk = -1; dk <= 1; dk++) {
-      const a = b.get(key(i + di, j + dj, k + dk));
-      if (a) for (const p of a) if ((p[0] - x) ** 2 + (p[1] - y) ** 2 + (p[2] - z) ** 2 <= r2) return true;
+    if (i < mi - 2 || i > Mi + 2 || j < mj - 2 || j > Mj + 2 || k < mk - 2 || k > Mk + 2) return false;
+    if (i >= mi && i <= Mi && j >= mj && j <= Mj && k >= mk && k <= Mk && b.has(key(i, j, k))) return true;
+    for (let ci = Math.max(i - 2, mi); ci <= Math.min(i + 2, Mi); ci++) {
+      const dx = near1(x, ci);
+      for (let cj = Math.max(j - 2, mj); cj <= Math.min(j + 2, Mj); cj++) {
+        const dy = near1(y, cj); if (dx * dx + dy * dy > r2) continue;
+        for (let ck = Math.max(k - 2, mk); ck <= Math.min(k + 2, Mk); ck++) {
+          const dz = near1(z, ck); if (dx * dx + dy * dy + dz * dz > r2) continue;
+          const a = b.get(key(ci, cj, ck)); if (!a) continue;
+          if (far1(x, ci) ** 2 + far1(y, cj) ** 2 + far1(z, ck) ** 2 <= r2) return true;
+          for (let n = 0; n < a.length; n += 3) if ((a[n] - x) ** 2 + (a[n + 1] - y) ** 2 + (a[n + 2] - z) ** 2 <= r2) return true;
+        }
+      }
     }
     return false;
   };
