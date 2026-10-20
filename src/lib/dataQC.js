@@ -80,8 +80,18 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey azimuth ${s.azimuth}° is outside 0–360° @ ${s.depth}m.`);
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, `Survey dip ${s.dip}° is outside -90–90° @ ${s.depth}m.`);
   });
+  const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   byHole.forEach((stations, holeId) => {
     const sorted = [...stations].sort((a, b) => a.depth - b.depth);
+    // TASKS.csv #714 — a survey that stops well above the end of the hole: desurvey carries the last attitude on to
+    // EOH (#338), and the trace, sections, exports and estimation samples below it all use that guess with no flag
+    // (Woodjam WJ23-105: stations at 0 and 50 m for a 111 m hole). Warned when the gap is over 30 m, or over 15 m and 20 %
+    // of a short hole. The review's 'over 30 m AND 20 %' missed DH23-109: 56.5 m of guessed path is only 13 % of 438.5 m.
+    const eoh = lengthOf.get(holeId), last = sorted.length ? sorted[sorted.length - 1].depth : NaN;
+    const gap = eoh - last;
+    if (Number.isFinite(eoh) && Number.isFinite(last) && (gap > 30 || (gap > 15 && gap > 0.2 * eoh))) {
+      pushIssue(issues, "warning", "Survey", holeId, `The survey ends at ${+last.toFixed(1)} m, ${+(eoh - last).toFixed(1)} m above the end of the hole (${+eoh.toFixed(1)} m, ${Math.round((100 * (eoh - last)) / eoh)}%): the trace below is carried on with the last attitude, a guess — the hole's real path down there is unknown.`);
+    }
     // Duplicate-depth stations.
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i].depth === sorted[i - 1].depth) pushIssue(issues, "warning", "Survey", holeId, `Two survey stations at the same depth (${sorted[i].depth}m) — only one will be used.`);

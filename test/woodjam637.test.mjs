@@ -30,3 +30,18 @@ test("#637 IP lines: readings parsed and each line placed from the GPS stations"
     assert.ok(x0 > 590000 && x0 < 640000 && y0 > 5770000 && y0 < 5810000, `${l} in UTM 10N near the property: ${x0}, ${y0}`);
   }
 });
+
+// TASKS.csv #722 — sample assays are converted to the units the project already holds
+import { alignAssayUnits } from "../src/lib/sampleWoodjam.js";
+test("#722 Woodjam ppm values merged into a project holding Cu in % are converted", () => {
+  const rows = [{ hole_id: "A", from: 0, to: 1, values: { Cu: 2500, Au: 0.4 } }, { hole_id: "A", from: 1, to: 2, values: { Au: 0.1 } }];
+  const els = [{ symbol: "Cu", unit: "ppm" }, { symbol: "Au", unit: "ppm" }];
+  const r = alignAssayUnits(rows, els, [{ symbol: "Cu", unit: "%" }, { symbol: "Zn", unit: "ppm" }]);
+  assert.equal(r.rows[0].values.Cu, 0.25);
+  assert.equal(r.rows[0].values.Au, 0.4);
+  assert.equal(r.rows[1].values.Cu, undefined);
+  assert.deepEqual(r.converted, [{ symbol: "Cu", from: "ppm", to: "%" }]);
+  assert.equal(r.elements.find((e) => e.symbol === "Cu").unit, "%");
+  assert.equal(rows[0].values.Cu, 2500); // input untouched
+  assert.equal(alignAssayUnits(rows, els, []).rows, rows); // nothing to convert: same array
+});

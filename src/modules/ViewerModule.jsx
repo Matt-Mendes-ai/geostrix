@@ -5858,7 +5858,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const { loadWoodjamExtras, WOODJAM_EPSG } = await import("../lib/sampleWoodjam.js");
       const readFile = async (rel) => (await loadSampleFiles("woodjam", [rel]))[0];
       const notes = await loadWoodjamExtras(readFile, { setAssays, setAssayElements, addVoxelModel, addOmfObject, saveDcipLine },
-        { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined });
+        { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined, existingElements: assayElements }); // existingElements: #722
       setNotices((p) => [...p, ...notes]);
     } catch (e) { setNotices((p) => [...p, `The Woodjam sample's assays, IP and ZTEM could not be loaded: ${e.message}`]); }
   };

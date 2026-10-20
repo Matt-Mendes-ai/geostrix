@@ -3,7 +3,7 @@
 // project's DC/IP lines, placed from the survey's GPS stations, ready to invert). The drillhole CSVs go through the
 // normal import queue like the Harry sample's. Each part is independent: one failing doesn't stop the others.
 import Papa from "papaparse";
-import { inferUnit, mergeAssayRows } from "./geochem.js";
+import { inferUnit, mergeAssayRows, convertUnit } from "./geochem.js";
 import { omfToProjectObjects } from "./omfImport.js";
 import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
@@ -27,6 +27,21 @@ export function woodjamAssays(text, srcFile = "assays.csv") {
     rows.push({ hole_id: hole, from, to, values, source: "assay", srcFile, ...(r.sample_id ? { sample_id: String(r.sample_id).trim() } : {}) });
   }
   return { rows, elements };
+}
+
+// TASKS.csv #722 — sample assays merged into a project that already holds some elements in another unit (Cu in %)
+// are converted to the project's unit first, as the Geochem importer does (#334); without it Woodjam's ppm values
+// were stored under %. Returns the converted rows / elements and what was converted.
+export function alignAssayUnits(rows, elements, existing = []) {
+  const projUnit = new Map((existing || []).map((e) => [e.symbol, e.unit]));
+  const conv = elements.filter((e) => projUnit.has(e.symbol) && projUnit.get(e.symbol) !== e.unit).map((e) => ({ symbol: e.symbol, from: e.unit, to: projUnit.get(e.symbol) }));
+  if (!conv.length) return { rows, elements, converted: [] };
+  const out = rows.map((r) => {
+    const values = { ...r.values };
+    for (const c of conv) if (values[c.symbol] != null) values[c.symbol] = convertUnit(values[c.symbol], c.from, c.to);
+    return { ...r, values };
+  });
+  return { rows: out, elements: elements.map((e) => (projUnit.has(e.symbol) ? { ...e, unit: projUnit.get(e.symbol) } : e)), converted: conv };
 }
 
 // one IP line file + the parsed GPS station file → a saved DC/IP line ({ name, readings, rho, ip, line, opts })
@@ -56,13 +71,14 @@ export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
 
 // Loads the three extras into the store. readFile(relPath) → File; store: { setAssays, setAssayElements, addVoxelModel,
 // addOmfObject, saveDcipLine }. Returns notices (strings) describing what was loaded or what failed.
-export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM_EPSG, maxCells } = {}) {
+export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM_EPSG, maxCells, existingElements = [] } = {}) {
   const notes = [];
   try {
-    const { rows, elements } = woodjamAssays(await (await readFile("assays.csv")).text());
+    const raw = woodjamAssays(await (await readFile("assays.csv")).text());
+    const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements); // #722
     store.setAssays((prev) => mergeAssayRows(prev || [], rows).rows);
     store.setAssayElements((prev) => { const m = new Map((prev || []).map((e) => [e.symbol, e])); elements.forEach((e) => { if (!m.has(e.symbol)) m.set(e.symbol, e); }); return Array.from(m.values()); });
-    notes.push(`Woodjam assays: ${rows.length.toLocaleString()} samples, ${elements.length} elements (ALS four-acid ICP-MS; Cu above 10,000 ppm from the ore-grade re-assay) — in the Geochem tab.`);
+    notes.push(`Woodjam assays: ${rows.length.toLocaleString()} samples, ${elements.length} elements (ALS four-acid ICP-MS; Cu above 10,000 ppm from the ore-grade re-assay) — in the Geochem tab.${converted.length ? ` Converted to the units this project already uses: ${converted.map((c) => `${c.symbol} ${c.from} -> ${c.to}`).join(", ")}.` : ""}`);
   } catch (e) { notes.push(`Woodjam assays could not be loaded: ${e.message}`); }
   try {
     // the OMF holds two inversion iterations (m_03_01, m_05_03); m_05_03 is the final model (Matt, 2026-10-17)
