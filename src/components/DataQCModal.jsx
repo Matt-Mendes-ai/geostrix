@@ -122,7 +122,7 @@ export default function DataQCModal({ onCancel }) {
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
           {terrain && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title="Collars further than this from the loaded terrain are flagged (SRTM: ~15 m; LiDAR: a few metres)">
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={`Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres)${terrain.source?.nodeM ? `. This terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart.` : ""}`}>
               Collar vs terrain over
               <input type="number" min="0.5" step="0.5" value={terrainThreshold} onChange={(e) => setTerrainThreshold(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label="Collar vs terrain threshold (m)" /> m
               {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title="Set those collars' elevation to the terrain (undoable; the old value is kept)">Snap {terrainOff.length} to terrain</button>}

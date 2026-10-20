@@ -458,9 +458,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           ? ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain (in ${better.name} they would sit within ${Math.round(better.medianDz)} m) — kept as you chose.`
           : ` The collars sit a median ${Math.round(misfit.medianDz)} m off this terrain, and no neighbouring UTM zone fits better: check the project CRS and the collar elevations (feet? a local datum?).`;
       }
-      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null }); // noDataMask: #421
+      addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = `Fetched and imported "${parsed.name}" as a ${parsed.gridW}×${parsed.gridH} terrain mesh covering ${(txmax - txmin).toFixed(0)}×${(tymax - tymin).toFixed(0)} world units for the area you drew.`;
+      if (parsed.source) msg += ` Source: ${parsed.source.service}, zoom ${parsed.source.zoom} (its own pixels ~${Math.round(parsed.source.sourcePixelM)} m), resampled to nodes ~${Math.round(parsed.source.nodeM)} m apart — features smaller than that are smoothed out.`; // #726
       if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
       else if (parsed.reprojectNote) msg += ` Note: ${parsed.reprojectNote}`;
       if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to download — check your connection.`;

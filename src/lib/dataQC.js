@@ -432,7 +432,8 @@ function validateCollarsVsTerrain(collars, terrain, threshold) {
   const abs = offs.map((o) => Math.abs(o.dz)).sort((a, b) => a - b);
   const med = abs[Math.floor(abs.length / 2)];
   const off = offs.filter((o) => Math.abs(o.dz) > threshold);
-  pushIssue(issues, "info", "Collar vs terrain", null, `${offs.length} collar(s) compared with the terrain "${terrain.name || "DEM"}": median difference ${med.toFixed(1)} m, ${off.length} over ${threshold} m.${off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? ` All ${off.length} are ${off[0].dz > 0 ? "above" : "below"} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?` : ""}`);
+  const grid = terrain.source?.nodeM ? ` The terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart, so on steep ground a correct collar can differ from it by tens of metres.` : ""; // #726
+  pushIssue(issues, "info", "Collar vs terrain", null, `${offs.length} collar(s) compared with the terrain "${terrain.name || "DEM"}": median difference ${med.toFixed(1)} m, ${off.length} over ${threshold} m.${grid}${off.length && off.every((o) => Math.sign(o.dz) === Math.sign(off[0].dz)) && off.length >= 3 ? ` All ${off.length} are ${off[0].dz > 0 ? "above" : "below"} the ground — a datum or unit problem (ellipsoidal vs orthometric height, feet vs metres) rather than GPS scatter?` : ""}`);
   off.forEach((o) => pushIssue(issues, "warning", "Collar vs terrain", o.hole_id, `Collar elevation ${o.z.toFixed(1)} m is ${Math.abs(o.dz).toFixed(1)} m ${o.dz > 0 ? "above" : "below"} the terrain (${o.dem.toFixed(1)} m) — a GPS / datum / units error, or a DEM that is too coarse here. Every intercept elevation on this hole moves with it.`));
   return issues;
 }
