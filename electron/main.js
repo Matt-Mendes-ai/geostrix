@@ -840,6 +840,32 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
   return { ok: true, status: res.status, contentType: res.contentType, base64: res.buffer.toString("base64") };
 });
 
+// TASKS.csv #784 — satellite imagery for spectral indices, read in pieces: a STAC catalogue search (JSON POST) or one
+// byte range of a cloud-optimised GeoTIFF. Only these HTTPS hosts (no general proxy), the #350 address checks on every
+// hop, 64 MB a response, 60 s. Earth Search + sentinel-cogs: Copernicus Sentinel-2 on AWS Open Data (no account);
+// Planetary Computer + its ASTER blob store: ASTER L1T (anonymous read token from the Planetary Computer itself).
+const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net"]);
+ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
+  let u;
+  try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
+  if (u.protocol !== "https:" || !RS_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: `GeoStrix only reads imagery from ${[...RS_HOSTS].join(", ")}.` };
+  const headers = {};
+  if (range) {
+    const [a, b] = range;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < a || b - a > 64 * 1024 * 1024) return { ok: false, status: 0, message: "Bad byte range." };
+    headers.Range = `bytes=${a}-${b}`;
+  }
+  let init = { headers };
+  if (json != null) {
+    const body = JSON.stringify(json);
+    if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
+    init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
+  }
+  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init });
+  if (res.message) return { ok: false, status: res.status, message: res.message };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
+});
+
 const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348
 const { createDbCredentialStore } = require("./dbCredentials.js"); // TASKS.csv #621
 let dbCredStore = null;

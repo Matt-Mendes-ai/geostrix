@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld("desktop", {
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),
   fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
   fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
+  remoteSensingFetch: (req) => ipcRenderer.invoke("remote-sensing-fetch", req), // TASKS.csv #784
   updaterCheck: () => ipcRenderer.invoke("updater-check"),
   updaterDownload: () => ipcRenderer.invoke("updater-download"),
   updaterInstall: () => ipcRenderer.invoke("updater-install"),

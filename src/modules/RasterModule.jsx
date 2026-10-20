@@ -100,7 +100,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef(null);
   useModuleAction(["import-raster"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import here
-  useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? setSpectralOpen(true) : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
+  useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? openSpectralRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
 
   // TASKS.csv #204 — "Any freely available sat image we can import from the raster module? If so, we
@@ -124,6 +124,8 @@ export default function RasterModule({ embedded = false } = {}) {
   // just the open/import wiring, same addRaster() call site as every other raster source on this page.
   const [georefOpen, setGeorefOpen] = useState(false);
   const [spectralOpen, setSpectralOpen] = useState(false); // TASKS.csv #783
+  const [spectralAreas, setSpectralAreas] = useState([]); // TASKS.csv #784 — areas offered for fetching imagery
+  const openSpectralRef = useRef(null);
 
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
@@ -188,6 +190,15 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatPickerOpen(true);
   };
   openSatPickerRef.current = openSatPicker;
+
+  // TASKS.csv #784 — the spectral index dialog, with the same ready-made areas as the satellite picker
+  const openSpectral = async () => {
+    const seed = await defaultSatBboxLonLat();
+    const opts = await buildSatAreaOptions();
+    setSpectralAreas([...(seed ? [{ id: "holes", label: "Around the drillholes", bboxLonLat: seed }] : []), ...opts]);
+    setSpectralOpen(true);
+  };
+  openSpectralRef.current = openSpectral;
 
   const runSatFetch = async (bboxLonLat) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
@@ -261,7 +272,7 @@ export default function RasterModule({ embedded = false } = {}) {
             <RibbonButton icon={busy ? Loader2 : Image} label={busy ? "Reading…" : "GeoTIFF / GXF"} tone="data" disabled={busy} title="Import a georeferenced GeoTIFF or Geosoft .gxf grid (uses the Source CRS below)" onClick={() => fileInput.current.click()} />
             <RibbonButton icon={Satellite} label={satProgress ? `Fetching ${satProgress.done}/${satProgress.total}` : "Satellite"} tone="data" disabled={satBusy} title="Free Sentinel-2 cloudless imagery (no account) — pick an area on a map, or match an existing terrain / boundary / raster extent" onClick={openSatPicker} />
             <RibbonButton icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates: click matching points and type their real X/Y" onClick={() => setGeorefOpen(true)} />
-            <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={() => setSpectralOpen(true)} />
+            <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -309,7 +320,7 @@ export default function RasterModule({ embedded = false } = {}) {
           />
         )}
         {spectralOpen && ( // TASKS.csv #783
-          <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg}
+          <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
             onImport={(raster, msg) => { addRaster({ ...raster, elevation: defaultElevation }); setSpectralOpen(false); setError({ info: true, text: msg }); }} />
         )}

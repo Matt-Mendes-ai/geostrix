@@ -302,6 +302,18 @@ export async function fetchSRTMTile(z, x, y) {
   return res.arrayBuffer();
 }
 
+// ---------- TASKS.csv #784: satellite imagery (STAC search / one COG byte range), main-process proxied ----------
+// { url, range: [start, end] | null, json: object | null } -> { ok, status, contentRange, data: Uint8Array } | { ok: false, message }
+export async function remoteSensingFetch(req) {
+  if (d && d.remoteSensingFetch) return d.remoteSensingFetch(req);
+  try { // browser / dev fallback: a direct fetch (these services send CORS headers)
+    const headers = {};
+    if (req.range) headers.Range = `bytes=${req.range[0]}-${req.range[1]}`;
+    const r = await fetch(req.url, req.json != null ? { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(req.json) } : { headers });
+    return { ok: r.ok, status: r.status, contentRange: r.headers.get("content-range") || "", data: new Uint8Array(await r.arrayBuffer()) };
+  } catch (e) { return { ok: false, status: 0, message: e.message }; }
+}
+
 // ---------- Generic web-layer fetch (see electron/main.js's fetch-web-layer handler) ----------
 // TASKS.csv #127 — WMS/WMTS/WFS. Same Electron-proxy / browser-fallback split as fetchSRTMTile above,
 // generalized to an arbitrary user-supplied URL instead of one fixed source: in Electron this goes
