@@ -6,6 +6,7 @@ import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #222 — a real project's QC pass can run into the thousands of issues (measured: 26,762 DOM
@@ -21,9 +22,9 @@ const ISSUE_ROW_H = 52;
 // keystroke/import — a full project's worth of intervals is cheap but not free to re-check on every
 // render) via a "Run QC" button in ViewerModule's Home tab sidebar, opening this modal.
 const SEVERITY_META = {
-  error: { icon: ShieldAlert, color: "#e0716a", label: "Error" },
-  warning: { icon: AlertTriangle, color: "#e2a63c", label: "Warning" },
-  info: { icon: Info, color: "#6fa8dc", label: "Info" },
+  error: { icon: ShieldAlert, color: "#e0716a", label: "Error", plural: "Errors" },
+  warning: { icon: AlertTriangle, color: "#e2a63c", label: "Warning", plural: "Warnings" },
+  info: { icon: Info, color: "#6fa8dc", label: "Info", plural: "Infos" },
 };
 
 export default function DataQCModal({ onCancel }) {
@@ -64,18 +65,13 @@ export default function DataQCModal({ onCancel }) {
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <ShieldAlert size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Drillhole data QA/QC</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Drillhole data QA/QC")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: "16px 16px 0", flexShrink: 0 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-            Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for
-            the kinds of problems that quietly distort a modelled surface — before you get as far as
-            modelling. Doesn't fix anything automatically; re-import or hand-correct the source data
-            and re-run.
-          </div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Checks collar coordinates, survey trajectories, assay results, and every logged interval/point layer for the kinds of problems that quietly distort a modelled surface — before you get as far as modelling. Doesn't fix anything automatically; re-import or hand-correct the source data and re-run.")}</div>
 
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
             {(["error", "warning", "info"]).map((sev) => {
@@ -87,7 +83,7 @@ export default function DataQCModal({ onCancel }) {
                   style={{ flex: 1, cursor: "pointer", padding: "9px 10px", borderRadius: 7, background: active ? "var(--color-bg-subtle)" : "var(--color-bg)", border: `1px solid ${active ? meta.color : "var(--color-border)"}`, opacity: active ? 1 : 0.5, textAlign: "center" }}>
                   <Icon size={14} color={meta.color} style={{ marginBottom: 3 }} />
                   <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-text)", fontWeight: 600 }}>{result.summary[sev] || 0}</div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{meta.label}{result.summary[sev] === 1 ? "" : "s"}</div>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{tr(result.summary[sev] === 1 ? meta.label : meta.plural)}</div>
                 </div>
               );
             })}
@@ -95,16 +91,16 @@ export default function DataQCModal({ onCancel }) {
 
           {categories.length > 0 && (
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
-              <option value="all">All categories ({result.issues.length})</option>
-              {categories.map((c) => <option key={c} value={c}>{c} ({result.byCategory.get(c).length})</option>)}
+              <option value="all">{tr("All categories ({n})", { n: result.issues.length })}</option>
+              {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
             </select>
           )}
         </div>
 
         {result.issues.length === 0 ? (
-          <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: "var(--font-size-base)" }}>No issues found — collars, survey, and every layer look internally consistent.</div>
+          <div style={{ padding: "20px 10px", textAlign: "center", color: "#7fd9c9", fontSize: "var(--font-size-base)" }}>{tr("No issues found — collars, survey, and every layer look internally consistent.")}</div>
         ) : shown.length === 0 ? (
-          <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>No issues match the current filters.</div>
+          <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("No issues match the current filters.")}</div>
         ) : (
           <div ref={scrollRef} onScroll={onScroll} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 16px 16px" }}>
             <div style={{ height: topPad }} />
@@ -126,20 +122,15 @@ export default function DataQCModal({ onCancel }) {
         )}
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title="Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.">
-            Dogleg over
-            <input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label="Dogleg warning threshold (degrees per 30 m)" /> °/30 m
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={tr("Survey bends sharper than this are warned about. Ordinary deviated holes bend 3-7° per 30 m; bends of 10° per 30 m or more are always errors. Remembered on this computer.")}>{tr("Dogleg over")}<input type="number" min="0.5" step="0.5" value={doglegWarn} onChange={(e) => setDoglegWarn(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Dogleg warning threshold (degrees per 30 m)")} /> °/30 m
           </span>
           {terrain && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={`Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres)${terrain.source?.nodeM ? `. This terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart.` : ""}`}>
-              Collar vs terrain over
-              <input type="number" min="0.5" step="0.5" value={terrainThreshold} onChange={(e) => setTerrainThreshold(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label="Collar vs terrain threshold (m)" /> m
-              {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title="Set those collars' elevation to the terrain (undoable; the old value is kept)">Snap {terrainOff.length} to terrain</button>}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginRight: 8 }} title={`Collars further than this from the loaded terrain are flagged (an auto-fetched terrain: ~15 m or more; LiDAR: a few metres)${terrain.source?.nodeM ? `. This terrain's nodes are ~${Math.round(terrain.source.nodeM)} m apart.` : ""}`}>{tr("Collar vs terrain over")}<input type="number" min="0.5" step="0.5" value={terrainThreshold} onChange={(e) => setTerrainThreshold(e.target.value)} style={{ width: 54, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", color: "var(--color-text)", fontFamily: "inherit" }} aria-label={tr("Collar vs terrain threshold (m)")} /> m
+              {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
             </span>
           )}
           <button onClick={() => setResult(runDataQC(qcArgs()))} style={rerunBtn}>
-            <RefreshCw size={14} /> Re-run
-          </button>
+            <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
         </div>
       </div>
     </div>

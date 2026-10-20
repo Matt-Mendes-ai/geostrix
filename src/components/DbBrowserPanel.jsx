@@ -5,6 +5,7 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, D
 import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery, dbPasswordStatus } from "../lib/desktop.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #206 — "#206 will live in the 3d view side panel like in QGIS... In the browser panel the
@@ -68,10 +69,10 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
 
   return (
     <div style={{ padding: "10px 12px", overflowY: "auto", height: "100%", fontSize: "var(--font-size-base)" }}>
-      <div style={sectionLabel}>Files</div>
+      <div style={sectionLabel}>{tr("Files")}</div>
 
       {favorites.length > 0 && (
-        <TreeSection label="Favorites">
+        <TreeSection label={tr("Favorites")}>
           {favorites.map((p) => (
             <FsTreeNode key={p} entry={{ name: p.split(/[\\/]/).filter(Boolean).pop() || p, path: p, isDir: true }}
               depth={0} isFavorite favorites={favorites} onToggleFavorite={(fp) => removeFavorite(fp)} onFilePick={handleFilePick} />
@@ -80,7 +81,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
       )}
 
       {recent.length > 0 && (
-        <TreeSection label="Recent">
+        <TreeSection label={tr("Recent")}>
           {recent.map((p) => (
             <FsTreeNode key={p} entry={{ name: p.split(/[\\/]/).filter(Boolean).pop() || p, path: p, isDir: true }}
               depth={0} favorites={favorites} onToggleFavorite={(fp, add) => (add ? addFavorite(fp) : removeFavorite(fp))} onFilePick={handleFilePick} />
@@ -88,18 +89,18 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
         </TreeSection>
       )}
 
-      <TreeSection label="This computer" onExpand={loadDrives}>
-        {drivesLoading && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}><Loader2 size={12} className="spin" /> Loading drives…</div>}
-        {drives && drives.length === 0 && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}>No drives found.</div>}
+      <TreeSection label={tr("This computer")} onExpand={loadDrives}>
+        {drivesLoading && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}><Loader2 size={12} className="spin" />{" "}{tr("Loading drives…")}</div>}
+        {drives && drives.length === 0 && <div style={{ padding: "4px 0 4px 18px", color: "var(--color-text-muted)" }}>{tr("No drives found.")}</div>}
         {drives && drives.map((d) => (
           <FsTreeNode key={d} entry={{ name: d, path: d, isDir: true }} depth={0} isDrive
             favorites={favorites} onToggleFavorite={(fp, add) => (add ? addFavorite(fp) : removeFavorite(fp))} onFilePick={handleFilePick} />
         ))}
       </TreeSection>
 
-      <div style={{ ...sectionLabel, marginTop: 14 }}>PostgreSQL</div>
+      <div style={{ ...sectionLabel, marginTop: 14 }}>{tr("PostgreSQL")}</div>
       {dbConnections.length === 0 && (
-        <div style={{ color: "var(--color-text-muted)", padding: "2px 0 6px" }}>No saved connections yet — use "Connect database" above to add one.</div>
+        <div style={{ color: "var(--color-text-muted)", padding: "2px 0 6px" }}>{tr("No saved connections yet — use \"Connect database\" above to add one.")}</div>
       )}
       {dbConnections.map((profile) => (
         <PgTreeNode key={profile.name} profile={profile} live={liveDbConnections[profile.name]}
@@ -302,7 +303,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
         {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance
             (the dot's color), with the word only in a hover title; "live" is now always visible text
             when connected, so this row's state doesn't depend on distinguishing the dot's color. */}
-        {live && <span style={{ fontSize: "var(--font-size-xs)", color: "#3d9a63" }}>live</span>}
+        {live && <span style={{ fontSize: "var(--font-size-xs)", color: "#3d9a63" }}>{tr("live")}</span>}
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "var(--color-border-light)" }} title={live ? "Connected" : "Not connected"} />
       </div>
       {open && (
@@ -318,8 +319,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, color: "var(--color-text-secondary)" }}>
               <span>{live.info?.db ? `Connected — ${live.info.db}` : "Connected"}</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <RefreshCw role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} title="Refresh table list" onClick={() => loadTables(live.id)} />
-                <Unplug role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} color="#a05050" title="Disconnect" onClick={() => { disconnectDb(profile.name); setTables(null); }} />
+                <RefreshCw role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} title={tr("Refresh table list")} onClick={() => loadTables(live.id)} />
+                <Unplug role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} color="#a05050" title={tr("Disconnect")} onClick={() => { disconnectDb(profile.name); setTables(null); }} />
               </div>
             </div>
           )}
@@ -329,22 +330,18 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
           {pending && (
             <div style={{ marginBottom: 6, padding: "7px 8px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a", lineHeight: 1.45 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 600, marginBottom: 3 }}>
-                <AlertTriangle size={12} /> {pending.total.toLocaleString()} rows
-              </div>
+                <AlertTriangle size={12} /> {pending.total.toLocaleString()}{" "}{tr("rows")}</div>
               <div style={{ marginBottom: 6 }}>
-                {pending.t.table_schema}.{pending.t.table_name} is large. Loading all of it pulls every row into memory at once
-                and can take a while on a modest machine.
-              </div>
+                {pending.t.table_schema}.{pending.t.table_name}{" "}{tr("is large. Loading all of it pulls every row into memory at once and can take a while on a modest machine.")}</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                <button onClick={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} style={smallBtn}>
-                  First {ROW_WARN_THRESHOLD.toLocaleString()}
+                <button onClick={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} style={smallBtn}>{tr("First")}{" "}{ROW_WARN_THRESHOLD.toLocaleString()}
                 </button>
-                <button onClick={() => fetchTable(pending.t, pending.total, null)} style={smallBtn}>Import all</button>
-                <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>Cancel</button>
+                <button onClick={() => fetchTable(pending.t, pending.total, null)} style={smallBtn}>{tr("Import all")}</button>
+                <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
               </div>
             </div>
           )}
-          {tablesLoading && <div style={{ color: "var(--color-text-muted)" }}><Loader2 size={12} className="spin" /> Loading tables…</div>}
+          {tablesLoading && <div style={{ color: "var(--color-text-muted)" }}><Loader2 size={12} className="spin" />{" "}{tr("Loading tables…")}</div>}
           {tables && tables.map((t, i) => {
             const key = `${t.table_schema}.${t.table_name}`;
             const busy = busyTable === key;
@@ -352,7 +349,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => { if (!busyTable) pickTable(t); }} style={{ display: "flex", alignItems: "center", gap: 6, cursor: busyTable ? "default" : "pointer", padding: "2px 0", color: "#3a4453", opacity: busyTable && !busy ? 0.5 : 1 }}
                 title={`Import ${key} (checks its row count first)`}>
                 {busy && <Loader2 size={12} className="spin" style={{ flexShrink: 0 }} />}
-                {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
+                {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key}</span>
               </div>
             );

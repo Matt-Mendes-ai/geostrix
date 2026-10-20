@@ -355,36 +355,35 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
       {recovery?.unreadable && (
         <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#2a1616", borderBottom: "1px solid #5a2a2a", fontSize: "var(--font-size-base)", color: "#e8b4b4" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>The autosave from a previous session could not be read (damaged file). It was kept, not deleted, at: {recovery.unreadable}</span>
-          <button onClick={() => setRecovery(null)} style={recoveryBtn}>Dismiss</button>
+          <span style={{ flex: 1 }}>{tr("The autosave from a previous session could not be read (damaged file). It was kept, not deleted, at:")}{" "}{recovery.unreadable}</span>
+          <button onClick={() => setRecovery(null)} style={recoveryBtn}>{tr("Dismiss")}</button>
         </div>
       )}
       {recovery && !recovery.unreadable && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#241f14", borderBottom: "1px solid #4a3d1e", fontSize: "var(--font-size-base)", color: "#d8c080" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>
-            Recovered unsaved work from a previous session — "{recovery.projectName}"
-            {recovery.otherTabs?.length ? ` plus ${recovery.otherTabs.length} other tab(s) (${recovery.otherTabs.join(", ")})` : ""}
-            {recovery.autosavedAt ? ` (autosaved ${new Date(recovery.autosavedAt).toLocaleString()})` : ""}.
+          <span style={{ flex: 1 }}>{tr("Recovered unsaved work from a previous session — \"{name}\"", { name: recovery.projectName })}
+            {recovery.otherTabs?.length ? tr(" plus {n} other tab(s) ({names})", { n: recovery.otherTabs.length, names: recovery.otherTabs.join(", ") }) : ""}
+            {recovery.autosavedAt ? tr(" (autosaved {when})", { when: new Date(recovery.autosavedAt).toLocaleString() }) : ""}.
             {recovery.newer ? ` It was written by a newer GeoStrix (project format ${recovery.newer}); this version will ask before saving over anything that version added.` : ""}{/* #686 */}
           </span>
-          <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>Restore</button>
-          <button onClick={doDiscardRecovery} style={recoveryBtn}>Discard…</button>
+          <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>{tr("Restore")}</button>
+          <button onClick={doDiscardRecovery} style={recoveryBtn}>{tr("Discard…")}</button>
         </div>
       )}
       {/* TASKS.csv #598 — the last session did not end normally (crash, forced close, power cut): offer a report */}
       {lastExitUnclean && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)" }}>
-          <span style={{ flex: 1 }}>GeoStrix didn't close normally last time. If it crashed or froze, a short report helps fix it.</span>
-          <button onClick={() => { setLastExitUnclean(false); openReportProblem(true); }} style={recoveryBtn}>Report it…</button>
-          <button onClick={() => setLastExitUnclean(false)} style={recoveryBtn} aria-label="Dismiss">Dismiss</button>
+          <span style={{ flex: 1 }}>{tr("GeoStrix didn't close normally last time. If it crashed or froze, a short report helps fix it.")}</span>
+          <button onClick={() => { setLastExitUnclean(false); openReportProblem(true); }} style={recoveryBtn}>{tr("Report it…")}</button>
+          <button onClick={() => setLastExitUnclean(false)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
         </div>
       )}
       {recoveryNote && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{recoveryNote}</span>
-          <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label="Dismiss">OK</button>
+          <button onClick={() => setRecoveryNote(null)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("OK")}</button>
         </div>
       )}
       <WorkspaceTabBar
@@ -466,14 +465,14 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
             required. No `key` here — a key would defeat the whole point by forcing a fresh instance. */}
         {/* TASKS.csv #442 — per-module boundaries inside the store: a render error in one tab no longer
             unmounts the project (the outer boundary in main.jsx is now only the last resort). */}
-        <ErrorBoundary scope="module" label="3D view" onSave={saveProject}>
+        <ErrorBoundary scope="module" label={tr("3D view")} onSave={saveProject}>
           {/* TASKS.csv #438 — hidden, it sees a frozen store value and skips every store write until shown */}
           <FreezeStore frozen={!VIEWER_MODES[active]}>
             <MemoViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
           </FreezeStore>
         </ErrorBoundary>
         <ErrorBoundary scope="module" key={active} label={active} onSave={saveProject}>
-          <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>Loading…</div>}>
+          <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>{tr("Loading…")}</div>}>
             {active === "geochem" && <GeochemModule />}
             {active === "geophysics" && <GeophysicsModule />}
             {active === "maps" && <MapsModule />}
@@ -518,16 +517,16 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
             <button type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
               aria-current={isActive ? "true" : undefined} // TASKS.csv #388
               aria-label={`${label || "Untitled project"}${dirty ? " (unsaved changes)" : ""}`}>
-              {dirty && <span className="ge-tab-dot" title="Unsaved changes" />}
+              {dirty && <span className="ge-tab-dot" title={tr("Unsaved changes")} />}
               <span className="ge-tab-label">{label || "Untitled project"}</span>
             </button>
-            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title="Close project" aria-label={`Close ${label || "Untitled project"}`}>
+            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={`Close ${label || "Untitled project"}`}>
               <X size={12} aria-hidden="true" />
             </button>
           </div>
         );
       })}
-      <button className="ge-tab-add" onClick={onNew} title="New project (opens another tab)" aria-label="New project (opens another tab)">
+      <button className="ge-tab-add" onClick={onNew} title={tr("New project (opens another tab)")} aria-label={tr("New project (opens another tab)")}>
         <Plus size={14} />
       </button>
     </div>
@@ -579,8 +578,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #391 — a button now: opens Help › Python features (was a hover-only README pointer) */}
       <button type="button" onClick={() => onPython?.()} title={pyLabel} aria-label={pyLabel}
         style={{ background: "none", border: "none", color: "inherit", padding: 0, font: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />
-        Py: {pyStatus === "connected" ? tr("on") : pyStatus === "checking" ? "…" : pyStatus === "standby" ? tr("idle") : tr("off")}
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: pyColor, display: "inline-block" }} />{tr("Py:")}{" "}{pyStatus === "connected" ? tr("on") : pyStatus === "checking" ? "…" : pyStatus === "standby" ? tr("idle") : tr("off")}
       </button>
       {taskProgress && (
         <span title={taskProgress.label} style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
@@ -607,34 +605,29 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           "checking"/"not-available"/"idle" stay silent, matching taskProgress's own pattern above of
           not cluttering the status bar with routine background activity. */}
       {updater.event === "checking" && updater.manual && (
-        <span style={{ color: "var(--color-text-muted)" }}>Checking for updates…</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{tr("Checking for updates…")}</span>
       )}
       {updater.event === "not-available" && updater.manual && (
-        <span style={{ color: "var(--color-success-fg)" }}>You're up to date (v{updater.currentVersion})</span>
+        <span style={{ color: "var(--color-success-fg)" }}>{tr("You're up to date (v{v})", { v: updater.currentVersion })}</span>
       )}
       {updater.event === "available" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
-          Update available (v{updater.version})
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Update available (v{v})", { v: updater.version })}
           {updater.portable ? ( /* TASKS.csv #473 — a zip copy updates by downloading the new zip, never the installer */
-            <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest" target="_blank" rel="noreferrer" title="This is the portable (zip) copy: download the new zip and replace this folder" style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>Get the new zip</a>
+            <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest" target="_blank" rel="noreferrer" title={tr("This is the portable (zip) copy: download the new zip and replace this folder")} style={{ color: "var(--color-success-fg)", border: "1px solid var(--color-success-border-soft)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", textDecoration: "none" }}>{tr("Get the new zip")}</a>
           ) : (
-          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Download</button>
+          <button onClick={() => downloadUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>{tr("Download")}</button>
           )}
         </span>
       )}
       {updater.event === "downloading" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
-          Downloading update…
-          <span style={{ width: 60, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Downloading update…")}<span style={{ width: 60, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block" }}>
             <span style={{ display: "block", height: "100%", width: `${updater.percent || 0}%`, background: "var(--color-accent)", transition: "width 0.3s" }} />
           </span>
           <span className="val">{updater.percent || 0}%</span>
         </span>
       )}
       {updater.event === "downloaded" && (
-        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>
-          Update v{updater.version} ready
-          <button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>Restart &amp; install</button>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-success-fg)" }}>{tr("Update v{v} ready", { v: updater.version })}<button onClick={() => installUpdate()} style={{ background: "none", border: "1px solid var(--color-success-border-soft)", color: "var(--color-success-fg)", borderRadius: 4, padding: "1px 7px", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>{tr("Restart & install")}</button>
         </span>
       )}
       {updater.event === "error" && (
@@ -657,16 +650,14 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           (and data optionally reprojected) in the Cartography tab. */}
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
       {project.crsSet === false
-        ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title="The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)" style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>CRS: <span className="val">not set</span></span>
-        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Maps tab)`} style={{ cursor: "pointer" }}>EPSG: <span className="val">{project.epsg}</span></span>}
+        ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)")} style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>{tr("CRS:")}{" "}<span className="val">{tr("not set")}</span></span>
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Maps tab)`} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a
           plain always-on <select> (not the click-to-edit pattern EPSG uses) precisely because a hidden
           control for something this consequential is worse than a slightly busier status bar. */}
-      <span title={DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || ""} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        Desurvey:
-        <select
+      <span title={DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || ""} style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Desurvey:")}<select
           value={desurveyMethod}
           onChange={(e) => setDesurveyMethod(e.target.value)}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "1px 3px", cursor: "pointer" }}

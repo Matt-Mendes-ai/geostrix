@@ -4,6 +4,8 @@
 // The dictionary is loaded once before the first render (its own small chunk, not in the startup bundle); a change of
 // language re-mounts the app UI (setLanguage below). The choice is a per-computer preference (localStorage, like the
 // sidebar widths), defaulting to the system language.
+import { cloneElement, isValidElement } from "react";
+
 export const LANGUAGES = [
   { code: "en", name: "English" },
   { code: "es", name: "Español" },
@@ -50,6 +52,24 @@ export function t(text, vars) {
 // project lives in the store ABOVE that key, so nothing unsaved is lost (a window reload would have dropped it).
 const listeners = new Set();
 export function onLanguageChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+// A whole sentence with elements inside it ("Use the {collars} button under {geometry} …"): translated as one string, so
+// each language keeps its own word order, then split at the {name} slots, which take the given React nodes / strings.
+// Returns an array for JSX children; React keys come from the slot names.
+export function tx(text, parts) {
+  const s = t(text);
+  const out = [];
+  let last = 0;
+  for (const m of s.matchAll(/\{(\w+)\}/g)) {
+    if (!parts || !(m[1] in parts)) continue;
+    if (m.index > last) out.push(s.slice(last, m.index));
+    const p = parts[m[1]];
+    out.push(isValidElement(p) ? cloneElement(p, { key: m[1] }) : p);
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) out.push(s.slice(last));
+  return out;
+}
+
 export async function setLanguage(code) {
   try { localStorage.setItem(KEY, code); } catch { /* storage unavailable: the choice lasts this session only */ }
   await initLanguage(code);

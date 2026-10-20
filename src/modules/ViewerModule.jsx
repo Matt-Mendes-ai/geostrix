@@ -31,7 +31,7 @@ import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; //
 import { pointInBoundary } from "../lib/geoprocessing.js";
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — "tr": this file uses t as a local name
+import { t as tr, tx } from "../lib/i18n.js"; // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
 import { createCompassRose } from "../components/CompassRose.js";
@@ -6100,7 +6100,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const meta = LAYER_META[key];
     const isGeophys = key === "geophys_pts";
     return (
-      <LayerRow key={key} label={meta.label} count={(layers[key] || []).length} visible={layerVisible[key]}
+      <LayerRow key={key} label={tr(meta.label)} count={(layers[key] || []).length} visible={layerVisible[key]}
         onToggle={() => toggleLayer(key)}
         onUpload={isGeophys ? () => goToModule("geophysics") : () => fileInputs.current[key].click()}
         onInspect={() => setInspectLayer(key)} onZoom={() => zoomToLayer(key)} onClear={() => clearLayer(key)}
@@ -6964,15 +6964,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ marginBottom: 12 }} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
-        <div className="ge-section-label">Geometry</div>
+        <div className="ge-section-label">{tr("Geometry")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Collars {collars.length ? `(${collars.length})` : ""}</button>
-          {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title="Remove all collars"><Trash2 size={14} /></div>}
+          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars")}{" "}{collars.length ? `(${collars.length})` : ""}</button>
+          {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title={tr("Remove all collars")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title="Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect"><Upload size={14} /> Survey {survey.length ? `(${survey.length})` : ""}</button>
-          {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title="Remove all survey stations"><Trash2 size={14} /></div>}
+          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Survey")}{" "}{survey.length ? `(${survey.length})` : ""}</button>
+          {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title={tr("Remove all survey stations")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
 
@@ -6983,16 +6983,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             show" convention every other conditional sidebar section here already follows. */}
         {collars.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>Hole labels</span>
+            <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
             <select
               value={holeLabelMode}
               onChange={(e) => setHoleLabelMode(e.target.value)}
-              style={{ flex: 1, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
+              style={{ flex: 1, minWidth: 0, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
             >
-              <option value="none">Off</option>
-              <option value="hole_id">Hole ID</option>
-              <option value="hole_id_z">Hole ID + elevation</option>
-              <option value="hole_id_depth">Hole ID + total depth</option>
+              <option value="none">{tr("Off")}</option>
+              <option value="hole_id">{tr("Hole ID")}</option>
+              <option value="hole_id_z">{tr("Hole ID + elevation")}</option>
+              <option value="hole_id_depth">{tr("Hole ID + total depth")}</option>
             </select>
           </div>
         )}
@@ -7007,25 +7007,24 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {collars.length > 0 && boundaries.length > 0 && (
           <div style={{ marginTop: 10, marginBottom: 4 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
-              <MapPin size={12} /> Select by location
-            </div>
+              <MapPin size={12} />{" "}{tr("Select by location")}</div>
             <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 5 }}>
-              <option value="">— pick a boundary/claim —</option>
+              <option value="">{tr("— pick a boundary/claim —")}</option>
               {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? " (claim)" : ""}</option>)}
             </select>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title="Show only collars inside this boundary, hide every other hole">Isolate inside</button>
-              <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title="Hide collars inside this boundary, leave every other hole as-is">Hide inside</button>
+              <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>
+              <button onClick={() => selectByLocation("hide")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Hide collars inside this boundary, leave every other hole as-is")}>{tr("Hide inside")}</button>
             </div>
           </div>
         )}
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>Layers</span>
+          <span>{tr("Layers")}</span>
           {/* TASKS.csv #76 — create a new named group; layers get sorted into it via the right-click
               menu below ("Add to group…"), a lighter-weight interaction than drag-to-group. */}
           <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("New group name:", "", (name) => { if (name && name.trim()) addLayerGroup(name.trim()); })}
-            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title="New layer group">+ Group</span>
+            style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }} title={tr("New layer group")}>{tr("+ Group")}</span>
         </div>
         {/* TASKS.csv #76 — groups render first (each a collapsible header wrapping its member
             LayerRows), then any ungrouped keys below in their original order — same renderLayerRow
@@ -7042,13 +7041,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {g.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
               </div>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
-                onClick={() => askPrompt("Rename group:", g.name, (name) => { if (name && name.trim()) renameLayerGroup(g.id, name.trim()); })} title="Click to rename">
+                onClick={() => askPrompt("Rename group:", g.name, (name) => { if (name && name.trim()) renameLayerGroup(g.id, name.trim()); })} title={tr("Click to rename")}>
                 {g.name} <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>({populatedKeys.length})</span>
               </div>
               {/* Bulk show/hide every layer currently in this group — "on" if ANY member is visible,
                   clicking turns them all off; clicking again (all off) turns them all on. */}
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { const anyOn = g.keys.some((k) => layerVisible[k]); g.keys.forEach((k) => { if (anyOn ? layerVisible[k] : !layerVisible[k]) toggleLayer(k); }); }}
-                style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title="Toggle all layers in this group">
+                style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={tr("Toggle all layers in this group")}>
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }, `Delete group "${g.name}" (its layers stay, just ungrouped)`)} />
@@ -7081,7 +7080,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onChange={(e) => { const key = e.target.value; if (!key) return; if (key === "geophys_pts") goToModule("geophysics"); else fileInputs.current[key]?.click(); }}
             style={{ width: "100%", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, padding: "7px 8px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 4 }}
           >
-            <option value="">+ Add layer…</option>
+            <option value="">{tr("+ Add layer…")}</option>
             {emptyLayerKeys.map((key) => <option key={key} value={key}>{LAYER_META[key].label}</option>)}
           </select>
         )}
@@ -7095,12 +7094,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             to show" request that applies to the layer rows above). */}
         {(rasters.length > 0 || terrain) && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Rasters & terrain</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Rasters & terrain")}</div>
             {terrain && (
               <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
                   { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
-                  { label: "Zoom to", onClick: () => zoomToObject(terrainMeshRef.current) },
-                  "-", { label: "Colour, drape and remove — Geophysics tab", onClick: () => goToModule("geophysics") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Zoom to"), onClick: () => zoomToObject(terrainMeshRef.current) },
+                  "-", { label: tr("Colour, drape and remove — Geophysics tab"), onClick: () => goToModule("geophysics") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7109,7 +7108,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={terrain.opacity ?? 1}
                   onChange={(e) => updateTerrain?.({ opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title="Opacity"
+                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
                 />
                 {/* Color/opacity are also editable right here inline (terrain has no other exotic
                     settings the way rasters' drape-mode/elevation do), but the jump still goes to
@@ -7121,9 +7120,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {rasters.map((r) => (
               <div key={r.id} onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
-                  { label: "Zoom to", onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
-                  "-", { label: "Drape and elevation — Maps tab", onClick: () => goToModule("maps") },
-                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove raster "${r.name}"?`)) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Zoom to"), onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
+                  "-", { label: tr("Drape and elevation — Maps tab"), onClick: () => goToModule("maps") },
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove raster "${r.name}"?`)) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7132,7 +7131,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85}
                   onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title="Opacity"
+                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
                 />
                 {/* User request ("I wanna be able to edit them from there"): jump to the full raster
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
@@ -7142,7 +7141,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
               </div>
             ))}
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>Imported via the Raster module</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Imported via the Raster module")}</div>
           </>
         )}
 
@@ -7157,19 +7156,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             visibility + a quick opacity nudge + delete, exactly like the raster rows above it. */}
         {(boundaries.length > 0 || omfObjects.length > 0 || voxelModels.length > 0) && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Geophysics</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Geophysics")}</div>
             {boundaries.map((b) => (
               <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
-                  { label: "Zoom to", onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
-                  "-", { label: "Colour and style — Geophysics tab", onClick: () => goToModule("geophysics") },
-                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove boundary "${b.name}"?`)) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
+                  "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove boundary "${b.name}"?`)) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Shapes size={14} style={{ color: b.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>boundary</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit boundary "${b.name}" in the Geophysics tab`)} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), `Remove boundary "${b.name}"`)} />
               </div>
@@ -7177,9 +7176,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {omfObjects.map((o) => (
               <div key={o.id} onContextMenu={(e) => openRowMenu(e, o.name, [
                   { label: o.visible === false ? "Show" : "Hide", onClick: () => updateOmfObject(o.id, { visible: o.visible === false }) },
-                  { label: "Zoom to", onClick: () => zoomToObject(omfMeshesRef.current[o.id]) },
-                  "-", { label: "Colour and style — Geophysics tab", onClick: () => goToModule("geophysics") },
-                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove OMF object "${o.name}"?`)) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Zoom to"), onClick: () => zoomToObject(omfMeshesRef.current[o.id]) },
+                  "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove OMF object "${o.name}"?`)) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7187,7 +7186,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   : o.kind === "lines" ? <Waypoints size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                   : <Triangle size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />}
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>OMF {o.kind}</span>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("OMF")}{" "}{o.kind}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit OMF object "${o.name}" in the Geophysics tab`)} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), `Remove OMF object "${o.name}"`)} />
               </div>
@@ -7195,9 +7194,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {voxelModels.map((v) => (
               <div key={v.id} onContextMenu={(e) => openRowMenu(e, v.name, [
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
-                  { label: "Zoom to", onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
-                  "-", { label: "Legend, classes and palette — Geophysics tab", onClick: () => goToModule("geophysics") },
-                  { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Zoom to"), onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
+                  "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => goToModule("geophysics") },
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7206,7 +7205,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title="Opacity"
+                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
                 />
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); }, `Remove block/voxel model "${v.name}"`)} />
@@ -7224,20 +7223,20 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <>
             <div onContextMenu={(e) => openRowMenu(e, `${surfaceSamples.length} surface samples`, [
               { label: layerVisible.surface_samples ? "Hide" : "Show", onClick: () => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples })) },
-              { label: "Zoom to", onClick: () => zoomToObject(layerGroupsRef.current.surface_samples) },
-              { label: "Style (colour, size, shape)…", onClick: () => openLayerStyle("surface_samples", "Surface samples") },
-              "-", { label: "Import or edit samples — Geochem tab", onClick: () => goToModule("geochem") }])} className="ge-section-label" style={{ marginTop: 16 }}>Surface samples</div>
+              { label: tr("Zoom to"), onClick: () => zoomToObject(layerGroupsRef.current.surface_samples) },
+              { label: tr("Style (colour, size, shape)…"), onClick: () => openLayerStyle("surface_samples", "Surface samples") },
+              "-", { label: tr("Import or edit samples — Geochem tab"), onClick: () => goToModule("geochem") }])} className="ge-section-label" style={{ marginTop: 16 }}>{tr("Surface samples")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {layerVisible.surface_samples ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <Beaker size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{surfaceSamples.length} sample{surfaceSamples.length === 1 ? "" : "s"}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), "Import more assays, or edit them, in the Geochem tab")} />
             </div>
             {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {surfaceSamplesUnplaced} sample{surfaceSamplesUnplaced === 1 ? " has" : "s have"} no elevation and {terrain ? "lie outside the terrain" : "no terrain to sit on"} — {terrain ? "extend the DEM to cover them" : "load a DEM or SRTM terrain (Geophysics tab) and they are placed on it"}.
+                {tr(terrain ? "{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them." : "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.", { n: surfaceSamplesUnplaced })}
               </div>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
@@ -7257,14 +7256,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {assayElements.length > 0 && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Assays</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Assays")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
                 {assayDisplayElements.length === 0 ? "No elements selected" : `${assayDisplayElements.length} element${assayDisplayElements.length > 1 ? "s" : ""} shown`}
               </div>
               {assayDisplayElements.length > 0 && (
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Clear</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</span>
               )}
             </div>
             {/* User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each
@@ -7291,9 +7290,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     title={on ? `Hide ${e.symbol} — right-click for more` : `Show ${e.symbol}`}
                     onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${e.unit})` : ""}`, [ // TASKS.csv #649 — like the other layers (#635)
                       { label: on ? `Hide ${e.symbol}` : `Show ${e.symbol}`, onClick: () => toggleAssayElement(e.symbol) },
-                      on && { label: "Style (colour, shape, size, classes)…", onClick: () => setAssayStyleModalSymbol(e.symbol) },
+                      on && { label: tr("Style (colour, shape, size, classes)…"), onClick: () => setAssayStyleModalSymbol(e.symbol) },
                       on && assayDisplayElements.length > 1 && { label: `Show only ${e.symbol}`, onClick: () => setAssayDisplayElements([e.symbol]) },
-                      "-", { label: "Import or edit assays — Geochem tab", onClick: () => goToModule("geochem") }])}
+                      "-", { label: tr("Import or edit assays — Geochem tab"), onClick: () => goToModule("geochem") }])}
                     style={{
                       display: "flex", alignItems: "center", gap: 5, padding: "4px 6px 4px 9px", borderRadius: 12, cursor: "pointer", fontSize: "var(--font-size-base)",
                       // TASKS.csv #306 — the chip BORDER now carries the element's own identity hue
@@ -7321,17 +7320,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 );
               })}
             </div>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{assays.length} intervals loaded via Geochem module</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{assays.length}{" "}{tr("intervals loaded via Geochem module")}</div>
           </>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Custom layers</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Custom layers")}</div>
         {customLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
-            { label: "Zoom to", onClick: () => zoomToCustom(l.id) },
-            { label: "Style (colour, size, shape)…", onClick: () => openCustomStyle(l) },
-            "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the custom layer "${l.name}"?`)) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Zoom to"), onClick: () => zoomToCustom(l.id) },
+            { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
+            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the custom layer "${l.name}"?`)) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
             </div>
@@ -7339,20 +7338,20 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
           </div>
         ))}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add CSV layer</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
         <input ref={setInputRef("customCsv")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "custom"); e.target.value = ""; }} />
 
         {/* TASKS.csv #628 — Matt: "I'm importing shp files but there is no way to delete them … I wanna be able to see
             them as layers, just like in qgis". Line / polygon shapefiles and GeoPackage tables go to the project's map
             layers (#609), which were only listed under Geophysics -> Map layers; this lists them here too, QGIS-style:
             show/hide, zoom to, remove. Styling stays in the Geophysics panel (one place for it). */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Map layers{mapLayers.length ? ` (${mapLayers.length})` : ""}</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Map layers")}{mapLayers.length ? ` (${mapLayers.length})` : ""}</div>
         {mapLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: l.visible === false ? "Show" : "Hide", onClick: () => updateMapLayer(l.id, { visible: l.visible === false }) },
-            { label: "Zoom to", onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
-            "-", { label: "Colours, labels and draping — Geophysics tab", onClick: () => goToModule("geophysics") },
-            { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
+            "-", { label: tr("Colours, labels and draping — Geophysics tab"), onClick: () => goToModule("geophysics") },
+            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? "Show" : "Hide"} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.features.length} {l.geomType})</span>
             </div>
@@ -7360,19 +7359,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); }, `Remove map layer "${l.name}"`)} />
           </div>
         ))}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Add map layer (.shp / .zip / .gpkg)</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
         <input ref={setInputRef("mapLayer")} type="file" multiple accept=".zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx" style={{ display: "none" }} onChange={(e) => { groupShapefileParts(Array.from(e.target.files)).files.forEach((f) => openImportModal(f)); e.target.value = ""; }} />
-        {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>Colours, labels and draping: Geophysics → Map layers.</div>}
+        {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>{tr("Colours, labels and draping: Geophysics → Map layers.")}</div>}
 
         {/* TASKS.csv #630 — georeferenced cross-section images standing in the 3D view */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>Section images{sectionImages.length ? ` (${sectionImages.length})` : ""}</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Section images")}{sectionImages.length ? ` (${sectionImages.length})` : ""}</div>
         {sectionImages.map((im) => (
           <div key={im.id} onContextMenu={(e) => openRowMenu(e, im.name, [
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
-            { label: "Zoom to", onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
-            { label: "Opaque", onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
-            { label: "Half transparent", onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
-            "-", { label: "Remove…", onClick: () => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
+            { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
+            { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
+            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? "Show" : "Hide"} "${im.name}"${im.rmse != null ? ` (fit error ${im.rmse.toFixed(1)} m)` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 {im.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{im.name}</span>
@@ -7380,12 +7379,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, `Zoom to section image "${im.name}"`)} />
               <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); }, `Remove section image "${im.name}"`)} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>
-              Opacity <input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={`Opacity of "${im.name}"`} />
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={`Opacity of "${im.name}"`} />
             </label>
           </div>
         ))}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>+ Georeference a section image…</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionGeorefOpen(true)} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Georeference a section image…")}</div>
 
         {/* TASKS.csv #155 — Snapshot to Layout / Draw cross-section (+ its buffer setting) moved to
             the toolbar above (Camera / Scissors icons) — same reasoning as Grid/Themes above. The
@@ -7411,11 +7409,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const toggleSelected = (id) => setSelectedSectionIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
           const sectionRow = (s) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-              <input type="checkbox" checked={selectedSectionIds.has(s.id)} onChange={() => toggleSelected(s.id)} style={{ flexShrink: 0 }} title="Select for bulk edit/rename" />
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => reopenSection(s)} title="Reopen this section" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+              <input type="checkbox" checked={selectedSectionIds.has(s.id)} onChange={() => toggleSelected(s.id)} style={{ flexShrink: 0 }} title={tr("Select for bulk edit/rename")} />
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => reopenSection(s)} title={tr("Reopen this section")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                 <Scissors size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({s.contacts.length} contact{s.contacts.length === 1 ? "" : "s"})</span>}
+                {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({s.contacts.length}{" "}{tr("contact")}{s.contacts.length === 1 ? "" : "s"})</span>}
               </div>
               <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
               <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
@@ -7425,39 +7423,38 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>Cross-sections ({sections.length})</span>
+                <span>{tr("Cross-sections (")}{sections.length})</span>
                 {sections.some((s) => (s.contacts || []).length) && (
-                  <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title="Draw the saved section strings (contacts, faults, strings) as 3D lines in the view">
-                    <input type="checkbox" checked={showSectionStrings} onChange={(e) => setShowSectionStrings(e.target.checked)} /> in 3D
-                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title={tr("Draw the saved section strings (contacts, faults, strings) as 3D lines in the view")}>
+                    <input type="checkbox" checked={showSectionStrings} onChange={(e) => setShowSectionStrings(e.target.checked)} />{" "}{tr("in 3D")}</label>
                 )}
                 {/* TASKS.csv #409 — digitised contacts/faults/strings out as 3D CSV and DXF */}
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
-                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string: one row per vertex with real x, y, z"
-                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>Strings CSV</span>
-                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title="Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS"
-                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>DXF</span>
+                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault and string: one row per vertex with real x, y, z")}
+                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>{tr("Strings CSV")}</span>
+                    <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS")}
+                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>{tr("DXF")}</span>
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                   onClick={() => { if (confirmDestructive(`Delete all ${sections.length} section(s) and any contacts drawn on them?`, { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
-                  title="Delete every section and section group"
-                >Delete all</span>
+                  title={tr("Delete every section and section group")}
+                >{tr("Delete all")}</span>
               </div>
               {/* TASKS.csv #240 follow-up — user request: "edit a single section but also bulk edit a
                   bunch of sections and also bulk rename them." Bar only appears once at least one
                   section is checked (individually or via a group's own select-all checkbox below). */}
               {selectedSectionIds.size > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-                  <span style={{ flex: 1, color: "var(--color-text)" }}>{selectedSectionIds.size} selected</span>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>Edit</span>
+                  <span style={{ flex: 1, color: "var(--color-text)" }}>{selectedSectionIds.size}{" "}{tr("selected")}</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>{tr("Edit")}</span>
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                     onClick={() => askPrompt("Base name for the selected sections? (numbered automatically)", "", (base) => { if (base && base.trim()) renameSectionsBulk(Array.from(selectedSectionIds), base.trim()); })}
                     style={{ cursor: "pointer", color: "var(--color-primary)" }}
-                  >Rename</span>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>Clear</span>
+                  >{tr("Rename")}</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSelectedSectionIds(new Set())} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Clear")}</span>
                 </div>
               )}
               {sectionGroups.filter((g) => grouped.has(g.id)).map((g) => {
@@ -7474,7 +7471,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           members.forEach((s) => allSelected ? n.delete(s.id) : n.add(s.id));
                           return n;
                         })}
-                        title="Select every section in this group for bulk edit/rename" style={{ flexShrink: 0 }}
+                        title={tr("Select every section in this group for bulk edit/rename")} style={{ flexShrink: 0 }}
                       />
                       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />}
@@ -8790,12 +8787,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {collars.length > 0 && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Holes ({collars.length})</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Holes ({n})", { n: collars.length })}</div>
             {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
             {collars.length > 8 && (
-              <input placeholder="Filter holes…" value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 4 }} />
+              <input placeholder={tr("Filter holes…")} value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 4 }} />
             )}
             {collars.filter((c) => !holeFilter || c.hole_id.toLowerCase().includes(holeFilter.toLowerCase())).map((c) => (
               <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />
@@ -8808,7 +8805,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             read every message twice. This is the persistent record of the same messages, so it just
             gets a name so it can be found by landmark/region navigation. */}
         {notices.length > 0 && (
-          <div role="region" aria-label="Recent messages" style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
+          <div role="region" aria-label={tr("Recent messages")} style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
             {notices.slice(-6).map((n, i) => (noticeLevel(n) === "error"
               ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start" }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{noticeText(n)}</span></div>
               : <div key={i} style={{ marginBottom: 4 }}>{noticeText(n)}</div>))}
@@ -8875,27 +8872,21 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             actionLabel={sampleLoading ? "Loading sample project…" : "Sample: Harry property (37 holes)"}
             onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}
-            actionTitle="Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers"
-            secondary={<button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title="Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597" style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>Sample: Woodjam (19 holes, IP, ZTEM)</button>}
-            footnote="No data of your own yet? Two real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized."
+            actionTitle={tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers")}
+            secondary={<button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title={tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597")} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Woodjam (19 holes, IP, ZTEM)")}</button>}
+            footnote={tr("No data of your own yet? Two real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized.")}
           >
             <>
-              <div style={{ marginBottom: 8 }}>
-                This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a <b>collar</b> file.
-              </div>
-              <div style={{ marginBottom: 8 }}>
-                Use the <b>Collars</b> button under <b>Geometry</b> in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — <code>hole_id, x, y, z</code>, plus optional <code>azimuth</code>, <code>dip</code> and <code>length</code>. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the <b>Geochem</b> tab; survey lines and geophysical grids in <b>Geophysics</b>; GeoTIFFs, satellite imagery, terrain and map layers in <b>Maps</b>. Coordinates are reprojected to the project CRS on import if the source CRS differs.
-              </div>
+              <div style={{ marginBottom: 8 }}>{tx("This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.", { collar: <b>{tr("collar")}</b> })}</div>
+              <div style={{ marginBottom: 8 }}>{tx("Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.", { collars: <b>{tr("Collars")}</b>, geometry: <b>{tr("Geometry")}</b>, cols: <code>hole_id, x, y, z</code>, az: <code>azimuth</code>, dip: <code>dip</code>, len: <code>length</code> })}</div>
+              <div style={{ marginBottom: 12 }}>{tx("Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.", { geochem: <b>{tr("Geochem")}</b>, geophysics: <b>{tr("Geophysics")}</b>, maps: <b>{tr("Maps")}</b> })}</div>
             </>
           </EmptyState>
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
-          <button onClick={() => setShowLocator((v) => !v)} title="Toggle locator map (shows your project's real-world location)" style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={14} /></button>
-          <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, "View refreshed — geometry rebuilt from current data"]); }} title="Refresh view (force full geometry rebuild)" style={iconBtn}><RefreshCw size={14} /></button>
-          <button onClick={resetView} title="Reset orientation" style={iconBtn}><RotateCcw size={14} /></button>
+          <button onClick={() => setShowLocator((v) => !v)} title={tr("Toggle locator map (shows your project's real-world location)")} style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={14} /></button>
+          <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, "View refreshed — geometry rebuilt from current data"]); }} title={tr("Refresh view (force full geometry rebuild)")} style={iconBtn}><RefreshCw size={14} /></button>
+          <button onClick={resetView} title={tr("Reset orientation")} style={iconBtn}><RotateCcw size={14} /></button>
         </div>
         {showLocator && (
           <div style={{ position: "absolute", bottom: 12, right: 12 }}>
@@ -8916,9 +8907,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         )}
         <div style={{ position: "absolute", top: 160, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-          <button onClick={() => { camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>Top</button>
-          <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>Bottom</button>
-          <button onClick={() => zoomToFitAll()} style={miniBtn} title="Zoom to fit all (also: right-click the view)" aria-label="Zoom to fit all">Fit</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <button onClick={() => { camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>
+          <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
+          <button onClick={() => zoomToFitAll()} style={miniBtn} title={tr("Zoom to fit all (also: right-click the view)")} aria-label={tr("Zoom to fit all")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
@@ -8981,22 +8972,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       {contextMenu && (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}>
-          <div ref={contextMenuRef} role="menu" aria-label="3D view menu" onKeyDown={onContextMenuKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={contextMenuRef} role="menu" aria-label={tr("3D view menu")} onKeyDown={onContextMenuKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: contextMenu.x, top: contextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             {contextMenu.hit ? (
               <>
                 <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-line", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
-                <ContextItem label="Zoom here" onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom here")} onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
                 <ContextItem label={`Hide ${contextMenu.hit.holeId}`} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
-                <ContextItem label="Copy details" onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
-                <ContextItem label="Zoom to selected area…" onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
-                <ContextItem label="Zoom to fit all" onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
-                <ContextItem label="Reset orientation" onClick={() => { resetView(); setContextMenu(null); }} />
+                <ContextItem label={tr("Copy details")} onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to selected area…")} onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to fit all")} onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
+                <ContextItem label={tr("Reset orientation")} onClick={() => { resetView(); setContextMenu(null); }} />
               </>
             ) : (
               <>
-                <ContextItem label="Zoom to selected area…" onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
-                <ContextItem label="Zoom to fit all" onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
-                <ContextItem label="Reset orientation" onClick={() => { resetView(); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to selected area…")} onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to fit all")} onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
+                <ContextItem label={tr("Reset orientation")} onClick={() => { resetView(); setContextMenu(null); }} />
               </>
             )}
             {/* Viewport background color — user-requested placeholder location ("for now") for overriding
@@ -9008,7 +8999,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#242e3c")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <span>Background color</span>
+                <span>{tr("Background color")}</span>
                 <input
                   id="viewport-bg-color-picker"
                   type="color"
@@ -9036,17 +9027,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div ref={layerMenuKeys.menuRef} role="menu" aria-label={`${layerContextMenu.label} menu`} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{layerContextMenu.label}</div>
             {!isVector && <>
-              <ContextItem label="Zoom to layer" onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
+              <ContextItem label={tr("Zoom to layer")} onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
               <ContextItem label={layerVisible[layerContextMenu.key] ? "Hide layer" : "Show layer"} onClick={() => { toggleLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
-              {styleKindFor(layerContextMenu.key) && <ContextItem label="Style (colour, size, shape)…" onClick={() => { openLayerStyle(layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
-              <ContextItem label="Clear layer data…" onClick={() => { clearLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
+              {styleKindFor(layerContextMenu.key) && <ContextItem label={tr("Style (colour, size, shape)…")} onClick={() => { openLayerStyle(layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
+              <ContextItem label={tr("Clear layer data…")} onClick={() => { clearLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
             </>}
             {/* TASKS.csv — export/inspect, the same for real layers and the collars/survey sentinels. */}
             <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
-            <ContextItem label="Export Shapefile (.zip)…" onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
-            <ContextItem label="Export GeoPackage (.gpkg)…" onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
-            <ContextItem label="Export DXF (.dxf)…" onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
-            <ContextItem label="Inspect / edit table…" onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}
               {layerGroups.length > 0 && <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />}
@@ -9058,9 +9049,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 );
               })}
               {layerGroups.some((g) => g.keys.includes(layerContextMenu.key)) && (
-                <ContextItem label="Remove from group" onClick={() => { setLayerGroupFor(layerContextMenu.key, null); setLayerContextMenu(null); }} />
+                <ContextItem label={tr("Remove from group")} onClick={() => { setLayerGroupFor(layerContextMenu.key, null); setLayerContextMenu(null); }} />
               )}
-              <ContextItem label="New group…" onClick={() => {
+              <ContextItem label={tr("New group…")} onClick={() => {
                 const key = layerContextMenu.key;
                 setLayerContextMenu(null);
                 askPrompt("New group name:", "", (name) => {
