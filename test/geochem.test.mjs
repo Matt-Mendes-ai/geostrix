@@ -310,3 +310,18 @@ test("compositeDownhole skips windows with no assayed material, even at minCover
   const half = compositeDownhole([row(0, 1, 4), row(3, 4, 6)], "Au", "ppm", U, { length: 2, minCoverage: 0 });
   assert.deepEqual(half.map((x) => [x.from, x.avgGrade, x.coverage]), [[0, 4, 0.5], [2, 6, 0.5]]); // partly assayed windows are still kept
 });
+
+// TASKS.csv #718 — a bare Cr / Mn / P header is ppm (multi-acid ICP reports them in ppm), even with values under 100
+import { unitAssumed, pickElementColumns, inferUnit } from "../src/lib/geochem.js";
+test("#718 bare Cr / Mn / P headers default to ppm; S / Ti / Fe stay %; oxides and stated units are not 'assumed'", () => {
+  const rows = [12, 45, 80, 33].map((v) => ({ hole_id: "A", from: "0", to: "1", Cr: String(v), Mn: "50", P: "90", S: "0.4", Ti: "0.3", Fe: "3.1" }));
+  const by = Object.fromEntries(pickElementColumns(["hole_id", "from", "to", "Cr", "Mn", "P", "S", "Ti", "Fe"], rows).map((e) => [e.symbol, e.unit]));
+  assert.deepEqual(by, { Cr: "ppm", Mn: "ppm", P: "ppm", S: "%", Ti: "%", Fe: "%" });
+  assert.equal(inferUnit("Cr2O3", "Cr"), "%"); // whole-rock oxides still in %
+  assert.equal(inferUnit("MnO", "Mn"), "%"); assert.equal(inferUnit("P2O5", "P"), "%");
+  assert.equal(unitAssumed("Cr"), true);
+  assert.equal(unitAssumed("Cr_ppm"), false);
+  assert.equal(unitAssumed("Fe (%)"), false);
+  assert.equal(unitAssumed("Au g/t"), false);
+  assert.equal(unitAssumed("Cr2O3"), false);
+});

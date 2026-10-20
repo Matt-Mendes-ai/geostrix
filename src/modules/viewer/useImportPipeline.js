@@ -375,7 +375,9 @@ export function useImportPipeline(ctx) {
         + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
         + azs.note]);
     } else if (target === "structure") {
-      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, dipConvention), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
+      // survey, so a minus sign here is a logging error (unknown, counted below), not a 45 degree plane
+      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, null), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
       // TASKS.csv #427 — oriented-core alpha/beta -> true dip / dip direction, per pick, from the hole's
       // survey at that depth (desurvey.surveyAzimuthDipAt). Only for picks with no dip/dip direction of
       // their own; raw alpha/beta stay on the pick. Converted results are already grid-referenced (they
@@ -401,8 +403,9 @@ export function useImportPipeline(ctx) {
       const rows = azst.rows;
       if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
-      const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (dipConvention === "neg_down" ? Math.abs(d) > 90 : (d < 0 || d > 90)); }).length : 0;
-      if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown.`]);
+      const negDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && d < 0; }).length : 0; // #719
+      const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (d < 0 || d > 90); }).length : 0;
+      if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown${negDip ? ` (${negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as "down")` : ""}.`]);
       { // TASKS.csv #584 — say what the strike column did
         const ss = strikeStats(allRows, mapping);
         if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? ` ${ss.derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).` : ""}${ss.mismatches ? ` ${ss.mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.` : ""}`]);

@@ -30,17 +30,47 @@ export function isIdentifierHeader(h) {
   return ID_WORD.test(k) && !MEASURE_WORD.test(k);
 }
 
+// TASKS.csv #720 — comment lines are skipped only at the TOP of the file, before the header: that is where GeoStrix's
+// own export stamp goes (#404) and where other software puts its notes. Papa's `comments: "#"` dropped ANY line
+// starting with "#", so hole / sample ids such as "#1" lost their rows with no count (1 of 3 rows read). Lines
+// starting with "#" after the header are data when they have the header's width ("#1,0,10,A"); a shorter one (a
+// note or stamp at the END of a file) cannot be a row and is skipped too.
+export function stripLeadingComments(text, prefix = "#") {
+  if (!prefix) return { text, skipped: 0 };
+  let i = 0, skipped = 0;
+  while (i < text.length) {
+    let j = text.indexOf("\n", i);
+    if (j < 0) j = text.length;
+    const line = text.slice(i, j).replace(/\r$/, "");
+    if (line.trim() === "") { i = j + 1; continue; }
+    if (!line.trimStart().startsWith(prefix)) break;
+    skipped++;
+    i = j + 1;
+  }
+  let body = i ? text.slice(i) : text;
+  if (body.includes(`\n${prefix}`)) { // later "#" lines: keep full-width ones (data), drop shorter ones (notes)
+    const lines = body.split("\n");
+    const header = lines[0].replace(/\r$/, "");
+    const delim = [",", ";", "\t"].reduce((best, d) => (header.split(d).length > header.split(best).length ? d : best), ",");
+    const width = header.split(delim).length;
+    const kept = lines.filter((l, k) => k === 0 || !l.startsWith(prefix) || l.replace(/\r$/, "").split(delim).length >= width || ((skipped++), false));
+    if (kept.length !== lines.length) body = kept.join("\n");
+  }
+  return { text: body, skipped };
+}
+
 // Text -> { rows, headers, note, errors }. Header row, typed values (identifier columns kept as text, #509),
-// blank lines skipped, lines starting with "#" skipped (GeoStrix's own export stamp, #404), comma decimals
-// converted where provable (#284).
+// blank lines skipped, "#" lines before the header skipped (#404 / #720), comma decimals converted where provable
+// (#284).
 const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
 export function parseTableText(text, { comments = "#", columnar = false } = {}) {
+  ({ text } = stripLeadingComments(text, comments)); // #720
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
-  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments }); if (c) return c; }
+  if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
   const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field); typed.set(field, v); } return v; };
-  const res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments });
+  const res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
   // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
@@ -76,6 +106,7 @@ export function parseTableColumns(text, opts) {
 // parseColumnsRaw -> { headers, cols, n, errors } is plain data (typed arrays transferable, text arrays cloneable);
 // rowsFromColumns wraps it as the accessor rows on the thread that uses them (getters can't be posted).
 export function parseColumnsRaw(text, { comments = "#" } = {}) {
+  ({ text } = stripLeadingComments(text, comments)); // #720 — only before the header
   if (QUOTED_COMMA_NUMBER.test(text)) return null;
   let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null;
   const errors = [];
@@ -88,7 +119,7 @@ export function parseColumnsRaw(text, { comments = "#" } = {}) {
     });
   };
   const parser = Papa.parse(text, {
-    header: false, dynamicTyping: false, skipEmptyLines: true, comments,
+    header: false, dynamicTyping: false, skipEmptyLines: true, comments: false,
     step: (res, p) => {
       if (bad) return;
       if (res.errors?.length) errors.push(...res.errors);

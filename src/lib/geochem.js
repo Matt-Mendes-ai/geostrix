@@ -7,7 +7,13 @@ export const ELEMENT_SYMBOLS = ["Ag","Al","As","Au","B","Ba","Be","Bi","Br","Ca"
   "Dy","Er","Eu","F","Fe","Ga","Gd","Ge","Hf","Hg","Ho","In","Ir","K","La","Li","Lu","Mg","Mn","Mo","Na","Nb",
   "Nd","Ni","Os","P","Pb","Pd","Pr","Pt","Rb","Re","Rh","Ru","S","Sb","Sc","Se","Si","Sm","Sn","Sr","Ta","Tb",
   "Te","Th","Ti","Tl","Tm","U","V","W","Y","Yb","Zn","Zr"];
-const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","P","S","Ti","Si","Mn","Cr"]);
+// Elements a bare header (no unit in it) is read in %: the ones a multi-acid ICP package reports in percent (ALS ME-ICP61:
+// Al Ca Fe K Mg Na S Ti; Si comes from whole-rock). TASKS.csv #718 — Cr, Mn and P were listed too, but those packages
+// report them in ppm, and Cr at 5-100 ppm (normal in felsic / intermediate volcanics) was read as 5-100 % (the #210
+// rule only switches to ppm above 100). Whole-rock Cr2O3 / MnO / P2O5 arrive as oxide headers (#403) and stay %.
+const MAJOR_PCT = new Set(["Al","Ca","Fe","K","Mg","Na","S","Ti","Si"]);
+// TASKS.csv #718 — the unit was not in the header: it came from the element symbol alone (shown as "assumed")
+export const unitAssumed = (header) => !/ppm|ppb|gpt|g\/t|pct|%/i.test(String(header || "")) && !oxideOfHeader(header);
 
 // TASKS.csv #210 — real-world lab exports rarely use a bare element symbol as the header: a
 // method/instrument code commonly sits BETWEEN the element and its unit (e.g. pXRF exports like
@@ -66,6 +72,7 @@ export function fromOxideHeader(value, header) {
   return ox ? value / ox.factor : value;
 }
 export function inferUnit(header, symbol) {
+  if (oxideOfHeader(header)) return "%"; // TASKS.csv #718 — whole-rock oxides are wt% (was implied by Cr / Mn / P being on MAJOR_PCT)
   const h = String(header).toLowerCase();
   if (h.includes("ppb")) return "ppb";
   // TASKS.csv #210 — "gpt" (grams per tonne) is the standard unit lab reports use for Au/Ag/Pt/Pd

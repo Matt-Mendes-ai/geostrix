@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell, unitAssumed } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -54,7 +54,9 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
-  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit } : e) });
+  const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
+  // TASKS.csv #718 — a unit the header did not state, until the user picks one
+  const assumedTag = (e) => (!e.unitChosen && unitAssumed(e.header) ? <span title={`"${e.header}" does not say its unit, so ${e.unit} was assumed from the element. Check it against the lab certificate.`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontStyle: "italic", flexShrink: 0 }}>assumed</span> : null);
   // TASKS.csv #210 — lets the user repoint an auto-detected (or manually added) element at a
   // DIFFERENT raw column, e.g. when a file has both "Ag_XRF_Corrected_ppm_D" and "Ag_pXRF_ppm" and
   // the auto-picked one isn't the one they want. commitAssayImport already reads `values[e.symbol]`
@@ -134,6 +136,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   </select>
                   {/* TASKS.csv #600 / #542 — the over-limit column that fills capped samples, while the auto-picked column is used */}
                   {e.overLimit && e.header === e.mainHeader && <span title={`Samples at ${e.overLimit.limit} (the cap of this column) take their value from "${e.overLimit.header}" (${e.overLimit.n} values), converted to ${e.unit}`} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", flexShrink: 0 }}>+ over-limit</span>}
+                  {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px", flexShrink: 0 }}>
                     <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                   </select>
@@ -150,6 +153,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                 <div key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: e.checked ? "var(--color-bg-subtle)" : "transparent", borderRadius: 5 }}>
                   <input type="checkbox" checked={e.checked} onChange={() => toggleEl(e.symbol)} />
                   <span style={{ fontSize: "var(--font-size-base)", color: e.checked ? "var(--color-text)" : "var(--color-text-muted)", flex: 1 }}>{e.symbol}</span>
+                  {assumedTag(e)}
                   <select value={e.unit} onChange={(ev) => setUnit(e.symbol, ev.target.value)} style={{ ...sel, fontSize: "var(--font-size-xs)", padding: "1px 3px" }}>
                     <option value="ppm">ppm</option><option value="%">%</option><option value="ppb">ppb</option>
                   </select>
