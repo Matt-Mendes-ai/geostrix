@@ -5,6 +5,7 @@ import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
 import { smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704
 import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
+import { checkBlocks, blockPoints, blockCells } from "../lib/geomlClip.js"; // TASKS.csv #741
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -106,13 +107,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         addSurface({ name: `geoML — ${name} contact`, positions: pos, indices: idx, values: res.surface.uncertainty, params: { unit: [...unit], model: res.model, quality, seconds: res.seconds, contacts: res.contacts, area_m2: Math.round(res.surface.area) } });
         parts.push(`contact surface ${tri.length.toLocaleString()} triangles (darker = less certain)`);
       }
-      const b = res.blocks, cells = [], ucells = [];
-      const all = b.x.map((x, i) => ({ x, y: b.y[i], z: b.z[i] })), r = clip(all);
-      for (let i = 0; i < b.x.length; i++) {
-        if (!r.keep[i]) continue;
-        const c = { x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell };
-        cells.push({ ...c, value: b.probability[i] }); ucells.push({ ...c, value: b.uncertainty[i] });
-      }
+      const b = res.blocks;
+      checkBlocks(b, ["probability", "uncertainty"]); // #741
+      const r = clip(blockPoints(b));
+      const cells = blockCells(b, r.keep, (i) => b.probability[i]), ucells = blockCells(b, r.keep, (i) => b.uncertainty[i]);
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
       const dparams = { tool: "geoML domain model", unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
@@ -145,15 +143,13 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     if (!samples.length) { setNotices((q) => [...q, `geoML grade model: no ${element} samples to model after QA/QC rows were left out.`]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
-      const b = res.blocks, cells = [], spread = [];
+      const b = res.blocks;
+      checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
       const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
-      const r = (await clipper(samples, range))(b.x.map((x, i) => ({ x, y: b.y[i], z: b.z[i] })));
-      for (let i = 0; i < b.x.length; i++) {
-        if (!r.keep[i] || !Number.isFinite(b.prediction[i])) continue;
-        const c = { x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell };
-        cells.push({ ...c, value: b.prediction[i] });
-        if (b.p10 && b.p90) spread.push({ ...c, value: b.p90[i] - b.p10[i] });
-      }
+      const r = (await clipper(samples, range))(blockPoints(b));
+      const keep = r.keep.map((k, i) => k && Number.isFinite(b.prediction[i])); // a spread only where there is a grade
+      const cells = blockCells(b, keep, (i) => b.prediction[i]);
+      const spread = b.p10 && b.p90 ? blockCells(b, keep, (i) => b.p90[i] - b.p10[i]) : [];
       if (!cells.length) throw new Error(`no block is both below the ground and within ${range} m of a sample.`);
       const vals = cells.map((c) => c.value).sort((p, q) => p - q); // the top quarter of the blocks kept
       const min = vals[0], max = vals[vals.length - 1], p75 = vals[Math.floor(vals.length * 0.75)];

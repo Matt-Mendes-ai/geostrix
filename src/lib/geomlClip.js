@@ -66,3 +66,26 @@ export function clipBlocks(blocks, { ground, near }) {
   }
   return { keep, air, far };
 }
+
+// TASKS.csv #741 — the add-on's block result -> GeoStrix voxel cells, in one place (it was built twice in
+// PredictivePanel, and a change to the contract broke both loops with no test). The contract: blocks = { cell (m),
+// x, y, z, and per-block value arrays (probability / uncertainty, or prediction / p10 / p90) }, all the same length.
+// blockPoints(blocks) -> [{x, y, z}] for clipBlocks; blockCells(blocks, keep, valueAt) -> cells of the kept blocks
+// whose valueAt(i) is a finite number.
+export function checkBlocks(blocks, fields) {
+  const n = blocks?.x?.length;
+  const bad = !(Number.isFinite(blocks?.cell) && blocks.cell > 0) || !Number.isInteger(n)
+    || ["y", "z", ...fields].some((f) => blocks[f]?.length !== n);
+  if (bad) throw new Error(`the add-on returned blocks this GeoStrix cannot read (needs cell, x, y, z, ${fields.join(", ")} of equal length) — update GeoStrix or the add-on.`);
+  return n;
+}
+export const blockPoints = (b) => Array.from(b.x, (x, i) => ({ x, y: b.y[i], z: b.z[i] }));
+export function blockCells(b, keep, valueAt) {
+  const cells = [];
+  for (let i = 0; i < b.x.length; i++) {
+    if (!keep[i]) continue;
+    const value = valueAt(i);
+    if (Number.isFinite(value)) cells.push({ x: b.x[i], y: b.y[i], z: b.z[i], dx: b.cell, dy: b.cell, dz: b.cell, value });
+  }
+  return cells;
+}
