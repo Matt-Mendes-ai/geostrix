@@ -12,7 +12,7 @@ import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
-import { errorNotice } from "../../lib/notices.js";
+import { errorNotice, notice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
@@ -25,6 +25,7 @@ import { sectionGrid, pickSections, packUnits, sectionZRange } from "../../lib/m
 import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.csv #761
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
+import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 
 export function createModellingRuns(ctx, mcRef) {
   const {
@@ -142,22 +143,22 @@ export function createModellingRuns(ctx, mcRef) {
         const parts = [];
         if (droppedPoints) parts.push(`${droppedPoints} point(s)`);
         if (droppedOrientations) parts.push(`${droppedOrientations} orientation(s)`);
-        setNotices((p) => [...p, `"${spec.label}": dropped ${parts.join(" and ")} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.`]);
+        setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and ") })]);
       }
-      if (!points.length) { setNotices((p) => [...p, `"${spec.label}": no usable points left after removing invalid ones — skipped.`]); return; }
-      if (!orientations.length) { setNotices((p) => [...p, `"${spec.label}": no usable orientations left after removing invalid ones — skipped.`]); return; }
+      if (!points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
+      if (!orientations.length) { setNotices((p) => [...p, notice("\"{label}\": no usable orientations left after removing invalid ones — skipped.", { label: spec.label })]); return; }
       specs.push({ ...spec, points, orientations });
     });
-    if (!specs.length) { setNotices((p) => [...p, "Nothing left to model after removing invalid points/orientations — see notices above for which columns to check."]); return; }
+    if (!specs.length) { setNotices((p) => [...p, notice("Nothing left to model after removing invalid points/orientations — see notices above for which columns to check.")]); return; }
     // TASKS.csv #762 — the picks themselves, before the solve (GemPy's condition number was measured blind to most of this)
     const pickIssues = specs.map((sp) => pickReport(sp, { origin: originRef.current })).filter(Boolean);
     if (pickIssues.length) {
-      setNotices((p) => [...p, `Pick check before solving — ${pickIssues.map((r) => [
+      setNotices((p) => [...p, notice("Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
         `${r.label}:`,
-        r.duplicates ? ` ${r.duplicates} pick(s) repeated at the same spot (${r.duplicateExamples.join(", ")}${r.duplicates > 3 ? "…" : ""}) — GemPy honours every copy, which only slows and stiffens the solve;` : "",
-        r.conflicts ? ` ${r.conflicts} pair(s) of picks almost on top of each other but far apart in elevation (${r.conflictExamples.join("; ")}${r.conflicts > 3 ? "…" : ""}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, or the unit repeated by a fold or fault;` : "",
-        r.orientations ? ` ${r.orientations} of ${r.orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them (${r.orientationExamples.join(", ")}${r.orientations > 3 ? "…" : ""}) — GemPy bends the surface between the two;` : "",
-      ].join("")).join(" ").replace(/;(?=\s|$)/g, ".")} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.`]);
+        r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
+        r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, or the unit repeated by a fold or fault;", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
+        r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
+      ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") })]);
     }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
@@ -224,7 +225,7 @@ export function createModellingRuns(ctx, mcRef) {
     };
     const sidecarSpecs = specs.map((s) => smoothForSidecar(warpForSidecar(s), true));
     if (smoothReports.length) {
-      setNotices((p) => [...p, `Smooth clustered contacts (Model settings): ${smoothReports.map((r) => (r.skipped ? `${r.label}: not applied (${r.skipped})` : `${r.label}: ${r.smoothed} of ${r.total} contact points smoothed`)).join("; ")}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).`]);
+      setNotices((p) => [...p, notice("Smooth clustered contacts (Model settings): {v}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).", { v: smoothReports.map((r) => (r.skipped ? tr("{label}: not applied ({skipped})", { label: r.label, skipped: r.skipped }) : tr("{label}: {smoothed} of {total} contact points smoothed", { label: r.label, smoothed: r.smoothed, total: r.total }))).join("; ") })]);
     }
 
     const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
@@ -232,7 +233,7 @@ export function createModellingRuns(ctx, mcRef) {
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
     setImplicitBusy(true);
-    setNotices((p) => [...p, `Running ${label} (${totalPoints} points, ${totalOrientations} orientations across ${specs.length} surface${specs.length > 1 ? "s" : ""})${anisotropy.enabled ? `, with the ${trendWord} "${anisotropy.params?.trend || "unnamed"}"` : ""}…`]);
+    setNotices((p) => [...p, notice("Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface{v}){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v: specs.length > 1 ? "s" : "", v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
     // reached), jumps to 100% on an actual response, and clears shortly after — enough for the
@@ -307,7 +308,7 @@ export function createModellingRuns(ctx, mcRef) {
     modelAbortControllerRef.current = null;
     if (!res.ok) {
       setTaskProgress?.(null);
-      if (!res.cancelled) setNotices((p) => [...p, errorNotice(`${label} failed: ${res.error}`)]);
+      if (!res.cancelled) setNotices((p) => [...p, errorNotice(tr("{label} failed: {error}", { label, error: res.error }))]);
       return;
     }
     // TASKS.csv #466 — the model came back after a switch to another project (tab change, Open, New). Its
@@ -315,7 +316,7 @@ export function createModellingRuns(ctx, mcRef) {
     // in the wrong project, at the wrong place. Not added; said plainly.
     if (!isSameProject(projectToken)) {
       setTaskProgress?.(null);
-      setNotices((p) => [...p, `${label} finished after you switched to another project, so its result was NOT added here (it belongs to the project it was started from, in another frame). Switch back and run it again there.`]);
+      setNotices((p) => [...p, notice("{label} finished after you switched to another project, so its result was NOT added here (it belongs to the project it was started from, in another frame). Switch back and run it again there.", { label })]);
       return;
     }
     setTaskProgress?.({ label, pct: 100 });
@@ -418,9 +419,9 @@ export function createModellingRuns(ctx, mcRef) {
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
     // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
-    if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, `${res.orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.`]);
-    if (missing.length) setNotices((p) => [...p, `GemPy returned no mesh for: ${missing.join(", ")} (try adding more points or a wider spread of orientations for those).`]);
-    if (nonFinite.length) setNotices((p) => [...p, `GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: ${nonFinite.join("; ")}. Usually too few points / orientations for the extent or resolution.`]); // #314
+    if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);
+    if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
+    if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a
     // modelled unit (by its code / group codes) is sampled at its midpoint in the model; the report says
     // what share of the logged metres the model puts in the same unit, per unit and the worst holes.
@@ -428,7 +429,7 @@ export function createModellingRuns(ctx, mcRef) {
     // ground, and nothing here is a resource.
     // TASKS.csv #593 — the block was asked for but did not come back (an older engine, or the sync fallback before
     // it forwarded the request): say why the model check, volumes and "Add as block model" are missing
-    if (!res.block) setNotices((p) => [...p, "The Python engine did not return the model's lithology block, so the model check, unit volumes and \"Add as block model\" are not available for this run. Updating GeoStrix (its engine is bundled) brings them back."]);
+    if (!res.block) setNotices((p) => [...p, notice("The Python engine did not return the model's lithology block, so the model check, unit volumes and \"Add as block model\" are not available for this run. Updating GeoStrix (its engine is bundled) brings them back.")]);
     if (res.block) {
       const codeToUnit = new Map();
       specs.forEach((sp) => { if (!sp.mcode) (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)); });
@@ -476,7 +477,7 @@ export function createModellingRuns(ctx, mcRef) {
           off += grid.nodes.length;
           secResults[sc.id] = { ax: sc.ax, ay: sc.ay, bx: sc.bx, by: sc.by, grid: { len: grid.len, z0: grid.z0, z1: grid.z1, nx: grid.nx, ny: grid.ny, dl: grid.dl, dz: grid.dz, ij: Int32Array.from(grid.nodes, (n) => n.j * grid.nx + n.i) }, units: packUnits(units) };
         });
-        setNotices((p) => [...p, `Modelled units evaluated exactly on ${secGrids.length} saved cross-section${secGrids.length > 1 ? "s" : ""} (${secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", ")}; ${secApi.length.toLocaleString()} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).`]);
+        setNotices((p) => [...p, notice("Modelled units evaluated exactly on {secGrids} saved cross-section{v} ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v: secGrids.length > 1 ? "s" : "", v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
       }
       setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: `above the top of ${specs[0].meshName} (not modelled)` } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
@@ -487,7 +488,7 @@ export function createModellingRuns(ctx, mcRef) {
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      setNotices((p) => [...p, `Model check${exact ? " (each interval's midpoint evaluated exactly)" : ` (read from the ${modelResolution}³ block)`}: the model puts ${pct(chk.matched, chk.total)} of ${Math.round(chk.total)} logged metres of the modelled units in the unit they were logged as. By unit: ${perUnit}.${worst ? ` Least reproduced holes: ${worst}.` : ""}${chk.outside ? ` ${Math.round(chk.outside)} m fell outside the model extent.` : ""} Unit volumes inside the model box (${vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : "none"}) are bounded by that box and are not resource figures.${anisotropy.enabled ? ` With the ${trendWord} "${anisotropy.params?.trend || "unnamed"}" the model is solved in a stretched frame: the check and volumes account for it, and "Add as block model" gets the model resampled onto a real-space grid.` : ""}`]);
+      setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v7}", { v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
@@ -522,9 +523,9 @@ export function createModellingRuns(ctx, mcRef) {
         const agreeTxt = agreements.length
           ? agreements.map((a) => ` Against the mapped geology "${a.layer}" (field ${a.field}): the model agrees on ${pctTxt(a.overall)} of the mapped ground where it has a unit of the same name — ${a.units.filter((u) => u.inModel).slice(0, 6).map((u) => `${u.unit} ${pctTxt(u.pct)}${u.pct != null && u.pct < 0.5 && u.modelledAs[0] ? ` (mostly modelled as ${u.modelledAs[0].unit})` : ""}`).join(", ") || "no mapped unit shares a name with a model unit"}.${a.unmatchedMapUnits.length ? ` Mapped units with no model unit of that name (not scored): ${a.unmatchedMapUnits.slice(0, 6).join(", ")}${a.unmatchedMapUnits.length > 6 ? "…" : ""}.` : ""}`).join("")
           : " No mapped geology polygons with a unit field are loaded, so there is nothing to compare it with.";
-        setNotices((p) => [...p, `Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every ${cellM} m over ${mapGrid.nodes.length.toLocaleString()} terrain nodes: ${covered.toLocaleString()} in a modelled unit, ${aboveN.toLocaleString()} above the top of ${specs[0].meshName} (younger rock this model does not include, grey)${outsideBox ? `, ${outsideBox.toLocaleString()} outside the model box (blank)` : ""}.${agreeTxt} A model can match every hole and still contradict the outcrop — this is the check for that.`]);
+        setNotices((p) => [...p, notice("Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit, {aboveN} above the top of {meshName} (younger rock this model does not include, grey){v}.{agreeTxt} A model can match every hole and still contradict the outcrop — this is the check for that.", { cellM, nodes: mapGrid.nodes.length.toLocaleString(), covered: covered.toLocaleString(), aboveN: aboveN.toLocaleString(), meshName: specs[0].meshName, v: outsideBox ? tr(", {outsideBox} outside the model box (blank)", { outsideBox: outsideBox.toLocaleString() }) : "", agreeTxt })]);
       } else if (!mapTerrain && exact) {
-        setNotices((p) => [...p, "No terrain is loaded, so no predicted geological map was made (it needs the ground surface to evaluate the model on)."]);
+        setNotices((p) => [...p, notice("No terrain is loaded, so no predicted geological map was made (it needs the ground surface to evaluate the model on).")]);
       }
     }
     if (newMeshes.length) {
@@ -533,7 +534,7 @@ export function createModellingRuns(ctx, mcRef) {
       const rangeNote = res.rangeUsed != null
         ? ` Interpolation: ${specs.length > 1 ? (relation === "erode" ? "erosional (each unit truncates those below)" : "conformable (units onlap)") : "single surface"}, potential-field range ${res.rangeUsed.toFixed(3)}${res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? ` (GemPy's own default ${res.rangeDefault.toFixed(3)} x ${rangeMultiplier})` : " (GemPy's own default)"}.`
         : "";
-      setNotices((p) => [...p, `Added ${newMeshes.length} surface${newMeshes.length > 1 ? "s" : ""}: ${specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", ")}.${rangeNote}`]);
+      setNotices((p) => [...p, notice("Added {newMeshes} surface{v}: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v: newMeshes.length > 1 ? "s" : "", v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
       // successful run can be visually indistinguishable from a silent failure: the mesh is added to
       // the scene but the camera doesn't move, so unless it happens to land inside the current view
@@ -559,10 +560,10 @@ export function createModellingRuns(ctx, mcRef) {
       const n = Math.max(1, Math.floor(ens.n));
       const estPerRun = Math.max(0.2, baseSolveSeconds);
       if (ens.budgetS < 3 * estPerRun * 0.7) {
-        setNotices((p) => [...p, `Sensitivity not run: the base run took ${estPerRun.toFixed(1)} s, so a ${ens.budgetS} s budget cannot fit even 3 realisations, and a spread from 1-2 runs means nothing. Raise the time budget, or lower the model resolution.`]);
+        setNotices((p) => [...p, notice("Sensitivity not run: the base run took {estPerRun} s, so a {budgetS} s budget cannot fit even 3 realisations, and a spread from 1-2 runs means nothing. Raise the time budget, or lower the model resolution.", { estPerRun: estPerRun.toFixed(1), budgetS: ens.budgetS })]);
         return;
       }
-      setNotices((p) => [...p, `Sensitivity: running up to ${n} realisations of "${ensembleBase.spec.label}" within ${ens.budgetS} s (the base run took ${estPerRun.toFixed(1)} s; the first run is usually the slowest).`]);
+      setNotices((p) => [...p, notice("Sensitivity: running up to {n} realisations of \"{label}\" within {budgetS} s (the base run took {estPerRun} s; the first run is usually the slowest).", { n, label: ensembleBase.spec.label, budgetS: ens.budgetS, estPerRun: estPerRun.toFixed(1) })]);
       const seed = Number.isFinite(ens.seed) ? ens.seed : (Date.now() % 2147483647);
       const rng = makeRng(seed);
       const ac = new AbortController();
@@ -619,7 +620,7 @@ export function createModellingRuns(ctx, mcRef) {
       setTaskProgress?.(null);
       const elapsed = (performance.now() - tStart) / 1000;
       if (distances.length < 3) {
-        setNotices((p) => [...p, `Sensitivity for "${bSpec.label}" ${cancelled ? "cancelled" : "stopped"} after ${distances.length} usable realisation(s)${failed ? ` (${failed} failed in GemPy)` : ""} — at least 3 are needed, so no spread was produced.`]);
+        setNotices((p) => [...p, notice("Sensitivity for \"{label}\" {v} after {distances} usable realisation(s){v2} — at least 3 are needed, so no spread was produced.", { label: bSpec.label, v: cancelled ? tr("cancelled") : tr("stopped"), distances: distances.length, v2: failed ? tr(" ({failed} failed in GemPy)", { failed }) : "" })]);
         return;
       }
       const summary = spreadSummary(distances); // over the ON-SURFACE vertices only (see `measured`)
@@ -676,7 +677,7 @@ export function createModellingRuns(ctx, mcRef) {
           },
         },
       ]);
-      setNotices((p) => [...p, `Spread for "${bSpec.label}": ${distances.length} realisations${cancelled ? " (cancelled early)" : budgetStopped ? ` (time budget reached before ${n})` : ""}${failed ? `, ${failed} failed in GemPy` : ""}, ${(elapsed / Math.max(1, distances.length)).toFixed(1)} s each. With the contacts moved by ±${ens.sigmaPos} m${perPick ? ` (${perPick} pick(s) using their own uncertainty_m)` : ""} and orientations by ±${ens.sigmaDeg}°, the surface moved a median ${fmt(stats.median)} m, 90th percentile ${fmt(stats.p90)} m, max ${fmt(stats.max)} m; ${amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1)}% of it moved further than the contacts themselves were moved (${ampThreshold} m). Colour: pale = barely moves, dark = moves ${fmt(scaleMax)} m or more${stats.verticesNotReproduced ? `; grey = ${stats.verticesNotReproduced} vertices where at least one realisation produced no surface nearby` : ""}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.`]);
+      setNotices((p) => [...p, notice("Spread for \"{label}\": {distances} realisations{v}{v2}, {v3} s each. With the contacts moved by ±{sigmaPos} m{v4} and orientations by ±{sigmaDeg}°, the surface moved a median {v5} m, 90th percentile {v6} m, max {v7} m; {v8}% of it moved further than the contacts themselves were moved ({ampThreshold} m). Colour: pale = barely moves, dark = moves {v9} m or more{v10}. This is the spread under the uncertainty you entered — not a probability, and only as meaningful as those sigmas.", { label: bSpec.label, distances: distances.length, v: cancelled ? tr(" (cancelled early)") : budgetStopped ? tr(" (time budget reached before {n})", { n }) : "", v2: failed ? tr(", {failed} failed in GemPy", { failed }) : "", v3: (elapsed / Math.max(1, distances.length)).toFixed(1), sigmaPos: ens.sigmaPos, v4: perPick ? tr(" ({perPick} pick(s) using their own uncertainty_m)", { perPick }) : "", sigmaDeg: ens.sigmaDeg, v5: fmt(stats.median), v6: fmt(stats.p90), v7: fmt(stats.max), v8: amplifiedPct < 0.05 && amplified > 0 ? "<0.1" : amplifiedPct.toFixed(1), ampThreshold, v9: fmt(scaleMax), v10: stats.verticesNotReproduced ? tr("; grey = {verticesNotReproduced} vertices where at least one realisation produced no surface nearby", { verticesNotReproduced: stats.verticesNotReproduced }) : "" })]);
 
       // ---------- TASKS.csv #757 — where the GEOLOGY is uncertain: share of realisations with the unit per cell, and the
       // information entropy (0 = every realisation agrees), as block models; plus the unit's volume in every realisation
@@ -713,7 +714,7 @@ export function createModellingRuns(ctx, mcRef) {
         const hCells = gridValuesToCells(outExtent, outRes, er.entropy, o, (v) => v > 0, map);
         if (hCells.length) addVoxelModel({ name: `Entropy (bits): ${bSpec.label}, ${er.runs} realisations`, source: "gempy-ensemble", cells: hCells, min: 0, max: hMax, colorMode: "continuous", stops: sequentialStops(0, hMax), params: { ...common, value: `information entropy of the unit across realisations (0 = all agree, ${hMax.toFixed(2)} = maximal disagreement)` } });
         const uncertainShare = er.entropy.reduce((n, v) => n + (v > 0 ? 1 : 0), 0) / er.entropy.length;
-        setNotices((p) => [...p, `Where the geology is uncertain (${er.runs} realisations): added "P(...)" (share of realisations with the unit, per cell) and "Entropy" block models; ${(100 * uncertainShare).toFixed(1)}% of the model box changes unit between realisations. Unit volume inside the box across realisations: ${volLines.join("; ")}. Shares of realisations under the sigmas you entered, not probabilities in the strict sense.`]);
+        setNotices((p) => [...p, notice("Where the geology is uncertain ({runs} realisations): added \"P(...)\" (share of realisations with the unit, per cell) and \"Entropy\" block models; {v}% of the model box changes unit between realisations. Unit volume inside the box across realisations: {volLines}. Shares of realisations under the sigmas you entered, not probabilities in the strict sense.", { runs: er.runs, v: (100 * uncertainShare).toFixed(1), volLines: volLines.join("; ") })]);
       }
     }
   };
@@ -782,7 +783,7 @@ export function createModellingRuns(ctx, mcRef) {
       });
       const why = [skipped.belowRole ? `${skipped.belowRole} below casing / overburden or an intrusion / cross-cutting unit` : null, skipped.holeStart ? `${skipped.holeStart} at a hole start` : null,
         skipped.gap ? `${skipped.gap} below an unlogged gap` : null, skipped.olderAbove ? `${skipped.olderAbove} below an OLDER unit (overturned, repeated or up-hole)` : null].filter(Boolean);
-      if (!silent || why.length) setNotices((p) => [...p, `${unitName}: ${tops.length} contact(s) where it starts below a younger stratigraphic unit.${why.length ? ` Not used as contacts: ${why.join("; ")}.` : ""}`]);
+      if (!silent || why.length) setNotices((p) => [...p, notice("{unitName}: {tops} contact(s) where it starts below a younger stratigraphic unit.{v}", { unitName, tops: tops.length, v: why.length ? tr(" Not used as contacts: {why}.", { why: why.join("; ") }) : "" })]);
     }
     if (!isMcode) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
@@ -825,8 +826,8 @@ export function createModellingRuns(ctx, mcRef) {
     // contact tagged with the same unit name + "this is its upper contact" IS an interface point for
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
-    if (splitsSkipped && !silent) setNotices((p) => [...p, `${unitName}: ${splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same ${isGroup ? "group" : "unit"}) were not used as contacts.`]);
-    if (upHolePicks && !silent) setNotices((p) => [...p, `${unitName}: ${upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.`]); // #569
+    if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
+    if (upHolePicks && !silent) setNotices((p) => [...p, notice("{unitName}: {upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.", { unitName, upHolePicks })]); // #569
     let sectionContactCount = 0;
     if (includeSectionContacts) {
       const o = originRef.current;
@@ -843,7 +844,7 @@ export function createModellingRuns(ctx, mcRef) {
         });
       });
       if (sectionContactCount && !silent) {
-        setNotices((p) => [...p, `Included ${sectionContactCount} drawn cross-section contact point(s) for "${unitName}" as extra interface points.`]);
+        setNotices((p) => [...p, notice("Included {sectionContactCount} drawn cross-section contact point(s) for \"{unitName}\" as extra interface points.", { sectionContactCount, unitName })]);
       }
     }
 
@@ -861,20 +862,20 @@ export function createModellingRuns(ctx, mcRef) {
         points.push(api);
         used++;
       });
-      if (!silent) setNotices((p) => [...p, `Included ${used} point(s) along the mapped ${mapC.units.join(" | ")} contact as extra interface points for "${unitName}".`]);
+      if (!silent) setNotices((p) => [...p, notice("Included {used} point(s) along the mapped {units} contact as extra interface points for \"{unitName}\".", { used, units: mapC.units.join(" | "), unitName })]);
     }
 
     if (!points.length) {
-      if (!silent) setNotices((p) => [...p, domain ? `No lithology intervals for "${unitName}" fall inside domain "${domain.name}" — nothing to model.` : `No lithology intervals found for "${unitName}" — nothing to model.`]);
+      if (!silent) setNotices((p) => [...p, domain ? notice("No lithology intervals for \"{unitName}\" fall inside domain \"{name}\" — nothing to model.", { unitName, name: domain.name }) : notice("No lithology intervals found for \"{unitName}\" — nothing to model.", { unitName })]);
       return null;
     }
     // TASKS.csv #85 — drop control points too isolated (along the declared structural trend) to trust.
     const supportedPoints = filterBySearchSupport(points, searchEllipsoid);
     if (searchEllipsoid.enabled && supportedPoints.length < points.length && !silent) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${points.length - supportedPoints.length} of ${points.length} "${unitName}" point(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {points} \"{unitName}\" point(s) with fewer than {minSamples} neighbor(s) along the declared trend.", { v: points.length - supportedPoints.length, points: points.length, unitName, minSamples: searchEllipsoid.minSamples })]);
     }
     if (!supportedPoints.length) {
-      if (!silent) setNotices((p) => [...p, `All "${unitName}" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]);
+      if (!silent) setNotices((p) => [...p, notice("All \"{unitName}\" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.", { unitName })]);
       return null;
     }
     points.length = 0; points.push(...supportedPoints);
@@ -923,7 +924,7 @@ export function createModellingRuns(ctx, mcRef) {
         // about to get, and a stack run is exactly where a bad group would otherwise slip past unseen.
         if (segregated.length) {
           const pairs = segregated.slice(0, 3).map((s) => `${s.a} vs ${s.b} (~${s.sep} m apart)`).join(", ");
-          setNotices((p) => [...p, `Group "${unitName}" may merge unrelated bodies: ${segregated.length === 1 ? "these codes never" : "some of its codes never"} appear near each other anywhere in the data — ${pairs}${segregated.length > 3 ? ", and others" : ""}. One surface will still be fitted across the gap. Check the group's code list; if they really are one unit in two places, ignore this.`]);
+          setNotices((p) => [...p, notice("Group \"{unitName}\" may merge unrelated bodies: {v} appear near each other anywhere in the data — {pairs}{v2}. One surface will still be fitted across the gap. Check the group's code list; if they really are one unit in two places, ignore this.", { unitName, v: segregated.length === 1 ? tr("these codes never") : tr("some of its codes never"), pairs, v2: segregated.length > 3 ? tr(", and others") : "" })]);
         }
       }
     }
@@ -939,12 +940,12 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #361 — only the chosen structure types (see orientTypes), never a silent fall-back to all.
     const useTypes = new Set(orientTypes);
     let structRows = (layers.structure || []).filter((s) => useTypes.has(String(s.value)) && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    if (!silent && structRows.length) setNotices((p) => [...p, `Orientations for "${unitName}" from structure type(s) ${[...useTypes].join(", ")} (${structRows.length} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.`]);
+    if (!silent && structRows.length) setNotices((p) => [...p, notice("Orientations for \"{unitName}\" from structure type(s) {v} ({structRows} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.", { unitName, v: [...useTypes].join(", "), structRows: structRows.length })]);
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
     const preSearchCount = structRows.length;
     structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && structRows.length < preSearchCount && !silent) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preSearchCount - structRows.length} of ${preSearchCount} structure orientation(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preSearchCount} structure orientation(s) with fewer than {minSamples} neighbor(s) along the declared trend.", { v: preSearchCount - structRows.length, preSearchCount, minSamples: searchEllipsoid.minSamples })]);
     }
     // TASKS.csv #765 — picks averaged per hole in depth windows (lib/viewer/orientationThin.js): far fewer gradient
     // constraints for GemPy (its time grows ~linearly with them) and the oriented-core scatter averaged out
@@ -953,7 +954,7 @@ export function createModellingRuns(ctx, mcRef) {
       const t = thinStructurePicks(structRows, { windowM: thinWindowM || 50 });
       if (t.after < t.before) { thinNote = { picks: t.before, orientations: t.after, windowM: thinWindowM || 50 }; structRows = t.rows; }
     }
-    if (thinNote && !silent) setNotices((p) => [...p, `"${unitName}": ${thinNote.picks} structure picks averaged into ${thinNote.orientations} orientations (per hole, ${thinNote.windowM} m windows; Model settings > Contact orientations from picks).`]);
+    if (thinNote && !silent) setNotices((p) => [...p, notice("\"{unitName}\": {picks} structure picks averaged into {orientations} orientations (per hole, {windowM} m windows; Model settings > Contact orientations from picks).", { unitName, picks: thinNote.picks, orientations: thinNote.orientations, windowM: thinNote.windowM })]);
     let orientations = structureRowsToOrientations(structRows, traces);
     // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
     // contact, as orientations at their own (terrain) position. Only when a map contact is in play: a
@@ -962,7 +963,7 @@ export function createModellingRuns(ctx, mcRef) {
       const o = originRef.current;
       const near = surfaceOrientationsNear(mapPts, mapC);
       near.forEach((m) => orientations.push({ x: m.x - o.x, y: m.y - o.y, z: m.z - o.z, dip: m.dip, azimuth: m.dipDir }));
-      if (!silent) setNotices((p) => [...p, near.length ? `Added ${near.length} outcrop measurement(s) (${mapC.classes.join(", ")}) within ${mapC.radius} m of the mapped contact as orientations.` : `No outcrop measurements of the chosen types lie within ${mapC.radius} m of the mapped contact — none added as orientations.`]);
+      if (!silent) setNotices((p) => [...p, near.length ? notice("Added {near} outcrop measurement(s) ({classes}) within {radius} m of the mapped contact as orientations.", { near: near.length, classes: mapC.classes.join(", "), radius: mapC.radius }) : notice("No outcrop measurements of the chosen types lie within {radius} m of the mapped contact — none added as orientations.", { radius: mapC.radius })]);
     }
     if (!orientations.length) {
       // No structure/contact data to draw an orientation from — estimate one from the shape of the
@@ -970,7 +971,7 @@ export function createModellingRuns(ctx, mcRef) {
       // pick, but lets the tool interpolate a surface from contacts alone, which is the point.
       const est = estimateOrientationFromPoints(points);
       orientations = [est];
-      if (!silent) setNotices((p) => [...p, `No structure picks found — estimated a single dip/azimuth (~${est.dip.toFixed(0)}°/~${est.azimuth.toFixed(0)}°) from the shape of the "${unitName}" contact points. Import a structure CSV for a more accurate result.`]);
+      if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points. Import a structure CSV for a more accurate result.", { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
     }
     // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",
@@ -993,10 +994,10 @@ export function createModellingRuns(ctx, mcRef) {
   const runImplicitModel = async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
     if (!unitName) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the implicit model."]); return; }
+    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the implicit model.")]); return; }
     // TASKS.csv #176 — a `group:<id>` pick resolves to its group object here; the raw-code path is untouched.
     const target = resolveLithoTarget(unitName);
-    if (!target) { setNotices((p) => [...p, "That lithology group no longer exists — pick another unit."]); return; }
+    if (!target) { setNotices((p) => [...p, notice("That lithology group no longer exists — pick another unit.")]); return; }
     const spec = gatherLithoSurfaceSpec(target, traces, { mapConstraint });
     if (!spec) return;
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
@@ -1017,7 +1018,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runStackModel = async (unitNames) => {
     if (!unitNames || unitNames.length < 2) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the stratigraphic stack."]); return; }
+    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the stratigraphic stack.")]); return; }
 
     const specs = [];
     const skipped = [];
@@ -1030,15 +1031,15 @@ export function createModellingRuns(ctx, mcRef) {
       const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder }) : null;
       if (spec) specs.push(spec); else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
     });
-    if (skipped.length) setNotices((p) => [...p, `Skipping from the stack (no lithology intervals found): ${skipped.join(", ")}.`]);
-    if (specs.length < 2) { setNotices((p) => [...p, "Need at least 2 units with data to model a stack — add more units or check your lithology import."]); return; }
+    if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
+    if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
     const faultSpecs = [];
     stackFaults.forEach((key) => {
       const f = gatherFaultSpec(key, traces);
-      if (f.spec) faultSpecs.push(f.spec); else setNotices((p) => [...p, `Fault "${key.replace("|", " — ")}" left out: ${f.why}`]);
+      if (f.spec) faultSpecs.push(f.spec); else setNotices((p) => [...p, notice("Fault \"{v}\" left out: {why}", { v: key.replace("|", " — "), why: f.why })]);
     });
-    if (faultSpecs.length) setNotices((p) => [...p, `The stack is offset by ${faultSpecs.length} fault(s) solved in the same model: ${faultSpecs.map((f) => f.meshName).join(", ")}.`]);
+    if (faultSpecs.length) setNotices((p) => [...p, notice("The stack is offset by {faultSpecs} fault(s) solved in the same model: {v}.", { faultSpecs: faultSpecs.length, v: faultSpecs.map((f) => f.meshName).join(", ") })]);
 
     await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
   };
@@ -1048,7 +1049,7 @@ export function createModellingRuns(ctx, mcRef) {
     const rows = (layers.structure || []).filter((s) => String(s.value) === type && (s.structure_id || "") === id && Number.isFinite(s.dip) && Number.isFinite(s.azimuth));
     const points = [];
     rows.forEach((s) => {
-      const t = traces.find((tr) => tr.hole_id === s.hole_id);
+      const t = traces.find((tc) => tc.hole_id === s.hole_id);
       const p = t ? findOnTrace(t.pts, s.depth) : null;
       if (p) points.push(sceneToApi(p));
     });
@@ -1066,19 +1067,19 @@ export function createModellingRuns(ctx, mcRef) {
   const runStructuralModel = async (structType) => {
     if (!structType) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the structural model."]); return; }
+    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the structural model.")]); return; }
 
     let rows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === String(structType).toUpperCase() && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    if (!rows.length) { setNotices((p) => [...p, `No "${structType}" structure picks with dip/azimuth found — nothing to model.`]); return; }
+    if (!rows.length) { setNotices((p) => [...p, notice("No \"{structType}\" structure picks with dip/azimuth found — nothing to model.", { structType })]); return; }
     const domain = domains.find((d) => d.id === modelDomainId);
     rows = filterRowsByDomain(rows, traces, (s) => s.depth);
-    if (!rows.length) { setNotices((p) => [...p, `No "${structType}" picks fall inside domain "${domain?.name}" — nothing to model.`]); return; }
+    if (!rows.length) { setNotices((p) => [...p, notice("No \"{structType}\" picks fall inside domain \"{v}\" — nothing to model.", { structType, v: domain?.name })]); return; }
     const preEllipsoid = rows.length;
     rows = filterRowsBySearchEllipsoid(rows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && rows.length < preEllipsoid) {
-      setNotices((p) => [...p, `Search ellipsoid: excluded ${preEllipsoid - rows.length} of ${preEllipsoid} "${structType}" pick(s) with fewer than ${searchEllipsoid.minSamples} neighbor(s) along the declared trend.`]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preEllipsoid} \"{structType}\" pick(s) with fewer than {minSamples} neighbor(s) along the declared trend.", { v: preEllipsoid - rows.length, preEllipsoid, structType, minSamples: searchEllipsoid.minSamples })]);
     }
-    if (!rows.length) { setNotices((p) => [...p, `All "${structType}" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.`]); return; }
+    if (!rows.length) { setNotices((p) => [...p, notice("All \"{structType}\" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbor count.", { structType })]); return; }
 
     // TASKS.csv #362 — one surface per named structure. Picks carrying a structure_id are modelled per ID;
     // picks without one form their own group. Without any IDs, all picks of the type are still one surface
@@ -1088,9 +1089,9 @@ export function createModellingRuns(ctx, mcRef) {
     const named = [...byId.keys()].filter(Boolean);
     if (!named.length) {
       const holes = new Set(rows.map((s) => s.hole_id)).size;
-      if (holes > 1) setNotices((p) => [...p, `All ${rows.length} "${structType}" picks (${holes} holes) are modelled as ONE surface. If they belong to different ${/flt|fault|shear/i.test(structType) ? "faults" : "structures"}, map a structure name/ID column when importing the structure file and each will be modelled on its own.`]);
+      if (holes > 1) setNotices((p) => [...p, notice("All {rows} \"{structType}\" picks ({holes} holes) are modelled as ONE surface. If they belong to different {v}, map a structure name/ID column when importing the structure file and each will be modelled on its own.", { rows: rows.length, structType, holes, v: /flt|fault|shear/i.test(structType) ? tr("faults") : tr("structures") })]);
     } else {
-      setNotices((p) => [...p, `Modelling ${named.length} named "${structType}" structure(s) separately: ${named.join(", ")}${byId.has("") ? `, plus ${byId.get("").length} pick(s) with no name as one more surface` : ""}.`]);
+      setNotices((p) => [...p, notice("Modelling {named} named \"{structType}\" structure(s) separately: {named2}{v}.", { named: named.length, structType, named2: named.join(", "), v: byId.has("") ? tr(", plus {n} pick(s) with no name as one more surface", { n: byId.get("").length }) : "" })]);
     }
     // TASKS.csv #83 — a "structure" layer covers contacts, faults, shear zones, foliation, veins all
     // under one layer type (see sample_data's structure.csv), so this tool's own picked structType
@@ -1100,13 +1101,13 @@ export function createModellingRuns(ctx, mcRef) {
       const name = id ? `${structType} — ${id}` : named.length ? `${structType} — unnamed` : structType;
       const points = [];
       group.forEach((s) => {
-        const t = traces.find((tr) => tr.hole_id === s.hole_id);
+        const t = traces.find((tc) => tc.hole_id === s.hole_id);
         if (!t) return;
         const p = findOnTrace(t.pts, s.depth);
         if (p) points.push(sceneToApi(p));
       });
       const orientations = structureRowsToOrientations(group, traces);
-      if (!points.length || !orientations.length) { setNotices((p) => [...p, `Couldn't locate "${name}" picks along the hole traces.`]); continue; }
+      if (!points.length || !orientations.length) { setNotices((p) => [...p, notice("Couldn't locate \"{name}\" picks along the hole traces.", { name })]); continue; }
       await runSurfaceModel({ label: `Structure: ${name}`, meshName: name, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) }, { trendTool: "structural" }); // #679 — its own trend slot
     }
   };
@@ -1140,7 +1141,7 @@ export function createModellingRuns(ctx, mcRef) {
     const anisotropy = trendWarp("alteration"); // TASKS.csv #650
     if (!altValue) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the alteration model."]); return; }
+    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the alteration model.")]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
@@ -1190,7 +1191,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (domain) {
           const before = pts.length;
           pts = pts.filter((p) => pointInDomain(apiToScene([p.x, p.y, p.z]), domain, implicitMeshesRef.current));
-          if (pts.length < before) setNotices((q) => [...q, `Domain "${domain.name}": excluded ${before - pts.length} of ${before} alteration sample point(s) outside the domain.`]);
+          if (pts.length < before) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {before} alteration sample point(s) outside the domain.", { name: domain.name, v: before - pts.length, before })]);
         }
         const insideCount = pts.filter((p) => p.value >= 0.5).length;
         if (!insideCount) throw new Error(domain
@@ -1271,11 +1272,11 @@ export function createModellingRuns(ctx, mcRef) {
         const id = `impl_${Date.now()}_alt_${altValue}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "alteration_envelope", relationships: [], closure, params }]);
-        setNotices((p) => [...p, `Added "${label}": ${insideCount} altered of ${pts.length} indicator sample point(s)${dropped ? `, ${dropped} unplaceable` : ""} → ${grid.nx}×${grid.ny}×${grid.nz} grid (${cell.toFixed(1)} m cells${coarsened ? ", coarsened to stay under the grid limit" : ""}, ${Math.round(radius)} m search${anisotropy.enabled ? ", anisotropy applied" : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : ", open"}. Closed indicator envelope, not a draped contact.`]);
-        if (closure === "artificial") setNotices((p) => [...p, `"${label}" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the ${Math.round(radius)} m search radius, not the data.`]);
+        setNotices((p) => [...p, notice("Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
+        if (closure === "artificial") setNotices((p) => [...p, notice("\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? `Alteration halo cancelled.` : errorNotice(`Alteration halo failed: ${e.message || e}`)]);
+        setNotices((p) => [...p, e?.cancelled ? notice("Alteration halo cancelled.") : errorNotice(tr("Alteration halo failed: {v}", { v: e.message || e }))]);
       }
       setTaskProgress?.(null);
       setAlterationBusy(false);
@@ -1301,7 +1302,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runVeinModel = (veinValue) => {
     if (!veinValue) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, "Load collars/survey data before running the vein model."]); return; }
+    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the vein model.")]); return; }
     const o = originRef.current;
     const domain = domains.find((d) => d.id === modelDomainId);
     const label = `Vein: ${veinValue}`;
@@ -1319,7 +1320,7 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #354 — back-to-back rows of this vein in one hole are one intercept (HW of the first,
         // FW of the last), not several thin ones that the midplane/thickness fit would read as separate veins.
         const mergedRows = mergeTouchingIntervals(rows);
-        if (mergedRows.length < rows.length) setNotices((q) => [...q, `Vein "${veinValue}": ${rows.length - mergedRows.length} back-to-back row split(s) merged into single intercepts.`]);
+        if (mergedRows.length < rows.length) setNotices((q) => [...q, notice("Vein \"{veinValue}\": {v} back-to-back row split(s) merged into single intercepts.", { veinValue, v: rows.length - mergedRows.length })]);
 
         // Both contacts of every intercept, in world ENU (east, north, elevation) — the frame vein.js,
         // trueWidth.js and stereonet.js all speak, so no conversion happens inside the maths.
@@ -1340,7 +1341,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (domain) {
           const inDomain = (p) => pointInDomain(apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]), domain, implicitMeshesRef.current);
           used = intercepts.filter((i) => inDomain(i.hw) || inDomain(i.fw));
-          if (used.length < intercepts.length) setNotices((q) => [...q, `Domain "${domain.name}": excluded ${intercepts.length - used.length} of ${intercepts.length} vein intercept(s) outside the domain.`]);
+          if (used.length < intercepts.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {intercepts} vein intercept(s) outside the domain.", { name: domain.name, v: intercepts.length - used.length, intercepts: intercepts.length })]);
           if (!used.length) throw new Error(`No "${veinValue}" intercepts fall inside domain "${domain.name}" — nothing to model.`);
         }
 
@@ -1407,22 +1408,22 @@ export function createModellingRuns(ctx, mcRef) {
         const solidVol = stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
 
         const fmt = (n, d = 2) => Number(n).toFixed(d);
-        setNotices((p) => [...p, `Added "${label}": ${model.intercepts.length} paired intercept(s)${unplaceable ? `, ${unplaceable} unplaceable` : ""} → midplane ${fmt(pl.dip, 1)}° / ${fmt(pl.dipDir, 1)}° (${pl.attitudeSource}), TRUE thickness ${fmt(th.trueMin)}–${fmt(th.trueMax)} m (mean ${fmt(th.trueMean)} m; mean DOWNHOLE length ${fmt(th.downholeMean)} m)${th.refined ? ", thickness corrected against the local modelled normal" : ""} → ${model.grid.nu}×${model.grid.nv} grid, ${model.grid.informedNodes.toLocaleString()} informed nodes, ${fmt(model.grid.cellSize, 1)} m cells, ${fmt(model.grid.searchRadius, 0)} m search${model.grid.coarsened ? " (coarsened to stay under the grid limit)" : ""}${solidVol?.watertight ? `. Solid ${solidVol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³` : ""}.`]);
-        setNotices((p) => [...p, `"${label}": hangingwall and footwall are offset ±half the interpolated thickness from one shared midplane, so they cannot cross — minimum modelled thickness ${fmt(ck.minSeparation, 3)} m${ck.pinchOut ? " (the vein pinches out to zero somewhere in the model)" : ""}. Modelled contacts sit ${fmt(ck.contactResidualRms, 2)} m RMS (max ${fmt(ck.contactResidualMax, 2)} m) from the logged ones — measured AT the intercepts, where an inverse-distance field nearly reproduces its own data, so a small number here says the pair honours the logging, not that the shape between holes is right.${pl.rmsOffPlane != null ? ` The intercept midpoints scatter ${fmt(pl.rmsOffPlane, 1)} m RMS off a single plane, so the ${fmt(pl.dip, 0)}°/${fmt(pl.dipDir, 0)}° figure is a reference attitude, not a measurement of one continuous surface.` : ""}`]);
-        setNotices((p) => [...p, `A vein fitted from ${model.intercepts.length} intercept(s) is an interpretation, not a measurement: away from the holes its shape, its thickness and its extent are the interpolation's, not the data's. Thickness between holes is interpolated, so a pinch-out or a swell that no hole cut will not appear.`]);
-        if (pl.attitudeSource === "fitted to intercept midpoints" && pl.planarity != null && pl.planarity > 0.15) setNotices((p) => [...p, `"${label}": the intercept midpoints are not very planar (out-of-plane spread is ${Math.round(pl.planarity * 100)}% of their in-plane spread), so the fitted ${fmt(pl.dip, 0)}°/${fmt(pl.dipDir, 0)}° reference attitude is a weak average — consider entering the vein's dip and dip direction instead.`]);
+        setNotices((p) => [...p, notice("Added \"{label}\": {intercepts} paired intercept(s){v} → midplane {v2}° / {v3}° ({attitudeSource}), TRUE thickness {v4}–{v5} m (mean {v6} m; mean DOWNHOLE length {v7} m){v8} → {nu}×{nv} grid, {informedNodes} informed nodes, {v9} m cells, {v10} m search{v11}{v12}.", { label, intercepts: model.intercepts.length, v: unplaceable ? tr(", {unplaceable} unplaceable", { unplaceable }) : "", v2: fmt(pl.dip, 1), v3: fmt(pl.dipDir, 1), attitudeSource: pl.attitudeSource, v4: fmt(th.trueMin), v5: fmt(th.trueMax), v6: fmt(th.trueMean), v7: fmt(th.downholeMean), v8: th.refined ? tr(", thickness corrected against the local modelled normal") : "", nu: model.grid.nu, nv: model.grid.nv, informedNodes: model.grid.informedNodes.toLocaleString(), v9: fmt(model.grid.cellSize, 1), v10: fmt(model.grid.searchRadius, 0), v11: model.grid.coarsened ? tr(" (coarsened to stay under the grid limit)") : "", v12: solidVol?.watertight ? tr(". Solid {volumeM3} m³", { volumeM3: solidVol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : "" })]);
+        setNotices((p) => [...p, notice("\"{label}\": hangingwall and footwall are offset ±half the interpolated thickness from one shared midplane, so they cannot cross — minimum modelled thickness {v} m{v2}. Modelled contacts sit {v3} m RMS (max {v4} m) from the logged ones — measured AT the intercepts, where an inverse-distance field nearly reproduces its own data, so a small number here says the pair honours the logging, not that the shape between holes is right.{v5}", { label, v: fmt(ck.minSeparation, 3), v2: ck.pinchOut ? tr(" (the vein pinches out to zero somewhere in the model)") : "", v3: fmt(ck.contactResidualRms, 2), v4: fmt(ck.contactResidualMax, 2), v5: pl.rmsOffPlane != null ? tr(" The intercept midpoints scatter {v} m RMS off a single plane, so the {v2}°/{v3}° figure is a reference attitude, not a measurement of one continuous surface.", { v: fmt(pl.rmsOffPlane, 1), v2: fmt(pl.dip, 0), v3: fmt(pl.dipDir, 0) }) : "" })]);
+        setNotices((p) => [...p, notice("A vein fitted from {intercepts} intercept(s) is an interpretation, not a measurement: away from the holes its shape, its thickness and its extent are the interpolation's, not the data's. Thickness between holes is interpolated, so a pinch-out or a swell that no hole cut will not appear.", { intercepts: model.intercepts.length })]);
+        if (pl.attitudeSource === "fitted to intercept midpoints" && pl.planarity != null && pl.planarity > 0.15) setNotices((p) => [...p, notice("\"{label}\": the intercept midpoints are not very planar (out-of-plane spread is {v}% of their in-plane spread), so the fitted {v2}°/{v3}° reference attitude is a weak average — consider entering the vein's dip and dip direction instead.", { label, v: Math.round(pl.planarity * 100), v2: fmt(pl.dip, 0), v3: fmt(pl.dipDir, 0) })]);
         // A hole that logs one vein logs it ONCE. Many intercepts per hole means this code is a vein
         // SET (sheeted veinlets, a stockwork), and a single hangingwall/footwall pair is then the
         // envelope of the set at best — worth saying out loud, because the result still looks like a
         // confident single structure on screen.
-        if (ck.midplaneLooRms != null) setNotices((p) => [...p, `"${label}": leave-one-out cross-validation — dropping each intercept and predicting it from the others misses by ${fmt(ck.midplaneLooRms, 1)} m RMS (worst ${fmt(ck.midplaneLooMax, 1)} m) against a ${fmt(model.grid.searchRadius, 0)} m search radius.${ck.incoherentSheet ? " That is no better than guessing at this hole spacing: these intercepts are NOT behaving like one continuous sheet, and a single hangingwall/footwall pair is the wrong picture for them." : ""}`]);
+        if (ck.midplaneLooRms != null) setNotices((p) => [...p, notice("\"{label}\": leave-one-out cross-validation — dropping each intercept and predicting it from the others misses by {v} m RMS (worst {v2} m) against a {v3} m search radius.{v4}", { label, v: fmt(ck.midplaneLooRms, 1), v2: fmt(ck.midplaneLooMax, 1), v3: fmt(model.grid.searchRadius, 0), v4: ck.incoherentSheet ? tr(" That is no better than guessing at this hole spacing: these intercepts are NOT behaving like one continuous sheet, and a single hangingwall/footwall pair is the wrong picture for them.") : "" })]);
         const holeCount = new Set(used.map((i) => i.holeId)).size;
-        if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, `"${label}": ${used.length} intercepts in ${holeCount} hole(s) — about ${(used.length / holeCount).toFixed(1)} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.`]);
-        if (ck.nominalLabels) setNotices((p) => [...p, `"${label}" is near-vertical (${fmt(pl.dip, 0)}° dip), so "hangingwall" and "footwall" are nominal labels here — the two surfaces are simply the two walls of the structure.`]);
+        if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, notice("\"{label}\": {used} intercepts in {holeCount} hole(s) — about {v} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.", { label, used: used.length, holeCount, v: (used.length / holeCount).toFixed(1) })]);
+        if (ck.nominalLabels) setNotices((p) => [...p, notice("\"{label}\" is near-vertical ({v}° dip), so \"hangingwall\" and \"footwall\" are nominal labels here — the two surfaces are simply the two walls of the structure.", { label, v: fmt(pl.dip, 0) })]);
         const meshes = Object.values(implicitMeshesRef.current);
         if (meshes.length) fitBox(new THREE.Box3().setFromObject(meshes[meshes.length - 1]));
       } catch (e) {
-        setNotices((p) => [...p, errorNotice(`Vein model failed: ${e.message || e}`)]);
+        setNotices((p) => [...p, errorNotice(tr("Vein model failed: {v}", { v: e.message || e }))]);
       }
       setTaskProgress?.(null);
       setVeinBusy(false);
@@ -1448,9 +1449,9 @@ export function createModellingRuns(ctx, mcRef) {
   const runNumericModel = () => {
     const anisotropy = trendWarp("gradeShell"); // TASKS.csv #650
     const symbol = numericSymbol || assayElements[0]?.symbol;
-    if (!symbol) { setNotices((p) => [...p, "No assay elements loaded — import assays before running the numeric model."]); return; }
-    if (!collars.length) { setNotices((p) => [...p, "Load collars/survey data before running the numeric model."]); return; }
-    if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, "Enter a numeric cutoff grade."]); return; }
+    if (!symbol) { setNotices((p) => [...p, notice("No assay elements loaded — import assays before running the numeric model.")]); return; }
+    if (!collars.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the numeric model.")]); return; }
+    if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, notice("Enter a numeric cutoff grade.")]); return; }
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";
     const label = `${symbol} > ${numericCutoff} ${unit} shell`;
@@ -1499,7 +1500,7 @@ export function createModellingRuns(ctx, mcRef) {
           const o0 = originRef.current;
           points = rawPoints.filter((p) => pointInDomain({ x: p.x - o0.x, y: p.z - o0.z, z: -(p.y - o0.y) }, gradeDomain, implicitMeshesRef.current));
           if (!points.length) throw new Error(`No assay sample points fall inside domain "${gradeDomain.name}" — nothing to model.`);
-          if (points.length < rawPoints.length) setNotices((q) => [...q, `Domain "${gradeDomain.name}": excluded ${rawPoints.length - points.length} of ${rawPoints.length} assay sample point(s) outside the domain.`]);
+          if (points.length < rawPoints.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
         }
         const above = points.filter((p) => p.value >= numericCutoff).length;
         if (!above) throw new Error(`None of the ${points.length} sample points reach the ${numericCutoff} ${unit} cutoff — nothing to enclose. Lower the cutoff.`);
@@ -1654,16 +1655,16 @@ export function createModellingRuns(ctx, mcRef) {
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
-        setNotices((p) => [...p, `Added "${label}": ${points.length} sample point${points.length === 1 ? "" : "s"} (${intervals.length} ${numericUseComposites ? `${numericCompositeLength} m composite` : "raw interval"}${intervals.length === 1 ? "" : "s"}${rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? ` after ${rawStats.duplicatesSkipped} exact duplicate(s) left out and ${rawStats.overlappingRows} overlapping row(s) resolved` : ""}, ${dropped} dropped${beyondTrace ? ` (${beyondTrace} deeper than the hole's trace)` : ""}, ${above} at/above cutoff${clamped ? `, ${clamped} negative grade${clamped === 1 ? "" : "s"} clamped to zero` : ""}) → ${grid.nx}×${grid.ny}×${grid.nz} grid (${grid.estimated.toLocaleString()} cells estimated, ${grid.skipped.toLocaleString()} outside the search radius${grid.singleHoleCells ? `, ${grid.singleHoleCells.toLocaleString()} informed by only ONE hole` : ""}${grid.variogram ? `; kriged with a ${grid.variogram.model} variogram ${grid.variogram.fitted ? "fitted to the samples" : "as entered"}: nugget ${+grid.variogram.nugget.toPrecision(3)}, sill ${+grid.variogram.sill.toPrecision(3)}, range ${Math.round(grid.variogram.range)} m` : ""}) → ${mc.vertices.length.toLocaleString()} vertices / ${mc.faces.length.toLocaleString()} faces${vol.watertight ? `, closed (${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³)` : `, open (${vol.openEdgeCount} open edges — shell reaches the edge of the estimated region)`}. Exploration target volume only — not a Mineral Resource.`]);
+        setNotices((p) => [...p, notice("Added \"{label}\": {points} sample point{v} ({intervals} {v2}{v3}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: points.length, v: points.length === 1 ? "" : "s", intervals: intervals.length, v2: numericUseComposites ? tr("{numericCompositeLength} m composite", { numericCompositeLength }) : tr("raw interval"), v3: intervals.length === 1 ? "" : "s", v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(", {clamped} negative grade{v} clamped to zero", { clamped, v: clamped === 1 ? "" : "s" }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: grid.variogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: grid.variogram.model, v: grid.variogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +grid.variogram.nugget.toPrecision(3), v3: +grid.variogram.sill.toPrecision(3), v4: Math.round(grid.variogram.range) }) : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
         if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unit)}.`]);
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
         // the shell surface itself, and point at the sidebar toggle that draws it.
-        if (grid.supportCounts) setNotices((p) => [...p, `"${label}" data support — grid: ${summarizeSupport(grid.supportCounts)}. Shell surface vertices: ${summarizeSupport(surfCounts)}. Only "interpolated" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use "Colour by data support" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.`]);
-        if (closure === "artificial") setNotices((p) => [...p, `"${label}" was closed ARTIFICIALLY at the search-radius boundary (${mc.closingVertices.toLocaleString()} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.`]);
+        if (grid.supportCounts) setNotices((p) => [...p, notice("\"{label}\" data support — grid: {v}. Shell surface vertices: {v2}. Only \"interpolated\" means the composites that produced that part of the shell bracket it on all three axes from at least two holes; everything else is grade carried outward from the data. Expand the surface in the list and use \"Colour by data support\" to see where. This is a geometric data-support measure, NOT a statistical confidence or a kriging variance.", { label, v: summarizeSupport(grid.supportCounts), v2: summarizeSupport(surfCounts) })]);
+        if (closure === "artificial") setNotices((p) => [...p, notice("\"{label}\" was closed ARTIFICIALLY at the search-radius boundary ({closingVertices} of its vertices sit on that wall, not on a grade boundary). Its volume depends on your search radius, not only on the data — doubling the radius roughly multiplies the volume by eight. Treat it as a visualisation of where grades might extend, not a measured volume.", { label, closingVertices: mc.closingVertices.toLocaleString() })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? `Numeric model cancelled.` : errorNotice(`Numeric model failed: ${e.message || e}`)]);
+        setNotices((p) => [...p, e?.cancelled ? notice("Numeric model cancelled.") : errorNotice(tr("Numeric model failed: {v}", { v: e.message || e }))]);
       }
       setTaskProgress?.(null);
       setNumericBusy(false);

@@ -10,9 +10,10 @@
 // TASKS.csv #697 — the run functions themselves have since moved to ./modellingRuns.js (loaded on the first run);
 // this hook keeps the synchronous parts (intercepts table, fault candidates, stack editor) and thin run wrappers.
 import { useCallback, useMemo, useRef } from "react";
-import { errorNotice } from "../../lib/notices.js";
+import { errorNotice, notice } from "../../lib/notices.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf } from "../../lib/viewer/intervals.js";
 import { findOnTrace, interceptId } from "../../lib/viewer/modelHelpers.js";
+import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 
 const createRunsCache = { fn: null }; // TASKS.csv #697 — modellingRuns.js once loaded
 
@@ -37,7 +38,7 @@ export function useModelling(ctx) {
     try {
       create = createRunsCache.fn || (createRunsCache.fn = (await import("./modellingRuns.js")).createModellingRuns);
     } catch (err) {
-      ctxRef.current.setNotices((p) => [...p, errorNotice(`The modelling tools could not be loaded: ${err?.message || err}`)]);
+      ctxRef.current.setNotices((p) => [...p, errorNotice(tr("The modelling tools could not be loaded: {v}", { v: err?.message || err }))]);
       return undefined;
     }
     return create(ctxRef.current, mcRef)[name](...args);
@@ -58,7 +59,7 @@ export function useModelling(ctx) {
       const starts = intervalStartIndex(layers[layerKey]); // #569 — up-holes: the top is at `to`
       (layers[layerKey] || []).forEach((r) => {
         if (isNaN(r.from)) return;
-        const t = traces.find((tr) => tr.hole_id === r.hole_id);
+        const t = traces.find((tc) => tc.hole_id === r.hole_id);
         if (!t) return;
         const top = upperContactOf(r, (md) => findOnTrace(t.pts, md)?.y, { startIndex: starts, endIndex: ends, codes: new Set([r.value]) });
         if (top.continues) return;
@@ -93,7 +94,7 @@ export function useModelling(ctx) {
     if (!u || stackUnits.includes(u)) return;
     // Matches the sidecar's own surfaces[] cap (python-sidecar/app/main.py, max_length=12) — capping
     // here too gives a clear notice instead of a raw validation error back from the sidecar.
-    if (stackUnits.length >= 12) { setNotices((p) => [...p, "Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another."]); return; }
+    if (stackUnits.length >= 12) { setNotices((p) => [...p, notice("Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another.")]); return; }
     setStackUnits((p) => [...p, u]);
   }, [stackUnits]);
   const removeStackUnit = useCallback((u) => setStackUnits((p) => p.filter((x) => x !== u)), []);

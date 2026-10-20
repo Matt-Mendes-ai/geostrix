@@ -97,7 +97,7 @@ const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTa
 import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
 import { drawMapLayer, mapTextureSize, mapStyleSignature, STRUCTURE_CLASS_COLORS, extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
@@ -2605,7 +2605,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     cameraRef.current?.__update?.();
     openingFitRef.current = { traces, radius: camState.current.radius, target: camState.current.target.clone() };
     pendingLegibilityRef.current = guessed ? { traces, radius: camState.current.radius } : null;
-    if (notify) setNotices((p) => [...p, "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property."]); // #567
+    if (notify) setNotices((p) => [...p, notice("Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property.")]); // #567
     return true;
   }, []);
 
@@ -2712,7 +2712,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [fitBox, layers, layerVisible, applyLegibilityClamp]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
-    if (!group || !group.children.length) { setNotices((p) => [...p, `${LAYER_META[key]?.label || key}: nothing rendered to zoom to.`]); return; }
+    if (!group || !group.children.length) { setNotices((p) => [...p, notice("{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; }
     fitBox(new THREE.Box3().setFromObject(group));
   }, [fitBox]);
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
@@ -2804,10 +2804,10 @@ ${describeTrend(t)}` };
     let shot;
     try {
       shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => { renderer.clippingPlanes = slicePlanesRef.current; renderer.render(scene, camera); renderer.clippingPlanes = []; }); // #380, #453
-    } catch (err) { setNotices((p) => [...p, errorNotice(`Snapshot failed: ${err.message}`)]); return; }
+    } catch (err) { setNotices((p) => [...p, errorNotice(tr("Snapshot failed: {message}", { message: err.message }))]); return; }
     addLayoutImage({ label: "3D Viewport", src: shot.dataUrl, naturalW: shot.width, naturalH: shot.height });
     goToModule("layout");
-    setNotices((p) => [...p, "Viewport snapshot added to the Layout page."]);
+    setNotices((p) => [...p, notice("Viewport snapshot added to the Layout page.")]);
   }, [addLayoutImage, goToModule]);
 
   // ---------- TASKS.csv #45: saved "themes" (named view configurations) ----------
@@ -2914,7 +2914,7 @@ ${describeTrend(t)}` };
 
   const captureCurrentTheme = useCallback((name) => {
     addTheme({ name, ...currentViewBundle() });
-    setNotices((p) => [...p, `Saved theme "${name}".`]);
+    setNotices((p) => [...p, notice("Saved theme \"{name}\".", { name })]);
   }, [addTheme, currentViewBundle]);
 
   const applyTheme = useCallback((theme) => {
@@ -2944,7 +2944,7 @@ ${describeTrend(t)}` };
       const missing = Object.keys(sv).filter((id) => !known.has(id));
       if (missing.length) {
         const names = missing.map((id) => (theme.surfaceNames || {})[id] || id);
-        setNotices((p) => [...p, `Theme "${theme.name}" refers to ${missing.length} generated surface(s) that aren't in this project any more: ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}. Everything else in the theme was applied.`]);
+        setNotices((p) => [...p, notice("Theme \"{name}\" refers to {missing} generated surface(s) that aren't in this project any more: {v}{v2}. Everything else in the theme was applied.", { name: theme.name, missing: missing.length, v: names.slice(0, 3).join(", "), v2: names.length > 3 ? "…" : "" })]);
       }
     }
     if (theme.camState) {
@@ -3445,11 +3445,11 @@ ${describeTrend(t)}` };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
     const cells = blockToCells(lb.block, lb.origin);
-    if (!cells.length) { setNotices((p) => [...p, "The last model has no cells below its modelled tops inside the model box — nothing to add."]); return; }
+    if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
     addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])) });
-    setNotices((p) => [...p, `Added the model's lithology block as a block model: ${cells.length.toLocaleString()} cells (${legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.`]);
+    setNotices((p) => [...p, notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend })]);
   };
   // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
   // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
@@ -3483,9 +3483,9 @@ ${describeTrend(t)}` };
       });
       lines.push(`${label} ${(vol / 1e6).toFixed(2)} Mm³`);
     });
-    if (!added.length) { setNotices((p) => [...p, "The last model has no modelled unit cells inside its box — no volumes to build."]); return; }
+    if (!added.length) { setNotices((p) => [...p, notice("The last model has no modelled unit cells inside its box — no volumes to build.")]); return; }
     setImplicitSurfaces((p) => [...p, ...added]);
-    setNotices((p) => [...p, `Added ${added.length} closed unit volume(s) from ${lb.title}: ${lines.join(", ")} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and "Restrict to a modelled volume" in Grade estimation work on them.`]);
+    setNotices((p) => [...p, notice("Added {added} closed unit volume(s) from {title}: {lines} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and \"Restrict to a modelled volume\" in Grade estimation work on them.", { added: added.length, title: lb.title, lines: lines.join(", ") })]);
   };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
@@ -3505,13 +3505,13 @@ ${describeTrend(t)}` };
       const unit = lb.units.find((u) => u.name === r.value);
       return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };
     });
-    if (!rows.length) { setNotices((p) => [...p, "No logged litho intervals fall inside the last model's box."]); return; }
+    if (!rows.length) { setNotices((p) => [...p, notice("No logged litho intervals fall inside the last model's box.")]); return; }
     const id = `custom_${Date.now()}`;
     const group = new THREE.Group(); group.name = id;
     layerGroupsRef.current[id] = group;
     sceneRef.current.getObjectByName("root").add(group);
     setCustomLayers((p) => [...p, { id, name: `Modelled: ${lb.title} (${lb.when})`, rows, group }]);
-    setNotices((p) => [...p, `Added "Modelled: ${lb.title}" — the model's unit at ${rows.length.toLocaleString()} logged litho intervals (their midpoints). Open a hole's strip log to see it beside the logged litho.`]);
+    setNotices((p) => [...p, notice("Added \"Modelled: {title}\" — the model's unit at {rows} logged litho intervals (their midpoints). Open a hole's strip log to see it beside the logged litho.", { title: lb.title, rows: rows.length.toLocaleString() })]);
   };
 
   // ---------- TASKS.csv #318 — mapped surface contacts ----------
@@ -3649,7 +3649,7 @@ ${describeTrend(t)}` };
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
       if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(`"${file.name}" has ${solid.triangleCount.toLocaleString()} triangles${layered ? ` in ${solid.parts.length} layers` : ""}. That can make the 3D view slow to move on a modest computer, and it adds up to about ${Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6)} MB to the saved project. Import it anyway?`)) {
-        setNotices((p) => [...p, `${file.name}: import cancelled (${solid.triangleCount.toLocaleString()} triangles).`]);
+        setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
       const bounds = solidBounds(solid.parts);
@@ -3707,11 +3707,11 @@ ${describeTrend(t)}` };
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
       const layerNote = layered ? ` One surface per ${solid.format === "DXF" ? "layer" : "object"} (${solid.parts.map((p) => p.layer).join(", ")}).` : "";
-      setNotices((p) => [...p, `Imported "${file.name}" as a solid: ${solid.vertexCount.toLocaleString()} vertices / ${solid.triangleCount.toLocaleString()} triangles (${solid.format}, ${solid.note}).${layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.${bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.`]);
+      setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
     } catch (e) {
       clearProgress();
-      setNotices((p) => [...p, errorNotice(`${file.name}: couldn't import as a solid (${e.message || e}).`)]); // #739
+      setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
     }
   }, [fitBox, project?.epsg, setTaskProgress]);
 
@@ -3782,7 +3782,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       allV.push(...rb.vertices);
       rb.indices.forEach((i) => allI.push(i + base));
     });
-    if (allV.length < 9) { setNotices((p) => [...p, "That contact is too short to project."]); return; }
+    if (allV.length < 9) { setNotices((p) => [...p, notice("That contact is too short to project.")]); return; }
     const scene = new Float32Array(allV.length);
     for (let i = 0; i < allV.length; i += 3) { scene[i] = allV[i] - o.x; scene[i + 1] = allV[i + 2] - o.z; scene[i + 2] = o.y - allV[i + 1]; }
     const geo = new THREE.BufferGeometry();
@@ -3812,7 +3812,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       },
     }]);
     const pct = Math.round((100 * fromData) / total);
-    setNotices((p) => [...p, `${name}: ${Math.round(contact.lengthM).toLocaleString()} m of mapped contact projected ${settings.depth} m below surface (${nVerts.toLocaleString()} vertices). Dip came from outcrop measurements along ${pct}% of the trace${fromManual ? ` and from the typed ${settings.manualDip}°→${settings.manualDipDir}° along the rest (no chosen measurement within ${settings.radius} m)` : ""}${clamped ? `; ${clamped} sub-10° dip(s) were steepened to 10°` : ""}. This is a straight dip extrapolation of surface data, not a model — check it against any drilling.`]);
+    setNotices((p) => [...p, notice("{name}: {v} m of mapped contact projected {depth} m below surface ({nVerts} vertices). Dip came from outcrop measurements along {pct}% of the trace{v2}{v3}. This is a straight dip extrapolation of surface data, not a model — check it against any drilling.", { name, v: Math.round(contact.lengthM).toLocaleString(), depth: settings.depth, nVerts: nVerts.toLocaleString(), pct, v2: fromManual ? tr(" and from the typed {manualDip}°→{manualDipDir}° along the rest (no chosen measurement within {radius} m)", { manualDip: settings.manualDip, manualDipDir: settings.manualDipDir, radius: settings.radius }) : "", v3: clamped ? tr("; {clamped} sub-10° dip(s) were steepened to 10°", { clamped }) : "" })]);
   }, [terrain]);
 
   const toggleImplicitSurface = useCallback((id) => {
@@ -3950,7 +3950,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       });
       const name = p.find((s) => s.id === id)?.name || "surface";
       const others = ids.size - 1;
-      setNotices((n) => [...n, `Accepted "${name}" as the version you are working from${others > 0 ? `; the other ${others} version${others === 1 ? "" : "s"} in this lineage ${others === 1 ? "was" : "were"} hidden but NOT deleted (they still save with the project and can be shown again from the list)` : ""}. "Accepted" records your choice — it is not a check that this run is correct.`]);
+      setNotices((n) => [...n, notice("Accepted \"{name}\" as the version you are working from{v}. \"Accepted\" records your choice — it is not a check that this run is correct.", { name, v: others > 0 ? tr(others === 1 ? "; the other version in this lineage was hidden but NOT deleted (it still saves with the project and can be shown again from the list)" : "; the other {others} versions in this lineage were hidden but NOT deleted (they still save with the project and can be shown again from the list)", { others }) : "" })]);
       return next;
     });
   }, []);
@@ -3981,7 +3981,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         return s;
       });
     });
-    setNotices((n) => [...n, `Overlay: the older version is grey-blue, the newer is orange. Other versions of the same surface are hidden (not deleted). Use "Reset colours" in the compare dialog to put them back.`]);
+    setNotices((n) => [...n, notice("Overlay: the older version is grey-blue, the newer is orange. Other versions of the same surface are hidden (not deleted). Use \"Reset colours\" in the compare dialog to put them back.")]);
   }, []);
 
   const clearCompareOverlay = useCallback(() => {
@@ -4045,7 +4045,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!mesh) return;
     const box = new THREE.Box3().setFromObject(mesh);
     if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) {
-      setNotices((p) => [...p, "This surface's geometry looks degenerate (empty or non-finite bounds) — nothing to zoom to. Try regenerating it with more/better-spread points."]);
+      setNotices((p) => [...p, notice("This surface's geometry looks degenerate (empty or non-finite bounds) — nothing to zoom to. Try regenerating it with more/better-spread points.")]);
       return;
     }
     fitBox(box, 1.6); // extra padding vs. the default — a thin/near-flat implicit surface can be easy to clip right at the edge of frame otherwise
@@ -4096,9 +4096,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
         await saveFile({ suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
       }
-      setNotices((p) => [...p, `Exported "${surf.name}" as ${format.toUpperCase()} (real-world coordinates).`]);
+      setNotices((p) => [...p, notice("Exported \"{name}\" as {format} (real-world coordinates).", { name: surf.name, format: format.toUpperCase() })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`Export failed for "${surf.name}": ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("Export failed for \"{name}\": {message}", { name: surf.name, message: err.message }))]);
     }
   }, [implicitSurfaces, project?.epsg]);
 
@@ -4110,7 +4110,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #397 — lat/lon, true and magnetic azimuths (declination at TODAY's date — the drilling is
   // about to happen) and KML / GPX for phones and handheld GPS; see rigExport.js.
   const exportPlannedHoles = useCallback(async (format = "csv") => {
-    if (!plannedHoles.length) { setNotices((p) => [...p, "No planned drillholes to export yet."]); return; }
+    if (!plannedHoles.length) { setNotices((p) => [...p, notice("No planned drillholes to export yet.")]); return; }
     const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
     const today = new Date().toISOString().slice(0, 10);
     const rows = rigRows(plannedHoles, project.epsg, today, plannedHoleTrace);
@@ -4121,7 +4121,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (format === "kml") res = await saveFile({ suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
     else if (format === "gpx") res = await saveFile({ suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
     else res = await saveFile({ suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
-    if (res.ok) setNotices((p) => [...p, `Exported ${plannedHoles.length} planned hole(s) to ${format.toUpperCase()}${rows[0]?.declination_deg !== "" ? ` — magnetic azimuths use the IGRF-14 declination for ${today} (${rows[0].declination_deg}° at the first collar); recheck it if drilling is months away` : ""}.${noLatLon ? ` ${noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.` : ""}${noMag && !noLatLon ? ` ${noMag} hole(s) have no magnetic azimuth.` : ""}`]);
+    if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
   // Bug fix (user report: "when I turn off one of the voxels, the view will reset to zoom all. It
@@ -4202,7 +4202,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(`${c.hole_id}: ${err.message}`); }
     });
     buildLayerBatches(g);
-    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} hole(s) failed to draw assay markers: ${errors.slice(0, 3).join(" · ")}`)]);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} hole(s) failed to draw assay markers: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildAssaySpheresRef = useRef(buildAssaySpheres);
   buildAssaySpheresRef.current = buildAssaySpheres;
@@ -4234,7 +4234,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
-    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} geophysics point(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} geophysics point(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildGeophysPtsRef = useRef(buildGeophysPts);
   buildGeophysPtsRef.current = buildGeophysPts;
@@ -4262,7 +4262,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
-    if (errors.length) setNotices((pv) => [...pv, errorNotice(`${errors.length} surface sample(s) failed to render: ${errors.slice(0, 3).join(" · ")}`)]);
+    if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const buildSurfaceSamplesRef = useRef(buildSurfaceSamples);
   buildSurfaceSamplesRef.current = buildSurfaceSamples;
@@ -4712,7 +4712,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();
 
     lastTracesRef.current = allTraces;
-    if (buildErrors.length) setNotices((p) => [...p, errorNotice(`${buildErrors.length} row(s) failed to render (skipped, rest of the model is unaffected): ${buildErrors.slice(0, 3).join(" · ")}${buildErrors.length > 3 ? "…" : ""}`)]);
+    if (buildErrors.length) setNotices((p) => [...p, errorNotice(tr("{buildErrors} row(s) failed to render (skipped, rest of the model is unaffected): {v}{v2}", { buildErrors: buildErrors.length, v: buildErrors.slice(0, 3).join(" · "), v2: buildErrors.length > 3 ? "…" : "" }))]);
     if (allTraces.length) {
       if (!hasAutoFitRef.current) { autoFitInitial(allTraces); hasAutoFitRef.current = true; } // TASKS.csv #313 — fitView + a legibility clamp; see autoFitInitial
       setDataLoaded(true);
@@ -4823,7 +4823,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     surfaceHydrationRef.current = { seq: viewerUiStateSeq, installed: restored };
     setImplicitSurfaces(restored);
     if (restored.length) {
-      setNotices((p) => [...p, `Restored ${restored.length} generated surface${restored.length > 1 ? "s" : ""} from the project file, with the parameters that produced ${restored.length > 1 ? "them" : "it"} (see each surface's "Parameters used").`]);
+      setNotices((p) => [...p, notice(restored.length > 1 ? "Restored {restored} generated surfaces from the project file, with the parameters that produced them (see each surface's \"Parameters used\")." : "Restored {restored} generated surface from the project file, with the parameters that produced it (see its \"Parameters used\").", { restored: restored.length })]);
     }
     // `generatedSurfaces` is in the deps so a project whose surfaces arrive in a later commit than the
     // seq bump still hydrates; the seq guard at the top makes the extra runs free. `sceneReady` covers
@@ -4914,7 +4914,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // converting tens of thousands of vertices just to ask a yes/no question.
   const [topologyBusy, setTopologyBusy] = useState(false);
   const runTopologyCheck = useCallback(() => {
-    if (!implicitSurfaces.length) { setNotices((p) => [...p, "No generated surfaces to check yet."]); return; }
+    if (!implicitSurfaces.length) { setNotices((p) => [...p, notice("No generated surfaces to check yet.")]); return; }
     setTopologyBusy(true);
     // Deferred a tick so the "Checking..." state actually paints before a multi-second check on large
     // meshes blocks the main thread — same pattern the modelling tools use for their own busy state.
@@ -4933,14 +4933,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         });
         const res = checkTopology(input, { up: "y" });
         if (!res.checked) {
-          setNotices((p) => [...p, `Nothing to check: none of the ${res.surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare "is below" / "is above" / "must not cross" on a surface (expand its row) and run this again.`]);
+          setNotices((p) => [...p, notice("Nothing to check: none of the {surfacesChecked} surface(s) declare a relationship that implies a geometric constraint. Declare \"is below\" / \"is above\" / \"must not cross\" on a surface (expand its row) and run this again.", { surfacesChecked: res.surfacesChecked })]);
         } else if (!res.violations.length) {
-          setNotices((p) => [...p, `Topology check passed: ${res.checked} check(s) across ${res.surfacesChecked} surface(s), no violations.${res.skipped ? ` ${res.skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.` : ""}`]);
+          setNotices((p) => [...p, notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" })]);
         } else {
-          setNotices((p) => [...p, `Topology check found ${res.violations.length} violation(s) in ${res.checked} check(s):`, ...res.violations.map((v) => `  • ${v.message}`)]);
+          setNotices((p) => [...p, notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), ...res.violations.map((v) => `  • ${v.message}`)]);
         }
       } catch (err) {
-        setNotices((p) => [...p, errorNotice(`Topology check failed: ${err.message}`)]);
+        setNotices((p) => [...p, errorNotice(tr("Topology check failed: {message}", { message: err.message }))]);
       } finally {
         setTopologyBusy(false);
       }
@@ -4973,7 +4973,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const cutter = implicitSurfaces.find((s) => s.id === cutterId);
     if (!host || !cutter || hostId === cutterId) return;
     const hostMesh = implicitMeshesRef.current[hostId], cutMesh = implicitMeshesRef.current[cutterId];
-    if (!hostMesh || !cutMesh) { setNotices((p) => [...p, "Cross-cut failed: one of the two surfaces has no mesh in the scene."]); return; }
+    if (!hostMesh || !cutMesh) { setNotices((p) => [...p, notice("Cross-cut failed: one of the two surfaces has no mesh in the scene.")]); return; }
     const geoOf = (m) => ({ positions: m.geometry?.attributes?.position?.array || [], indices: m.geometry?.index?.array || [] });
     setCrossCutBusy(true);
     setTimeout(async () => {
@@ -4992,7 +4992,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           // Not an error — it is the fault case, and the fault case is a SPLIT, not a truncation.
           const sp = splitAcrossSurface(h, c);
           if (!sp.ok || !sp.changed) {
-            setNotices((p) => [...p, `"${cutter.name}" does not divide "${host.name}": ${sp.reason === "no-overlap" ? "the two surfaces are nowhere near each other" : "the whole surface falls on one side of it"}. Nothing was changed.`]);
+            setNotices((p) => [...p, notice("\"{name}\" does not divide \"{name2}\": {v}. Nothing was changed.", { name: cutter.name, name2: host.name, v: sp.reason === "no-overlap" ? tr("the two surfaces are nowhere near each other") : tr("the whole surface falls on one side of it") })]);
             return;
           }
           const stamp = (part, suffix, sense) => {
@@ -5021,15 +5021,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const b = stamp(sp.negative, "block (− side of fault)", "-");
           hostMesh.visible = false;
           setImplicitSurfaces((p) => [...p.map((s) => (s.id === hostId ? { ...s, visible: false } : s)), a, b]);
-          setNotices((p) => [...p, `Split "${host.name}" along fault "${cutter.name}": ${a.faceCount.toLocaleString()} + ${b.faceCount.toLocaleString()} triangles in two blocks. The original surface is kept but hidden, so nothing is lost. NO displacement has been applied — the blocks are exactly where the surface already was, just separated at the fault.`]);
+          setNotices((p) => [...p, notice("Split \"{name}\" along fault \"{name2}\": {faceCount} + {faceCount2} triangles in two blocks. The original surface is kept but hidden, so nothing is lost. NO displacement has been applied — the blocks are exactly where the surface already was, just separated at the fault.", { name: host.name, name2: cutter.name, faceCount: a.faceCount.toLocaleString(), faceCount2: b.faceCount.toLocaleString() })]);
           if (sp.stats.unresolvedEdges > 0) {
-            setNotices((p) => [...p, `"${cutter.name}" does not span the whole of "${host.name}": ${sp.stats.unresolvedEdges} edge(s) change sides beyond the fault's own extent, where it has no surface to cut against. Those triangles were left whole and assigned to the block holding most of their corners rather than cut at an invented position, so read the division as approximate near the fault's tip.`]);
+            setNotices((p) => [...p, notice("\"{name}\" does not span the whole of \"{name2}\": {unresolvedEdges} edge(s) change sides beyond the fault's own extent, where it has no surface to cut against. Those triangles were left whole and assigned to the block holding most of their corners rather than cut at an invented position, so read the division as approximate near the fault's tip.", { name: cutter.name, name2: host.name, unresolvedEdges: sp.stats.unresolvedEdges })]);
           }
           return;
         }
-        if (!res.ok) { setNotices((p) => [...p, errorNotice(`Cross-cut failed (${res.reason}).`)]); return; }
+        if (!res.ok) { setNotices((p) => [...p, errorNotice(tr("Cross-cut failed ({reason}).", { reason: res.reason }))]); return; }
         if (!res.changed) {
-          setNotices((p) => [...p, `"${cutter.name}" does not cut "${host.name}" — ${res.reason === "no-overlap" ? "the two bodies do not even overlap in space" : "no part of the surface falls inside it"}. Nothing was changed, which is the correct result: a dyke that stops short of a contact does not truncate it.`]);
+          setNotices((p) => [...p, notice("\"{name}\" does not cut \"{name2}\" — {v}. Nothing was changed, which is the correct result: a dyke that stops short of a contact does not truncate it.", { name: cutter.name, name2: host.name, v: res.reason === "no-overlap" ? tr("the two bodies do not even overlap in space") : tr("no part of the surface falls inside it") })]);
           return;
         }
         // Replace the geometry (a NEW BufferGeometry, so the #52 sync-out cache keyed on geometry uuid
@@ -5064,10 +5064,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return s;
         }));
         const fmt = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        setNotices((p) => [...p, `Truncated "${host.name}" against "${cutter.name}": ${fmt(st.trianglesDropped)} triangle(s) removed and ${fmt(st.trianglesClipped)} cut at the contact, leaving ${fmt(faceCount)}. ${st.componentsAfter > st.componentsBefore ? `The body cuts right through it — the surface is now ${st.componentsAfter} separate pieces (was ${st.componentsBefore}).` : `The surface is still ${st.componentsAfter} connected piece(s), so the cut is a notch rather than a full severance.`} Its open edge went from ${fmt(st.boundaryLengthBeforeM)} m to ${fmt(st.boundaryLengthAfterM)} m.`]);
-        setNotices((p) => [...p, `The truncation is not re-run automatically: regenerating either surface produces a fresh, untruncated mesh, and the cut has to be applied again. What was cut is recorded in "${host.name}"'s Parameters used.`]);
+        setNotices((p) => [...p, notice("Truncated \"{name}\" against \"{name2}\": {v} triangle(s) removed and {v2} cut at the contact, leaving {v3}. {v4} Its open edge went from {v5} m to {v6} m.", { name: host.name, name2: cutter.name, v: fmt(st.trianglesDropped), v2: fmt(st.trianglesClipped), v3: fmt(faceCount), v4: st.componentsAfter > st.componentsBefore ? tr("The body cuts right through it — the surface is now {componentsAfter} separate pieces (was {componentsBefore}).", { componentsAfter: st.componentsAfter, componentsBefore: st.componentsBefore }) : tr("The surface is still {componentsAfter} connected piece(s), so the cut is a notch rather than a full severance.", { componentsAfter: st.componentsAfter }), v5: fmt(st.boundaryLengthBeforeM), v6: fmt(st.boundaryLengthAfterM) })]);
+        setNotices((p) => [...p, notice("The truncation is not re-run automatically: regenerating either surface produces a fresh, untruncated mesh, and the cut has to be applied again. What was cut is recorded in \"{name}\"'s Parameters used.", { name: host.name })]);
       } catch (err) {
-        setNotices((p) => [...p, errorNotice(`Cross-cut failed: ${err.message}`)]);
+        setNotices((p) => [...p, errorNotice(tr("Cross-cut failed: {message}", { message: err.message }))]);
       } finally {
         setCrossCutBusy(false);
       }
@@ -5865,7 +5865,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const notes = await loadWoodjamExtras(readFile, { setAssays, setAssayElements, addVoxelModel, addOmfObject, saveDcipLine },
         { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined, existingElements: assayElements }); // existingElements: #722
       setNotices((p) => [...p, ...notes]);
-    } catch (e) { setNotices((p) => [...p, errorNotice(`The Woodjam sample's assays, IP and ZTEM could not be loaded: ${e.message}`)]); } // #739
+    } catch (e) { setNotices((p) => [...p, errorNotice(tr("The Woodjam sample's assays, IP and ZTEM could not be loaded: {message}", { message: e.message }))]); } // #739
   };
 
   const removeCustomLayer = (id) => { const g = layerGroupsRef.current[id]; if (g) { g.parent?.remove(g); delete layerGroupsRef.current[id]; } setCustomLayers((p) => p.filter((l) => l.id !== id)); };
@@ -5889,10 +5889,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const inside = new Set(collars.filter((c) => pointInBoundary(c.x, c.y, boundary.polylines)).map((c) => c.hole_id));
     if (mode === "isolate") {
       setVisibleHoles(Object.fromEntries(collars.map((c) => [c.hole_id, inside.has(c.hole_id)])));
-      setNotices((p) => [...p, `Showing only the ${inside.size} of ${collars.length} collar(s) inside "${boundary.name}" — every other hole is now hidden.`]);
+      setNotices((p) => [...p, notice("Showing only the {size} of {collars} collar(s) inside \"{name}\" — every other hole is now hidden.", { size: inside.size, collars: collars.length, name: boundary.name })]);
     } else {
       setVisibleHoles((prev) => { const next = { ...prev }; collars.forEach((c) => { if (inside.has(c.hole_id)) next[c.hole_id] = false; }); return next; });
-      setNotices((p) => [...p, `Hid ${inside.size} collar(s) inside "${boundary.name}".`]);
+      setNotices((p) => [...p, notice("Hid {size} collar(s) inside \"{name}\".", { size: inside.size, name: boundary.name })]);
     }
   };
   const toggleLayer = (key) => setLayerVisible((p) => ({ ...p, [key]: !p[key] }));
@@ -5949,7 +5949,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!n) return;
     if (!confirmDestructive(`Remove all ${n} row(s) from "${LAYER_META[layerKey].label}"?`, { undoable: true })) return; // #386: layers are in Undo
     setLayers((p) => ({ ...p, [layerKey]: [] }));
-    setNotices((p) => [...p, `Cleared ${n} row(s) from ${LAYER_META[layerKey].label}.`]);
+    setNotices((p) => [...p, notice("Cleared {n} row(s) from {label}.", { n, label: LAYER_META[layerKey].label })]);
   };
 
   // TASKS.csv — user request: right-click a vector layer (litho/alt/vein/etc., or collars/survey) to
@@ -6029,7 +6029,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   const exportVectorShapefile = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
-    if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const zipBytes = buildShapefileZip({ features, geomType, epsg: project?.epsg, baseName: label });
@@ -6039,9 +6039,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: uint8ToBase64(zipBytes), encoding: "base64",
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a shapefile (.zip — .shp/.shx/.dbf${project?.epsg ? "/.prj" : ""}).`]);
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`Shapefile export failed: ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("Shapefile export failed: {message}", { message: err.message }))]);
     }
   };
 
@@ -6049,7 +6049,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // context menu item — "needs an in-browser SQLite writer" — now built on sql.js, see src/lib/gpkg.js).
   const exportVectorGeoPackage = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
-    if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
       const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]); // #439 lazy
@@ -6059,9 +6059,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: uint8ToBase64(gpkgBytes), encoding: "base64",
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a GeoPackage (.gpkg).`]);
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`GeoPackage export failed: ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("GeoPackage export failed: {message}", { message: err.message }))]);
     }
   };
 
@@ -6070,7 +6070,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // third output format. Elevations are written (#408) and the file is consistent R12 (#578), per src/lib/dxf.js.
   const exportVectorDXF = async (kind, key, label) => {
     const { features, geomType } = buildVectorFeatures(kind, key);
-    if (!features.length) { setNotices((p) => [...p, `Nothing to export for "${label}" — no rows with usable/desurveyed coordinates.`]); return; }
+    if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
       const dxfText = buildDXF({ features, geomType });
@@ -6080,9 +6080,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         content: dxfText,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, `Exported ${features.length} feature(s) from "${label}" as a DXF (.dxf, R12, elevations kept).`]);
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept).", { features: features.length, label })]);
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`DXF export failed: ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
     }
   };
   // TASKS.csv #184 — a layer key "has data" once its rows array is non-empty (geophys_pts uses the
@@ -6123,13 +6123,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!collars.length) return;
     if (!confirmDestructive(`Remove all ${collars.length} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).`, { undoable: true })) return; // #386
     setCollars([]);
-    setNotices((p) => [...p, `Cleared ${collars.length} collar(s).`]);
+    setNotices((p) => [...p, notice("Cleared {collars} collar(s).", { collars: collars.length })]);
   };
   const clearSurvey = () => {
     if (!survey.length) return;
     if (!confirmDestructive(`Remove all ${survey.length} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.`, { undoable: true })) return; // #386
     setSurvey([]);
-    setNotices((p) => [...p, `Cleared ${survey.length} survey station(s).`]);
+    setNotices((p) => [...p, notice("Cleared {survey} survey station(s).", { survey: survey.length })]);
   };
 
   // ---------- cross-section (plan-view draw -> pop-out window) ----------
@@ -6213,10 +6213,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!hit) return;
     const row = hit.object.userData.lithoRow;
     if (mcConnectFrom) {
-      if (row.hole_id === mcConnectFrom.hole_id) { setNotices((p) => [...p, "Connect: pick the matching interval in ANOTHER hole (or press the connect button again to cancel)."]); return; }
+      if (row.hole_id === mcConnectFrom.hole_id) { setNotices((p) => [...p, notice("Connect: pick the matching interval in ANOTHER hole (or press the connect button again to cancel).")]); return; }
       const code = effectiveCode(mcConnectFrom, modellingCodes, mcGroupOf);
       setModellingCodes((p) => connectIntervals(p, mcConnectFrom, row, layers.litho, mcGroupOf));
-      setNotices((p) => [...p, `${row.hole_id} ${Number(row.from).toFixed(1)}–${Number(row.to).toFixed(1)} m (${row.value}) connected to ${mcConnectFrom.hole_id}: modelling code ${code}.`]);
+      setNotices((p) => [...p, notice("{hole_id} {v}–{v2} m ({value}) connected to {hole_id2}: modelling code {code}.", { hole_id: row.hole_id, v: Number(row.from).toFixed(1), v2: Number(row.to).toFixed(1), value: row.value, hole_id2: mcConnectFrom.hole_id, code })]);
       setMcConnectFrom(null);
     }
     setMcSelected(row);
@@ -6714,7 +6714,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     let e = Number(typedSection.e), n = Number(typedSection.n);
     if (typedSection.e === "" || typedSection.n === "" || !Number.isFinite(e) || !Number.isFinite(n)) {
       const ts = tracesRef.current;
-      if (!ts.length) { setNotices((p) => [...p, "Enter a centre easting and northing — there are no drillholes to centre the section on."]); return; }
+      if (!ts.length) { setNotices((p) => [...p, notice("Enter a centre easting and northing — there are no drillholes to centre the section on.")]); return; }
       const xs = ts.flatMap((t) => t.wx), ys = ts.flatMap((t) => t.wy);
       e = (arrMin(xs) + arrMax(xs)) / 2; n = (arrMin(ys) + arrMax(ys)) / 2;
     }
@@ -6724,9 +6724,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openHoleSection = useCallback((holeId) => {
     const t = tracesRef.current.find((x) => x.hole_id === holeId);
     const g = t && sectionThroughHole(t.wx, t.wy, { fallbackAzimuth: Number(typedSection.azimuth) || 0 });
-    if (!g) { setNotices((p) => [...p, `${holeId} has no desurveyed trace to cut a section through.`]); return; }
+    if (!g) { setNotices((p) => [...p, notice("{holeId} has no desurveyed trace to cut a section through.", { holeId })]); return; }
     openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`);
-    if (g.vertical) setNotices((p) => [...p, `${holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, ${g.azimuth.toFixed(0)}°.`]);
+    if (g.vertical) setNotices((p) => [...p, notice("{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", { holeId, azimuth: g.azimuth.toFixed(0) })]);
   }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection]);
 
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
@@ -6771,7 +6771,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     tracesRef.current.forEach((t) => t.wx.forEach((wx, i) => pts.push({ x: wx, y: t.wy[i] })));
 
     if (!pts.length) {
-      setNotices((p) => [...p, "Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found."]);
+      setNotices((p) => [...p, notice("Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.")]);
       return;
     }
 
@@ -6807,7 +6807,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth: sliceSeriesAzimuth, corridor: width / 2, contacts: [], groupId });
       created++;
     }
-    setNotices((p) => [...p, `Generated ${created} section${created === 1 ? "" : "s"} spaced ${width}m apart at azimuth ${sliceSeriesAzimuth.toFixed(0)}° — grouped together in the Cross-sections list.`]);
+    setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
   }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
 
   // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
@@ -6818,7 +6818,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
       {mode === "view" && (
         <ViewToolbar
-          onLevelPlan={() => { if (!tracesRef.current.length) { setNotices((p) => [...p, "Load collars first — a level plan cuts the drillholes at an elevation."]); return; } setLevelPlanOpen(true); }}
+          onLevelPlan={() => { if (!tracesRef.current.length) { setNotices((p) => [...p, notice("Load collars first — a level plan cuts the drillholes at an elevation.")]); return; } setLevelPlanOpen(true); }}
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
           figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)}
@@ -7422,9 +7422,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault and string: one row per vertex with real x, y, z")}
-                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${rows.length} vertices of section strings to CSV.`]); }}>{tr("Strings CSV")}</span>
+                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {rows} vertices of section strings to CSV.", { rows: rows.length })]); }}>{tr("Strings CSV")}</span>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS")}
-                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, `Exported ${count} section string(s) to 3D DXF.`]); }}>{tr("DXF")}</span>
+                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {count} section string(s) to 3D DXF.", { count })]); }}>{tr("DXF")}</span>
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
@@ -8721,7 +8721,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
           <button onClick={() => setShowLocator((v) => !v)} title={tr("Toggle locator map (shows your project's real-world location)")} style={{ ...iconBtn, ...(showLocator ? { background: "var(--color-divider)", borderColor: "var(--color-selected-border)" } : {}) }}><MapIcon size={14} /></button>
-          <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, "View refreshed — geometry rebuilt from current data"]); }} title={tr("Refresh view (force full geometry rebuild)")} style={iconBtn}><RefreshCw size={14} /></button>
+          <button onClick={() => { setRebuildSeq((n) => n + 1); setNotices((p) => [...p, notice("View refreshed — geometry rebuilt from current data")]); }} title={tr("Refresh view (force full geometry rebuild)")} style={iconBtn}><RefreshCw size={14} /></button>
           <button onClick={resetView} title={tr("Reset orientation")} style={iconBtn}><RotateCcw size={14} /></button>
         </div>
         {showLocator && (
@@ -8929,7 +8929,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             if (attrTableTarget.kind === "collars") setCollars(newRows);
             else if (attrTableTarget.kind === "survey") setSurvey(newRows);
             else replaceLayer(attrTableTarget.key, newRows);
-            setNotices((p) => [...p, `Saved edits to "${attrTableTarget.label}" (${newRows.length} row(s)).`]);
+            setNotices((p) => [...p, notice("Saved edits to \"{label}\" ({newRows} row(s)).", { label: attrTableTarget.label, newRows: newRows.length })]);
           }}
           onClose={() => setAttrTableTarget(null)}
         />
@@ -8975,7 +8975,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onSave={(scope, corridorValue) => {
               updateSections(ids, corridorValue !== undefined ? { scope, corridor: corridorValue } : { scope });
               setSectionEditOpen(false);
-              setNotices((p) => [...p, `Updated content scope for ${ids.length} section${ids.length === 1 ? "" : "s"} — reopen ${ids.length === 1 ? "it" : "them"} to see the change.`]);
+              setNotices((p) => [...p, notice(ids.length === 1 ? "Updated content scope for {ids} section — reopen it to see the change." : "Updated content scope for {ids} sections — reopen them to see the change.", { ids: ids.length })]);
             }}
           />
         );
@@ -8984,7 +8984,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {sectionGeorefOpen && (
         <Suspense fallback={null}>
           <SectionGeorefModal sections={sections} onClose={() => setSectionGeorefOpen(false)}
-            onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, `${img.name}: placed in 3D on its section line${img.rmse != null ? ` (fit error ${img.rmse.toFixed(1)} m)` : ""} — listed under Section images.`]); }} />
+            onImport={(img) => { addSectionImage(img); setSectionGeorefOpen(false); setNotices((p) => [...p, notice("{name}: placed in 3D on its section line{v} — listed under Section images.", { name: img.name, v: img.rmse != null ? tr(" (fit error {rmse} m)", { rmse: img.rmse.toFixed(1) }) : "" })]); }} />
         </Suspense>
       )}
       {sqlModalOpen && (
@@ -9033,7 +9033,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           survey={survey}
           volumeShells={closedShellsForEstimation()}
           trend={trendFor("estimation")} // TASKS.csv #650
-          onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, `Added block model "${model.name}" (${model.cells.length.toLocaleString()} cells).`]); return id; }}
+          onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />
       )}
@@ -9068,7 +9068,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
             goToModule("modelling");
-            setNotices((p) => [...p, `Trend "${t.name}" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.`]);
+            setNotices((p) => [...p, notice("Trend \"{name}\" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.", { name: t.name })]);
           }}
         />
       )}
@@ -9153,7 +9153,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           removeFieldRef={removeFieldRef}
           onSaveStructurePick={(row) => {
             setLayers((p) => ({ ...p, structure: [...(p.structure || []), row] }));
-            setNotices((p) => [...p, `Saved "${row.value}" to the Structure layer (${row.hole_id} @ ${row.depth}m, dip ${row.dip}° / dipdir ${row.azimuth}°).`]);
+            setNotices((p) => [...p, notice("Saved \"{value}\" to the Structure layer ({hole_id} @ {depth}m, dip {dip}° / dipdir {azimuth}°).", { value: row.value, hole_id: row.hole_id, depth: row.depth, dip: row.dip, azimuth: row.azimuth })]);
           }}
           onClose={() => setCoreOrientOpen(false)}
         />

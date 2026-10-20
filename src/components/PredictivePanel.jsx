@@ -6,8 +6,9 @@ import { smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704
 import { rawSampleIntervals } from "../lib/geochem.js"; // TASKS.csv #658
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #658
 import { checkBlocks, blockPoints, blockCells } from "../lib/geomlClip.js"; // TASKS.csv #741
-import { errorNotice } from "../lib/notices.js"; // TASKS.csv #739
+import { errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #739
 import { percentileSorted } from "../lib/arrayStats.js"; // TASKS.csv #740
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #638 — the Predictive tab (Matt: "a predictive modelling tab that will also do all modelling, but with its own
 // geoML tools. That way I can compare both models in app"). It drives the optional geoML add-on (addons/geoml, GPL-3.0):
@@ -85,10 +86,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       const note = `${await onResult(res)}${trend ? (oldAddon ? ` — the trend "${trend.name}" was NOT applied: this add-on version (${health?.version || "?"}) predates trends; update it (Remove the add-on, then install again)` : `; following the trend "${trend.name}"`) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
-      setNotices((p) => [...p, `geoML — ${label}: ${note} (${secs} s).`]);
+      setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
     } catch (e) {
       if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
-      setNotices((p) => [...p, errorNotice(`geoML — ${label}: ${e.message}`)]); // #739
+      setNotices((p) => [...p, errorNotice(tr("geoML — {label}: {message}", { label, message: e.message }))]); // #739
     } finally { setJob(null); abortRef.current = null; refresh(); }
   };
 
@@ -142,7 +143,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       conflicts ? `${conflicts.toLocaleString()} overlapping intervals averaged` : "",
       stats.negativeValues ? `${stats.negativeValues.toLocaleString()} negative lab codes treated as not assayed` : "",
     ].filter(Boolean).join(", ");
-    if (!samples.length) { setNotices((q) => [...q, `geoML grade model: no ${element} samples to model after QA/QC rows were left out.`]); return; }
+    if (!samples.length) { setNotices((q) => [...q, notice("geoML grade model: no {element} samples to model after QA/QC rows were left out.", { element })]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
     run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
       const b = res.blocks;
@@ -232,7 +233,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
             {busyJob && (
               <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>
                 A model started earlier is still running in the add-on.{" "}
-                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, "geoML: the earlier model was cancelled."]); }, (e) => setNotices((p) => [...p, errorNotice(`geoML: could not cancel it (${e.message}).`)]))} style={{ ...btn(false, false), padding: "1px 7px" }}>Cancel it</button>
+                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, notice("geoML: the earlier model was cancelled.")]); }, (e) => setNotices((p) => [...p, errorNotice(tr("geoML: could not cancel it ({message}).", { message: e.message }))]))} style={{ ...btn(false, false), padding: "1px 7px" }}>Cancel it</button>
               </div>
             )}
             <div style={h}>Model a rock unit</div>

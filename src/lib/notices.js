@@ -2,6 +2,8 @@
 // regex-guessed for aria-live, so a failed export looked exactly like "Loaded 37 holes" and vanished after
 // 5 s. A notice may now be { text, level: "error" | "info" }; plain strings still work (the ~150 existing
 // call sites), and for those the old wording test decides — explicit levels win.
+import { t } from "./i18n.js"; // TASKS.csv #786
+
 const ERROR_RE = /couldn'?t|can'?t|cannot|failed|error|unable|invalid|unsupported|only \./i;
 
 // TASKS.csv #739 — a thrown Error pushed as it is is an error whatever its wording: 84 % of the app's thrown messages
@@ -11,3 +13,10 @@ export const noticeText = (n) => (typeof n === "string" ? n : n instanceof Error
 export const noticeLevel = (n) => (n instanceof Error ? "error" : (n && typeof n === "object" && n.level) || (ERROR_RE.test(noticeText(n)) ? "error" : "info"));
 export const errorNotice = (text) => ({ text, level: "error" });
 export const infoNotice = (text) => ({ text, level: "info" });
+
+// TASKS.csv #786 — a notice in the interface language: the text is translated (English key, {name} placeholders, see
+// lib/i18n.js), but its severity is judged on the ENGLISH wording, which is what ERROR_RE knows ("couldn't", "failed"…).
+export const notice = (text, vars) => {
+  const english = vars ? String(text).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : String(text);
+  return { text: t(text, vars), level: ERROR_RE.test(english) ? "error" : "info" };
+};

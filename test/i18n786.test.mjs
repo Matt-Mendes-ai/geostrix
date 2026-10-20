@@ -39,10 +39,10 @@ test("every literal t(\"...\") / tr(\"...\") in the code is in both dictionaries
   for (const f of files("src")) {
     if (f.endsWith("i18n.js")) continue;
     const s = fs.readFileSync(f, "utf8");
-    if (!s.includes("lib/i18n.js")) continue;
-    const keys = [...s.matchAll(/(?<![\w.])(?:tr?|tx)\("((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]); // t / tr / tx (rich text)
+    if (!s.includes("lib/i18n.js") && !s.includes("notice(")) continue;
+    const keys = [...s.matchAll(/(?<![\w.])(?:tr?|tx|notice)\("((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]); // t / tr / tx (rich text)
     // tr(cond ? "A" : "B") — both branches
-    for (const m of s.matchAll(/(?<![\w.])tr?\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*?\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) keys.push(m[1], m[2]);
+    for (const m of s.matchAll(/(?<![\w.])(?:tr?|notice)\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*?\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) keys.push(...[m[1], m[2]].filter((x) => /[A-Za-z]{2}/.test(x))); // a plural "s" / "" is not a key
     for (const raw of keys) {
       const key = JSON.parse(`"${raw}"`);
       for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[key]) missing.push(`${code}: ${key} (${path.basename(f)})`);

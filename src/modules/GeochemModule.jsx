@@ -9,7 +9,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle } from "../components/icons.js";
-import { noticeText, noticeLevel, errorNotice } from "../lib/notices.js"; // TASKS.csv #729
+import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
@@ -45,6 +45,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function GeochemModule() {
   const store = useStore();
@@ -140,7 +141,7 @@ export default function GeochemModule() {
       // element cell here means "below detection", not "not assayed" (the dialog still lets the user choose)
       handleFile(file, false, { blankMode: "bdl", blankNote: "This bundled sample's README says below-detection results (\"<0.001\" in the source) were left blank, so \"Below detection\" is selected." });
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`Couldn't load the sample assays: ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample assays: {message}", { message: err.message }))]);
     } finally {
       setSampleLoading(false);
     }
@@ -154,7 +155,7 @@ export default function GeochemModule() {
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
         // import path (src/lib/numberLocale.js) — and the note is surfaced, not swallowed.
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
-        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #623 — a long export (analyte + concentration / value + units + method + flag, one row per element)
@@ -215,12 +216,12 @@ export default function GeochemModule() {
       if (!isLabCertificateText(text)) { skipped.push(f.name); continue; }
       parsed.push(parseLabCertificate(text, f.name));
     }
-    if (skipped.length) setNotices((p) => [...p, errorNotice(`Not a lab certificate (no "<id> - Finalized" title with SAMPLE / DESCRIPTION rows), skipped: ${skipped.join(", ")}.`)]);
+    if (skipped.length) setNotices((p) => [...p, errorNotice(tr("Not a lab certificate (no \"<id> - Finalized\" title with SAMPLE / DESCRIPTION rows), skipped: {skipped}.", { skipped: skipped.join(", ") }))]);
     if (!parsed.length) return;
     const all = combineCertificates(parsed);
     const join = joinCertificatesToAssays(all.rows, assays);
     if (!join.matched.length) {
-      setNotices((p) => [...p, errorNotice(`None of the ${all.rows.length.toLocaleString()} certificate samples matches a loaded assay's sample id${join.assaysWithoutId ? ` (${join.assaysWithoutId.toLocaleString()} assay rows carry no sample id — import the drill samples with their sample-number column)` : ""}. Certificates are joined to the drill samples by sample id.`)]);
+      setNotices((p) => [...p, errorNotice(tr("None of the {rows} certificate samples matches a loaded assay's sample id{v}. Certificates are joined to the drill samples by sample id.", { rows: all.rows.length.toLocaleString(), v: join.assaysWithoutId ? tr(" ({assaysWithoutId} assay rows carry no sample id — import the drill samples with their sample-number column)", { assaysWithoutId: join.assaysWithoutId.toLocaleString() }) : "" }))]);
       return;
     }
     const columns = parsed.flatMap((p) => p.columns).filter((c, i, a) => a.findIndex((x) => x.header === c.header) === i);
@@ -288,7 +289,7 @@ export default function GeochemModule() {
       allRows: rows, mapping: { hole_id: "hole_id", from: "from", to: "to" },
       elements: elementCols.map((e) => ({ ...e, mainHeader: e.header, checked: true })),
     });
-    setNotices((p) => [...p, `Lab certificates: imported ${counts.standard} standard(s), ${counts.blank} blank(s) and ${counts.duplicate} duplicate(s) as QC samples${fill && filled ? `, and filled ${filled.toLocaleString()} missing value(s) of the drill samples` : ""}${unplaced ? `; ${unplaced} could not be placed (no drill sample with a nearby number or the given parent)` : ""}. They are in the QAQC panel; intercepts, statistics and models leave them out.`]);
+    setNotices((p) => [...p, notice("Lab certificates: imported {standard} standard(s), {blank} blank(s) and {duplicate} duplicate(s) as QC samples{v}{v2}. They are in the QAQC panel; intercepts, statistics and models leave them out.", { standard: counts.standard, blank: counts.blank, duplicate: counts.duplicate, v: fill && filled ? tr(", and filled {filled} missing value(s) of the drill samples", { filled: filled.toLocaleString() }) : "", v2: unplaced ? tr("; {unplaced} could not be placed (no drill sample with a nearby number or the given parent)", { unplaced }) : "" })]);
     setCertReview(null);
   };
 
@@ -296,7 +297,7 @@ export default function GeochemModule() {
     if (modal.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice("Map hole ID, from, and to columns.")]); return; }
+    if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice(tr("Map hole ID, from, and to columns."))]); return; }
     // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every
     // stored value in it, so importing a batch in a different unit used to silently rescale all the
     // EARLIER values (Au in ppm, then a ppb batch: every earlier Au read 1000x too low). Incoming values
@@ -463,7 +464,7 @@ export default function GeochemModule() {
       repeatedInFile ? `${repeatedInFile} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.` : null,
       oxideNotes.size ? `Whole-rock oxide columns stored as element wt% (${[...oxideNotes].join(", ")}); diagrams convert back to oxides.` : null,
     ].filter(Boolean).join(" ");
-    setNotices((p) => [...p, `Loaded ${rows.length} ${modal.isPxrf ? "pXRF" : "assay"} intervals (${chosen.length} elements).${extra ? " " + extra : ""}`]);
+    setNotices((p) => [...p, notice("Loaded {rows} {v} intervals ({chosen} elements).{v2}", { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
     setAssayModal(null);
   };
 
@@ -475,7 +476,7 @@ export default function GeochemModule() {
     parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
-        if (!data.length) { setNotices((p) => [...p, errorNotice(`${file.name}: empty file.`)]); return; }
+        if (!data.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
         const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
@@ -513,7 +514,7 @@ export default function GeochemModule() {
   const commitSurfaceImport = (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
-    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice("Map the X and Y columns.")]); return; }
+    if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice(tr("Map the X and Y columns."))]); return; }
     // TASKS.csv #606 — Z is optional: a blank z, or a Z column that is 0 on every row (an MX soil export whose
     // elevation was never filled in), is MISSING, not sea level; the 3D view places those samples on the terrain.
     const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
@@ -533,7 +534,7 @@ export default function GeochemModule() {
     const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
     let toEpsg = project?.epsg ? Number(project.epsg) : null;
     const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName }); // #607
-    if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, `Project CRS set to ${crsName(adopted)} (EPSG:${adopted}) from ${modal.fileName}.`]); }
+    if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;
     const rows = allRows.map((r) => {
@@ -574,7 +575,7 @@ export default function GeochemModule() {
       noZ ? `${noZ} sample(s) have no elevation${zAllZero ? ` (the "${mapping.z}" column is 0 on every row)` : ""} — the 3D view places them on the terrain.` : null,
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
-    setNotices((p) => [...p, `Loaded ${rows.length} surface samples (${chosen.length} elements). Switch to 3D View to see them.${extra ? " " + extra : ""}`]);
+    setNotices((p) => [...p, notice("Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);
     setSurfaceModal(null);
   };
 
@@ -588,15 +589,15 @@ export default function GeochemModule() {
     e.preventDefault(); setDragOver(false);
     const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name)); // #605
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, errorNotice("Only .csv or .xlsx files can be dropped in directly.")]); return; }
-    if (skipped) setNotices((p) => [...p, `${skipped} other file(s) skipped.`]);
+    if (!files.length) { setNotices((p) => [...p, errorNotice(tr("Only .csv or .xlsx files can be dropped in directly."))]); return; }
+    if (skipped) setNotices((p) => [...p, notice("{skipped} other file(s) skipped.", { skipped })]);
     files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
   };
 
   const runMethod = (methodKey, altSetup = null) => {
     const method = GEOCHEM_METHODS[methodKey];
     const missing = method.requires.filter((s) => !availableSymbols.has(s));
-    if (missing.length) { setNotices((p) => [...p, errorNotice(`${method.label}: missing ${missing.join(", ")}.`)]); return; }
+    if (missing.length) { setNotices((p) => [...p, errorNotice(tr("{label}: missing {missing}.", { label: method.label, missing: missing.join(", ") }))]); return; }
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
@@ -620,7 +621,7 @@ export default function GeochemModule() {
     }).filter(Boolean);
     replaceLayer(targetKey, rows);
     const detail = altSetup ? ` ${Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ")}.${noProtolith ? ` ${noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).` : ""}${JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? " Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001)." : " Box limits: your edited values."} Screening level: protolith assumed.` : "";
-    setNotices((p) => [...p, `Generated ${rows.length} intervals → ${method.target === "litho" ? "Lithology (geochem)" : "Alteration (geochem)"} layer.${detail} Switch to 3D View to see it.`]);
+    setNotices((p) => [...p, notice("Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.", { rows: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail })]);
   };
 
   // ---------- exports ----------
@@ -756,7 +757,7 @@ export default function GeochemModule() {
                       const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr);
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
-                      setNotices((p) => [...p, `Added calculated element ${r.element.symbol} = ${r.element.calculated.expr} on ${r.computed.toLocaleString()} assay interval(s) (range ${r.min.toFixed(2)}–${r.max.toFixed(2)})${r.skipped ? `; ${r.skipped.toLocaleString()} interval(s) missing an element in the formula have no value` : ""}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.`]);
+                      setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} interval(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
                       setCalc(null);
                     } catch (err) { setCalc((c) => ({ ...c, msg: { ok: false, text: err.message } })); }
                   }}>Add</button>
@@ -1020,7 +1021,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     if (!confirmDestructive(`Remove ${label} (${f.intervals.toLocaleString()} interval(s))?`, { undoable: true })) return;
     const r = removeAssayFile(assays, f.file);
     setAssays(r.assays); dropUnusedElements(r.assays);
-    setNotices((p) => [...p, `Removed ${r.removed.toLocaleString()} assay interval(s) from ${label}.${r.keptShared ? ` ${r.keptShared.toLocaleString()} interval(s) also came from another file and were kept (their values can't be separated by file).` : ""} Ctrl+Z to undo.`]);
+    setNotices((p) => [...p, notice("Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.", { removed: r.removed.toLocaleString(), label, v: r.keptShared ? tr(" {keptShared} interval(s) also came from another file and were kept (their values can't be separated by file).", { keptShared: r.keptShared.toLocaleString() }) : "" })]);
   };
   const removeElement = (sym) => {
     if (!confirmDestructive(`Remove ${sym} from every assay interval?`, { undoable: true })) return;
@@ -1028,12 +1029,12 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     setAssays(r.assays);
     setAssayElements((prev) => prev.filter((e) => e.symbol !== sym));
     if (colorElement === sym) setColorElement(null);
-    setNotices((p) => [...p, `Removed ${sym} from ${r.cleared.toLocaleString()} interval(s)${r.emptied ? `; ${r.emptied.toLocaleString()} interval(s) had no other element and were removed` : ""}. Ctrl+Z to undo.`]);
+    setNotices((p) => [...p, notice("Removed {sym} from {cleared} interval(s){v}. Ctrl+Z to undo.", { sym, cleared: r.cleared.toLocaleString(), v: r.emptied ? tr("; {emptied} interval(s) had no other element and were removed", { emptied: r.emptied.toLocaleString() }) : "" })]);
   };
   const removeAll = () => {
     if (!confirmDestructive(`Remove all ${assays.length.toLocaleString()} assay intervals and ${assayElements.length} element(s)?`, { undoable: true })) return;
     setAssays([]); setAssayElements([]); setColorElement(null);
-    setNotices((p) => [...p, "Removed all assays. Ctrl+Z to undo."]);
+    setNotices((p) => [...p, notice("Removed all assays. Ctrl+Z to undo.")]);
   };
   return (
     <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>

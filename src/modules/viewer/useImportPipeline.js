@@ -6,7 +6,7 @@
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
 import { useRef, useState, useCallback } from "react";
-import { errorNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
+import { errorNotice, notice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
@@ -21,6 +21,7 @@ import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, strikeStats, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
+import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 
 export function useImportPipeline(ctx) {
   const {
@@ -59,7 +60,7 @@ export function useImportPipeline(ctx) {
       const d = Number(declared);
       live.setEpsg(d);
       importStateRef.current = { ...live, project: { ...live.project, epsg: d, crsSet: true }, projectIsEmpty: false };
-      setNotices((p) => [...p, `Project CRS set to ${crsName(d)} (EPSG:${d}), the CRS ${fileName} declares.`]);
+      setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{d}), the CRS {fileName} declares.", { v: crsName(d), d, fileName })]);
       return d;
     }
     const d = askAdoptCrs({ isEmpty: live.projectIsEmpty, currentEpsg: live.project?.epsg, declaredEpsg: declared, fileName });
@@ -67,7 +68,7 @@ export function useImportPipeline(ctx) {
     live.setEpsg(d);
     // the rest of this import (and of a queued drop, until the next render refreshes the ref) sees it now
     importStateRef.current = { ...live, project: { ...live.project, epsg: d }, projectIsEmpty: false };
-    setNotices((p) => [...p, `Project CRS set to ${crsName(d)} (EPSG:${d}) from ${fileName}.`]);
+    setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{d}) from {fileName}.", { v: crsName(d), d, fileName })]);
     return d;
   };
 
@@ -76,9 +77,9 @@ export function useImportPipeline(ctx) {
     const live = importStateRef.current;
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
     const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
-    if (!layer) { setNotices((p) => [...p, `${file.name}: no usable line / polygon features.`]); return; }
+    if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
     live.addMapLayer({ ...layer, drapeMode: live.terrain ? "terrain" : "flat" });
-    setNotices((p) => [...p, `${file.name}: ${layer.features.length} ${layer.geomType}${layer.features.length === 1 ? "" : "s"} added to Map layers (left panel; remove or hide it there), ${layer.crsNote}${live.terrain ? ", draped on the terrain" : ""}. Lines and polygons are map data, not drillhole tables.`]);
+    setNotices((p) => [...p, notice("{name}: {features} {geomType}{v} added to Map layers (left panel; remove or hide it there), {crsNote}{v2}. Lines and polygons are map data, not drillhole tables.", { name: file.name, features: layer.features.length, geomType: layer.geomType, v: layer.features.length === 1 ? "" : "s", crsNote: layer.crsNote, v2: live.terrain ? tr(", draped on the terrain") : "" })]);
   };
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
 
@@ -87,11 +88,11 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #288 — a multi-layer .zip/.gpkg reports its layers instead of importing the first
       // one; put the picker up and come back through this same function with the chosen layer name.
       if (meta?.layerOptions) { setLayerPicker({ file, forceTarget, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); return; }
+      if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); return; }
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && looksLikeAssay(headers)) {
-        setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
+        setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
         return;
       }
       const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
@@ -123,7 +124,7 @@ export function useImportPipeline(ctx) {
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
         addRaster(raster);
-        setNotices((p) => [...p, `${msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.`]);
+        setNotices((p) => [...p, notice("{msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg })]);
       } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
       return;
     }
@@ -134,10 +135,10 @@ export function useImportPipeline(ctx) {
         const specs = dxfToBoundaries(await file.text(), file.name.replace(/\.dxf$/i, ""));
         specs.forEach((sp) => addBoundary({ ...sp, elevation: defaultElevation }));
         const n3d = specs.filter((sp) => sp.useVertexZ).length;
-        setNotices((p) => [...p, `Imported "${file.name}" as ${specs.length} boundary layer(s) (${specs.reduce((t, sp) => t + sp.polylines.length, 0)} string(s))${n3d ? `, ${n3d} with real 3D elevations` : ""} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.${specs[0]?.dxfZerosDropped ? " Every string had elevation 0, so the file was read as a 2D plan (no elevation)." : ""}${dxfSkippedText(specs[0]?.dxfSkipped) ? ` ${dxfSkippedText(specs[0].dxfSkipped)[0].toUpperCase()}${dxfSkippedText(specs[0].dxfSkipped).slice(1)}.` : ""}`]); // #550
+        setNotices((p) => [...p, notice("Imported \"{name}\" as {specs} boundary layer(s) ({v} string(s)){v2} — edit or remove them under Geophysics → Boundaries. DXF coordinates are assumed to already be in the project's EPSG.{v3}{v4}", { name: file.name, specs: specs.length, v: specs.reduce((t, sp) => t + sp.polylines.length, 0), v2: n3d ? tr(", {n3d} with real 3D elevations", { n3d }) : "", v3: specs[0]?.dxfZerosDropped ? tr(" Every string had elevation 0, so the file was read as a 2D plan (no elevation).") : "", v4: dxfSkippedText(specs[0]?.dxfSkipped) ? ` ${dxfSkippedText(specs[0].dxfSkipped)[0].toUpperCase()}${dxfSkippedText(specs[0].dxfSkipped).slice(1)}.` : "" })]); // #550
       } catch (err) {
         if (err.facesOnly) { importSolidFile(file); return; } // #408 — 3DFACE / polyface only: import as a solid
-        setNotices((p) => [...p, errorNotice(`${file.name}: couldn't read DXF (${err.message}).`)]);
+        setNotices((p) => [...p, errorNotice(tr("{name}: couldn't read DXF ({message}).", { name: file.name, message: err.message }))]);
       }
       return;
     }
@@ -147,7 +148,7 @@ export function useImportPipeline(ctx) {
   // same pipeline as CSV import, just fed from a database query result instead of a parsed file
   const openImportFromRows = ({ headers, rows, sourceName }) => {
     if (!rows.length) return;
-    if (looksLikeAssay(headers)) { setNotices((p) => [...p, `${sourceName} looks like assay data — import it from the Geochem module instead.`]); return; }
+    if (looksLikeAssay(headers)) { setNotices((p) => [...p, notice("{sourceName} looks like assay data — import it from the Geochem module instead.", { sourceName })]); return; }
     const target = guessTargetFor(headers, sourceName); // #605
     const mapping = guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
@@ -210,13 +211,13 @@ export function useImportPipeline(ctx) {
       return { rows: out, note };
     }
     if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
-      setNotices((p) => [...p, `${fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.`]);
+      setNotices((p) => [...p, notice("{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.", { fileName })]);
       return false;
     }
     const liveCollarAt = (() => { const m = new Map((importStateRef.current.collars || []).map((c) => [c.hole_id, c])); return (r) => m.get(r.hole_id) || null; })();
     const schema = TARGET_SCHEMAS[target];
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
-    if (missing.length) { setNotices((p) => [...p, `${fileName}: map required field(s) — ${missing.map((f) => f.label).join(", ")}`]); return false; }
+    if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
     // TASKS.csv #548 — alpha/beta picks were oriented from the survey present at THEIR import; a new survey or
     // collar for those holes re-derives them (logged dip / dip direction and calculator results are left alone).
@@ -233,7 +234,7 @@ export function useImportPipeline(ctx) {
       if (res.changed) setLayers((p) => ({ ...p, structure: reorientAlphaBetaPicks(p.structure, (h) => cm.get(h) || null, byHole, holeIds, surveyAzimuthDipAt).rows }));
       const moved = res.changed - res.newlyOriented, src = newSurvey ? "survey" : "collars";
       const said = [res.newlyOriented ? `oriented ${res.newlyOriented} alpha/beta structure pick(s) that had no hole direction until this ${src}` : "", moved ? `re-oriented ${moved} alpha/beta pick(s) from the new ${src} (largest change ${res.maxChangeDeg.toFixed(1)}°)` : ""].filter(Boolean).join("; ");
-      if (said || res.failed.length) setNotices((p) => [...p, `${srcName}: ${said || "no alpha/beta pick changed"}${res.failed.length ? `; ${res.failed.length} still could not be oriented (kept as they were): ${res.failed.slice(0, 4).join("; ")}${res.failed.length > 4 ? "; …" : ""}` : ""}.`]);
+      if (said || res.failed.length) setNotices((p) => [...p, `${srcName}: ${said || tr("no alpha/beta pick changed")}${res.failed.length ? tr("; {failed} still could not be oriented (kept as they were): {v}{v2}", { failed: res.failed.length, v: res.failed.slice(0, 4).join("; "), v2: res.failed.length > 4 ? "; …" : "" }) : ""}.`]);
     };
 
     if (target === "collars") {
@@ -252,7 +253,7 @@ export function useImportPipeline(ctx) {
       // instead of the old behaviour of keeping it at z = 0.
       const noCoords = rows.filter((r) => r.hole_id && !(Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z))).map((r) => r.hole_id);
       rows = rows.filter((r) => r.hole_id && Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z));
-      if (noCoords.length) setNotices((p) => [...p, `${fileName}: ${noCoords.length} collar(s) skipped — missing or non-numeric X, Y or Z (${noCoords.slice(0, 8).join(", ")}${noCoords.length > 8 ? ", …" : ""}). Fix them in the file and re-import.`]);
+      if (noCoords.length) setNotices((p) => [...p, notice("{fileName}: {noCoords} collar(s) skipped — missing or non-numeric X, Y or Z ({v}{v2}). Fix them in the file and re-import.", { fileName, noCoords: noCoords.length, v: noCoords.slice(0, 8).join(", "), v2: noCoords.length > 8 ? ", …" : "" })]);
       // TASKS.csv #120 — on-the-fly reprojection for general vector layers. Collars are the primary
       // absolute-world-coordinate import in this app (every other layer is hole-relative and inherits
       // its position by desurveying against a collar+survey trace), so reprojecting here is what
@@ -357,7 +358,7 @@ export function useImportPipeline(ctx) {
       if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
       if (ranked.dropped) parts.push(`${ranked.holes.length} hole(s) had several location records (${ranked.dropped} extra rows) — kept the lowest "${ranked.rankColumn}" for each: ${ranked.holes.slice(0, 5).join(", ")}${ranked.holes.length > 5 ? ", …" : ""}`);
       if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
-      setNotices((p) => [...p, `Loaded ${new Set(rows.map((r) => r.hole_id)).size} collars from ${fileName}${parts.length ? ` — ${parts.join("; ")}` : ""}.${reprojectNote}${azc.note}`]);
+      setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
       const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
       // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
@@ -371,9 +372,9 @@ export function useImportPipeline(ctx) {
       const replaced = replaceRowsByHole(importStateRef.current.survey, rows, keep); // for the notice only (#582: replaced / appended)
       setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
       reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep).rows, null, fileName); // #548
-      setNotices((p) => [...p, `Loaded ${rows.length} survey stations from ${fileName}.`
+      setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName })
         + replaceNote(replaced, "survey")
-        + (bad.length ? ` Skipped ${bad.length} station(s) with a missing or non-numeric azimuth/dip (${[...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ")}).` : "")
+        + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
         + azs.note]);
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
@@ -400,23 +401,23 @@ export function useImportPipeline(ctx) {
       }
       const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
       const azst = { rows: [...azst0.rows, ...structRows.filter((r) => r._abGrid).map(({ _abGrid, ...r }) => r)], note: azst0.note };
-      if (abDone || abFailed.length) setNotices((p) => [...p, `${fileName}: ${abDone} pick(s) oriented from alpha/beta using each hole's survey, beta measured clockwise from the ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line looking down-hole${unseen ? " (assumed: the file was imported without the dialog; import it through Import CSV to choose the top-of-hole line)" : ""}.${abFailed.length ? ` ${abFailed.length} could not be oriented and are shown as unoriented: ${abFailed.slice(0, 5).join("; ")}${abFailed.length > 5 ? "; …" : ""}.` : ""}`]);
+      if (abDone || abFailed.length) setNotices((p) => [...p, notice("{fileName}: {abDone} pick(s) oriented from alpha/beta using each hole's survey, beta measured clockwise from the {v}-of-hole line looking down-hole{v2}.{v3}", { fileName, abDone, v: betaRefLine === "top" ? tr("top") : tr("bottom"), v2: unseen ? tr(" (assumed: the file was imported without the dialog; import it through Import CSV to choose the top-of-hole line)") : "", v3: abFailed.length ? tr(" {abFailed} could not be oriented and are shown as unoriented: {v}{v2}.", { abFailed: abFailed.length, v: abFailed.slice(0, 5).join("; "), v2: abFailed.length > 5 ? "; …" : "" }) : "" })]);
       const rows = azst.rows;
       if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
       const negDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && d < 0; }).length : 0; // #719
       const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (d < 0 || d > 90); }).length : 0;
-      if (badDip) setNotices((p) => [...p, `${fileName}: ${badDip} structure dip(s) outside 0-90° were set to unknown${negDip ? ` (${negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as "down")` : ""}.`]);
+      if (badDip) setNotices((p) => [...p, notice("{fileName}: {badDip} structure dip(s) outside 0-90° were set to unknown{v}.", { fileName, badDip, v: negDip ? tr(" ({negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as \"down\")", { negDip }) : "" })]);
       { // TASKS.csv #584 — say what the strike column did
         const ss = strikeStats(allRows, mapping);
-        if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? ` ${ss.derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).` : ""}${ss.mismatches ? ` ${ss.mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.` : ""}`]);
+        if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? tr(" {derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).", { derived: ss.derived }) : ""}${ss.mismatches ? tr(" {mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.", { mismatches: ss.mismatches }) : ""}`]);
       }
       const keep = batchRowsRef.current;
       const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows, keep);
       setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep).rows })); // TASKS.csv #336
       if (replaced.replacedHoles.length || replaced.appendedHoles.length) setNotices((p) => [...p, `${fileName}:${replaceNote(replaced, "structure picks")}`]); // #582
       setLayerVisible((p) => ({ ...p, structure: true }));
-      setNotices((p) => [...p, `Loaded ${rows.length} structure points from ${fileName}.`]);
+      setNotices((p) => [...p, notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName })]);
     } else if (target === "custom") {
       const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),
@@ -429,7 +430,7 @@ export function useImportPipeline(ctx) {
       sceneRef.current.getObjectByName("root").add(group);
       setCustomLayers((p) => [...p, { id, name: fileName.replace(/\.csv$/i, ""), rows, group }]);
       setCustomVisible((p) => ({ ...p, [id]: true }));
-      setNotices((p) => [...p, `Added "${fileName}" as a custom layer (${rows.length} rows).`]);
+      setNotices((p) => [...p, notice("Added \"{fileName}\" as a custom layer ({rows} rows).", { fileName, rows: rows.length })]);
     } else {
       // _src (source filename) is stamped on every row here — TASKS.csv #63: lets the layer inspector
       // (LayerInspector.jsx) break a layer down by which import it came from, since it's common to
@@ -450,7 +451,7 @@ export function useImportPipeline(ctx) {
         const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`);
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
-      setNotices((p) => [...p, `Loaded ${rows.length} rows into ${LAYER_META[target].label} from ${fileName}.`
+      setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
         + replaceNote(replaced, "rows")]);
     }
     return true;
@@ -490,16 +491,16 @@ export function useImportPipeline(ctx) {
       let grid = null;
       if (gridOn) {
         try { grid = fitSimilarity(parseControlPoints(importModal.localGridText)); }
-        catch (e) { setNotices((p) => [...p, errorNotice(`${importModal.fileName}: local grid — ${e.message} Nothing was imported.`)]); return; } // #739
+        catch (e) { setNotices((p) => [...p, errorNotice(tr("{fileName}: local grid — {message} Nothing was imported.", { fileName: importModal.fileName, message: e.message }))]); return; } // #739
         if (importModal.sourceEpsg && Number(importModal.sourceEpsg) !== Number(project?.epsg)) {
-          setNotices((p) => [...p, `${importModal.fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:${importModal.sourceEpsg}). Nothing was imported.`]);
+          setNotices((p) => [...p, notice("{fileName}: a local-grid transform gives project coordinates directly — clear Source CRS (it is set to EPSG:{sourceEpsg}). Nothing was imported.", { fileName: importModal.fileName, sourceEpsg: importModal.sourceEpsg })]);
           return;
         }
       }
       const zShift = importModal.target === "collars" ? Number(importModal.zShift) || 0 : 0;
       const t = transformImportRows(importModal.allRows, importModal.mapping, { units, grid, zShift });
       modalData = { ...importModal, allRows: t.rows };
-      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? " and elevations" : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? ` ${t.moved} collar(s) moved from the local grid to EPSG:${project?.epsg} (scale ${grid.scale.toFixed(6)}, rotation ${grid.rotationDeg.toFixed(3)}°, RMS ${grid.rmsM.toFixed(2)} m over ${grid.n} control points)${t.turned ? `; ${t.turned} azimuth(s) turned with the grid (${(-grid.rotationDeg).toFixed(3)}°)` : ""}.` : ""}${zShift ? ` Elevations shifted by ${zShift} m.` : ""}`]);
+      setNotices((p) => [...p, `${importModal.fileName}:${units === "ft" ? " depths/lengths" + (importModal.mapping.z ? tr(" and elevations") : "") + " converted from feet to metres (x 0.3048)." : ""}${grid ? tr(" {moved} collar(s) moved from the local grid to EPSG:{v} (scale {scale}, rotation {rotationDeg}°, RMS {rmsM} m over {n} control points){v2}.", { moved: t.moved, v: project?.epsg, scale: grid.scale.toFixed(6), rotationDeg: grid.rotationDeg.toFixed(3), rmsM: grid.rmsM.toFixed(2), n: grid.n, v2: t.turned ? tr("; {turned} azimuth(s) turned with the grid ({v}°)", { turned: t.turned, v: (-grid.rotationDeg).toFixed(3) }) : "" }) : ""}${zShift ? tr(" Elevations shifted by {zShift} m.", { zShift }) : ""}`]);
     }
     commitImportData(modalData);
     setImportModal(null);
@@ -535,12 +536,12 @@ export function useImportPipeline(ctx) {
       // commitImport/cancel -> processImportQueue), so the queue can't advance past an unanswered
       // question or double-import the same file.
       if (meta?.layerOptions) { setLayerPicker({ file, options: meta.layerOptions }); return; }
-      if (err || !data || !data.length) { setNotices((p) => [...p, `${file.name}: couldn't read ${err ? "file (" + err + ")" : "— no rows found"}.`]); processImportQueue(); return; }
+      if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); processImportQueue(); return; }
       if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers)) {
-        setNotices((p) => [...p, `${file.name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).`]);
+        setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
         processImportQueue();
         return;
       }
@@ -588,11 +589,11 @@ export function useImportPipeline(ctx) {
     if (advised.length) setNotices((p) => [...p, ...advised]);
     const skipped = grouped.files.length - files.length - direct.length - advised.length + grouped.unmatched.length;
     if (!files.length) {
-      if (!direct.length && !advised.length) setNotices((p) => [...p, "Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly."]);
-      else if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
+      if (!direct.length && !advised.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
+      else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
       return;
     }
-    if (skipped) setNotices((p) => [...p, `${skipped} unrecognized file(s) skipped.`]);
+    if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);
     // TASKS.csv #605 — an Excel workbook becomes one CSV per non-empty sheet ("Book - Sheet.csv"), queued like
     // dropped CSVs: same detection (the sheet name is the hint), same dialogs.
     if (files.some((f) => isXlsxName(f.name))) {
@@ -602,9 +603,9 @@ export function useImportPipeline(ctx) {
         try {
           const { xlsxToCsvFiles } = await import("../../lib/xlsx.js"); // #552
           const sheets = await xlsxToCsvFiles(new Uint8Array(await f.arrayBuffer()), f.name);
-          setNotices((p) => [...p, `${f.name}: ${sheets.length} sheet(s) with data — ${sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ")}. Each is imported like a CSV.`]);
+          setNotices((p) => [...p, notice("{name}: {sheets} sheet(s) with data — {v}. Each is imported like a CSV.", { name: f.name, sheets: sheets.length, v: sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ") })]);
           sheets.forEach((s) => expanded.push(new File([s.text], s.name, { type: "text/csv" })));
-        } catch (err) { setNotices((p) => [...p, errorNotice(`${f.name}: could not read the workbook (${err.message}).`)]); }
+        } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: could not read the workbook ({message}).", { name: f.name, message: err.message }))]); }
       }
       files = expanded;
       if (!files.length) return;
@@ -612,10 +613,10 @@ export function useImportPipeline(ctx) {
     if (files.length === 1) { openImportModal(files[0]); return; }
     // TASKS.csv #229 — ignore a second drop-queue start while one is still draining (see
     // importActiveRef's own comment above processImportQueue) instead of stomping the in-flight queue.
-    if (importActiveRef.current) { setNotices((p) => [...p, "Already importing a previous drop — please wait for it to finish before dropping more files."]); return; }
+    if (importActiveRef.current) { setNotices((p) => [...p, notice("Already importing a previous drop — please wait for it to finish before dropping more files.")]); return; }
     importActiveRef.current = true;
     batchRowsRef.current = new WeakSet(); // #605
-    setNotices((p) => [...p, `Importing ${files.length} files — auto-detecting each one, will ask when unsure…`]);
+    setNotices((p) => [...p, notice("Importing {files} files — auto-detecting each one, will ask when unsure…", { files: files.length })]);
     importQueueTotalRef.current = files.length;
     importQueueRef.current = await orderImportFiles(files); // #600: collars, then surveys, then the rest
     processImportQueue();
@@ -660,11 +661,11 @@ export function useImportPipeline(ctx) {
       if (live.project?.crsSet === false && live.setEpsg) {
         live.setEpsg(S.epsg);
         importStateRef.current = { ...live, project: { ...live.project, epsg: S.epsg, crsSet: true } };
-        setNotices((p) => [...p, `Project CRS set to ${S.crs} (EPSG:${S.epsg}), the sample project's coordinate system.`]);
+        setNotices((p) => [...p, notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: S.crs, epsg: S.epsg })]);
       } else if (live.project?.epsg && Number(live.project.epsg) !== S.epsg) {
-        setNotices((p) => [...p, `The sample project's coordinates are EPSG:${S.epsg} (${S.crs}), but this project is EPSG:${live.project.epsg}: the holes will not line up with anything else in it. Load the sample into a new project.`]);
+        setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: S.epsg, crs: S.crs, epsg2: live.project.epsg })]);
       }
-      setNotices((p) => [...p, S.notice]);
+      setNotices((p) => [...p, notice(S.notice)]); // #786 — the two SAMPLES notices are in the dictionaries
       importActiveRef.current = true;
       batchRowsRef.current = new WeakSet(); // #605
       importQueueTotalRef.current = files.length;
@@ -672,7 +673,7 @@ export function useImportPipeline(ctx) {
       processImportQueue();
       return true;
     } catch (err) {
-      setNotices((p) => [...p, errorNotice(`Couldn't load the sample project: ${err.message}`)]);
+      setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: err.message }))]);
       return false;
     } finally {
       setSampleLoading(false);
