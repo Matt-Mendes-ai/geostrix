@@ -41,6 +41,15 @@ header.site .lang a[aria-current="true"] { color: #fff; background: rgba(255, 25
 /* hero */
 .hero { background: linear-gradient(180deg, var(--slate-deep), var(--slate)); color: #fff; padding: 64px 0 72px; }
 .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
+/* download-count badge above the headline: its space is reserved so the hero doesn't jump when the count arrives,
+   and it stays invisible (but keeps its height) if GitHub can't be reached */
+.hero .dl-badge { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 6px 14px 6px 10px; border-radius: 999px;
+  background: rgba(232, 144, 26, 0.14); border: 1px solid rgba(232, 144, 26, 0.45); color: #fff; font-size: 15px; font-weight: 600;
+  text-decoration: none; line-height: 22px; min-height: 36px; box-sizing: border-box; visibility: hidden; opacity: 0; transition: opacity 0.3s; }
+.hero .dl-badge.ready { visibility: visible; opacity: 1; }
+.hero .dl-badge:hover { background: rgba(232, 144, 26, 0.24); }
+.hero .dl-badge svg { flex: none; color: var(--orange); }
+@media (prefers-reduced-motion: reduce) { .hero .dl-badge { transition: none; } }
 .hero h1 { font-size: 44px; line-height: 1.15; margin: 0 0 16px; }
 .hero h1 span { color: var(--orange); }
 .hero p.lead { font-size: 19px; color: #d7dee5; margin: 0 0 28px; }
