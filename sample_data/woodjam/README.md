@@ -27,7 +27,7 @@ UTM zone 10 and is reprojected by GeoStrix when the lines are placed.
 | `geotech.csv` | F — *Geotechnical Data.csv* | RQD % |
 | `magsusc.csv` | F — *Magnetic Susceptibility.csv* | Average of the three readings (SI × 10⁻³) |
 | `sg.csv` | F — *Specific Gravity.csv* | Measured bulk density |
-| `structure.csv` | F — *Downhole Structure Event Log.csv* | Structure type with alpha / beta (oriented core); GeoStrix orients them using the hole's survey |
+| `structure.csv` | F — *Downhole Structure Event Log.csv* | Structure type with alpha / beta (oriented core); GeoStrix orients them using the hole's survey, with beta measured clockwise from the **bottom-of-hole** line looking down-hole (the Reflex convention). The report does not state the line, so this is an assumption; using the top-of-hole line instead moves the poles by 58° on average |
 | `assays.csv` | F — *Samples.csv* | 3,791 samples, ALS four-acid ICP-MS (Al, Ca, Fe, K, Mg, Na, S, Ti in %; the rest ppm) and Au (g/t = ppm). Cu above the 10,000 ppm upper limit uses the Cu-OG62 ore-grade result (33 samples). The source's derived "_plot_" columns and lab status / certificate columns are left out |
 | `ip/*.dat`, `ip/2357GPS_All.txt` | E — IP Survey 2023, *DataFiles* | Six pole-dipole TDIP lines (109N, 112N, 115N, 118N, 6200E, 6400E; Scott Geophysics) and the GPS station list used to place them |
 | `ztem_inversion_2023.omf` | C — ZTEM Survey Data, *2023 ZTEM Inversion / 20230814 / Woodjam_ZTEM_mesh.omf* | The 2023 3D ZTEM inversion as delivered: two iterations (m_03_01, m_05_03); the sample shows **m_05_03, the final model** |

@@ -164,7 +164,7 @@ export function useImportPipeline(ctx) {
   // a later file of the SAME drop adds to them instead of replacing them by hole (replaceRowsByHole keepRows).
   const batchRowsRef = useRef(null);
   const keepBatch = (rows) => { if (batchRowsRef.current) rows.forEach((r) => batchRowsRef.current.add(r)); return rows; };
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false }) => {
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
@@ -400,7 +400,7 @@ export function useImportPipeline(ctx) {
       }
       const azst0 = applyAzimuthRef(structRows.filter((r) => !r._abGrid), liveCollarAt); // #396
       const azst = { rows: [...azst0.rows, ...structRows.filter((r) => r._abGrid).map(({ _abGrid, ...r }) => r)], note: azst0.note };
-      if (abDone || abFailed.length) setNotices((p) => [...p, `${fileName}: ${abDone} pick(s) oriented from alpha/beta using each hole's survey.${abFailed.length ? ` ${abFailed.length} could not be oriented and are shown as unoriented: ${abFailed.slice(0, 5).join("; ")}${abFailed.length > 5 ? "; …" : ""}.` : ""}`]);
+      if (abDone || abFailed.length) setNotices((p) => [...p, `${fileName}: ${abDone} pick(s) oriented from alpha/beta using each hole's survey, beta measured clockwise from the ${betaRefLine === "top" ? "top" : "bottom"}-of-hole line looking down-hole${unseen ? " (assumed: the file was imported without the dialog; import it through Import CSV to choose the top-of-hole line)" : ""}.${abFailed.length ? ` ${abFailed.length} could not be oriented and are shown as unoriented: ${abFailed.slice(0, 5).join("; ")}${abFailed.length > 5 ? "; …" : ""}.` : ""}`]);
       const rows = azst.rows;
       if (azst.note) setNotices((p) => [...p, `${fileName}:${azst.note}`]);
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
@@ -562,7 +562,7 @@ export function useImportPipeline(ctx) {
       const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
         sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
       if (confident) {
-        askCrsForCollars(modalData).then(() => { commitImportData(modalData); processImportQueue(); }); // #615
+        askCrsForCollars(modalData).then(() => { commitImportData({ ...modalData, unseen: true }); processImportQueue(); }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
       } else {
         const remaining = importQueueRef.current.length;
         setImportModal({ ...modalData, fileName: remaining ? `${file.name} (${remaining} more queued)` : file.name });
