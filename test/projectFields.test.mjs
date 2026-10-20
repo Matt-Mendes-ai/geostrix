@@ -154,6 +154,42 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
   assert.equal(payloadFromFields(emptyFields()).version, PROJECT_VERSION);
 });
 
+// TASKS.csv #742 — the fingerprint above pins field keys, not encodings: a change INSIDE compactTable / compactLayers /
+// compactIntervalLayers / compactVoxelModels / compactSurfaces (or a field's load) would not force the bump. A golden
+// project, big enough to trip every encoder (2,000+ assays, interval and point rows, a 2,000+ vertex mesh, a voxel
+// model), is saved and re-loaded and both JSON texts hashed, pinned per PROJECT_VERSION. If this fails and the change
+// is deliberate: bump PROJECT_VERSION and add the new hashes. Never edit an existing entry.
+function goldenLive() {
+  const live = sampleLive();
+  const n = 2400;
+  live.assays = Array.from({ length: n }, (_, i) => ({ hole_id: `H${i % 7}`, from: i * 1.5, to: i * 1.5 + 1.5, values: { Cu: (i % 97) / 10, Au: i % 5 ? (i % 13) / 100 : null }, sample_id: `S${10000 + i}` }));
+  live.layers = { ...EMPTY_LAYERS, litho: Array.from({ length: n }, (_, i) => ({ hole_id: `H${i % 7}`, from: i * 2, to: i * 2 + 2, value: ["AND", "BAS", "TUF"][i % 3] })),
+    geophys_pts: Array.from({ length: n }, (_, i) => ({ x: 500000 + i * 12.5, y: 6200000 + (i % 40) * 25, z: 900 + (i % 11), value: 0.001 * (i % 300), survey: "mag" })) };
+  const side = 50, vertices = [], indices = [];
+  for (let j = 0; j < side; j++) for (let i = 0; i < side; i++) vertices.push(500000 + i * 10, 6200000 + j * 10, 1000 + ((i * j) % 17) * 0.5);
+  for (let j = 0; j < side - 1; j++) for (let i = 0; i < side - 1; i++) { const k = j * side + i; indices.push(k, k + 1, k + side, k + 1, k + side + 1, k + side); }
+  live.generatedSurfaces = [{ id: "s1", name: "Contact", vertices, indices }];
+  live.voxelModels = [{ id: "v1", name: "inv", source: "simpeg", cells: Array.from({ length: 300 }, (_, i) => ({ x: 500000 + (i % 10) * 25, y: 6200000 + Math.floor(i / 10) * 25, z: 1000, dx: 25, dy: 25, dz: 12.5, value: 0.01 * (i % 37), support: i % 2 })) }];
+  return live;
+}
+
+test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJECT_VERSION", async () => {
+  const { createHash } = await import("node:crypto");
+  const sha = (t) => createHash("sha256").update(t).digest("hex").slice(0, 16);
+  const saved = JSON.stringify(payloadFromFields(goldenLive()));
+  const loaded = JSON.stringify(fieldsFromPayload(JSON.parse(saved), "golden.geostrix.json"));
+  const PINNED = {
+    13: { saved: "1d09b3a8fd93ceac", loaded: "07a3d6420fc738e5" },
+  };
+  const p = JSON.parse(saved); // every encoder must actually have run, or the pin guards nothing
+  assert.ok(p.assays?.__compactTable, "assays not compacted - make the golden project bigger");
+  assert.ok(p.layers?.litho?.__compactTable, "interval layer not compacted");
+  assert.ok(p.layers?.geophys_pts?.__compactRows, "point survey not compacted");
+  assert.ok(p.generatedSurfaces?.[0]?.compactMesh, "mesh not compacted");
+  assert.ok(p.voxelModels?.[0]?.compactCells, "voxel model not compacted");
+  assert.deepEqual({ saved: sha(saved), loaded: sha(loaded) }, PINNED[PROJECT_VERSION], "the project file's encoding changed: bump PROJECT_VERSION and pin the new hashes");
+});
+
 // TASKS.csv #660 — estimated / geoML / imported voxel models are written as columns too, and come back the same
 test("#660 every voxel model is compacted and round-trips (numbers and text support classes)", async () => {
   const { compactVoxelModels, expandVoxelModels } = await import("../src/lib/projectFields.js");
