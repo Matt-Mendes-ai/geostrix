@@ -1,5 +1,14 @@
 // geostrix.com — point the download buttons at the newest installer on GitHub Releases (TASKS.csv #597).
 // Without JavaScript, or if GitHub's API can't be reached, the buttons keep their fallback: the latest-release page.
+// The page's language (<html lang>) picks the wording: en, es or pt-BR.
+const LANG = document.documentElement.lang || "en";
+const TEXT = {
+  en: { version: (v, mb) => `Version ${v} · Windows 10 / 11 (64-bit) · ${mb} MB`, downloads: (n) => `Downloaded ${n} times from GitHub (all versions, including updates).` },
+  es: { version: (v, mb) => `Versión ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Descargado ${n} veces desde GitHub (todas las versiones, incluidas las actualizaciones).` },
+  pt: { version: (v, mb) => `Versão ${v} · Windows 10 / 11 (64 bits) · ${mb} MB`, downloads: (n) => `Baixado ${n} vezes do GitHub (todas as versões, incluindo atualizações).` },
+};
+const T = TEXT[LANG.slice(0, 2)] || TEXT.en;
+
 (async () => {
   try {
     const r = await fetch("https://api.github.com/repos/Matt-Mendes-ai/geostrix/releases/latest", { headers: { Accept: "application/vnd.github+json" } });
@@ -10,7 +19,7 @@
     const mb = Math.round(exe.size / 1e6);
     document.querySelectorAll("[data-download]").forEach((a) => { a.href = exe.browser_download_url; });
     document.querySelectorAll("[data-version]").forEach((el) => {
-      el.textContent = `Version ${rel.tag_name.replace(/^v/, "")} · Windows 10 / 11 (64-bit) · ${mb} MB`;
+      el.textContent = T.version(rel.tag_name.replace(/^v/, ""), mb);
     });
   } catch { /* keep the fallback link */ }
 })();
@@ -35,7 +44,7 @@
       if (releases.length < 100) break;
     }
     if (!total) return;
-    el.textContent = `Downloaded ${total.toLocaleString("en-CA")} times from GitHub (all versions, including updates).`;
+    el.textContent = T.downloads(total.toLocaleString(LANG === "en" ? "en-CA" : LANG));
     el.hidden = false;
   } catch { /* leave the count hidden */ }
 })();

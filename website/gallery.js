@@ -5,6 +5,13 @@
 // arrow keys work too.
 (() => {
   const DELAY = 5000;
+  // the page's language (<html lang>) picks the button text: en, es or pt-BR
+  const TEXT = {
+    en: { pic: (i, n) => `Picture ${i} of ${n}`, play: "Play", pause: "Pause", playL: "Play the slideshow", pauseL: "Pause the slideshow" },
+    es: { pic: (i, n) => `Imagen ${i} de ${n}`, play: "Reproducir", pause: "Pausa", playL: "Reproducir la presentación", pauseL: "Pausar la presentación" },
+    pt: { pic: (i, n) => `Imagem ${i} de ${n}`, play: "Reproduzir", pause: "Pausar", playL: "Reproduzir a apresentação", pauseL: "Pausar a apresentação" },
+  };
+  const t = TEXT[document.documentElement.lang.slice(0, 2)] || TEXT.en;
   document.querySelectorAll("[data-carousel]").forEach((root) => {
     const slides = [...root.querySelectorAll(".slide")];
     if (slides.length < 2) return;
@@ -18,7 +25,7 @@
     const dots = slides.map((_, i) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.setAttribute("aria-label", `Picture ${i + 1} of ${slides.length}`);
+      b.setAttribute("aria-label", t.pic(i + 1, slides.length));
       b.addEventListener("click", () => { show(i); restart(); });
       dotsBox.appendChild(b);
       return b;
@@ -43,8 +50,8 @@
     }
     function setPaused(p) {
       userPaused = p;
-      pauseBtn.textContent = p ? "Play" : "Pause";
-      pauseBtn.setAttribute("aria-label", p ? "Play the slideshow" : "Pause the slideshow");
+      pauseBtn.textContent = p ? t.play : t.pause;
+      pauseBtn.setAttribute("aria-label", p ? t.playL : t.pauseL);
       restart();
     }
 

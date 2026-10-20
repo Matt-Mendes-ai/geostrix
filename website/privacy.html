@@ -7,16 +7,25 @@
   <meta name="description" content="GeoStrix has no accounts and no telemetry. Your project data stays on your computer.">
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="style.css">
+  <link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html">
+  <link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html">
+  <link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html">
+  <link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html">
 </head>
 <body>
   <header class="site">
     <div class="wrap">
       <a class="brand" href="/"><img src="img/icon-128.png" alt="" width="34" height="34">GeoStrix</a>
       <nav>
-        <a href="/#features">Features</a>
+        <a class="hide-xs" href="/#features">Features</a>
         <a href="/#download">Download</a>
         <a class="hide-sm" href="/#support">Support</a>
       </nav>
+      <div class="lang" role="navigation" aria-label="Language / Idioma">
+        <a href="/privacy.html" hreflang="en" lang="en" aria-current="true" title="English">EN</a>
+        <a href="/es/privacy.html" hreflang="es" lang="es" title="Español">ES</a>
+        <a href="/pt-br/privacy.html" hreflang="pt-BR" lang="pt-BR" title="Português (Brasil)">PT</a>
+      </div>
     </div>
   </header>
 
@@ -36,7 +45,7 @@
 
         <h2>Network connections GeoStrix makes</h2>
         <p>GeoStrix only goes online for features you use:</p>
-        <table>
+        <div class="table-scroll"><table>
           <tr><th>When</th><th>Where</th><th>Why</th></tr>
           <tr><td>You add a basemap</td><td>tile.openstreetmap.org, tile.tracestrack.com, tiles.maps.eox.at</td><td>Map tiles for display</td></tr>
           <tr><td>You fetch imagery for a spectral index</td><td>earth-search.aws.element84.com, sentinel-cogs.s3.us-west-2.amazonaws.com, planetarycomputer.microsoft.com, astersa.blob.core.windows.net</td><td>Search the public Sentinel-2 / ASTER catalogues for your area (its bounding box is sent) and download that part of the image</td></tr>
@@ -45,7 +54,7 @@
           <tr><td>You click Install in the Predictive tab</td><td>github.com, then release-assets.githubusercontent.com</td><td>Download the optional predictive-modelling add-on (its checksum is checked before it is installed)</td></tr>
           <tr><td>You connect to a database</td><td>The server you enter</td><td>Query your own database</td></tr>
           <tr><td>You add a WMS / WMTS / WFS layer</td><td>The server you enter</td><td>Fetch the layer you asked for</td></tr>
-        </table>
+        </table></div>
         <p>Like visiting any website, these requests show your IP address to the service contacted, which has its own privacy policy. No identifier for you or your project is sent. The built-in spell checker is off, so no dictionary is downloaded. If you use none of these features, GeoStrix makes no network connections at all.</p>
         <p>The Python engine used for modelling and inversions, and the optional predictive-modelling add-on, run on your computer, listen only to <code>127.0.0.1</code>, and make no outbound connections.</p>
 
