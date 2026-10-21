@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download } from "./icons.js";
-import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia } from "../lib/layers.js";
+import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone } from "../lib/layers.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -39,6 +39,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const alt = useMemo(() => (layers.alt || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.alt, holeId]);
   const vein = useMemo(() => (layers.vein || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.vein, holeId]);
   const breccia = useMemo(() => (layers.breccia || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.breccia, holeId]); // #608
+  const structzone = useMemo(() => (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.structzone, holeId]); // #604
   const mnlgy = useMemo(() => (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.mnlgy, holeId]); // #684
   const geotech = useMemo(() => (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.geotech, holeId]);
   const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId).sort((a, b) => a.from - b.from), [assays, holeId]);
@@ -46,7 +47,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const collar = collars.find((c) => c.hole_id === holeId);
   const maxDepth = Math.max(
     collar?.length || 0,
-    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
+    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
     arrMax(holeAssays.map((a) => a.to)),
     1);
 
@@ -79,6 +80,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
     { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v) },
     ...((layers.breccia || []).length ? [{ key: "breccia", label: "Bx", title: "Breccia", rows: breccia, kind: "fill", colorFn: (v) => fill("breccia", colorForBreccia, v) }] : []), // #608 — only in projects with breccia logs
+    ...((layers.structzone || []).length ? [{ key: "structzone", label: "SZ", title: "Structural zones", rows: structzone, kind: "fill", colorFn: (v) => fill("structzone", colorForStructZone, v) }] : []), // #604
     // TASKS.csv #684 — the mineralisation log: an interval row is a block over its depths (Woodjam: up to 69 m), a
     // point-style row (from = to) a thin line at its depth
     ...(mnlgy.length ? [{ key: "mnlgy", label: "Min.", title: "Mineralization", rows: mnlgy, kind: "fill", colorFn: (v) => fill("mnlgy", LAYER_META.mnlgy.colorFn, v) }] : []),

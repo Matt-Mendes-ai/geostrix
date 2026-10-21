@@ -54,7 +54,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [domainKey, setDomainKey] = useState("");
   const [domainValue, setDomainValue] = useState("__all__");
-  const domainOptions = ["litho", "alt", "vein", "breccia", "geotech"].filter((k) => (layers[k] || []).length > 0);
+  const domainOptions = ["litho", "alt", "vein", "breccia", "structzone", "geotech"].filter((k) => (layers[k] || []).length > 0);
 
   const [transform, setTransform] = useState("none");
   const [capPercentile, setCapPercentile] = useState(98);

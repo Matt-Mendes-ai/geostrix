@@ -164,6 +164,11 @@ export function colorForMineral(m) { return MIN_COLORS[(m || "").toUpperCase()] 
 
 export const STRUCT_COLORS = { ALT: "#c9863d", BD: "#4a7ab5", CON: "#8a6fae", FLT: "#c0392b", FOL: "#3a8a8a", FOLD: "#4aa06a", SHZ: "#a5407a", VN: "#cfc7b0" };
 export function colorForStructure(t) { return STRUCT_COLORS[(t || "").toUpperCase()] || categoricalSafeColor("structure", t); }
+// TASKS.csv #604 — structural ZONES logged as from / to intervals (fault, fracture, shear zones), as logging software
+// exports them (Copley 2023: Struc_Code FR / FL; Woodjam 2023: Structure_Type FLTBX). Faults red, fractures orange,
+// shears magenta; anything else gets the usual distinct categorical colour.
+export const STRUCTZONE_COLORS = { FL: "#c0392b", FLT: "#c0392b", FZ: "#c0392b", FLTBX: "#8e1f16", GOUGE: "#7a2a20", FR: "#e08a2e", FRAC: "#e08a2e", FX: "#e08a2e", JNT: "#d9b44a", SHZ: "#a5407a", SZ: "#a5407a", SH: "#a5407a", BX: "#8a6a45" };
+export function colorForStructZone(v) { return STRUCTZONE_COLORS[(v || "").toUpperCase()] || categoricalSafeColor("structzone", v); }
 
 // TASKS.csv #228 — surface geochemistry sample media, colored distinctly by sampling medium (a soil
 // grid and a rock-chip traverse from the same property are visually different datasets, same as
@@ -509,6 +514,7 @@ export const LAYER_META = {
   mnlgy:    { label: "Mineralization", kind: "point",    colorFn: colorForMineral, numeric: false },
   magsusc:  { label: "Mag. susc.",     kind: "point",    colorFn: null, numeric: true },
   structure:{ label: "Structure planes", kind: "plane",  colorFn: colorForStructure, numeric: false },
+  structzone: { label: "Structural zones", kind: "interval", radius: 2.0, opacity: 0.8, colorFn: colorForStructZone, numeric: false }, // TASKS.csv #604
   litho_gc: { label: "Lithology (geochem)", kind: "interval", radius: 2.6, opacity: 0.85, colorFn: colorForLithology, numeric: false },
   alt_gc:   { label: "Alteration (geochem)", kind: "interval", radius: 3.8, opacity: 0.4, colorFn: colorForAlteration, numeric: false },
   // TASKS.csv #25 — raw x/y/z geophysics point clouds (mag, IP, gravity, whatever), imported via the
@@ -570,6 +576,14 @@ export const TARGET_SCHEMAS = {
   alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"
   breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608
+  // TASKS.csv #604 — structure logged as zones (from / to + code + intensity + alpha), Matt 2026-10-21: "keep it as
+  // intervals, as a layer of structural zones". Intensity stays text (Copley "4", Woodjam "M"); alpha is the zone's
+  // representative core angle when logged, kept but not turned into a plane (one angle for a whole zone is not a pick).
+  structzone: { label: "Structural zones", fields: [
+    ...intervalFields(["struc_code", "struct_code", "structure_code", "structure_type", "struc_type", "struct_type", "zone_type", "structure", "struct", "type"], null, false, ["struc_desc", "struct_desc", "structure_desc", "comments", "comment", "description", "desc", "notes"]),
+    { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["struc_intensity", "struct_intensity", "structure_intensity", "structure_int", "intensity"] },
+    { key: "alpha", label: "Alpha (core angle, optional)", required: false, aliases: ["struc_alpha", "struct_alpha", "structure_alpha", "alpha", "alpha_deg"] },
+  ] },
   mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "percent", "pct"]) },
   geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
   recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
@@ -754,7 +768,7 @@ export function guessTarget(headers) {
   // so a structure CSV used to get auto-committed as bogus downhole survey stations, silently
   // and confidently, no mapping dialog and no chance to catch it. Checking structure_type first
   // (before survey ever gets a look) fixes it at the source.
-  if (has("structure_type")) return "structure";
+  if (has("structure_type") && !has("from")) return "structure"; // #604: with from / to it is a zone log (below)
   // TASKS.csv #426 — a downhole structure file without a literal structure_type column (HoleID, Depth,
   // Type, DipDirection, Dip_deg) used to fall through to the vein rule. Point data (depth, no from) with a
   // dip AND something only a structure table has — a type/struct column, a dip direction, strike or alpha.
@@ -782,6 +796,9 @@ export function guessTarget(headers) {
   if (has("from") && any(/^vein\d*_(comp|type)\d*$/)) return "vein";
   if (has("from") && any(/^brecc|^breccia|^brx(_|$)|^bx_(type|code)$/)) return "breccia"; // #608 (MX: brecc_lith)
   if (has("from") && any(/^alt\d*_code$|^alt_assemblage$/)) return "alt";
+  // TASKS.csv #604 — a structure log by interval (GEOLFROM / GEOLTO + Struc_Code, From / To + Structure_Type): a
+  // layer of structural zones. It used to fall to lithology (Copley) or, by its name, to point structure picks.
+  if (has("from") && any(/^struc(t|ture)?_?(code|type)$/)) return "structzone";
   // Mineralization: was previously gated on BOTH "assemblage" AND "mineral" being present, but
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy
   // above) — a real mnlgy CSV never has an "assemblage" column, so that combined check could
@@ -811,7 +828,7 @@ export function guessTarget(headers) {
 const NAME_HINTS = [
   [/collar|coordinates|\bheaders?\b/, "collars"], [/survey/, "survey"], [/litholog|\blitho/, "litho"],
   [/alteration|\balt\b/, "alt"], [/mineral/, "mnlgy"], [/\bveins?\b(?!\s*min)/, "vein"], /* "Vein Min" is a mineral list (40958Z) */ [/breccia|\bbrx\b|\bbx\b/, "breccia"], [/geotech|\brqd\b/, "geotech"],
-  [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct/, "structure"],
+  [/recovery/, "recovery"], [/specific.?gravity|\bsg\b|density/, "sg"], [/mag.?sus|magnetic/, "magsusc"], [/struct\w*\s+(interval|zone)/, "structzone"] /* #604 */, [/struct/, "structure"],
 ];
 export function targetFromName(name) {
   const base = String(name || "").toLowerCase().replace(/\.[a-z0-9]+$/, "").replace(/[_]+/g, " ");

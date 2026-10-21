@@ -155,7 +155,7 @@ function uint8ToBase64(bytes) {
 // TASKS.csv #227 (continuation) — the layer keys whose geometry is one plain THREE.Mesh per row
 // (buildIntervalTube/buildPointMarkers/the structure loop), and therefore support the cheap post-hoc
 // visibility/color passes below instead of a full rebuild for a categoryFilter/legendOverride change.
-const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "litho_gc", "alt_gc", "mnlgy", "structure"];
+const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
 
 // TASKS.csv #434 — back-to-front re-sort of a transparent voxel model's instances, run (throttled) while
 // the camera orbits. The old version did a comparator sort of all cells plus two new Vector3 and a colour
@@ -299,11 +299,11 @@ function fitScreenLabels(group, camera, viewportH) {
 // first-time user will see; every other default-on interval layer is wider, so sizing to litho is
 // conservative in the right direction.
 const MIN_OPENING_TUBE_PX = 2.5;
-const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, breccia: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
+const DEFAULT_LAYER_VISIBLE = { litho: true, alt: false, vein: false, breccia: false, structzone: false, geotech: false, recovery: false, sg: false, mnlgy: false, magsusc: false, structure: false, litho_gc: false, alt_gc: false, geophys_pts: true, surface_samples: true };
 // TASKS.csv #76 — every sidebar layer key that can be sorted into a named group, same set the
 // generic upload loop + geophys_pts special case used to enumerate separately.
 // TASKS.csv #137 added recovery/sg — same interval-kind layers as geotech, just different fields.
-const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
+const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "mnlgy", "geotech", "recovery", "sg", "magsusc", "structure", "litho_gc", "alt_gc", "geophys_pts"];
 // TASKS.csv #308 (1) — the default grid colour used to be #30394a, a near-black slate at full opacity
 // on a light background. Measured 11.60:1 contrast against white, against ~2.8:1 for a mid lithology
 // colour, i.e. the reference grid had roughly 4x the contrast of the data it exists to reference, and
@@ -4428,7 +4428,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       litho: groupByHole(layers.litho), alt: groupByHole(layers.alt), vein: groupByHole(layers.vein),
       geotech: groupByHole(layers.geotech), litho_gc: groupByHole(layers.litho_gc), alt_gc: groupByHole(layers.alt_gc),
       mnlgy: groupByHole(layers.mnlgy), magsusc: groupByHole(layers.magsusc), structure: groupByHole(layers.structure),
-      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), // #608
+      recovery: groupByHole(layers.recovery), sg: groupByHole(layers.sg), breccia: groupByHole(layers.breccia), structzone: groupByHole(layers.structzone), // #608, #604
     };
     const customRowsByHoleByLayer = new Map(customLayers.map((l) => [l.id, groupByHole(l.rows)]));
     // TASKS.csv #209 — same quadratic-scan fix as the groupByHole comment above already applied to
@@ -4578,7 +4578,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           // that share this same tube-building path — harmless no-op for rows that don't have one.
           // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
           // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
+          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -4587,6 +4587,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       buildIntervalTube("alt");
       buildIntervalTube("vein");
       buildIntervalTube("breccia"); // #608
+      buildIntervalTube("structzone"); // #604
       buildIntervalTube("geotech");
       buildIntervalTube("recovery");
       buildIntervalTube("sg");
@@ -6303,7 +6304,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // is computed once here too, same values that effect's globalPointRanges.sg would produce.
     const sgVals = (layers.sg || []).filter((r) => holeIds.has(r.hole_id) && isRowVisible("sg", r)).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v));
     const sgRange = minMax(sgVals);
-    ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
+    ["litho", "alt", "vein", "breccia", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc"].forEach((key) => {
       if (scope.layerKeys != null ? !scope.layerKeys.includes(key) : !layerVisible[key]) return;
       const meta = LAYER_META[key];
       (layers[key] || []).forEach((row) => {
@@ -6514,7 +6515,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // pixel — deliberately excludes geotech/mag.susc./assay values (their color encodes a continuous
     // number, and assay point labels embed the sample's own grade, so deduping those would produce
     // either a meaningless single swatch or one row per sample rather than a bounded category list).
-    const legendPrefixes = ["litho", "alt", "vein", "breccia", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
+    const legendPrefixes = ["litho", "alt", "vein", "breccia", "structzone", "litho_gc", "alt_gc"].map((k) => `${LAYER_META[k].label}: `);
     const legendSeen = new Set();
     const legendItems = [];
     intervals.forEach((r) => {

@@ -4788,5 +4788,7 @@
   "Map {v} for the vegetation mask, or untick it.": "Asigne {v} para la máscara de vegetación, o desmárquela.",
   "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock. Downloads one more band.": "Dejar fuera la vegetación (NDVI sobre {max}, de {nir} y {red}): los cocientes de hierro y arcilla solo significan algo sobre roca y suelo expuestos, así los colores comparan roca con roca. Descarga una banda más.",
   "Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.": "Según la tendencia «{name}»: sin radio, la búsqueda alcanza la diagonal de la grilla ({d} m) a lo largo de la tendencia pero solo {v} × {v2} m a través de ella ({v3}); una muestra más lejos a través de la tendencia queda fuera.",
-  "GeoPackage export: unsupported geometry type \"{type}\".": "Exportación GeoPackage: tipo de geometría no admitido «{type}»."
+  "GeoPackage export: unsupported geometry type \"{type}\".": "Exportación GeoPackage: tipo de geometría no admitido «{type}».",
+  "Structural zones": "Zonas estructurales",
+  "Intensity (optional)": "Intensidad (opcional)"
 }
