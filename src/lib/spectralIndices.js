@@ -19,6 +19,7 @@ export const SENSORS = {
     label: "Sentinel-2 surface reflectance",
     roles: ["B2", "B3", "B4", "B8", "B11", "B12"],
     defaultBands: {}, // exports differ in band order: the user maps them
+    reflectance: true, nir: "B8", red: "B4", // #789: the dark floor and the vegetation mask
     pixel: "10-20 m",
     source: "Copernicus Sentinel-2 L2A",
   },
@@ -26,6 +27,7 @@ export const SENSORS = {
     label: "Landsat 8 / 9 OLI surface reflectance",
     roles: ["B2", "B4", "B5", "B6", "B7"],
     defaultBands: {},
+    reflectance: true, nir: "B5", red: "B4",
     pixel: "30 m",
     source: "USGS Landsat Collection 2 Level-2",
   },
@@ -107,24 +109,48 @@ export function compileExpression(src, allowed) {
   return { fn, uses: [...used] };
 }
 
+// TASKS.csv #789 — a ratio is noise where a band is nearly zero. Sentinel-2's atmospheric correction leaves blue at
+// ~0.0001 in dark forest and shadow, so red/blue reaches 29-128 there; MEASURED (Mount Lyell gossan, Tasmania, S2B
+// 2024-06-15, and Rio Tinto, Spain, S2C 2024-12-11): those pixels filled the whole top of the 2-98 % stretch and the
+// red bare gossan ranked at only the 83rd / 29th percentile - drawn in the low colours, "it won't pick that up" (Matt).
+// With bands under 1 % reflectance blanked the stretch top fell from 29 to 2.7 and the gossan rose to the 93rd.
+export const DARK_FLOOR = 0.01; // reflectance
+export const VEG_NDVI_MAX = 0.4; // vegetated above this: iron / clay ratios mean nothing through a canopy
+
+// The floor in the file's own units: reflectance 0-1, or scaled integers (Sentinel-2 / Landsat DN x 10000) when the
+// bands' median is well above 1.
+export function darkFloor(arrays) {
+  const s = [];
+  for (const a of arrays) { const step = Math.max(1, Math.floor(a.length / 5000)); for (let i = 0; i < a.length; i += step) if (a[i] > 0 && Number.isFinite(a[i])) s.push(a[i]); }
+  if (!s.length) return DARK_FLOOR;
+  s.sort((x, y) => x - y);
+  return s[s.length >> 1] > 2 ? DARK_FLOOR * 10000 : DARK_FLOOR;
+}
+
 // The index for every pixel: `bands` = the file's bands (arrays, 0-based), `mapping` = {role: 1-based band number},
 // `isNoData(v)` for the file's nodata. A pixel is blank (NaN) when any band it uses is nodata, not finite or <= 0
-// (reflectance and emissivity are positive; 0 is the usual fill), or when the result is not finite. Returns
-// { values: Float32Array, blank }.
-export function evaluateIndex(bands, mapping, expr, { isNoData = () => false } = {}) {
+// (reflectance and emissivity are positive; 0 is the usual fill), or when the result is not finite. #789: `floor`
+// ("auto" = darkFloor of the bands used, or a number) also blanks a pixel with a used band below it, and `veg`
+// ({ nir, red } roles in `mapping`, `max` NDVI) blanks vegetated pixels. Returns { values: Float32Array, blank, dark, vegetated }.
+export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, floor = 0, veg = null } = {}) {
   const { fn, uses } = compileExpression(expr, Object.keys(mapping));
-  const cols = uses.map((r) => {
+  const col = (r) => {
     const k = Number(mapping[r]) - 1;
     if (!(k >= 0 && k < bands.length)) throw new Error(tr("Band {r} is mapped to band {v}, but the file has {bands}.", { r, v: mapping[r], bands: bands.length }));
-    return [r, bands[k]];
-  });
+    return bands[k];
+  };
+  const cols = uses.map((r) => [r, col(r)]);
+  const lo = floor === "auto" ? darkFloor(cols.map(([, a]) => a)) : Number(floor) || 0;
+  const nir = veg ? col(veg.nir) : null, red = veg ? col(veg.red) : null, vmax = veg?.max ?? VEG_NDVI_MAX;
   const n = bands[0].length, values = new Float32Array(n), env = {};
-  let blank = 0;
+  let blank = 0, dark = 0, vegetated = 0;
   for (let i = 0; i < n; i++) {
-    let ok = true;
-    for (const [r, arr] of cols) { const v = arr[i]; if (!(v > 0) || !Number.isFinite(v) || isNoData(v)) { ok = false; break; } env[r] = v; }
+    let ok = true, isDark = false;
+    for (const [r, arr] of cols) { const v = arr[i]; if (!(v > 0) || !Number.isFinite(v) || isNoData(v)) { ok = false; break; } if (v < lo) isDark = true; env[r] = v; }
+    if (ok && isDark) { ok = false; dark++; }
+    if (ok && nir) { const a = nir[i], b = red[i]; if (a + b > 0 && (a - b) / (a + b) > vmax) { ok = false; vegetated++; } }
     const out = ok ? fn(env) : NaN;
     if (Number.isFinite(out)) values[i] = out; else { values[i] = NaN; blank++; }
   }
-  return { values, blank };
+  return { values, blank, dark, vegetated };
 }

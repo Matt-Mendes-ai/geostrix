@@ -4780,5 +4780,11 @@
   "Delete theme \"{name}\"": "Excluir o tema \"{name}\"",
   "Remove the {count} row(s) imported from \"{src}\"": "Remover a(s) {count} linha(s) importada(s) de \"{src}\"",
   "Remove planned hole \"{v}\"": "Remover o furo planejado \"{v}\"",
-  "You can undo this with Ctrl+Z.": "Você pode desfazer isto com Ctrl+Z."
+  "You can undo this with Ctrl+Z.": "Você pode desfazer isto com Ctrl+Z.",
+  " Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.": " Desses, {dark} tinham uma banda abaixo de 1% de refletância (floresta escura, sombra): ali uma razão é ruído e tomaria conta da escala de cores.",
+  " {vegetated} vegetated pixel (NDVI above {max}) was left out.": " {vegetated} pixel com vegetação (NDVI acima de {max}) foi deixado de fora.",
+  " {vegetated} vegetated pixels (NDVI above {max}) were left out.": " {vegetated} pixels com vegetação (NDVI acima de {max}) foram deixados de fora.",
+  " Vegetation was not masked: {v} not mapped to a file band.": " A vegetação não foi mascarada: {v} sem banda do arquivo atribuída.",
+  "Map {v} for the vegetation mask, or untick it.": "Atribua {v} para a máscara de vegetação, ou desmarque-a.",
+  "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock. Downloads one more band.": "Deixar de fora a vegetação (NDVI acima de {max}, de {nir} e {red}): as razões de ferro e argila só significam algo sobre rocha e solo expostos, assim as cores comparam rocha com rocha. Baixa uma banda a mais."
 }

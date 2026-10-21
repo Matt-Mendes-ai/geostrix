@@ -4780,5 +4780,11 @@
   "Delete theme \"{name}\"": "حذف السمة «{name}»",
   "Remove the {count} row(s) imported from \"{src}\"": "إزالة {count} صف مستورد من «{src}»",
   "Remove planned hole \"{v}\"": "إزالة الثقب المخطط «{v}»",
-  "You can undo this with Ctrl+Z.": "يمكنك التراجع عن هذا بـ Ctrl+Z."
+  "You can undo this with Ctrl+Z.": "يمكنك التراجع عن هذا بـ Ctrl+Z.",
+  " Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.": " منها {dark} فيها نطاق تحت 1% من الانعكاسية (غابة داكنة، ظل): النسبة هناك ضجيج وكانت ستستحوذ على مقياس الألوان.",
+  " {vegetated} vegetated pixel (NDVI above {max}) was left out.": " استُبعد {vegetated} بكسل نباتي (NDVI فوق {max}).",
+  " {vegetated} vegetated pixels (NDVI above {max}) were left out.": " استُبعد {vegetated} بكسلًا نباتيًا (NDVI فوق {max}).",
+  " Vegetation was not masked: {v} not mapped to a file band.": " لم يُقنّع الغطاء النباتي: {v} غير مربوط بنطاق في الملف.",
+  "Map {v} for the vegetation mask, or untick it.": "اربط {v} لقناع الغطاء النباتي، أو ألغِ تحديده.",
+  "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock. Downloads one more band.": "استبعاد الغطاء النباتي (NDVI فوق {max}، من {nir} و{red}): نسب الحديد والطين لا معنى لها إلا على الصخر والتربة المكشوفين، فتقارن الألوان عندها صخرًا بصخر. يُنزّل نطاقًا إضافيًا."
 }

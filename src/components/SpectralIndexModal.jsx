@@ -9,7 +9,7 @@ import { X, Upload, Rainbow, Search } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
-import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex } from "../lib/spectralIndices.js";
+import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX } from "../lib/spectralIndices.js";
 import { buildRasterImport } from "../lib/raster.js";
 import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFetch.js";
 import BasemapView from "./BasemapView.jsx";
@@ -40,6 +40,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const [scenes, setScenes] = useState(null);
   const [sceneId, setSceneId] = useState("");
   const [progress, setProgress] = useState(null);
+  const [maskVeg, setMaskVeg] = useState(false); // #789: opt-in (blanks forest, adds the NIR band to the download)
 
   const fetchMode = mode === "fetch";
   const activeSensor = fetchMode ? IMAGERY_SOURCES[source].sensor : sensor;
@@ -54,6 +55,13 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const unmapped = fetchMode ? [] : parsed.uses.filter((r) => !(bandOf(r) >= 1 && bandOf(r) <= (file?.bands || 0)));
   const area = drawn && areaId === "drawn" ? { id: "drawn", label: "the area drawn on the map", bboxLonLat: drawn } : areaOptions.find((o) => o.id === areaId);
   const scene = scenes?.find((s) => s.id === sceneId) || null;
+  // TASKS.csv #789 — reflectance ratios: blank near-zero (dark) pixels, and optionally vegetation (NDVI from the sensor's
+  // NIR and red). A custom b1..bN expression on a file has unknown units, so neither applies there.
+  const sens = SENSORS[activeSensor];
+  const reflective = !!sens.reflectance && !(isCustom && !fetchMode);
+  const vegRoles = reflective && maskVeg && sens.nir ? [sens.nir, sens.red] : [];
+  const mapRoles = [...new Set([...parsed.uses, ...vegRoles])];
+  const vegUnmapped = fetchMode ? [] : vegRoles.filter((r) => !(bandOf(r) >= 1 && bandOf(r) <= (file?.bands || 0)));
 
   const pickSensor = (s) => { setSensor(s); setPresetId(INDEX_PRESETS.find((p) => p.sensor === s)?.id || CUSTOM); setMapping({}); };
   const pickSource = (s) => { setSource(s); setScenes(null); setSceneId(""); const sen = IMAGERY_SOURCES[s].sensor; setPresetId(INDEX_PRESETS.find((p) => p.sensor === sen)?.id || CUSTOM); if (isCustom) setCustom(sen === "aster_tir" ? "B11/B13" : "B11/B12"); };
@@ -85,14 +93,17 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   };
 
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
-  const makeIndex = async (theFile, map, sensorKey, sourceNote) => {
-    let blank = 0, total = 0;
+  const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn) => {
+    let blank = 0, total = 0, dark = 0, vegetated = 0;
     const title = isCustom ? `Index ${expr}` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
     const { raster, msg } = await buildRasterImport(theFile, {
       epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
-      bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData }); blank = r.blank; total = r.values.length; return r.values; },
+      bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values; },
     });
-    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) : "", v4: isCustom ? "" : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) });
+    const masks = (dark ? tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : "")
+      + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: VEG_NDVI_MAX }) : "")
+      + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
+    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) });
     onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note);
   };
 
@@ -102,11 +113,12 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
     try {
       if (fetchMode) {
         if (!scene) return;
-        const stack = await fetchSceneStack(scene, area.bboxLonLat, parsed.uses, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: epsg });
-        await makeIndex(stack.file, Object.fromEntries(parsed.uses.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note);
+        const stack = await fetchSceneStack(scene, area.bboxLonLat, mapRoles, { onProgress: (d, n) => setProgress({ d, n }), targetEpsg: epsg });
+        await makeIndex(stack.file, Object.fromEntries(mapRoles.map((r) => [r, stack.mapping[r]])), activeSensor, stack.note, vegRoles.length > 0);
       } else {
         if (!file || unmapped.length) return;
-        await makeIndex(file.file, Object.fromEntries(parsed.uses.map((r) => [r, bandOf(r)])), sensor, "");
+        const vegOn = vegRoles.length > 0 && !vegUnmapped.length;
+        await makeIndex(file.file, Object.fromEntries((vegOn ? mapRoles : parsed.uses).map((r) => [r, bandOf(r)])), sensor, "", vegOn);
       }
     } catch (e) {
       setError(e.message);
@@ -181,12 +193,18 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
               : <div style={{ ...small, marginTop: 8 }}><code>{expr}</code> — {tr(preset?.what)}</div>}
             {isCustom && <div style={{ ...small, marginTop: 4 }}>{tr("{v}; + − × / ^ and brackets.", { v: fetchMode ? tr("Bands: {roles}", { roles: roles.join(", ") }) : tr("Bands are b1 … b{v}", { v: file?.bands || "n" }) })}</div>}
             {parsed.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 4 }}>{parsed.error}</div>}
+            {reflective && sens.nir && (
+              <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
+                <input type="checkbox" checked={maskVeg} onChange={(e) => setMaskVeg(e.target.checked)} style={{ marginTop: 2 }} />
+                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock. Downloads one more band.", { max: VEG_NDVI_MAX, nir: sens.nir, red: sens.red })}</span>
+              </label>
+            )}
           </div>
           {!fetchMode && !isCustom && file && (
             <div>
               <div style={label}>{tr("3. Which file band is which")}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 6 }}>
-                {parsed.uses.map((r) => (
+                {mapRoles.map((r) => (
                   <label key={r} style={{ ...small, display: "flex", alignItems: "center", gap: 6 }}>{r}
                     <select value={Number.isFinite(bandOf(r)) ? bandOf(r) : ""} onChange={(e) => setMapping((m) => ({ ...m, [r]: Number(e.target.value) }))} style={sel} aria-label={tr("File band for {r}", { r })}>
                       <option value="">—</option>
@@ -196,6 +214,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
                 ))}
               </div>
               {unmapped.length > 0 && <div style={{ ...small, marginTop: 4 }}>{tr("Say which file band holds {unmapped}.", { unmapped: unmapped.join(", ") })}</div>}
+              {vegUnmapped.length > 0 && <div style={{ ...small, marginTop: 4 }}>{tr("Map {v} for the vegetation mask, or untick it.", { v: vegUnmapped.join(", ") })}</div>}
             </div>
           )}
           {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
