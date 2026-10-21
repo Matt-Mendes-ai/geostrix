@@ -283,7 +283,7 @@ export default function BasemapView({
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {Number.isFinite(lon) && Number.isFinite(lat) && (
-            <button onClick={recenter} title={tr("Center on project location")} style={iconBtnStyle}><Crosshair size={14} /></button>
+            <button onClick={recenter} title={tr("Centre on project location")} style={iconBtnStyle}><Crosshair size={14} /></button>
           )}
           <button onClick={onClose} title={tr("Close")} style={iconBtnStyle}><X size={18} /></button>
         </div>

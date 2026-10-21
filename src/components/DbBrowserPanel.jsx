@@ -72,7 +72,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
       <div style={sectionLabel}>{tr("Files")}</div>
 
       {favorites.length > 0 && (
-        <TreeSection label={tr("Favorites")}>
+        <TreeSection label={tr("Favourites")}>
           {favorites.map((p) => (
             <FsTreeNode key={p} entry={{ name: p.split(/[\\/]/).filter(Boolean).pop() || p, path: p, isDir: true }}
               depth={0} isFavorite favorites={favorites} onToggleFavorite={(fp) => removeFavorite(fp)} onFilePick={handleFilePick} />
@@ -158,7 +158,7 @@ function FsTreeNode({ entry, depth, isDrive, isFavorite, favorites, onToggleFavo
         {entry.isDir && hover && onToggleFavorite && (
           <Star role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} color={isFav ? "#e2a63c" : "#c7ccd3"} fill={isFav ? "#e2a63c" : "none"}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(entry.path, !isFav); }}
-            title={isFav ? tr("Remove from favorites") : tr("Add to favorites")} />
+            title={isFav ? tr("Remove from favourites") : tr("Add to favourites")} />
         )}
       </div>
       {open && children && children.map((c) => (

@@ -96,7 +96,7 @@ export async function reprojectShapefileZip(zipBytes, fromEpsg, toEpsg) {
     const prj = entry(base, "prj");
     const epsg = prj ? guessEpsgFromPrjWkt(new TextDecoder().decode(prj.data)) : null;
     const from = fromEpsg ? Number(fromEpsg) : epsg;
-    if (!from) throw new Error(tr(prj ? "\"{base}\" has a .prj GeoStrix doesn't recognise — choose its CRS under \"From\"." : "\"{base}\" has no .prj — choose its CRS under \"From\".", { base }));
+    if (!from) throw new Error(tr(prj ? "\"{base}\" has a .prj GeoStrix doesn't recognize — choose its CRS under \"From\"." : "\"{base}\" has no .prj — choose its CRS under \"From\".", { base }));
     const T = pointTransform(from, toEpsg);
     if (!T) throw new Error(tr("Can't convert from EPSG:{from} to EPSG:{toEpsg}.", { from, toEpsg }));
     const r = reprojectShpBytes(entry(base, "shp").data, T);

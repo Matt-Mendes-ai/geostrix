@@ -643,7 +643,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
       {project.crsSet === false
         ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)")} style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>{tr("CRS:")}{" "}<span className="val">{tr("not set")}</span></span>
-        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("{crs} — click to change the project CRS (reprojection tools: Maps tab)", { crs: crsName(project.epsg) || tr("Unrecognised CRS") })} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("{crs} — click to change the project CRS (reprojection tools: Maps tab)", { crs: crsName(project.epsg) || tr("Unrecognized CRS") })} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

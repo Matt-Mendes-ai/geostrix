@@ -139,7 +139,7 @@ export function provenanceText(model, t, files, epsg, notes) {
     "How the model was made (as recorded when it was created):",
     JSON.stringify(p, null, 2),
     "",
-    model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetisation amplitude (SI-equivalent), with a direction per cell; depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
+    model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetization amplitude (SI-equivalent), with a direction per cell; depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
     model.source === "simpeg" && model.style === "compact" ? "A compact (sparse-norm) inversion is ONE model that fits the data to the stated uncertainty, not the only one: it assumes a few compact bodies with sharp edges, so it draws them tighter than the smooth model, and peak values can overshoot. Not a geological boundary, not a volume, not a resource." : "", // #769
     model.source === "simpeg" && model.style !== "compact" && model.style !== "vector" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
     /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")) ? NOT_A_RESOURCE : "" /* geoml: #677 */, // #529 — an estimate package said nothing

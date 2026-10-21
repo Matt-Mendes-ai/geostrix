@@ -35,7 +35,7 @@ const primary = { ...btn, background: "var(--color-accent)", borderColor: "var(-
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5, marginTop: 8 };
 const box = (ok) => ({ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", lineHeight: 1.5, background: ok ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${ok ? "var(--color-border)" : "var(--color-danger-border)"}`, color: ok ? "var(--color-text-secondary)" : "var(--color-danger-text)" });
 const selectStyle = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const nameOf = (epsg) => `${crsName(epsg) || "Unrecognised CRS"} (EPSG:${epsg})`;
+const nameOf = (epsg) => `${crsName(epsg) || "Unrecognized CRS"} (EPSG:${epsg})`;
 
 function reportText(report, verb) {
   const parts = Object.entries(report.counts || {}).map(([k, n]) => `${n.toLocaleString()} ${k}`);
@@ -255,7 +255,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
             {file?.kind === "shp" && (
               <>
                 <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-                  {file.layers.map((l) => <li key={l.name}>{tr("{name}: {features} {geomType} feature(s) · {v}", { name: l.name, features: l.features.length.toLocaleString(), geomType: l.geomType, v: l.epsg ? nameOf(l.epsg) : l.hasPrj ? tr(".prj not recognised") : tr("no .prj") })}</li>)}
+                  {file.layers.map((l) => <li key={l.name}>{tr("{name}: {features} {geomType} feature(s) · {v}", { name: l.name, features: l.features.length.toLocaleString(), geomType: l.geomType, v: l.epsg ? nameOf(l.epsg) : l.hasPrj ? tr(".prj not recognized") : tr("no .prj") })}</li>)}
                 </ul>
                 <div style={{ marginTop: 10 }}>
                   <SourceCrsField label={tr("From")} value={fileFrom ?? ""} onChange={(c) => setFileFrom(c === "" ? null : Number(c))}
@@ -293,7 +293,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
 
       {/* main area: the project's CRS at a glance, and what is loaded */}
       <div style={{ flex: 1, overflowY: "auto", padding: "22px 26px", color: "var(--color-text)" }}>
-        <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{crsName(project.epsg) || tr("Unrecognised CRS")}</div>
+        <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>{crsName(project.epsg) || tr("Unrecognized CRS")}</div>
         <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("EPSG:{epsg} · {v}", { epsg: project.epsg, v: metric === true ? tr("projected, metres") : metric === false ? tr("geographic (degrees) — distances, volumes and grids need a projected CRS") : tr("GeoStrix has no definition for this code: imports cannot be reprojected into it") })}</div>
         {lonLat && (
           <div style={{ ...note, fontSize: "var(--font-size-base)" }}>{tr("Project location: {v}°{v2}, {v3}°{v4}", { v: Math.abs(lonLat[1]).toFixed(4), v2: lonLat[1] >= 0 ? "N" : "S", v3: Math.abs(lonLat[0]).toFixed(4), v4: lonLat[0] >= 0 ? "E" : "W" })}

@@ -49,7 +49,7 @@ export function alignAssayUnits(rows, elements, existing = []) {
 // one IP line file + the parsed GPS station file → a saved DC/IP line ({ name, readings, rho, ip, line, opts })
 export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
   const w = parseDcipWhitespaceText(datText);
-  if (!w) throw new Error(tr("{name}: not a recognised IP data file", { name }));
+  if (!w) throw new Error(tr("{name}: not a recognized IP data file", { name }));
   const m = guessDcipColumns(w.headers);
   const p = m.a && m.m && m.rho ? parseDcipRows(w.rows, m) : null;
   if (!p?.readings.length) throw new Error(tr("{name}: no readings", { name }));

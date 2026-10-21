@@ -4,8 +4,17 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
 
 - `index.html` — home, features, screenshots, download, support
 - `privacy.html` — privacy policy (keep in step with `../PRIVACY.md`)
+- `es/` and `pt-br/` — the same two pages in Spanish (Latin American) and Brazilian Portuguese. **Any change to
+  `index.html` or `privacy.html` needs the same change in both translations.** Each page links its other
+  languages (`hreflang` in `<head>`, the EN · ES · PT switcher in the header) and uses root-absolute paths
+  (`/style.css`, `/img/…`) so the subfolders share one set of files. The translated privacy pages say the
+  English one prevails. The app itself is English-only, so the translated pages say so and keep its menu
+  names (*Help → Report a Problem*) in English.
 - `download.js` — points the download buttons at the newest `GeoStrix-Setup-*.exe` on GitHub Releases
-  (falls back to the latest-release page without JavaScript or if GitHub's API is unreachable)
+  (falls back to the latest-release page without JavaScript or if GitHub's API is unreachable), and shows the
+  total GitHub download count of the installer + portable zip: as a badge above the home page's headline (linked
+  to the releases, space reserved so nothing jumps) and as a full sentence by the Download button. Its text, and `gallery.js`'s button labels,
+  follow the page's `<html lang>`
 - `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts
 - `_headers` — Cloudflare Pages security / cache headers
