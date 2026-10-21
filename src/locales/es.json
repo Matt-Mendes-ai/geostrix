@@ -4623,6 +4623,7 @@
   "Import pXRF readings (CSV)": "Importar lecturas de pXRF (CSV)",
   "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)": "Certificados de laboratorio (CSV de ALS): únalos a las muestras de sondaje por id de muestra, revise los valores y las sugerencias de tipo de control de GeoStrix para las muestras que solo tiene el laboratorio (blancos, estándares, duplicados)",
   "Import the drill samples (hole, from, to, sample id) first": "Importe primero las muestras de sondaje (sondaje, desde, hasta, id de muestra)",
+  "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id": "Importe primero las muestras de sondaje (sondaje, desde, hasta, id de muestra) — los certificados se unen a ellas por id de muestra",
   "Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed": "Muestras de suelo, roca, sedimento de arroyo o finos de talud (CSV) — sin necesidad de sondajes",
   "Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level": "Alteración desde la geoquímica (diagrama de caja AI / CCPI de Ishikawa) — nivel de cribado",
   "Lithology from immobile elements (Winchester & Floyd) — screening level": "Litología desde elementos inmóviles (Winchester & Floyd) — nivel de cribado",

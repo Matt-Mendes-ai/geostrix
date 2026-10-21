@@ -161,10 +161,10 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
           {shown.map((it, i) => (
             <React.Fragment key={`${it.group}|${it.label}|${i}`}>
-            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{it.group}</div>}
+            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 12, height: 12, flexShrink: 0, background: it.color, border: "1px solid var(--color-border-light)", borderRadius: 2 }} />
-              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${it.group}: ${it.label}`}>{it.label}</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>
             </div>
             </React.Fragment>
           ))}

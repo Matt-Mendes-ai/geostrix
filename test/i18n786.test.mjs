@@ -1,4 +1,4 @@
-// TASKS.csv #786 — the Spanish and Portuguese dictionaries: same keys, same {placeholders}, nothing empty, every ribbon
+// TASKS.csv #786 / #788 — every dictionary (Spanish, Portuguese, French, Arabic): same keys, same {placeholders}, nothing empty, every ribbon
 // label / group in the code translated; t() falls back to the English and fills placeholders.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -7,12 +7,14 @@ import path from "node:path";
 import { t, useDictionary, systemLanguage } from "../src/lib/i18n.js";
 
 const load = (code) => JSON.parse(fs.readFileSync(new URL(`../src/locales/${code}.json`, import.meta.url), "utf8"));
-const es = load("es"), pt = load("pt");
+const CODES = fs.readdirSync(new URL("../src/locales/", import.meta.url)).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).sort();
+const DICTS = CODES.map((c) => [c, load(c)]); // es, pt (#786), fr, ar (#788)
+const es = load("es");
 const holes = (s) => [...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 test("both dictionaries have the same keys, non-empty values and matching placeholders", () => {
-  assert.deepEqual(Object.keys(es).sort(), Object.keys(pt).sort());
-  for (const [code, d] of [["es", es], ["pt", pt]]) {
+  for (const [code, d] of DICTS) assert.deepEqual(Object.keys(d).sort(), Object.keys(es).sort(), `${code} has the same keys as es`);
+  for (const [code, d] of DICTS) {
     for (const [k, v] of Object.entries(d)) {
       assert.ok(typeof v === "string" && v.trim(), `${code}: "${k}" is empty`);
       assert.deepEqual(holes(v), holes(k), `${code}: "${k}" placeholders`);
@@ -27,11 +29,11 @@ test("every ribbon button label and group caption in the code is translated in b
     const s = fs.readFileSync(f, "utf8");
     // up to the next <Ribbon...: an onClick's "=>" is not the end of the tag
     for (const m of s.matchAll(/<Ribbon(?:Button|Group)\b(?:(?!<Ribbon)[\s\S])*?\blabel="([^"]+)"/g)) {
-      for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[m[1]]) missing.push(`${code}: ${m[1]} (${path.basename(f)})`);
+      for (const [code, d] of DICTS) if (!d[m[1]]) missing.push(`${code}: ${m[1]} (${path.basename(f)})`);
     }
     // TaskPaneHeader translates its title the same way
     for (const m of s.matchAll(/<TaskPaneHeader\b[^>]*?\btitle="([^"]+)"/g)) {
-      for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[m[1]]) missing.push(`${code}: pane "${m[1]}" (${path.basename(f)})`);
+      for (const [code, d] of DICTS) if (!d[m[1]]) missing.push(`${code}: pane "${m[1]}" (${path.basename(f)})`);
     }
   }
   assert.deepEqual(missing, []);
@@ -49,7 +51,7 @@ test("every literal t(\"...\") / tr(\"...\") in the code is in both dictionaries
     for (const m of s.matchAll(/(?<![\w.])(?:tr?|notice)\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*?\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) keys.push(...[m[1], m[2]].filter((x) => /[A-Za-z]{2}/.test(x))); // a plural "s" / "" is not a key
     for (const raw of keys) {
       const key = JSON.parse(`"${raw}"`);
-      for (const [code, d] of [["es", es], ["pt", pt]]) if (!d[key]) missing.push(`${code}: ${key} (${path.basename(f)})`);
+      for (const [code, d] of DICTS) if (!d[key]) missing.push(`${code}: ${key} (${path.basename(f)})`);
     }
   }
   assert.deepEqual(missing, []);
@@ -63,7 +65,7 @@ test("t(): the dictionary, else the English; placeholders filled; system languag
   assert.equal(t(undefined), undefined);
   useDictionary("en", null);
   assert.equal(t("Close {name}", { name: "Stereonet" }), "Close Stereonet");
-  assert.deepEqual(["es-CL", "pt-BR", "pt-PT", "en-CA", "fr", ""].map(systemLanguage), ["es", "pt", "pt", "en", "en", "en"]);
+  assert.deepEqual(["es-CL", "pt-BR", "pt-PT", "en-CA", "fr-CA", "ar-MA", "de", ""].map(systemLanguage), ["es", "pt", "pt", "en", "fr", "ar", "en", "en"]);
 });
 
 // A tr() that runs when its module loads is frozen in the first language: switching language later re-renders the app

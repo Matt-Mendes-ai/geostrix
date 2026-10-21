@@ -164,9 +164,12 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   pushed as a plain string shows as grey info and auto-dismisses.
 - **Spanish and Portuguese (TASKS.csv #786).** The English text is the key: `import { t as tr } from "../lib/i18n.js"`
   and write `tr("Loaded {n} holes", { n })` — whole sentences with `{placeholders}`, never English fragments glued to
-  values, and a singular/plural pair instead of `"hole" + (n === 1 ? "" : "s")`. Add the new keys to both
-  `src/locales/es.json` and `pt.json` (Latin-American mining Spanish: sondaje, ensaye, ley; Brazilian Portuguese: furo,
-  análise, teor); `test/i18n786.test.mjs` fails on a literal key missing from either. Never call `tr()` at module scope
+  values, and a singular/plural pair instead of `"hole" + (n === 1 ? "" : "s")`. Add the new keys to every
+  `src/locales/*.json` — `es` and `pt` (Latin-American mining Spanish: sondaje, ensaye, ley; Brazilian Portuguese: furo,
+  análise, teor), and since TASKS.csv #788 `fr` (sondage, collet, teneur, levé) and `ar` (Modern Standard Arabic: ثقب
+  الحفر، فوهة، المحتوى); `test/i18n786.test.mjs` fails on a literal key missing from any of them. Arabic sets
+  `dir="rtl"` on the page: anything drawn in physical left-to-right coordinates (SVG charts get it from app.css; the
+  Layout sheet has its own `dir="ltr"`) must not inherit it. Never call `tr()` at module scope
   (it would freeze the first language), and keep project data and export file text English. The codemods in
   `scripts/i18n-*.mjs` wrap a new file; in dev, `window.__i18nMissing` lists keys that reached `t()` untranslated.
 - **Design tokens (colour + type).** `src/styles/app.css`'s `:root` block is the single source of

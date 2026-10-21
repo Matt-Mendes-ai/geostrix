@@ -912,7 +912,8 @@ export default function LayoutModule() {
             addLayoutPages={addLayoutPages}
           />
         )}
-        <div style={{ overflow: "auto", padding: 30, flex: 1 }}>
+        {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
+        <div dir="ltr" style={{ overflow: "auto", padding: 30, flex: 1 }}>
         <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", margin: "0 auto" }}>
           <div />
           <Ruler2D axis="x" length={A4.w} mmStep={gridMm} />

@@ -98,6 +98,9 @@
 
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; width: 100%; }
+/* TASKS.csv #788 — charts, stereonets and logs are drawn in left-to-right coordinates: in Arabic (dir="rtl") an SVG
+   inheriting rtl would flip every text-anchor (a label anchored "start" at a box edge would hang outside it). */
+[dir="rtl"] svg { direction: ltr; }
 body {
   font-family: 'Exo 2', system-ui, sans-serif;
   background: var(--color-bg);

@@ -8,6 +8,8 @@ export const LANGUAGES = [
   { code: "en", name: "English" },
   { code: "es", name: "Español" },
   { code: "pt", name: "Português (Brasil)" },
+  { code: "fr", name: "Français" }, // TASKS.csv #788
+  { code: "ar", name: "العربية" }, // TASKS.csv #788 — right to left
 ];
 const KEY = "geostrix.language";
 let dict = null;
@@ -15,7 +17,7 @@ let current = "en";
 
 export function systemLanguage(navLang) {
   const l = String(navLang || "").toLowerCase();
-  return l.startsWith("es") ? "es" : l.startsWith("pt") ? "pt" : "en";
+  return l.startsWith("es") ? "es" : l.startsWith("pt") ? "pt" : l.startsWith("fr") ? "fr" : l.startsWith("ar") ? "ar" : "en";
 }
 
 export function savedLanguage() {
@@ -23,14 +25,16 @@ export function savedLanguage() {
   return systemLanguage(typeof navigator !== "undefined" ? navigator.language : "");
 }
 
-const loaders = { es: () => import("../locales/es.json"), pt: () => import("../locales/pt.json") };
+const loaders = { es: () => import("../locales/es.json"), pt: () => import("../locales/pt.json"), fr: () => import("../locales/fr.json"), ar: () => import("../locales/ar.json") };
+export const RTL = new Set(["ar"]); // written right to left: the page gets dir="rtl"
 
 // Before the first render: load the dictionary of the saved (or system) language. Never throws: English on any failure.
 export async function initLanguage(code = savedLanguage()) {
   current = loaders[code] ? code : "en";
-  if (current === "en") { dict = null; return current; }
+  if (typeof document !== "undefined") document.documentElement.dir = RTL.has(current) ? "rtl" : "ltr";
+  if (current === "en") { if (typeof document !== "undefined") document.documentElement.lang = "en"; dict = null; return current; }
   try { dict = (await loaders[current]()).default; } catch { dict = null; current = "en"; }
-  if (typeof document !== "undefined") document.documentElement.lang = current === "pt" ? "pt-BR" : current;
+  if (typeof document !== "undefined") { document.documentElement.lang = current === "pt" ? "pt-BR" : current; document.documentElement.dir = RTL.has(current) ? "rtl" : "ltr"; }
   return current;
 }
 

@@ -73,7 +73,7 @@ for (const file of args.filter((a) => !a.startsWith("--"))) {
   if (!dry) fs.writeFileSync(file, out);
 }
 if (args.includes("--locales")) {
-  for (const lang of ["es", "pt"]) {
+  for (const lang of fs.readdirSync("src/locales").filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5))) {
     const p = `src/locales/${lang}.json`;
     const d = JSON.parse(fs.readFileSync(p, "utf8"));
     const o = {};

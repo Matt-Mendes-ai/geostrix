@@ -1129,16 +1129,18 @@ ipcMain.handle("fs-list-drives", async () => {
   return { ok: true, drives: drives.length ? drives : ["C:\\"] };
 });
 
-// TASKS.csv #786 — the native menu in the interface language (the renderer tells it which: set-language). Role items
+// TASKS.csv #786 / #788 — the native menu in the interface language (the renderer tells it which: set-language). Role items
 // (Reload, Zoom, Quit...) keep Electron's own labels.
 const MENU_TR = {
   es: { "File": "Archivo", "New Project": "Nuevo proyecto", "Open Project…": "Abrir proyecto…", "Save Project": "Guardar proyecto", "Save Project As…": "Guardar proyecto como…", "Import CSV…": "Importar CSV…", "Import Assays…": "Importar ensayes…", "Import pXRF…": "Importar pXRF…", "Export PDF…": "Exportar PDF…", "Edit": "Editar", "Undo": "Deshacer", "Redo": "Rehacer", "View": "Ver", "Tools": "Herramientas", "Draw a cross-section": "Dibujar una sección", "Project CRS (Cartography)…": "SRC del proyecto (Cartografía)…", "Help": "Ayuda", "Keyboard Shortcuts": "Atajos de teclado", "Check for Updates at Startup": "Buscar actualizaciones al iniciar", "Check for Updates…": "Buscar actualizaciones…", "Report a Problem…": "Informar de un problema…", "Third-party Licences…": "Licencias de terceros…", "About GeoStrix": "Acerca de GeoStrix" },
   pt: { "File": "Arquivo", "New Project": "Novo projeto", "Open Project…": "Abrir projeto…", "Save Project": "Salvar projeto", "Save Project As…": "Salvar projeto como…", "Import CSV…": "Importar CSV…", "Import Assays…": "Importar análises…", "Import pXRF…": "Importar pXRF…", "Export PDF…": "Exportar PDF…", "Edit": "Editar", "Undo": "Desfazer", "Redo": "Refazer", "View": "Exibir", "Tools": "Ferramentas", "Draw a cross-section": "Desenhar uma seção", "Project CRS (Cartography)…": "SRC do projeto (Cartografia)…", "Help": "Ajuda", "Keyboard Shortcuts": "Atalhos de teclado", "Check for Updates at Startup": "Procurar atualizações ao iniciar", "Check for Updates…": "Procurar atualizações…", "Report a Problem…": "Relatar um problema…", "Third-party Licences…": "Licenças de terceiros…", "About GeoStrix": "Sobre o GeoStrix" },
+  fr: {"File": "Fichier", "New Project": "Nouveau projet", "Open Project…": "Ouvrir un projet…", "Save Project": "Enregistrer le projet", "Save Project As…": "Enregistrer le projet sous…", "Import CSV…": "Importer un CSV…", "Import Assays…": "Importer des analyses…", "Import pXRF…": "Importer du pXRF…", "Export PDF…": "Exporter en PDF…", "Edit": "Édition", "Undo": "Annuler", "Redo": "Rétablir", "View": "Affichage", "Tools": "Outils", "Draw a cross-section": "Tracer une coupe", "Project CRS (Cartography)…": "SCR du projet (cartographie)…", "Help": "Aide", "Keyboard Shortcuts": "Raccourcis clavier", "Check for Updates at Startup": "Rechercher les mises à jour au démarrage", "Check for Updates…": "Rechercher les mises à jour…", "Report a Problem…": "Signaler un problème…", "Third-party Licences…": "Licences tierces…", "About GeoStrix": "À propos de GeoStrix"},
+  ar: {"File": "ملف", "New Project": "مشروع جديد", "Open Project…": "فتح مشروع…", "Save Project": "حفظ المشروع", "Save Project As…": "حفظ المشروع باسم…", "Import CSV…": "استيراد CSV…", "Import Assays…": "استيراد التحاليل…", "Import pXRF…": "استيراد pXRF…", "Export PDF…": "تصدير PDF…", "Edit": "تحرير", "Undo": "تراجع", "Redo": "إعادة", "View": "عرض", "Tools": "أدوات", "Draw a cross-section": "رسم مقطع عرضي", "Project CRS (Cartography)…": "نظام إحداثيات المشروع (الخرائط)…", "Help": "مساعدة", "Keyboard Shortcuts": "اختصارات لوحة المفاتيح", "Check for Updates at Startup": "التحقق من التحديثات عند بدء التشغيل", "Check for Updates…": "التحقق من التحديثات…", "Report a Problem…": "الإبلاغ عن مشكلة…", "Third-party Licences…": "تراخيص الجهات الخارجية…", "About GeoStrix": "حول GeoStrix"},
 };
 let menuLang = null;
 const L = (text) => MENU_TR[menuLang ?? (menuLang = readPrefs().language || "en")]?.[text] || text;
 ipcMain.on("set-language", (_e, code) => {
-  if (!["en", "es", "pt"].includes(code) || code === menuLang) return;
+  if (!["en", "es", "pt", "fr", "ar"].includes(code) || code === menuLang) return;
   menuLang = code;
   writePrefs({ language: code });
   buildMenu();
