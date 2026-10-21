@@ -4,6 +4,11 @@ On 2026-09-25 Bitdefender silently held the GeoStrix v0.1.20 installer: the setu
 which looked like "it won't install". Releasing it from Bitdefender's quarantine fixed it. This page
 records why this happens, what the build now does about it, and what still has to be done by hand.
 
+**Since 0.1.53 every release is code-signed** (Certum, publisher *Open Source Developer Matheus Mendes de
+Albuquerque* — see [CODE_SIGNING.md](../CODE_SIGNING.md)). A new certificate still has little SmartScreen
+reputation, which builds up as people download and run signed releases, so the steps at the end of this page
+can still be needed for a while.
+
 ## What actually blocks a fresh install (found 2026-09-25)
 
 **Nothing in the installer broke between v0.1.14 and later versions.** What differs is how the file
@@ -22,8 +27,9 @@ reached the computer:
 Proof, on this machine: the *same* installer file was blocked at launch when tagged as a download, and
 opened its setup window in 8 seconds after the tag was removed with `Unblock-File`.
 
-Code signing is the lasting fix (SmartScreen trusts a known publisher). Until then, remove the tag
-yourself — see "Installing on a machine where antivirus blocks it" below.
+Code signing is the lasting fix (SmartScreen trusts a known publisher with a reputation). Releases are signed
+from 0.1.53; until the certificate's reputation has built up, remove the tag yourself if a download is held —
+see "Installing on a machine where antivirus blocks it" below.
 
 ## Why GeoStrix gets flagged
 
@@ -32,17 +38,18 @@ GeoStrix had several traits that push that score up:
 
 | Trait | Why it counts against us | Status |
 |---|---|---|
-| **Not code-signed** (installer, GeoStrix.exe, Python engine) | An unsigned file has no verified publisher and no reputation. This is the single biggest factor, and the reason Windows SmartScreen also warns. | **Needs a certificate — see below.** The release workflow is ready to sign as soon as one is added. |
+| **Not code-signed** (installer, GeoStrix.exe, Python engine) | An unsigned file has no verified publisher and no reputation. This is the single biggest factor, and the reason Windows SmartScreen also warns. | **Fixed from 0.1.53 (TASKS.csv #777):** signed with a Certum Open Source certificate — see below. A new certificate's reputation still has to build up, so SmartScreen can warn for a while. |
 | **PyInstaller's prebuilt bootloader** in the Python engine (`geostrix-sidecar.exe`) | The small launcher inside every PyInstaller program is byte-identical across countless malware samples that are also built with PyInstaller, so it is on many detection lists. | **Fixed (TASKS.csv #456):** the release build compiles the bootloader from source, so GeoStrix's engine has its own launcher. The build refuses to run in CI with the prebuilt one. |
 | **No version information** on the Python engine | An executable with no company, product, description or version looks anonymous. | **Fixed:** it now carries the same identity as GeoStrix.exe (Matt Mendes, GeoStrix, version, MIT). |
 | **PyInstaller's stock icon** | Another "generic packed program" signal. | **Fixed:** uses the GeoStrix icon. |
 | **UPX packing** | UPX-compressed executables are a strong malware indicator. | **Guaranteed off:** the build passes `--noupx`. |
 | **Self-extracting installer** (NSIS) | Installers unpack and write many files, which behavioural monitors (Bitdefender's Advanced Threat Control) watch closely. | **Mitigated:** every release now also ships a portable `.zip` that needs no installer. |
 
-None of the fixes except code signing *guarantees* that no antivirus will ever flag a new, unsigned
-release — each vendor uses its own heuristics and they change. They remove the most common triggers.
+None of these fixes, signing included, *guarantees* that no antivirus will ever flag a new release — each
+vendor uses its own heuristics and they change. They remove the most common triggers, and signing lets
+reputation carry over from one release to the next.
 
-## What only the project owner can do: code signing
+## Code signing
 
 Signing proves who published the file and lets reputation build up across releases. Options for an
 open-source project like GeoStrix (MIT, public on GitHub):
@@ -85,7 +92,8 @@ Each release lists SHA-256 checksums in `SHA256SUMS.txt` so a report can referen
 2. **Remove the download mark before running it** — right-click the file → Properties → tick
    **Unblock** at the bottom of the General tab → OK. (PowerShell alternative:
    `Unblock-File .\GeoStrix-Setup-<version>.exe`.) This is the step that makes a stuck installer open.
-3. If Windows still shows "Windows protected your PC": **More info → Run anyway** (unsigned installer).
+3. If Windows still shows "Windows protected your PC": **More info → Run anyway**. Releases from 0.1.53 are
+   signed (the dialog names the publisher); older ones are unsigned.
 4. If the installer does nothing, or disappears: open your antivirus (e.g. Bitdefender → Protection →
    Antivirus → Quarantine / Notifications), restore the file, and add an exception for it.
 5. Alternative with no installer: download `GeoStrix-<version>-win.zip`, **Unblock the .zip first** (same

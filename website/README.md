@@ -4,12 +4,17 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
 
 - `index.html` — home, features, screenshots, download, support
 - `privacy.html` — privacy policy (keep in step with `../PRIVACY.md`)
-- `es/` and `pt-br/` — the same two pages in Spanish (Latin American) and Brazilian Portuguese. **Any change to
-  `index.html` or `privacy.html` needs the same change in both translations.** Each page links its other
-  languages (`hreflang` in `<head>`, the EN · ES · PT switcher in the header) and uses root-absolute paths
-  (`/style.css`, `/img/…`) so the subfolders share one set of files. The translated privacy pages say the
-  English one prevails. The app itself is English-only, so the translated pages say so and keep its menu
-  names (*Help → Report a Problem*) in English.
+- `es/`, `pt-br/`, `fr/` and `ar/` — the same two pages in Spanish (Latin American), Brazilian Portuguese, French
+  and Arabic. **Any change to `index.html` or `privacy.html` needs the same change in all four translations.** Each
+  page links its other languages (`hreflang` in `<head>`, the EN · ES · PT · FR · AR switcher in the header, and
+  `sitemap.xml`) and uses root-absolute paths (`/style.css`, `/img/…`) so the subfolders share one set of files.
+  The translated privacy pages say the English one prevails.
+  - The app itself is in English, Spanish and Portuguese (TASKS.csv #786), not French or Arabic: the es/pt pages
+    use the app's own menu names from `src/locales/*.json` / `electron/main.js` `MENU_TR`; the fr/ar pages say
+    the app isn't in their language yet and keep its menu names (*Help → Report a Problem*) in English.
+  - Arabic (`<html lang="ar" dir="rtl">`): `style.css` uses inline-start/end (logical) properties, so the layout
+    mirrors by itself — keep using them, not left/right. Arabic text uses the system's Arabic fonts (Exo 2 has
+    none). English fragments inside Arabic text get `dir="ltr"` / `<bdi>` so their arrows and order stay right.
 - `download.js` — points the download buttons at the newest `GeoStrix-Setup-*.exe` on GitHub Releases
   (falls back to the latest-release page without JavaScript or if GitHub's API is unreachable), and shows the
   total GitHub download count of the installer + portable zip: as a badge above the home page's headline (linked
@@ -17,6 +22,11 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   follow the page's `<html lang>`
 - `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts
+- `img/flags/` — the language switcher's flags (Canada EN, Mexico ES — the most Spanish speakers, and
+  the pages use Latin-American mining Spanish — Brazil PT, France FR, Saudi Arabia AR), from
+  [flag-icons](https://github.com/lipis/flag-icons) 7.6.0 (MIT, `LICENSE-flag-icons.txt`). Mexico is `mx.png`, rendered
+  at 60×45 from flag-icons' `mx.svg` (85 KB, mostly the eagle; without it the flag would read as Italy's). Below 1080 px only the flags
+  show; the language code stays for screen readers and each link's `title` names the language.
 - `_headers` — Cloudflare Pages security / cache headers
 
 ## Deploy (Cloudflare Workers, static assets)

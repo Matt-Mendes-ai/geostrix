@@ -5,6 +5,8 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/"/>
   </url>
   <url>
@@ -12,6 +14,8 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/"/>
   </url>
   <url>
@@ -19,6 +23,26 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/fr/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/ar/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/"/>
   </url>
   <url>
@@ -26,6 +50,8 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
   </url>
   <url>
@@ -33,6 +59,8 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
   </url>
   <url>
@@ -40,6 +68,26 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/fr/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
+  </url>
+  <url>
+    <loc>https://geostrix.com/ar/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html"/>
   </url>
 </urlset>
