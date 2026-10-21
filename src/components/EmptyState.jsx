@@ -66,6 +66,9 @@ const card = {
   pointerEvents: "auto", maxWidth: 520, background: "#ffffffee", border: "1px solid var(--color-border)",
   borderRadius: 8, padding: "18px 20px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", lineHeight: 1.55,
   boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+  // TASKS.csv #790 — never taller than the view: with large Windows text scaling or longer translations the centred
+  // card spilled over the ribbon and the status bar (covering the "update available" button); now it scrolls inside
+  maxHeight: "100%", overflowY: "auto", boxSizing: "border-box",
 };
 const primaryBtn = {
   background: "#2f6f9f", border: "1px solid #2a6291", color: "#fff", borderRadius: 6,

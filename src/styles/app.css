@@ -145,6 +145,14 @@ input, select { font-family: inherit; }
   .ge-tool-sep { margin: 0 3px; }
   .ge-tool-label-opt { display: none; }
 }
+/* TASKS.csv #790 — the width alone did not decide it: at 1,280-1,300 px in Portuguese (or with large Windows text
+   scaling) the labels wrapped to two lines and Report was cut at the window's edge. Labels never wrap now, and
+   App.jsx measures the toolbar: when it does not fit, the same compact style as above applies at any width. */
+.ge-tool-btn { white-space: nowrap; flex-shrink: 0; }
+.ge-toolbar.ge-toolbar-compact { gap: 2px; padding: 0 6px; }
+.ge-toolbar-compact .ge-tool-btn { padding: 0 8px; gap: 5px; }
+.ge-toolbar-compact .ge-tool-sep { margin: 0 3px; }
+.ge-toolbar-compact .ge-tool-label-opt { display: none; }
 
 /* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
    module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data

@@ -90,6 +90,29 @@ export default function App() {
   // actually happening. Updated during render (not an effect) whenever the active tab IS a viewer
   // mode, so it's always current by the time it's read for a non-viewer tab.
   const lastViewerModeRef = useRef("view");
+  // TASKS.csv #790 — the top toolbar fits itself: compact (file actions icon-only) when its buttons do not fit the
+  // window, whatever the language or text scaling. Re-measured on resize and when the labels change, not per render.
+  const toolbarRef = useRef(null);
+  const toolbarKey = useRef("");
+  const fitToolbar = useCallback(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    el.classList.remove("ge-toolbar-compact");
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("ge-toolbar-compact");
+  }, []);
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; fitToolbar(); } });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitToolbar]);
+  useEffect(() => {
+    const el = toolbarRef.current;
+    const key = el ? `${el.clientWidth}|${el.textContent}` : "";
+    if (key !== toolbarKey.current) { toolbarKey.current = key; fitToolbar(); }
+  });
   if (VIEWER_MODES[active]) lastViewerModeRef.current = VIEWER_MODES[active];
   const [savedFlash, setSavedFlash] = useState(false);
   const [pyStatus, setPyStatus] = useState("checking"); // "checking" | "connected" | "unavailable" | "standby" (#440: not started yet)
@@ -391,7 +414,7 @@ export default function App() {
         onClose={closeWorkspaceTab}
         onNew={doNew}
       />
-      <div className="ge-toolbar">
+      <div className="ge-toolbar" ref={toolbarRef}>
         {MODULES.map((m) => {
           const Icon = m.icon;
           return (
