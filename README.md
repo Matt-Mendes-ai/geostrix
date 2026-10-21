@@ -32,9 +32,9 @@ tonnage or grade needs an estimate by a Qualified Person.
 
 ## Download
 
-Installers are on the [Releases page](https://github.com/Matt-Mendes-ai/geostrix/releases). Releases are not
-yet code-signed, so Windows may warn on first run: choose *More info*, then *Run anyway*
-([docs/antivirus.md](docs/antivirus.md)). GeoStrix has no telemetry; see [PRIVACY.md](PRIVACY.md).
+Installers are on the [Releases page](https://github.com/Matt-Mendes-ai/geostrix/releases). Releases are
+code-signed from 0.1.53 ([CODE_SIGNING.md](CODE_SIGNING.md)); while the new certificate builds reputation,
+Windows may still warn on first run: choose *More info*, then *Run anyway* ([docs/antivirus.md](docs/antivirus.md)). GeoStrix has no telemetry; see [PRIVACY.md](PRIVACY.md).
 
 ## Run from source
 
