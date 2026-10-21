@@ -153,6 +153,13 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   the UI turns a caught error into `errorNotice(...)` from `src/lib/notices.js` (or pushes the `Error` itself). A plain
   string notice gets its severity from a wording regex, and most thrown messages don't match it, so a caught error
   pushed as a plain string shows as grey info and auto-dismisses.
+- **Spanish and Portuguese (TASKS.csv #786).** The English text is the key: `import { t as tr } from "../lib/i18n.js"`
+  and write `tr("Loaded {n} holes", { n })` — whole sentences with `{placeholders}`, never English fragments glued to
+  values, and a singular/plural pair instead of `"hole" + (n === 1 ? "" : "s")`. Add the new keys to both
+  `src/locales/es.json` and `pt.json` (Latin-American mining Spanish: sondaje, ensaye, ley; Brazilian Portuguese: furo,
+  análise, teor); `test/i18n786.test.mjs` fails on a literal key missing from either. Never call `tr()` at module scope
+  (it would freeze the first language), and keep project data and export file text English. The codemods in
+  `scripts/i18n-*.mjs` wrap a new file; in dev, `window.__i18nMissing` lists keys that reached `t()` untranslated.
 - **Design tokens (colour + type).** `src/styles/app.css`'s `:root` block is the single source of
   truth for both, mirrored value-for-value in `src/lib/theme.js` (`colors`, `fontSizes`). Reach for
   `var(--color-*)` / `var(--font-size-*)` by default — they work in class rules AND in the inline
