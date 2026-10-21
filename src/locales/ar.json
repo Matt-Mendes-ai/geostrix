@@ -4819,5 +4819,9 @@
   "The compass direction each slope faces, as a colour wheel: north red, east yellow-green, south cyan, west blue; flat ground grey.": "الاتجاه الذي يواجهه كل منحدر، كعجلة ألوان: الشمال أحمر، الشرق أصفر مخضر، الجنوب سماوي، الغرب أزرق؛ الأرض المستوية رمادية.",
   "Convex (ridges, spurs) red, concave (hollows, gullies) blue, planar white - from the terrain grid's own spacing, so it sees landforms that size and larger.": "المحدب (الحواف، النتوءات) أحمر، المقعر (التجاويف، الأخاديد) أزرق، المستوي أبيض - بتباعد شبكة التضاريس نفسها، فيرى أشكال الأرض بذلك الحجم وأكبر.",
   "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper.": "الانحدار مغطى على التضاريس: الأبيض 0°، وأغمق رمادي {max}° أو أكثر.",
-  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "التقوس مغطى على التضاريس: الأحمر محدب، والأزرق مقعر، مشبع عند ±{max} (1/100 م)."
+  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "التقوس مغطى على التضاريس: الأحمر محدب، والأزرق مقعر، مشبع عند ±{max} (1/100 م).",
+  "VTK (legacy) — opens in ParaView and PyVista": "VTK (القديم) — يُفتح في ParaView وPyVista",
+  "VTK": "VTK",
+  "Export block model \"{name}\" as VTK": "تصدير نموذج الكتل «{name}» كـ VTK",
+  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "تصدير كـ VTK لـ ParaView / PyVista (الكتل الفارغة NaN)"
 }

@@ -4819,5 +4819,9 @@
   "The compass direction each slope faces, as a colour wheel: north red, east yellow-green, south cyan, west blue; flat ground grey.": "La direction vers laquelle chaque pente fait face, en roue de couleurs : nord rouge, est jaune-vert, sud cyan, ouest bleu ; terrain plat gris.",
   "Convex (ridges, spurs) red, concave (hollows, gullies) blue, planar white - from the terrain grid's own spacing, so it sees landforms that size and larger.": "Convexe (crêtes, éperons) rouge, concave (creux, ravines) bleu, plan blanc - à l'espacement propre de la grille du terrain, donc il voit les formes de cette taille et plus grandes.",
   "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper.": "Pente drapée sur le terrain : blanc 0°, gris le plus foncé {max}° ou plus.",
-  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "Courbure drapée sur le terrain : rouge convexe, bleu concave, saturée à ±{max} (1/100 m)."
+  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "Courbure drapée sur le terrain : rouge convexe, bleu concave, saturée à ±{max} (1/100 m).",
+  "VTK (legacy) — opens in ParaView and PyVista": "VTK (hérité) — s'ouvre dans ParaView et PyVista",
+  "VTK": "VTK",
+  "Export block model \"{name}\" as VTK": "Exporter le modèle de blocs « {name} » en VTK",
+  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "Exporter en VTK pour ParaView / PyVista (les blocs vides valent NaN)"
 }

@@ -1,0 +1,70 @@
+// TASKS.csv #798 — VTK files for ParaView / PyVista users (pv.read() opens them), written here with no VTK dependency
+// (the #792 PyVista review: take the interchange, not the 300 MB library). Legacy VTK format (vtk.org "VTK File
+// Formats"): a 5-line ASCII header, then the data.
+//  * surfaces: POLYDATA, ASCII, real-world coordinates (the OBJ / DXF exports' sceneVertsToWorld output);
+//  * block models: on a regular lattice (estimationMeta.blockModelLattice) STRUCTURED_POINTS (image data) with the
+//    value as CELL_DATA and NaN where the lattice has no block; otherwise (merged / octree models) UNSTRUCTURED_GRID of
+//    VOXEL cells. BINARY (big-endian, as the format requires), so NaN is exact and the file stays compact.
+import { blockModelLattice } from "./estimationMeta.js";
+
+const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
+
+export function surfaceToVtk(name, vertices, indices, note = "") {
+  const lines = ["# vtk DataFile Version 3.0", title(`${name} - GeoStrix${note ? ` - ${note}` : ""}`), "ASCII", "DATASET POLYDATA", `POINTS ${vertices.length} double`];
+  for (const [x, y, z] of vertices) lines.push(`${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
+  const nt = Math.floor(indices.length / 3);
+  lines.push(`POLYGONS ${nt} ${nt * 4}`);
+  for (let t = 0; t < nt; t++) lines.push(`3 ${indices[3 * t]} ${indices[3 * t + 1]} ${indices[3 * t + 2]}`);
+  return lines.join("\n") + "\n";
+}
+
+// Builds a binary legacy file from ASCII header chunks and big-endian numeric blocks
+function assemble(parts) {
+  const enc = new TextEncoder();
+  const bufs = parts.map((p) => (typeof p === "string" ? enc.encode(p) : p));
+  const out = new Uint8Array(bufs.reduce((n, b) => n + b.length, 0));
+  let o = 0;
+  for (const b of bufs) { out.set(b, o); o += b.length; }
+  return out;
+}
+const f32be = (vals) => { const dv = new DataView(new ArrayBuffer(vals.length * 4)); for (let i = 0; i < vals.length; i++) dv.setFloat32(i * 4, vals[i], false); return new Uint8Array(dv.buffer); };
+const f64be = (vals) => { const dv = new DataView(new ArrayBuffer(vals.length * 8)); for (let i = 0; i < vals.length; i++) dv.setFloat64(i * 8, vals[i], false); return new Uint8Array(dv.buffer); };
+const i32be = (vals) => { const dv = new DataView(new ArrayBuffer(vals.length * 4)); for (let i = 0; i < vals.length; i++) dv.setInt32(i * 4, vals[i], false); return new Uint8Array(dv.buffer); };
+const scalarName = (s) => String(s || "value").replace(/[^A-Za-z0-9_]+/g, "_").slice(0, 60) || "value";
+
+// model: { name, cells: [{x, y, z, dx, dy, dz, value}], property? }. Returns { bytes, kind: "image" | "voxels" }.
+export function blockModelToVtk(model, note = "") {
+  const cells = model.cells || [];
+  const field = scalarName(model.property || "value");
+  const head = (dataset) => `# vtk DataFile Version 3.0\n${title(`${model.name} - GeoStrix${note ? ` - ${note}` : ""}`)}\nBINARY\nDATASET ${dataset}\n`;
+  const L = blockModelLattice(model);
+  if (L && cells.length) {
+    const ix = (c) => Math.round((c.x - L.ox) / L.dx - 0.5), iy = (c) => Math.round((c.y - L.oy) / L.dy - 0.5), iz = (c) => Math.round((c.z - L.oz) / L.dz - 0.5);
+    let i0 = Infinity, j0 = Infinity, k0 = Infinity, i1 = -Infinity, j1 = -Infinity, k1 = -Infinity;
+    for (const c of cells) { const i = ix(c), j = iy(c), k = iz(c); if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j; if (k < k0) k0 = k; if (k > k1) k1 = k; }
+    const nx = i1 - i0 + 1, ny = j1 - j0 + 1, nz = k1 - k0 + 1;
+    const vals = new Float32Array(nx * ny * nz).fill(NaN); // x fastest, then y, then z (VTK image order)
+    for (const c of cells) vals[(iz(c) - k0) * nx * ny + (iy(c) - j0) * nx + (ix(c) - i0)] = c.value;
+    const bytes = assemble([
+      head("STRUCTURED_POINTS"),
+      `DIMENSIONS ${nx + 1} ${ny + 1} ${nz + 1}\nORIGIN ${L.ox + i0 * L.dx} ${L.oy + j0 * L.dy} ${L.oz + k0 * L.dz}\nSPACING ${L.dx} ${L.dy} ${L.dz}\n`,
+      `CELL_DATA ${vals.length}\nSCALARS ${field} float 1\nLOOKUP_TABLE default\n`, f32be(vals), "\n",
+    ]);
+    return { bytes, kind: "image", dims: [nx, ny, nz] };
+  }
+  // irregular: one VOXEL (VTK cell type 11) per block, its 8 corners in VTK's voxel order (x fastest, then y, then z)
+  const pts = new Float64Array(cells.length * 24), conn = new Int32Array(cells.length * 9), types = new Int32Array(cells.length).fill(11), vals = new Float32Array(cells.length);
+  cells.forEach((c, n) => {
+    const hx = c.dx / 2, hy = c.dy / 2, hz = c.dz / 2;
+    let p = 0;
+    for (const sz of [-1, 1]) for (const sy of [-1, 1]) for (const sx of [-1, 1]) { pts.set([c.x + sx * hx, c.y + sy * hy, c.z + sz * hz], n * 24 + p * 3); p++; }
+    conn[n * 9] = 8; for (let k = 0; k < 8; k++) conn[n * 9 + 1 + k] = n * 8 + k;
+    vals[n] = c.value;
+  });
+  const bytes = assemble([
+    head("UNSTRUCTURED_GRID"), `POINTS ${cells.length * 8} double\n`, f64be(pts), "\n",
+    `CELLS ${cells.length} ${cells.length * 9}\n`, i32be(conn), "\n", `CELL_TYPES ${cells.length}\n`, i32be(types), "\n",
+    `CELL_DATA ${cells.length}\nSCALARS ${field} float 1\nLOOKUP_TABLE default\n`, f32be(vals), "\n",
+  ]);
+  return { bytes, kind: "voxels" };
+}
