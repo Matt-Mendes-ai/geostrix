@@ -22,6 +22,11 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   follow the page's `<html lang>`
 - `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts
+- `img/flags/` — the language switcher's flags (Canada EN, Mexico ES — the most Spanish speakers, and
+  the pages use Latin-American mining Spanish — Brazil PT, France FR, Saudi Arabia AR), from
+  [flag-icons](https://github.com/lipis/flag-icons) 7.6.0 (MIT, `LICENSE-flag-icons.txt`). Mexico is `mx.png`, rendered
+  at 60×45 from flag-icons' `mx.svg` (85 KB, mostly the eagle; without it the flag would read as Italy's). Below 1080 px only the flags
+  show; the language code stays for screen readers and each link's `title` names the language.
 - `_headers` — Cloudflare Pages security / cache headers
 
 ## Deploy (Cloudflare Workers, static assets)
