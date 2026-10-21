@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // hole logged at high resolution needs to scroll, not squeeze onto one screen).
 const TRACK_W = 90;
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -125,36 +126,31 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>Strip log — {holeId}</div>
-            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{maxDepth.toFixed(0)} m total depth</div>
+            <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
+            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: maxDepth.toFixed(0) })}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 16px", borderBottom: "1px solid #d9dce1", flexWrap: "wrap" }}>
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>
-            Assay element
-            <select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
-              <option value="">— none —</option>
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Assay element")}<select value={assaySymbol} onChange={(e) => setAssaySymbol(e.target.value)} style={selStyle}>
+              <option value="">{tr("— none —")}</option>
               {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
             </select>
           </label>
           {[0, 1].map((k) => (
-            <select key={k} value={extraSymbols[k] || ""} onChange={(e) => setExtraSymbols((p) => { const n = [...p]; n[k] = e.target.value; return n.filter(Boolean); })} style={selStyle} aria-label={`Additional assay track ${k + 1}`}>
-              <option value="">+ element</option>
+            <select key={k} value={extraSymbols[k] || ""} onChange={(e) => setExtraSymbols((p) => { const n = [...p]; n[k] = e.target.value; return n.filter(Boolean); })} style={selStyle} aria-label={tr("Additional assay track {v}", { v: k + 1 })}>
+              <option value="">{tr("+ element")}</option>
               {symbols.filter((s) => s !== assaySymbol).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           ))}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title="Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.">
-            <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} /> Log scale
-          </label>
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>
-            Vertical scale (px/m)
-            <input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.")}>
+            <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
           </label>
           <div style={{ flex: 1 }} />
-          <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} /> SVG</button>
-          <button onClick={exportPNG} style={{ ...btn(true), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} /> PNG</button>
+          <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
+          <button onClick={exportPNG} style={{ ...btn(true), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
@@ -202,19 +198,19 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${elementUnits[t.sym] || "ppm"}`}</title></rect>;
                   })}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (
-                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{logScale ? `log ${assayRange[t.sym].minPos.toPrecision(2)}–${assayRange[t.sym].max.toPrecision(3)}` : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{logScale ? tr("log {minPos}–{max}", { minPos: assayRange[t.sym].minPos.toPrecision(2), max: assayRange[t.sym].max.toPrecision(3) }) : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>
                   )}
                 </g>
               );
             })}
           </svg>
           {tracks.every((t) => t.rows.length === 0) && (
-            <div style={{ fontSize: 12, color: "#65717e", marginTop: 12 }}>No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id "{holeId}".</div>
+            <div style={{ fontSize: 12, color: "#65717e", marginTop: 12 }}>{tr("No interval data logged for this hole yet — import litho/alt/vein/geotech/assay data with matching hole_id \"{holeId}\".", { holeId })}</div>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid #d9dce1" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
         </div>
       </div>
     </div>

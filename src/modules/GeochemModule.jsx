@@ -747,7 +747,7 @@ export default function GeochemModule() {
                 </select>
                 <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
-                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units (")}{assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", ")}{assayElements.length > 6 ? ", …" : ""}{tr("). Rows missing any element in the formula get no value.")}</div>
+                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: assayElements.length > 6 ? ", …" : "" })}</div>
                 {calc.msg && <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
@@ -843,7 +843,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
 
         {missingForDiagram.length > 0 && (
-          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs")}{" "}{diagram.requires.join(", ")}{" "}{tr("— missing")}{" "}{missingForDiagram.join(", ")}{tr(". Points that can't be projected are dropped.")}</div>
+          <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>
         )}
 
         {assays.length === 0 ? (
@@ -876,11 +876,9 @@ export default function GeochemModule() {
           <div style={{ maxWidth: 680 }}>
             <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
-              {diagram.spider
+              {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: assays.length })
-                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: assays.length })}
-              {lithFilter ? tr(" {v} hidden by the lithology filter.", { v: assays.length - plotted.length }) : ""}
-              {" "}{tr("Below-detection values substituted at half the detection limit.")}</div>
+                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: assays.length }), v2: lithFilter ? tr(" {v} hidden by the lithology filter.", { v: assays.length - plotted.length }) : "" })}</div>
           </div>
         )}
       </div>
@@ -1007,13 +1005,13 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
   };
   const removeFile = (f) => {
     const label = f.file == null ? "the assays imported before file names were recorded" : `"${f.file}"`;
-    if (!confirmDestructive(`Remove ${label} (${f.intervals.toLocaleString()} interval(s))?`, { undoable: true })) return;
+    if (!confirmDestructive(tr("Remove {label} ({intervals} interval(s))?", { label, intervals: f.intervals.toLocaleString() }), { undoable: true })) return;
     const r = removeAssayFile(assays, f.file);
     setAssays(r.assays); dropUnusedElements(r.assays);
     setNotices((p) => [...p, notice("Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.", { removed: r.removed.toLocaleString(), label, v: r.keptShared ? tr(" {keptShared} interval(s) also came from another file and were kept (their values can't be separated by file).", { keptShared: r.keptShared.toLocaleString() }) : "" })]);
   };
   const removeElement = (sym) => {
-    if (!confirmDestructive(`Remove ${sym} from every assay interval?`, { undoable: true })) return;
+    if (!confirmDestructive(tr("Remove {sym} from every assay interval?", { sym }), { undoable: true })) return;
     const r = removeAssayElement(assays, sym);
     setAssays(r.assays);
     setAssayElements((prev) => prev.filter((e) => e.symbol !== sym));
@@ -1021,7 +1019,7 @@ function AssayRemovePanel({ assays, assayElements, setAssays, setAssayElements, 
     setNotices((p) => [...p, notice("Removed {sym} from {cleared} interval(s){v}. Ctrl+Z to undo.", { sym, cleared: r.cleared.toLocaleString(), v: r.emptied ? tr("; {emptied} interval(s) had no other element and were removed", { emptied: r.emptied.toLocaleString() }) : "" })]);
   };
   const removeAll = () => {
-    if (!confirmDestructive(`Remove all ${assays.length.toLocaleString()} assay intervals and ${assayElements.length} element(s)?`, { undoable: true })) return;
+    if (!confirmDestructive(tr("Remove all {assays} assay intervals and {assayElements} element(s)?", { assays: assays.length.toLocaleString(), assayElements: assayElements.length }), { undoable: true })) return;
     setAssays([]); setAssayElements([]); setColorElement(null);
     setNotices((p) => [...p, notice("Removed all assays. Ctrl+Z to undo.")]);
   };

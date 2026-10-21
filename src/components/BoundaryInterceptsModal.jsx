@@ -6,6 +6,7 @@ import { saveFile } from "../lib/desktop.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every
@@ -64,83 +65,68 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Milestone size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Boundary intercepts</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Boundary intercepts")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-            Every lithology/alteration interval's top — the same control points the implicit-modelling
-            tools already read on the Modelling tab — resolved to a real 3D position along each hole's
-            desurveyed trace. Uncheck one to exclude it from feeding a surface without touching the
-            imported data itself; re-check to bring it back. Click the circle to mark a point "soft" —
-            it still feeds the run, but only approximately honoured (a real GemPy nugget tolerance, not
-            just a label) rather than forced through exactly. {intercepts.length} total
-            {excludedCount > 0 ? `, ${excludedCount} excluded` : ""}
-            {softCount > 0 ? `, ${softCount} soft` : ""}.
-          </div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Every lithology/alteration interval's top — the same control points the implicit-modelling tools already read on the Modelling tab — resolved to a real 3D position along each hole's desurveyed trace. Uncheck one to exclude it from feeding a surface without touching the imported data itself; re-check to bring it back. Click the circle to mark a point \"soft\" — it still feeds the run, but only approximately honoured (a real GemPy nugget tolerance, not just a label) rather than forced through exactly. {intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}</div>
 
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <select value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
-              <option value="all">All layers</option>
-              <option value="litho">Lithology</option>
-              <option value="alt">Alteration</option>
-              <option value="vein">Vein / dyke</option>
+              <option value="all">{tr("All layers")}</option>
+              <option value="litho">{tr("Lithology")}</option>
+              <option value="alt">{tr("Alteration")}</option>
+              <option value="vein">{tr("Vein / dyke")}</option>
             </select>
             <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="all">All units</option>
+              <option value="all">{tr("All units")}</option>
               {units.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
-            <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder="Hole ID…" style={{ ...sel, flex: 1 }} />
+            <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Hole ID…")} style={{ ...sel, flex: 1 }} />
           </div>
 
           {/* TASKS.csv #52 (c) — set editor. */}
           <div style={{ border: "1px solid var(--color-border-subtle)", borderRadius: 6, padding: 8, marginBottom: 10, background: "var(--color-bg-inset)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
               <Layers size={14} color="#55606e" />
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>Intercept sets</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", fontWeight: 600 }}>{tr("Intercept sets")}</div>
             </div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>
-              A named subset of these picks, so a unit that repeats in the pile can be modelled as the
-              separate surfaces it actually is instead of every pick of that code feeding one surface.
-              Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are
-              saved with the project, and they exclude nothing: a pick left out of the active set is
-              simply not used by that run.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it actually is instead of every pick of that code feeding one surface. Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project, and they exclude nothing: a pick left out of the active set is simply not used by that run.")}</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
               <select value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
-                <option value="">— no set being edited —</option>
+                <option value="">{tr("— no set being edited —")}</option>
                 {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
               </select>
               {editingSet && (
-                <button onClick={() => { const n = window.prompt("Rename set", editingSet.name); if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); }} style={miniBtn} title="Rename this set">Rename</button>
+                <button onClick={() => { const n = window.prompt(tr("Rename set"), editingSet.name); if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); }} style={miniBtn} title={tr("Rename this set")}>{tr("Rename")}</button>
               )}
               {editingSet && (
-                <button onClick={() => { if (window.confirm(`Delete the set "${editingSet.name}"? The intercepts themselves are untouched.`)) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} style={{ ...miniBtn, color: "var(--color-danger-icon)" }} title="Delete this set">
+                <button onClick={() => { if (window.confirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} style={{ ...miniBtn, color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
                   <Trash2 size={12} />
                 </button>
               )}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder="New set name…"
+              <input value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder={tr("New set name…")}
                 onKeyDown={(e) => { if (e.key === "Enter" && newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
                 style={{ ...sel, flex: 1 }} />
               <button disabled={!newSetName.trim()} onClick={() => { if (newSetName.trim() && onAddSet) { const id = onAddSet(newSetName.trim()); setNewSetName(""); if (id) setEditingSetId(id); } }}
-                style={{ ...miniBtn, opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} /> Create</button>
+                style={{ ...miniBtn, opacity: newSetName.trim() ? 1 : 0.5 }}><Plus size={12} />{" "}{tr("Create")}</button>
             </div>
             {editingSet && (
               <div style={{ display: "flex", gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} style={miniBtn}>Add the {shown.length} shown</button>
-                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} style={miniBtn}>Remove the {shown.length} shown</button>
-                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{(editingSet.ids || []).length} intercept(s) in this set.</span>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), true)} style={miniBtn}>{tr("Add the {shown} shown", { shown: shown.length })}</button>
+                <button onClick={() => onSetMembership?.(editingSet.id, shown.map((i) => i.id), false)} style={miniBtn}>{tr("Remove the {shown} shown", { shown: shown.length })}</button>
+                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("{n} intercept(s) in this set.", { n: (editingSet.ids || []).length })}</span>
               </div>
             )}
           </div>
 
           {shown.length === 0 ? (
             <div style={{ padding: "16px 10px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
-              {intercepts.length === 0 ? "No litho/alteration intervals loaded yet." : "No intercepts match the current filters."}
+              {intercepts.length === 0 ? tr("No litho/alteration intervals loaded yet.") : tr("No intercepts match the current filters.")}
             </div>
           ) : (
             <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
@@ -148,12 +134,12 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                 <thead>
                   <tr style={{ background: "var(--color-bg)" }}>
                     <th style={th}></th>
-                    <th style={th} title="Soft constraint — feeds the model but only approximately honoured"></th>
-                    {editingSet && <th style={th}>Set</th>}
-                    <th style={th}>Layer</th>
-                    <th style={th}>Hole</th>
-                    <th style={th}>Unit</th>
-                    <th style={th}>From (m)</th>
+                    <th style={th} title={tr("Soft constraint — feeds the model but only approximately honoured")}></th>
+                    {editingSet && <th style={th}>{tr("Set")}</th>}
+                    <th style={th}>{tr("Layer")}</th>
+                    <th style={th}>{tr("Hole")}</th>
+                    <th style={th}>{tr("Unit")}</th>
+                    <th style={th}>{tr("From (m)")}</th>
                     <th style={th}>X / Y / Z</th>
                   </tr>
                 </thead>
@@ -163,14 +149,14 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                     const soft = softSet.has(i.id);
                     return (
                       <tr key={i.id} style={{ borderTop: "1px solid var(--color-border-subtle)", opacity: excluded ? 0.45 : 1 }}>
-                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? "Excluded — click to include" : "Included — click to exclude"}>
+                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggle(i.id)} title={excluded ? tr("Excluded — click to include") : tr("Included — click to exclude")}>
                           {excluded ? <Square size={14} color="#55606e" /> : <CheckSquare size={14} color="#7fd9c9" />}
                         </td>
-                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? "Soft (approximate) — click to make hard again" : "Hard (exact) — click to make soft"}>
+                        <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: excluded ? "default" : "pointer" }} onClick={() => !excluded && onToggleSoft(i.id)} title={soft ? tr("Soft (approximate) — click to make hard again") : tr("Hard (exact) — click to make soft")}>
                           {soft ? <Circle size={12} color="#e2a63c" fill="#e2a63c" /> : <Circle size={12} color="#c7ccd3" />}
                         </td>
                         {editingSet && (
-                          <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? "In the set being edited — click to remove" : "Not in the set being edited — click to add"}>
+                          <td role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ ...td, cursor: "pointer" }} onClick={() => onToggleInSet?.(editingSet.id, i.id)} title={memberSet.has(i.id) ? tr("In the set being edited — click to remove") : tr("Not in the set being edited — click to add")}>
                             {memberSet.has(i.id) ? <CheckSquare size={14} color="#8a6a1f" /> : <Square size={14} color="#c7ccd3" />}
                           </td>
                         )}
@@ -190,8 +176,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
 
         <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
           <button onClick={exportCsv} disabled={!intercepts.length} style={{ ...rerunBtn, opacity: intercepts.length ? 1 : 0.5 }}>
-            <Download size={14} /> Export CSV
-          </button>
+            <Download size={14} />{" "}{tr("Export CSV")}</button>
         </div>
       </div>
     </div>

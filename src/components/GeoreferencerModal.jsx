@@ -7,6 +7,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
@@ -50,7 +51,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
       setPoints([]);
       URL.revokeObjectURL(url);
     };
-    bitmap.onerror = () => { setError("Couldn't load this image — only PNG/JPG are supported (browsers can't decode plain TIFF, and an ungeoreferenced TIFF has no tags to read anyway)."); URL.revokeObjectURL(url); };
+    bitmap.onerror = () => { setError(tr("Couldn't load this image — only PNG/JPG are supported (browsers can't decode plain TIFF, and an ungeoreferenced TIFF has no tags to read anyway).")); URL.revokeObjectURL(url); };
     bitmap.src = url;
   };
 
@@ -122,17 +123,16 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Georeferencer — manual control points</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Georeferencer — manual control points")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={() => fileInput.current.click()} style={btn(false)}>
-              <Upload size={14} style={{ marginRight: 6 }} /> Load image (PNG/JPG)…
-            </button>
+              <Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load image (PNG/JPG)…")}</button>
             <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {img ? (
               <div role="button" tabIndex={0} onKeyDown={activateOnKey}
@@ -152,9 +152,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                 ))}
               </div>
             ) : (
-              <div style={{ width: DISPLAY_MAX, height: 400, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>
-                Load an image to begin placing control points.
-              </div>
+              <div style={{ width: DISPLAY_MAX, height: 400, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>{tr("Load an image to begin placing control points.")}</div>
             )}
           </div>
 
@@ -162,24 +160,22 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
             {/* TASKS.csv #290 — control-point CRS. Defaults to "same as project", so an existing
                 workflow that types project coordinates behaves exactly as it did before. */}
             <SourceCrsField
-              label="Control points are in" value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))}
+              label={tr("Control points are in")} value={cpEpsg} onChange={(c) => setCpEpsg(c === "" ? "" : String(c))}
               defaultText="Same as project (already project coordinates)"
-              title="The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted."
+              title={tr("The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted.")}
             />
             {needsReproject && !crsError && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.
-              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.", { cpEpsg, projectEpsg })}</div>
             )}
             {crsError && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, padding: "6px 8px" }}>{crsError}</div>
             )}
-            <div style={label}>Control points ({points.length}, need 3+ with valid coordinates)</div>
+            <div style={label}>{tr("Control points ({points}, need 3+ with valid coordinates)", { points: points.length })}</div>
             {points.length === 0 ? (
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Click on the image to add a point, then enter its known real-world X/Y here.</div>
+              <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Click on the image to add a point, then enter its known real-world X/Y here.")}</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>Pixel</th><th style={th}>{isGeographicCp ? "Longitude" : "World X"}</th><th style={th}>{isGeographicCp ? "Latitude" : "World Y"}</th><th style={th}>Error (m)</th><th style={th}></th></tr></thead>
+                <thead><tr><th style={th}>#</th><th style={th}>{tr("Pixel")}</th><th style={th}>{isGeographicCp ? tr("Longitude") : tr("World X")}</th><th style={th}>{isGeographicCp ? tr("Latitude") : tr("World Y")}</th><th style={th}>{tr("Error (m)")}</th><th style={th}></th></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
                     const r = fitResiduals?.find((rr) => rr.id === p.id);
@@ -190,7 +186,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                         <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value })} style={numInput} /></td>
                         <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value })} style={numInput} /></td>
                         <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r ? r.error.toFixed(2) : "—"}</td>
-                        <td style={td}><Trash2 aria-label={"Remove this control point"} title={"Remove this control point"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
+                        <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
                       </tr>
                     );
                   })}
@@ -198,12 +194,11 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
               </table>
             )}
             {fit && (
-              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>
-                Transform fit — RMSE {rmse.toFixed(2)} world units. {rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.</span>}
+              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>{tr("Transform fit — RMSE {rmse} world units.", { rmse: rmse.toFixed(2) })}{" "}{rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>{tr("One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.")}</span>}
               </div>
             )}
             {usablePoints.length > 0 && usablePoints.length < 3 && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Need at least 3 points with valid coordinates to fit a transform.</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Need at least 3 points with valid coordinates to fit a transform.")}</div>
             )}
             {error && (
               <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{error}</div>
@@ -212,9 +207,9 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Cancel</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
           <button onClick={doImport} disabled={!fit || busy} style={{ ...btn(true), flex: 2, opacity: fit && !busy ? 1 : 0.5, cursor: fit && !busy ? "pointer" : "not-allowed" }}>
-            {busy ? "Georeferencing…" : "Georeference & import as raster"}
+            {busy ? tr("Georeferencing…") : tr("Georeference & import as raster")}
           </button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { version as APP_VERSION, description as APP_TAGLINE } from "../../package.json"; // #648 — one tagline: About + Windows app details
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #32 — keyboard shortcuts reference. Lists exactly what electron/main.js's Menu template
 // actually wires up (kept next to that file's accelerators deliberately, so this can't silently drift
@@ -93,24 +94,20 @@ function PythonHelp({ pyStatus }) {
   const p = { margin: "0 0 10px" };
   return (
     <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6, overflowY: "auto" }}>
-      <p style={p}>GeoStrix has a built-in Python engine for its heaviest calculations. It is installed with the app,
-        runs only on this computer, and starts the first time a feature needs it (the first start can take up to a
-        minute on a slow machine).</p>
-      <p style={p}><b style={{ color: "var(--color-text)" }}>Status:</b> {PY_STATUS_TEXT[pyStatus] || PY_STATUS_TEXT.unavailable}</p>
-      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>Features that use it</div>
+      <p style={p}>{tr("GeoStrix has a built-in Python engine for its heaviest calculations. It is installed with the app, runs only on this computer, and starts the first time a feature needs it (the first start can take up to a minute on a slow machine).")}</p>
+      <p style={p}><b style={{ color: "var(--color-text)" }}>{tr("Status:")}</b> {PY_STATUS_TEXT[pyStatus] || PY_STATUS_TEXT.unavailable}</p>
+      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>{tr("Features that use it")}</div>
       <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
-        <li>Implicit geological modelling (GemPy) — 3D Modelling tab</li>
-        <li>Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion</li>
-        <li>2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP</li>
+        <li>{tr("Implicit geological modelling (GemPy) — 3D Modelling tab")}</li>
+        <li>{tr("Magnetic and gravity forward models and inversions (SimPEG) — Geophysics › Inversion")}</li>
+        <li>{tr("2D DC resistivity / IP inversion (SimPEG) — Geophysics › DC / IP")}</li>
       </ul>
-      <p style={p}>Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, maps,
-        rasters and reprojection — works without it.</p>
-      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>If it doesn't start</div>
+      <p style={p}>{tr("Everything else — importing, the 3D view, geochemistry, grade shells, sections, layouts, maps, rasters and reprojection — works without it.")}</p>
+      <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", margin: "14px 0 6px" }}>{tr("If it doesn't start")}</div>
       <ol style={{ margin: 0, paddingLeft: 18 }}>
-        <li>Try the feature again after a minute — the first start unpacks its libraries.</li>
-        <li>Check your antivirus: some (Bitdefender, for one) block or quarantine <code>geostrix-sidecar.exe</code> in
-          the GeoStrix install folder, or its connection to this computer. Restore it / allow it, then restart GeoStrix.</li>
-        <li>Reinstall GeoStrix with the latest installer from the GitHub releases page.</li>
+        <li>{tr("Try the feature again after a minute — the first start unpacks its libraries.")}</li>
+        <li>{tr("Check your antivirus: some (Bitdefender, for one) block or quarantine")}{" "}<code>geostrix-sidecar.exe</code>{" "}{tr("in the GeoStrix install folder, or its connection to this computer. Restore it / allow it, then restart GeoStrix.")}</li>
+        <li>{tr("Reinstall GeoStrix with the latest installer from the GitHub releases page.")}</li>
       </ol>
     </div>
   );
@@ -125,21 +122,16 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div style={{ display: "flex", gap: 4 }}>
-            <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={14} />} label="Shortcuts" />
-            <TabBtn active={tab === "python"} onClick={() => setTab("python")} icon={<Cpu size={14} />} label="Python features" />
-            <TabBtn active={tab === "about"} onClick={() => setTab("about")} icon={<Info size={14} />} label="About" />
+            <TabBtn active={tab === "shortcuts"} onClick={() => setTab("shortcuts")} icon={<Keyboard size={14} />} label={tr("Shortcuts")} />
+            <TabBtn active={tab === "python"} onClick={() => setTab("python")} icon={<Cpu size={14} />} label={tr("Python features")} />
+            <TabBtn active={tab === "about"} onClick={() => setTab("about")} icon={<Info size={14} />} label={tr("About")} />
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {tab === "python" ? <PythonHelp pyStatus={pyStatus} /> : tab === "shortcuts" ? (
           <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              Most of GeoStrix is a point-and-click tool by design — this is the small, real set of
-              keyboard shortcuts that exist today, not an aspirational list. Undo/Redo step back
-              through content changes (imports, deletes, moves, edits) — while a text field has focus,
-              Ctrl/Cmd+Z instead does that field's own native text-undo, as expected.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>{tr("Most of GeoStrix is a point-and-click tool by design — this is the small, real set of keyboard shortcuts that exist today, not an aspirational list. Undo/Redo step back through content changes (imports, deletes, moves, edits) — while a text field has focus, Ctrl/Cmd+Z instead does that field's own native text-undo, as expected.")}</div>
             {SHORTCUT_GROUPS.map((g) => (
               <div key={g.title}>
                 <div style={{ fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6 }}>{g.title}</div>
@@ -165,34 +157,29 @@ export default function ShortcutsModal({ initialTab = "shortcuts", onClose, pySt
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
               <img src="./favicon.png" alt="" width={52} height={52} style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent-dark)", fontWeight: 600 }}>GeoStrix</div>
+                <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("GeoStrix")}</div>
                 {/* TASKS.csv #246 — found by a pre-release review: no version was shown anywhere at rest,
                     only briefly in a self-clearing status-bar message after a manual update check. Read
                     straight from package.json (a plain Vite JSON import, works identically in the desktop
                     build and the browser-fallback dev path — no IPC needed for a value this static). */}
-                <div style={{ color: "var(--color-text-muted)" }}>Version {APP_VERSION}</div>
+                <div style={{ color: "var(--color-text-muted)" }}>{tr("Version {APP_VERSION}", { APP_VERSION })}</div>
                 <div style={{ color: "var(--color-text-muted)" }}>{APP_TAGLINE}</div>
                 {/* TASKS.csv #647 — the author, linked to his LinkedIn (opens in the real browser, like the links below) */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, color: "var(--color-text-muted)" }}>
-                  by
-                  <a href={AUTHOR_URL} target="_blank" rel="noreferrer" title="Matt Mendes on LinkedIn" style={{ ...link, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    Matt Mendes <LinkedInMark />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, color: "var(--color-text-muted)" }}>{tr("by")}<a href={AUTHOR_URL} target="_blank" rel="noreferrer" title={tr("Matt Mendes on LinkedIn")} style={{ ...link, display: "inline-flex", alignItems: "center", gap: 5 }}>{tr("Matt Mendes")}{" "}<LinkedInMark />
                   </a>
                 </div>
               </div>
             </div>
             {/* TASKS.csv #648 — refreshed: what GeoStrix covers today, who it is for, and credit for geoML */}
-            <div>Made for exploration geologists, especially small teams on modest budgets and ordinary laptops: drillholes and geochemistry, geophysics and inversions, implicit and predictive 3D modelling, targeting, maps and print-ready layouts, in one free desktop app that works offline.</div>
-            <div style={{ marginTop: 8, color: "var(--color-text-muted)" }}>
-              Predictive modelling is powered by <a href={GEOML_URL} target="_blank" rel="noreferrer" style={link}>geoML</a>, created by Ítalo Gonçalves (optional add-on, GPL-3.0).
-            </div>
+            <div>{tr("Made for exploration geologists, especially small teams on modest budgets and ordinary laptops: drillholes and geochemistry, geophysics and inversions, implicit and predictive 3D modelling, targeting, maps and print-ready layouts, in one free desktop app that works offline.")}</div>
+            <div style={{ marginTop: 8, color: "var(--color-text-muted)" }}>{tr("Predictive modelling is powered by")}{" "}<a href={GEOML_URL} target="_blank" rel="noreferrer" style={link}>{tr("geoML")}</a>{tr(", created by Ítalo Gonçalves (optional add-on, GPL-3.0).")}</div>
             {/* TASKS.csv #310 — the licence and the repository were mentioned in prose but not reachable.
                 electron/main.js's setWindowOpenHandler (added in the same row) sends these to the user's
                 real browser instead of a chromeless Electron window; in the browser-fallback dev path
                 target="_blank" behaves normally. */}
             <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
-              <a href={REPO_URL} target="_blank" rel="noreferrer" style={link}>Repository</a>
-              <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer" style={link}>MIT licence</a>
+              <a href={REPO_URL} target="_blank" rel="noreferrer" style={link}>{tr("Repository")}</a>
+              <a href={`${REPO_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer" style={link}>{tr("MIT licence")}</a>
             </div>
           </div>
         )}

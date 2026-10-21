@@ -7,6 +7,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -158,21 +159,15 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={modalPanel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
-            Fence / panel diagram
-            {panel && <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>
-              {" "}— {panel.holes.length} hole{panel.holes.length === 1 ? "" : "s"}, section {panel.line.azimuth.toFixed(1)}°
-              {ve !== 1 ? ` · ${ve}× vertical exaggeration` : " · true scale"}
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>{tr("Fence / panel diagram")}{panel && <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>
+              {" "}{tr("— {holes} {v}, section {azimuth}°{v2}", { holes: panel.holes.length, v: tr(panel.holes.length === 1 ? "hole" : "holes"), azimuth: panel.line.azimuth.toFixed(1), v2: ve !== 1 ? tr(" · {ve}× vertical exaggeration", { ve }) : tr(" · true scale") })}
             </span>}
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!allIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6, maxWidth: 520 }}>
-            No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this
-            panel will fill in.
-          </div>
+          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6, maxWidth: 520 }}>{tr("No desurveyed holes yet. Import collars and survey data (and a lithology layer) and this panel will fill in.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -186,7 +181,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
               ))}
               <text x={10} y={PAD_T - 6} fontSize={9} fill="#55606e">RL (m)</text>
               <text x={PAD_L + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
-                Distance along section (m) — bearing {panel ? panel.line.azimuth.toFixed(1) : "—"}°
+                {tr("Distance along section (m) — bearing {v}°", { v: panel ? panel.line.azimuth.toFixed(1) : "—" })}
               </text>
 
               {/* ---- OFFSET RIBBON: how far each hole really is off the section plane, drawn to the
@@ -196,7 +191,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                 <g>
                   <rect x={PAD_L} y={22} width={PLOT_W} height={RIBBON_H - 6} fill="#f7f8fa" stroke="#e6e8ec" strokeWidth={1} />
                   <line x1={PAD_L} y1={22 + (RIBBON_H - 6) / 2} x2={PAD_L + PLOT_W} y2={22 + (RIBBON_H - 6) / 2} stroke="#c7ccd3" strokeWidth={1} strokeDasharray="4 3" />
-                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#65717e">Offset from section plane (same scale as the section)</text>
+                  <text x={PAD_L + 4} y={22 - 3} fontSize={8.5} fill="#65717e">{tr("Offset from section plane (same scale as the section)")}</text>
                   {panel.holes.map((h) => {
                     const cy = 22 + (RIBBON_H - 6) / 2;
                     const dy = Math.max(-(RIBBON_H - 8) / 2, Math.min((RIBBON_H - 8) / 2, h.offset / view.sPerPx));
@@ -205,7 +200,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                       <g key={`ro_${h.hole_id}`}>
                         <line x1={view.xFor(h.s)} y1={cy} x2={view.xFor(h.s)} y2={cy - dy} stroke={over ? "#c98a1f" : "#7d8a9a"} strokeWidth={1.2} />
                         <circle cx={view.xFor(h.s)} cy={cy - dy} r={2.4} fill={over ? "#c98a1f" : "#55606e"}>
-                          <title>{`${h.hole_id}: collar ${h.offset.toFixed(1)} m off section, max ${h.maxAbsOffset.toFixed(1)} m along the hole`}</title>
+                          <title>{tr("{hole_id}: collar {offset} m off section, max {maxAbsOffset} m along the hole", { hole_id: h.hole_id, offset: h.offset.toFixed(1), maxAbsOffset: h.maxAbsOffset.toFixed(1) })}</title>
                         </circle>
                       </g>
                     );
@@ -219,7 +214,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                   key={`band_${i}`}
                   d={`M ${view.xFor(b.aTop.s)} ${view.yFor(b.aTop.z)} L ${view.xFor(b.bTop.s)} ${view.yFor(b.bTop.z)} L ${view.xFor(b.bBot.s)} ${view.yFor(b.bBot.z)} L ${view.xFor(b.aBot.s)} ${view.yFor(b.aBot.z)} Z`}
                   fill={colorForLithology(b.code)} opacity={0.16} stroke={colorForLithology(b.code)} strokeWidth={0.6} strokeOpacity={0.5}
-                ><title>{`${b.code} correlated between adjacent holes (shallowest occurrence in each) — an interpretation, not a measurement`}</title></path>
+                ><title>{tr("{code} correlated between adjacent holes (shallowest occurrence in each) — an interpretation, not a measurement", { code: b.code })}</title></path>
               ))}
 
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
@@ -249,7 +244,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                     <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
                     <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
-                      {h.maxAbsOffset < 0.05 ? "on section" : `${h.maxAbsOffset.toFixed(0)} m off`}
+                      {h.maxAbsOffset < 0.05 ? tr("on section") : `${h.maxAbsOffset.toFixed(0)} m off`}
                     </text>
                   </g>
                 );
@@ -258,56 +253,40 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
           </div>
 
           <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "72vh", overflow: "auto" }}>
-            <label style={rowLabel} title="Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimises perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.">
-              Section line
-              <select value={azMode} onChange={(e) => setAzMode(e.target.value)} style={sel}>
-                <option value="fit">Best fit through collars</option>
-                <option value="manual">Fixed azimuth…</option>
+            <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimises perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => setAzMode(e.target.value)} style={sel}>
+                <option value="fit">{tr("Best fit through collars")}</option>
+                <option value="manual">{tr("Fixed azimuth…")}</option>
               </select>
             </label>
             {azMode === "manual" && (
-              <label style={rowLabel}>
-                Azimuth (°)
-                <input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
+              <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
               </label>
             )}
-            <label style={rowLabel} title="1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.">
-              Vertical scale
-              <select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
-                {[1, 1.5, 2, 3, 5].map((v) => <option key={v} value={v}>{v === 1 ? "1× (true scale)" : `${v}× exaggerated`}</option>)}
+            <label style={rowLabel} title={tr("1x is true scale — a 60° hole is drawn at 60° and you can measure a dip off the page. Any other value is labelled on the diagram itself.")}>{tr("Vertical scale")}<select value={ve} onChange={(e) => setVe(Number(e.target.value))} style={sel}>
+                {[1, 1.5, 2, 3, 5].map((v) => <option key={v} value={v}>{v === 1 ? tr("1× (true scale)") : `${v}× exaggerated`}</option>)}
               </select>
             </label>
-            <label style={rowLabel}>
-              Column width
-              <select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
-                {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{v} px</option>)}
+            <label style={rowLabel}>{tr("Column width")}<select value={colWidth} onChange={(e) => setColWidth(Number(e.target.value))} style={sel}>
+                {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
               </select>
             </label>
-            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title="Joins the shallowest occurrence of each shared lithology code between ADJACENT holes only. This is an interpretation, not a measurement — off by default.">
-              <input type="checkbox" checked={showBands} onChange={(e) => setShowBands(e.target.checked)} /> Correlation bands
-            </label>
-            <label style={rowLabel} title="Holes whose maximum perpendicular distance from the section plane exceeds this are flagged amber on the diagram and in the list below.">
-              Flag holes over
-              <select value={offsetLimit} onChange={(e) => setOffsetLimit(Number(e.target.value))} style={sel}>
-                {[25, 50, 100, 200, 500].map((v) => <option key={v} value={v}>{v} m off section</option>)}
+            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Joins the shallowest occurrence of each shared lithology code between ADJACENT holes only. This is an interpretation, not a measurement — off by default.")}>
+              <input type="checkbox" checked={showBands} onChange={(e) => setShowBands(e.target.checked)} />{" "}{tr("Correlation bands")}</label>
+            <label style={rowLabel} title={tr("Holes whose maximum perpendicular distance from the section plane exceeds this are flagged amber on the diagram and in the list below.")}>{tr("Flag holes over")}<select value={offsetLimit} onChange={(e) => setOffsetLimit(Number(e.target.value))} style={sel}>
+                {[25, 50, 100, 200, 500].map((v) => <option key={v} value={v}>{tr("{v} m off section", { v })}</option>)}
               </select>
             </label>
 
             {offHoles.length > 0 && (
               <div style={warnNote}>
-                {offHoles.length} hole{offHoles.length === 1 ? " is" : "s are"} more than {offsetLimit} m off the
-                section plane and {offHoles.length === 1 ? "is" : "are"} drawn as if on it. Any contact
-                correlated through {offHoles.length === 1 ? "it" : "them"} carries that much horizontal error.
-                <button onClick={dropOffLine} style={{ ...miniBtn, marginTop: 5 }}>Drop them from the panel</button>
+                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} style={{ ...miniBtn, marginTop: 5 }}>{tr("Drop them from the panel")}</button>
               </div>
             )}
 
-            <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>
-              Holes ({selected.size}/{allIds.length})
-            </div>
+            <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Holes ({size}/{allIds})", { size: selected.size, allIds: allIds.length })}</div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => setSelected(new Set(allIds))} style={miniBtn}>All</button>
-              <button onClick={() => setSelected(new Set())} style={miniBtn}>None</button>
+              <button onClick={() => setSelected(new Set(allIds))} style={miniBtn}>{tr("All")}</button>
+              <button onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
             </div>
             <div style={{ maxHeight: 170, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>
               {allIds.map((id) => {
@@ -325,7 +304,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
 
             {codes.length > 0 && (
               <>
-                <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>Lithology</div>
+                <div style={{ fontSize: 10, color: "#55606e", fontWeight: 600, marginTop: 2 }}>{tr("Lithology")}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {codes.map((c) => (
                     <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9.6, color: "#55606e" }}>
@@ -336,18 +315,13 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
               </>
             )}
             {!codes.length && (
-              <div style={warnNote}>No lithology intervals for the selected holes — the panel shows the projected traces only.</div>
+              <div style={warnNote}>{tr("No lithology intervals for the selected holes — the panel shows the projected traces only.")}</div>
             )}
 
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10, color: "#55606e", lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>Reading this panel</div>
-              Horizontal is distance along the section line; vertical is elevation. Each hole's whole
-              trace is projected, so an inclined hole leans exactly as it does in the ground. The number
-              under each collar is that hole's largest perpendicular distance from the section plane —
-              the error this flattening introduces.
-            </div>
+              <div style={{ fontWeight: 600, color: "#1a2028", marginBottom: 3 }}>{tr("Reading this panel")}</div>{tr("Horizontal is distance along the section line; vertical is elevation. Each hole's whole trace is projected, so an inclined hole leans exactly as it does in the ground. The number under each collar is that hole's largest perpendicular distance from the section plane — the error this flattening introduces.")}</div>
 
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} /> Export SVG</button>
+            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
         )}

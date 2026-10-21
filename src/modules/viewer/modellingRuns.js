@@ -141,8 +141,8 @@ export function createModellingRuns(ctx, mcRef) {
       const droppedPoints = badPoints - points.length, droppedOrientations = badOrientations - orientations.length;
       if (droppedPoints || droppedOrientations) {
         const parts = [];
-        if (droppedPoints) parts.push(`${droppedPoints} point(s)`);
-        if (droppedOrientations) parts.push(`${droppedOrientations} orientation(s)`);
+        if (droppedPoints) parts.push(tr("{droppedPoints} point(s)", { droppedPoints }));
+        if (droppedOrientations) parts.push(tr("{droppedOrientations} orientation(s)", { droppedOrientations }));
         setNotices((p) => [...p, notice("\"{label}\": dropped {parts} with a missing/invalid x, y, z, dip, or azimuth value before sending to the sidecar — check the source CSV for blank or non-numeric cells in those columns.", { label: spec.label, parts: parts.join(" and ") })]);
       }
       if (!points.length) { setNotices((p) => [...p, notice("\"{label}\": no usable points left after removing invalid ones — skipped.", { label: spec.label })]); return; }
@@ -233,7 +233,7 @@ export function createModellingRuns(ctx, mcRef) {
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
 
     setImplicitBusy(true);
-    setNotices((p) => [...p, notice("Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface{v}){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v: specs.length > 1 ? "s" : "", v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
+    setNotices((p) => [...p, notice(specs.length > 1 ? "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surfaces){v2}…" : "Running {label} ({totalPoints} points, {totalOrientations} orientations across {specs} surface){v2}…", { label, totalPoints, totalOrientations, specs: specs.length, v2: anisotropy.enabled ? tr(", with the {trendWord} \"{v}\"", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
     // The sidecar call is one opaque round-trip with no real progress ticks to report, so this is a
     // "fake but honest" ramp: creeps toward 90% while waiting (never claiming completion it hasn't
     // reached), jumps to 100% on an actual response, and clears shortly after — enough for the
@@ -477,7 +477,7 @@ export function createModellingRuns(ctx, mcRef) {
           off += grid.nodes.length;
           secResults[sc.id] = { ax: sc.ax, ay: sc.ay, bx: sc.bx, by: sc.by, grid: { len: grid.len, z0: grid.z0, z1: grid.z1, nx: grid.nx, ny: grid.ny, dl: grid.dl, dz: grid.dz, ij: Int32Array.from(grid.nodes, (n) => n.j * grid.nx + n.i) }, units: packUnits(units) };
         });
-        setNotices((p) => [...p, notice("Modelled units evaluated exactly on {secGrids} saved cross-section{v} ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v: secGrids.length > 1 ? "s" : "", v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
+        setNotices((p) => [...p, notice(secGrids.length > 1 ? "Modelled units evaluated exactly on {secGrids} saved cross-sections ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser)." : "Modelled units evaluated exactly on {secGrids} saved cross-section ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
       }
       setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: `above the top of ${specs[0].meshName} (not modelled)` } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
@@ -517,7 +517,7 @@ export function createModellingRuns(ctx, mcRef) {
         addRaster({
           name: mapName, bbox: mapGrid.bbox, dataUrl: cv.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8,
           provenance: { tool: "GemPy implicit model evaluated on the terrain" /* TASKS.csv #758 */, cellM, nodes: mapGrid.nodes.length, nodesWithAUnit: covered, nodesAboveYoungestTop: aboveN, nodesOutsideModel: outsideBox, units: specs.map((sp) => sp.meshName), terrain: mapTerrain.name || "terrain",
-            note: "the model's unit at the ground surface, evaluated exactly at each node in the same solve; grey where the ground is above the youngest modelled top; blank outside the model box", agreement: agreements.map((a) => ({ layer: a.layer, field: a.field, overall: a.overall, units: a.units.map((u) => ({ unit: u.unit, pct: u.pct, nodes: u.nodes })) })) },
+            note: tr("the model's unit at the ground surface, evaluated exactly at each node in the same solve; grey where the ground is above the youngest modelled top; blank outside the model box"), agreement: agreements.map((a) => ({ layer: a.layer, field: a.field, overall: a.overall, units: a.units.map((u) => ({ unit: u.unit, pct: u.pct, nodes: u.nodes })) })) },
         });
         const pctTxt = (v) => (v == null ? "—" : `${Math.round(100 * v)}%`);
         const agreeTxt = agreements.length
@@ -532,9 +532,9 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
       // it, two runs of the same job that came back looking different had no visible reason why.
       const rangeNote = res.rangeUsed != null
-        ? ` Interpolation: ${specs.length > 1 ? (relation === "erode" ? "erosional (each unit truncates those below)" : "conformable (units onlap)") : "single surface"}, potential-field range ${res.rangeUsed.toFixed(3)}${res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? ` (GemPy's own default ${res.rangeDefault.toFixed(3)} x ${rangeMultiplier})` : " (GemPy's own default)"}.`
+        ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (units onlap)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
         : "";
-      setNotices((p) => [...p, notice("Added {newMeshes} surface{v}: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v: newMeshes.length > 1 ? "s" : "", v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
+      setNotices((p) => [...p, notice(newMeshes.length > 1 ? "Added {newMeshes} surfaces: {v2}.{rangeNote}" : "Added {newMeshes} surface: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
       // successful run can be visually indistinguishable from a silent failure: the mesh is added to
       // the scene but the camera doesn't move, so unless it happens to land inside the current view
@@ -700,7 +700,7 @@ export function createModellingRuns(ctx, mcRef) {
         const o = originRef.current;
         const hMax = Math.log2(Math.max(2, blockMeta.labels.length));
         const common = { tool: "sensitivity ensemble (GemPy realisations), #757", of: bSpec.label, realisations: er.runs, pointSigmaM: ens.sigmaPos, orientationSigmaDeg: ens.sigmaDeg, seed,
-          note: "Shares of realisations under the sigmas entered: a sensitivity ensemble, not a posterior probability.", generatedAt: new Date().toISOString() };
+          note: tr("Shares of realisations under the sigmas entered: a sensitivity ensemble, not a posterior probability."), generatedAt: new Date().toISOString() };
         const volLines = [];
         blockMeta.labels.forEach((label, k) => {
           if (label == null) return;
@@ -1160,7 +1160,7 @@ export function createModellingRuns(ctx, mcRef) {
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
         // set the user built to describe the target would open the halo up instead of narrowing it.
         const targetRows = altRows.filter((r) => r.value === altValue && !excludedIntercepts.includes(interceptId("alt", r)) && interceptInActiveSet(interceptId("alt", r)));
-        if (!targetRows.length) throw new Error(`No alteration intervals found for "${altValue}" — nothing to model.`);
+        if (!targetRows.length) throw new Error(tr("No alteration intervals found for \"{altValue}\" — nothing to model.", { altValue }));
 
         // Auto parameters come from the spacing of the holes that actually carry alteration logging,
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
@@ -1183,7 +1183,7 @@ export function createModellingRuns(ctx, mcRef) {
           });
         });
         const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!worldPts.length) throw new Error("No alteration sample points could be placed in 3D — check that the logged holes have collars.");
+        if (!worldPts.length) throw new Error(tr("No alteration sample points could be placed in 3D — check that the logged holes have collars."));
 
         // World -> api (east, north, up, origin-relative) — the space every spatial control in this
         // module (domain test, anisotropy warp) already speaks.
@@ -1195,8 +1195,8 @@ export function createModellingRuns(ctx, mcRef) {
         }
         const insideCount = pts.filter((p) => p.value >= 0.5).length;
         if (!insideCount) throw new Error(domain
-          ? `No "${altValue}" intervals fall inside domain "${domain.name}" — nothing to model.`
-          : `No "${altValue}" sample points could be placed — nothing to model.`);
+          ? tr("No \"{altValue}\" intervals fall inside domain \"{name}\" — nothing to model.", { altValue, name: domain.name })
+          : tr("No \"{altValue}\" sample points could be placed — nothing to model.", { altValue }));
 
         // TASKS.csv #86 — same normalized-space trick runSurfaceStack uses: warp every point into the
         // space where the declared anisotropy ellipsoid is a sphere, grid/isosurface there with an
@@ -1229,13 +1229,13 @@ export function createModellingRuns(ctx, mcRef) {
           bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
           searchRadius: anisotropy.enabled ? radius * scl.major : radius, minSamples: 1, maxSamples: 16, minHoles: 1, // #656 — major semi-axis = radius
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
-        if (!grid.estimated) throw new Error("No grid cell had an alteration sample within the search radius — increase the search radius.");
+        if (!grid.estimated) throw new Error(tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
         const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, 0.5, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
         });
-        if (!mc.faces.length) throw new Error(`The interpolated "${altValue}" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).`);
+        if (!mc.faces.length) throw new Error(tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
 
         // api (un-warp if needed) -> scene, the same apiToScene every other surface in this module uses.
         const unwarp = anisotropy.enabled ? invScales(scl) : null;
@@ -1316,7 +1316,7 @@ export function createModellingRuns(ctx, mcRef) {
           && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)
           && !excludedIntercepts.includes(interceptId("vein", r)) // #84 — reviewed-out intercepts never model
           && interceptInActiveSet(interceptId("vein", r))); // #52 (c) — restricted to the active intercept set, if any
-        if (!rows.length) throw new Error(`No "${veinValue}" intervals found — nothing to model.`);
+        if (!rows.length) throw new Error(tr("No \"{veinValue}\" intervals found — nothing to model.", { veinValue }));
         // TASKS.csv #354 — back-to-back rows of this vein in one hole are one intercept (HW of the first,
         // FW of the last), not several thin ones that the midplane/thickness fit would read as separate veins.
         const mergedRows = mergeTouchingIntervals(rows);
@@ -1335,14 +1335,14 @@ export function createModellingRuns(ctx, mcRef) {
           intercepts.push({ holeId: r.hole_id, from: Number(r.from), to: Number(r.to),
             hw: { x: a[0], y: a[1], z: a[2] }, fw: { x: b[0], y: b[1], z: b[2] } });
         });
-        if (!intercepts.length) throw new Error("No vein intercepts could be located in 3D — check that the logged holes have collars and survey.");
+        if (!intercepts.length) throw new Error(tr("No vein intercepts could be located in 3D — check that the logged holes have collars and survey."));
 
         let used = intercepts;
         if (domain) {
           const inDomain = (p) => pointInDomain(apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]), domain, implicitMeshesRef.current);
           used = intercepts.filter((i) => inDomain(i.hw) || inDomain(i.fw));
           if (used.length < intercepts.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {intercepts} vein intercept(s) outside the domain.", { name: domain.name, v: intercepts.length - used.length, intercepts: intercepts.length })]);
-          if (!used.length) throw new Error(`No "${veinValue}" intercepts fall inside domain "${domain.name}" — nothing to model.`);
+          if (!used.length) throw new Error(tr("No \"{veinValue}\" intercepts fall inside domain \"{name}\" — nothing to model.", { veinValue, name: domain.name }));
         }
 
         const dip = veinDip === "" ? null : Number(veinDip);
@@ -1486,7 +1486,7 @@ export function createModellingRuns(ctx, mcRef) {
           rawStats = raw.stats;
         }
         const { points: rawPoints, dropped, clamped, beyondTrace } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!rawPoints.length) throw new Error("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.");
+        if (!rawPoints.length) throw new Error(tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data."));
         // TASKS.csv #273 — this tool used to ignore the model domain and the anisotropy trend entirely,
         // so a user who had set up either for the categorical tools silently got neither here. The
         // domain now restricts which samples inform the shell (same rule the categorical tools apply to
@@ -1499,11 +1499,11 @@ export function createModellingRuns(ctx, mcRef) {
         if (gradeDomain) {
           const o0 = originRef.current;
           points = rawPoints.filter((p) => pointInDomain({ x: p.x - o0.x, y: p.z - o0.z, z: -(p.y - o0.y) }, gradeDomain, implicitMeshesRef.current));
-          if (!points.length) throw new Error(`No assay sample points fall inside domain "${gradeDomain.name}" — nothing to model.`);
+          if (!points.length) throw new Error(tr("No assay sample points fall inside domain \"{name}\" — nothing to model.", { name: gradeDomain.name }));
           if (points.length < rawPoints.length) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {rawPoints} assay sample point(s) outside the domain.", { name: gradeDomain.name, v: rawPoints.length - points.length, rawPoints: rawPoints.length })]);
         }
         const above = points.filter((p) => p.value >= numericCutoff).length;
-        if (!above) throw new Error(`None of the ${points.length} sample points reach the ${numericCutoff} ${unit} cutoff — nothing to enclose. Lower the cutoff.`);
+        if (!above) throw new Error(tr("None of the {points} sample points reach the {numericCutoff} {unit} cutoff — nothing to enclose. Lower the cutoff.", { points: points.length, numericCutoff, unit }));
 
         // TASKS.csv #273/#86 — anisotropy: warp every sample into the space where the declared ellipsoid
         // is a sphere, grid and iso-surface there with the isotropic search this tool already does, then
@@ -1549,7 +1549,7 @@ export function createModellingRuns(ctx, mcRef) {
           const fit = cellToFit(bounds, blockBudget, cs);
           const fitMax = cellToFit(bounds, MAX_BLOCK_BUDGET, cs);
           setNumericBudgetHint?.({ needed: blocksNeeded, budget: blockBudget, cell: cs, fit, fitMax });
-          throw new Error(`At ${cs} m cells this extent needs ${blocksNeeded.toLocaleString()} blocks — over the ${blockBudget.toLocaleString()}-block budget. ${fit} m cells fit this budget${blockBudget < MAX_BLOCK_BUDGET ? `; with the largest budget (${MAX_BLOCK_BUDGET.toLocaleString()}) ${fitMax} m cells fit` : ""}. Change the cell size or the block budget in the Grade shell pane.`);
+          throw new Error(tr("At {cs} m cells this extent needs {blocksNeeded} blocks — over the {blockBudget}-block budget. {fit} m cells fit this budget{v}. Change the cell size or the block budget in the Grade shell pane.", { cs, blocksNeeded: blocksNeeded.toLocaleString(), blockBudget: blockBudget.toLocaleString(), fit, v: blockBudget < MAX_BLOCK_BUDGET ? tr("; with the largest budget ({MAX_BLOCK_BUDGET}) {fitMax} m cells fit", { MAX_BLOCK_BUDGET: MAX_BLOCK_BUDGET.toLocaleString(), fitMax }) : "" }));
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
@@ -1561,12 +1561,12 @@ export function createModellingRuns(ctx, mcRef) {
           maxBlocks: blockBudget, // TASKS.csv #625
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
         if (!grid.estimated) throw new Error(numericMinHoles > 1
-          ? `No grid cell had samples from at least ${numericMinHoles} distinct holes within the search radius — widen the search, or lower "Min holes".`
-          : "No grid cell had a sample within the search radius — widen it.");
+          ? tr("No grid cell had samples from at least {numericMinHoles} distinct holes within the search radius — widen the search, or lower \"Min holes\".", { numericMinHoles })
+          : tr("No grid cell had a sample within the search radius — widen it."));
         const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
         });
-        if (!mc.faces.length) throw new Error(`The interpolated ${symbol} grid never crosses ${numericCutoff} ${unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).`);
+        if (!mc.faces.length) throw new Error(tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).", { symbol, numericCutoff, unit }));
 
         const o = originRef.current;
         const pos = new Float32Array(mc.vertices.length * 3);
@@ -1655,7 +1655,7 @@ export function createModellingRuns(ctx, mcRef) {
         const id = `impl_${Date.now()}_numeric_${symbol}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
-        setNotices((p) => [...p, notice("Added \"{label}\": {points} sample point{v} ({intervals} {v2}{v3}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: points.length, v: points.length === 1 ? "" : "s", intervals: intervals.length, v2: numericUseComposites ? tr("{numericCompositeLength} m composite", { numericCompositeLength }) : tr("raw interval"), v3: intervals.length === 1 ? "" : "s", v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(", {clamped} negative grade{v} clamped to zero", { clamped, v: clamped === 1 ? "" : "s" }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: grid.variogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: grid.variogram.model, v: grid.variogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +grid.variogram.nugget.toPrecision(3), v3: +grid.variogram.sill.toPrecision(3), v4: Math.round(grid.variogram.range) }) : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+        setNotices((p) => [...p, notice("Added \"{label}\": {points} sample point{v} ({intervals} {v2}{v3}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: points.length, v: points.length === 1 ? "" : "s", intervals: intervals.length, v2: numericUseComposites ? tr("{numericCompositeLength} m composite", { numericCompositeLength }) : tr("raw interval"), v3: intervals.length === 1 ? "" : "s", v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: grid.variogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: grid.variogram.model, v: grid.variogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +grid.variogram.nugget.toPrecision(3), v3: +grid.variogram.sill.toPrecision(3), v4: Math.round(grid.variogram.range) }) : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
         if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unit)}.`]);
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for

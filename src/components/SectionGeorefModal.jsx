@@ -6,6 +6,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #630 — "can GeoStrix georeference vertical images, like a cross section?". The plan-view georeferencer
 // (#129, GeoreferencerModal) does maps; this does sections: say where the section line is (a saved cross-section,
@@ -56,7 +57,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
       const thumbs = await pdfThumbnails(doc, 40);
       setPdf({ doc, name: baseName, thumbs, numPages: doc.numPages });
     } catch (err) {
-      setError(`Couldn't read this PDF: ${err.message || err}`);
+      setError(tr("Couldn't read this PDF: {v}", { v: err.message || err }));
     } finally { setPdfBusy(null); }
   };
   const pickPdfPage = async (doc, n, baseName) => {
@@ -69,7 +70,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
       setName((cur) => cur || `${baseName} p.${n}`);
       setPdf((p) => (p ? { ...p, page: n } : p));
     } catch (err) {
-      setError(`Couldn't draw page ${n}: ${err.message || err}`);
+      setError(tr("Couldn't draw page {n}: {v}", { n, v: err.message || err }));
     } finally { setPdfBusy(null); }
   };
 
@@ -79,7 +80,7 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
     const url = URL.createObjectURL(file);
     const bitmap = new window.Image();
     bitmap.onload = () => { setImg({ bitmap, width: bitmap.naturalWidth, height: bitmap.naturalHeight }); setPoints([]); setName((n) => n || file.name.replace(/\.[^.]+$/, "")); URL.revokeObjectURL(url); };
-    bitmap.onerror = () => { setError("Couldn't read this image — use a PDF, PNG or JPG."); URL.revokeObjectURL(url); };
+    bitmap.onerror = () => { setError(tr("Couldn't read this image — use a PDF, PNG or JPG.")); URL.revokeObjectURL(url); };
     bitmap.src = url;
   };
 
@@ -131,26 +132,26 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
   const hLabel = H_KINDS.find((k) => k.id === hKind).label;
   return (
     <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label="Georeference a section image" onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Georeference a section image")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Georeference a section image</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>Put a cross-section figure (a PDF page, PNG or JPG) upright in the 3D view: choose its section line, then click points on it and type their position and elevation.</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Georeference a section image")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Put a cross-section figure (a PDF page, PNG or JPG) upright in the 3D view: choose its section line, then click points on it and type their position and elevation.")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button onClick={() => fileInput.current.click()} style={btn(false)}><Upload size={14} style={{ marginRight: 6 }} /> Load section image (PDF / PNG / JPG)…</button>
+            <button onClick={() => fileInput.current.click()} style={btn(false)}><Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load section image (PDF / PNG / JPG)…")}</button>
             <input ref={fileInput} type="file" accept=".pdf,.png,.jpg,.jpeg" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {pdfBusy && <div style={note}>{pdfBusy}</div>}
             {pdf && pdf.numPages > 1 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: DISPLAY_MAX }}>
-                <div style={note}>{pdf.page ? `Page ${pdf.page} of ${pdf.numPages} — pick another:` : `${pdf.name}.pdf has ${pdf.numPages} pages — click the one with the section:`}</div>
+                <div style={note}>{pdf.page ? tr("Page {page} of {numPages} — pick another:", { page: pdf.page, numPages: pdf.numPages }) : tr("{name}.pdf has {numPages} pages — click the one with the section:", { name: pdf.name, numPages: pdf.numPages })}</div>
                 <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
                   {pdf.thumbs.map((t) => (
-                    <button key={t.page} type="button" onClick={() => pickPdfPage(pdf.doc, t.page, pdf.name)} disabled={!!pdfBusy} title={`Page ${t.page}`} aria-label={`Use page ${t.page}`}
+                    <button key={t.page} type="button" onClick={() => pickPdfPage(pdf.doc, t.page, pdf.name)} disabled={!!pdfBusy} title={tr("Page {page}", { page: t.page })} aria-label={tr("Use page {page}", { page: t.page })}
                       style={{ flexShrink: 0, padding: 2, background: "var(--color-bg)", border: pdf.page === t.page ? "2px solid var(--color-accent)" : "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" }}>
                       <img src={t.dataUrl} alt="" width={Math.round(t.width * 0.6)} height={Math.round(t.height * 0.6)} style={{ display: "block" }} />
                       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{t.page}</div>
@@ -158,10 +159,9 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
                   ))}
                 </div>
                 {pdf.numPages > pdf.thumbs.length && (
-                  <label style={{ ...note, display: "flex", gap: 6, alignItems: "center" }}>
-                    Page number <input type="number" min={1} max={pdf.numPages} value={pageNo} onChange={(e) => setPageNo(e.target.value)} style={{ ...numInput, width: 70 }} aria-label="PDF page number" />
-                    <button type="button" style={{ ...btn(false), padding: "4px 10px" }} disabled={!!pdfBusy || !(Number(pageNo) >= 1 && Number(pageNo) <= pdf.numPages)} onClick={() => pickPdfPage(pdf.doc, Math.round(Number(pageNo)), pdf.name)}>Open page</button>
-                    <span>(previews show the first {pdf.thumbs.length})</span>
+                  <label style={{ ...note, display: "flex", gap: 6, alignItems: "center" }}>{tr("Page number")}{" "}<input type="number" min={1} max={pdf.numPages} value={pageNo} onChange={(e) => setPageNo(e.target.value)} style={{ ...numInput, width: 70 }} aria-label={tr("PDF page number")} />
+                    <button type="button" style={{ ...btn(false), padding: "4px 10px" }} disabled={!!pdfBusy || !(Number(pageNo) >= 1 && Number(pageNo) <= pdf.numPages)} onClick={() => pickPdfPage(pdf.doc, Math.round(Number(pageNo)), pdf.name)}>{tr("Open page")}</button>
+                    <span>{tr("(previews show the first {thumbs})", { thumbs: pdf.thumbs.length })}</span>
                   </label>
                 )}
               </div>
@@ -171,52 +171,48 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
                 onAdd={(px, py) => setPoints((p) => [...p, { id: `sp_${Date.now()}_${p.length}`, px, py, h: "", z: "" }])}
                 onMove={(id, px, py) => updatePoint(id, { px, py })} />
             ) : pdf ? null : (
-              <div style={{ width: DISPLAY_MAX, maxWidth: "100%", height: 360, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", textAlign: "center", padding: 12 }}>
-                Load the section figure — a page of a PDF report, or a PNG/JPG. Tip: points where labelled grid lines cross (an elevation line and a distance or easting tick) are the easiest to read.
-              </div>
+              <div style={{ width: DISPLAY_MAX, maxWidth: "100%", height: 360, border: "1px dashed var(--color-border-light)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", textAlign: "center", padding: 12 }}>{tr("Load the section figure — a page of a PDF report, or a PNG/JPG. Tip: points where labelled grid lines cross (an elevation line and a distance or easting tick) are the easiest to read.")}</div>
             )}
           </div>
 
           <div style={{ flex: 1, minWidth: 300, display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={label}>1. Section line</div>
-            <select value={lineSrc} onChange={(e) => setLineSrc(e.target.value)} style={inputFull} aria-label="Section line">
-              {sections.map((s) => <option key={s.id} value={s.id}>Saved section: {s.name}</option>)}
-              <option value="manual">Type the start and end points…</option>
+            <div style={label}>{tr("1. Section line")}</div>
+            <select value={lineSrc} onChange={(e) => setLineSrc(e.target.value)} style={inputFull} aria-label={tr("Section line")}>
+              {sections.map((s) => <option key={s.id} value={s.id}>{tr("Saved section: {name}", { name: s.name })}</option>)}
+              <option value="manual">{tr("Type the start and end points…")}</option>
             </select>
             {lineSrc === "manual" && (
               <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr", gap: 4, alignItems: "center", fontSize: "var(--font-size-sm)" }}>
                 <span />
-                <span style={{ color: "var(--color-text-muted)" }}>Easting</span><span style={{ color: "var(--color-text-muted)" }}>Northing</span>
-                <span>Start (left end of the figure)</span>
-                <input type="number" aria-label="Start easting" value={manual.ax} onChange={(e) => setManual((m) => ({ ...m, ax: e.target.value }))} style={numInput} />
-                <input type="number" aria-label="Start northing" value={manual.ay} onChange={(e) => setManual((m) => ({ ...m, ay: e.target.value }))} style={numInput} />
-                <span>End</span>
-                <input type="number" aria-label="End easting" value={manual.bx} onChange={(e) => setManual((m) => ({ ...m, bx: e.target.value }))} style={numInput} />
-                <input type="number" aria-label="End northing" value={manual.by} onChange={(e) => setManual((m) => ({ ...m, by: e.target.value }))} style={numInput} />
+                <span style={{ color: "var(--color-text-muted)" }}>{tr("Easting")}</span><span style={{ color: "var(--color-text-muted)" }}>{tr("Northing")}</span>
+                <span>{tr("Start (left end of the figure)")}</span>
+                <input type="number" aria-label={tr("Start easting")} value={manual.ax} onChange={(e) => setManual((m) => ({ ...m, ax: e.target.value }))} style={numInput} />
+                <input type="number" aria-label={tr("Start northing")} value={manual.ay} onChange={(e) => setManual((m) => ({ ...m, ay: e.target.value }))} style={numInput} />
+                <span>{tr("End")}</span>
+                <input type="number" aria-label={tr("End easting")} value={manual.bx} onChange={(e) => setManual((m) => ({ ...m, bx: e.target.value }))} style={numInput} />
+                <input type="number" aria-label={tr("End northing")} value={manual.by} onChange={(e) => setManual((m) => ({ ...m, by: e.target.value }))} style={numInput} />
               </div>
             )}
-            {line && !line.error && <div style={note}>Line {line.length.toFixed(0)} m long, azimuth {line.azimuth.toFixed(1)}° (project coordinates).</div>}
+            {line && !line.error && <div style={note}>{tr("Line {line} m long, azimuth {azimuth}° (project coordinates).", { line: line.length.toFixed(0), azimuth: line.azimuth.toFixed(1) })}</div>}
 
-            <div style={label}>2. Control points ({points.length})</div>
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>
-              Horizontal values are
-              <select value={hKind} onChange={(e) => setHKind(e.target.value)} style={{ ...numInput, width: "auto" }}>{H_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
+            <div style={label}>{tr("2. Control points ({points})", { points: points.length })}</div>
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", gap: 6, alignItems: "center" }}>{tr("Horizontal values are")}<select value={hKind} onChange={(e) => setHKind(e.target.value)} style={{ ...numInput, width: "auto" }}>{H_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}</select>
             </label>
             {points.length === 0 ? (
-              <div style={note}>Click the image to place a point, then type what the figure says there. Two opposite corners of the grid are enough for a clean figure; use 3 or more for a scan that's slightly rotated.</div>
+              <div style={note}>{tr("Click the image to place a point, then type what the figure says there. Two opposite corners of the grid are enough for a clean figure; use 3 or more for a scan that's slightly rotated.")}</div>
             ) : (
               <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
-                <thead><tr><th style={th}>#</th><th style={th}>{hLabel}</th><th style={th}>Elevation (m)</th><th style={th}>Error (m)</th><th style={th} /></tr></thead>
+                <thead><tr><th style={th}>#</th><th style={th}>{hLabel}</th><th style={th}>{tr("Elevation (m)")}</th><th style={th}>{tr("Error (m)")}</th><th style={th} /></tr></thead>
                 <tbody>
                   {points.map((p, i) => {
                     const ui = usable.indexOf(p), r = res && ui >= 0 ? res[ui] : null;
                     return (
                       <tr key={p.id}>
                         <td style={td}>{i + 1}</td>
-                        <td style={td}><input type="number" aria-label={`Point ${i + 1} horizontal`} value={p.h} onChange={(e) => updatePoint(p.id, { h: e.target.value })} style={numInput} /></td>
-                        <td style={td}><input type="number" aria-label={`Point ${i + 1} elevation`} value={p.z} onChange={(e) => updatePoint(p.id, { z: e.target.value })} style={numInput} /></td>
+                        <td style={td}><input type="number" aria-label={tr("Point {v} horizontal", { v: i + 1 })} value={p.h} onChange={(e) => updatePoint(p.id, { h: e.target.value })} style={numInput} /></td>
+                        <td style={td}><input type="number" aria-label={tr("Point {v} elevation", { v: i + 1 })} value={p.z} onChange={(e) => updatePoint(p.id, { z: e.target.value })} style={numInput} /></td>
                         <td style={{ ...td, color: r && rmse && r.error > rmse * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && usable.length > 2 ? r.error.toFixed(1) : "—"}</td>
-                        <td style={td}><Trash2 aria-label="Remove this control point" title="Remove this control point" role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => setPoints((q) => q.filter((x) => x.id !== p.id))} /></td>
+                        <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => setPoints((q) => q.filter((x) => x.id !== p.id))} /></td>
                       </tr>
                     );
                   })}
@@ -224,26 +220,24 @@ export default function SectionGeorefModal({ sections = [], onImport, onClose })
               </table>
             )}
             {summary && (
-              <div style={note}>
-                The image covers {summary.fromDist.toFixed(0)}–{summary.toDist.toFixed(0)} m along the line and elevation {summary.zBottom.toFixed(0)}–{summary.zTop.toFixed(0)} m{fit.kind === "scale" ? " (2-point fit: no rotation)" : rmse != null ? `; fit error (RMSE) ${rmse.toFixed(1)} m` : ""}.
-                {summary.mirrored && " The figure's left side is at the END of the line (it's drawn looking the other way) — that's fine, it will be placed correctly."}
-                {summary.upsideDown && <span style={{ color: "var(--color-danger-alt)" }}> Elevation goes DOWN towards the top of the image — check the elevations you typed.</span>}
-                {rmse != null && res.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}> One point is much further off than the others — check its click and its numbers.</span>}
+              <div style={note}>{tr("The image covers {fromDist}–{toDist} m along the line and elevation {zBottom}–{zTop} m{v}.{v2}", { fromDist: summary.fromDist.toFixed(0), toDist: summary.toDist.toFixed(0), zBottom: summary.zBottom.toFixed(0), zTop: summary.zTop.toFixed(0), v: fit.kind === "scale" ? tr(" (2-point fit: no rotation)") : rmse != null ? tr("; fit error (RMSE) {rmse} m", { rmse: rmse.toFixed(1) }) : "", v2: summary.mirrored && tr(" The figure's left side is at the END of the line (it's drawn looking the other way) — that's fine, it will be placed correctly.") })}
+                {summary.upsideDown && <span style={{ color: "var(--color-danger-alt)" }}>{" "}{tr("Elevation goes DOWN towards the top of the image — check the elevations you typed.")}</span>}
+                {rmse != null && res.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>{" "}{tr("One point is much further off than the others — check its click and its numbers.")}</span>}
               </div>
             )}
             {fitError && <div style={{ ...note, color: "var(--color-danger-alt)" }}>{fitError}</div>}
-            {!line && lineSrc === "manual" && <div style={note}>Type both end points of the section line.</div>}
+            {!line && lineSrc === "manual" && <div style={note}>{tr("Type both end points of the section line.")}</div>}
 
-            <div style={label}>3. Name</div>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Section 4500N (1994 report)" style={inputFull} aria-label="Name" />
+            <div style={label}>{tr("3. Name")}</div>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("e.g. Section 4500N (1994 report)")} style={inputFull} aria-label={tr("Name")} />
             {error && <div style={{ padding: "8px 10px", background: "var(--color-danger-bg)", border: "1px solid var(--color-danger-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-danger-text)" }}>{error}</div>}
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Cancel</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
           <button onClick={doImport} disabled={!fit || busy} style={{ ...btn(true), flex: 2, opacity: fit && !busy ? 1 : 0.5, cursor: fit && !busy ? "pointer" : "not-allowed" }}>
-            {busy ? "Placing…" : "Place in 3D"}
+            {busy ? tr("Placing…") : tr("Place in 3D")}
           </button>
         </div>
       </div>

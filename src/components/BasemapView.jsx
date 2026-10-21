@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { useSetTaskProgress } from "../lib/store.jsx";
 import { Download } from "./icons.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const TILE = 256;
 
@@ -278,13 +279,13 @@ export default function BasemapView({
     <div style={overlayStyle} role="dialog" aria-modal="true">
       <div style={topBarStyle}>
         <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#2a323c" }}>
-          {mode === "draw" ? title : "Locate"}
+          {mode === "draw" ? title : tr("Locate")}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {Number.isFinite(lon) && Number.isFinite(lat) && (
-            <button onClick={recenter} title="Center on project location" style={iconBtnStyle}><Crosshair size={14} /></button>
+            <button onClick={recenter} title={tr("Center on project location")} style={iconBtnStyle}><Crosshair size={14} /></button>
           )}
-          <button onClick={onClose} title="Close" style={iconBtnStyle}><X size={18} /></button>
+          <button onClick={onClose} title={tr("Close")} style={iconBtnStyle}><X size={18} /></button>
         </div>
       </div>
       <div
@@ -322,8 +323,8 @@ export default function BasemapView({
           <div style={{ position: "absolute", left: bboxPx.left, top: bboxPx.top, width: bboxPx.width, height: bboxPx.height, border: "2px solid var(--color-primary)", background: "rgba(47,111,224,0.15)", pointerEvents: "none" }} />
         )}
         <div style={zoomCtrlStyle}>
-          <button onClick={() => changeZoom(1)} style={iconBtnStyle} title="Zoom in"><Plus size={14} /></button>
-          <button onClick={() => changeZoom(-1)} style={iconBtnStyle} title="Zoom out"><Minus size={14} /></button>
+          <button onClick={() => changeZoom(1)} style={iconBtnStyle} title={tr("Zoom in")}><Plus size={14} /></button>
+          <button onClick={() => changeZoom(-1)} style={iconBtnStyle} title={tr("Zoom out")}><Minus size={14} /></button>
           {mode === "locate" && (
             <button
               onClick={downloadAreaOffline}
@@ -332,13 +333,13 @@ export default function BasemapView({
               // can explain WHY. A greyed-out button with no reason is the thing that sends someone
               // hunting through settings for a problem that isn't theirs.
               title={bulkCacheBlocked
-                ? "Offline pre-download isn't available on the OpenStreetMap layer — their tile policy doesn't permit downloading areas in advance. Switch to Topo or Satellite to pre-cache."
-                : "Download this area's map tiles for offline use (this zoom level + 2 closer levels)"}
+                ? tr("Offline pre-download isn't available on the OpenStreetMap layer — their tile policy doesn't permit downloading areas in advance. Switch to Topo or Satellite to pre-cache.")
+                : tr("Download this area's map tiles for offline use (this zoom level + 2 closer levels)")}
               style={{ ...iconBtnStyle, opacity: offlineDownloading ? 0.5 : bulkCacheBlocked ? 0.55 : 1, cursor: offlineDownloading ? "default" : "pointer" }}
             ><Download size={14} /></button>
           )}
           <div style={{ position: "relative" }}>
-            <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "var(--color-selected-border)" } : {}) }}><Layers size={14} /></button>
+            <button onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")} style={{ ...iconBtnStyle, ...(layerPickerOpen ? { background: "#eef3fb", borderColor: "var(--color-selected-border)" } : {}) }}><Layers size={14} /></button>
             {layerPickerOpen && (
               <LayerPicker
                 layerId={baseLayerId}
@@ -356,12 +357,10 @@ export default function BasemapView({
       </div>
       {mode === "draw" && (
         <div style={bottomBarStyle}>
-          <button onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title="Pan the map to find the area">
-            <Move size={14} /> Pan
-          </button>
-          <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title="Drag on the map to draw the fetch area">
-            <Square size={14} /> Draw area
-          </button>
+          <button onClick={() => setSubMode("pan")} style={subMode === "pan" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Pan the map to find the area")}>
+            <Move size={14} />{" "}{tr("Pan")}</button>
+          <button onClick={() => setSubMode("draw")} style={subMode === "draw" ? toolBtnActiveStyle : toolBtnStyle} title={tr("Drag on the map to draw the fetch area")}>
+            <Square size={14} />{" "}{tr("Draw area")}</button>
           {areaOptions && areaOptions.length > 0 && (
             <select
               defaultValue=""
@@ -371,9 +370,9 @@ export default function BasemapView({
                 e.target.value = "";
               }}
               style={{ ...toolBtnStyle, padding: "6px 8px" }}
-              title="Use an existing boundary or raster layer's extent as the fetch area"
+              title={tr("Use an existing boundary or raster layer's extent as the fetch area")}
             >
-              <option value="" disabled>Use existing layer as area…</option>
+              <option value="" disabled>{tr("Use existing layer as area…")}</option>
               {areaOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
             </select>
           )}
@@ -384,13 +383,13 @@ export default function BasemapView({
               ~{(bbox[2] - bbox[0]).toFixed(3)}° × {(bbox[3] - bbox[1]).toFixed(3)}°
             </div>
           )}
-          <button onClick={onClose} style={toolBtnStyle}>Cancel</button>
+          <button onClick={onClose} style={toolBtnStyle}>{tr("Cancel")}</button>
           <button
             onClick={() => bbox && onConfirm(bbox)}
             disabled={!bbox}
             style={{ ...toolBtnActiveStyle, opacity: bbox ? 1 : 0.5, cursor: bbox ? "pointer" : "not-allowed" }}
           >
-            <Check size={14} /> {confirmLabel}
+            <Check size={14} /> {tr(confirmLabel)}
           </button>
         </div>
       )}

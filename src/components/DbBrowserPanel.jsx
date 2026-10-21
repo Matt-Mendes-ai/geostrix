@@ -158,7 +158,7 @@ function FsTreeNode({ entry, depth, isDrive, isFavorite, favorites, onToggleFavo
         {entry.isDir && hover && onToggleFavorite && (
           <Star role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} color={isFav ? "#e2a63c" : "#c7ccd3"} fill={isFav ? "#e2a63c" : "none"}
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(entry.path, !isFav); }}
-            title={isFav ? "Remove from favorites" : "Add to favorites"} />
+            title={isFav ? tr("Remove from favorites") : tr("Add to favorites")} />
         )}
       </div>
       {open && children && children.map((c) => (
@@ -229,7 +229,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     const finish = (rows, fields, truncated) => {
       setBusyTable(null);
       setTaskProgress?.(null);
-      if (!rows.length) { setError("That table returned no rows."); return; }
+      if (!rows.length) { setError(tr("That table returned no rows.")); return; }
       let sourceName = `db:${profile.database}.${t.table_name}`;
       if (truncated) sourceName += ` (first ${rows.length.toLocaleString()} of ${total.toLocaleString()})`;
       onImportRows({ headers: fields, rows, sourceName });
@@ -259,7 +259,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
         if (!decl.ok) { setError(decl.error); return; }
       }
       while (rows.length < target) {
-        if (cancelRef.current) { setError(`Import cancelled — ${rows.length.toLocaleString()} row(s) fetched, nothing imported.`); return; }
+        if (cancelRef.current) { setError(tr("Import cancelled — {rows} row(s) fetched, nothing imported.", { rows: rows.length.toLocaleString() })); return; }
         const want = Math.min(CHUNK_ROWS, target - rows.length);
         const res = await dbLiveQuery(live.id, plan.page(want, rows.length), IMPORT_STEP);
         if (!res.ok) { setError(res.error); return; }
@@ -288,8 +288,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     // COUNT(*) comes back as a bigint, which node-postgres hands over as a STRING (bigints don't fit
     // a JS number safely) — Number() it explicitly rather than relying on it already being numeric.
     const total = Number(res.rows?.[0]?.n ?? 0);
-    if (!Number.isFinite(total)) { setError("Couldn't read that table's row count."); return; }
-    if (total === 0) { setError("That table is empty — nothing to import."); return; }
+    if (!Number.isFinite(total)) { setError(tr("Couldn't read that table's row count.")); return; }
+    if (total === 0) { setError(tr("That table is empty — nothing to import.")); return; }
     if (total > ROW_WARN_THRESHOLD) { setPending({ t, total }); return; }
     fetchTable(t, total, null);
   }, [live, fetchTable, profile.engine]);
@@ -304,20 +304,20 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             (the dot's color), with the word only in a hover title; "live" is now always visible text
             when connected, so this row's state doesn't depend on distinguishing the dot's color. */}
         {live && <span style={{ fontSize: "var(--font-size-xs)", color: "#3d9a63" }}>{tr("live")}</span>}
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "var(--color-border-light)" }} title={live ? "Connected" : "Not connected"} />
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "var(--color-border-light)" }} title={live ? tr("Connected") : tr("Not connected")} />
       </div>
       {open && (
         <div style={{ paddingLeft: 18 }}>
           {!live && (
             <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={pwSaved ? "Saved — just Connect" : "Password"} style={pwInp} aria-label={`Password for ${profile.name}`}
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={pwSaved ? tr("Saved — just Connect") : tr("Password")} style={pwInp} aria-label={tr("Password for {name}", { name: profile.name })}
                 onKeyDown={(e) => { if (e.key === "Enter") doConnect(); }} />
-              <button onClick={doConnect} disabled={connecting} style={connectBtn}>{connecting ? <Loader2 size={12} className="spin" /> : "Connect"}</button>
+              <button onClick={doConnect} disabled={connecting} style={connectBtn}>{connecting ? <Loader2 size={12} className="spin" /> : tr("Connect")}</button>
             </div>
           )}
           {live && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, color: "var(--color-text-secondary)" }}>
-              <span>{live.info?.db ? `Connected — ${live.info.db}` : "Connected"}</span>
+              <span>{live.info?.db ? tr("Connected — {db}", { db: live.info.db }) : tr("Connected")}</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <RefreshCw role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} title={tr("Refresh table list")} onClick={() => loadTables(live.id)} />
                 <Unplug role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer" }} color="#a05050" title={tr("Disconnect")} onClick={() => { disconnectDb(profile.name); setTables(null); }} />
@@ -330,11 +330,11 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
           {pending && (
             <div style={{ marginBottom: 6, padding: "7px 8px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a", lineHeight: 1.45 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 600, marginBottom: 3 }}>
-                <AlertTriangle size={12} /> {pending.total.toLocaleString()}{" "}{tr("rows")}</div>
+                <AlertTriangle size={12} /> {tr("{total} rows", { total: pending.total.toLocaleString() })}</div>
               <div style={{ marginBottom: 6 }}>
-                {pending.t.table_schema}.{pending.t.table_name}{" "}{tr("is large. Loading all of it pulls every row into memory at once and can take a while on a modest machine.")}</div>
+                {tr("{table_schema}.{table_name} is large. Loading all of it pulls every row into memory at once and can take a while on a modest machine.", { table_schema: pending.t.table_schema, table_name: pending.t.table_name })}</div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                <button onClick={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} style={smallBtn}>{tr("First")}{" "}{ROW_WARN_THRESHOLD.toLocaleString()}
+                <button onClick={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} style={smallBtn}>{tr("First {ROW_WARN_THRESHOLD}", { ROW_WARN_THRESHOLD: ROW_WARN_THRESHOLD.toLocaleString() })}
                 </button>
                 <button onClick={() => fetchTable(pending.t, pending.total, null)} style={smallBtn}>{tr("Import all")}</button>
                 <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
@@ -347,7 +347,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             const busy = busyTable === key;
             return (
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => { if (!busyTable) pickTable(t); }} style={{ display: "flex", alignItems: "center", gap: 6, cursor: busyTable ? "default" : "pointer", padding: "2px 0", color: "#3a4453", opacity: busyTable && !busy ? 0.5 : 1 }}
-                title={`Import ${key} (checks its row count first)`}>
+                title={tr("Import {key} (checks its row count first)", { key })}>
                 {busy && <Loader2 size={12} className="spin" style={{ flexShrink: 0 }} />}
                 {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key}</span>

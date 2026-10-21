@@ -4,6 +4,7 @@ import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -181,7 +182,7 @@ export default function SectionWindow() {
       ...(planName.trim() ? { name: planName.trim() } : {}), // empty -> the store names it PLAN-n
       x: Math.round(c.x * 100) / 100, y: Math.round(c.y * 100) / 100, z: Math.round(c.z * 100) / 100,
       azimuth: Math.round(planSolution.azimuth * 10) / 10, dip: Math.round(planSolution.dip * 10) / 10, length,
-      notes: `Designed on section "${data.title || "section"}": target at ${Math.round(planPts[1].x)}E ${Math.round(planPts[1].y)}N ${Math.round(planPts[1].z)} m elev, ${Math.round(planSolution.length)} m down-hole${Number(planPast) > 0 ? `, +${Number(planPast)} m past it` : ""}.`,
+      notes: tr("Designed on section \"{v}\": target at {v2}E {v3}N {v4} m elev, {v5} m down-hole{v6}.", { v: data.title || "section", v2: Math.round(planPts[1].x), v3: Math.round(planPts[1].y), v4: Math.round(planPts[1].z), v5: Math.round(planSolution.length), v6: Number(planPast) > 0 ? tr(", +{v} m past it", { v: Number(planPast) }) : "" }),
     };
     sendSectionContacts({ id: data.id, plannedHole: hole });
     const rad = Math.PI / 180, dirH = Math.cos(hole.dip * rad);
@@ -233,101 +234,94 @@ export default function SectionWindow() {
   };
   const exportPDF = () => savePDF(`${baseName}.pdf`);
 
-  if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>Waiting for section data…</div>;
+  if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
 
   return (
     <div style={{ height: "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
       <div className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <span>{data.title || "Cross-section"} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>azimuth {data.section?.azimuth?.toFixed(0)}° · buffer ±{data.section?.corridor}m</span></span>
+        <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: 11 }}>{data.holes?.length || 0} holes · {data.intervals?.length || 0} intervals · {data.points?.length || 0} points · {data.planes?.length || 0} structures{data.elevationProfile?.length > 1 ? " · terrain profile" : ""}{data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : ""}</span>
+          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}</span>
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
                   contact, not a freeform name (see finishContact's comment). Falls back to a text box
                   if this property has no litho data loaded yet (data.lithoUnits empty) rather than
                   blocking the tool entirely. */}
-              <select value={kindPick} onChange={(e) => { setKindPick(e.target.value); setUnitPick(""); }} style={selectStyle} aria-label="What to draw">
-                <option value="contact">Upper contact</option>
-                <option value="fault">Fault</option>
-                <option value="string">String</option>
+              <select value={kindPick} onChange={(e) => { setKindPick(e.target.value); setUnitPick(""); }} style={selectStyle} aria-label={tr("What to draw")}>
+                <option value="contact">{tr("Upper contact")}</option>
+                <option value="fault">{tr("Fault")}</option>
+                <option value="string">{tr("String")}</option>
               </select>
               {kindPick !== "contact" ? (
-                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? "Fault name" : "String name"} style={{ ...selectStyle, width: 140 }} />
+                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? tr("Fault name") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
               ) : lithoUnits.length > 0 ? (
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
-                  <option value="">Unit…</option>
+                  <option value="">{tr("Unit…")}</option>
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               ) : (
-                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder="Unit name (no litho data loaded)" style={{ ...selectStyle, width: 170 }} />
+                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
-              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? `Draw ${unitPick}'s upper contact` : "Pick a unit first"}>
-                <Pencil size={14} /> {kindPick === "contact" ? "Draw upper contact" : kindPick === "fault" ? "Draw fault" : "Draw string"}
+              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick }) : tr("Pick a unit first")}>
+                <Pencil size={14} /> {kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : tr("Draw string")}
               </button>
             </>
           ) : (
             <>
-              <span style={{ color: "#e2a63c", fontSize: 11 }}>Click points along {unitPick}'s upper contact… ({drawPoints.length} so far)</span>
-              <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} /> Undo point</button>
-              <button onClick={finishContact} disabled={drawPoints.length < 2} style={{ ...btnStyle(true), opacity: drawPoints.length >= 2 ? 1 : 0.5 }}><Check size={14} /> Finish</button>
-              <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} /> Cancel</button>
+              <span style={{ color: "#e2a63c", fontSize: 11 }}>{tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
+              <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
+              <button onClick={finishContact} disabled={drawPoints.length < 2} style={{ ...btnStyle(true), opacity: drawPoints.length >= 2 ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
+              <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
             </>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title="Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)">
-            <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} /> Snap to holes
-          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)")}>
+            <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
-            <Save size={14} /> {saved ? "Saved ✓" : "Save contacts"}
+            <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
           <button onClick={snapshotToLayout} style={btnStyle(snapped)}>
-            <Camera size={14} /> {snapped ? "Sent ✓" : "Snapshot to Layout"}
+            <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
           </button>
           {data.modelBackdrop && ( // TASKS.csv #759
-            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={`${data.modelBackdrop.name}: the modelled units on this section, behind the logged holes, ${data.modelBackdrop.source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).`}>
-              <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} /> Modelled units
-            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).", { name: data.modelBackdrop.name, source: data.modelBackdrop.source })}>
+              <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} />{" "}{tr("Modelled units")}</label>
           )}
           {data.sectionImages?.length > 0 && ( // TASKS.csv #631
-            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={`Georeferenced section image(s) on this line, drawn behind the holes and contacts: ${data.sectionImages.map((i) => i.name).join(", ")}`}>
-              <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} /> Section image
-            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
+              <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
           )}
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title="Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)">
-            VE
-            <input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
-          <button onClick={exportPNG} style={btnStyle(false)} title="Export section → PNG"><Download size={14} /> PNG</button>
-          <button onClick={exportSVG} style={btnStyle(false)} title="Export section → SVG"><Download size={14} /> SVG</button>
-          <button onClick={exportPDF} style={btnStyle(false)} title="Export section → PDF"><FileText size={14} /> PDF</button>
+          <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
+          <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
+          <button onClick={exportPDF} style={btnStyle(false)} title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
         </span>
       </div>
 
       {/* TASKS.csv #395 — planned-hole design bar */}
       <div className="ge-section-chips" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 16px", borderBottom: "1px solid #e6e8eb", fontSize: 11 }}>
         {!planning ? (
-          <button onClick={startPlanning} style={btnStyle(false)} title="Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole"><Crosshair size={14} /> Plan a hole</button>
+          <button onClick={startPlanning} style={btnStyle(false)} title={tr("Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole")}><Crosshair size={14} />{" "}{tr("Plan a hole")}</button>
         ) : (
           <>
             <span style={{ color: "#b06a1f" }}>
-              {planPts.length === 0 ? `Click the collar position${data.elevationProfile?.length > 1 ? " (snaps to the ground surface)" : " (no terrain on this section: the click's elevation is used)"}…` : planPts.length === 1 ? "Click the target…" : null}
+              {planPts.length === 0 ? tr("Click the collar position{v}…", { v: data.elevationProfile?.length > 1 ? tr(" (snaps to the ground surface)") : tr(" (no terrain on this section: the click's elevation is used)") }) : planPts.length === 1 ? tr("Click the target…") : null}
             </span>
             {planSolution && (
               <>
-                <span style={{ color: "#1a2028" }}>
-                  Az <b>{planSolution.azimuth.toFixed(1)}°</b> · dip <b>{planSolution.dip.toFixed(1)}°</b> · <b>{Math.round(planSolution.length)} m</b> to target
-                </span>
-                <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>+ past target <input type="number" min="0" step="10" value={planPast} onChange={(e) => setPlanPast(e.target.value)} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label="Metres past target" /> m</label>
-                <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="Name (optional)" style={{ ...selectStyle, width: 120 }} aria-label="Planned hole name" />
-                <button onClick={addPlannedHole} style={btnStyle(true)}><Check size={14} /> Add planned hole</button>
+                <span style={{ color: "#1a2028" }}>{tr("Az")}{" "}<b>{planSolution.azimuth.toFixed(1)}°</b>{" "}{tr("· dip")}{" "}<b>{planSolution.dip.toFixed(1)}°</b> · <b>{Math.round(planSolution.length)} m</b>{" "}{tr("to target")}</span>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, color: "#55606e" }}>{tr("+ past target")}{" "}<input type="number" min="0" step="10" value={planPast} onChange={(e) => setPlanPast(e.target.value)} style={{ width: 52, ...selectStyle, padding: "3px 5px" }} aria-label={tr("Metres past target")} /> m</label>
+                <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder={tr("Name (optional)")} style={{ ...selectStyle, width: 120 }} aria-label={tr("Planned hole name")} />
+                <button onClick={addPlannedHole} style={btnStyle(true)}><Check size={14} />{" "}{tr("Add planned hole")}</button>
               </>
             )}
-            {planPts.length > 0 && <button onClick={() => setPlanPts((p) => p.slice(0, -1))} style={btnStyle(false)}><Undo2 size={14} /> Undo point</button>}
-            <button onClick={cancelPlanning} style={btnStyle(false)}><X size={14} /> Cancel</button>
+            {planPts.length > 0 && <button onClick={() => setPlanPts((p) => p.slice(0, -1))} style={btnStyle(false)}><Undo2 size={14} />{" "}{tr("Undo point")}</button>}
+            <button onClick={cancelPlanning} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
           </>
         )}
-        {planAdded.length > 0 && !planning && <span style={{ color: "#2e7d4f" }}>Added {planAdded.length} planned hole{planAdded.length > 1 ? "s" : ""} to Targeting.</span>}
+        {planAdded.length > 0 && !planning && <span style={{ color: "#2e7d4f" }}>{tr("Added {planAdded} {v} to Targeting.", { planAdded: planAdded.length, v: tr(planAdded.length > 1 ? "planned holes" : "planned hole") })}</span>}
       </div>
 
       {contacts.length > 0 && (
@@ -335,16 +329,16 @@ export default function SectionWindow() {
           {contacts.map((c) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
-              {c.unit} <span style={{ color: "#65717e" }}>({c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "upper contact"}, {c.points.length} pts)</span>
-              <Pencil role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Edit the vertices of ${c.unit}`} size={12} style={{ cursor: "pointer", color: editingId === c.id ? "#b06a1f" : "#55606e" }} onClick={() => { setDrawing(false); setEditingId(editingId === c.id ? null : c.id); }}><title>Edit vertices: drag to move, Alt-click to delete, click the line to insert</title></Pencil>
-              <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Remove ${c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "contact"} "${c.unit}"`} size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
+              {c.unit} <span style={{ color: "#65717e" }}>{tr("({v}, {points} pts)", { v: c.kind === "fault" ? tr("fault") : c.kind === "string" ? tr("string") : tr("upper contact"), points: c.points.length })}</span>
+              <Pencil role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Edit the vertices of {unit}", { unit: c.unit })} size={12} style={{ cursor: "pointer", color: editingId === c.id ? "#b06a1f" : "#55606e" }} onClick={() => { setDrawing(false); setEditingId(editingId === c.id ? null : c.id); }}><title>{tr("Edit vertices: drag to move, Alt-click to delete, click the line to insert")}</title></Pencil>
+              <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove {v} \"{unit}\"", { v: c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "contact", unit: c.unit })} size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
             </div>
           ))}
         </div>
       )}
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>Editing "{editing?.unit}": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{snapOn ? " (snapping to holes)" : ""}. Click the pencil again to finish; Save contacts keeps the changes.</div>}
+        {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}</div>}
         <SectionSVG showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} />
       </div>
@@ -499,8 +493,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
       {showSectionImages && sectionImages.length > 0 && (
         <g clipPath="url(#sectionPlotArea)">
           {sectionImages.map((im) => {
-            const tl = [sx(im.tl[0]), sz(im.tl[1])], tr = [sx(im.tr[0]), sz(im.tr[1])], bl = [sx(im.bl[0]), sz(im.bl[1])];
-            const m = [(tr[0] - tl[0]) / im.width, (tr[1] - tl[1]) / im.width, (bl[0] - tl[0]) / im.height, (bl[1] - tl[1]) / im.height, tl[0], tl[1]];
+            const tl = [sx(im.tl[0]), sz(im.tl[1])], trc = [sx(im.tr[0]), sz(im.tr[1])], bl = [sx(im.bl[0]), sz(im.bl[1])];
+            const m = [(trc[0] - tl[0]) / im.width, (trc[1] - tl[1]) / im.width, (bl[0] - tl[0]) / im.height, (bl[1] - tl[1]) / im.height, tl[0], tl[1]];
             return <image key={im.id} href={im.dataUrl} width={im.width} height={im.height} preserveAspectRatio="none" transform={`matrix(${m.join(" ")})`} opacity={Math.min(1, im.opacity) * 0.85}><title>{im.name}</title></image>;
           })}
         </g>
@@ -523,8 +517,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
       ))}
       <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
       <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || "Cross-section"}</text>
-      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{`Azimuth ${Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0)}° · ${vExag && vExag !== 1 ? `${vExag}x vertical exaggeration` : "no vertical exaggeration"}${section.corridor ? ` · data within ±${section.corridor} m of the line (dashed = trace projected from further away)` : ""} · elevation in m`}</text>
+      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -542,7 +536,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
             fill="none" stroke="#a9873f" strokeWidth="1.6"
           />
-          <text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize="9.5" textAnchor="end">Ground surface (SRTM)</text>
+          <text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize="9.5" textAnchor="end">{tr("Ground surface (SRTM)")}</text>
         </g>
       )}
 
@@ -553,18 +547,18 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         // clips intervals / assays / structures to the in-corridor runs). Older payloads without runs: solid.
         const runs = h.runs;
         const at = (md) => { // trace position at a measured depth, interpolated
-          const tr = h.trace;
-          let i = 1; while (i < tr.length - 1 && tr[i].md < md) i++;
-          const p0 = tr[i - 1], p1 = tr[i], t = p1.md === p0.md ? 0 : Math.max(0, Math.min(1, (md - p0.md) / (p1.md - p0.md)));
+          const trace = h.trace;
+          let i = 1; while (i < trace.length - 1 && trace[i].md < md) i++;
+          const p0 = trace[i - 1], p1 = trace[i], t = p1.md === p0.md ? 0 : Math.max(0, Math.min(1, (md - p0.md) / (p1.md - p0.md)));
           return [sx(along(p0.x + t * (p1.x - p0.x), p0.y + t * (p1.y - p0.y))), sz(p0.z + t * (p1.z - p0.z))];
         };
         const solid = runs ? runs.map(([m0, m1]) => [at(m0), ...h.trace.filter((p) => p.md > m0 && p.md < m1).map((p) => [sx(along(p.x, p.y)), sz(p.z)]), at(m1)]) : [pts];
         const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)} m` : `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)}…${h.maxOffset >= 0 ? "+" : ""}${h.maxOffset.toFixed(0)} m`) : null;
         return (
           <g key={hi}>
-            {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{`${h.hole_id}: outside the ±${section.corridor} m buffer — projected onto the section, no data drawn here`}</title></polyline>}
-            {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? `: ${off} from the section line` : ""}`}</title></polyline>)}
-            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}{off ? <title>{`${off} from the section line (in the buffer)`}</title> : null}</text>
+            {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
+            {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
+            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}{off ? <title>{tr("{off} from the section line (in the buffer)", { off })}</title> : null}</text>
           </g>
         );
       })}
@@ -574,7 +568,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         <g clipPath="url(#sectionPlotArea)">
           {surfaceTraces.map((st) => (
             <g key={st.id}>
-              <path d={st.segs.map((sg) => `M${sx(sg[0]).toFixed(1)},${sz(sg[1]).toFixed(1)}L${sx(sg[2]).toFixed(1)},${sz(sg[3]).toFixed(1)}`).join("")} stroke={st.color} strokeWidth="2" fill="none" strokeLinecap="round"><title>{`Model surface: ${st.name}`}</title></path>
+              <path d={st.segs.map((sg) => `M${sx(sg[0]).toFixed(1)},${sz(sg[1]).toFixed(1)}L${sx(sg[2]).toFixed(1)},${sz(sg[3]).toFixed(1)}`).join("")} stroke={st.color} strokeWidth="2" fill="none" strokeLinecap="round"><title>{tr("Model surface: {name}", { name: st.name })}</title></path>
             </g>
           ))}
         </g>
@@ -584,8 +578,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         const pts = ph.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
         return (
           <g key={`ph${i}`}>
-            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{`Planned hole: ${ph.name}`}</title></polyline>
-            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#b06a1f" fontSize="10" textAnchor="middle">{ph.name} (planned)</text>
+            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
+            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#b06a1f" fontSize="10" textAnchor="middle">{tr("{name} (planned)", { name: ph.name })}</text>
           </g>
         );
       })}
@@ -635,22 +629,22 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
 
       {/* TASKS.csv #392 — downhole depth ticks (every 50 m, labelled every 100 m) and the end-of-hole depth. */}
       {holes.map((h, hi) => {
-        const tr = h.trace;
-        if (!tr?.length) return null;
-        const eoh = tr[tr.length - 1].md;
+        const trace = h.trace;
+        if (!trace?.length) return null;
+        const eoh = trace[trace.length - 1].md;
         const marks = [];
         for (let md = 50; md < eoh - 5; md += 50) {
-          const p = interpTrace(tr, md), q = interpTrace(tr, Math.min(eoh, md + 1));
+          const p = interpTrace(trace, md), q = interpTrace(trace, Math.min(eoh, md + 1));
           if (!p || !q) continue;
           const x = sx(along(p.x, p.y)), y = sz(p.z);
           const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
           marks.push(<g key={md}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#65717e" fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
         }
-        const last = tr[tr.length - 1];
+        const last = trace[trace.length - 1];
         return (
           <g key={`dt${hi}`}>
             {marks}
-            <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{`EOH ${Math.round(eoh)} m`}</text>
+            <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>
           </g>
         );
       })}
@@ -663,7 +657,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         const cx = sx(along(p.x, p.y)), cy = sz(p.z);
         // TASKS.csv #394 — no orientation recorded: an open ring, not an invented 45 deg line.
         if (row.apparentDip == null || !Number.isFinite(row.apparentDip)) {
-          return <circle key={i} cx={cx} cy={cy} r="5" fill="none" stroke={row.color} strokeWidth="2"><title>{`${row.label} — orientation not recorded`}</title></circle>;
+          return <circle key={i} cx={cx} cy={cy} r="5" fill="none" stroke={row.color} strokeWidth="2"><title>{tr("{label} — orientation not recorded", { label: row.label })}</title></circle>;
         }
         // TASKS.csv #394 — draw the apparent dip at its ON-SCREEN angle: with vertical exaggeration (or any
         // difference between the horizontal and vertical pixel scales) a 45 deg plane must display steeper
@@ -672,7 +666,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         const rad = Math.atan(Math.tan((row.apparentDip * Math.PI) / 180) * (kz / kx));
         const len2 = 12;
         const ddx = Math.cos(rad) * len2, ddy = Math.sin(rad) * len2;
-        return <line key={i} x1={cx - ddx} y1={cy - ddy} x2={cx + ddx} y2={cy + ddy} stroke={row.color} strokeWidth="2.5"><title>{`${row.label} — apparent dip ${Math.abs(row.apparentDip).toFixed(0)}°${Math.abs(kz / kx - 1) > 0.01 ? ` (drawn at ${Math.abs((rad * 180) / Math.PI).toFixed(0)}° for the ${(kz / kx).toFixed(1)}x vertical exaggeration)` : ""}`}</title></line>;
+        return <line key={i} x1={cx - ddx} y1={cy - ddy} x2={cx + ddx} y2={cy + ddy} stroke={row.color} strokeWidth="2.5"><title>{tr("{label} — apparent dip {v}°{v2}", { label: row.label, v: Math.abs(row.apparentDip).toFixed(0), v2: Math.abs(kz / kx - 1) > 0.01 ? tr(" (drawn at {v}° for the {v2}x vertical exaggeration)", { v: Math.abs((rad * 180) / Math.PI).toFixed(0), v2: (kz / kx).toFixed(1) }) : "" })}</title></line>;
       })}
 
       {/* User-drawn interpreted contacts (TASKS.csv) — rendered on top of everything else so they're
@@ -709,8 +703,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
       {planPts.length > 0 && (
         <g>
           {planPts.length === 2 && <line x1={sx(planPts[0].l)} y1={sz(planPts[0].z)} x2={sx(planPts[1].l)} y2={sz(planPts[1].z)} stroke="#b06a1f" strokeWidth="2" strokeDasharray="6 4" />}
-          <circle cx={sx(planPts[0].l)} cy={sz(planPts[0].z)} r="4" fill="#b06a1f" stroke="#ffffff" strokeWidth="1.2"><title>Collar</title></circle>
-          {planPts[1] && <g><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="6" fill="none" stroke="#b06a1f" strokeWidth="1.6" /><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="1.8" fill="#b06a1f" /><title>Target</title></g>}
+          <circle cx={sx(planPts[0].l)} cy={sz(planPts[0].z)} r="4" fill="#b06a1f" stroke="#ffffff" strokeWidth="1.2"><title>{tr("Collar")}</title></circle>
+          {planPts[1] && <g><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="6" fill="none" stroke="#b06a1f" strokeWidth="1.6" /><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="1.8" fill="#b06a1f" /><title>{tr("Target")}</title></g>}
         </g>
       )}
       {drawing && drawPoints.length > 0 && (
@@ -722,8 +716,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         </g>
       )}
 
-      <text x={W / 2} y={H - 14} fill="#55606e" fontSize="11" textAnchor="middle">Distance along section (m)</text>
-      <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>Elevation (m)</text>
+      <text x={W / 2} y={H - 14} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Distance along section (m)")}</text>
+      <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
     </svg>
   );
 }

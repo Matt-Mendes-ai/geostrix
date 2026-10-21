@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #632 — placing control points on a scanned / PDF figure precisely. The dialog shows a big scan at
 // ≤ 680 px, so one click was several source pixels (a few metres in the #630 test). Here: scroll to zoom at the
@@ -87,11 +88,11 @@ export default function ImageTiePointCanvas({ image, points, onAdd, onMove, maxS
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        <button type="button" style={btn} onClick={() => zoomAt(1.5)} aria-label="Zoom in" title="Zoom in (+)">+</button>
-        <button type="button" style={btn} onClick={() => zoomAt(1 / 1.5)} aria-label="Zoom out" title="Zoom out (−)">−</button>
-        <button type="button" style={{ ...btn, width: "auto", padding: "0 8px" }} onClick={() => setView({ zoom: 1, cx: image.width / 2, cy: image.height / 2 })} title="Whole image (0)">Fit</button>
+        <button type="button" style={btn} onClick={() => zoomAt(1.5)} aria-label={tr("Zoom in")} title={tr("Zoom in (+)")}>+</button>
+        <button type="button" style={btn} onClick={() => zoomAt(1 / 1.5)} aria-label={tr("Zoom out")} title={tr("Zoom out (−)")}>−</button>
+        <button type="button" style={{ ...btn, width: "auto", padding: "0 8px" }} onClick={() => setView({ zoom: 1, cx: image.width / 2, cy: image.height / 2 })} title={tr("Whole image (0)")}>{tr("Fit")}</button>
         <span style={{ fontVariantNumeric: "tabular-nums" }}>×{view.zoom.toFixed(view.zoom < 10 ? 1 : 0)}</span>
-        <span>· scroll to zoom, drag to pan, drag a point to move it</span>
+        <span>{tr("· scroll to zoom, drag to pan, drag a point to move it")}</span>
       </div>
       <div ref={boxRef} role="button" tabIndex={0} aria-label={ariaLabel} onKeyDown={onKeyDown}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }}

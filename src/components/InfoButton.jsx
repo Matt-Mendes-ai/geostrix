@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Info } from "./icons.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #192 — user request: "Let's make an 'i' info button beside the tools that require
 // explaining. When the user hover or click on the button it will display those texts you have in
@@ -55,7 +56,7 @@ export default function InfoButton({ text, title, width = 240, align = "left" })
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); setPinned((p) => !p); }}
-        aria-label={title ? `Info: ${title}` : "Info"}
+        aria-label={title ? tr("Info: {title}", { title }) : tr("Info")}
         style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           width: 15, height: 15, borderRadius: "50%", padding: 0, flexShrink: 0,

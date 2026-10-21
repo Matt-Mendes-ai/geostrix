@@ -5,6 +5,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
 import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #130 — QGIS-Atlas-style batch page generation from the CURRENTLY ACTIVE page as a
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
@@ -77,41 +78,34 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
     <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
       <div style={panel({ width: 480, maxHeight: "85vh" })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><LayoutGrid size={14} /> Generate atlas</div>
-          <button onClick={onClose} title="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-lg)", fontWeight: 600 }}><LayoutGrid size={14} />{" "}{tr("Generate atlas")}</div>
+          <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>
-            Creates one new Layout page per item below, using the CURRENT page as a template. Any {"{{token}}"}
-            {" "}in a text/title element gets filled in per item — available tokens for this mode: {tokens.map((t) => `{{${t}}}`).join(", ")}.
-          </div>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Creates one new Layout page per item below, using the CURRENT page as a template. Any {v} in a text/title element gets filled in per item — available tokens for this mode: {v2}.", { v: tr("{{token}}"), v2: tokens.map((t) => `{{${t}}}`).join(", ") })}</div>
           {!hasPlaceholders && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>
-              The current page has no {"{{token}}"} placeholders in any text — every generated page will look identical except its name{mode === "hole" && includeStripLog ? " (and its strip log image)" : ""}. Add a text element with e.g. {"{{hole_id}}"} first if you want per-item text.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "#a95a3a" }}>{tr("The current page has no {v} placeholders in any text — every generated page will look identical except its name{v2}. Add a text element with e.g. {v3} first if you want per-item text.", { v: tr("{{token}}"), v2: mode === "hole" && includeStripLog ? tr(" (and its strip log image)") : "", v3: tr("{{hole_id}}") })}</div>
           )}
           <div style={{ display: "flex", gap: 8 }}>
             <select value={mode} onChange={(e) => switchMode(e.target.value)} style={{ ...sel, flex: 1 }}>
-              <option value="hole">One page per drillhole ({holeIds.length})</option>
-              <option value="section">One page per section ({sections.length})</option>
+              <option value="hole">{tr("One page per drillhole ({holeIds})", { holeIds: holeIds.length })}</option>
+              <option value="section">{tr("One page per section ({sections})", { sections: sections.length })}</option>
             </select>
           </div>
           {mode === "hole" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
-              <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />
-              Add a strip log image (litho/alteration/vein/RQD%) to each page
-            </label>
+              <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{tr("Add a strip log image (litho/alteration/vein/RQD%) to each page")}</label>
           )}
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>
-              <span>{selectedCount} of {items.length} selected</span>
+              <span>{tr("{selectedCount} of {items} selected", { selectedCount, items: items.length })}</span>
               <span style={{ display: "flex", gap: 8 }}>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>All</span>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>None</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set(items.map(itemKey)))}>{tr("All")}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setSelectedIds(new Set())}>{tr("None")}</span>
               </span>
             </div>
             <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid #2a323c", borderRadius: 6, padding: 6 }}>
-              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{mode === "hole" ? "No collars loaded." : "No sections drawn yet."}</div>}
+              {items.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.6, padding: 6 }}>{mode === "hole" ? tr("No collars loaded.") : tr("No sections drawn yet.")}</div>}
               {items.map((it) => {
                 const key = itemKey(it);
                 return (
@@ -126,7 +120,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {result && <div style={{ fontSize: "var(--font-size-base)", color: result.ok ? "#2f8f5b" : "var(--color-danger-solid)" }}>{result.text}</div>}
           <button onClick={generate} disabled={busy || !selectedCount} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy || !selectedCount ? 0.6 : 1 }}>
             {busy ? <Loader2 size={14} className="spin" /> : <LayoutGrid size={14} />}
-            {busy ? (progress ? `Generating ${progress.done}/${progress.total}…` : "Generating…") : `Generate ${selectedCount} page${selectedCount === 1 ? "" : "s"}`}
+            {busy ? (progress ? tr("Generating {done}/{total}…", { done: progress.done, total: progress.total }) : tr("Generating…")) : tr(selectedCount === 1 ? "Generate {selectedCount} page" : "Generate {selectedCount} pages", { selectedCount })}
           </button>
         </div>
       </div>

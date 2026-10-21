@@ -30,7 +30,7 @@ const notText = (p) => {
   return p.isStringLiteral() && /^[a-z][a-zA-Z0-9_-]*$/.test(p.node.value);
 };
 const inTranslation = (p) => { for (let q = p.parentPath; q; q = q.parentPath) { if (q.isCallExpression() && ["t", "tr", "tx"].includes(q.node.callee.name)) return true; if (q.isJSXExpressionContainer()) return false; } return false; };
-const TEXT_ATTRS = new Set(["title", "aria-label", "placeholder", "label", "alt", "text", "headline", "aria-description", "disabledReason"]);
+const TEXT_ATTRS = new Set(["title", "aria-label", "placeholder", "label", "alt", "text", "headline", "aria-description", "disabledReason", "defaultText", "actionLabel", "actionTitle", "footnote"]);
 const childOfJsx = (p) => {
   if (p.parentPath.isJSXAttribute()) return false; // a quoted attribute value: i18n-wrap's job, and tr() there is not valid JSX
   for (let q = p.parentPath; q; q = q.parentPath) {

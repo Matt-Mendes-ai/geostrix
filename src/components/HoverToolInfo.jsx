@@ -1,4 +1,8 @@
 import React, { useState, useId } from "react";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+
+// a string prop is translated here (callers may pass English); an element is shown as given (TASKS.csv #786)
+const trText = (x) => (typeof x === "string" ? tr(x) : x);
 
 // TASKS.csv #192 follow-up — user feedback on seeing the toolbar with a separate "i" badge beside
 // every tool icon: "we don't want that. We want to hover the mouse on the tool icon and get that info
@@ -52,7 +56,7 @@ export default function HoverToolInfo({ title, text, width = 240, align = "left"
       onBlur={() => setFocused(false)}
     >
       {child}
-      {text && <span id={descId} style={srOnly}>{text}</span>}
+      {text && <span id={descId} style={srOnly}>{trText(text)}</span>}
       {visible && (
         <div
           style={{
@@ -65,10 +69,10 @@ export default function HoverToolInfo({ title, text, width = 240, align = "left"
         >
           {title && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {title}
+              {trText(title)}
             </div>
           )}
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{text}</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.55 }}>{trText(text)}</div>
         </div>
       )}
     </span>

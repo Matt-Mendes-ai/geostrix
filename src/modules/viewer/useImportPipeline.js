@@ -184,8 +184,8 @@ export function useImportPipeline(ctx) {
         return { ...r, azimuth: wrap360(r.azimuth + o.offset) };
       });
       const what = azimuthRef === "magnetic" ? `magnetic north (IGRF-14 at ${azimuthDate}: declination ${example?.declination >= 0 ? "+" : ""}${example?.declination?.toFixed(2)}°, grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)` : `true north (grid convergence ${example?.convergence >= 0 ? "+" : ""}${example?.convergence?.toFixed(2)}° at the first hole)`;
-      const note = (fixed ? ` ${fixed} azimuth(s) converted from ${what} to grid north.` : "")
-        + (failed.size ? ` ${failed.size} hole(s) could not be converted (no collar location or project CRS) and were left as-is: ${[...failed].slice(0, 6).join(", ")}.` : "");
+      const note = (fixed ? tr(" {fixed} azimuth(s) converted from {what} to grid north.", { fixed, what }) : "")
+        + (failed.size ? tr(" {size} hole(s) could not be converted (no collar location or project CRS) and were left as-is: {v}.", { size: failed.size, v: [...failed].slice(0, 6).join(", ") }) : "");
       return { rows: out, note };
     };
     // TASKS.csv #490 — survey / structure azimuths measured from the grid north of ANOTHER CRS (e.g. a survey
@@ -195,7 +195,7 @@ export function useImportPipeline(ctx) {
       const projEpsg = (importStateRef.current.project || project)?.epsg;
       if (target === "collars" || !azimuthGridEpsg || !projEpsg || Number(azimuthGridEpsg) === Number(projEpsg)) return { rows, note: "" };
       const fwd = pointTransform(azimuthGridEpsg, projEpsg), inv = pointTransform(projEpsg, azimuthGridEpsg);
-      if (!fwd || !inv) return { rows, note: ` Azimuths left as they are: EPSG:${azimuthGridEpsg} isn't a CRS GeoStrix can convert.` };
+      if (!fwd || !inv) return { rows, note: tr(" Azimuths left as they are: EPSG:{azimuthGridEpsg} isn't a CRS GeoStrix can convert.", { azimuthGridEpsg }) };
       let fixed = 0, maxTurn = 0; const failed = new Set();
       const out = rows.map((r) => {
         if (!Number.isFinite(r.azimuth)) return r;
@@ -206,8 +206,8 @@ export function useImportPipeline(ctx) {
         fixed++; maxTurn = Math.max(maxTurn, Math.abs(bearingTurn(r.azimuth, a)));
         return { ...r, azimuth: a };
       });
-      const note = (fixed ? ` ${fixed} azimuth(s) turned from the grid north of ${crsName(azimuthGridEpsg) || `EPSG:${azimuthGridEpsg}`} to the project grid (up to ${maxTurn.toFixed(2)}°).` : "")
-        + (failed.size ? ` ${failed.size} hole(s) have no collar yet, so their azimuths were left as they are: ${[...failed].slice(0, 6).join(", ")}.` : "");
+      const note = (fixed ? tr(" {fixed} azimuth(s) turned from the grid north of {v} to the project grid (up to {maxTurn}°).", { fixed, v: crsName(azimuthGridEpsg) || tr("EPSG:{azimuthGridEpsg}", { azimuthGridEpsg }), maxTurn: maxTurn.toFixed(2) }) : "")
+        + (failed.size ? tr(" {size} hole(s) have no collar yet, so their azimuths were left as they are: {v}.", { size: failed.size, v: [...failed].slice(0, 6).join(", ") }) : "");
       return { rows: out, note };
     }
     if (azimuthRef === "magnetic" && !/^\d{4}-\d{2}-\d{2}$/.test(azimuthDate || "")) {
@@ -307,10 +307,10 @@ export function useImportPipeline(ctx) {
           if (succeeded) { reprojectedCount += succeeded; if (!okEpsgs.includes(fromEpsg)) okEpsgs.push(fromEpsg); }
         }
         const parts = [];
-        if (reprojectedCount) parts.push(`reprojected ${reprojectedCount} row(s) from EPSG:${okEpsgs.join("/")} to the project's EPSG:${toEpsg}`);
-        if (unreprojectedCount) parts.push(`left ${unreprojectedCount} row(s) unchanged${badEpsgs.length ? ` (unrecognized EPSG:${badEpsgs.join("/")})` : " (already the project CRS, or no source CRS given)"}`);
-        if (turned) parts.push(`turned ${turned} grid azimuth(s) to the project grid (up to ${maxTurn.toFixed(2)}°)`);
-        reprojectNote = parts.length ? ` On import: ${parts.join("; ")}.` : "";
+        if (reprojectedCount) parts.push(tr("reprojected {reprojectedCount} row(s) from EPSG:{okEpsgs} to the project's EPSG:{toEpsg}", { reprojectedCount, okEpsgs: okEpsgs.join("/"), toEpsg }));
+        if (unreprojectedCount) parts.push(tr("left {unreprojectedCount} row(s) unchanged{v}", { unreprojectedCount, v: badEpsgs.length ? tr(" (unrecognized EPSG:{badEpsgs})", { badEpsgs: badEpsgs.join("/") }) : tr(" (already the project CRS, or no source CRS given)") }));
+        if (turned) parts.push(tr("turned {turned} grid azimuth(s) to the project grid (up to {maxTurn}°)", { turned, maxTurn: maxTurn.toFixed(2) }));
+        reprojectNote = parts.length ? tr(" On import: {parts}.", { parts: parts.join("; ") }) : "";
       }
       rows = rows.map(({ _rowEpsg, ...rest }) => rest);
 
@@ -336,10 +336,10 @@ export function useImportPipeline(ctx) {
           return `  • ${c.hole_id}: ${c.fields.join(", ")} differ${moved}`;
         }).join("\n");
         overwriteExisting = window.confirm(
-          `${fileName} contains ${diff.changed.length} hole(s) that already exist in this project with DIFFERENT values:\n\n${preview}` +
-          `${diff.changed.length > 6 ? `\n  …and ${diff.changed.length - 6} more` : ""}\n\n` +
-          `OK — overwrite those ${diff.changed.length} collar(s) with this file's values (the old ones are lost).\n` +
-          `Cancel — keep the existing collars and import only the ${diff.newHoles.length} new hole(s).`
+          tr("{fileName} contains {changed} hole(s) that already exist in this project with DIFFERENT values:\n\n{preview}", { fileName, changed: diff.changed.length, preview }) +
+          `${diff.changed.length > 6 ? tr("\n  …and {v} more", { v: diff.changed.length - 6 }) : ""}\n\n` +
+          tr("OK — overwrite those {changed} collar(s) with this file's values (the old ones are lost).\n", { changed: diff.changed.length }) +
+          tr("Cancel — keep the existing collars and import only the {newHoles} new hole(s).", { newHoles: diff.newHoles.length })
         );
       }
       // #600 — merged field by field (mergeCollar): a value the file lacks never wipes the existing one, and
@@ -352,12 +352,12 @@ export function useImportPipeline(ctx) {
       // The specific accounting the finding asked for ("12 of 40 collars already existed; 3 had
       // different coordinates and were updated") rather than a bare "Loaded N collars".
       const parts = [];
-      if (diff.newHoles.length) parts.push(`${diff.newHoles.length} new`);
-      if (diff.changed.length) parts.push(overwriteExisting ? `${diff.changed.length} existing hole(s) updated with different values` : `${diff.changed.length} existing hole(s) left untouched (you chose not to overwrite)`);
-      if (diff.filled.length) parts.push(`${diff.filled.length} existing hole(s) completed with values they did not have (${[...new Set(diff.filled.flatMap((f) => f.fields))].join(", ")})`); // #600
-      if (diff.unchanged.length) parts.push(`${diff.unchanged.length} already present and identical`);
-      if (ranked.dropped) parts.push(`${ranked.holes.length} hole(s) had several location records (${ranked.dropped} extra rows) — kept the lowest "${ranked.rankColumn}" for each: ${ranked.holes.slice(0, 5).join(", ")}${ranked.holes.length > 5 ? ", …" : ""}`);
-      if (diff.duplicatesInFile.length) parts.push(`${diff.duplicatesInFile.length} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: ${[...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ")})`);
+      if (diff.newHoles.length) parts.push(tr("{newHoles} new", { newHoles: diff.newHoles.length }));
+      if (diff.changed.length) parts.push(overwriteExisting ? tr("{changed} existing hole(s) updated with different values", { changed: diff.changed.length }) : tr("{changed} existing hole(s) left untouched (you chose not to overwrite)", { changed: diff.changed.length }));
+      if (diff.filled.length) parts.push(tr("{filled} existing hole(s) completed with values they did not have ({v})", { filled: diff.filled.length, v: [...new Set(diff.filled.flatMap((f) => f.fields))].join(", ") })); // #600
+      if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
+      if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
+      if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
       const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));

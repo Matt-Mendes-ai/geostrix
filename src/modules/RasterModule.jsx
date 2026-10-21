@@ -19,6 +19,7 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -46,15 +47,15 @@ export default function RasterModule({ embedded = false } = {}) {
     let declGrid = null;
     if (filt.kind === "rtp") {
       const I = Number(filt.inclination), D = Number(filt.declination);
-      if (filt.inclination === "" || filt.declination === "" || !(Math.abs(I) <= 90) || !(Math.abs(D) <= 180)) { setError({ info: false, text: "RTP needs the field inclination and declination (true north) for the survey date and place — IGRF gives both." }); return; }
+      if (filt.inclination === "" || filt.declination === "" || !(Math.abs(I) <= 90) || !(Math.abs(D) <= 180)) { setError({ info: false, text: tr("RTP needs the field inclination and declination (true north) for the survey date and place — IGRF gives both.") }); return; }
       const cx = g.x0 + (g.dx * (g.nx - 1)) / 2, cy = g.yTop - (g.dy * (g.ny - 1)) / 2;
       const d = gridDeclination(D, cx, cy, project?.epsg);
-      if (!d) { setError({ info: false, text: "Could not compute grid convergence for this project CRS." }); return; }
+      if (!d) { setError({ info: false, text: tr("Could not compute grid convergence for this project CRS.") }); return; }
       declGrid = d.grid;
       Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3) });
     }
     if (filt.kind === "upward") {
-      if (!(Number(filt.height) > 0)) { setError({ info: false, text: "Enter how many metres to continue upward." }); return; }
+      if (!(Number(filt.height) > 0)) { setError({ info: false, text: tr("Enter how many metres to continue upward.") }); return; }
       params.height = Number(filt.height);
     }
     setFiltering(true);
@@ -67,10 +68,10 @@ export default function RasterModule({ embedded = false } = {}) {
       const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, elevation: r.elevation,
         extra: { filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
       addRaster(nr);
-      setError({ info: !out.warning, text: `Added "${nr.name}" (colours span the 2nd–98th percentile: ${nr.colourRange.map((v) => v.toPrecision(3)).join(" to ")}).${out.warning ? " " + out.warning : ""}` });
+      setError({ info: !out.warning, text: tr("Added \"{name}\" (colours span the 2nd–98th percentile: {v}).{v2}", { name: nr.name, v: nr.colourRange.map((v) => v.toPrecision(3)).join(" to "), v2: out.warning ? " " + out.warning : "" }) });
       setFilterFor(null);
     } catch (err) {
-      setError({ info: false, text: `Filter failed: ${err.message}` });
+      setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
     } finally { setFiltering(false); }
   };
   // TASKS.csv #375 — radiometric ternary image from three grids with kept values
@@ -79,21 +80,21 @@ export default function RasterModule({ embedded = false } = {}) {
   const makeTernary = () => {
     const pick = (id) => rasters.find((r) => r.id === id);
     const kR = pick(tern.k), thR = pick(tern.th), uR = pick(tern.u);
-    if (!kR || !thR || !uR) { setError({ info: false, text: "Choose the K, eTh and eU grids." }); return; }
+    if (!kR || !thR || !uR) { setError({ info: false, text: tr("Choose the K, eTh and eU grids.") }); return; }
     try {
       const { raster, covered, ranges } = ternaryRaster({ kRaster: kR, thRaster: thR, uRaster: uR, elevation: kR.elevation });
       addRaster(raster);
       const f = (r) => `${r[0].toPrecision(3)}–${r[1].toPrecision(3)}`;
-      setError({ info: true, text: `Added the ternary image (${covered.toLocaleString()} nodes). Stretches (2nd–98th percentile): K ${f(ranges[0])}, eTh ${f(ranges[1])}, eU ${f(ranges[2])}. Red = K, green = eTh, blue = eU; white = high in all three.` });
+      setError({ info: true, text: tr("Added the ternary image ({covered} nodes). Stretches (2nd–98th percentile): K {v}, eTh {v2}, eU {v3}. Red = K, green = eTh, blue = eU; white = high in all three.", { covered: covered.toLocaleString(), v: f(ranges[0]), v2: f(ranges[1]), v3: f(ranges[2]) }) });
       setTern((p) => ({ ...p, open: false }));
-    } catch (err) { setError({ info: false, text: `Ternary image failed: ${err.message}` }); }
+    } catch (err) { setError({ info: false, text: tr("Ternary image failed: {message}", { message: err.message }) }); }
   };
   const gridAsSurvey = (r) => {
     const { rows, stride, spacing } = gridToSurveyRows(r);
-    if (!rows.length) { setError({ info: false, text: `"${r.name}" has no valid grid values.` }); return; }
+    if (!rows.length) { setError({ info: false, text: tr("\"{name}\" has no valid grid values.", { name: r.name }) }); return; }
     const src = rows[0]._src;
     setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((p) => p._src !== src), ...rows] }));
-    setError({ info: true, text: `Added ${rows.length.toLocaleString()} survey points from "${r.name}"${stride > 1 ? ` (one node in ${stride} each way, ${+spacing[0].toFixed(1)} m apart, to stay within the inversion's 20,000-station limit)` : ""} as the survey "${src}". They have no elevation (grid nodes, not flight positions): in Geophysics → Inversion choose "Sensor is a fixed height above terrain" and enter the survey's nominal height. Not drawn in 3D without an elevation — the raster itself shows the data.` });
+    setError({ info: true, text: tr("Added {rows} survey points from \"{name}\"{v} as the survey \"{src}\". They have no elevation (grid nodes, not flight positions): in Geophysics → Inversion choose \"Sensor is a fixed height above terrain\" and enter the survey's nominal height. Not drawn in 3D without an elevation — the raster itself shows the data.", { rows: rows.length.toLocaleString(), name: r.name, v: stride > 1 ? tr(" (one node in {stride} each way, {v} m apart, to stay within the inversion's 20,000-station limit)", { stride, v: +spacing[0].toFixed(1) }) : "", src }) });
   };
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -174,12 +175,12 @@ export default function RasterModule({ embedded = false } = {}) {
   const openSatPickerRef = useRef(null);
   const openSatPicker = async () => {
     if (project?.crsSet === false) {
-      const chosen = await ensureProjectCrs(project, "Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first.");
+      const chosen = await ensureProjectCrs(project, tr("Imagery is downloaded for the place your coordinates point to, so the project needs its coordinate system first."));
       if (chosen) setTimeout(() => openSatPickerRef.current?.(), 0);
       return;
     }
     if (!project?.epsg) {
-      setError({ info: false, text: "Project EPSG isn't set — can't reproject fetched imagery into project coordinates." });
+      setError({ info: false, text: tr("Project EPSG isn't set — can't reproject fetched imagery into project coordinates.") });
       return;
     }
     setError(null);
@@ -195,7 +196,7 @@ export default function RasterModule({ embedded = false } = {}) {
   const openSpectral = async () => {
     const seed = await defaultSatBboxLonLat();
     const opts = await buildSatAreaOptions();
-    setSpectralAreas([...(seed ? [{ id: "holes", label: "Around the drillholes", bboxLonLat: seed }] : []), ...opts]);
+    setSpectralAreas([...(seed ? [{ id: "holes", label: tr("Around the drillholes"), bboxLonLat: seed }] : []), ...opts]);
     setSpectralOpen(true);
   };
   openSpectralRef.current = openSpectral;
@@ -211,10 +212,10 @@ export default function RasterModule({ embedded = false } = {}) {
         onProgress: (done, total) => setSatProgress({ done, total }),
       });
       addRaster({ name: parsed.name, bbox: parsed.bbox, dataUrl: parsed.dataUrl, elevation: defaultElevation });
-      let msg = `Fetched and imported "${parsed.name}" for the area you picked (${parsed.tileCount} tile(s) @ zoom ${parsed.zoom}, image ${parsed.gridW} × ${parsed.gridH} px).`;
-      if (parsed.reprojectedTo) msg += ` Reprojected from WGS84 to the project's EPSG:${parsed.reprojectedTo}.`;
+      let msg = tr("Fetched and imported \"{name}\" for the area you picked ({tileCount} tile(s) @ zoom {zoom}, image {gridW} × {gridH} px).", { name: parsed.name, tileCount: parsed.tileCount, zoom: parsed.zoom, gridW: parsed.gridW, gridH: parsed.gridH });
+      if (parsed.reprojectedTo) msg += tr(" Reprojected from WGS84 to the project's EPSG:{reprojectedTo}.", { reprojectedTo: parsed.reprojectedTo });
       if (parsed.reprojectNote) msg += ` ${parsed.reprojectNote}`;
-      if (parsed.failedTiles) msg += ` ${parsed.failedTiles} tile(s) failed to fetch and are left transparent.`;
+      if (parsed.failedTiles) msg += tr(" {failedTiles} tile(s) failed to fetch and are left transparent.", { failedTiles: parsed.failedTiles });
       setError({ info: true, text: msg });
     } catch (err) {
       setError({ info: false, text: err.message });
@@ -275,16 +276,14 @@ export default function RasterModule({ embedded = false } = {}) {
             <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, or your own band arithmetic, from a multiband GeoTIFF" onClick={openSpectral} />
           </RibbonGroup>
         </Ribbon>
-        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-          Raster drape (GeoTIFF / Geosoft GXF)
-          <InfoButton title="Raster drape" text={`Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG (${project?.epsg ?? "?"}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.`} />
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Raster drape (GeoTIFF / Geosoft GXF)")}<InfoButton title={tr("Raster drape")} text={tr("Import a georeferenced GeoTIFF (mag/radiometrics grid, orthophoto, whatever), or a Geosoft .gxf grid export (the plain-text Geosoft interchange format; the proprietary binary .grd isn't supported, no public spec to implement against), as a flat plane in the 3D view — set its elevation and opacity below once imported, or drape it onto a terrain surface (import one under Maps → Terrain first). If the file's coordinates aren't already in the project's EPSG ({v}), set Source CRS below and the raster is reprojected on import. Drag files in anywhere on this page, or use the button below.", { v: project?.epsg ?? "?" })} />
         </div>
         {/* TASKS.csv #287 — Source CRS override. Sits ABOVE the import button (and applies to
             drag-dropped files too) because it has to be set before the file is read, not after. */}
         <SourceCrsField
           value={sourceEpsg} onChange={(c) => setSourceEpsg(c === "" ? "" : String(c))}
-          defaultText={`From the file's own tag, else the project CRS (${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`})`}
-          title="The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import."
+          defaultText={tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
+          title={tr("The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import.")}
         />
         <input
           ref={fileInput}
@@ -297,7 +296,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {satPickerOpen && (
           <BasemapView
             mode="draw"
-            title="Draw the area to fetch satellite imagery for"
+            title={tr("Draw the area to fetch satellite imagery for")}
             confirmLabel="Fetch imagery for this area"
             lon={satSeedLonLat?.lon}
             lat={satSeedLonLat?.lat}
@@ -309,11 +308,11 @@ export default function RasterModule({ embedded = false } = {}) {
               const p = bbox ? planSatelliteFetch(bbox, satLevel) : null;
               return (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
-                  <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label="Image resolution" style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
-                    title="Higher levels download more tiles for a sharper image of large areas. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.">
-                    {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{l.label} resolution</option>)}
+                  <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label={tr("Image resolution")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
+                    title={tr("Higher levels download more tiles for a sharper image of large areas. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.")}>
+                    {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{tr("{label} resolution", { label: l.label })}</option>)}
                   </select>
-                  {p && <span title={`zoom ${p.zoom}: ${p.tilesX} × ${p.tilesY} tiles; image ${p.gridW} × ${p.gridH} px`}>~{Math.round(p.pixelM)} m pixels · {p.tiles} tiles · ~{p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB)} MB{p.nativeLimited ? " · imagery's finest (10 m)" : ""}</span>}
+                  {p && <span title={tr("zoom {zoom}: {tilesX} × {tilesY} tiles; image {gridW} × {gridH} px", { zoom: p.zoom, tilesX: p.tilesX, tilesY: p.tilesY, gridW: p.gridW, gridH: p.gridH })}>{tr("~{v} m pixels · {tiles} tiles · ~{v2} MB{v3}", { v: Math.round(p.pixelM), tiles: p.tiles, v2: p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB), v3: p.nativeLimited ? tr(" · imagery's finest (10 m)") : "" })}</span>}
                 </span>
               );
             }}
@@ -332,7 +331,7 @@ export default function RasterModule({ embedded = false } = {}) {
             onImport={(raster) => {
               addRaster({ ...raster, elevation: defaultElevation });
               setGeorefOpen(false);
-              setError({ info: true, text: `Georeferenced and imported "${raster.name}".` });
+              setError({ info: true, text: tr("Georeferenced and imported \"{name}\".", { name: raster.name }) });
             }}
           />
         )}
@@ -344,27 +343,25 @@ export default function RasterModule({ embedded = false } = {}) {
 
         {gridRasters.length >= 3 && (
           <div style={{ marginTop: 10 }}>
-            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left" }}>
-              Radiometric ternary image (K-eTh-eU)…
-            </button>
+            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
             {tern.open && (
               <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
-                {[["k", "K (red)"], ["th", "eTh (green)"], ["u", "eU (blue)"]].map(([key, label]) => (
+                {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (
                   <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
                     <span style={{ width: 74, flexShrink: 0, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)" }}>{label}</span>
-                    <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={`${label} grid`}>
-                      <option value="">Choose a grid…</option>
+                    <select value={tern[key]} onChange={(e) => setTern((p) => ({ ...p, [key]: e.target.value }))} style={{ ...numInput, minWidth: 0 }} aria-label={tr("{label} grid", { label })}>
+                      <option value="">{tr("Choose a grid…")}</option>
                       {gridRasters.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                   </div>
                 ))}
-                <button type="button" onClick={makeTernary} style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" }}>Build — adds a new raster</button>
+                <button type="button" onClick={makeTernary} style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-sm)" }}>{tr("Build — adds a new raster")}</button>
               </div>
             )}
           </div>
         )}
         {rasters.length === 0 && (
-          <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>No rasters imported yet.</div>
+          <div style={{ marginTop: 14, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("No rasters imported yet.")}</div>
         )}
         {rasters.map((r) => (
           <div key={r.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -373,51 +370,51 @@ export default function RasterModule({ embedded = false } = {}) {
                 {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
-              {r.grid && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Filter the values of "${r.name}"`} title="Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal" onClick={() => setFilterFor(filterFor === r.id ? null : r.id)} />}
-              {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={`Use the values of "${r.name}" as survey points`} title={`Use as survey points (${r.grid.nx}×${r.grid.ny} grid values, ${+r.grid.dx.toFixed(1)} m) — for the Geophysics inversion`} onClick={() => gridAsSurvey(r)} />}
-              <Trash2 aria-label={`Remove raster "${r.name}"`} title={`Remove raster "${r.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${r.name}"?`)) removeRaster(r.id); }} />
+              {r.grid && <SlidersHorizontal role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: filterFor === r.id ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Filter the values of \"{name}\"", { name: r.name })} title={tr("Grid filters: RTP, first vertical derivative, upward continuation, tilt derivative, analytic signal")} onClick={() => setFilterFor(filterFor === r.id ? null : r.id)} />}
+              {r.grid && <ScatterChart role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Use the values of \"{name}\" as survey points", { name: r.name })} title={tr("Use as survey points ({nx}×{ny} grid values, {v} m) — for the Geophysics inversion", { nx: r.grid.nx, ny: r.grid.ny, v: +r.grid.dx.toFixed(1) })} onClick={() => gridAsSurvey(r)} />}
+              <Trash2 aria-label={tr("Remove raster \"{name}\"", { name: r.name })} title={tr("Remove raster \"{name}\"", { name: r.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: r.name }))) removeRaster(r.id); }} />
             </div>
             {filterFor === r.id && r.grid && (
               <div style={{ marginTop: 7, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label="Grid filter">
-                    <option value="rtp">Reduction to the pole (RTP)</option>
-                    <option value="vd1">First vertical derivative (1VD)</option>
-                    <option value="tilt">Tilt derivative</option>
-                    <option value="as">Analytic signal (3D)</option>
-                    <option value="upward">Upward continuation</option>
+                  <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Grid filter")}>
+                    <option value="rtp">{tr("Reduction to the pole (RTP)")}</option>
+                    <option value="vd1">{tr("First vertical derivative (1VD)")}</option>
+                    <option value="tilt">{tr("Tilt derivative")}</option>
+                    <option value="as">{tr("Analytic signal (3D)")}</option>
+                    <option value="upward">{tr("Upward continuation")}</option>
                   </select>
                 </div>
                 {filt.kind === "rtp" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" placeholder="Inclination °" value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value }))} style={numInput} aria-label="Field inclination" />
-                    <input type="number" placeholder="Declination ° (true)" value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value }))} style={numInput} aria-label="Field declination, true north" />
+                    <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value }))} style={numInput} aria-label={tr("Field inclination")} />
+                    <input type="number" placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value }))} style={numInput} aria-label={tr("Field declination, true north")} />
                   </div>
                 )}
                 {filt.kind === "upward" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                    <input type="number" min={1} placeholder="Height (m)" value={filt.height} onChange={(e) => setFilt((p) => ({ ...p, height: e.target.value }))} style={numInput} aria-label="Upward continuation height" />
+                    <input type="number" min={1} placeholder={tr("Height (m)")} value={filt.height} onChange={(e) => setFilt((p) => ({ ...p, height: e.target.value }))} style={numInput} aria-label={tr("Upward continuation height")} />
                   </div>
                 )}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
-                  {{ rtp: "For total-field magnetics, assuming induced magnetisation (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there.", vd1: "Sharpens shallow sources; also amplifies noise.", tilt: "Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude.", as: "Peaks over source edges regardless of magnetisation direction — the honest choice where remanence breaks RTP.", upward: "Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level." }[filt.kind]}
+                  {{ rtp: tr("For total-field magnetics, assuming induced magnetisation (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetisation direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
                 <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
-                  {filtering ? "Filtering…" : "Apply — adds a new raster"}
+                  {filtering ? tr("Filtering…") : tr("Apply — adds a new raster")}
                 </button>
               </div>
             )}
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={r.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateRaster(r.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import a DEM under Maps → Terrain first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM under Maps → Terrain first)") : "" })}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: r.drapeMode === "terrain" ? 0.4 : 1 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Elev.</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
               <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
-              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>Opacity</span>
+              <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
           </div>
@@ -435,20 +432,18 @@ export default function RasterModule({ embedded = false } = {}) {
             the useful message whether or not anything is loaded yet. */}
         <EmptyState
           icon={<Image size={18} />}
-          headline={rasters.length ? `${rasters.length} raster${rasters.length === 1 ? "" : "s"} loaded` : "No rasters yet"}
-          actionLabel={busy ? "Reading…" : "Import GeoTIFF / GXF…"}
+          headline={rasters.length ? tr(rasters.length === 1 ? "{rasters} raster loaded" : "{rasters} rasters loaded", { rasters: rasters.length }) : tr("No rasters yet")}
+          actionLabel={busy ? tr("Reading…") : tr("Import GeoTIFF / GXF…")}
           onAction={() => fileInput.current.click()}
           actionDisabled={busy}
-          actionTitle="Pick a georeferenced raster — GeoTIFF or Geosoft .gxf grid"
-          footnote="Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs."
+          actionTitle={tr("Pick a georeferenced raster — GeoTIFF or Geosoft .gxf grid")}
+          footnote={tr("Or drag a file straight onto this pane. Anything imported here is reprojected to the project CRS if its own CRS differs.")}
         >
-          <div style={{ marginBottom: 12 }}>
-            Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the <b>3D View</b>, so switch tabs after importing to see them.
-          </div>
+          <div style={{ marginBottom: 12 }}>{tr("Georeferenced image and grid layers — orthophotos, satellite imagery, geology maps, geophysical grids — draped over the terrain. Rasters render in the")}{" "}<b>{tr("3D View")}</b>{tr(", so switch tabs after importing to see them.")}</div>
         </EmptyState>
         {dragOver && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>Drop GeoTIFF(s)/.gxf to import</div>
+            <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)" }}>{tr("Drop GeoTIFF(s)/.gxf to import")}</div>
           </div>
         )}
       </div>)}

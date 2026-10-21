@@ -90,7 +90,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Multi-element correlation matrix")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(METHOD_LABEL[method])}{tr(", pairwise deletion —")}{" "}{assays.length}{" "}{tr("intervals")}{includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : ""}{tr(". Cells with fewer than")}{" "}{MIN_PAIRS}{" "}{tr("pairs are greyed.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{v}, pairwise deletion — {assays} intervals{v2}. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), assays: assays.length, v2: includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : "", MIN_PAIRS })}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -104,11 +104,11 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
               </select>
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{" "}{tr("Include QAQC inserts")}{qaqcCount ? ` (${qaqcCount})` : ""}
+              <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{" "}{tr("Include QAQC inserts{v}", { v: qaqcCount ? ` (${qaqcCount})` : "" })}
             </label>
           </div>
           <div>
-            <div style={label}>{tr("Elements (")}{symbols.length}{" "}{tr("of")}{" "}{allSymbols.length}{" "}{tr("selected)")}</div>
+            <div style={label}>{tr("Elements ({symbols} of {allSymbols} selected)", { symbols: symbols.length, allSymbols: allSymbols.length })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {allSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: selected.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${selected.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: selected.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>

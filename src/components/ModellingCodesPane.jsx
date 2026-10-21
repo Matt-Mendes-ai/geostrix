@@ -8,6 +8,7 @@ import React, { useMemo, useState } from "react";
 import { Crosshair, Waypoints, X, RotateCcw } from "./icons.js";
 import { CODE_ROLES, codesInUse, autoNumber, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
 import { colorForLithology } from "../lib/layers.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const ROLE_HELP = {
   stratigraphic: "a layer in the pile: its top is a contact where it sits below a younger layer",
@@ -61,53 +62,48 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
 
   return (
     <div style={{ fontSize: "var(--font-size-sm)" }}>
-      <div style={{ ...small, marginBottom: 8 }}>
-        Each logged interval has a <b>modelling code</b>: its logged code (or lithology group) unless you change it. Give
-        alternating flows their own codes (DAC1, AND1, DAC2…) and connect them between holes. Contacts are taken where the
-        code changes down-hole, and only below a younger stratigraphic unit — never below casing, an intrusion, a gap or at
-        a hole start. Codes you create appear in the Implicit surface and Strat. stack pickers.
-      </div>
+      <div style={{ ...small, marginBottom: 8 }}>{tr("Each logged interval has a")}{" "}<b>{tr("modelling code")}</b>{tr(": its logged code (or lithology group) unless you change it. Give alternating flows their own codes (DAC1, AND1, DAC2…) and connect them between holes. Contacts are taken where the code changes down-hole, and only below a younger stratigraphic unit — never below casing, an intrusion, a gap or at a hole start. Codes you create appear in the Implicit surface and Strat. stack pickers.")}</div>
 
-      <div className="ge-section-label">Pick intervals in the 3D view</div>
+      <div className="ge-section-label">{tr("Pick intervals in the 3D view")}</div>
       <button onClick={() => { setPickMode(!pickMode); setConnectFrom(null); }} aria-pressed={pickMode} style={{ ...pBtn, marginTop: 4, background: pickMode ? "var(--color-selected-bg)" : undefined }}>
-        <Crosshair size={14} /> {pickMode ? "Picking: click an interval on a hole (click again to stop)" : "Pick an interval"}
+        <Crosshair size={14} /> {pickMode ? tr("Picking: click an interval on a hole (click again to stop)") : tr("Pick an interval")}
       </button>
       {selected && (
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <b>{selected.hole_id} · {Number(selected.from).toFixed(1)}–{Number(selected.to).toFixed(1)} m</b>
-            <X size={14} style={{ cursor: "pointer" }} {...iconAction(() => { setSelected(null); setConnectFrom(null); }, "Clear selection")} />
+            <X size={14} style={{ cursor: "pointer" }} {...iconAction(() => { setSelected(null); setConnectFrom(null); }, tr("Clear selection"))} />
           </div>
-          <div style={small}>Logged as <b>{selected.value}</b> · modelling code <b>{selCode}</b>{mc.assign?.[rowKey(selected)] ? " (set by you)" : " (default)"}</div>
+          <div style={small}>{tr("Logged as")}{" "}<b>{selected.value}</b>{" "}{tr("· modelling code")}{" "}<b>{selCode}</b>{mc.assign?.[rowKey(selected)] ? tr(" (set by you)") : tr(" (default)")}</div>
           <div style={{ display: "flex", gap: 4, marginTop: 5 }}>
-            <select value={selCode} onChange={(e) => (e.target.value === "__new" ? askPrompt("New modelling code:", `${selected.value}1`, (n) => { if (n && n.trim()) assignSelected(n.trim()); }) : assignSelected(e.target.value))} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label="Modelling code of the selected interval">
+            <select value={selCode} onChange={(e) => (e.target.value === "__new" ? askPrompt("New modelling code:", `${selected.value}1`, (n) => { if (n && n.trim()) assignSelected(n.trim()); }) : assignSelected(e.target.value))} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the selected interval")}>
               {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-              <option value="__new">New code…</option>
+              <option value="__new">{tr("New code…")}</option>
             </select>
-            <button onClick={() => assignSelected(null)} title="Back to the logged code (or its group)" aria-label="Reset to the logged code" style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}><RotateCcw size={12} /></button>
+            <button onClick={() => assignSelected(null)} title={tr("Back to the logged code (or its group)")} aria-label={tr("Reset to the logged code")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}><RotateCcw size={12} /></button>
           </div>
           <button onClick={() => { setConnectFrom(connectFrom ? null : selected); setPickMode(true); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0, background: connectFrom ? "var(--color-selected-bg)" : undefined }}>
-            <Waypoints size={14} /> {connectFrom ? `Click the matching interval in another hole (gets ${selCode})…` : "Connect to an interval in another hole"}
+            <Waypoints size={14} /> {connectFrom ? tr("Click the matching interval in another hole (gets {selCode})…", { selCode }) : tr("Connect to an interval in another hole")}
           </button>
         </div>
       )}
 
-      <div className="ge-section-label" style={{ marginTop: 12 }}>Codes (youngest at the top)</div>
-      <div style={small}>Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.</div>
+      <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
+      <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>
       {codes.map((c, i) => (
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={`Colour of ${c.name}`} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={`${counts.get(c.name) || 0} interval run(s)`}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
-          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={ROLE_HELP[c.role]} aria-label={`Role of ${c.name}`} style={{ ...inputStyle, width: 104, flex: "none" }}>
-            {CODE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
+          <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none" }}>
+            {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>
-          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={`Move ${c.name} up (younger)`} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
-          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={`Move ${c.name} down (older)`} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
+          <button onClick={() => moveCode(c.name, -1)} disabled={i === 0} aria-label={tr("Move {name} up (younger)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▲</button>
+          <button onClick={() => moveCode(c.name, 1)} disabled={i === codes.length - 1} aria-label={tr("Move {name} down (older)", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 5px" }}>▼</button>
         </div>
       ))}
 
-      <div className="ge-section-label" style={{ marginTop: 12 }}>Auto-number alternations (optional)</div>
-      <div style={small}>Numbers each repeated logged unit top-down in every hole (DAC → DAC1, DAC2…) as a starting point. The numbers are per hole, so a flow that pinches out needs fixing by connecting intervals.</div>
+      <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Auto-number alternations (optional)")}</div>
+      <div style={small}>{tr("Numbers each repeated logged unit top-down in every hole (DAC → DAC1, DAC2…) as a starting point. The numbers are per hole, so a flow that pinches out needs fixing by connecting intervals.")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
         {loggedCodes.map((c) => (
           <label key={c} style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}>
@@ -118,13 +114,12 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
       <button disabled={!numberCodes.length} onClick={() => {
         const go = () => setModellingCodes((p) => ({ ...(p || mc), assign: autoNumber(litho, numberCodes, { ...(p || mc), assign: Object.fromEntries(Object.entries(p?.assign || {}).filter(([k]) => !litho.some((r) => rowKey(r) === k && numberCodes.includes(String(r.value))))) }, groupOf) }));
         const touched = litho.filter((r) => numberCodes.includes(String(r.value)) && mc.assign?.[rowKey(r)]).length;
-        if (touched && !window.confirm(`${touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?`)) return;
+        if (touched && !window.confirm(tr("{touched} of these intervals already have a code you set. Auto-numbering replaces them. Continue?", { touched }))) return;
         go();
-      }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>Auto-number {numberCodes.join(", ") || "…"}</button>
+      }} style={{ ...pBtn, marginTop: 6, opacity: numberCodes.length ? 1 : 0.5 }}>{tr("Auto-number {v}", { v: numberCodes.join(", ") || "…" })}</button>
 
       <div style={{ ...small, marginTop: 10 }}>
-        {overrides} interval(s) with a code you set · {(mc.ties || []).length} connection(s) drawn.
-        {overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(`Reset all ${overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)`)) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, "Reset all interval codes")}>Reset all</span></>}
+        {tr("{overrides} interval(s) with a code you set · {n} connection(s) drawn.", { overrides, n: (mc.ties || []).length })}{overrides > 0 && <> <span style={{ textDecoration: "underline", cursor: "pointer" }} {...iconAction(() => { if (window.confirm(tr("Reset all {overrides} interval code(s) to their logged codes and remove the connections? (Undo can bring them back.)", { overrides }))) setModellingCodes((p) => ({ ...(p || mc), assign: {}, ties: [] })); }, tr("Reset all interval codes"))}>{tr("Reset all")}</span></>}
       </div>
     </div>
   );

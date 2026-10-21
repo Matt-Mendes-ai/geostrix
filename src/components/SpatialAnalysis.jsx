@@ -8,6 +8,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #51 — Voronoi tessellation + polygonal declustering panel. Opened from GeophysicsModule
 // over whatever geophys_pts point cloud is currently loaded (needs x/y/value, which is exactly that
@@ -69,14 +70,12 @@ export default function SpatialAnalysis({ points, onClose }) {
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>Spatial analysis — Voronoi / declustering</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Spatial analysis — Voronoi / declustering")}</div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {valid.length < 3 ? (
-          <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
-            Need at least 3 points with valid x, y, and value to build a tessellation — currently {valid.length}.
-          </div>
+          <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Need at least 3 points with valid x, y, and value to build a tessellation — currently {valid}.", { valid: valid.length })}</div>
         ) : (
           <div style={{ display: "flex", gap: 14, padding: 14, overflow: "auto" }}>
             <div>
@@ -101,32 +100,24 @@ export default function SpatialAnalysis({ points, onClose }) {
               </svg>
               {hoverIdx !== null && cells[hoverIdx] && (
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
-                  {cells[hoverIdx].point.label ? `${cells[hoverIdx].point.label} — ` : ""}
-                  value {cells[hoverIdx].point.value.toLocaleString()}, cell area {cells[hoverIdx].area.toFixed(1)} units²,
-                  decluster weight {(stats.cells[hoverIdx]?.weight * 100).toFixed(2)}%
-                </div>
+                  {tr("{v}value {value}, cell area {area} units², decluster weight {v2}%", { v: cells[hoverIdx].point.label ? `${cells[hoverIdx].point.label} — ` : "", value: cells[hoverIdx].point.value.toLocaleString(), area: cells[hoverIdx].area.toFixed(1), v2: (stats.cells[hoverIdx]?.weight * 100).toFixed(2) })}</div>
               )}
             </div>
 
             <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.6, display: "flex", gap: 6 }}>
                 <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>
-                  Each point's Voronoi cell area is used as a declustering weight (Isaaks &amp; Srivastava
-                  polygonal method) — clustered points get small cells/low weight, isolated points get
-                  large cells/high weight, correcting a naive mean's bias toward over-sampled areas.
-                </span>
+                <span>{tr("Each point's Voronoi cell area is used as a declustering weight (Isaaks & Srivastava polygonal method) — clustered points get small cells/low weight, isolated points get large cells/high weight, correcting a naive mean's bias toward over-sampled areas.")}</span>
               </div>
 
-              <StatRow label="Points" value={stats.n} />
-              <StatRow label="Naive mean" value={stats.naiveMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} />
-              <StatRow label="Declustered mean" value={stats.declusteredMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} highlight />
-              {stats.declusteredStd !== null && <StatRow label="Declustered std dev" value={stats.declusteredStd.toLocaleString(undefined, { maximumFractionDigits: 3 })} />}
-              <StatRow label="Total tessellated area" value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
+              <StatRow label={tr("Points")} value={stats.n} />
+              <StatRow label={tr("Naive mean")} value={stats.naiveMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} />
+              <StatRow label={tr("Declustered mean")} value={stats.declusteredMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} highlight />
+              {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={stats.declusteredStd.toLocaleString(undefined, { maximumFractionDigits: 3 })} />}
+              <StatRow label={tr("Total tessellated area")} value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
 
               <button onClick={exportCSV} style={btn}>
-                <Download size={14} /> Export cells (CSV)
-              </button>
+                <Download size={14} />{" "}{tr("Export cells (CSV)")}</button>
             </div>
           </div>
         )}

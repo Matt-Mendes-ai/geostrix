@@ -190,16 +190,12 @@ export default function App() {
     const res = await saveProject(opts); // #553 — opts.saveAs for Save As
     if (res.ok) { setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1800); }
     // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
-    else if (res.error) window.alert(`The project could not be saved:
-
-${res.error}
-
-Your work is still open. Try saving to a different folder (a full disk, a read-only or synced folder, or antivirus can block the write).`);
+    else if (res.error) window.alert(tr("The project could not be saved:\n\n{error}\n\nYour work is still open. Try saving to a different folder (a full disk, a read-only or synced folder, or antivirus can block the write).", { error: res.error }));
   }, [saveProject]);
   const doOpen = useCallback(async () => {
     const res = await openProject();
     if (res.ok) setActive("viewer");
-    else if (res.error) window.alert(`Couldn't open that file: ${res.error}`); // TASKS.csv #342 — used to fail silently
+    else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error })); // TASKS.csv #342 — used to fail silently
   }, [openProject]);
   // TASKS.csv #34 — "New Project" now opens a fresh workspace tab instead of resetting the only
   // project in place, so nothing is ever discarded by this action and the old "unsaved changes will
@@ -327,7 +323,7 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
 
   const doRestore = useCallback(() => {
     const r = restoreAutosave(recovery.data);
-    if (r?.intoNewTab) setRecoveryNote(`"${recovery.projectName}" was restored into a new tab (marked unsaved), next to what you have open.`);
+    if (r?.intoNewTab) setRecoveryNote(tr("\"{projectName}\" was restored into a new tab (marked unsaved), next to what you have open.", { projectName: recovery.projectName }));
     setRecovery(null);
     setActive("viewer");
   }, [recovery, restoreAutosave]);
@@ -336,14 +332,14 @@ Your work is still open. Try saving to a different folder (a full disk, a read-o
   useEffect(() => {
     if (!recoveryStashed) return;
     setRecovery((r) => (r && !r.unreadable ? null : r));
-    setRecoveryNote(`Your recovered work ("${recoveryStashed}") was moved into its own tab, marked unsaved, so autosave could protect your new work too.`);
+    setRecoveryNote(tr("Your recovered work (\"{recoveryStashed}\") was moved into its own tab, marked unsaved, so autosave could protect your new work too.", { recoveryStashed }));
   }, [recoveryStashed]);
   // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
   // first (the button also no longer carries an X icon, which read as "close this banner").
   const doDiscardRecovery = useCallback(() => {
     const when = recovery?.autosavedAt ? ` autosaved ${new Date(recovery.autosavedAt).toLocaleString()}` : "";
     const others = recovery?.otherTabs?.length ? ` and ${recovery.otherTabs.length} other unsaved tab(s)` : "";
-    if (!window.confirm(`Permanently delete the recovered work for "${recovery?.projectName}"${others}${when}? This can't be undone.`)) return;
+    if (!window.confirm(tr("Permanently delete the recovered work for \"{v}\"{others}{when}? This can't be undone.", { v: recovery?.projectName, others, when }))) return;
     discardAutosave();
     setRecovery(null);
   }, [discardAutosave, recovery]);
@@ -541,8 +537,8 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
   const fmt = (v) => (v == null ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: 1 }));
   const pyColor = pyStatus === "connected" ? "#e2a63c" : pyStatus === "checking" || pyStatus === "standby" ? "#55606e" : "#94a1b0";
   // #391 — interpolation no longer uses Python (#406); the README the old text pointed at isn't installed
-  const pyLabel = (pyStatus === "connected" ? "Python engine: running" : pyStatus === "checking" ? "Python engine: checking…" : pyStatus === "standby" ? "Python engine: idle — starts when implicit modelling or a geophysics inversion needs it" : "Python engine: not available")
-    + " — click for what it does and what to do if it won't start";
+  const pyLabel = (pyStatus === "connected" ? tr("Python engine: running") : pyStatus === "checking" ? tr("Python engine: checking…") : pyStatus === "standby" ? tr("Python engine: idle — starts when implicit modelling or a geophysics inversion needs it") : tr("Python engine: not available"))
+    + tr(" — click for what it does and what to do if it won't start");
   const pct = taskProgress ? Math.max(0, Math.min(100, Math.round(taskProgress.pct ?? 0))) : 0;
   return (
     <div className="ge-status">
@@ -593,7 +589,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
           {taskProgress.onCancel && (
-            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-fg)" }} {...iconAction(taskProgress.onCancel, "Cancel this task")} />
+            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-fg)" }} {...iconAction(taskProgress.onCancel, tr("Cancel this task"))} />
           )}
         </span>
       )}
@@ -647,7 +643,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #615 — until the user chooses it, the CRS is a placeholder and says so */}
       {project.crsSet === false
         ? <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("The project's coordinate system hasn't been chosen — click to set it (needed for terrain, imagery and any file with its own CRS)")} style={{ cursor: "pointer", color: "var(--color-warn-text-strong)" }}>{tr("CRS:")}{" "}<span className="val">{tr("not set")}</span></span>
-        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={`${crsName(project.epsg) || "Unrecognised CRS"} — click to change the project CRS (reprojection tools: Maps tab)`} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
+        : <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onEpsg} title={tr("{crs} — click to change the project CRS (reprojection tools: Maps tab)", { crs: crsName(project.epsg) || tr("Unrecognised CRS") })} style={{ cursor: "pointer" }}>{tr("EPSG:")}{" "}<span className="val">{project.epsg}</span></span>}
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a

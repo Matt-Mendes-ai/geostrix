@@ -6,6 +6,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -41,7 +42,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      if (!payload || typeof payload.entries !== "object") throw new Error("Not a GeoStrix style file (missing 'entries').");
+      if (!payload || typeof payload.entries !== "object") throw new Error(tr("Not a GeoStrix style file (missing 'entries')."));
       let applied = 0;
       const knownValues = new Set(categories.map(([v]) => String(v)));
       Object.entries(payload.entries).forEach(([value, entry]) => {
@@ -50,9 +51,9 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
         if (entry.label) onSetLabel(value, entry.label);
         applied++;
       });
-      setStyleNotice({ ok: true, text: `Applied style to ${applied} of ${Object.keys(payload.entries).length} value(s) from "${payload.layerLabel || payload.layerKind || file.name}"${applied < Object.keys(payload.entries).length ? " — the rest don't appear in this layer's current data." : "."}` });
+      setStyleNotice({ ok: true, text: tr("Applied style to {applied} of {n} value(s) from \"{v}\"{v2}", { applied, n: Object.keys(payload.entries).length, v: payload.layerLabel || payload.layerKind || file.name, v2: applied < Object.keys(payload.entries).length ? tr(" — the rest don't appear in this layer's current data.") : "." }) });
     } catch (err) {
-      setStyleNotice({ ok: false, text: `Couldn't load style file: ${err.message}` });
+      setStyleNotice({ ok: false, text: tr("Couldn't load style file: {message}", { message: err.message }) });
     }
   };
   const searched = search ? rows.filter((r) => JSON.stringify(r).toLowerCase().includes(search.toLowerCase())) : rows;
@@ -69,16 +70,16 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{meta.label} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>({rows.length} rows)</span></div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{meta.label} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>{tr("({rows} rows)", { rows: rows.length })}</span></div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           <div style={{ width: 280, borderRight: "1px solid var(--color-border)", padding: 14, overflowY: "auto" }}>
-            <div style={label}>{meta.numeric ? "Range filter" : "Legend & filter"}</div>
+            <div style={label}>{meta.numeric ? tr("Range filter") : tr("Legend & filter")}</div>
             {meta.numeric ? (
               numericRange && (
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>
-                  <div style={{ marginBottom: 8, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>Only render rows with value in range:</div>
+                  <div style={{ marginBottom: 8, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Only render rows with value in range:")}</div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input type="number" value={numericRange.min} onChange={(e) => onSetRange({ ...numericRange, min: Number(e.target.value) })} style={numInp} />
                     <span style={{ color: "var(--color-text-muted)" }}>–</span>
@@ -93,12 +94,12 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                     many categories (e.g. a dozen lithology codes). "Only" on each row does that in one
                     click; Show all/Hide all handle the common "reset" cases. */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <button onClick={onShowAll} style={miniBtn}>Show all</button>
-                  <button onClick={onHideAll} style={miniBtn}>Hide all</button>
+                  <button onClick={onShowAll} style={miniBtn}>{tr("Show all")}</button>
+                  <button onClick={onHideAll} style={miniBtn}>{tr("Hide all")}</button>
                 </div>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title="Save this legend's colors/labels as a reusable file"><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Export style</button>
-                  <button onClick={() => styleFileInput.current.click()} style={miniBtn} title="Apply a previously-exported style file to this legend"><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />Import style</button>
+                  <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title={tr("Save this legend's colors/labels as a reusable file")}><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Export style")}</button>
+                  <button onClick={() => styleFileInput.current.click()} style={miniBtn} title={tr("Apply a previously-exported style file to this legend")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Import style")}</button>
                   <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
                 </div>
                 {styleNotice && (
@@ -118,7 +119,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                         <input type="color" value={toHex(color)} onChange={(e) => onSetColor(value, e.target.value)} style={{ width: 20, height: 20, padding: 0, border: "none", background: "none", cursor: "pointer", flexShrink: 0 }} />
                         <input value={lbl} onChange={(e) => onSetLabel(value, e.target.value)} style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", borderBottom: "1px solid var(--color-border)", color: "var(--color-text)", fontSize: "var(--font-size-base)", padding: "2px 0", fontFamily: "inherit" }} />
                         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-                        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onIsolate(value)} style={{ fontSize: "var(--font-size-xs)", color: "#6a9fd8", cursor: "pointer", flexShrink: 0, textDecoration: "underline" }}>only</span>
+                        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onIsolate(value)} style={{ fontSize: "var(--font-size-xs)", color: "#6a9fd8", cursor: "pointer", flexShrink: 0, textDecoration: "underline" }}>{tr("only")}</span>
                       </div>
                     </div>
                   );
@@ -127,12 +128,12 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             )}
             {sources.length > 1 && (
               <>
-                <div style={{ ...label, marginTop: 16 }}>Sources ({sources.length} files)</div>
+                <div style={{ ...label, marginTop: 16 }}>{tr("Sources ({sources} files)", { sources: sources.length })}</div>
                 {sources.map(([src, count]) => (
                   <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
                     <div style={{ flex: 1, minWidth: 0, color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
                     <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-                    <Trash2 aria-label={`Remove the rows imported from "${src}"`} title={`Remove the rows imported from "${src}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove the ${count} row(s) from "${src}"?`)) onRemoveSource(src); }} />
+                    <Trash2 aria-label={tr("Remove the rows imported from \"{src}\"", { src })} title={tr("Remove the rows imported from \"{src}\"", { src })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove the {count} row(s) from \"{src}\"?", { count, src }))) onRemoveSource(src); }} />
                   </div>
                 ))}
               </>
@@ -140,11 +141,11 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)" }}>
-              <input placeholder="Search rows…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
+              <input placeholder={tr("Search rows…")} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "0 14px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
-                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}><th style={th}>from/depth</th><th style={th}>to</th><th style={th}>value</th><th style={th}>extra</th></tr></thead>
+                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}><th style={th}>{tr("from/depth")}</th><th style={th}>{tr("to")}</th><th style={th}>{tr("value")}</th><th style={th}>{tr("extra")}</th></tr></thead>
                 <tbody>
                   {searched.slice(0, 400).map((r, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)", opacity: !meta.numeric && categoryFilter.has(String(r.value)) ? 0.35 : 1 }}>
@@ -156,7 +157,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   ))}
                 </tbody>
               </table>
-              {searched.length > 400 && <div style={{ padding: "8px 0", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>Showing first 400 of {searched.length} matching rows.</div>}
+              {searched.length > 400 && <div style={{ padding: "8px 0", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("Showing first 400 of {searched} matching rows.", { searched: searched.length })}</div>}
             </div>
           </div>
         </div>

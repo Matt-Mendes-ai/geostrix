@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -173,17 +174,13 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
-            Downhole structure (tadpole) — {activeHole || "no hole"} <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>({holePicks.length} pick{holePicks.length === 1 ? "" : "s"})</span>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>{tr("Downhole structure (tadpole) — {v}", { v: activeHole || tr("no hole") })} <span style={{ fontWeight: 400, fontSize: 11, color: "#65717e" }}>({holePicks.length}{" "}{tr(holePicks.length === 1 ? "pick" : "picks")})</span>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>
 
         {!holeIds.length ? (
-          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6 }}>
-            No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or
-            save picks from the Core Orientation calculator) and this plot will fill in.
-          </div>
+          <div style={{ padding: "28px 8px", fontSize: 12, color: "#55606e", lineHeight: 1.6 }}>{tr("No hole has any structure picks with a dip and dip direction (or a measured alpha) yet. Import a structure layer (or save picks from the Core Orientation calculator) and this plot will fill in.")}</div>
         ) : (
         <div style={{ display: "flex", gap: 16 }}>
           <div>
@@ -199,7 +196,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 );
               })}
               <rect x={44} y={Y0} width={LITHO_W} height={PLOT_H} fill="none" stroke="#d9dce1" strokeWidth={1} />
-              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">Litho</text>
+              <text x={44 + LITHO_W / 2} y={Y0 - 6} textAnchor="middle" fontSize={9} fill="#55606e">{tr("Litho")}</text>
 
               {/* Tadpole panel */}
               <rect x={X0} y={Y0} width={PLOT_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
@@ -210,7 +207,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 </g>
               ))}
               <text x={X0 + PLOT_W / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#55606e">
-                {effectiveMode === "alpha" ? "Alpha — angle to core axis (°)" : "True dip (°)"}
+                {effectiveMode === "alpha" ? tr("Alpha — angle to core axis (°)") : tr("True dip (°)")}
               </text>
 
               {/* Depth grid + labels (shared by every track, so a spike lines up across all three). */}
@@ -220,7 +217,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                   <text x={40} y={yFor(d) + 3} textAnchor="end" fontSize={9} fill="#55606e">{d}</text>
                 </g>
               ))}
-              <text x={10} y={Y0 - 6} fontSize={9} fill="#55606e">Depth (m)</text>
+              <text x={10} y={Y0 - 6} fontSize={9} fill="#55606e">{tr("Depth (m)")}</text>
 
               {/* Lithology CONTACTS extended across the tadpole panel as faint lines — this is what makes
                   "does structural style change at the contact" answerable at a glance instead of by
@@ -239,7 +236,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 if (!p.oriented) {
                   return (
                     <circle key={`tp_${i}`} cx={cx} cy={cy} r={3.1} fill="#ffffff" stroke={color} strokeWidth={1.4}>
-                      <title>{`${p.value || "(unlabeled)"} @ ${p.depth} m — alpha ${p.alpha.toFixed(1)}° (measured; core not oriented, no dip direction)`}</title>
+                      <title>{tr("{v} @ {depth} m — alpha {alpha}° (measured; core not oriented, no dip direction)", { v: p.value || tr("(unlabeled)"), depth: p.depth, alpha: p.alpha.toFixed(1) })}</title>
                     </circle>
                   );
                 }
@@ -249,7 +246,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                   <g key={`tp_${i}`}>
                     <line x1={cx} y1={cy} x2={tx} y2={ty} stroke={color} strokeWidth={1.4} opacity={0.95} />
                     <circle cx={cx} cy={cy} r={3.1} fill={color} stroke="#1a2028" strokeWidth={0.5}>
-                      <title>{`${p.value || "(unlabeled)"} @ ${p.depth} m — dip ${p.dip}° / dipdir ${p.azimuth}°${p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°${p.alphaMeasured ? " (measured)" : ""}` : ""}`}</title>
+                      <title>{tr("{v} @ {depth} m — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), depth: p.depth, dip: p.dip, azimuth: p.azimuth, v2: p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°${p.alphaMeasured ? tr(" (measured)") : ""}` : "" })}</title>
                     </circle>
                   </g>
                 );
@@ -266,44 +263,35 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                     const w = freq.max > 0 ? (c / freq.max) * (FREQ_W - 2) : 0;
                     return (
                       <rect key={`fq_${i}`} x={X0 + PLOT_W + GAP + 1} y={y1} width={w} height={Math.max(0.8, y2 - y1 - 0.5)} fill="#2f6fe0" opacity={0.55}>
-                        <title>{`${c} pick(s) between ${i * binSize} and ${Math.min(maxDepth, (i + 1) * binSize)} m`}</title>
+                        <title>{tr("{c} pick(s) between {v} and {v2} m", { c, v: i * binSize, v2: Math.min(maxDepth, (i + 1) * binSize) })}</title>
                       </rect>
                     );
                   })}
-                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">max {freq.max}</text>
+                  <text x={X0 + PLOT_W + GAP + FREQ_W - 2} y={H - 8} textAnchor="end" fontSize={9} fill="#65717e">{tr("max {v}", { v: freq.max })}</text>
                 </>
               )}
             </svg>
           </div>
 
           <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 10 }}>
-            <label style={rowLabel}>
-              Hole
-              <select value={activeHole} onChange={(e) => setHoleId(e.target.value)} style={sel}>
+            <label style={rowLabel}>{tr("Hole")}<select value={activeHole} onChange={(e) => setHoleId(e.target.value)} style={sel}>
                 {holeIds.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </label>
-            <label style={rowLabel} title="Alpha is the angle between the structure and the core axis — what is measured on core, and what makes a run of hole-parallel structures obvious. True dip is the geological angle from horizontal. In an inclined hole these are genuinely different numbers.">
-              X axis
-              <select value={xMode} onChange={(e) => setXMode(e.target.value)} style={sel}>
-                <option value="alpha">Alpha (to core axis)</option>
-                <option value="dip">True dip</option>
+            <label style={rowLabel} title={tr("Alpha is the angle between the structure and the core axis — what is measured on core, and what makes a run of hole-parallel structures obvious. True dip is the geological angle from horizontal. In an inclined hole these are genuinely different numbers.")}>{tr("X axis")}<select value={xMode} onChange={(e) => setXMode(e.target.value)} style={sel}>
+                <option value="alpha">{tr("Alpha (to core axis)")}</option>
+                <option value="dip">{tr("True dip")}</option>
               </select>
             </label>
-            <label style={rowLabel}>
-              Structure type
-              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
-                <option value="all">All types</option>
+            <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
+                <option value="all">{tr("All types")}</option>
                 {types.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
-            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title="Structure picks per depth bin — a spike is a fracture/fault zone.">
-              <input type="checkbox" checked={showFreq} onChange={(e) => setShowFreq(e.target.checked)} /> Frequency track
-            </label>
+            <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Structure picks per depth bin — a spike is a fracture/fault zone.")}>
+              <input type="checkbox" checked={showFreq} onChange={(e) => setShowFreq(e.target.checked)} />{" "}{tr("Frequency track")}</label>
             {showFreq && (
-              <label style={rowLabel}>
-                Frequency bin
-                <select value={binSize} onChange={(e) => setBinSize(Number(e.target.value))} style={sel}>
+              <label style={rowLabel}>{tr("Frequency bin")}<select value={binSize} onChange={(e) => setBinSize(Number(e.target.value))} style={sel}>
                   {[1, 2, 5, 10, 20, 25].map((b) => <option key={b} value={b}>{b} m</option>)}
                 </select>
               </label>
@@ -311,30 +299,16 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
 
             {effectiveMode === "dip" && alphaOnly > 0 && (
               <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
-                {alphaOnly} alpha-only pick{alphaOnly === 1 ? "" : "s"} (non-oriented core) not shown in true-dip mode — they have no true dip. Switch to alpha to see them; they are counted in the frequency track.
-              </div>
+                {tr("{alphaOnly} {v} (non-oriented core) not shown in true-dip mode — they have no true dip. Switch to alpha to see them; they are counted in the frequency track.", { alphaOnly, v: tr(alphaOnly === 1 ? "alpha-only pick" : "alpha-only picks") })}</div>
             )}
             {xMode === "alpha" && !hasAlpha && (
-              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>
-                Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires
-                collar and survey data for {activeHole}.
-              </div>
+              <div style={{ background: "#fdf6ec", border: "1px solid #e6d3b3", borderRadius: 6, padding: "6px 8px", fontSize: 9.8, color: "#6b4e20", lineHeight: 1.45 }}>{tr("Showing TRUE DIP: alpha needs this hole's attitude at each pick's depth, which requires collar and survey data for {activeHole}.", { activeHole })}</div>
             )}
 
             <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
-              <div style={{ fontWeight: 600, marginBottom: 3 }}>Reading this plot</div>
-              <div style={{ color: "#55606e" }}>
-                Each dot sits at its {effectiveMode === "alpha" ? "alpha" : "dip"} angle and its depth. The
-                tail points in the structure's dip direction, <b>north up the page</b> — so a tail pointing
-                right is dipping east.
-              </div>
-              <div style={{ color: "#55606e", marginTop: 4 }}>
-                A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail. {/* #527 */}
-                Clustered tails = a consistent set. Tails fanning through 360° over a short interval
-                usually means a core-orientation problem rather than real geology. Alpha does not depend
-                on the orientation line, so alpha jumping wildly between adjacent picks points to a
-                logging or depth error instead.
-              </div>
+              <div style={{ fontWeight: 600, marginBottom: 3 }}>{tr("Reading this plot")}</div>
+              <div style={{ color: "#55606e" }}>{tr("Each dot sits at its {v} angle and its depth. The tail points in the structure's dip direction,", { v: effectiveMode === "alpha" ? tr("alpha") : tr("dip") })}{" "}<b>{tr("north up the page")}</b>{" "}{tr("— so a tail pointing right is dipping east.")}</div>
+              <div style={{ color: "#55606e", marginTop: 4 }}>{tr("A hollow dot is an alpha-only pick (core not oriented): it has no dip direction, so no tail.")}{" "}{/* #527 */}{tr("Clustered tails = a consistent set. Tails fanning through 360° over a short interval usually means a core-orientation problem rather than real geology. Alpha does not depend on the orientation line, so alpha jumping wildly between adjacent picks points to a logging or depth error instead.")}</div>
             </div>
 
             {types.length > 1 && (
@@ -348,7 +322,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
               </div>
             )}
 
-            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} /> Export SVG</button>
+            <button onClick={exportSvg} style={{ ...exportBtn, marginTop: "auto" }}><Download size={12} />{" "}{tr("Export SVG")}</button>
           </div>
         </div>
         )}

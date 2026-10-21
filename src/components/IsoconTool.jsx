@@ -116,7 +116,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
           </div>
 
           <div>
-            <div style={label}>{tr("Immobile elements (")}{immobile.size}{" "}{tr("selected)")}</div>
+            <div style={label}>{tr("Immobile elements ({size} selected)", { size: immobile.size })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {symbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: immobile.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${immobile.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: immobile.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
@@ -136,7 +136,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
               <div style={{ display: "flex", gap: 16, padding: "10px 14px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: "var(--font-size-base)" }}>
                 <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Isocon slope (Mo/M):")}</span> <b style={{ color: "var(--color-text)" }}>{result.slope.toFixed(3)}</b></div>
                 <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Bulk mass change:")}</span> <b style={{ color: result.bulkMassChangePct >= 0 ? "var(--color-success-fg)" : "var(--color-danger-fg)" }}>{result.bulkMassChangePct >= 0 ? "+" : ""}{result.bulkMassChangePct.toFixed(1)}%</b></div>
-                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Immobile-set agreement:")}</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>±{(result.spread * 100).toFixed(0)}{tr("% CV")}</b></div>
+                <div><span style={{ color: "var(--color-text-muted)" }}>{tr("Immobile-set agreement:")}</span> <b style={{ color: result.spread < 0.1 ? "var(--color-success-fg)" : "#d8c080" }}>{tr("±{v}% CV", { v: (result.spread * 100).toFixed(0) })}</b></div>
               </div>
               {result.spread >= 0.1 && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "#8a6a3a" }}>{tr("The immobile elements you picked don't agree tightly (ratio spread ≥10%) — one of them may not actually be immobile in this system, or the two groups aren't a real precursor/altered pair. Treat the numbers below cautiously.")}</div>

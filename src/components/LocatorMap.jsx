@@ -3,6 +3,7 @@ import { X, Maximize2, Layers } from "./icons.js";
 import LayerPicker from "./LayerPicker.jsx";
 import CachedTile from "./CachedTile.jsx";
 import { getSavedLayerId, saveLayerId, getSavedTracestrackKey, saveTracestrackKey, tileUrlFor, getBaseLayer } from "../lib/baseLayers.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // Persistent locator mini-map, docked in a corner of the 3D viewport — TASKS.csv, user request: "have
 // that open street map... just so the user can easily locate" (a lightweight orientation aid, not a
@@ -56,10 +57,8 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
   if (!layout) {
     return (
       <div style={panelStyle}>
-        <div style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textAlign: "center" }}>
-          No real-world location yet — import collars (or a georeferenced raster/terrain) first.
-        </div>
-        <button onClick={onClose} title="Hide locator map" style={closeBtnStyle}><X size={12} /></button>
+        <div style={{ padding: 10, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", textAlign: "center" }}>{tr("No real-world location yet — import collars (or a georeferenced raster/terrain) first.")}</div>
+        <button onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
       </div>
     );
   }
@@ -97,10 +96,10 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
       </div>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-disabled)", textAlign: "center", marginTop: 3 }}>{getBaseLayer(effectiveLayerId).attribution}</div>
       {onExpand && (
-        <button onClick={onExpand} title="Expand to full-screen map" style={expandBtnStyle}><Maximize2 size={12} /></button>
+        <button onClick={onExpand} title={tr("Expand to full-screen map")} style={expandBtnStyle}><Maximize2 size={12} /></button>
       )}
       <div style={{ position: "absolute", bottom: -8, left: -8 }}>
-        <button onClick={() => setLayerPickerOpen((v) => !v)} title="Base layer" style={{ ...closeBtnStyle, position: "static" }}><Layers size={12} /></button>
+        <button onClick={() => setLayerPickerOpen((v) => !v)} title={tr("Base layer")} style={{ ...closeBtnStyle, position: "static" }}><Layers size={12} /></button>
         {layerPickerOpen && (
           <div style={{ position: "relative" }}>
             <LayerPicker
@@ -114,7 +113,7 @@ export default function LocatorMap({ lon, lat, zoom = 12, onClose, onExpand }) {
           </div>
         )}
       </div>
-      <button onClick={onClose} title="Hide locator map" style={closeBtnStyle}><X size={12} /></button>
+      <button onClick={onClose} title={tr("Hide locator map")} style={closeBtnStyle}><X size={12} /></button>
     </div>
   );
 }

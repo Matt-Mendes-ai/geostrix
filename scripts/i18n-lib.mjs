@@ -11,7 +11,8 @@
 // usage: node scripts/i18n-lib.mjs <file> [--dry] [--only=errors] [--ui]   (--only=errors: just new Error(…), e.g. in an exporter
 // whose written file text must stay English)
 // --ui (component files): also variables / refs named …Note / …Msg / …Message / …Warning / …Hint / …Text (not csv/file/svg…
-// text), problems.push(…), { problem: … }, window.confirm / alert / prompt(MESSAGE), ensureProjectCrs(project, MESSAGE).
+// text), problems.push(…), { problem: … }, window.confirm / alert / prompt(MESSAGE), ensureProjectCrs(project, MESSAGE),
+// confirmDestructive(MESSAGE, { recover: MESSAGE }), iconAction(fn, MESSAGE).
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -109,6 +110,14 @@ traverse(ast, {
     }
     if (ui && ((c.type === "MemberExpression" && c.object.name === "window" && ["confirm", "alert", "prompt"].includes(c.property.name)) || (c.type === "Identifier" && ["confirm", "alert"].includes(c.name)))) { message(p.get("arguments.0")); return; }
     if (ui && c.type === "Identifier" && c.name === "ensureProjectCrs") { message(p.get("arguments.1")); return; }
+    // confirmDestructive(question, { recover }) and iconAction(onActivate, label) — lib helpers that show their text as given
+    if (ui && c.type === "Identifier" && c.name === "confirmDestructive") {
+      message(p.get("arguments.0"));
+      const o = p.get("arguments.1");
+      if (o?.node?.type === "ObjectExpression") o.get("properties").forEach((pp) => { if (pp.isObjectProperty() && pp.node.key.name === "recover") message(pp.get("value")); });
+      return;
+    }
+    if (ui && c.type === "Identifier" && c.name === "iconAction") { message(p.get("arguments.1")); return; }
     if (c.type === "MemberExpression" && c.property.name === "push" && LIST_NAME.test(c.object.name || c.object.property?.name || "")) p.get("arguments").forEach(message);
   },
   NewExpression(p) { if (p.node.callee.type === "Identifier" && /Error$/.test(p.node.callee.name)) message(p.get("arguments.0")); },

@@ -3,6 +3,7 @@ import { X as XIcon, Download, Pencil, Check } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { strikeDipSymbol } from "../lib/levelPlan.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -109,11 +110,11 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   };
   const onUp = () => { setTimeout(() => { dragRef.current = null; }, 0); };
   const saveOutline = () => {
-    if (pts.length < 3) { setNote("An outline needs at least three points."); return; }
-    const name = window.prompt("Name for this outline (saved as a boundary at this RL):", `Plan outline RL ${rl}`);
+    if (pts.length < 3) { setNote(tr("An outline needs at least three points.")); return; }
+    const name = window.prompt(tr("Name for this outline (saved as a boundary at this RL):"), `Plan outline RL ${rl}`);
     if (name == null) return;
     onSaveBoundary(pts, Number(rl), name || `Plan outline RL ${rl}`);
-    setNote(`"${name || `Plan outline RL ${rl}`}" saved as a boundary at ${rl} m (Geophysics > Boundaries; visible in 3D).`);
+    setNote(tr("\"{v}\" saved as a boundary at {rl} m (Geophysics > Boundaries; visible in 3D).", { v: name || tr("Plan outline RL {rl}", { rl }), rl }));
     setPts([]); setDrawing(false);
   };
 
@@ -145,26 +146,25 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const btn = { display: "flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 5, border: "1px solid var(--color-border-light)", background: "var(--color-bg-subtle)", color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Level plan" style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={tr("Level plan")} style={{ position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, padding: 14, boxShadow: "0 12px 32px rgba(0,0,0,0.3)", maxWidth: "96vw", maxHeight: "94vh", overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-          <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)" }}>Level plan</div>
-          <label style={ctrl}>RL (m) <input type="number" value={rl} onChange={(e) => setRl(e.target.value)} style={inp} aria-label="Plan elevation (RL)" /></label>
-          <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label="Plan elevation slider" />
-          <label style={ctrl} title="Hole runs, logs, assays and structures within this distance above and below the RL are drawn">± slab (m) <input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label="Slab half-width" /></label>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", color: "var(--color-text)" }}>{tr("Level plan")}</div>
+          <label style={ctrl}>{tr("RL (m)")}{" "}<input type="number" value={rl} onChange={(e) => setRl(e.target.value)} style={inp} aria-label={tr("Plan elevation (RL)")} /></label>
+          <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
+          <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
-            <label style={ctrl}>Colour holes by
-              <select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label="Colour holes by">
+            <label style={ctrl}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
                 {layerKeys.map((k) => <option key={k} value={k}>{(data.intervals.find((iv) => iv.layer === k)?.label || k).split(":")[0]}</option>)}
               </select>
             </label>
           )}
-          <label style={ctrl}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Hole ids</label>
-          <label style={ctrl} title="Frame the holes that are in the slab (zoomed in) instead of the whole project (a fixed frame as the RL moves)"><input type="checkbox" checked={fitSlab} onChange={(e) => setFitSlab(e.target.checked)} /> Fit to slab</label>
+          <label style={ctrl}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} />{" "}{tr("Hole ids")}</label>
+          <label style={ctrl} title={tr("Frame the holes that are in the slab (zoomed in) instead of the whole project (a fixed frame as the RL moves)")}><input type="checkbox" checked={fitSlab} onChange={(e) => setFitSlab(e.target.checked)} />{" "}{tr("Fit to slab")}</label>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} title="Close" aria-label="Close" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
+          <button onClick={onClose} title={tr("Close")} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><XIcon size={18} /></button>
         </div>
-        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={`Level plan at ${rl} m`} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto" }}>
+        <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} fontFamily="'Segoe UI', system-ui, Arial, sans-serif" role="img" aria-label={tr("Level plan at {rl} m", { rl })} onClick={onClick} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onDoubleClick={() => !drawing && setView(null)} style={{ display: "block", background: "#ffffff", border: "1px solid var(--color-border)", borderRadius: 6, cursor: drawing ? "crosshair" : "grab", maxWidth: "100%", height: "auto" }}>
           {/* grid */}
           {gx.map((x) => <g key={`gx${x}`}><line x1={X(x)} y1={PAD / 2} x2={X(x)} y2={H - PAD / 2} stroke="#eceef2" /><text x={X(x)} y={H - 6} fontSize="10" fill="#7a8494" textAnchor="middle">{Math.round(x)}E</text></g>)}
           {gy.map((y) => <g key={`gy${y}`}><line x1={PAD / 2} y1={Y(y)} x2={W - PAD / 2} y2={Y(y)} stroke="#eceef2" /><text x={4} y={Y(y) - 3} fontSize="10" fill="#7a8494">{Math.round(y)}N</text></g>)}
@@ -182,18 +182,18 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {data.points.map((p, i) => <circle key={`p${i}`} cx={X(p.x)} cy={Y(p.y)} r={2.6} fill={p.color} stroke="#ffffff" strokeWidth={0.6}><title>{`${p.hole_id} @ ${p.md.toFixed(1)} m — ${p.label}`}</title></circle>)}
           {/* structures: strike-dip symbols (oriented) or a small cross (unoriented) */}
           {data.structures.map((st, i) => {
-            if (st.dip == null) return <path key={`s${i}`} d={`M${X(st.x) - 3},${Y(st.y)} h6 M${X(st.x)},${Y(st.y) - 3} v6`} stroke={st.color} strokeWidth={1.4}><title>{`${st.hole_id} @ ${st.depth} m — ${st.label} (not oriented)`}</title></path>;
+            if (st.dip == null) return <path key={`s${i}`} d={`M${X(st.x) - 3},${Y(st.y)} h6 M${X(st.x)},${Y(st.y) - 3} v6`} stroke={st.color} strokeWidth={1.4}><title>{tr("{hole_id} @ {depth} m — {label} (not oriented)", { hole_id: st.hole_id, depth: st.depth, label: st.label })}</title></path>;
             const sym = strikeDipSymbol(st.x, st.y, st.dip, st.dipDir, 8 / s);
             return <g key={`s${i}`} stroke={st.color} strokeWidth={1.6}><line x1={X(sym.strike[0])} y1={Y(sym.strike[1])} x2={X(sym.strike[2])} y2={Y(sym.strike[3])} /><line x1={X(sym.tick[0])} y1={Y(sym.tick[1])} x2={X(sym.tick[2])} y2={Y(sym.tick[3])} /><title>{`${st.hole_id} @ ${st.depth} m — ${st.label}, ${Math.round(st.dip)}° → ${Math.round(st.dipDir)}°`}</title></g>;
           })}
           {/* planned holes */}
-          {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke="#7a52c7" strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke="#7a52c7" strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke="#7a52c7" strokeWidth={1.6} /><title>{`Planned ${p.name}: pierces ${rl} m at ${pc.md.toFixed(1)} m`}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill="#7a52c7">{p.name}</text>}</g>)}
+          {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke="#7a52c7" strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke="#7a52c7" strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke="#7a52c7" strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill="#7a52c7">{p.name}</text>}</g>)}
           {/* pierce points */}
           {data.holes.map((h) => h.pierce.map((pc, i) => (
             <g key={`pc${h.hole_id}_${i}`}>
               {/* filled with the chosen log's colour at the RL (white: not logged there) */}
               <circle cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6}>
-                <title>{[`${h.hole_id} pierces ${rl} m at ${pc.md.toFixed(1)} m`, ...(pc.logs || []).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
+                <title>{[tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
               </circle>
               {labels && <text x={X(pc.x) + 6} y={Y(pc.y) - 5} fontSize="10.5" fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{h.hole_id}</text>}
             </g>
@@ -202,25 +202,24 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           {pts.length > 0 && <path d={path(hover && drawing ? [...pts, hover] : pts) + (pts.length > 2 && !drawing ? " Z" : "")} stroke="#d1495b" strokeWidth={1.8} fill="rgba(209,73,91,0.08)" />}
           {pts.map((p, i) => <circle key={`d${i}`} cx={X(p[0])} cy={Y(p[1])} r={2.6} fill="#d1495b" />)}
           {/* title, north arrow, scale bar */}
-          <text x={PAD / 2} y={16} fontSize="13" fontWeight="600" fill="#1a2028">{`Level plan RL ${rl} m (slab ±${half} m)`}</text>
+          <text x={PAD / 2} y={16} fontSize="13" fontWeight="600" fill="#1a2028">{tr("Level plan RL {rl} m (slab ±{half} m)", { rl, half })}</text>
           <g transform={`translate(${W - 26},${PAD + 6})`}><path d="M0,-14 L6,6 L0,2 L-6,6 Z" fill="#1a2028" /><text x={0} y={18} fontSize="11" fontWeight="700" textAnchor="middle" fill="#1a2028">N</text></g>
           <g transform={`translate(${W - PAD - barM * s},${H - 22})`}><rect width={barM * s} height={5} fill="#1a2028" /><rect width={(barM * s) / 2} height={5} fill="#ffffff" stroke="#1a2028" strokeWidth={0.8} /><text x={(barM * s) / 2} y={-3} fontSize="10" textAnchor="middle" fill="#1a2028">{`${barM} m`}</text></g>
         </svg>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flex: 1, minWidth: 260 }}>
-            {pierceCount} pierce point{pierceCount === 1 ? "" : "s"} at {rl} m · {inSlab} hole{inSlab === 1 ? "" : "s"} in the slab · {data.voxelSlices.length} block model{data.voxelSlices.length === 1 ? "" : "s"} and {data.surfaceCuts.length} surface{data.surfaceCuts.length === 1 ? "" : "s"} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.
-          </div>
+            {tr("{pierceCount} {v} at {rl} m · {inSlab} {v2} in the slab · {voxelSlices} {v3} and {surfaceCuts} {v4} cut · equal E / N scale · wheel to zoom, drag to pan, double-click to reset. Hover a pierce point for its logs and assays.", { pierceCount, v: tr(pierceCount === 1 ? "pierce point" : "pierce points"), rl, inSlab, v2: tr(inSlab === 1 ? "hole" : "holes"), voxelSlices: data.voxelSlices.length, v3: tr(data.voxelSlices.length === 1 ? "block model" : "block models"), surfaceCuts: data.surfaceCuts.length, v4: tr(data.surfaceCuts.length === 1 ? "surface" : "surfaces") })}</div>
           {!drawing
-            ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote("Click points on the plan; Save outline when done."); }}><Pencil size={14} /> Draw outline</button>
-            : <><button style={btn} onClick={saveOutline}><Check size={14} /> Save outline</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>Cancel</button></>}
-          <button style={btn} onClick={() => setRev((r) => r + 1)} title="Rebuild from the current layers, filters and models">Refresh</button>
-          <button style={btn} onClick={() => exportPng(false)}><Download size={14} /> PNG</button>
-          <button style={btn} onClick={() => exportPng(true)}>Add to Layout</button>
+            ? <button style={btn} onClick={() => { setDrawing(true); setPts([]); setNote(tr("Click points on the plan; Save outline when done.")); }}><Pencil size={14} />{" "}{tr("Draw outline")}</button>
+            : <><button style={btn} onClick={saveOutline}><Check size={14} />{" "}{tr("Save outline")}</button><button style={btn} onClick={() => { setDrawing(false); setPts([]); setNote(null); }}>{tr("Cancel")}</button></>}
+          <button style={btn} onClick={() => setRev((r) => r + 1)} title={tr("Rebuild from the current layers, filters and models")}>{tr("Refresh")}</button>
+          <button style={btn} onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
+          <button style={btn} onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
         </div>
         {data.legendItems.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", maxWidth: W }}>
             {data.legendItems.slice(0, 40).map(([label, color]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: 2, border: "1px solid var(--color-border)" }} />{label}</span>)}
-            {data.legendItems.length > 40 && <span>+ {data.legendItems.length - 40} more</span>}
+            {data.legendItems.length > 40 && <span>{tr("+ {v} more", { v: data.legendItems.length - 40 })}</span>}
           </div>
         )}
         {note && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{note}</div>}

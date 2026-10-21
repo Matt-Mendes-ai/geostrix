@@ -52,8 +52,8 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import surface samples:")}{" "}{modal.fileName}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.elements.length}{" "}{tr("elements recognized")}</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import surface samples: {fileName}", { fileName: modal.fileName })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{elements} elements recognized", { elements: modal.elements.length })}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
@@ -97,15 +97,15 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
           <div style={{ marginTop: 12 }}>
             <SourceCrsField
               value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })}
-              defaultText={crsUnset ? "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import" : `Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+              defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
             />
             {modal.sourceEpsgFrom && (
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("Read from the file's \"")}{modal.sourceEpsgFrom}{tr("\" column — check it. Samples are reprojected into the project CRS on import.")}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("Read from the file's \"{sourceEpsgFrom}\" column — check it. Samples are reprojected into the project CRS on import.", { sourceEpsgFrom: modal.sourceEpsgFrom })}</div>
             )}
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
-            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements (")}{checkedCount}{" "}{tr("of")}{" "}{modal.elements.length})</div>
+            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>{tr("All")}</span>
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
@@ -152,7 +152,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y || !modal.mapping.z}>{tr("Import")}{" "}{checkedCount}{" "}{tr(checkedCount === 1 ? "element" : "elements")}</button>
+          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y || !modal.mapping.z}>{tr("Import {checkedCount} {v}", { checkedCount, v: tr(checkedCount === 1 ? "element" : "elements") })}</button>
         </div>
       </div>
     </div>

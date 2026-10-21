@@ -9,6 +9,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import AzimuthRefPicker from "./AzimuthRefPicker.jsx"; // TASKS.csv #547
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js";
 import { useStore } from "../lib/store.jsx";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // User request: "we need to find a way to calculate the beta angle for non-oriented drilling based on
 // field structural measurements." Core-logging reality: alpha (the acute angle between the core axis
@@ -54,16 +55,16 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     let dipDirDeg = raw, extra = {};
     if (newRefNorth.ref !== "grid") {
       const c = collars.find((x) => x.hole_id === holeId);
-      if (!c) { setNewRefMsg("Pick a hole above first — a true / magnetic bearing is converted to grid north at its collar."); return; }
-      if (newRefNorth.ref === "magnetic" && !newRefNorth.date) { setNewRefMsg("Enter the date the reference was measured (the declination depends on it)."); return; }
+      if (!c) { setNewRefMsg(tr("Pick a hole above first — a true / magnetic bearing is converted to grid north at its collar.")); return; }
+      if (newRefNorth.ref === "magnetic" && !newRefNorth.date) { setNewRefMsg(tr("Enter the date the reference was measured (the declination depends on it).")); return; }
       let o = null;
       try { if (newRefNorth.ref === "magnetic") await loadIgrf(); o = azimuthToGridOffset(newRefNorth.ref, c.x, c.y, project?.epsg, newRefNorth.date); } catch { o = null; }
-      if (!o) { setNewRefMsg("Couldn't convert to grid north here (no project CRS, or a date outside IGRF's range)."); return; }
+      if (!o) { setNewRefMsg(tr("Couldn't convert to grid north here (no project CRS, or a date outside IGRF's range).")); return; }
       dipDirDeg = Math.round(wrap360(raw + o.offset) * 10) / 10;
       extra = { rawDipDirDeg: raw, azimuthRef: newRefNorth.ref, ...(newRefNorth.ref === "magnetic" ? { azimuthDate: newRefNorth.date } : {}), convertedAt: holeId, gridOffsetDeg: Math.round(o.offset * 100) / 100 };
     }
     addFieldRef({ label: newRefLabel, dipDirDeg, dipDeg: Number(newRefDip), ...extra });
-    if (extra.azimuthRef) setNewRefMsg(`Saved at ${dipDirDeg}° grid (${raw}° ${extra.azimuthRef} ${o_sign(extra.gridOffsetDeg)} at ${holeId}).`);
+    if (extra.azimuthRef) setNewRefMsg(tr("Saved at {dipDirDeg}° grid ({raw}° {azimuthRef} {v} at {holeId}).", { dipDirDeg, raw, azimuthRef: extra.azimuthRef, v: o_sign(extra.gridOffsetDeg), holeId }));
     setNewRefLabel(""); setNewRefDipDir(""); setNewRefDip("");
   };
   const [newRefDipDir, setNewRefDipDir] = useState("");
@@ -114,7 +115,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     // made holeDirection point the hole UP and the answer silently wrong. Read it as 60° below
     // horizontal and say so; beyond 90° is not a hole dip at all.
     if (Math.abs(dipN) > 90) return { error: "Hole dip must be 0–90° below horizontal." };
-    const dipNote = dipN < 0 ? `Hole dip ${dipN}° read as ${-dipN}° below horizontal (negative-down convention).` : null;
+    const dipNote = dipN < 0 ? tr("Hole dip {dipN}° read as {v}° below horizontal (negative-down convention).", { dipN, v: -dipN }) : null;
     const d = holeDirection(azN, Math.abs(dipN));
     // TASKS.csv #497 — non-oriented core: any perpendicular works (the rotation absorbs it), vertical holes included
     const r = calculatorReferenceLine(d);
@@ -146,104 +147,91 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>Core orientation calculator (alpha-beta method)</div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)" }}>{tr("Core orientation calculator (alpha-beta method)")}</div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>
-          Recovers a non-oriented structure's true dip/dip-direction by calibrating against a second
-          structure on the same core run whose true attitude you already know from a field/outcrop
-          reading — alpha and beta for both are measured on the core against the SAME arbitrary scribed
-          line, exactly as logged.
-        </div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.5, marginBottom: 12 }}>{tr("Recovers a non-oriented structure's true dip/dip-direction by calibrating against a second structure on the same core run whose true attitude you already know from a field/outcrop reading — alpha and beta for both are measured on the core against the SAME arbitrary scribed line, exactly as logged.")}</div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <div>
-            <div className="ge-section-label">Hole & reference line</div>
+            <div className="ge-section-label">{tr("Hole & reference line")}</div>
             <div style={row}>
               <select value={holeId} onChange={(e) => { setHoleId(e.target.value); autoFillFromHole(e.target.value, depth); }} style={sel}>
-                <option value="">Manual entry (no hole)</option>
+                <option value="">{tr("Manual entry (no hole)")}</option>
                 {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
               </select>
-              <input type="number" placeholder="Depth (m)" value={depth} onChange={(e) => { setDepth(e.target.value); if (holeId) autoFillFromHole(holeId, e.target.value); }} style={{ ...num, width: 90 }} />
+              <input type="number" placeholder={tr("Depth (m)")} value={depth} onChange={(e) => { setDepth(e.target.value); if (holeId) autoFillFromHole(holeId, e.target.value); }} style={{ ...num, width: 90 }} />
             </div>
             <div style={row}>
-              <input type="number" placeholder="Hole azimuth (°)" value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
-              <input type="number" placeholder="Hole dip below horiz. (0-90°)" value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Hole azimuth (°)")} value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Hole dip below horiz. (0-90°)")} value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
             </div>
             {/* TASKS.csv #497 — the bottom/top-of-hole toggle changed nothing (proved in test/core.test.mjs), so it is a note now */}
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-              Measure both betas from the same scribed line (bottom- or top-of-hole, or any line) — the answer doesn't depend on which. Works for vertical holes too.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Measure both betas from the same scribed line (bottom- or top-of-hole, or any line) — the answer doesn't depend on which. Works for vertical holes too.")}</div>
 
-            <div className="ge-section-label" style={{ marginTop: 14 }}>Reference structure (known true attitude)</div>
+            <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Reference structure (known true attitude)")}</div>
             <div style={row}>
               <select value={selectedRefId} onChange={(e) => pickRef(e.target.value)} style={sel}>
-                <option value="">Ad hoc (enter below)</option>
-                {fieldStructuralRefs.length > 0 && <optgroup label="Saved field references">{fieldStructuralRefs.map((r) => <option key={r.id} value={r.id}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°</option>)}</optgroup>}
-                {nearbyOutcrop.length > 0 && <optgroup label={`Outcrop measurements near ${holeId}`}>{nearbyOutcrop.map((m, i) => <option key={i} value={`oc:${i}`}>{m.cls || "structure"} — {Math.round(m.dipDir)}°/{Math.round(m.dip)}° ({Math.round(m.dist)} m away)</option>)}</optgroup>}
+                <option value="">{tr("Ad hoc (enter below)")}</option>
+                {fieldStructuralRefs.length > 0 && <optgroup label={tr("Saved field references")}>{fieldStructuralRefs.map((r) => <option key={r.id} value={r.id}>{r.label || tr("(unlabeled)")} — {r.dipDirDeg}°/{r.dipDeg}°</option>)}</optgroup>}
+                {nearbyOutcrop.length > 0 && <optgroup label={tr("Outcrop measurements near {holeId}", { holeId })}>{nearbyOutcrop.map((m, i) => <option key={i} value={`oc:${i}`}>{tr("{v} — {v2}°/{v3}° ({v4} m away)", { v: m.cls || tr("structure"), v2: Math.round(m.dipDir), v3: Math.round(m.dip), v4: Math.round(m.dist) })}</option>)}</optgroup>}
               </select>
             </div>
             <div style={row}>
-              <input type="number" placeholder="Known dip-dir (°)" value={knownDipDir} onChange={(e) => { setKnownDipDir(e.target.value); setSelectedRefId(""); }} style={num} />
-              <input type="number" placeholder="Known dip (°)" value={knownDip} onChange={(e) => { setKnownDip(e.target.value); setSelectedRefId(""); }} style={num} />
+              <input type="number" placeholder={tr("Known dip-dir (°)")} value={knownDipDir} onChange={(e) => { setKnownDipDir(e.target.value); setSelectedRefId(""); }} style={num} />
+              <input type="number" placeholder={tr("Known dip (°)")} value={knownDip} onChange={(e) => { setKnownDip(e.target.value); setSelectedRefId(""); }} style={num} />
             </div>
             <div style={row}>
-              <input type="number" placeholder="Measured alpha (°)" value={refAlpha} onChange={(e) => setRefAlpha(e.target.value)} style={num} />
-              <input type="number" placeholder="Measured beta (°)" value={refBeta} onChange={(e) => setRefBeta(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Measured alpha (°)")} value={refAlpha} onChange={(e) => setRefAlpha(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Measured beta (°)")} value={refBeta} onChange={(e) => setRefBeta(e.target.value)} style={num} />
             </div>
 
-            <div className="ge-section-label" style={{ marginTop: 14 }}>Unknown structure</div>
+            <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Unknown structure")}</div>
             <div style={row}>
-              <input placeholder="Label (e.g. Vein, Fault)" value={unkLabel} onChange={(e) => setUnkLabel(e.target.value)} style={sel} />
+              <input placeholder={tr("Label (e.g. Vein, Fault)")} value={unkLabel} onChange={(e) => setUnkLabel(e.target.value)} style={sel} />
             </div>
             <div style={row}>
-              <input type="number" placeholder="Measured alpha (°)" value={unkAlpha} onChange={(e) => setUnkAlpha(e.target.value)} style={num} />
-              <input type="number" placeholder="Measured beta (°)" value={unkBeta} onChange={(e) => setUnkBeta(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Measured alpha (°)")} value={unkAlpha} onChange={(e) => setUnkAlpha(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Measured beta (°)")} value={unkBeta} onChange={(e) => setUnkBeta(e.target.value)} style={num} />
             </div>
           </div>
 
           <div>
-            <div className="ge-section-label">Result</div>
-            {!result && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>Fill in every field on the left to solve.</div>}
+            <div className="ge-section-label">{tr("Result")}</div>
+            {!result && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Fill in every field on the left to solve.")}</div>}
             {result?.error && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-solid)", lineHeight: 1.5 }}>{result.error}</div>}
             {result && !result.error && (
               <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "9px 10px", fontSize: "var(--font-size-base)", color: "var(--color-text)", lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{unkLabel || "Unknown structure"}: true dip {result.dipDeg.toFixed(1)}° / dip-dir {roundAzimuth(result.dipDirDeg, 1).toFixed(1)}°</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("{v}: true dip {dipDeg}° / dip-dir {v2}°", { v: unkLabel || tr("Unknown structure"), dipDeg: result.dipDeg.toFixed(1), v2: roundAzimuth(result.dipDirDeg, 1).toFixed(1) })}</div>
                 {result.dipNote && <div style={{ color: "var(--color-text-secondary)", marginBottom: 2 }}>{result.dipNote}</div>}
-                <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "var(--color-danger-solid)" : "var(--color-text-secondary)" }}>
-                  Alpha check: reference structure's on-core alpha vs. what its known attitude implies —
-                  off by {result.alphaDiscrepancyDeg.toFixed(1)}°{result.alphaDiscrepancyDeg > 5 ? " (large — is this really the same structure logged in the field?)" : ""}
+                <div style={{ color: result.alphaDiscrepancyDeg > 5 ? "var(--color-danger-solid)" : "var(--color-text-secondary)" }}>{tr("Alpha check: reference structure's on-core alpha vs. what its known attitude implies — off by {alphaDiscrepancyDeg}°{v}", { alphaDiscrepancyDeg: result.alphaDiscrepancyDeg.toFixed(1), v: result.alphaDiscrepancyDeg > 5 ? tr(" (large — is this really the same structure logged in the field?)") : "" })}
                 </div>
                 {(result.refNearPerpendicular || result.unkNearPerpendicular) && (
-                  <div style={{ color: "#c9962b", marginTop: 4 }}>
-                    One structure is within ~5° of perpendicular to the hole axis — beta (and therefore
-                    this result) is only weakly constrained here.
-                  </div>
+                  <div style={{ color: "#c9962b", marginTop: 4 }}>{tr("One structure is within ~5° of perpendicular to the hole axis — beta (and therefore this result) is only weakly constrained here.")}</div>
                 )}
                 <button onClick={save} disabled={!canSave} style={{ ...saveBtn, marginTop: 8, opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "default" }}
-                  title={canSave ? "" : "Pick a hole and depth (not manual entry) to save"}>
-                  <Save size={12} /> Save as Structure pick
-                </button>
+                  title={canSave ? "" : tr("Pick a hole and depth (not manual entry) to save")}>
+                  <Save size={12} />{" "}{tr("Save as Structure pick")}</button>
               </div>
             )}
 
-            <div className="ge-section-label" style={{ marginTop: 16 }}>Field reference library</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Field reference library")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 110, overflowY: "auto", marginBottom: 6 }}>
               {fieldStructuralRefs.map((r) => (
                 <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.azimuthRef ? `Measured ${r.rawDipDirDeg}° from ${r.azimuthRef} north${r.azimuthDate ? ` on ${r.azimuthDate}` : ""}; ${r.dipDirDeg}° grid, converted at ${r.convertedAt}` : "Grid north"}>{r.label || "(unlabeled)"} — {r.dipDirDeg}°/{r.dipDeg}°{r.azimuthRef ? ` (from ${r.rawDipDirDeg}° ${r.azimuthRef === "magnetic" ? "MN" : "TN"})` : ""}{r.notes ? ` · ${r.notes}` : ""}</span>
-                  <Trash2 aria-label={`Remove reference "${r.label}"`} title={`Remove reference "${r.label}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.azimuthRef ? tr("Measured {rawDipDirDeg}° from {azimuthRef} north{v}; {dipDirDeg}° grid, converted at {convertedAt}", { rawDipDirDeg: r.rawDipDirDeg, azimuthRef: r.azimuthRef, v: r.azimuthDate ? ` on ${r.azimuthDate}` : "", dipDirDeg: r.dipDirDeg, convertedAt: r.convertedAt }) : tr("Grid north")}>{r.label || tr("(unlabeled)")} — {r.dipDirDeg}°/{r.dipDeg}°{r.azimuthRef ? tr(" (from {rawDipDirDeg}° {v})", { rawDipDirDeg: r.rawDipDirDeg, v: r.azimuthRef === "magnetic" ? "MN" : "TN" }) : ""}{r.notes ? ` · ${r.notes}` : ""}</span>
+                  <Trash2 aria-label={tr("Remove reference \"{label}\"", { label: r.label })} title={tr("Remove reference \"{label}\"", { label: r.label })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => removeFieldRef(r.id)} />
                 </div>
               ))}
-              {!fieldStructuralRefs.length && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No saved field measurements yet.</div>}
+              {!fieldStructuralRefs.length && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No saved field measurements yet.")}</div>}
             </div>
             <div style={row}>
-              <input placeholder="Label (e.g. Regional bedding)" value={newRefLabel} onChange={(e) => setNewRefLabel(e.target.value)} style={sel} />
+              <input placeholder={tr("Label (e.g. Regional bedding)")} value={newRefLabel} onChange={(e) => setNewRefLabel(e.target.value)} style={sel} />
             </div>
             <div style={row}>
-              <input type="number" placeholder="Dip-dir (°)" value={newRefDipDir} onChange={(e) => setNewRefDipDir(e.target.value)} style={num} />
-              <input type="number" placeholder="Dip (°)" value={newRefDip} onChange={(e) => setNewRefDip(e.target.value)} style={num} />
-              <button onClick={addReference} title="Add to the library" aria-label="Add field reference" style={{ ...saveBtn, padding: "6px 8px" }}><Plus size={12} /></button>
+              <input type="number" placeholder={tr("Dip-dir (°)")} value={newRefDipDir} onChange={(e) => setNewRefDipDir(e.target.value)} style={num} />
+              <input type="number" placeholder={tr("Dip (°)")} value={newRefDip} onChange={(e) => setNewRefDip(e.target.value)} style={num} />
+              <button onClick={addReference} title={tr("Add to the library")} aria-label={tr("Add field reference")} style={{ ...saveBtn, padding: "6px 8px" }}><Plus size={12} /></button>
             </div>
             <AzimuthRefPicker value={newRefNorth} onChange={setNewRefNorth} selectStyle={sel} labelStyle={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 80, flexShrink: 0, alignSelf: "center" }} rowStyle={row} />
             {newRefMsg && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{newRefMsg}</div>}

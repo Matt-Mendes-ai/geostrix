@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // Bug fix (user report: "Group feature is not working, can't create group layers"). Root cause:
 // every "name this thing" flow in the app (new layer group, rename group, rename section, new domain,
@@ -35,8 +36,8 @@ export default function PromptModal({ title, defaultValue = "", confirmLabel = "
           style={inputStyle}
         />
         <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
-          <button onClick={() => onConfirm(value)} style={okBtn}>{confirmLabel}</button>
+          <button onClick={onCancel} style={cancelBtn}>{tr("Cancel")}</button>
+          <button onClick={() => onConfirm(value)} style={okBtn}>{tr(confirmLabel)}</button>
         </div>
       </div>
     </div>

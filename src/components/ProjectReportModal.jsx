@@ -19,6 +19,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #405 — `weighted` (drillhole assays): the mean is length-weighted (interval to - from), the
 // same basis as Grade Statistics (#267); an unweighted mean over 0.3 m and 3 m intervals is biased toward
@@ -123,46 +124,43 @@ export default function ProjectReportModal({ store, onClose }) {
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FileBarChart2 size={18} style={{ color: "var(--color-accent-dark)" }} />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Project report</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project report")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 8 }}>
-            <StatCard label="Drillholes" value={collars.length} />
-            <StatCard label="Total metres" value={report.totalMetres.toFixed(0)} />
-            <StatCard label="Surface samples" value={surfaceSamples.length} />
-            <StatCard label="Layers with data" value={report.layerCounts.length} />
+            <StatCard label={tr("Drillholes")} value={collars.length} />
+            <StatCard label={tr("Total metres")} value={report.totalMetres.toFixed(0)} />
+            <StatCard label={tr("Surface samples")} value={surfaceSamples.length} />
+            <StatCard label={tr("Layers with data")} value={report.layerCounts.length} />
           </div>
 
           {report.assayStats.length > 0 && (
             <div>
-              <div style={label}>Assay statistics</div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>
-                Length-weighted mean; QAQC inserts excluded{report.qaqcExcluded ? ` (${report.qaqcExcluded} rows)` : ""}; all domains combined, not composited or capped.
-              </div>
+              <div style={label}>{tr("Assay statistics")}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Length-weighted mean; QAQC inserts excluded{v}; all domains combined, not composited or capped.", { v: report.qaqcExcluded ? ` (${report.qaqcExcluded} rows)` : "" })}</div>
               <MiniTable rows={report.assayStats} />
             </div>
           )}
 
           {report.surfaceStats.length > 0 && (
             <div>
-              <div style={label}>Surface sample statistics (unweighted mean)</div>
+              <div style={label}>{tr("Surface sample statistics (unweighted mean)")}</div>
               <MiniTable rows={report.surfaceStats} />
             </div>
           )}
 
           {!collars.length && !surfaceSamples.length && (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>Import drillholes or surface samples to generate a report.</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("Import drillholes or surface samples to generate a report.")}</div>
           )}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Close</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
           <button onClick={exportCSV} style={{ ...btn(true), flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }} disabled={!collars.length && !surfaceSamples.length}>
-            <Download size={14} /> Export report (CSV)
-          </button>
+            <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
         </div>
       </div>
     </div>
@@ -184,7 +182,7 @@ function MiniTable({ rows }) {
       <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
         <thead>
           <tr>
-            <th style={th}>Element</th><th style={th}>Unit</th><th style={th}>n</th><th style={th}>Mean</th><th style={th}>Min</th><th style={th}>Max</th>
+            <th style={th}>{tr("Element")}</th><th style={th}>{tr("Unit")}</th><th style={th}>n</th><th style={th}>{tr("Mean")}</th><th style={th}>{tr("Min")}</th><th style={th}>{tr("Max")}</th>
           </tr>
         </thead>
         <tbody>

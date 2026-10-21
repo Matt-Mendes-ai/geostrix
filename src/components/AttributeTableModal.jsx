@@ -6,6 +6,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { compileCalc } from "../lib/calcExpr.js"; // TASKS.csv #344
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #222 (QGIS-specialist audit finding: 652ms open + 702ms per-keystroke search block on a
 // 200-hole/8000-interval project, hard 500-row cap with no paging) — two separate fixes. (1) row
@@ -85,9 +86,9 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
 
   const runCalc = () => {
     const field = calcField.trim();
-    if (!field) { setCalcError("Field name is required."); return; }
-    if (field.startsWith("_")) { setCalcError('Field names starting with "_" are reserved.'); return; }
-    if (!calcExpr.trim()) { setCalcError("Expression is required."); return; }
+    if (!field) { setCalcError(tr("Field name is required.")); return; }
+    if (field.startsWith("_")) { setCalcError(tr("Field names starting with \"_\" are reserved.")); return; }
+    if (!calcExpr.trim()) { setCalcError(tr("Expression is required.")); return; }
     try {
       // Compiling throws on a bad expression before any row is touched, so the table stays as it was.
       const calc = compileCalc(calcExpr, columns, { allowText: true }); // #554 — if() / comparisons / 'text'
@@ -97,7 +98,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
       const exists = columns.includes(field);
       if (exists) {
         const n = working.filter((r, i) => (!targets || targets.has(i)) && r[field] != null && r[field] !== "").length;
-        if (n && !window.confirm(`"${field}" already exists and ${n} of the ${targets ? targets.size : working.length} row(s) being calculated have a value in it.\n\nOK — overwrite them with the formula's results${calcKeepExisting ? " (a row whose result is blank keeps its value)" : " (a blank result BLANKS the row)"}.\nCancel — change nothing.`)) return;
+        if (n && !window.confirm(tr("\"{field}\" already exists and {n} of the {v} row(s) being calculated have a value in it.\n\nOK — overwrite them with the formula's results{v2}.\nCancel — change nothing.", { field, n, v: targets ? targets.size : working.length, v2: calcKeepExisting ? tr(" (a row whose result is blank keeps its value)") : tr(" (a blank result BLANKS the row)") }))) return;
       }
       let changed = 0, blank = 0;
       const next = working.map((r, i) => {
@@ -110,9 +111,9 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
       });
       setWorking(next);
       setDirty(true);
-      setCalcError(blank ? `${changed} row(s) calculated; ${blank} gave a blank result (a missing input)${calcKeepExisting && exists ? " and kept their existing value" : ""}.` : "");
+      setCalcError(blank ? tr("{changed} row(s) calculated; {blank} gave a blank result (a missing input){v}.", { changed, blank, v: calcKeepExisting && exists ? tr(" and kept their existing value") : "" }) : "");
     } catch (e) {
-      setCalcError(e.message || "Invalid expression.");
+      setCalcError(e.message || tr("Invalid expression."));
     }
   };
 
@@ -120,39 +121,37 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
     <div style={overlay} {...backdropProps(onClose)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{title} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>({working.length} rows)</span></div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{title} <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)", fontWeight: 400 }}>{tr("({working} rows)", { working: working.length })}</span></div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
         <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", display: "flex", gap: 8, alignItems: "center" }}>
-          <input placeholder="Search rows…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
-          <button onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "var(--color-selected-bg)" : "transparent", borderColor: calcOpen ? "var(--color-selected-border)" : "var(--color-border-light)", color: calcOpen ? "var(--color-text)" : "var(--color-text-secondary)" }}><Sigma size={14} /> Field calculator</button>
-          <button onClick={save} disabled={!dirty} style={{ ...saveBtn, opacity: dirty ? 1 : 0.5, cursor: dirty ? "pointer" : "default" }}><Save size={14} /> {dirty ? "Save changes" : "Saved"}</button>
+          <input placeholder={tr("Search rows…")} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 10px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }} />
+          <button onClick={() => setCalcOpen((v) => !v)} style={{ ...saveBtn, background: calcOpen ? "var(--color-selected-bg)" : "transparent", borderColor: calcOpen ? "var(--color-selected-border)" : "var(--color-border-light)", color: calcOpen ? "var(--color-text)" : "var(--color-text-secondary)" }}><Sigma size={14} />{" "}{tr("Field calculator")}</button>
+          <button onClick={save} disabled={!dirty} style={{ ...saveBtn, opacity: dirty ? 1 : 0.5, cursor: dirty ? "pointer" : "default" }}><Save size={14} /> {dirty ? tr("Save changes") : tr("Saved")}</button>
         </div>
         {calcOpen && (
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", background: "#f9fafb", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <input
-                placeholder="New/target field name (e.g. Au_eq)"
+                placeholder={tr("New/target field name (e.g. Au_eq)")}
                 value={calcField}
                 onChange={(e) => setCalcField(e.target.value)}
                 style={{ width: 200, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
               />
               <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-base)" }}>=</span>
               <input
-                placeholder="Expression, e.g. Au + Cu * 1.5  or  if(Au >= 0.5, 'MIN', 'WASTE')"
+                placeholder={tr("Expression, e.g. Au + Cu * 1.5 or if(Au >= 0.5, 'MIN', 'WASTE')")}
                 value={calcExpr}
                 onChange={(e) => setCalcExpr(e.target.value)}
                 style={{ flex: 1, minWidth: 260, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 9px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
               />
-              <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>Apply to {calcOnlyMatching && searchDebounced ? filtered.length : working.length} rows</button>
+              <button onClick={runCalc} style={{ ...saveBtn, padding: "6px 12px" }}>{tr("Apply to {v} rows", { v: calcOnlyMatching && searchDebounced ? filtered.length : working.length })}</button>
             </div>
             <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-              <label title="Only the rows the search box shows"><input type="checkbox" checked={calcOnlyMatching} onChange={(e) => setCalcOnlyMatching(e.target.checked)} /> Only rows matching the search{searchDebounced ? ` (${filtered.length})` : ""}</label>
-              <label title="When the target column already exists: a row whose result is blank (a missing input) keeps its current value instead of being blanked"><input type="checkbox" checked={calcKeepExisting} onChange={(e) => setCalcKeepExisting(e.target.checked)} /> Keep the existing value when the result is blank</label>
+              <label title={tr("Only the rows the search box shows")}><input type="checkbox" checked={calcOnlyMatching} onChange={(e) => setCalcOnlyMatching(e.target.checked)} />{" "}{tr("Only rows matching the search{v}", { v: searchDebounced ? ` (${filtered.length})` : "" })}</label>
+              <label title={tr("When the target column already exists: a row whose result is blank (a missing input) keeps its current value instead of being blanked")}><input type="checkbox" checked={calcKeepExisting} onChange={(e) => setCalcKeepExisting(e.target.checked)} />{" "}{tr("Keep the existing value when the result is blank")}</label>
             </div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-              Columns: {columns.join(", ") || "—"} — write [Column name] for names with spaces or symbols. Arithmetic + - * / % ^, comparisons &lt; &lt;= &gt; &gt;= = !=, and / or / not, if(condition, then, else) and text in quotes, e.g. <code>if(Au &gt;= 0.5, 'MIN', 'WASTE')</code>. Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10, exp. A row with a missing input gets a blank result.
-            </div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Columns: {v} — write [Column name] for names with spaces or symbols. Arithmetic + - * / % ^, comparisons < <= > >= = !=, and / or / not, if(condition, then, else) and text in quotes, e.g.", { v: columns.join(", ") || "—" })}{" "}<code>if(Au &gt;= 0.5, 'MIN', 'WASTE')</code>{tr(". Functions: abs, sqrt, min, max, round, floor, ceil, pow, log, log10, exp. A row with a missing input gets a blank result.")}</div>
             {calcError && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon-strong)" }}>{calcError}</div>}
           </div>
         )}
@@ -179,7 +178,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
                     </td>
                   ))}
                   <td style={{ ...td, textAlign: "center" }}>
-                    <Trash2 aria-label={"Delete this row"} title={"Delete this row"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)" }} onClick={() => deleteRow(rowIdx)} />
+                    <Trash2 aria-label={tr("Delete this row")} title={tr("Delete this row")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon-strong)" }} onClick={() => deleteRow(rowIdx)} />
                   </td>
                 </tr>
               ))}

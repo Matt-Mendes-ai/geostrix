@@ -13,6 +13,7 @@ import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex } from "../lib
 import { buildRasterImport } from "../lib/raster.js";
 import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFetch.js";
 import BasemapView from "./BasemapView.jsx";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const CUSTOM = "custom";
 const lastSummer = () => { const y = new Date().getFullYear() - (new Date().getMonth() < 9 ? 1 : 0); return { from: `${y}-07-01`, to: `${y}-09-15` }; };
@@ -64,11 +65,11 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
       const tiff = await fromArrayBuffer(await f.arrayBuffer());
       const image = await tiff.getImage();
       const bands = image.getSamplesPerPixel() || 1;
-      if (bands < 2) { setError(`"${f.name}" has a single band: an index needs two or more. Import it as an ordinary raster instead.`); setFile(null); return; }
+      if (bands < 2) { setError(tr("\"{name}\" has a single band: an index needs two or more. Import it as an ordinary raster instead.", { name: f.name })); setFile(null); return; }
       setFile({ file: f, bands, width: image.getWidth(), height: image.getHeight() });
       if (bands === 5 && sensor !== "aster_tir") pickSensor("aster_tir");
     } catch (e) {
-      setError(`Not a readable GeoTIFF (${e.message}).`); setFile(null);
+      setError(tr("Not a readable GeoTIFF ({message}).", { message: e.message })); setFile(null);
     }
   };
 
@@ -79,7 +80,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
       const list = await searchScenes(source, area.bboxLonLat, { ...dates, maxCloud: Number(maxCloud) || 20 });
       setScenes(list);
       if (list.length) setSceneId(list[0].id);
-      else setError(`No ${IMAGERY_SOURCES[source].label.split(" (")[0]} scene${source === "sentinel2" ? " in those dates" : ""} under ${maxCloud}% cloud covers this area. Widen the dates or allow more cloud.`);
+      else setError(tr("No {v} scene{v2} under {maxCloud}% cloud covers this area. Widen the dates or allow more cloud.", { v: IMAGERY_SOURCES[source].label.split(" (")[0], v2: source === "sentinel2" ? tr(" in those dates") : "", maxCloud }));
     } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
@@ -91,7 +92,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
       epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
       bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData }); blank = r.blank; total = r.values.length; return r.values; },
     });
-    const note = ` Index ${expr}${fetchMode ? "" : ` with ${parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ")}`}.${sourceNote || ""}${blank ? ` ${blank.toLocaleString()} pixel${blank === 1 ? " is" : "s are"} blank (${((100 * blank) / Math.max(1, total)).toPrecision(2)}%: masked, at 0 / nodata / negative, or a division by zero).` : ""}${isCustom ? "" : ` ${preset.what} Pixel size of the source: ${SENSORS[sensorKey].pixel}.`} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.`;
+    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) : "", v4: isCustom ? "" : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) });
     onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note);
   };
 
@@ -117,99 +118,96 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const canRun = !parsed.error && !busy && (fetchMode ? !!scene : !!file && !unmapped.length);
   return (
     <div style={overlay} onClick={onClose}>
-      <div style={panel({ width: 560, maxHeight: "90vh" })} role="dialog" aria-modal="true" aria-label="Spectral index" onClick={(e) => e.stopPropagation()}>
+      <div style={panel({ width: 560, maxHeight: "90vh" })} role="dialog" aria-modal="true" aria-label={tr("Spectral index")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)" }}><Rainbow size={16} /> Spectral index</span>
-          <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label="Close" />
+          <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)" }}><Rainbow size={16} />{" "}{tr("Spectral index")}</span>
+          <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8 }}>{tab("fetch", "Fetch imagery")}{tab("file", "Use a GeoTIFF file")}</div>
+          <div style={{ display: "flex", gap: 8 }}>{tab("fetch", tr("Fetch imagery"))}{tab("file", tr("Use a GeoTIFF file"))}</div>
 
           {fetchMode ? (
             <div>
-              <div style={label}>1. Imagery</div>
+              <div style={label}>{tr("1. Imagery")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <select value={source} onChange={(e) => pickSource(e.target.value)} style={sel} aria-label="Imagery source">
-                  {Object.entries(IMAGERY_SOURCES).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+                <select value={source} onChange={(e) => pickSource(e.target.value)} style={sel} aria-label={tr("Imagery source")}>
+                  {Object.entries(IMAGERY_SOURCES).map(([k, s]) => <option key={k} value={k}>{tr(s.label)}</option>)}
                 </select>
-                <select value={areaId} onChange={(e) => { if (e.target.value === "__draw") { setDrawing(true); return; } setAreaId(e.target.value); setScenes(null); }} style={{ ...sel, maxWidth: 240 }} aria-label="Area">
-                  {areaOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  {drawn && <option value="drawn">The area drawn on the map</option>}
-                  <option value="__draw">Draw an area on a map…</option>
+                <select value={areaId} onChange={(e) => { if (e.target.value === "__draw") { setDrawing(true); return; } setAreaId(e.target.value); setScenes(null); }} style={{ ...sel, maxWidth: 240 }} aria-label={tr("Area")}>
+                  {areaOptions.map((o) => <option key={o.id} value={o.id}>{tr(o.label)}</option>)}
+                  {drawn && <option value="drawn">{tr("The area drawn on the map")}</option>}
+                  <option value="__draw">{tr("Draw an area on a map…")}</option>
                 </select>
               </div>
               {source === "sentinel2" && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8, ...small }}>
-                  From <input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))} style={sel} aria-label="From date" />
-                  to <input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))} style={sel} aria-label="To date" />
-                  cloud under <input type="number" min={0} max={100} value={maxCloud} onChange={(e) => setMaxCloud(e.target.value)} style={{ ...sel, width: 56 }} aria-label="Maximum cloud cover" />%
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8, ...small }}>{tr("From")}{" "}<input type="date" value={dates.from} onChange={(e) => setDates((d) => ({ ...d, from: e.target.value }))} style={sel} aria-label={tr("From date")} />{tr("to")}{" "}<input type="date" value={dates.to} onChange={(e) => setDates((d) => ({ ...d, to: e.target.value }))} style={sel} aria-label={tr("To date")} />{tr("cloud under")}{" "}<input type="number" min={0} max={100} value={maxCloud} onChange={(e) => setMaxCloud(e.target.value)} style={{ ...sel, width: 56 }} aria-label={tr("Maximum cloud cover")} />%
                 </div>
               )}
-              <button onClick={search} disabled={!area || busy} style={{ ...btn(false), padding: "7px 12px", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, opacity: !area || busy ? 0.5 : 1 }}><Search size={14} /> Find scenes</button>
+              <button onClick={search} disabled={!area || busy} style={{ ...btn(false), padding: "7px 12px", marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6, opacity: !area || busy ? 0.5 : 1 }}><Search size={14} />{" "}{tr("Find scenes")}</button>
               {scenes && scenes.length > 0 && (
-                <select value={sceneId} onChange={(e) => setSceneId(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8 }} aria-label="Scene" size={Math.min(6, scenes.length)}>
-                  {scenes.map((s) => <option key={s.id} value={s.id}>{s.date} — {Number(s.cloud).toFixed(s.cloud < 10 ? 1 : 0)}% cloud, covers {Math.round(100 * s.coverage)}% of the area</option>)}
+                <select value={sceneId} onChange={(e) => setSceneId(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8 }} aria-label={tr("Scene")} size={Math.min(6, scenes.length)}>
+                  {scenes.map((s) => <option key={s.id} value={s.id}>{tr("{date} — {v}% cloud, covers {v2}% of the area", { date: s.date, v: Number(s.cloud).toFixed(s.cloud < 10 ? 1 : 0), v2: Math.round(100 * s.coverage) })}</option>)}
                 </select>
               )}
               <div style={{ ...small, marginTop: 6 }}>{source === "sentinel2"
-                ? "Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Summer dates keep snow off the ground; cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded."
-                : "ASTER L1T from Microsoft's Planetary Computer, free, no account: the 2000-2006 archive, thermal bands 10-14 at 90 m as at-sensor radiance (not emissivity: compare values within one scene). Only the area's window is downloaded."}</div>
+                ? tr("Copernicus Sentinel-2 surface reflectance from Element 84's Earth Search (AWS Open Data), free, no account. Summer dates keep snow off the ground; cloud, shadow, snow and water are masked with the scene's own classification. Only the area's window of the bands the index uses is downloaded.")
+                : tr("ASTER L1T from Microsoft's Planetary Computer, free, no account: the 2000-2006 archive, thermal bands 10-14 at 90 m as at-sensor radiance (not emissivity: compare values within one scene). Only the area's window is downloaded.")}</div>
             </div>
           ) : (
             <div>
-              <div style={label}>1. Multiband GeoTIFF</div>
-              <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? "Choose another file…" : "Choose a file…"}</button>
+              <div style={label}>{tr("1. Multiband GeoTIFF")}</div>
+              <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
               <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
-              {file && <div style={{ ...small, marginTop: 6 }}>{file.file.name}: {file.bands} bands, {file.width.toLocaleString()} × {file.height.toLocaleString()} px.</div>}
-              <div style={{ ...small, marginTop: 6 }}>ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.</div>
+              {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
+              <div style={{ ...small, marginTop: 6 }}>{tr("ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.")}</div>
             </div>
           )}
 
           <div>
-            <div style={label}>2. Index</div>
+            <div style={label}>{tr("2. Index")}</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {!fetchMode && (
-                <select value={sensor} onChange={(e) => pickSensor(e.target.value)} style={sel} aria-label="Sensor">
-                  {Object.entries(SENSORS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+                <select value={sensor} onChange={(e) => pickSensor(e.target.value)} style={sel} aria-label={tr("Sensor")}>
+                  {Object.entries(SENSORS).map(([k, s]) => <option key={k} value={k}>{tr(s.label)}</option>)}
                 </select>
               )}
-              <select value={presetId} onChange={(e) => setPresetId(e.target.value)} style={sel} aria-label="Index">
-                {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-                <option value={CUSTOM}>Custom expression…</option>
+              <select value={presetId} onChange={(e) => setPresetId(e.target.value)} style={sel} aria-label={tr("Index")}>
+                {presets.map((p) => <option key={p.id} value={p.id}>{tr(p.label)}</option>)}
+                <option value={CUSTOM}>{tr("Custom expression…")}</option>
               </select>
             </div>
             {isCustom
-              ? <input value={custom} onChange={(e) => setCustom(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8, boxSizing: "border-box", fontFamily: "monospace" }} aria-label="Expression" placeholder={fetchMode ? "e.g. (B8 - B4) / (B8 + B4)" : "e.g. (b4 - b3) / (b4 + b3)"} />
-              : <div style={{ ...small, marginTop: 8 }}><code>{expr}</code> — {preset?.what}</div>}
-            {isCustom && <div style={{ ...small, marginTop: 4 }}>{fetchMode ? `Bands: ${roles.join(", ")}` : `Bands are b1 … b${file?.bands || "n"}`}; + − × / ^ and brackets.</div>}
+              ? <input value={custom} onChange={(e) => setCustom(e.target.value)} style={{ ...sel, width: "100%", marginTop: 8, boxSizing: "border-box", fontFamily: "monospace" }} aria-label={tr("Expression")} placeholder={fetchMode ? "e.g. (B8 - B4) / (B8 + B4)" : "e.g. (b4 - b3) / (b4 + b3)"} />
+              : <div style={{ ...small, marginTop: 8 }}><code>{expr}</code> — {tr(preset?.what)}</div>}
+            {isCustom && <div style={{ ...small, marginTop: 4 }}>{tr("{v}; + − × / ^ and brackets.", { v: fetchMode ? tr("Bands: {roles}", { roles: roles.join(", ") }) : tr("Bands are b1 … b{v}", { v: file?.bands || "n" }) })}</div>}
             {parsed.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 4 }}>{parsed.error}</div>}
           </div>
           {!fetchMode && !isCustom && file && (
             <div>
-              <div style={label}>3. Which file band is which</div>
+              <div style={label}>{tr("3. Which file band is which")}</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 6 }}>
                 {parsed.uses.map((r) => (
                   <label key={r} style={{ ...small, display: "flex", alignItems: "center", gap: 6 }}>{r}
-                    <select value={Number.isFinite(bandOf(r)) ? bandOf(r) : ""} onChange={(e) => setMapping((m) => ({ ...m, [r]: Number(e.target.value) }))} style={sel} aria-label={`File band for ${r}`}>
+                    <select value={Number.isFinite(bandOf(r)) ? bandOf(r) : ""} onChange={(e) => setMapping((m) => ({ ...m, [r]: Number(e.target.value) }))} style={sel} aria-label={tr("File band for {r}", { r })}>
                       <option value="">—</option>
-                      {Array.from({ length: file.bands }, (_, k) => <option key={k} value={k + 1}>band {k + 1}</option>)}
+                      {Array.from({ length: file.bands }, (_, k) => <option key={k} value={k + 1}>{tr("band {v}", { v: k + 1 })}</option>)}
                     </select>
                   </label>
                 ))}
               </div>
-              {unmapped.length > 0 && <div style={{ ...small, marginTop: 4 }}>Say which file band holds {unmapped.join(", ")}.</div>}
+              {unmapped.length > 0 && <div style={{ ...small, marginTop: 4 }}>{tr("Say which file band holds {unmapped}.", { unmapped: unmapped.join(", ") })}</div>}
             </div>
           )}
           {error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{error}</div>}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
-            {progress && <span style={small}>Reading band {Math.min(progress.d + 1, progress.n)} of {progress.n}…</span>}
-            <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>Cancel</button>
-            <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? (fetchMode ? "Fetching…" : "Computing…") : fetchMode ? "Fetch and make the index" : "Make the index raster"}</button>
+            {progress && <span style={small}>{tr("Reading band {v} of {n}…", { v: Math.min(progress.d + 1, progress.n), n: progress.n })}</span>}
+            <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
+            <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? (fetchMode ? tr("Fetching…") : tr("Computing…")) : fetchMode ? tr("Fetch and make the index") : tr("Make the index raster")}</button>
           </div>
         </div>
       </div>
       {drawing && (
-        <BasemapView mode="draw" title="Draw the area to fetch imagery for" confirmLabel="Use this area" initialBboxLonLat={area?.bboxLonLat || null}
+        <BasemapView mode="draw" title={tr("Draw the area to fetch imagery for")} confirmLabel="Use this area" initialBboxLonLat={area?.bboxLonLat || null}
           lon={area ? (area.bboxLonLat[0] + area.bboxLonLat[2]) / 2 : undefined} lat={area ? (area.bboxLonLat[1] + area.bboxLonLat[3]) / 2 : undefined}
           onClose={() => setDrawing(false)} onConfirm={(b) => { setDrawn(b); setAreaId("drawn"); setScenes(null); setDrawing(false); }} />
       )}

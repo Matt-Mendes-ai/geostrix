@@ -22,6 +22,7 @@ import {
   guessStructureColumns, parseStructureRows, STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS,
 } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -73,7 +74,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         if (n.endsWith(".gpkg")) {
           const { layers } = await parseGeoPackage(await f.arrayBuffer());
           const usable = layers.filter((l) => l.features.length);
-          if (!usable.length) throw new Error("no feature tables with geometry");
+          if (!usable.length) throw new Error(tr("no feature tables with geometry"));
           usable.forEach((l) => addParsed(l, base(f)));
         } else if (n.endsWith(".zip")) {
           // TASKS.csv #627 — a zipped GeoPackage (no .shp inside): unpack only the .gpkg file(s) and read them as above
@@ -84,7 +85,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
             for (const g of gpkgs) {
               const { layers } = await parseGeoPackage((await readZipEntries(zbuf, { test: (x) => x === g }))[g]);
               const usable = layers.filter((l) => l.features.length);
-              if (!usable.length) throw new Error(`no feature tables with geometry in ${g}`);
+              if (!usable.length) throw new Error(tr("no feature tables with geometry in {g}", { g }));
               usable.forEach((l) => addParsed(l, base(f)));
             }
             continue;
@@ -116,20 +117,20 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     }
     if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp)$/i.test(f.name))) failed.push("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer.");
     setBusy(false);
-    setMapMsg({ ok: !failed.length, text: [done.length ? `Imported ${done.join("; ")}.` : "", failed.length ? `Problems: ${failed.join("; ")}` : ""].filter(Boolean).join(" ") });
+    setMapMsg({ ok: !failed.length, text: [done.length ? tr("Imported {done}.", { done: done.join("; ") }) : "", failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
   };
 
   const applyQmlToLayer = async (file) => {
     const layer = mapLayers.find((l) => l.id === qmlTargetRef.current);
     if (!file || !layer) return;
     const qml = parseQmlStyle(await file.text());
-    if (!qml) { setMapMsg({ ok: false, text: `${file.name}: no categorized style found (only QGIS "Categorized" styles are read).` }); return; }
+    if (!qml) { setMapMsg({ ok: false, text: tr("{name}: no categorized style found (only QGIS \"Categorized\" styles are read).", { name: file.name }) }); return; }
     const field = findField(layer.fields, qml.field);
-    if (!field) { setMapMsg({ ok: false, text: `${file.name} styles the "${qml.field}" attribute, which "${layer.name}" doesn't have (it has: ${layer.fields.join(", ")}).` }); return; }
+    if (!field) { setMapMsg({ ok: false, text: tr("{name} styles the \"{field}\" attribute, which \"{name2}\" doesn't have (it has: {fields}).", { name: file.name, field: qml.field, name2: layer.name, fields: layer.fields.join(", ") }) }); return; }
     const cats = applyQmlToCategories(autoCategories(layer.features, field, autoColorFor()), qml);
     const matched = cats.filter((c) => qml.categories.some((q) => q.value === c.value)).length;
     updateMapLayer(layer.id, { styleField: field, categories: cats, opacity: Math.max(0.15, qml.opacity) });
-    setMapMsg({ ok: true, text: `Applied ${file.name} to "${layer.name}": ${matched} of ${cats.length} unit(s) matched a style category.` });
+    setMapMsg({ ok: true, text: tr("Applied {name} to \"{name2}\": {matched} of {cats} unit(s) matched a style category.", { name: file.name, name2: layer.name, matched, cats: cats.length }) });
   };
 
   const changeStyleField = (layer, field) => {
@@ -157,19 +158,19 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const p = pendingStruct;
     if (!p) return;
     const north = p.north || { ref: "grid", date: "" }; // #547
-    if (north.ref === "magnetic" && !north.date) { setStructMsg({ ok: false, text: "Enter the date the measurements were taken — the magnetic declination depends on it." }); return; }
+    if (north.ref === "magnetic" && !north.date) { setStructMsg({ ok: false, text: tr("Enter the date the measurements were taken — the magnetic declination depends on it.") }); return; }
     if (!p.cols.x || !p.cols.y || !p.cols.dip || (!p.cols.dipDir && !p.cols.strike)) {
-      setStructMsg({ ok: false, text: "Pick at least easting, northing, dip, and either dip direction or strike." });
+      setStructMsg({ ok: false, text: tr("Pick at least easting, northing, dip, and either dip direction or strike.") });
       return;
     }
     const out = parseStructureRows(p.rows, p.cols);
-    if (!out.rows.length) { setStructMsg({ ok: false, text: "No rows had usable coordinates and dip." }); return; }
+    if (!out.rows.length) { setStructMsg({ ok: false, text: tr("No rows had usable coordinates and dip.") }); return; }
     const src = Number(p.sourceEpsg), dst = Number(project?.epsg);
     let crsNote = "";
     if (src && dst && src !== dst) {
       // #547 — a true / magnetic bearing doesn't depend on the CRS: only grid bearings are turned with the grid
       const gridNorth = north.ref === "grid";
-      if (!getProj4DefSync(src) || !getProj4DefSync(dst)) { setStructMsg({ ok: false, text: `EPSG:${src} isn't a CRS GeoStrix can reproject from — leave it as the project's EPSG:${dst} if the coordinates are already in it.` }); return; }
+      if (!getProj4DefSync(src) || !getProj4DefSync(dst)) { setStructMsg({ ok: false, text: tr("EPSG:{src} isn't a CRS GeoStrix can reproject from — leave it as the project's EPSG:{dst} if the coordinates are already in it.", { src, dst }) }); return; }
       // TASKS.csv #490 — dip directions are relative to the file's grid north: turn them (and the strike, by the
       // same angle) with the convergence difference, as a project CRS change does.
       const T = pointTransform(src, dst);
@@ -185,26 +186,26 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         }
         r.x = t.x; r.y = t.y;
       });
-      crsNote = ` Reprojected EPSG:${src} → EPSG:${dst}${gridNorth ? `; dip directions turned to the project grid (up to ${maxTurn.toFixed(2)}°)` : ""}.`;
+      crsNote = tr(" Reprojected EPSG:{src} → EPSG:{dst}{v}.", { src, dst, v: gridNorth ? tr("; dip directions turned to the project grid (up to {maxTurn}°)", { maxTurn: maxTurn.toFixed(2) }) : "" });
     }
     // TASKS.csv #547 — dip directions / strikes measured from true or magnetic north -> project grid north, per location
     let northNote = "", rows = out.rows;
     if (north.ref !== "grid") {
-      if (!dst) { setStructMsg({ ok: false, text: "The project has no coordinate system yet, so true / magnetic north can't be converted to grid north. Choose the project CRS first." }); return; }
-      if (north.ref === "magnetic") { try { await loadIgrf(); } catch { setStructMsg({ ok: false, text: "Couldn't load the magnetic field model (IGRF) — nothing was imported." }); return; } }
+      if (!dst) { setStructMsg({ ok: false, text: tr("The project has no coordinate system yet, so true / magnetic north can't be converted to grid north. Choose the project CRS first.") }); return; }
+      if (north.ref === "magnetic") { try { await loadIgrf(); } catch { setStructMsg({ ok: false, text: tr("Couldn't load the magnetic field model (IGRF) — nothing was imported.") }); return; } }
       const c = bearingsToGrid(out.rows, north.ref, dst, north.date);
       rows = c.rows;
-      northNote = ` ${c.converted} dip direction(s) converted from ${northRefText(north.ref, north.date, c.example)} to grid north${c.failed ? `; ${c.failed} could not be converted and were left as they were` : ""}.`;
+      northNote = tr(" {converted} dip direction(s) converted from {v} to grid north{v2}.", { converted: c.converted, v: northRefText(north.ref, north.date, c.example), v2: c.failed ? tr("; {failed} could not be converted and were left as they were", { failed: c.failed }) : "" });
     }
     addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     setStructMsg({
       ok: !out.skipped,
-      text: `Imported ${out.rows.length} measurement(s) from ${p.name}.`
-        + (out.skipped ? ` Skipped ${out.skipped} row(s) missing coordinates or a valid 0–90° dip.` : "")
-        + (out.derivedFromStrike ? ` ${out.derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.` : "")
-        + (out.rhrMismatches ? ` ${out.rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.` : "")
-        + (noZ ? ` ${noZ} had no elevation and sit on the terrain${terrain ? "" : " once one is loaded"}.` : "")
+      text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
+        + (out.skipped ? tr(" Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.", { skipped: out.skipped }) : "")
+        + (out.derivedFromStrike ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike }) : "")
+        + (out.rhrMismatches ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches }) : "")
+        + (noZ ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: terrain ? "" : tr(" once one is loaded") }) : "")
         + crsNote + northNote,
     });
     setPendingStruct(null);
@@ -221,17 +222,15 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   return (
     <>
       {part !== "structures" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-        Map layers (GeoPackage / shapefile)
-        <InfoButton title="Map layers" text={`Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG (${project?.epsg ?? "?"}). Mapped contacts between units can be projected underground from the 3D Modelling tab.`} />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers (GeoPackage / shapefile)")}<InfoButton title={tr("Map layers")} text={tr("Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG ({v}). Mapped contacts between units can be projected underground from the 3D Modelling tab.", { v: project?.epsg ?? "?" })} />
       </div>
       <SourceCrsField
         value={mapSourceEpsg} onChange={(c) => setMapSourceEpsg(c === "" ? "" : String(c))}
-        defaultText={`From the file (.prj / GeoPackage), else the project CRS (${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`})`}
-        title="Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one."
+        defaultText={tr("From the file (.prj / GeoPackage), else the project CRS ({v})", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
+        title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy}>
-        <MapIcon size={14} /> {busy ? "Importing…" : "Import map layer (.gpkg / .zip / .shp + .qml)…"}
+        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp + .qml)…")}
       </button>
       <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
@@ -248,47 +247,46 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${l.name}\n${l.crsNote || ""}`}>{l.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{l.features.length} {l.geomType}</span>
-              <Trash2 aria-label={`Remove map layer "${l.name}"`} title={`Remove map layer "${l.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${l.name}"?`)) removeMapLayer(l.id); }} />
+              <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain}
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>Drape on terrain{!terrain ? " (import or fetch a DEM above first)" : ""}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM above first)") : "" })}</span>
             </label>
             {!(l.drapeMode === "terrain" && terrain) && (
               <div style={row}>
-                <span style={lbl}>Elev.</span>
+                <span style={lbl}>{tr("Elev.")}</span>
                 <input type="number" value={Math.round(l.elevation || 0)} onChange={(e) => updateMapLayer(l.id, { elevation: Number(e.target.value) })} style={numInput} />
               </div>
             )}
             <div style={row}>
-              <span style={lbl}>Opacity</span>
+              <span style={lbl}>{tr("Opacity")}</span>
               <input type="range" min={0.05} max={1} step={0.05} value={l.opacity ?? 0.6} onChange={(e) => updateMapLayer(l.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 30, textAlign: "right" }}>{Math.round((l.opacity ?? 0.6) * 100)}%</span>
             </div>
             {l.fields.length > 0 && (
               <div style={row}>
-                <span style={lbl}>Colour by</span>
+                <span style={lbl}>{tr("Colour by")}</span>
                 <select value={l.styleField || ""} onChange={(e) => changeStyleField(l, e.target.value)} style={select}>
                   {l.fields.map((f) => <option key={f} value={f}>{f}</option>)}
                 </select>
-                <button title="Apply a QGIS .qml style to this layer" onClick={() => { qmlTargetRef.current = l.id; qmlInput.current.click(); }}
+                <button title={tr("Apply a QGIS .qml style to this layer")} onClick={() => { qmlTargetRef.current = l.id; qmlInput.current.click(); }}
                   style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>
-                  <Palette size={12} /> .qml
-                </button>
+                  <Palette size={12} />{" "}{tr(".qml")}</button>
               </div>
             )}
             {l.geomType === "polygon" && (
               <label style={{ ...row, cursor: "pointer" }}>
                 <input type="checkbox" checked={l.showOutlines !== false} onChange={(e) => updateMapLayer(l.id, { showOutlines: e.target.checked })} />
-                <span style={{ color: "var(--color-text-caption)" }}>Polygon outlines</span>
+                <span style={{ color: "var(--color-text-caption)" }}>{tr("Polygon outlines")}</span>
               </label>
             )}
             {l.categories?.length > 0 && (
               <>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setOpenLegend((p) => ({ ...p, [l.id]: !legendOpen }))} style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}>
                   {legendOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                  <span>Legend ({l.categories.length} unit{l.categories.length === 1 ? "" : "s"})</span>
+                  <span>{tr("Legend ({categories} {v})", { categories: l.categories.length, v: tr(l.categories.length === 1 ? "unit" : "units") })}</span>
                   {!legendOpen && (
                     <span style={{ display: "flex", gap: 2, marginLeft: "auto", overflow: "hidden" }}>
                       {l.categories.slice(0, 14).map((c) => <span key={String(c.value)} style={{ width: 9, height: 9, borderRadius: 2, background: c.color, opacity: c.visible === false ? 0.25 : 1, flexShrink: 0 }} />)}
@@ -299,7 +297,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                   <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
                     {l.categories.map((c, ci) => (
                       <div key={String(c.value)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <input type="checkbox" checked={c.visible !== false} title="Show this unit"
+                        <input type="checkbox" checked={c.visible !== false} title={tr("Show this unit")}
                           onChange={(e) => updateMapLayer(l.id, (cur) => ({ categories: cur.categories.map((x, xi) => xi === ci ? { ...x, visible: e.target.checked } : x) }))} />
                         <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.color) ? c.color : "#999999"}
                           onChange={(e) => updateMapLayer(l.id, (cur) => ({ categories: cur.categories.map((x, xi) => xi === ci ? { ...x, color: e.target.value } : x) }))}
@@ -319,36 +317,33 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
 
       </>)}
       {part !== "maps" && (<>
-      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-        Surface structures (outcrop measurements)
-        <InfoButton title="Surface structures" text="Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground." />
+      <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures (outcrop measurements)")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
       </div>
       <button onClick={() => structInput.current.click()} style={pBtn}>
-        <Compass size={14} /> Import structure measurements (.csv)…
-      </button>
+        <Compass size={14} />{" "}{tr("Import structure measurements (.csv)…")}</button>
       <input ref={structInput} type="file" accept=".csv,.txt" style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files[0]); e.target.value = ""; }} />
       {pendingStruct && (
         <div style={card}>
-          <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{pendingStruct.name}: {pendingStruct.rows.length} rows — check the columns</div>
-          {[["x", "Easting"], ["y", "Northing"], ["z", "Elevation"], ["dip", "Dip"], ["dipDir", "Dip dir."], ["strike", "Strike"], ["type", "Type"], ["comment", "Comments"]].map(([k, label]) => (
+          <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{name}: {rows} rows — check the columns", { name: pendingStruct.name, rows: pendingStruct.rows.length })}</div>
+          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["type", tr("Type")], ["comment", tr("Comments")]].map(([k, label]) => (
             <div key={k} style={row}>
               <span style={lbl}>{label}</span>
               <select value={pendingStruct.cols[k] || ""} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, [k]: e.target.value || null } }))} style={select}>
-                <option value="">(none)</option>
+                <option value="">{tr("(none)")}</option>
                 {pendingStruct.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
           ))}
           <SourceCrsField
             value={pendingStruct.sourceEpsg ?? ""} onChange={(c) => setPendingStruct((p) => ({ ...p, sourceEpsg: c === "" ? "" : String(c) }))}
-            defaultText={`Same as project — ${crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}`}`}
-            title="The CRS of this file's easting/northing. It is reprojected into the project CRS on import."
+            defaultText={tr("Same as project — {v}", { v: crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg ?? "?" }) })}
+            title={tr("The CRS of this file's easting/northing. It is reprojected into the project CRS on import.")}
           />
           <AzimuthRefPicker value={pendingStruct.north} onChange={(n) => setPendingStruct((p) => ({ ...p, north: n }))} selectStyle={select} labelStyle={lbl} rowStyle={row} />
           <div style={{ display: "flex", gap: 6, marginTop: 9 }}>
-            <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Import</button>
-            <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>Cancel</button>
+            <button onClick={commitStructs} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Import")}</button>
+            <button onClick={() => setPendingStruct(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
           </div>
         </div>
       )}
@@ -363,8 +358,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {s.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={s.azimuthRef && s.azimuthRef !== "grid" ? `Measured from ${s.azimuthRef} north${s.azimuthDate ? ` on ${s.azimuthDate}` : ""}; converted to grid north at import (#547)` : "Dip directions in project grid north"}>{s.rows.length}{s.azimuthRef === "magnetic" ? " · MN" : s.azimuthRef === "true" ? " · TN" : ""}</span>
-              <Trash2 aria-label={`Remove structure set "${s.name}"`} title={`Remove structure set "${s.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(`Remove "${s.name}"?`)) removeSurfaceStructureSet(s.id); }} />
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={s.azimuthRef && s.azimuthRef !== "grid" ? tr("Measured from {azimuthRef} north{v}; converted to grid north at import (#547)", { azimuthRef: s.azimuthRef, v: s.azimuthDate ? ` on ${s.azimuthDate}` : "" }) : tr("Dip directions in project grid north")}>{s.rows.length}{s.azimuthRef === "magnetic" ? " · MN" : s.azimuthRef === "true" ? " · TN" : ""}</span>
+              <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) removeSurfaceStructureSet(s.id); }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>
               {Object.entries(counts).map(([cls, n]) => (
@@ -375,13 +370,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               ))}
             </div>
             <div style={row}>
-              <span style={lbl}>Disc size</span>
+              <span style={lbl}>{tr("Disc size")}</span>
               <input type="range" min={5} max={200} step={5} value={s.size ?? 25} onChange={(e) => updateSurfaceStructureSet(s.id, { size: Number(e.target.value) })} style={{ flex: 1 }} />
               <span style={{ color: "var(--color-text-muted)", width: 40, textAlign: "right" }}>{s.size ?? 25} m</span>
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={s.snapToTerrain !== false} disabled={!terrain} onChange={(e) => updateSurfaceStructureSet(s.id, { snapToTerrain: e.target.checked })} />
-              <span style={{ color: "var(--color-text-caption)" }} title="GPS elevations are often tens of metres off the DEM; snapping sits every symbol on the ground. Off: rows with a recorded elevation use it.">Sit every measurement on the terrain</span>
+              <span style={{ color: "var(--color-text-caption)" }} title={tr("GPS elevations are often tens of metres off the DEM; snapping sits every symbol on the ground. Off: rows with a recorded elevation use it.")}>{tr("Sit every measurement on the terrain")}</span>
             </label>
           </div>
         );

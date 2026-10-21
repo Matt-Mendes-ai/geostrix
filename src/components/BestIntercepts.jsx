@@ -187,7 +187,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Best-intercept report")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance —")}{" "}{assays.length}{" "}{tr("intervals loaded.")}{qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
@@ -203,8 +203,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>{tr("Cutoff (")}{unit})
-              <input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(Number(e.target.value) || 0)} style={inp} />
+            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit })}<input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(Number(e.target.value) || 0)} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
@@ -220,12 +219,12 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           {symbols.length > 1 && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent (")}{symbol}{tr("Eq) from")}{" "}{symbol}{" "}{tr("and the \"Also show\" elements")}</label>
+                <input type="checkbox" checked={meqOn} onChange={(e) => setMeqOn(e.target.checked)} />{" "}{tr("Metal equivalent ({symbol}Eq) from {symbol} and the \"Also show\" elements", { symbol })}</label>
               {meqOn && (
                 <div style={{ marginTop: 6, marginLeft: 22, display: "flex", flexDirection: "column", gap: 4 }}>
                   {[symbol, ...extraSymbols].map((s) => (
                     <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb"}{tr("recovery")}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
+                      <span style={{ width: 34 }}>{s}</span>{tr("price")}{" "}<input type="number" min="0" step="any" value={meqInputs[s]?.price ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], price: e.target.value } }))} style={{ ...inp, width: 80 }} aria-label={tr("{s} price", { s })} /> {tr("{v}recovery", { v: PRECIOUS_METALS.has(s) ? "$/oz" : "$/lb" })}{" "}<input type="number" min="1" max="100" step="any" value={meqInputs[s]?.recovery ?? ""} onChange={(e) => setMeqInputs((p) => ({ ...p, [s]: { ...p[s], recovery: e.target.value } }))} style={{ ...inp, width: 60 }} aria-label={tr("{s} recovery %", { s })} /> %
                     </div>
                   ))}
                   <div style={{ color: meqReady ? "var(--color-text-muted)" : "var(--color-danger-icon-strong)" }}>
@@ -294,11 +293,11 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                     {twEnabled && <th style={th} title={tr("Downhole length corrected to a true thickness perpendicular to the stated structure.")}>{tr("True width (m)")}</th>}
                     {twEnabled && <th style={th} title={tr("|cos θ| between the hole and the structure's pole. 1.0 = hole perpendicular to the structure (ideal); near 0 = a grazing intersection whose downhole width is badly inflated.")}>{tr("Factor")}</th>}
                     {domainLayer && <th style={th} title={tr("Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.")}>{tr("Host")}</th>}
-                    <th style={th}>{tr("Avg")}{" "}{symbol} ({unit})</th>
+                    <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit })}</th>
                     <th style={th}>{tr("Grade × length")}</th>
-                    {incOn && <th style={th}>{tr("Including (≥")}{" "}{includeCutoff})</th>}
-                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{symbol}{tr("Eq (")}{unit})</th>}
-                    {extraSymbols.map((s) => <th key={s} style={th}>{tr("Avg")}{" "}{s} ({elementUnits[s] || "ppm"})</th>)}
+                    {incOn && <th style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>}
+                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>}
+                    {extraSymbols.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: elementUnits[s] || tr("ppm") })}</th>)}
                     <th style={th}>{tr("Assay intervals")}</th>
                   </tr>
                 </thead>
@@ -353,11 +352,11 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
             {/* TASKS.csv #331/#333 — say what was done to the data, not just the result. */}
             {results.stats && (results.stats.duplicatesSkipped > 0 || results.stats.overlappingRows > 0 || results.stats.negativeValues > 0) && (
               <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>
-                {[
+                {tr("{v}. Fix these in the source data for a clean report.", { v: [
                   results.stats.duplicatesSkipped > 0 ? tr("{duplicatesSkipped} exact duplicate row(s) counted once", { duplicatesSkipped: results.stats.duplicatesSkipped }) : null,
                   results.stats.overlappingRows > 0 ? tr("{overlappingRows} row(s) overlap another row in the same hole — each metre is counted once, and where overlapping {symbol} results differ their average is used (⚠ in the table)", { overlappingRows: results.stats.overlappingRows, symbol }) : null,
                   results.stats.negativeValues > 0 ? tr("{negativeValues} negative {symbol} value(s) treated as not assayed (negative numbers are detection-limit or no-data codes, not grades)", { negativeValues: results.stats.negativeValues, symbol }) : null,
-                ].filter(Boolean).join(". ")}{tr(". Fix these in the source data for a clean report.")}</div>
+                ].filter(Boolean).join(". ") })}</div>
             )}{tr("Intercepts never average below the cutoff: internal dilution is only bridged while the result stays at or above it. \"≥\" marks a grade that contains an over-range result. Sorted by grade × length (best intercepts first). Below-detection assay values are already substituted at half the detection limit (same convention as the plots). This is a screening tool — verify any intercept you plan to report externally against the raw assay certificates.")}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>

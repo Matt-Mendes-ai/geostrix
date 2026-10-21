@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // Drag handle that sits right at the sidebar/main-view boundary, immediately after .ge-panel in the
 // .ge-body flex row — a 6px hit target (visually a thin 2px bar, widened for an easier grab, same
@@ -51,7 +52,7 @@ export default function SidebarResizeHandle({ width, onResize }) {
       onPointerDown={onPointerDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      title="Drag to resize the sidebar"
+      title={tr("Drag to resize the sidebar")}
       style={{ width: 6, flexShrink: 0, cursor: "col-resize", position: "relative", zIndex: 5 }}
     >
       <div

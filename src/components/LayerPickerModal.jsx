@@ -15,27 +15,26 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function LayerPickerModal({ fileName, options, onPick, onCancel }) {
   useEscapeKey(onCancel);
   useFocusTrap();
   return (
     <div style={overlay} {...backdropProps(onCancel)}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label={`Choose a layer from ${fileName}`} onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Choose a layer from {fileName}", { fileName })} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
-              <Layers3 size={14} /> Choose a layer
-            </div>
+              <Layers3 size={14} />{" "}{tr("Choose a layer")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 3 }}>
-              {fileName} contains {options.length} layers. Import one now — re-open the file to bring in another.
-            </div>
+              {tr("{fileName} contains {options} layers. Import one now — re-open the file to bring in another.", { fileName, options: options.length })}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
         <div style={{ padding: 12, overflowY: "auto", maxHeight: 380 }}>
           {options.map((o) => (
-            <button key={o.name} onClick={() => onPick(o.name)} style={row} title={`Import "${o.name}"`}>
+            <button key={o.name} onClick={() => onPick(o.name)} style={row} title={tr("Import \"{name}\"", { name: o.name })}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>{o.name}</span>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", flexShrink: 0 }}>
                 {o.count != null ? `${o.count.toLocaleString()} ${o.unit || "feature"}${o.count === 1 ? "" : "s"}` : ""}{o.geomType ? ` · ${o.geomType}` : ""}
@@ -44,7 +43,7 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
           ))}
         </div>
         <div style={{ padding: "10px 12px", borderTop: "1px solid var(--color-border)", display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ ...row, width: "auto", padding: "6px 14px", color: "var(--color-text-secondary)" }}>Cancel</button>
+          <button onClick={onCancel} style={{ ...row, width: "auto", padding: "6px 14px", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
         </div>
       </div>
     </div>

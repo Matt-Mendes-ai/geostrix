@@ -113,8 +113,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               </select>
             </label>
             {/* TASKS.csv #534 — the element's detection limit, saved with the project */}
-            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit (")}{unit})
-              <input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
+            <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The lab's lower detection limit for this element. Blanks are judged against a multiple of it and duplicate pairs near it are not counted. Saved with the project.")}>{tr("Detection limit ({unit})", { unit })}<input key={`${symbol}|${dl}`} type="number" min={0} step="any" defaultValue={dl ?? ""} placeholder={tr("not set")} onBlur={(e) => setDetectionLimit(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Detection limit")} />
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: dlSuggestion.limit }) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
@@ -140,20 +139,20 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                   </select>
                 </label>
                 {!series.limits ? (
-                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No")}{" "}{symbol}{" "}{tr("values found for this standard.")}</div>
+                  <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found for this standard.", { symbol })}</div>
                 ) : (
                   <>
-                    <div style={label}>{tr("Control chart —")}{" "}{symbol} ({elementUnits[symbol] || "ppm"}), {series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)")}
+                    <div style={label}>{tr("Control chart — {symbol} ({v}), {v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: series.limits.certified ? tr("CERTIFIED mean ± 2SD/3SD (from the certificate)") : tr("self-referencing mean ± 2SD/3SD (enter the certificate values below for certified limits)") })}
                     </div>
                     {/* TASKS.csv #400 — certificate values, saved with the project */}
                     <CertInputs key={`${activeGroup.id}|${symbol}`} cert={cert} unit={elementUnits[symbol] || "ppm"} onSave={(c) => setCrmCertificate?.(activeGroup.id, symbol, c)} />
                     <ControlChart points={series.points} limits={series.limits} />
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in")}{" "}{ordered.bySampleId ? tr("sample-id order") : tr("the order the rows were imported (no sample ids: re-imports and merges can reorder them)")}.</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Plotted in {v}.", { v: ordered.bySampleId ? tr("sample-id order") : tr("the order the rows were imported (no sample ids: re-imports and merges can reorder them)") })}</div>
                     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                       {series.limits.certified
-                        ? <>{tr("Certified")}{" "}{series.limits.mean} ± {series.limits.sd}{" "}{tr("· observed mean")}{" "}{series.observed.mean.toFixed(3)}{" "}{tr("(SD")}{" "}{series.observed.sd.toFixed(3)}, n={series.observed.n}) · <b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>{tr("bias")}{" "}{series.biasPct >= 0 ? "+" : ""}{series.biasPct.toFixed(1)}%</b>{Math.abs(series.biasPct) > 5 ? tr(" (over ±5%)") : ""}</>
-                        : <>{tr("Mean")}{" "}{series.limits.mean.toFixed(3)}{" "}{tr("· SD")}{" "}{series.limits.sd.toFixed(3)} · n={series.limits.n}</>}
-                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{series.points.filter((p) => p.outside2sd).length}{" "}{tr("point(s) outside 2SD")}</span>}
+                        ? <>{tr("Certified {mean} ± {sd} · observed mean {mean2} (SD {sd2}, n={n}) ·", { mean: series.limits.mean, sd: series.limits.sd, mean2: series.observed.mean.toFixed(3), sd2: series.observed.sd.toFixed(3), n: series.observed.n })}{" "}<b style={{ color: Math.abs(series.biasPct) > 5 ? "var(--color-danger-fg)" : "inherit" }}>{tr("bias {v}{biasPct}%", { v: series.biasPct >= 0 ? "+" : "", biasPct: series.biasPct.toFixed(1) })}</b>{Math.abs(series.biasPct) > 5 ? tr(" (over ±5%)") : ""}</>
+                        : <>{tr("Mean {mean} · SD {sd} · n={n}", { mean: series.limits.mean.toFixed(3), sd: series.limits.sd.toFixed(3), n: series.limits.n })}</>}
+                      {series.points.some((p) => p.outside2sd) && <span style={{ color: "var(--color-danger-alt)", marginLeft: 8 }}>{tr("{n} point(s) outside 2SD", { n: series.points.filter((p) => p.outside2sd).length })}</span>}
                     </div>
                   </>
                 )}
@@ -164,17 +163,16 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           {tab === "blanks" && (
             <>
               {dl ? (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit (")}{dl} {unit})
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination limit: multiple of the detection limit ({dl} {unit})", { dl, unit })}<span style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <input type="number" min={1} step="any" value={blankMult} onChange={(e) => setBlankMult(Math.max(1, Number(e.target.value) || 5))} style={{ ...sel, width: 70 }} aria-label={tr("Blank limit as a multiple of the detection limit")} />{tr("× DL =")}{" "}<b>{Number((blankMult * dl).toPrecision(4))} {unit}</b>
                   </span>
                 </label>
               ) : (
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold (")}{unit}{tr(") — set the element's detection limit above to judge blanks against a multiple of it (5x DL)")}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Contamination threshold ({unit}) — set the element's detection limit above to judge blanks against a multiple of it (5x DL)", { unit })}<input type="number" step="any" value={blankThreshold} onChange={(e) => setBlankThreshold(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} />
                 </label>
               )}
               {blanks.length === 0 ? (
-                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a")}{" "}{symbol}{" "}{tr("value.")}</div>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No blanks found (hole_id containing \"blank\"/\"blk\"), or none have a {symbol} value.", { symbol })}</div>
               ) : (
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead><tr><th style={th}>{tr("Hole ID")}</th><th style={th}>{tr("From")}</th><th style={th}>{tr("To")}</th><th style={th}>{symbol}</th><th style={th}>{tr("Flag")}</th></tr></thead>
@@ -197,7 +195,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}
               title={tr("Older and government (ARIS) exports often store a duplicate as a second row for the same hole and interval, with no sample-type column. Tick this to measure those as duplicate pairs: the first row is the original, a later row with a different result is the duplicate. Identical rows are double imports and are skipped.")}>
               <input type="checkbox" checked={repeatedAsDup} onChange={(e) => setRepeatedAsDup(e.target.checked)} style={{ marginTop: 2 }} />
-              <span>{tr("Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate)")}{repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : ""}</span>
+              <span>{tr("Treat repeated same-interval rows as duplicate pairs (1st = original, 2nd = duplicate){v}", { v: repeatedAsDup ? tr(" — {n} pair(s) found{v}", { n: dups.filter((p) => p.how === "repeated interval").length, v: dups.identicalRepeats ? tr(", {identicalRepeats} identical repeat(s) skipped as double imports", { identicalRepeats: dups.identicalRepeats }) : "" }) : "" })}</span>
             </label>
           )}
           {tab === "duplicates" && (
@@ -205,8 +203,8 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No duplicate pairs found — a duplicate row (hole_id containing \"dup\") needs a matching original row at the exact same hole_id/from/to (see info).")}</div>
             ) : (
               <>
-                <div style={label}>{tr("Relative % difference (RPD) —")}{" "}{symbol}, {dups.length}{" "}{tr(dups.length === 1 ? "pair" : "pairs")}</div>
-                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below (")}{unit}){dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit")}
+                <div style={label}>{tr("Relative % difference (RPD) — {symbol}, {dups} {v}", { symbol, dups: dups.length, v: tr(dups.length === 1 ? "pair" : "pairs") })}</div>
+                <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("RPD near the detection limit is meaningless. Pairs below this mean are greyed and not counted.")}>{tr("Ignore pairs with a mean below ({unit}){v}", { unit, v: dl ? tr(" — default 10 × DL = {v}", { v: Number((10 * dl).toPrecision(4)) }) : tr(", e.g. 10× detection limit") })}
                   <input type="number" min={0} step="any" value={dupMin} placeholder={dl ? String(Number((10 * dl).toPrecision(4))) : "0"} onChange={(e) => setDupMin(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Minimum pair mean")} />
                 </label>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
@@ -226,7 +224,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
                     ))}
                   </tbody>
                 </table>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Flagged above the usual precision limit for the duplicate's type, read from its sample type: field")}{" "}{DUP_RPD_LIMITS.field}{tr("%, coarse reject")}{" "}{DUP_RPD_LIMITS.coarse}{tr("%, pulp")}{" "}{DUP_RPD_LIMITS.pulp}% ({DUP_RPD_LIMITS.unknown}{tr("% when the type isn't stated) — industry rules of thumb, not certified or regulatory limits.")}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Flagged above the usual precision limit for the duplicate's type, read from its sample type: field {field}%, coarse reject {coarse}%, pulp {pulp}% ({unknown}% when the type isn't stated) — industry rules of thumb, not certified or regulatory limits.", { field: DUP_RPD_LIMITS.field, coarse: DUP_RPD_LIMITS.coarse, pulp: DUP_RPD_LIMITS.pulp, unknown: DUP_RPD_LIMITS.unknown })}</div>
               </>
             )
           )}
@@ -253,7 +251,7 @@ function CertInputs({ cert, unit, onSave }) {
   const ok = mean !== "" && Number.isFinite(Number(mean)) && Number(sd) > 0;
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-      <label>{tr("Certified mean (")}{unit})<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
+      <label>{tr("Certified mean ({unit})", { unit })}<input type="number" step="any" value={mean} onChange={(e) => setMean(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified mean")} /></label>
       <label>{tr("Certified 1 SD")}<input type="number" step="any" min={0} value={sd} onChange={(e) => setSd(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} aria-label={tr("Certified standard deviation")} /></label>
       <button type="button" disabled={!ok} onClick={() => onSave({ mean: Number(mean), sd: Number(sd) })} style={{ ...tabBtn, opacity: ok ? 1 : 0.5 }}>{tr("Use certificate")}</button>
       {cert && <button type="button" onClick={() => { setMean(""); setSd(""); onSave(null); }} style={tabBtn}>{tr("Clear")}</button>}

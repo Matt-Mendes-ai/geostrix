@@ -111,7 +111,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Downhole compositing")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries —")}{" "}{assays.length}{" "}{tr("raw intervals loaded.")}{qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries — {assays} raw intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
@@ -144,8 +144,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
               </select>
             </label>
-            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap (")}{unit})
-              <input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
+            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
             </label>
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={capValue === "" ? null : Number(capValue)} onSetCap={(v) => setCapValue(String(Number(v.toPrecision(4))))} />
@@ -167,7 +166,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                     <th style={th}>{tr("From")}</th>
                     <th style={th}>{tr("To")}</th>
                     <th style={th}>{tr("Length (m)")}</th>
-                    <th style={th}>{tr("Avg")}{" "}{symbol} ({unit})</th>
+                    <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit })}</th>
                     <th style={th}>{tr("Coverage")}</th>
                     {domainKey && <th style={th}>{domainMeta.label}</th>}
                   </tr>
@@ -192,7 +191,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           )}
 
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-            {results.length}{" "}{tr("composite(s) from")}{" "}{assays.length}{" "}{tr("raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).")}</div>
+            {tr("{results} composite(s) from {assays} raw intervals. Composites are anchored to each hole's first sampled depth and stepped at the length above; a domain boundary or the hole's own start/end will shorten an individual composite below that length. Coverage below 100% means part of the composite falls in unsampled core — its grade is the length-weighted average of the material that IS sampled (not diluted toward zero).", { results: results.length, assays: assays.length })}</div>
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export composites (CSV)")}</button>

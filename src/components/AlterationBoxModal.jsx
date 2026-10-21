@@ -33,7 +33,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
         <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Protolith of each sample")}</div>
         <select value={source} onChange={(e) => setSource(e.target.value)} aria-label={tr("Protolith source")} style={{ ...num, width: "100%", marginTop: 4 }}>
           <option value="logged">{tr("From the logged lithology at the sample (map the codes below)")}</option>
-          {PROTOLITHS.map((p) => <option key={p} value={p}>{tr("Every sample is")}{" "}{p}</option>)}
+          {PROTOLITHS.map((p) => <option key={p} value={p}>{tr("Every sample is {p}", { p })}</option>)}
         </select>
         {source === "logged" && (
           <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>

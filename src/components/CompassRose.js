@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -48,7 +49,7 @@ export function createCompassRose({ camStateRef, updateCamera, dragRef }) {
     { dir: [0, 0, -1], label: "N", color: "#1f5f9e" },
     { dir: [1, 0, 0], label: "E", color: "#1a2028" },
     { dir: [0, 0, 1], label: "S", color: "#1a2028" },
-    { dir: [-1, 0, 0], label: "W", color: "#1a2028" },
+    { dir: [-1, 0, 0], label: tr("W"), color: "#1a2028" }, // #786: O in Spanish / Portuguese
   ];
   const clickable = []; // { mesh, dir } — hit-tested for click-to-snap
   compassPts.forEach((p) => {

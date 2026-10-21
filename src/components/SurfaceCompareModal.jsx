@@ -105,7 +105,7 @@ export default function SurfaceCompareModal({
       `Version B (newer),"${(surfB.name || "").replace(/"/g, '""')}"`,
       "",
     ];
-    if (edits?.message) lines.push(`HAND-EDIT WARNING,"${edits.message.replace(/"/g, '""')}"`, "");
+    if (edits?.message) lines.push(`HAND-EDIT WARNING,"${edits.message.replace(/"/g, '""')}"`, ""); // a CSV row: stays English (TASKS.csv #786)
     lines.push("section,item,version A,version B");
     if (result) {
       lines.push(`geometry,vertices,${result.a.vertexCount},${result.b.vertexCount}`);

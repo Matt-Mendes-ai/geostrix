@@ -21,6 +21,7 @@ import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TA
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
 setIgrfModule(igrfModule);
 import { printPt, printPx } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -369,7 +370,7 @@ export default function LayoutModule() {
     });
   };
   const loadTemplate = (tpl) => {
-    if (elements.length && !window.confirm(`Replace the current page with "${tpl.name}"? This can't be undone.`)) return;
+    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? This can't be undone.", { name: tpl.name }))) return;
     setElements(tpl.elements.map((el) => ({ ...el, id: `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}` })));
     setSelected(null);
     setTemplatesOpen(false);
@@ -429,7 +430,7 @@ export default function LayoutModule() {
   // any one view, e.g. a page-wide reference scale).
   const syncScaleBarForElement = (sel, worldSizeM, pxSizeOnPage) => {
     if (!worldSizeM || !pxSizeOnPage) {
-      setSyncNotice("No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.");
+      setSyncNotice(tr("No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out."));
       return;
     }
     // pxPerMeter is the TRUE on-page pixel-per-metre ratio implied by this element's own captured
@@ -446,7 +447,7 @@ export default function LayoutModule() {
       if (existing) return els.map((el) => el === existing ? { ...el, meters, pxPerMeter } : el);
       return [...els, { id: `scale_${Date.now()}`, type: "scale", boundTo: sel.id, x: sel.x, y: sel.y + (sel.h || 0) + 14, meters, pxPerMeter }];
     });
-    setSyncNotice(`Scale bar assigned (${meters.toLocaleString()} m) — edit the number any time and the bar will resize to match.`);
+    setSyncNotice(tr("Scale bar assigned ({meters} m) — edit the number any time and the bar will resize to match.", { meters: meters.toLocaleString() }));
   };
 
   // "The legend should be able to load the lithologies present in the view attached to it" — a legend
@@ -458,9 +459,9 @@ export default function LayoutModule() {
   const syncLegendLithologies = (legendId) => {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
-    if (!legend.boundViewportId) { setSyncNotice("Pick a bound viewport or cross-section above first."); return; }
+    if (!legend.boundViewportId) { setSyncNotice(tr("Pick a bound viewport or cross-section above first.")); return; }
     const vp = elements.find((el) => el.id === legend.boundViewportId);
-    if (!vp) { setSyncNotice("That viewport/section no longer exists on this page — pick a different one."); return; }
+    if (!vp) { setSyncNotice(tr("That viewport/section no longer exists on this page — pick a different one.")); return; }
 
     // Cross-section snapshots (type "image") carry their own pre-computed legendItems — the exact
     // {label,color} pairs drawn in that section (litho/alt/vein/structure), built once in
@@ -469,26 +470,26 @@ export default function LayoutModule() {
     // "sync" just means "refresh from whatever this snapshot was captured with".
     if (vp.type === "image") {
       const items = vp.legendItems || [];
-      if (!items.length) { setSyncNotice("This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load."); return; }
+      if (!items.length) { setSyncNotice(tr("This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.")); return; }
       setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
-      setSyncNotice(`Loaded ${items.length} categor${items.length === 1 ? "y" : "ies"} from "${vp.label || vp.id}".`);
+      setSyncNotice(tr(items.length === 1 ? "Loaded {items} category from \"{v2}\"." : "Loaded {items} categories from \"{v2}\".", { items: items.length, v2: vp.label || vp.id }));
       return;
     }
 
     const theme = themes.find((t) => t.id === vp.themeId);
-    if (!theme) { setSyncNotice("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again."); return; }
+    if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const lithoVisible = theme.layerVisible ? theme.layerVisible.litho !== false : true;
-    if (!lithoVisible) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice("The Lithology layer was hidden in that view's theme, so there's nothing to load — show it in the 3D Viewer, resave the theme, and sync again."); return; }
+    if (!lithoVisible) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("The Lithology layer was hidden in that view's theme, so there's nothing to load — show it in the 3D Viewer, resave the theme, and sync again.")); return; }
     const hidden = new Set(theme.categoryFilter?.litho || []);
     const rows = layers?.litho || [];
-    if (!rows.length) { setSyncNotice("No lithology data is loaded in this project yet."); return; }
+    if (!rows.length) { setSyncNotice(tr("No lithology data is loaded in this project yet.")); return; }
     const items = distinctValues(rows)
       .map(([v]) => v)
       .filter((v) => !hidden.has(v))
       .map((v) => [UNIT_NAMES[v] || v, colorForLithology(v)]);
-    if (!items.length) { setSyncNotice("Every lithology unit is filtered out in that view's theme — nothing to show."); return; }
+    if (!items.length) { setSyncNotice(tr("Every lithology unit is filtered out in that view's theme — nothing to show.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
-    setSyncNotice(`Loaded ${items.length} lithology unit${items.length === 1 ? "" : "s"} from "${theme.name}".`);
+    setSyncNotice(tr(items.length === 1 ? "Loaded {items} lithology unit from \"{name}\"." : "Loaded {items} lithology units from \"{name}\".", { items: items.length, name: theme.name }));
   };
 
   // TASKS.csv #78 — drag-and-drop as a consistent import method. Layout's own "asset" is an image
@@ -547,7 +548,7 @@ export default function LayoutModule() {
           <RibbonGroup advanced label="Page">
             <RibbonButton icon={Grid3x3} label="Grid + snap" tone="view" active={showGrid} title="Show the alignment grid and snap elements to it (spacing in the sidebar)" onClick={() => setShowGrid((v) => !v)} />
             <RibbonButton icon={Save} label="Save template" tone="data" title="Save this page as a reusable template" onClick={saveAsTemplate} />
-            <RibbonButton icon={FolderOpen} label={`Templates (${layoutTemplates.length})`} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
+            <RibbonButton icon={FolderOpen} label={tr("Templates ({n})", { n: layoutTemplates.length })} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
           </RibbonGroup>
           <RibbonGroup label="Output">
             <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export this page as a PDF at its paper size" onClick={() => savePDF("layout.pdf", pdfOptions(activePage?.format))} />{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
@@ -556,7 +557,7 @@ export default function LayoutModule() {
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
         {themePickerFor === "new" && (
           <div style={{ marginBottom: 8, padding: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>Pick a theme:</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Pick a theme:")}</div>
             {themes.map((t) => (
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={t.id} onClick={() => startViewportRender(t.id, "new")} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
@@ -568,7 +569,7 @@ export default function LayoutModule() {
 
         {sel && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 18 }}>Selected: {sel.type}</div>
+            <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
             {"text" in sel && (
               <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
@@ -578,19 +579,17 @@ export default function LayoutModule() {
             {(sel.type === "text" || sel.type === "title") && (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Size
-                    <input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Size")}<input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
-                    <input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Color")}<input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
                   </label>
                 </div>
                 <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-                  <ToolIconBtn icon={<Bold size={14} />} title="Bold" onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
-                  <ToolIconBtn icon={<Italic size={14} />} title="Italic" onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
-                  <ToolIconBtn icon={<AlignLeft size={14} />} title="Align left" onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
-                  <ToolIconBtn icon={<AlignCenter size={14} />} title="Align center" onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
-                  <ToolIconBtn icon={<AlignRight size={14} />} title="Align right" onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
+                  <ToolIconBtn icon={<Bold size={14} />} title={tr("Bold")} onClick={() => updateSelected({ bold: !(sel.bold ?? sel.type === "title") })} active={sel.bold ?? sel.type === "title"} />
+                  <ToolIconBtn icon={<Italic size={14} />} title={tr("Italic")} onClick={() => updateSelected({ italic: !sel.italic })} active={!!sel.italic} />
+                  <ToolIconBtn icon={<AlignLeft size={14} />} title={tr("Align left")} onClick={() => updateSelected({ align: "left" })} active={(sel.align || "left") === "left"} />
+                  <ToolIconBtn icon={<AlignCenter size={14} />} title={tr("Align center")} onClick={() => updateSelected({ align: "center" })} active={sel.align === "center"} />
+                  <ToolIconBtn icon={<AlignRight size={14} />} title={tr("Align right")} onClick={() => updateSelected({ align: "right" })} active={sel.align === "right"} />
                 </div>
               </div>
             )}
@@ -601,13 +600,11 @@ export default function LayoutModule() {
               <FrameControls sel={sel} updateSelected={updateSelected} />
             )}
             {"meters" in sel && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Scale length (m)
-                <input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
               </label>
             )}
             {(sel.type === "image" || sel.type === "viewport") && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Width (px) — height locks to the captured aspect ratio
-                <input type="number" value={sel.w} onChange={(e) => {
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Width (px) — height locks to the captured aspect ratio")}<input type="number" value={sel.w} onChange={(e) => {
                   const w = Math.max(40, Number(e.target.value) || sel.w);
                   updateSelected({ w, h: Math.round(w / (sel.aspect || 1)) });
                 }} style={inp} />
@@ -617,8 +614,7 @@ export default function LayoutModule() {
                 inside ViewportControls below) — mainly for the north arrow (TASKS.csv #67), whether
                 set by hand or nudged after "Sync north arrow". */}
             {sel.type === "north" && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Rotation (°)
-                <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
+              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
               </label>
             )}
             {/* TASKS.csv #399 — grid / true / magnetic north diagram. Assessment-report maps are expected to
@@ -637,10 +633,10 @@ export default function LayoutModule() {
               return (
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <input type="date" value={date} onChange={(e) => updateSelected({ declDate: e.target.value })} aria-label="Declination date" style={{ ...inp, width: 130 }} />
-                    <button onClick={compute} style={{ ...pBtn, marginBottom: 0 }}>{sel.decl ? "Update GN/TN/MN" : "Show grid / true / magnetic north"}</button>
+                    <input type="date" value={date} onChange={(e) => updateSelected({ declDate: e.target.value })} aria-label={tr("Declination date")} style={{ ...inp, width: 130 }} />
+                    <button onClick={compute} style={{ ...pBtn, marginBottom: 0 }}>{sel.decl ? tr("Update GN/TN/MN") : tr("Show grid / true / magnetic north")}</button>
                   </div>
-                  {sel.decl && <button onClick={() => updateSelected({ decl: null })} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>Back to a plain north arrow</button>}
+                  {sel.decl && <button onClick={() => updateSelected({ decl: null })} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Back to a plain north arrow")}</button>}
                   {sel.declError && <div style={{ color: "var(--color-danger-fg)", marginTop: 4 }}>{sel.declError}</div>}
                 </div>
               );
@@ -654,10 +650,8 @@ export default function LayoutModule() {
                     it." Bind this legend to one of the page's viewport elements, then pull the
                     lithology units actually visible in that viewport's saved theme (color + name via
                     the same colorForLithology/UNIT_NAMES the 3D viewer itself uses). */}
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
-                  Bound viewport / cross-section
-                  <select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
-                    <option value="">— none —</option>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound viewport / cross-section")}<select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
+                    <option value="">{tr("— none —")}</option>
                     {elements.filter((el) => el.type === "viewport").map((el) => (
                       <option key={el.id} value={el.id}>{themes.find((t) => t.id === el.themeId)?.name || el.id}</option>
                     ))}
@@ -666,13 +660,12 @@ export default function LayoutModule() {
                         buildSectionPayload. Only images that actually have legend data are listed;
                         a plain photo/logo dropped onto the page has nothing to sync from. */}
                     {elements.filter((el) => el.type === "image" && el.legendItems && el.legendItems.length).map((el) => (
-                      <option key={el.id} value={el.id}>{el.label || el.id} (cross-section)</option>
+                      <option key={el.id} value={el.id}>{tr("{v} (cross-section)", { v: el.label || el.id })}</option>
                     ))}
                   </select>
                 </label>
                 <button onClick={() => syncLegendLithologies(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
-                  <RefreshCw size={12} /> Load from view / section
-                </button>
+                  <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {sel.items.map(([name, color], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
@@ -686,17 +679,16 @@ export default function LayoutModule() {
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
                       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === 0) return; const items = sel.items.slice(); [items[i - 1], items[i]] = [items[i], items[i - 1]]; updateSelected({ items }); }}
-                        style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move up">▲</div>
+                        style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move up")}>▲</div>
                       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => { if (i === sel.items.length - 1) return; const items = sel.items.slice(); [items[i + 1], items[i]] = [items[i], items[i + 1]]; updateSelected({ items }); }}
-                        style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title="Move down">▼</div>
+                        style={{ cursor: i === sel.items.length - 1 ? "default" : "pointer", color: i === sel.items.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", fontSize: "var(--font-size-xs)", lineHeight: 1 }} title={tr("Move down")}>▼</div>
                     </div>
-                    <Trash2 aria-label={"Remove this item"} title={"Remove this item"} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
+                    <Trash2 aria-label={tr("Remove this item")} title={tr("Remove this item")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: sel.items.length > 1 ? "pointer" : "default", color: sel.items.length > 1 ? "var(--color-text-secondary)" : "var(--color-border-light)", flexShrink: 0 }}
                       onClick={() => { if (sel.items.length <= 1) return; updateSelected({ items: sel.items.filter((_, j) => j !== i) }); }} />
                   </div>
                 ))}
                 <button onClick={() => updateSelected({ items: [...sel.items, ["Item", "#55606e"]] })} style={{ ...pBtn, marginTop: 2 }}>
-                  <Plus size={12} /> Add row
-                </button>
+                  <Plus size={12} />{" "}{tr("Add row")}</button>
               </div>
             )}
             {sel.type === "viewport" && (
@@ -728,8 +720,7 @@ export default function LayoutModule() {
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
-                  <Ruler size={12} /> Assign scale bar to this section
-                </button>
+                  <Ruler size={12} />{" "}{tr("Assign scale bar to this section")}</button>
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
               </>
             )}
@@ -740,82 +731,73 @@ export default function LayoutModule() {
             {sel.type === "rect" && (
               <>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Width
-                    <input type="number" min="10" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(10, Number(e.target.value) || sel.w) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Width")}<input type="number" min="10" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(10, Number(e.target.value) || sel.w) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Height
-                    <input type="number" min="10" value={sel.h} onChange={(e) => updateSelected({ h: Math.max(10, Number(e.target.value) || sel.h) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Height")}<input type="number" min="10" value={sel.h} onChange={(e) => updateSelected({ h: Math.max(10, Number(e.target.value) || sel.h) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
-                <ColorRow label="Stroke" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
-                  <input type="number" min="0" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) })} style={inp} />
+                <ColorRow label={tr("Stroke")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) })} style={inp} />
                 </label>
-                <ColorRow label="Fill" value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
+                <ColorRow label={tr("Fill")} value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <input type="checkbox" checked={sel.fillOpacity > 0} onChange={(e) => updateSelected({ fillOpacity: e.target.checked ? 1 : 0 })} /> Filled
-                </label>
+                  <input type="checkbox" checked={sel.fillOpacity > 0} onChange={(e) => updateSelected({ fillOpacity: e.target.checked ? 1 : 0 })} />{" "}{tr("Filled")}</label>
               </>
             )}
             {sel.type === "arrow" && (
               <>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Length
-                    <input type="number" min="10" value={sel.length} onChange={(e) => updateSelected({ length: Math.max(10, Number(e.target.value) || sel.length) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Length")}<input type="number" min="10" value={sel.length} onChange={(e) => updateSelected({ length: Math.max(10, Number(e.target.value) || sel.length) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Angle (°)
-                    <input type="number" value={sel.angle} onChange={(e) => updateSelected({ angle: Number(e.target.value) || 0 })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Angle (°)")}<input type="number" value={sel.angle} onChange={(e) => updateSelected({ angle: Number(e.target.value) || 0 })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
                 </div>
-                <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
-                  <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
+                <ColorRow label={tr("Color")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
               </>
             )}
             {sel.type === "callout" && (
               <>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Width
-                  <input type="number" min="60" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(60, Number(e.target.value) || sel.w) })} style={inp} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Width")}<input type="number" min="60" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(60, Number(e.target.value) || sel.w) })} style={inp} />
                 </label>
-                <ColorRow label="Fill" value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
-                <ColorRow label="Border" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <ColorRow label={tr("Fill")} value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
+                <ColorRow label={tr("Border")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
               </>
             )}
             {sel.type === "freehand" && (
               <>
-                <ColorRow label="Color" value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Stroke width
-                  <input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
+                <ColorRow label={tr("Color")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0.5" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0.5, Number(e.target.value) || 1) })} style={inp} />
                 </label>
               </>
             )}
-            <button onClick={removeSelected} style={{ ...pBtn, background: "#2a1a1a", border: "1px solid var(--color-danger-border-strong)", color: "var(--color-danger-text)", marginTop: 10 }}>Remove element</button>
+            <button onClick={removeSelected} style={{ ...pBtn, background: "#2a1a1a", border: "1px solid var(--color-danger-border-strong)", color: "var(--color-danger-text)", marginTop: 10 }}>{tr("Remove element")}</button>
           </>
         )}
 
         {/* TASKS.csv #18 — saved layout templates */}
-        {templatesOpen && layoutTemplates.length > 0 && <div className="ge-section-label" style={{ marginTop: 20 }}>Templates</div>}
+        {templatesOpen && layoutTemplates.length > 0 && <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Templates")}</div>}
         {templatesOpen && (
           <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 180, overflowY: "auto" }}>
             {layoutTemplates.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
-                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{t.elements.length} el.</span>
-                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(`Delete template "${t.name}"?`)) deleteLayoutTemplate(t.id); }} aria-label={`Delete template "${t.name}"`} title={`Delete template "${t.name}"`} />
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{elements} el.", { elements: t.elements.length })}</span>
+                <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
               </div>
             ))}
           </div>
         )}
 
         {/* TASKS.csv #67 — QGIS-style alignment grid + rulers. */}
-        <div className="ge-section-label" style={{ marginTop: 20 }}>View</div>
+        <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("View")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={showGrid ? "Hide grid" : "Show grid"}>
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setShowGrid((v) => !v)} style={{ cursor: "pointer", color: showGrid ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={showGrid ? tr("Hide grid") : tr("Show grid")}>
             <Grid3x3 size={14} />
           </div>
-          <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>Grid + snap</div>
+          <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: showGrid ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Grid + snap")}</div>
           {metersPerPx ? (
             <>
               <input type="number" min={1} value={gridMeters} onChange={(e) => setGridMeters(Math.max(1, Number(e.target.value) || 100))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
@@ -824,41 +806,31 @@ export default function LayoutModule() {
           ) : (
             <>
               <input type="number" min={1} value={gridMm} onChange={(e) => setGridMm(Math.max(1, Number(e.target.value) || 10))} style={{ width: 46, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 5px" }} />
-              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>mm</span>
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("mm")}</span>
             </>
           )}
         </div>
         {/* TASKS.csv #101 — bind the grid's real-world spacing to a Viewport's own captured scale
             instead of a fixed paper-space mm value, so a "100m grid" can sit directly over the map
             the way a printed topo sheet's grid would, staying correct across refreshes/rebinds. */}
-        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>
-          Bind grid to viewport
-          <select value={gridBoundViewportId} onChange={(e) => setGridBoundViewportId(e.target.value)} style={inp}>
-            <option value="">None — free {gridMm}mm grid</option>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>{tr("Bind grid to viewport")}<select value={gridBoundViewportId} onChange={(e) => setGridBoundViewportId(e.target.value)} style={inp}>
+            <option value="">{tr("None — free {gridMm}mm grid", { gridMm })}</option>
             {elements.filter((el) => el.type === "viewport").map((el) => (
               <option key={el.id} value={el.id}>
-                {(themes.find((t) => t.id === el.themeId)?.name) || "Viewport"}{el.worldHeightAtTarget ? "" : " (not rendered yet)"}
+                {(themes.find((t) => t.id === el.themeId)?.name) || tr("Viewport")}{el.worldHeightAtTarget ? "" : tr(" (not rendered yet)")}
               </option>
             ))}
           </select>
         </label>
         {gridBoundViewportId && !metersPerPx && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
-            This viewport hasn't been rendered yet — use "Refresh from theme" on it once to get a real-world scale to bind to.
-          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("This viewport hasn't been rendered yet — use \"Refresh from theme\" on it once to get a real-world scale to bind to.")}</div>
         )}
         {metersPerPx && (
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>
-            Grid spacing is locked to {gridMeters}m in the real world using this viewport's current scale — recomputes automatically whenever it's refreshed or rebound.
-          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Grid spacing is locked to {gridMeters}m in the real world using this viewport's current scale — recomputes automatically whenever it's refreshed or rebound.", { gridMeters })}</div>
         )}
 
-        <div className="ge-section-label" style={{ marginTop: 20 }}>Adding views</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>
-          Use <b>Current view</b> or <b>Theme view</b> on this tab's ribbon, <b>Snapshot</b> on the 3D View ribbon
-          (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it,
-          and use the width field to resize (aspect ratio locks automatically).
-        </div>
+        <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Adding views")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on the 3D View ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, and use the width field to resize (aspect ratio locks automatically).")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -890,17 +862,17 @@ export default function LayoutModule() {
                   {p.name}
                 </span>
                 <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey}
-                  aria-label={`Delete page "${p.name}"`} title={`Delete page "${p.name}"`} /* TASKS.csv #238 — was keyboard-reachable but nameless */
+                  aria-label={tr("Delete page \"{name}\"", { name: p.name })} title={tr("Delete page \"{name}\"", { name: p.name })} /* TASKS.csv #238 — was keyboard-reachable but nameless */
                   size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
-                  onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete page "${p.name}"? This can't be undone.`)) deleteLayoutPage(p.id); }}
+                  onClick={(e) => { e.stopPropagation(); if (window.confirm(tr("Delete page \"{name}\"? This can't be undone.", { name: p.name }))) deleteLayoutPage(p.id); }}
                 />
               </div>
             );
           })}
           <button
             onClick={() => addLayoutPage()}
-            title="Add page"
+            title={tr("Add page")}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, marginBottom: 2, background: "transparent", border: "1px solid transparent", borderRadius: 5, color: "var(--color-text-muted)", cursor: "pointer" }}
           >
             <Plus size={14} />
@@ -909,7 +881,7 @@ export default function LayoutModule() {
           <select
             value={pageFormat.size}
             onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, size: e.target.value })}
-            aria-label="Paper size" title="Paper size of this page (also used for its PDF export)"
+            aria-label={tr("Paper size")} title={tr("Paper size of this page (also used for its PDF export)")}
             style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
           >
             {Object.entries(PAGE_FORMATS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
@@ -917,19 +889,18 @@ export default function LayoutModule() {
           <select
             value={pageFormat.orientation}
             onChange={(e) => setLayoutPageFormat(activeLayoutPageId, { ...pageFormat, orientation: e.target.value })}
-            aria-label="Orientation" title="Page orientation"
+            aria-label={tr("Orientation")} title={tr("Page orientation")}
             style={{ height: 22, marginBottom: 2, marginLeft: 4, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}
           >
-            <option value="landscape">Landscape</option>
-            <option value="portrait">Portrait</option>
+            <option value="landscape">{tr("Landscape")}</option>
+            <option value="portrait">{tr("Portrait")}</option>
           </select>
           <button
             onClick={() => setAtlasModalOpen(true)}
-            title="Generate atlas — batch-create one page per drillhole/section from the current page as a template"
+            title={tr("Generate atlas — batch-create one page per drillhole/section from the current page as a template")}
             style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}
           >
-            <LayoutGrid size={12} /> Atlas…
-          </button>
+            <LayoutGrid size={12} />{" "}{tr("Atlas…")}</button>
         </div>
         {atlasModalOpen && (
           <GenerateAtlasModal
@@ -1099,92 +1070,77 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   return (
     <div style={{ marginTop: 4 }}>
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
-        title={gridOk ? "Draw labelled easting/northing lines over this view" : "Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport."}>
-        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />
-        UTM grid (labelled)
-        {gridOk && sel.utmGrid && (
-          <input type="number" min="1" step="any" placeholder="auto" value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
-            aria-label="Grid spacing (m)" title="Grid spacing in metres (blank = automatic)" style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
+        title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
+        <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (
+          <input type="number" min="1" step="any" placeholder={tr("auto")} value={sel.utmGridStep || ""} onChange={(e) => updateSelected({ utmGridStep: Number(e.target.value) || 0 })}
+            aria-label={tr("Grid spacing (m)")} title={tr("Grid spacing in metres (blank = automatic)")} style={{ width: 60, marginLeft: "auto", fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
-      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>A UTM grid needs a top-down, true-scale capture.</div>}
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Theme
-        <select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
+      {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A UTM grid needs a top-down, true-scale capture.")}</div>}
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Theme")}<select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
           {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
               viewport can now exist with no bound theme at all (themeId: null) — "Refresh from theme"
               below still works for it (re-captures whatever's live right now), it just has nothing to
               rebind BACK to if the user picks this option again later. */}
-          <option value="">— current view (no theme) —</option>
+          <option value="">{tr("— current view (no theme) —")}</option>
           {themes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>
       <button onClick={onRefresh} disabled={sel.refreshing} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
-        <RefreshCw size={14} /> {sel.refreshing ? "Rendering…" : "Refresh from theme"}
+        <RefreshCw size={14} /> {sel.refreshing ? tr("Rendering…") : tr("Refresh from theme")}
       </button>
       {/* TASKS.csv #198 (part 3) — QGIS-style "enter" a viewport: switches to the 3D View tab with
           this viewport's theme/camera live, ready for real orbit/pan/zoom, instead of an instant
           re-render. See startInteractiveViewportEdit above and ViewerModule's interactive-session
           banner for the other half of this flow. */}
-      <button onClick={onEnter} disabled={sel.refreshing} title="Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here" style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
-        <LogIn size={14} /> Enter &amp; adjust view…
-      </button>
+      <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+        <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
       {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
           retroactively on the image already captured — toggling it alone doesn't re-render. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
-        <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />
-        True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.
-      </label>
+        <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />{tr("True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.")}</label>
       {/* TASKS.csv #398 — a user-chosen plot scale. The capture is framed to it (centred where the camera
           looks); the frame's width is kept and its height follows the view's shape. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title="Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.">
-        Fixed scale 1 :
-        <input type="number" min="1" step="any" placeholder="free" value={sel.fixedScale || ""} aria-label="Fixed plot scale denominator"
+        title={tr("Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.")}>{tr("Fixed scale 1 :")}<input type="number" min="1" step="any" placeholder={tr("free")} value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
           onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
           style={{ width: 80, fontSize: "var(--font-size-sm)" }} />
       </label>
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
-          {sel.capturedFixedScale === sel.fixedScale
-            ? `Captured at 1 : ${sel.fixedScale.toLocaleString()}: this frame shows ${Math.round(sel.fixedScale * (sel.w / 96) * 0.0254).toLocaleString()} m across.${""}`
-            : "Refresh to capture at this scale."} Keep the frame's width after capturing, or the scale changes with it.
-        </div>
+          {tr("{v} Keep the frame's width after capturing, or the scale changes with it.", { v: sel.capturedFixedScale === sel.fixedScale
+            ? tr("Captured at 1 : {fixedScale}: this frame shows {v} m across.{v2}", { fixedScale: sel.fixedScale.toLocaleString(), v: Math.round(sel.fixedScale * (sel.w / 96) * 0.0254).toLocaleString(), v2: "" })
+            : tr("Refresh to capture at this scale.") })}</div>
       )}
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Rotation (°)
-        <input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
       </label>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
-          <input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
-          <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Color")}<input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Frame style
-        <select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="double">Double</option>
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
+          <option value="solid">{tr("Solid")}</option>
+          <option value="dashed">{tr("Dashed")}</option>
+          <option value="double">{tr("Double")}</option>
         </select>
       </label>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>
-        {sel.trueScale ? "Scale" : "Approx. scale"}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
+        {sel.trueScale ? tr("Scale") : tr("Approx. scale")}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
         <span style={{ color: "var(--color-text-muted)" }}>
           {sel.trueScale
-            ? "Orthographic capture — this ratio is exact across the whole image, not just at one distance."
-            : "Estimated at the theme's camera target distance — perspective view, so scale drifts slightly nearer/farther from that point. Check \"True scale\" above and refresh for an exact figure."}
+            ? tr("Orthographic capture — this ratio is exact across the whole image, not just at one distance.")
+            : tr("Estimated at the theme's camera target distance — perspective view, so scale drifts slightly nearer/farther from that point. Check \"True scale\" above and refresh for an exact figure.")}
         </span>
       </div>
       <button onClick={onSyncScaleBar} disabled={!scaleText} style={{ ...pBtn, opacity: scaleText ? 1 : 0.5 }}>
-        <Ruler size={14} /> Assign scale bar to this view
-      </button>
+        <Ruler size={14} />{" "}{tr("Assign scale bar to this view")}</button>
       {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
       {/* TASKS.csv #67 — cameraAzimuthDeg is computed in ViewerModule.jsx (see that comment for the
           worked-through, numerically-checked derivation of the CSS rotation angle). */}
       <button onClick={onSyncNorth} disabled={sel.cameraAzimuthDeg == null} style={{ ...pBtn, opacity: sel.cameraAzimuthDeg == null ? 0.5 : 1 }}>
-        <Compass size={14} /> Sync north arrow
-      </button>
+        <Compass size={14} />{" "}{tr("Sync north arrow")}</button>
     </div>
   );
 }
@@ -1227,7 +1183,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
       </div>
     );
   }
-  if (el.type === "logo") return <img src={el.src} alt="logo" style={{ ...wrap, width: el.w }} onMouseDown={onDown} draggable={false} />;
+  if (el.type === "logo") return <img src={el.src} alt={tr("logo")} style={{ ...wrap, width: el.w }} onMouseDown={onDown} draggable={false} />;
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
     return (
@@ -1245,12 +1201,10 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
         onMouseDown={onDown}
       >
         <div style={{ width: "100%", height: "100%", border: frameW ? `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}` : "none", background: "#fff", position: "relative", boxSizing: "border-box" }}>
-          {el.src && <img src={el.src} alt="viewport" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} draggable={false} />}
+          {el.src && <img src={el.src} alt={tr("viewport")} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} draggable={false} />}
           {el.utmGrid && utmGridReady(el) && <UtmGridOverlay el={el} />}
           {el.refreshing && (
-            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>
-              Rendering…
-            </div>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
         </div>
       </div>
@@ -1274,9 +1228,9 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
           <text x={tx} y={ty - 4} fontSize={printPx(printPt.small)} textAnchor="middle" fill="#1a2028">★</text>
           <line x1="60" y1="80" x2={mx} y2={my} stroke="#1a2028" strokeWidth="1.2" strokeDasharray="4 2" />
           <text x={mx + 4} y={my - 2} fontSize={printPx(printPt.small)} fontWeight="700" fill="#1a2028">MN</text>
-          <text x="4" y="98" fontSize={printPx(printPt.caption)} fill="#1a2028">True north {fmt(convergence)} of grid north</text>
-          <text x="4" y="109" fontSize={printPx(printPt.caption)} fill="#1a2028">Magnetic declination {fmt(declination)} ({date.slice(0, 4)})</text>
-          <text x="4" y="120" fontSize={printPx(printPt.caption)} fill="#55606e">IGRF-14; changes about 0.1-0.2°/yr</text>
+          <text x="4" y="98" fontSize={printPx(printPt.caption)} fill="#1a2028">{tr("True north {v} of grid north", { v: fmt(convergence) })}</text>
+          <text x="4" y="109" fontSize={printPx(printPt.caption)} fill="#1a2028">{tr("Magnetic declination {v} ({year})", { v: fmt(declination), year: date.slice(0, 4) })}</text>
+          <text x="4" y="120" fontSize={printPx(printPt.caption)} fill="#55606e">{tr("IGRF-14; changes about 0.1-0.2°/yr")}</text>
         </svg>
       </div>
     );
@@ -1311,7 +1265,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
   }
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
-      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>Legend</div>
+      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color], i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
           <span style={{ width: 14, height: 14, background: color, display: "inline-block", border: "1px solid #999" }} />
@@ -1393,18 +1347,15 @@ function FrameControls({ sel, updateSelected }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>Frame width
-          <input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Color
-          <input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Color")}<input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
-      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>Frame style
-        <select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
-          <option value="solid">Solid</option>
-          <option value="dashed">Dashed</option>
-          <option value="double">Double</option>
+      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
+          <option value="solid">{tr("Solid")}</option>
+          <option value="dashed">{tr("Dashed")}</option>
+          <option value="double">{tr("Double")}</option>
         </select>
       </label>
     </div>

@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import PromptModal from "./PromptModal.jsx";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function DatabaseConnectModal({ onCancel, onResults }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -93,106 +94,99 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Database size={18} color="#55606e" />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Connect to database</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Connect to database")}</div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>
-            Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick "Remember the password" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.
-          </div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Connects directly to the database — the same one DBeaver points at — rather than going through DBeaver itself. The password is used for this session only unless you tick \"Remember the password\" (then it is kept encrypted on this computer, never in the project file). Once connected it stays open for the rest of the session (see the new Browser panel in the 3D View sidebar) so you won't be asked again until you disconnect.")}</div>
 
           {dbConnections.length > 0 && (
             <select onChange={(e) => loadSaved(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
-              <option value="">— saved connections —</option>
+              <option value="">{tr("— saved connections —")}</option>
               {dbConnections.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
             </select>
           )}
 
           <div style={grid2}>
-            <Field label="Connection name">
-              <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder="My Database" style={inp} />
+            <Field label={tr("Connection name")}>
+              <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder={tr("My Database")} style={inp} />
             </Field>
-            <Field label="Engine">
+            <Field label={tr("Engine")}>
               <select value={config.engine} onChange={(e) => setEngine(e.target.value)} style={sel}>
-                <option value="postgres">PostgreSQL</option>
-                <option value="mysql">MySQL / MariaDB</option>
+                <option value="postgres">{tr("PostgreSQL")}</option>
+                <option value="mysql">{tr("MySQL / MariaDB")}</option>
               </select>
             </Field>
-            <Field label="Host">
+            <Field label={tr("Host")}>
               <input value={config.host} onChange={(e) => set("host", e.target.value)} style={inp} />
             </Field>
-            <Field label="Port">
+            <Field label={tr("Port")}>
               <input type="number" value={config.port} onChange={(e) => set("port", e.target.value)} style={inp} />
             </Field>
-            <Field label="Database">
+            <Field label={tr("Database")}>
               <input value={config.database} onChange={(e) => set("database", e.target.value)} style={inp} />
             </Field>
-            <Field label="User">
+            <Field label={tr("User")}>
               <input value={config.user} onChange={(e) => set("user", e.target.value)} style={inp} />
             </Field>
-            <Field label="Password">
+            <Field label={tr("Password")}>
               <input type="password" value={config.password} onChange={(e) => set("password", e.target.value)} style={inp}
-                placeholder={pw.saved ? "Saved on this computer — leave empty" : ""} aria-describedby="db-pw-note" />
+                placeholder={pw.saved ? tr("Saved on this computer — leave empty") : ""} aria-describedby="db-pw-note" />
             </Field>
           </div>
           {/* TASKS.csv #621 — opt-in remembered password */}
           <div id="db-pw-note" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 6 }}>
             {pw.saved ? (
               <>
-                <span style={{ flex: 1 }}>A password is saved on this computer for this login (encrypted with your Windows account). Leave the box empty to use it.</span>
-                <button type="button" onClick={forgetPassword} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>Forget it</button>
+                <span style={{ flex: 1 }}>{tr("A password is saved on this computer for this login (encrypted with your Windows account). Leave the box empty to use it.")}</span>
+                <button type="button" onClick={forgetPassword} style={{ background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>{tr("Forget it")}</button>
               </>
             ) : pw.available ? (
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title="Kept encrypted by the operating system (Windows: only your Windows account on this computer can read it), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.">
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 6 }} title={tr("Kept encrypted by the operating system (Windows: only your Windows account on this computer can read it), in GeoStrix's own settings folder — never in the project file. Untick and use Forget to remove it.")}>
                 <input type="checkbox" checked={!!config.rememberPassword} onChange={(e) => set("rememberPassword", e.target.checked)} style={{ marginTop: 2 }} />
-                <span>Remember the password on this computer (encrypted, never in the project file)</span>
+                <span>{tr("Remember the password on this computer (encrypted, never in the project file)")}</span>
               </label>
             ) : (
-              <span>The password is used for this session only (remembering it needs the desktop app with an OS key store).</span>
+              <span>{tr("The password is used for this session only (remembering it needs the desktop app with an OS key store).")}</span>
             )}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginTop: 6, marginBottom: 10 }}>
-            <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} /> Use SSL (server certificate is verified)
-          </label>
+            <input type="checkbox" checked={config.ssl} onChange={(e) => set("ssl", e.target.checked)} />{" "}{tr("Use SSL (server certificate is verified)")}</label>
           {/* TASKS.csv #348 — verification is the default; skipping it is an explicit, labelled choice. */}
           {config.ssl && (
             <label style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: "var(--font-size-sm)", color: config.sslInsecure ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)", marginTop: -4, marginBottom: 10 }}>
               <input type="checkbox" checked={!!config.sslInsecure} onChange={(e) => set("sslInsecure", e.target.checked)} style={{ marginTop: 2 }} />
-              <span>Trust a self-signed / unverified certificate (insecure: on a shared network, someone else could pose as this server and capture the password)</span>
+              <span>{tr("Trust a self-signed / unverified certificate (insecure: on a shared network, someone else could pose as this server and capture the password)")}</span>
             </label>
           )}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 10 }}>
-            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}
-            GeoStrix opens the database in read-only mode, one statement at a time, and stops any query after 2 minutes. That guards against accidental changes, but it is not a security boundary: for a real guarantee, connect as a database user that only has read permission.
-          </div>
+            {/* TASKS.csv #477 — honest wording: the read-only session is a guard, not a guarantee */}{tr("GeoStrix opens the database in read-only mode, one statement at a time, and stops any query after 2 minutes. That guards against accidental changes, but it is not a security boundary: for a real guarantee, connect as a database user that only has read permission.")}</div>
 
           <button onClick={test} disabled={testing} style={{ ...btn(true), width: "100%" }}>
-            {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? "Reconnect" : "Test connection"}
+            {testing ? <Loader2 size={14} className="spin" /> : liveEntry ? tr("Reconnect") : tr("Test connection")}
           </button>
 
           {liveEntry && !status && (
-            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>
-              Already connected as "{config.name}" — stays open in the Browser panel too, so you won't be asked for the password again this session unless you disconnect it there.
-            </div>
+            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: "#12241a", border: "1px solid #2d5a3d", color: "var(--color-success-text)" }}>{tr("Already connected as \"{name}\" — stays open in the Browser panel too, so you won't be asked for the password again this session unless you disconnect it there.", { name: config.name })}</div>
           )}
           {status && (
             <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, fontSize: "var(--font-size-base)", background: status.ok ? "#12241a" : "#2a1a1a", border: `1px solid ${status.ok ? "#2d5a3d" : "var(--color-danger-border-strong)"}`, color: status.ok ? "var(--color-success-text)" : "var(--color-danger-text)" }}>
-              {status.ok ? `Connected — ${status.info?.db} as ${status.info?.usr}${status.reused ? " (reused existing connection)" : " — stays open for the rest of this session"}` : status.error}
+              {status.ok ? tr("Connected — {v} as {v2}{v3}", { v: status.info?.db, v2: status.info?.usr, v3: status.reused ? tr(" (reused existing connection)") : tr(" — stays open for the rest of this session") }) : status.error}
             </div>
           )}
 
           {tables && (
             <div style={{ marginTop: 12 }}>
-              <div style={label}>Tables &amp; views ({tables.length})</div>
+              <div style={label}>{tr("Tables & views ({tables})", { tables: tables.length })}</div>
               {/* TASKS.csv #177 — a DBeaver-managed company database is exactly the case where the
                   useful thing to pull from is a pre-built VIEW (pre-joined/pre-cleaned), not a raw
                   base table, so views are marked distinctly rather than looking identical to tables. */}
               <div style={{ maxHeight: 100, overflowY: "auto", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
                 {tables.map((t, i) => (
                   <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                    {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>VIEW</span>}
+                    {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
                     <span>{t.table_schema}.{t.table_name}</span>
                   </div>
                 ))}
@@ -201,14 +195,14 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
           )}
 
           <div style={{ ...label, marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span>Query</span>
+            <span>{tr("Query")}</span>
             {savedQueries.length > 0 && (
               <select
                 value=""
                 onChange={(e) => { const q = savedQueries.find((sq) => sq.name === e.target.value); if (q) setSql(q.sql); }}
                 style={{ ...sel, fontSize: "var(--font-size-sm)", padding: "3px 6px" }}
               >
-                <option value="">— saved queries —</option>
+                <option value="">{tr("— saved queries —")}</option>
                 {savedQueries.map((q) => <option key={q.name} value={q.name}>{q.name}</option>)}
               </select>
             )}
@@ -219,22 +213,22 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
               {savedQueries.map((q) => (
                 <div key={q.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "2px 4px 2px 8px" }}>
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSql(q.sql)} title={q.sql} style={{ cursor: "pointer", color: "var(--color-text)" }}>{q.name}</span>
-                  <Trash2 aria-label={`Remove saved query "${q.name}"`} title={`Remove saved query "${q.name}"`} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
+                  <Trash2 aria-label={tr("Remove saved query \"{name}\"", { name: q.name })} title={tr("Remove saved query \"{name}\"", { name: q.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)" }} onClick={() => removeQuery(q.name)} />
                 </div>
               ))}
             </div>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={run} disabled={running || !status?.ok} style={{ ...btn(true), flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <Play size={14} /> {running ? "Running…" : "Run query"}
+              <Play size={14} /> {running ? tr("Running…") : tr("Run query")}
             </button>
-            <button onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title="Save this query for reuse across projects/connections" style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px" }}>
+            <button onClick={() => setSavePromptOpen(true)} disabled={!sql.trim()} title={tr("Save this query for reuse across projects/connections")} style={{ ...btn(false), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "0 12px" }}>
               <Save size={14} />
             </button>
           </div>
           {savePromptOpen && (
             <PromptModal
-              title="Save query as…"
+              title={tr("Save query as…")}
               defaultValue=""
               confirmLabel="Save"
               onCancel={() => setSavePromptOpen(false)}
@@ -244,7 +238,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
 
           {result && (
             <div style={{ marginTop: 12 }}>
-              <div style={label}>Preview ({result.rowCount} rows)</div>
+              <div style={label}>{tr("Preview ({rowCount} rows)", { rowCount: result.rowCount })}</div>
               <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 200, overflowY: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
                   <thead><tr>{result.fields.map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
@@ -260,8 +254,8 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>Close</button>
-          <button onClick={useResults} disabled={!result || !result.rows.length} style={{ ...btn(true), flex: 2 }}>Import these {result?.rowCount || 0} rows…</button>
+          <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Close")}</button>
+          <button onClick={useResults} disabled={!result || !result.rows.length} style={{ ...btn(true), flex: 2 }}>{tr("Import these {v} rows…", { v: result?.rowCount || 0 })}</button>
         </div>
       </div>
     </div>

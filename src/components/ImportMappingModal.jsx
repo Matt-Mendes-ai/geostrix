@@ -55,8 +55,8 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import")}{" "}{modal.fileName}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.rowCount}{" "}{tr("rows detected · match each field to a column below")}</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Import {fileName}", { fileName: modal.fileName })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{rowCount} rows detected · match each field to a column below", { rowCount: modal.rowCount })}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
@@ -96,7 +96,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   <option value="number">{tr("number")}</option>
                   <option value="category">{tr("category")}</option>
                 </select>
-                <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Remove field "${cf.name || cf.column}"`} title={tr("Remove this field")} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />{/* #596: was named "Close" */}
+                <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove field \"{v}\"", { v: cf.name || cf.column })} title={tr("Remove this field")} size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => removeCustomField(i)} />{/* #596: was named "Close" */}
               </div>
             ))}
             <div style={{ display: "flex", gap: 6 }}>
@@ -125,7 +125,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
             <div style={{ marginTop: 14 }}>
               <SourceCrsField
                 value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c) })}
-                defaultText={crsUnset ? "The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import" : `Same as project — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+                defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
               />
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("If this file's x/y is in another CRS (a collar list or claim boundary in a different UTM zone or datum), pick it here and it is reprojected into the project CRS on import so it lines up with everything else.")}</div>
 
@@ -200,12 +200,12 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                       <input type="checkbox" checked={!!modal.localGridOn} onChange={(e) => onChange({ ...modal, localGridOn: e.target.checked })} />{" "}{tr("X/Y are on a local mine grid")}</label>
                     {modal.localGridOn && (
                       <div style={{ marginTop: 6, marginLeft: 22 }}>
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Two or more control points, one per line:")}{" "}<code>local_x local_y project_x project_y</code>{" "}{tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:")}{projectEpsg ?? "?"}{tr(". Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.")}</div>
+                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Two or more control points, one per line:")}{" "}<code>local_x local_y project_x project_y</code>{" "}{tr("— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:{v}. Leave Source CRS above blank. A 4-parameter similarity (scale, rotation, shift) is fitted; local coordinates in feet are handled by the fitted scale.", { v: projectEpsg ?? "?" })}</div>
                         <textarea value={modal.localGridText || ""} onChange={(e) => onChange({ ...modal, localGridText: e.target.value })} rows={4} spellCheck={false} placeholder={"10000 5000 463000.0 6178000.0" + String.fromCharCode(10) + "12500 5200 463629.0 6178421.5"} style={{ ...sel, width: "100%", fontFamily: "monospace", resize: "vertical" }} aria-label={tr("Local grid control points")} />
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-base)" }}>{tr("Elevation shift")}{" "}<input type="number" value={modal.zShift ?? ""} onChange={(e) => onChange({ ...modal, zShift: e.target.value })} style={{ ...sel, width: 90 }} aria-label={tr("Elevation shift in metres")} /> m <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("added to every collar elevation (e.g. -1000 for a mine datum)")}</span>
                         </div>
                         <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: fitErr ? "var(--color-danger-icon-strong)" : "var(--color-text-secondary)" }}>
-                          {fitErr || (fit && `Fitted from ${fit.n} points: scale ${fit.scale.toFixed(6)}, rotation ${fit.rotationDeg.toFixed(3)}°, RMS misfit ${fit.rmsM.toFixed(2)} m${fit.n === 2 ? " (two points fit exactly — add a third to check the fit)" : fit.rmsM > 2 ? " — large: check the control points" : ""}. Residuals: ${fit.residuals.map((r) => r.toFixed(2)).join(", ")} m.`)}
+                          {fitErr || (fit && tr("Fitted from {n} points: scale {scale}, rotation {rotationDeg}°, RMS misfit {rmsM} m{v}. Residuals: {v2} m.", { n: fit.n, scale: fit.scale.toFixed(6), rotationDeg: fit.rotationDeg.toFixed(3), rmsM: fit.rmsM.toFixed(2), v: fit.n === 2 ? tr(" (two points fit exactly — add a third to check the fit)") : fit.rmsM > 2 ? tr(" — large: check the control points") : "", v2: fit.residuals.map((r) => r.toFixed(2)).join(", ") }))}
                         </div>
                       </div>
                     )}
@@ -236,7 +236,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                     <SourceCrsField
                       label={tr("Grid of")} value={modal.azimuthGridEpsg || ""}
                       onChange={(c) => onChange({ ...modal, azimuthGridEpsg: c === "" ? "" : String(c) })}
-                      defaultText={`The project CRS — ${crsName(projectEpsg) || `EPSG:${projectEpsg ?? "?"}`}`}
+                      defaultText={tr("The project CRS — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
                       title={tr("If these azimuths were measured against another CRS's grid (e.g. the neighbouring UTM zone), pick it: each one is turned to the project grid at its hole's collar.")}
                     />
                   </div>
@@ -313,7 +313,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                   onClick={onCommit}
                   disabled={missingRequired.length > 0}
                   style={{ ...btn(true), flex: 2, opacity: missingRequired.length > 0 ? 0.5 : 1, cursor: missingRequired.length > 0 ? "not-allowed" : "pointer" }}
-                >{tr("Import")}{" "}{modal.rowCount}{" "}{tr("rows")}</button>
+                >{tr("Import {rowCount} rows", { rowCount: modal.rowCount })}</button>
               </div>
             </div>
           );

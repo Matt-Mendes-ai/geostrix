@@ -3,6 +3,7 @@ import { Check, Trash2 } from "./icons.js";
 import { BASE_LAYERS } from "../lib/baseLayers.js";
 import { getCacheStats, clearTileCache, formatCacheBytes } from "../lib/tileCache.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // Small base-layer switcher — the "layers" stack icon openstreetmap.org itself shows to switch
 // between Standard/Cycle/Transport/Tracestrack Topo — reused by both LocatorMap.jsx (small corner
@@ -17,38 +18,36 @@ export default function LayerPicker({ layerId, onSelectLayer, tracestrackKey, on
   const clearCache = () => { clearTileCache().then(() => getCacheStats().then(setCacheStats)); };
   return (
     <div style={{ ...panelStyle, ...(openUpward ? { top: "auto", bottom: "100%", marginTop: 0, marginBottom: 6 } : {}) }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Base layer</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{tr("Base layer")}</div>
       {BASE_LAYERS.map((l) => (
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={l.id} onClick={() => onSelectLayer(l.id)} style={{ ...rowStyle, ...(layerId === l.id ? rowActiveStyle : {}) }}>
           <span style={{ width: 14, display: "inline-flex" }}>{layerId === l.id && <Check size={12} />}</span>
           <span style={{ flex: 1 }}>{l.label}</span>
-          {l.needsKey && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>key</span>}
+          {l.needsKey && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("key")}</span>}
         </div>
       ))}
       {layerId === "tracestrack" && (
         <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border-subtle)" }}>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5, lineHeight: 1.4 }}>
-            Tracestrack Topo needs a free personal API key (non-commercial tier) —{" "}
-            <a href="https://tracestrack.com/" target="_blank" rel="noreferrer" style={{ color: "#4a7fd6" }}>get one here</a>.
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5, lineHeight: 1.4 }}>{tr("Tracestrack Topo needs a free personal API key (non-commercial tier) —")}{" "}
+            <a href="https://tracestrack.com/" target="_blank" rel="noreferrer" style={{ color: "#4a7fd6" }}>{tr("get one here")}</a>.
           </div>
           <div style={{ display: "flex", gap: 4 }}>
             <input
               value={keyDraft}
               onChange={(e) => setKeyDraft(e.target.value)}
-              placeholder="Paste API key…"
+              placeholder={tr("Paste API key…")}
               style={{ flex: 1, fontSize: "var(--font-size-sm)", padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 4 }}
             />
-            <button onClick={() => onSaveKey(keyDraft)} style={saveBtnStyle}>Save</button>
+            <button onClick={() => onSaveKey(keyDraft)} style={saveBtnStyle}>{tr("Save")}</button>
           </div>
-          {!tracestrackKey && <div style={{ fontSize: "var(--font-size-xs)", color: "#a95a3a", marginTop: 4 }}>No key saved yet — showing Standard until one is set.</div>}
+          {!tracestrackKey && <div style={{ fontSize: "var(--font-size-xs)", color: "#a95a3a", marginTop: 4 }}>{tr("No key saved yet — showing Standard until one is set.")}</div>}
         </div>
       )}
       <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title="Map tiles saved for offline use — see the download button on the full map view">
-          Offline cache: {cacheStats ? `${cacheStats.count} tile${cacheStats.count === 1 ? "" : "s"} (${formatCacheBytes(cacheStats.bytes)})` : "…"}
+        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }} title={tr("Map tiles saved for offline use — see the download button on the full map view")}>{tr("Offline cache: {v}", { v: cacheStats ? tr(cacheStats.count === 1 ? "{count} tile ({v2})" : "{count} tiles ({v2})", { count: cacheStats.count, v2: formatCacheBytes(cacheStats.bytes) }) : "…" })}
         </span>
         {cacheStats && cacheStats.count > 0 && (
-          <button onClick={clearCache} title="Clear the offline tile cache" style={{ ...iconOnlyBtnStyle }}><Trash2 size={12} /></button>
+          <button onClick={clearCache} title={tr("Clear the offline tile cache")} style={{ ...iconOnlyBtnStyle }}><Trash2 size={12} /></button>
         )}
       </div>
     </div>

@@ -13,6 +13,7 @@ import EmptyState from "../components/EmptyState.jsx";
 import RasterModule from "./RasterModule.jsx";
 import GeophysicsModule from "./GeophysicsModule.jsx";
 import CartographyModule from "./CartographyModule.jsx";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const GEO_PANES = new Set(["terrain", "maps", "web", "boundaries", "claims"]);
 const CRS_PANES = new Set(["crs", "layer", "file"]);
@@ -56,17 +57,14 @@ export default function MapsModule() {
             icon={<MapIcon size={18} />}
             headline={(() => {
               const parts = [];
-              if (rasters.length) parts.push(`${rasters.length} raster${rasters.length === 1 ? "" : "s"}`);
-              if (terrain) parts.push("a terrain surface");
-              if (mapLayers.length) parts.push(`${mapLayers.length} map layer${mapLayers.length === 1 ? "" : "s"}`);
-              if (boundaries.length) parts.push(`${boundaries.length} boundar${boundaries.length === 1 ? "y" : "ies"}`);
-              return parts.length ? `Loaded: ${parts.join(", ")}` : "Nothing on the map yet";
+              if (rasters.length) parts.push(tr(rasters.length === 1 ? "{rasters} raster" : "{rasters} rasters", { rasters: rasters.length }));
+              if (terrain) parts.push(tr("a terrain surface"));
+              if (mapLayers.length) parts.push(tr(mapLayers.length === 1 ? "{mapLayers} map layer" : "{mapLayers} map layers", { mapLayers: mapLayers.length }));
+              if (boundaries.length) parts.push(tr(boundaries.length === 1 ? "{boundaries} boundary" : "{boundaries} boundaries", { boundaries: boundaries.length }));
+              return parts.length ? tr("Loaded: {list}", { list: parts.join(", ") }) : tr("Nothing on the map yet");
             })()}
           >
-            <div style={{ marginBottom: 8 }}>
-              Imagery, terrain, map layers and boundaries all lie under your drillholes in the <b>3D View</b> — switch tabs to see them.
-              Everything is placed in the project CRS{project?.crsSet === false ? " (not chosen yet: Project CRS above)" : `, ${crsName(project?.epsg) || `EPSG:${project?.epsg}`}`}.
-            </div>
+            <div style={{ marginBottom: 8 }}>{tr("Imagery, terrain, map layers and boundaries all lie under your drillholes in the")}{" "}<b>{tr("3D View")}</b>{" "}{tr("— switch tabs to see them. Everything is placed in the project CRS{v}.", { v: project?.crsSet === false ? tr(" (not chosen yet: Project CRS above)") : `, ${crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg })}` })}</div>
           </EmptyState>
         </div>
       )}

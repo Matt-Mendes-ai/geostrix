@@ -3480,9 +3480,9 @@ ${describeTrend(t)}` };
       added.push({
         id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
-        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: lb.block.resampledFromTrend ? "Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there." : "Cut at the model box: a unit that continues beyond it is closed there." },
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
       });
-      lines.push(`${label} ${(vol / 1e6).toFixed(2)} Mm³`);
+      lines.push(tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
     });
     if (!added.length) { setNotices((p) => [...p, notice("The last model has no modelled unit cells inside its box — no volumes to build.")]); return; }
     setImplicitSurfaces((p) => [...p, ...added]);
@@ -3649,7 +3649,7 @@ ${describeTrend(t)}` };
       const layered = solid.parts.length > 1;
       // #483: the saved size is the compact form (compactSurfaces.js, ~10 MB per million triangles measured); an
       // upper estimate here, at ~3 bytes per coordinate and ~2 per index, base64
-      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(`"${file.name}" has ${solid.triangleCount.toLocaleString()} triangles${layered ? ` in ${solid.parts.length} layers` : ""}. That can make the 3D view slow to move on a modest computer, and it adds up to about ${Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6)} MB to the saved project. Import it anyway?`)) {
+      if (solid.triangleCount > SOLID_FACE_WARN && !window.confirm(tr("\"{name}\" has {triangleCount} triangles{v}. That can make the 3D view slow to move on a modest computer, and it adds up to about {v2} MB to the saved project. Import it anyway?", { name: file.name, triangleCount: solid.triangleCount.toLocaleString(), v: layered ? tr(" in {parts} layers", { parts: solid.parts.length }) : "", v2: Math.round(((solid.vertexCount * 3 * 3 + solid.triangleCount * 3 * 2) * 4) / 3 / 1e6) }))) {
         setNotices((p) => [...p, notice("{name}: import cancelled ({triangleCount} triangles).", { name: file.name, triangleCount: solid.triangleCount.toLocaleString() })]);
         return;
       }
@@ -3707,7 +3707,7 @@ ${describeTrend(t)}` };
       const bb = bounds
         ? ` Extent: E ${bounds.min.x.toFixed(0)}–${bounds.max.x.toFixed(0)}, N ${bounds.min.y.toFixed(0)}–${bounds.max.y.toFixed(0)}, Z ${bounds.min.z.toFixed(0)}–${bounds.max.z.toFixed(0)}.`
         : "";
-      const layerNote = layered ? ` One surface per ${solid.format === "DXF" ? "layer" : "object"} (${solid.parts.map((p) => p.layer).join(", ")}).` : "";
+      const layerNote = layered ? tr(" One surface per {v} ({v2}).", { v: solid.format === "DXF" ? "layer" : "object", v2: solid.parts.map((p) => p.layer).join(", ") }) : "";
       setNotices((p) => [...p, notice("Imported \"{name}\" as a solid: {vertexCount} vertices / {triangleCount} triangles ({format}, {note}).{layerNote} It appears under Generated surfaces with the same show/hide, remove and query controls.{bb} Coordinates are used AS-IS — a DXF/OBJ carries no CRS, so GeoStrix does not reproject it; if it lands away from your holes, the file is in a different CRS.", { name: file.name, vertexCount: solid.vertexCount.toLocaleString(), triangleCount: solid.triangleCount.toLocaleString(), format: solid.format, note: solid.note, layerNote, bb })]);
       fitBox(box);
     } catch (e) {
@@ -4010,7 +4010,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, []);
   const deleteDomain = useCallback((id) => {
     const dom = (modelDomains || []).find((d) => d.id === id); // TASKS.csv #386
-    if (!confirmDestructive(`Delete model domain "${dom?.name || "domain"}" and its fault-side constraints?`)) return;
+    if (!confirmDestructive(tr("Delete model domain \"{v}\" and its fault-side constraints?", { v: dom?.name || "domain" }))) return;
     setDomains((p) => p.filter((d) => d.id !== id));
     if (modelDomainId === id) setModelDomainId("");
   }, [modelDomainId, modelDomains]);
@@ -5013,7 +5013,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 tool: "fault block split" /* TASKS.csv #52 */, derivedFrom: host.name, fault: cutter.name, block: sense,
                 triangles: Math.floor(part.indices.length / 3), components: sense === "+" ? sp.stats.positiveComponents : sp.stats.negativeComponents,
                 edgesBeyondTheFaultTip: sp.stats.unresolvedEdges,
-                note: "Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here.",
+                note: tr("Geometry only: the surface is divided where the fault mesh cuts it. NO fault displacement is applied — the blocks are not offset along the fault, because no slip has been measured here."),
                 sourceParams: host.params || null, generatedAt: new Date().toISOString(),
               },
             };
@@ -5911,13 +5911,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openLayerStyle = (key, label) => {
     const meta = LAYER_META[key], kind = styleKindFor(key);
     if (!kind) return;
-    const sizeNote = kind === "interval" ? `Default tube radius ${meta.radius} m.` : kind === "plane" ? "Default disc radius 6 m." : meta?.numeric ? "By default the marker grows with the value; this scales all of them." : null;
+    const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
     setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null });
   };
   const openCustomStyle = (l) => {
     const intervals = (l.rows || []).filter((r) => r.to != null && !isNaN(r.to)).length;
     const kind = intervals >= (l.rows || []).length / 2 ? "interval" : "point";
-    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? "Default tube radius 1.6 m." : "Default marker radius 2.4 m." });
+    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? tr("Default tube radius 1.6 m.") : tr("Default marker radius 2.4 m.") });
   };
   const openRowMenu = (e, title, items) => { e.preventDefault(); setRowMenu({ x: e.clientX, y: e.clientY, title, items: items.filter(Boolean) }); };
   const zoomToObject = (obj) => { if (obj) { const b = new THREE.Box3().setFromObject(obj); if (!b.isEmpty()) fitBox(b); } };
@@ -5948,7 +5948,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const clearLayer = (layerKey) => {
     const n = (layers[layerKey] || []).length;
     if (!n) return;
-    if (!confirmDestructive(`Remove all ${n} row(s) from "${LAYER_META[layerKey].label}"?`, { undoable: true })) return; // #386: layers are in Undo
+    if (!confirmDestructive(tr("Remove all {n} row(s) from \"{label}\"?", { n, label: LAYER_META[layerKey].label }), { undoable: true })) return; // #386: layers are in Undo
     setLayers((p) => ({ ...p, [layerKey]: [] }));
     setNotices((p) => [...p, notice("Cleared {n} row(s) from {label}.", { n, label: LAYER_META[layerKey].label })]);
   };
@@ -6122,13 +6122,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // like data loss even though it isn't — the warning says so explicitly.
   const clearCollars = () => {
     if (!collars.length) return;
-    if (!confirmDestructive(`Remove all ${collars.length} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).`, { undoable: true })) return; // #386
+    if (!confirmDestructive(tr("Remove all {collars} collar(s)? Every layer's data stays in the project, but nothing will render until collars are re-imported (there's nothing to desurvey against).", { collars: collars.length }), { undoable: true })) return; // #386
     setCollars([]);
     setNotices((p) => [...p, notice("Cleared {collars} collar(s).", { collars: collars.length })]);
   };
   const clearSurvey = () => {
     if (!survey.length) return;
-    if (!confirmDestructive(`Remove all ${survey.length} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.`, { undoable: true })) return; // #386
+    if (!confirmDestructive(tr("Remove all {survey} survey station(s)? Holes fall back to a straight-hole projection from each collar's own azimuth/dip.", { survey: survey.length }), { undoable: true })) return; // #386
     setSurvey([]);
     setNotices((p) => [...p, notice("Cleared {survey} survey station(s).", { survey: survey.length })]);
   };
@@ -6909,8 +6909,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="360" value={typedSection.azimuth} onChange={(e) => setTypedSection((s) => ({ ...s, azimuth: e.target.value }))} style={typedSectionInput} aria-label={tr("Section azimuth")} /></label>
           <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>{tr("Length (m)")}<input type="number" min="10" step="50" value={typedSection.length} onChange={(e) => setTypedSection((s) => ({ ...s, length: e.target.value }))} style={typedSectionInput} aria-label={tr("Section length")} /></label>
         </div>
-        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={`Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer (${sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.`}><Scissors size={14} />{" "}{tr("Open section")}</button>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer")}{" "}{sectionCorridor}{" "}{tr("m (set on the section tool). Scissors in the Holes list: a section through that hole.")}</div>
+        <button onClick={openTypedSection} style={{ ...pBtn, marginBottom: 4 }} title={tr("Opens a vertical section along the azimuth, centred on the point, with the section tool's Buffer ({sectionCorridor} m). The scissors on each hole in the Holes list cut one in the plane of that hole.", { sectionCorridor })}><Scissors size={14} />{" "}{tr("Open section")}</button>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("Buffer {sectionCorridor} m (set on the section tool). Scissors in the Holes list: a section through that hole.", { sectionCorridor })}</div>
 
         </>)}
         {toolPane === "slice3d" && (<>
@@ -6957,12 +6957,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <div className="ge-section-label">{tr("Geometry")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars")}{" "}{collars.length ? `(${collars.length})` : ""}</button>
+          <button onClick={() => fileInputs.current.collar.click()} onContextMenu={(e) => { if (!collars.length) return; e.preventDefault(); setLayerContextMenu({ key: "__collars__", label: "Collars", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import collars — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Collars {v}", { v: collars.length ? `(${collars.length})` : "" })}</button>
           {collars.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearCollars} style={iconBtn} title={tr("Remove all collars")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("collar")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "collars"); e.target.value = ""; }} />
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Survey")}{" "}{survey.length ? `(${survey.length})` : ""}</button>
+          <button onClick={() => fileInputs.current.survey.click()} onContextMenu={(e) => { if (!survey.length) return; e.preventDefault(); setLayerContextMenu({ key: "__survey__", label: "Survey", x: e.clientX, y: e.clientY }); }} style={{ ...pBtn, marginBottom: 0, flex: 1 }} title={tr("Import survey — CSV, shapefile (.zip/.shp), or GeoPackage (.gpkg) — right-click for export/inspect")}><Upload size={14} />{" "}{tr("Survey {v}", { v: survey.length ? `(${survey.length})` : "" })}</button>
           {survey.length > 0 && <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={clearSurvey} style={iconBtn} title={tr("Remove all survey stations")}><Trash2 size={14} /></div>}
         </div>
         <input ref={setInputRef("survey")} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, "survey"); e.target.value = ""; }} />
@@ -7028,7 +7028,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
           <div key={g.id} style={{ marginBottom: 8, border: "1px solid var(--color-divider)", borderRadius: 7, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#151b23" }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={g.collapsed ? "Expand group" : "Collapse group"}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleLayerGroupCollapsed(g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={g.collapsed ? tr("Expand group") : tr("Collapse group")}>
                 {g.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
               </div>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
@@ -7041,7 +7041,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 style={{ cursor: "pointer", color: g.keys.some((k) => layerVisible[k]) ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={tr("Toggle all layers in this group")}>
                 {g.keys.some((k) => layerVisible[k]) ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete group "${g.name}"? Its layers stay — they just go back to being ungrouped.`)) deleteLayerGroup(g.id); }, `Delete group "${g.name}" (its layers stay, just ungrouped)`)} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete group \"{name}\"? Its layers stay — they just go back to being ungrouped.", { name: g.name }))) deleteLayerGroup(g.id); }, tr("Delete group \"{name}\" (its layers stay, just ungrouped)", { name: g.name }))} />
             </div>
             {!g.collapsed && (
               <div style={{ padding: "6px 6px 2px" }}>
@@ -7113,7 +7113,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
                   "-", { label: tr("Drape and elevation — Maps tab"), onClick: () => goToModule("maps") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove raster "${r.name}"?`)) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {r.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7128,8 +7128,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     editor (drape mode terrain/flat, fixed elevation) — the sidebar row only has room
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), "Edit drape mode / elevation for this raster in the Raster tab")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), `Remove raster "${r.name}"`)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), tr("Remove raster \"{name}\"", { name: r.name }))} />
               </div>
             ))}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Imported via the Raster module")}</div>
@@ -7153,15 +7153,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
                   "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove boundary "${b.name}"?`)) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Shapes size={14} style={{ color: b.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit boundary "${b.name}" in the Geophysics tab`)} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), `Remove boundary "${b.name}"`)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit boundary \"{name}\" in the Geophysics tab", { name: b.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
             {omfObjects.map((o) => (
@@ -7169,7 +7169,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: o.visible === false ? "Show" : "Hide", onClick: () => updateOmfObject(o.id, { visible: o.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(omfMeshesRef.current[o.id]) },
                   "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove OMF object "${o.name}"?`)) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove OMF object \"{name}\"?", { name: o.name }))) removeOmfObject(o.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateOmfObject(o.id, { visible: o.visible === false })} style={{ cursor: "pointer", color: o.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {o.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7177,9 +7177,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   : o.kind === "lines" ? <Waypoints size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                   : <Triangle size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />}
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
-                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("OMF")}{" "}{o.kind}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), `Edit OMF object "${o.name}" in the Geophysics tab`)} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), `Remove OMF object "${o.name}"`)} />
+                <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("OMF {kind}", { kind: o.kind })}</span>
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit OMF object \"{name}\" in the Geophysics tab", { name: o.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), tr("Remove OMF object \"{name}\"", { name: o.name }))} />
               </div>
             ))}
             {voxelModels.map((v) => (
@@ -7187,7 +7187,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
                   "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => goToModule("geophysics") },
-                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7198,8 +7198,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
                   style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
                 />
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), "Edit legend / classify / palette for this model in the Geophysics tab")} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove block/voxel model "${v.name}"?`, { recover: "it would have to be re-imported or re-run." })) removeVoxelModel(v.id); }, `Remove block/voxel model "${v.name}"`)} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
               </div>
             ))}
           </>
@@ -7249,7 +7249,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <>
             <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Assays")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px 4px" }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? "Hide all assay elements" : "Show assay elements"} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayVisible((v) => !v)} title={assayVisible ? tr("Hide all assay elements") : tr("Show assay elements")} style={{ cursor: "pointer", color: assayVisible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{assayVisible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
               <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
                 {assayDisplayElements.length === 0 ? tr("No elements selected") : tr(assayDisplayElements.length > 1 ? "{n} elements shown" : "{n} element shown", { n: assayDisplayElements.length })}
               </div>
@@ -7278,7 +7278,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 return (
                   <div
                     key={e.symbol}
-                    title={on ? `Hide ${e.symbol} — right-click for more` : `Show ${e.symbol}`}
+                    title={on ? tr("Hide {symbol} — right-click for more", { symbol: e.symbol }) : tr("Show {symbol}", { symbol: e.symbol })}
                     onContextMenu={(ev) => openRowMenu(ev, `${e.symbol}${e.unit ? ` (${e.unit})` : ""}`, [ // TASKS.csv #649 — like the other layers (#635)
                       { label: on ? `Hide ${e.symbol}` : `Show ${e.symbol}`, onClick: () => toggleAssayElement(e.symbol) },
                       on && { label: tr("Style (colour, shape, size, classes)…"), onClick: () => setAssayStyleModalSymbol(e.symbol) },
@@ -7311,7 +7311,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 );
               })}
             </div>
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{assays.length}{" "}{tr("intervals loaded via Geochem module")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, padding: "0 10px" }}>{tr("{assays} intervals loaded via Geochem module", { assays: assays.length })}</div>
           </>
         )}
 
@@ -7321,12 +7321,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: customVisible[l.id] === false ? "Show" : "Hide", onClick: () => toggleCustom(l.id) },
             { label: tr("Zoom to"), onClick: () => zoomToCustom(l.id) },
             { label: tr("Style (colour, size, shape)…"), onClick: () => openCustomStyle(l) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the custom layer "${l.name}"?`)) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the custom layer \"{name}\"?", { name: l.name }))) removeCustomLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleCustom(l.id)} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: customVisible[l.id] === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {customVisible[l.id] === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.rows.length})</span>
             </div>
-            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), `Zoom to custom layer "${l.name}"`)} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), `Remove custom layer "${l.name}"`)} />
+            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToCustom(l.id), tr("Zoom to custom layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeCustomLayer(l.id), tr("Remove custom layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.customCsv.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add CSV layer")}</div>
@@ -7336,18 +7336,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             them as layers, just like in qgis". Line / polygon shapefiles and GeoPackage tables go to the project's map
             layers (#609), which were only listed under Geophysics -> Map layers; this lists them here too, QGIS-style:
             show/hide, zoom to, remove. Styling stays in the Geophysics panel (one place for it). */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Map layers")}{mapLayers.length ? ` (${mapLayers.length})` : ""}</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Map layers{v}", { v: mapLayers.length ? ` (${mapLayers.length})` : "" })}</div>
         {mapLayers.map((l) => (
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: l.visible === false ? "Show" : "Hide", onClick: () => updateMapLayer(l.id, { visible: l.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
             "-", { label: tr("Colours, labels and draping — Geophysics tab"), onClick: () => goToModule("geophysics") },
-            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
-            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? "Show" : "Hide"} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.features.length} {l.geomType})</span>
             </div>
-            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, `Zoom to map layer "${l.name}"`)} />
-            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the map layer "${l.name}" from the project?`)) removeMapLayer(l.id); }, `Remove map layer "${l.name}"`)} />
+            <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to map layer \"{name}\"", { name: l.name }))} />
+            <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
           </div>
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
@@ -7355,22 +7355,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>{tr("Colours, labels and draping: Geophysics → Map layers.")}</div>}
 
         {/* TASKS.csv #630 — georeferenced cross-section images standing in the 3D view */}
-        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Section images")}{sectionImages.length ? ` (${sectionImages.length})` : ""}</div>
+        <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Section images{v}", { v: sectionImages.length ? ` (${sectionImages.length})` : "" })}</div>
         {sectionImages.map((im) => (
           <div key={im.id} onContextMenu={(e) => openRowMenu(e, im.name, [
             { label: im.visible === false ? "Show" : "Hide", onClick: () => updateSectionImage(im.id, { visible: im.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(sectionImageMeshesRef.current[im.id]) },
             { label: tr("Opaque"), onClick: () => updateSectionImage(im.id, { opacity: 1 }) },
             { label: tr("Half transparent"), onClick: () => updateSectionImage(im.id, { opacity: 0.5 }) },
-            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+            "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); } }])} style={{ padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? "Show" : "Hide"} "${im.name}"${im.rmse != null ? ` (fit error ${im.rmse.toFixed(1)} m)` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateSectionImage(im.id, { visible: im.visible === false })} title={`${im.visible === false ? tr("Show") : tr("Hide")} "${im.name}"${im.rmse != null ? tr(" (fit error {rmse} m)", { rmse: im.rmse.toFixed(1) }) : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: im.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 {im.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{im.name}</span>
               </div>
-              <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, `Zoom to section image "${im.name}"`)} />
-              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove the section image "${im.name}" from the project?`)) removeSectionImage(im.id); }, `Remove section image "${im.name}"`)} />
+              <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = sectionImageMeshesRef.current[im.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to section image \"{name}\"", { name: im.name }))} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the section image \"{name}\" from the project?", { name: im.name }))) removeSectionImage(im.id); }, tr("Remove section image \"{name}\"", { name: im.name }))} />
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={`Opacity of "${im.name}"`} />
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("Opacity")}{" "}<input type="range" min={0.1} max={1} step={0.05} value={im.opacity ?? 1} onChange={(e) => updateSectionImage(im.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} aria-label={tr("Opacity of \"{name}\"", { name: im.name })} />
             </label>
           </div>
         ))}
@@ -7406,9 +7406,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                 {s.contacts?.length > 0 && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({tr(s.contacts.length === 1 ? "{n} contact" : "{n} contacts", { n: s.contacts.length })})</span>}
               </div>
-              <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, `Edit what section "${s.name}" shows`)} />
-              <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), `Rename section "${s.name}"`)} />
-              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${s.name}" and any contacts drawn on it?`)) deleteSection(s.id); }, `Delete section "${s.name}"`)} />
+              <Layers3 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setSelectedSectionIds(new Set([s.id])); setSectionEditOpen(true); }, tr("Edit what section \"{name}\" shows", { name: s.name }))} />
+              <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => askPrompt("Section name?", s.name, (name) => { if (name && name.trim()) renameSection(s.id, name.trim()); }), tr("Rename section \"{name}\"", { name: s.name }))} />
+              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" and any contacts drawn on it?", { name: s.name }))) deleteSection(s.id); }, tr("Delete section \"{name}\"", { name: s.name }))} />
             </div>
           );
           return (
@@ -7429,7 +7429,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}
-                  onClick={() => { if (confirmDestructive(`Delete all ${sections.length} section(s) and any contacts drawn on them?`, { undoable: true })) deleteAllSections(); }}
+                  onClick={() => { if (confirmDestructive(tr("Delete all {sections} section(s) and any contacts drawn on them?", { sections: sections.length }), { undoable: true })) deleteAllSections(); }}
                   style={{ cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-xs)", textTransform: "none", letterSpacing: 0 }}
                   title={tr("Delete every section and section group")}
                 >{tr("Delete all")}</span>
@@ -7439,7 +7439,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   section is checked (individually or via a group's own select-all checkbox below). */}
               {selectedSectionIds.size > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-selected-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 6, marginBottom: 6, fontSize: "var(--font-size-sm)" }}>
-                  <span style={{ flex: 1, color: "var(--color-text)" }}>{selectedSectionIds.size}{" "}{tr("selected")}</span>
+                  <span style={{ flex: 1, color: "var(--color-text)" }}>{tr("{size} selected", { size: selectedSectionIds.size })}</span>
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setSectionEditOpen(true)} style={{ cursor: "pointer", color: "var(--color-primary)" }}>{tr("Edit")}</span>
                   <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                     onClick={() => askPrompt("Base name for the selected sections? (numbered automatically)", "", (base) => { if (base && base.trim()) renameSectionsBulk(Array.from(selectedSectionIds), base.trim()); })}
@@ -7464,12 +7464,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         })}
                         title={tr("Select every section in this group for bulk edit/rename")} style={{ flexShrink: 0 }}
                       />
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? "Collapse" : "Expand to show individual sections"} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSectionGroups((p) => ({ ...p, [g.id]: !p[g.id] }))} title={expanded ? tr("Collapse") : tr("Expand to show individual sections")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         {expanded ? <ChevronUp size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} /> : <ChevronDown size={12} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.name}</span>
                         <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({members.length})</span>
                       </div>
-                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete "${g.name}" — all ${members.length} section(s) in this group and any contacts drawn on them?`)) deleteSectionGroup(g.id); }, `Delete section group "${g.name}" and all ${members.length} section(s) in it`)} />
+                      <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete \"{name}\" — all {members} section(s) in this group and any contacts drawn on them?", { name: g.name, members: members.length }))) deleteSectionGroup(g.id); }, tr("Delete section group \"{name}\" and all {members} section(s) in it", { name: g.name, members: members.length }))} />
                     </div>
                     {expanded && <div style={{ paddingLeft: 10, marginTop: 6 }}>{members.map(sectionRow)}</div>}
                   </div>
@@ -7522,7 +7522,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: modelDomainId ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: modelDomainId ? "pointer" : "default" }}>
           <input type="checkbox" checked={clipToDomainBoundary} disabled={!modelDomainId} onChange={(e) => setClipToDomainBoundary(e.target.checked)} />{tr("Clip result to domain boundary")}</label>
         {/* TASKS.csv #358 */}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={terrain ? "Removes the parts of modelled surfaces that lie above the terrain surface." : "Load a terrain surface (Geophysics > Terrain) to cut surfaces at the ground."}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={terrain ? tr("Removes the parts of modelled surfaces that lie above the terrain surface.") : tr("Load a terrain surface (Geophysics > Terrain) to cut surfaces at the ground.")}>
           <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />{tr("Cut surfaces at topography")}</label>
 
         {/* TASKS.csv #361 — which structure types are contact orientations (litho + alteration tools). */}
@@ -7692,7 +7692,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
             <div key={g.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6, background: "var(--color-bg-subtle)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? "Collapse" : "Choose which codes belong to this group"}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedLithoGroupId(open ? null : g.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0, display: "flex" }} title={open ? tr("Collapse") : tr("Choose which codes belong to this group")}>
                   {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <input type="color" value={g.color || "#8a7fbf"} onChange={(e) => updateLithoGroup(g.id, { color: e.target.value })} title={tr("Surface / legend color for this group")}
@@ -7703,7 +7703,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 </div>
                 {crossCuts && <span title={tr("Contains a cross-cutting code (fault/dyke/breccia) — excluded from the Stratigraphic stack, same rail as a raw cross-cutting code")} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", background: "#f3e3e3", border: "1px solid #dcc2c2", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("X-cut")}</span>}
                 {!crossCuts && role === "overburden" && <span title={tr("Every member is overburden — modelled as an overburden_base surface")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Delete lithology group "${g.name}"? Its codes stay in the log — they just stop being modelled together.`)) removeLithoGroup(g.id); }, `Delete lithology group "${g.name}" (its codes stay in the log, just ungrouped)`)} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
               </div>
               {open && (
                 <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -7712,7 +7712,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     const on = codesInGroup.includes(u);
                     return (
                       <span role="button" tabIndex={0} onKeyDown={activateOnKey} key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
-                        title={on ? `Remove ${u} from this group` : `Add ${u} to this group`}
+                        title={on ? tr("Remove {u} from this group", { u }) : tr("Add {u} to this group", { u })}
                         style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none",
                           background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px solid ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                         <span style={{ width: 7, height: 7, borderRadius: 2, background: colorForLithology(u), flexShrink: 0 }} />{u}
@@ -7760,7 +7760,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models the top contact of one unit from litho intervals, via GemPy in GeoStrix's Python engine. Uses structure dip/azimuth for orientation when available; if not, estimates one from the contact points themselves so it can still run.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
-          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts")}{sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : ""}
+          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
@@ -7829,7 +7829,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <button
                   onClick={() => runImplicitModel(implicitTarget, { ensemble: { n: Math.min(50, Math.max(3, Number(sensN) || 8)), sigmaPos: sp, sigmaDeg: sd, budgetS: Math.max(10, Number(sensBudget) || 300) } })}
                   disabled={!ready}
-                  title={!implicitTarget ? "Choose a unit above first" : (sensSigmaPos === "" || sensSigmaDeg === "") ? "Enter both sigmas — there is deliberately no default" : "Run the model, then the realisations"}
+                  title={!implicitTarget ? tr("Choose a unit above first") : (sensSigmaPos === "" || sensSigmaDeg === "") ? tr("Enter both sigmas — there is deliberately no default") : tr("Run the model, then the realisations")}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "default" }}
                 >{tr("Run with sensitivity spread")}</button>
               );
@@ -7882,12 +7882,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           return (
           <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", width: 14, flexShrink: 0 }}>{i + 1}</span>
-            {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={`Group: ${(grp.codes || []).join(" + ")}`} />}
-            <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: grp || !isLithoGroupKey(u) ? "var(--color-text)" : "var(--color-danger-icon)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? `Group: ${(grp.codes || []).join(" + ")}` : undefined}>{display}</div>
+            {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={tr("Group: {v}", { v: (grp.codes || []).join(" + ") })} />}
+            <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: grp || !isLithoGroupKey(u) ? "var(--color-text)" : "var(--color-danger-icon)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? tr("Group: {v}", { v: (grp.codes || []).join(" + ") }) : undefined}>{display}</div>
             {role === "overburden" && <span title={tr("Overburden — tagged as its own surface type (overburden_base) rather than an ordinary stratigraphic contact")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
-            <ChevronUp size={14} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), `Move "${u}" up in the stratigraphic stack`)} />
-            <ChevronDown size={14} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), `Move "${u}" down in the stratigraphic stack`)} />
-            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), `Remove "${u}" from the stratigraphic stack`)} />
+            <ChevronUp size={14} style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, -1), tr("Move \"{u}\" up in the stratigraphic stack", { u }))} />
+            <ChevronDown size={14} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), tr("Move \"{u}\" down in the stratigraphic stack", { u }))} />
+            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), tr("Remove \"{u}\" from the stratigraphic stack", { u }))} />
           </div>
           );
         })}
@@ -7900,7 +7900,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {stackFaults.map((k) => (
           <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.replace(/\|$/, " (all picks)").replace("|", " — ")}</span>
-            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), `Remove fault "${k}" from the stack`)} />
+            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), tr("Remove fault \"{k}\" from the stack", { k }))} />
           </div>
         ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
@@ -8066,7 +8066,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.
                     Numerically identical for a solid, but a cutoff typo of one order of magnitude is a
                     real risk, so show the unit the user actually thinks in and keep ppm in the tooltip. */}
-                <label style={{ ...miniField }} title={`Iso-value: the shell encloses every interpolated cell at or above this grade.${PRECIOUS_METALS.has(sym) && unit === "ppm" ? " Displayed as g/t; stored as ppm \u2014 numerically identical for a solid (1 g/t = 1 ppm)." : ""}`}>{tr("Cutoff ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
+                <label style={{ ...miniField }} title={tr("Iso-value: the shell encloses every interpolated cell at or above this grade.{v}", { v: PRECIOUS_METALS.has(sym) && unit === "ppm" ? tr(" Displayed as g/t; stored as ppm — numerically identical for a solid (1 g/t = 1 ppm).") : "" })}>{tr("Cutoff ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
@@ -8136,7 +8136,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). Remembered on this computer.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Block budget")}</span>
                 <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Grade shell block budget")}>
-                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{b.toLocaleString()}{" "}{tr("blocks")}{b === MAX_BLOCKS ? tr(" (fast)") : b >= 5000000 ? tr(" (~2 min, ~70 MB)") : b >= 2000000 ? " (~40 s)" : " (~20 s)"}</option>)}
+                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks{v}", { b: b.toLocaleString(), v: b === MAX_BLOCKS ? tr(" (fast)") : b >= 5000000 ? tr(" (~2 min, ~70 MB)") : b >= 2000000 ? " (~40 s)" : " (~20 s)" })}</option>)}
                 </select>
               </label>
               {numericBudgetHint && (
@@ -8155,7 +8155,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <button
                 onClick={runNumericModel}
                 disabled={!canRun}
-                title={symbols.length ? (collars.length ? "Interpolate grades onto a grid and extract the cutoff iso-surface" : "Load collars first") : "Import assays first"}
+                title={symbols.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
                 style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
               ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: sym }) : tr("Generate grade shell"))}</button>
             </>
@@ -8224,11 +8224,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: tr("Zoom to"), onClick: () => zoomToImplicitSurface(s.id) },
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
-              "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); } }])}
+              "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") })) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
-                <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${s.vertexCount} vertices, ${s.faceCount} faces`}>{s.name}</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{vertexCount} vertices, {faceCount} faces", { vertexCount: s.vertexCount, faceCount: s.faceCount })}>{s.name}</div>
                 {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
                     so a project with no re-runs looks exactly as it did before. */}
                 {(() => {
@@ -8237,7 +8237,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   return (
                     <span
                       style={{ flexShrink: 0, fontSize: "var(--font-size-xs)", color: s.accepted ? "#20512f" : "var(--color-text-secondary)", background: s.accepted ? "#eaf3ec" : "#e8eaee", border: `1px solid ${s.accepted ? "#c6e0cb" : "var(--color-border)"}`, borderRadius: 4, padding: "1px 4px" }}
-                      title={s.accepted ? `Version ${info.index + 1} of ${info.lineage.length} — marked as the version you are working from (a record of your choice, not a validation of the run)` : `Version ${info.index + 1} of ${info.lineage.length} of this surface`}
+                      title={s.accepted ? tr("Version {v} of {lineage} — marked as the version you are working from (a record of your choice, not a validation of the run)", { v: info.index + 1, lineage: info.lineage.length }) : tr("Version {v} of {lineage} of this surface", { v: info.index + 1, lineage: info.lineage.length })}
                     >v{info.index + 1}/{info.lineage.length}{s.accepted ? " ✓" : ""}</span>
                   );
                 })()}
@@ -8247,8 +8247,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedSurfaceId(expanded ? null : s.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={tr("Type & relationships")}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
-                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), `Zoom to surface "${s.name}"`)} />
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Remove surface "${s.name}"?`, { recover: "getting it back means re-running the model." })) removeImplicitSurface(s.id); }, `Remove surface "${s.name}"`)} />
+                <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), tr("Zoom to surface \"{name}\"", { name: s.name }))} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") })) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
@@ -8286,7 +8286,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {relLabel} <span style={{ color: "var(--color-text-secondary)" }}>{target ? target.name : tr("(removed surface)")}</span>
                         </div>
-                        <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), `Remove this relationship from surface "${s.name}"`)} />
+                        <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeSurfaceRelationship(s.id, i), tr("Remove this relationship from surface \"{name}\"", { name: s.name }))} />
                       </div>
                     );
                   })}
@@ -8345,10 +8345,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           never reached here. */}
                       {isMetricProjectedEpsg(project?.epsg) !== true ? (
                         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)", lineHeight: 1.45, marginBottom: 6 }}>
-                          {project?.epsg
+                          {tr("{v} Volume and tonnage assume the coordinates are in metres, so nothing here can be reported in m³ or tonnes until a projected, metre-based CRS is set (Project settings). The mesh itself is unaffected.", { v: project?.epsg
                             ? tr("This project's CRS (EPSG:{epsg}) isn't a projected, metre-based system — or isn't one GeoStrix can confirm as one.", { epsg: project.epsg })
-                            : tr("No CRS is set for this project.")}
-                          {" "}{tr("Volume and tonnage assume the coordinates are in metres, so nothing here can be reported in m³ or tonnes until a projected, metre-based CRS is set (Project settings). The mesh itself is unaffected.")}</div>
+                            : tr("No CRS is set for this project.") })}</div>
                       ) : (
                       <>
                       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("Volume:")}{" "}<strong>{expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 1 })} m³</strong>
@@ -8367,7 +8366,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) })}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount })}{" "}{tr("That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.")}</div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
                       )}
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}
@@ -8482,7 +8481,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                             onClick={() => setCompareVersionsFor(s.id)}
                             disabled={chain.length < 2}
                             style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)", opacity: chain.length < 2 ? 0.5 : 1, cursor: chain.length < 2 ? "default" : "pointer" }}
-                            title={chain.length < 2 ? "Link this surface to an earlier run first" : "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed"}
+                            title={chain.length < 2 ? tr("Link this surface to an earlier run first") : tr("Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed")}
                           ><GitCompare size={12} />{" "}{tr("Compare versions…")}</button>
                           <button
                             onClick={() => acceptSurfaceVersion(s.id)}
@@ -8525,11 +8524,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div key={d.id} style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <GitFork size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${d.constraints.length} constraint${d.constraints.length === 1 ? "" : "s"}`}>{d.name}</div>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr(d.constraints.length === 1 ? "{constraints} constraint" : "{constraints} constraints", { constraints: d.constraints.length })}>{d.name}</div>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpandedDomainId(expanded ? null : d.id)} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}>
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), `Delete domain "${d.name}"`)} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => deleteDomain(d.id), tr("Delete domain \"{name}\"", { name: d.name }))} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
@@ -8540,10 +8539,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     return (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-sm)", marginBottom: 4 }}>
                         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {fault ? fault.name : tr("(deleted fault)")} <span style={{ color: "var(--color-text-secondary)" }}>{tr("— side")}{" "}{c.side === 1 ? "A" : "B"}</span>
+                          {fault ? fault.name : tr("(deleted fault)")} <span style={{ color: "var(--color-text-secondary)" }}>{tr("— side {v}", { v: c.side === 1 ? "A" : "B" })}</span>
                         </div>
                         <button onClick={() => flipDomainConstraint(d.id, i)} title={tr("Flip side")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Flip")}</button>
-                        <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), `Remove this fault constraint from domain "${d.name}"`)} />
+                        <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeDomainConstraint(d.id, i), tr("Remove this fault constraint from domain \"{name}\"", { name: d.name }))} />
                       </div>
                     );
                   })}
@@ -8651,7 +8650,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       </div>
 
       {sidebarTab === "home" && (<>
-        <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title="Drag to resize the Browser panel" />
+        <PanelSplitHandle height={browserHeight} onResize={setBrowserHeight} invert title={tr("Drag to resize the Browser panel")} />
         <div style={{ height: browserHeight, flexShrink: 0 }}>
           <Suspense fallback={null}><DbBrowserPanel onImportFile={importBrowserFile} onImportRows={openImportFromRows} onError={(m) => setNotices((p) => [...p, m])} /></Suspense>
         </div>
@@ -8665,7 +8664,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label="3D view" tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -8705,8 +8704,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
-            headline={mode === "modelling" ? "Load drillholes first — modelling works from collars, lithology and structure" : mode === "targeting" ? "Load drillholes first — targeting plans holes against your drilling and models" : "Nothing loaded yet"} /* #567 */
-            actionLabel={sampleLoading ? "Loading sample project…" : "Sample: Harry property (37 holes)"}
+            headline={mode === "modelling" ? tr("Load drillholes first — modelling works from collars, lithology and structure") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
+            actionLabel={sampleLoading ? tr("Loading sample project…") : tr("Sample: Harry property (37 holes)")}
             onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}
             actionTitle={tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers")}
@@ -8753,7 +8752,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             technique CompassRose uses), a real camera-synced N/E/Z arrow-triad drawn directly onto
             the canvas at this same bottom-left corner — no DOM element needed for it anymore. */}
         {sectionMode && sectionPreview && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Start point set — click the end point</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>{tr("Start point set — click the end point")}</div>
         )}
         {/* TASKS.csv #298 — the toast is now a real ARIA live region, so setNotices() messages reach a
             screen-reader user instead of only sighted ones. Two details matter here:
@@ -8775,14 +8774,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div key={toast.key} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-danger-text)", background: "var(--color-danger-bg)", padding: "8px 10px 8px 12px", borderRadius: 7, border: "1px solid var(--color-danger-border-strong)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
               <AlertTriangle size={14} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "var(--color-danger-icon)" }} />
               <span style={{ flex: 1 }}>{toast.text}</span>
-              <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
+              <button type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger-text)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
           {toast && toast.level !== "error" && (
             // #690 — hovering keeps it up; a Dismiss button as errors have
             <div key={toast.key} onMouseEnter={holdToast} onMouseLeave={releaseToast} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 10px 8px 14px", borderRadius: 7, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", pointerEvents: "auto" }}>
               <span style={{ flex: 1 }}>{toast.text}</span>
-              <button type="button" aria-label="Dismiss message" title="Dismiss" onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
+              <button type="button" aria-label={tr("Dismiss message")} title={tr("Dismiss")} onClick={() => setToast(null)} style={{ flexShrink: 0, background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-text-secondary)", display: "flex" }}><X size={14} /></button>
             </div>
           )}
         </div>
@@ -8793,13 +8792,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             angle before leaving. */}
         {interactiveViewportSession && (
           <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 10, fontSize: "var(--font-size-base)", color: "var(--color-text)", background: "var(--color-bg)", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border-light)", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", zIndex: 20 }}>
-            <span>Editing Layout viewport — drag to orbit, scroll to zoom</span>
-            <button onClick={doExitInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)" }}>Update Viewport &amp; Return to Layout</button>
-            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)", background: "transparent", border: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>Cancel</button>
+            <span>{tr("Editing Layout viewport — drag to orbit, scroll to zoom")}</span>
+            <button onClick={doExitInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)" }}>{tr("Update Viewport & Return to Layout")}</button>
+            <button onClick={doCancelInteractiveViewport} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 10px", fontSize: "var(--font-size-base)", background: "transparent", border: "1px solid var(--color-border-light)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
           </div>
         )}
         {rectZoomMode && !rectVisual && (
-          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>Drag a rectangle to zoom in — right-click to cancel</div>
+          <div style={{ position: "absolute", top: 12, left: 12, fontSize: "var(--font-size-sm)", color: "var(--color-success-fg)", background: "var(--color-bg)", padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-success-border)" }}>{tr("Drag a rectangle to zoom in — right-click to cancel")}</div>
         )}
         {rectVisual && (
           <div style={{ position: "absolute", left: rectVisual.x, top: rectVisual.y, width: rectVisual.w, height: rectVisual.h, border: "1.5px dashed var(--color-info)", background: "rgba(74,155,224,0.12)", pointerEvents: "none" }} />
@@ -8814,7 +8813,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <>
                 <div style={{ padding: "6px 10px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", whiteSpace: "pre-line", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{contextMenu.hit.tip}</div>
                 <ContextItem label={tr("Zoom here")} onClick={() => { zoomToPoint(contextMenu.hit.point); setContextMenu(null); }} />
-                <ContextItem label={`Hide ${contextMenu.hit.holeId}`} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
+                <ContextItem label={tr("Hide {holeId}", { holeId: contextMenu.hit.holeId })} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
                 <ContextItem label={tr("Copy details")} onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
                 <ContextItem label={tr("Zoom to selected area…")} onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
                 <ContextItem label={tr("Zoom to fit all")} onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
@@ -8861,11 +8860,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const vectorKind = layerContextMenu.key === "__collars__" ? "collars" : layerContextMenu.key === "__survey__" ? "survey" : "layer";
         return (
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setLayerContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setLayerContextMenu(null); }}>
-          <div ref={layerMenuKeys.menuRef} role="menu" aria-label={`${layerContextMenu.label} menu`} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={layerMenuKeys.menuRef} role="menu" aria-label={tr("{label} menu", { label: layerContextMenu.label })} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>{layerContextMenu.label}</div>
             {!isVector && <>
               <ContextItem label={tr("Zoom to layer")} onClick={() => { zoomToLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
-              <ContextItem label={layerVisible[layerContextMenu.key] ? "Hide layer" : "Show layer"} onClick={() => { toggleLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
+              <ContextItem label={layerVisible[layerContextMenu.key] ? tr("Hide layer") : tr("Show layer")} onClick={() => { toggleLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
               {styleKindFor(layerContextMenu.key) && <ContextItem label={tr("Style (colour, size, shape)…")} onClick={() => { openLayerStyle(layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
               <ContextItem label={tr("Clear layer data…")} onClick={() => { clearLayer(layerContextMenu.key); setLayerContextMenu(null); }} />
             </>}
@@ -8881,7 +8880,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               {layerGroups.map((g) => {
                 const alreadyIn = g.keys.includes(layerContextMenu.key);
                 return (
-                  <ContextItem key={g.id} label={alreadyIn ? `✓ ${g.name}` : `Add to "${g.name}"`}
+                  <ContextItem key={g.id} label={alreadyIn ? `✓ ${g.name}` : tr("Add to \"{name}\"", { name: g.name })}
                     onClick={() => { setLayerGroupFor(layerContextMenu.key, alreadyIn ? null : g.id); setLayerContextMenu(null); }} />
                 );
               })}
@@ -8905,7 +8904,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       {rowMenu && ( // TASKS.csv #635
         <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={() => setRowMenu(null)} onContextMenu={(e) => { e.preventDefault(); setRowMenu(null); }}>
-          <div ref={rowMenuKeys.menuRef} role="menu" aria-label={`${rowMenu.title} menu`} onKeyDown={rowMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: Math.max(4, Math.min(rowMenu.x, window.innerWidth - 240)), top: Math.max(4, Math.min(rowMenu.y, window.innerHeight - 44 - rowMenu.items.length * 30)), background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+          <div ref={rowMenuKeys.menuRef} role="menu" aria-label={tr("{title} menu", { title: rowMenu.title })} onKeyDown={rowMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: Math.max(4, Math.min(rowMenu.x, window.innerWidth - 240)), top: Math.max(4, Math.min(rowMenu.y, window.innerHeight - 44 - rowMenu.items.length * 30)), background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", minWidth: 220, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
             <div style={{ padding: "4px 10px 6px", color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)", borderBottom: "1px solid var(--color-border)", marginBottom: 4, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rowMenu.title}</div>
             {rowMenu.items.map((it, i) => (it === "-"
               ? <div key={i} style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
@@ -9178,7 +9177,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       {dragOver && (
         <div style={{ position: "absolute", inset: 0, background: "rgba(226,166,60,0.08)", border: "3px dashed var(--color-accent)", zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)", textAlign: "center" }}>Drop CSV(s) to import<div style={{ fontSize: "var(--font-size-base)", color: "var(--color-success-fg)", marginTop: 4, fontWeight: 400 }}>Drop several at once — each auto-detects its layer, or asks if unsure</div></div>
+          <div style={{ fontSize: "var(--font-size-xl)", color: "var(--color-accent)", background: "var(--color-bg)", padding: "14px 22px", borderRadius: 8, border: "1px solid var(--color-accent)", textAlign: "center" }}>{tr("Drop CSV(s) to import")}<div style={{ fontSize: "var(--font-size-base)", color: "var(--color-success-fg)", marginTop: 4, fontWeight: 400 }}>{tr("Drop several at once — each auto-detects its layer, or asks if unsure")}</div></div>
         </div>
       )}
 
@@ -9217,66 +9216,63 @@ function ViewToolbar({
     <Ribbon show={show} label="3D View tools">
       <RibbonGroup label="View">
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title="Grid" text="Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot." suppress={openPopover === "grid"}>
+          <HoverToolInfo title={tr("Grid")} text={tr("Toggles the ground reference grid on or off, and lets you resize it, change its division spacing/color, or add two vertical wall grids for a full 3D reference box. Turn it off if it's cluttering a dense model or a figure you're about to snapshot.")} suppress={openPopover === "grid"}>
             <button className={`ge-ribbon-btn ${openPopover === "grid" ? "active" : ""}`} aria-expanded={openPopover === "grid"} aria-haspopup="dialog" onClick={() => toggle("grid")}><Grid3x3 size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Grid")}</span></button>
           </HoverToolInfo>
           {openPopover === "grid" && (
             <div style={popoverStyle}>
-              <div style={popoverHeader}>Grid<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the grid settings popover")} /></div>
+              <div style={popoverHeader}>{tr("Grid")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the grid settings popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setGridConfig((g) => ({ ...g, visible: !g.visible }))} style={{ cursor: "pointer", color: gridConfig.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>
                   {gridConfig.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
-                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>Show grid</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title="Add two vertical wall grids to the ground grid, forming a 3D reference box">
+                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: gridConfig.visible ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show grid")}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Add two vertical wall grids to the ground grid, forming a 3D reference box")}>
                   <input type="checkbox" checked={gridConfig.mode === "3d"} onChange={(e) => setGridConfig((g) => ({ ...g, mode: e.target.checked ? "3d" : "ground" }))} /> 3D
                 </label>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <input type="number" title="Grid size (m)" value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-                <input type="number" title="Divisions" value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
-                <input type="color" title="Grid color" value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+                <input type="number" title={tr("Grid size (m)")} value={gridConfig.size} onChange={(e) => setGridConfig((g) => ({ ...g, size: Math.max(10, Number(e.target.value) || g.size) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="number" title={tr("Divisions")} value={gridConfig.divisions} onChange={(e) => setGridConfig((g) => ({ ...g, divisions: Math.max(1, Number(e.target.value) || g.divisions) }))} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+                <input type="color" title={tr("Grid color")} value={gridConfig.color} onChange={(e) => setGridConfig((g) => ({ ...g, color: e.target.value }))} style={{ width: 30, height: 28, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
               </div>
               {/* TASKS.csv #311 — the world-origin axis lines, grouped here because they are the same
                   kind of reference-furniture decision as the grid. Off by default now (they sit at the
                   arbitrary project origin and are the most debug-view-looking thing in a screenshot);
                   switching them on still gives colours that agree with the corner gizmo, per #189. */}
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title="Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.">
-                <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} /> Origin axis lines
-              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 8, cursor: "pointer" }} title={tr("Draw the red/green/blue X/Y/Z axis lines at the project origin. Off by default — the corner gizmo already shows orientation, and these sit at an arbitrary point relative to your data.")}>
+                <input type="checkbox" checked={!!gridConfig.axes} onChange={(e) => setGridConfig((g) => ({ ...g, axes: e.target.checked }))} />{" "}{tr("Origin axis lines")}</label>
             </div>
           )}
         </div>
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title="Figure overlay" text="Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab." suppress={openPopover === "figure"}>
+          <HoverToolInfo title={tr("Figure overlay")} text={tr("Draws a title, a legend of the categories currently switched on, and a scale bar over the 3D view, so a screenshot of this view can go straight into a report or a deck without being re-annotated. On by default; the setting is saved with the project. For a full report figure — page, north arrow, true-scale capture, PDF — use the Layout tab.")} suppress={openPopover === "figure"}>
             <button className={`ge-ribbon-btn ${openPopover === "figure" ? "active" : ""}`} aria-expanded={openPopover === "figure"} aria-haspopup="dialog" onClick={() => toggle("figure")}><LayoutTemplate size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Figure")}</span></button>
           </HoverToolInfo>
           {openPopover === "figure" && (
             <div style={{ ...popoverStyle, width: 268 }}>
-              <div style={popoverHeader}>Figure overlay<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the figure overlay popover")} /></div>
+              <div style={popoverHeader}>{tr("Figure overlay")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the figure overlay popover"))} /></div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 8 }}>
-                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), "Toggle the figure overlay")}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled }))} style={{ cursor: "pointer", color: figureOverlay.enabled ? "var(--color-accent)" : "var(--color-text-disabled)" }} {...iconAction(() => setFigureOverlay((f) => ({ ...f, enabled: !f.enabled })), tr("Toggle the figure overlay"))}>
                   {figureOverlay.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
-                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>Show overlay</div>
+                <div style={{ flex: 1, fontSize: "var(--font-size-base)", color: figureOverlay.enabled ? "var(--color-text)" : "var(--color-text-faint)" }}>{tr("Show overlay")}</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} /> Title
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} />{" "}{tr("Title")}</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} />{" "}{tr("Legend{v}", { v: legendCount ? ` (${legendCount} shown)` : tr(" (nothing switched on)") })}
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} /> Legend{legendCount ? ` (${legendCount} shown)` : " (nothing switched on)"}
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} /> Scale bar
-                </label>
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} />{" "}{tr("Scale bar")}</label>
               </div>
               <input
                 type="text" disabled={!figureOverlay.enabled}
-                placeholder={projectName || "Figure title…"}
+                placeholder={projectName || tr("Figure title…")}
                 value={figureOverlay.titleText || ""}
                 onChange={(e) => setFigureOverlay((f) => ({ ...f, titleText: e.target.value }))}
-                title="Overrides the project name in the overlay title. Leave blank to use the project name."
+                title={tr("Overrides the project name in the overlay title. Leave blank to use the project name.")}
                 style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit", marginBottom: 8, opacity: figureOverlay.enabled ? 1 : 0.45 }}
               />
               {/* The scale-bar honesty statement. A perspective camera has no single scale — the bar is
@@ -9284,27 +9280,20 @@ function ViewToolbar({
                   on the bar itself, "at view centre") is the whole reason this is a popover: an
                   authoritative-looking bar that is quietly wrong at the depth the reader cares about
                   would be worse than no bar at all. */}
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>
-                The scale bar is exact at the <b>view centre</b> — the point you orbit around. This is a
-                perspective view, so anything nearer the camera reads larger than the bar says and
-                anything farther reads smaller. For a figure where the scale must hold everywhere, add a
-                Viewport on the <b>Layout</b> tab and tick <b>True scale (orthographic)</b> there.
-                <br />The legend lists the categories currently switched on in this view — not everything
-                in the project, and not filtered by what happens to be on screen.
-              </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5 }}>{tr("The scale bar is exact at the")}{" "}<b>{tr("view centre")}</b>{" "}{tr("— the point you orbit around. This is a perspective view, so anything nearer the camera reads larger than the bar says and anything farther reads smaller. For a figure where the scale must hold everywhere, add a Viewport on the")}{" "}<b>{tr("Layout")}</b>{" "}{tr("tab and tick")}{" "}<b>{tr("True scale (orthographic)")}</b>{" "}{tr("there.")}<br />{tr("The legend lists the categories currently switched on in this view — not everything in the project, and not filtered by what happens to be on screen.")}</div>
             </div>
           )}
         </div>
         <div className="ge-ribbon-cell ge-adv">
-          <HoverToolInfo title="Themes" text="Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically." suppress={openPopover === "themes"}>
+          <HoverToolInfo title={tr("Themes")} text={tr("Saves the current view — visible layers, active filters, grid settings, and camera position — as a named theme you can reload later with one click, or bind to a Viewport element on a Layout page so a report figure re-frames itself automatically.")} suppress={openPopover === "themes"}>
             <button className={`ge-ribbon-btn ${openPopover === "themes" ? "active" : ""}`} aria-expanded={openPopover === "themes"} aria-haspopup="dialog" onClick={() => toggle("themes")}><Bookmark size={22} strokeWidth={1.7} color={RIBBON_TONES.view} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Themes")}</span></button>
           </HoverToolInfo>
           {openPopover === "themes" && (
             <div style={{ ...popoverStyle, width: 260 }}>
-              <div style={popoverHeader}>Themes<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), "Close the themes popover")} /></div>
+              <div style={popoverHeader}>{tr("Themes")}<X size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setOpenPopover(null), tr("Close the themes popover"))} /></div>
               <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                 <input
-                  type="text" placeholder="Theme name…" value={themeNameDraft}
+                  type="text" placeholder={tr("Theme name…")} value={themeNameDraft}
                   onChange={(e) => setThemeNameDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
                   style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
@@ -9312,14 +9301,12 @@ function ViewToolbar({
                 <button
                   onClick={() => { if (themeNameDraft.trim()) { captureCurrentTheme(themeNameDraft.trim()); setThemeNameDraft(""); } }}
                   disabled={!themeNameDraft.trim()}
-                  title="Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme"
+                  title={tr("Save the current view (layers, filters, grid, camera, and which generated surfaces are shown) as a named theme")}
                   style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "6px 9px", opacity: themeNameDraft.trim() ? 1 : 0.5, cursor: themeNameDraft.trim() ? "pointer" : "default" }}
                 ><BookmarkPlus size={14} /></button>
               </div>
               {themes.length === 0 && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
-                  Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.
-                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Save the current view as a theme to reload it later, or bind it to a Viewport element on the Layout page.")}</div>
               )}
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
                 {themes.map((t) => (
@@ -9332,13 +9319,13 @@ function ViewToolbar({
                         style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid #3a4658", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}
                       />
                     ) : (
-                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title="Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with" style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => applyTheme(t)} title={tr("Apply this theme's layers, filters, grid, camera position, and the generated surfaces it was saved with")} style={{ cursor: "pointer", flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
                         <Bookmark size={14} style={{ flexShrink: 0, color: "var(--color-text-secondary)" }} />
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
                       </div>
                     )}
-                    <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, `Rename theme "${t.name}"`)} />
-                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(`Delete theme "${t.name}"?`)) deleteTheme(t.id); }, `Delete theme "${t.name}"`)} />
+                    <Pencil size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { setRenamingThemeId(t.id); setRenameDraft(t.name); }, tr("Rename theme \"{name}\"", { name: t.name }))} />
+                    <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Delete theme \"{name}\"?", { name: t.name }))) deleteTheme(t.id); }, tr("Delete theme \"{name}\"", { name: t.name }))} />
                   </div>
                 ))}
               </div>
@@ -9349,14 +9336,12 @@ function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup label="Sections">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Draw cross-section" text={sectionMode ? "Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included." : "Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included."}>
+          <HoverToolInfo title={tr("Draw cross-section")} text={sectionMode ? tr("Active — click 2 points on the plan view to draw the section, or click the button again to cancel. Drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included.") : tr("Click two points on the plan view to slice a vertical section through the model along that line — drillholes, layers, and voxels all get projected onto it, opening in its own window. Every currently visible layer gets carried into the section; the Buffer setting controls how far off the line a hole/point can be and still be included.")}>
             <button className={`ge-ribbon-btn ${sectionMode ? "active" : ""}`} aria-pressed={!!(sectionMode)} onClick={onToggleSection}><Scissors size={22} strokeWidth={1.7} color={RIBBON_TONES.section} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Draw section")}</span></button>
           </HoverToolInfo>
         </div>
         {sectionMode && (
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title="Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section">
-            Buffer (m)
-            <input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginLeft: 4 }} title={tr("Every currently visible layer (litho, alteration, assays, structure, custom…) gets carried into the section")}>{tr("Buffer (m)")}<input type="number" value={sectionCorridor} onChange={(e) => setSectionCorridor(Math.max(1, Number(e.target.value) || 100))} style={{ width: 60, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" }} />
           </label>
         )}
         <RibbonButton advanced icon={Crosshair} label="By coordinates" tone="section" title="Open a section from a centre, azimuth and length — or through a hole (scissors in the Holes list)" {...paneProps("sectionCoords")} />
@@ -9365,37 +9350,37 @@ function ViewToolbar({
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Measure" text={measureMode ? "Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout." : "Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on."}>
+          <HoverToolInfo title={tr("Measure")} text={measureMode ? tr("Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout.") : tr("Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on.")}>
             <button className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><Ruler size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Measure")}</span></button>
           </HoverToolInfo>
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Run data QC" text={qcDisabled ? "Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling." : "Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling."}>
+          <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.") : tr("Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.")}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Boundary intercepts" text={boundaryDisabled ? "Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface." : "Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface."}>
+          <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? tr("Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Intercepts")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
       <RibbonGroup advanced label="Database">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Connect database" text="Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.">
+          <HoverToolInfo title={tr("Connect database")} text={tr("Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.")}>
             <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Database")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="SQL workspace" text={sqlDisabled ? "Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar." : "Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar."}>
+          <HoverToolInfo title={tr("SQL workspace")} text={sqlDisabled ? tr("Load some data first. Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar.") : tr("Ad hoc SQL queries against whatever's currently loaded (collars, survey, layers, assays, boundaries) — no Postgres connection needed. Also reachable from the Geochem module's toolbar.")}>
             <button className={`ge-ribbon-btn${sqlDisabled ? " is-disabled" : ""}`} onClick={sqlDisabled ? undefined : onSqlWorkspace} aria-disabled={sqlDisabled || undefined}><TerminalSquare size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("SQL")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
       <RibbonGroup label="Output">
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title="Snapshot to Layout" text={snapshotDisabled ? "Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead." : "Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead."}>
+          <HoverToolInfo title={tr("Snapshot to Layout")} text={snapshotDisabled ? tr("Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead.") : tr("Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead.")}>
             <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onSnapshot} aria-disabled={snapshotDisabled || undefined}><Camera size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Snapshot")}</span></button>
           </HoverToolInfo>
         </div>
@@ -9431,9 +9416,9 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
       {visible === false ? <EyeOff size={12} /> : <Eye size={12} />}
       <span style={{ flex: 1 }}>{hole_id}</span>
       {onZoom && ( /* TASKS.csv #393 — zoom the 3D view to this hole */
-        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Zoom to ${hole_id}`}
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Zoom to {hole_id}", { hole_id })}
           onClick={(e) => { e.stopPropagation(); onZoom(hole_id); }}
-          title={`Zoom to ${hole_id}`}
+          title={tr("Zoom to {hole_id}", { hole_id })}
           style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
@@ -9442,9 +9427,9 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
         </span>
       )}
       {onSection && ( /* TASKS.csv #393 — section in the plane of this hole */
-        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={`Section through ${hole_id}`}
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Section through {hole_id}", { hole_id })}
           onClick={(e) => { e.stopPropagation(); onSection(hole_id); }}
-          title={`Section through ${hole_id} — along the hole's own bearing, Buffer from the section tool`}
+          title={tr("Section through {hole_id} — along the hole's own bearing, Buffer from the section tool", { hole_id })}
           style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
           onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
@@ -9454,7 +9439,7 @@ const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpen
       )}
       <span role="button" tabIndex={0} onKeyDown={activateOnKey}
         onClick={(e) => { e.stopPropagation(); onOpenStripLog(hole_id); }}
-        title={`Strip log — ${hole_id}`}
+        title={tr("Strip log — {hole_id}", { hole_id })}
         style={{ display: "flex", alignItems: "center", color: "var(--color-text-muted)", padding: 2, borderRadius: 4 }}
         onMouseEnter={(e) => (e.currentTarget.style.color = "#1a2028")}
         onMouseLeave={(e) => (e.currentTarget.style.color = "#65717e")}
@@ -9473,19 +9458,19 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
         {/* TASKS.csv #66 — inline expand (category chips + sources) without opening the full
             LayerInspector modal. Only offered once there's something to expand. */}
         {count > 0 && onToggleExpand ? (
-          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? "Collapse" : "Expand"} aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`} aria-expanded={!!expanded}>{/* #596 */}
+          <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggleExpand} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} title={expanded ? tr("Collapse") : tr("Expand")} aria-label={`${expanded ? tr("Collapse") : tr("Expand")} ${label}`} aria-expanded={!!expanded}>{/* #596 */}
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
         ) : <div style={{ width: 13, flexShrink: 0 }} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? "Hide layer" : "Show layer"} aria-label={`${visible ? "Hide" : "Show"} ${label}`}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onToggle} style={{ cursor: "pointer", color: visible ? "var(--color-accent)" : "var(--color-text-disabled)" }} title={visible ? tr("Hide layer") : tr("Show layer")} aria-label={`${visible ? tr("Hide") : tr("Show")} ${label}`}>{visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
         <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: visible ? "var(--color-text)" : "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
-        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, `Zoom to the ${label} layer`)} />}
-        {count > 0 && <ListFilter size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, `Filter / legend / sources for the ${label} layer (full view)`)} />}
+        {count > 0 && <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onZoom, tr("Zoom to the {label} layer", { label }))} />}
+        {count > 0 && <ListFilter size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onInspect, tr("Filter / legend / sources for the {label} layer (full view)", { label }))} />}
         {/* TASKS.csv #63 — "unload" this layer's data entirely. Separate from the per-source removal
             inside the inspector (ListFilter above) — this is the "I don't want this tab's data at all
             anymore" case, the inspector handles "just pull out one of several CSVs I merged in". */}
-        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, `Remove all data from the ${label} layer`)} />}
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title="Import CSV" aria-label={count ? `Import CSV into ${label} (${count} rows)` : `Import CSV into ${label}`}>{count ? `${count}` : <Upload size={12} />}</div>
+        {count > 0 && onClear && <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(onClear, tr("Remove all data from the {label} layer", { label }))} />}
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onUpload} style={{ cursor: "pointer", fontSize: "var(--font-size-sm)", color: count ? "var(--color-accent)" : "var(--color-text-muted)", flexShrink: 0 }} title={tr("Import CSV")} aria-label={count ? tr("Import CSV into {label} ({count} rows)", { label, count }) : tr("Import CSV into {label}", { label })}>{count ? `${count}` : <Upload size={12} />}</div>
         {input}
       </div>
       {expanded && children && (
@@ -9527,32 +9512,30 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
   const stops = sym?.stops || [];
   return (
     <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #e3e6ea" }}>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5 }}>
-        Symbology — {values.length.toLocaleString()} value{values.length === 1 ? "" : "s"}
-        {values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})`}
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5 }}>{tr("Symbology — {values} {v}{v2}", { values: values.length.toLocaleString(), v: tr(values.length === 1 ? "value" : "values"), v2: values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})` })}
       </div>
       <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>
         <input type="number" min="2" max="12" value={classCount} onChange={(e) => setClassCount(Math.max(2, Math.min(12, Number(e.target.value) || 5)))}
-          title="Number of classes" style={{ width: 40, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
-        <select value={method} onChange={(e) => setMethod(e.target.value)} title="How the class breaks are computed"
+          title={tr("Number of classes")} style={{ width: 40, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
+        <select value={method} onChange={(e) => setMethod(e.target.value)} title={tr("How the class breaks are computed")}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>
-          <option value="equal">Linear (equal interval)</option>
-          <option value="log">Log-linear</option>
-          <option value="quantile">Histogram equalization (quantile)</option>
-          <option value="normal">Normal distribution</option>
+          <option value="equal">{tr("Linear (equal interval)")}</option>
+          <option value="log">{tr("Log-linear")}</option>
+          <option value="quantile">{tr("Histogram equalization (quantile)")}</option>
+          <option value="normal">{tr("Normal distribution")}</option>
           {/* TASKS.csv #291 — QGIS parity, see GeophysicsModule's copy of this picker. */}
-          <option value="jenks">Natural breaks (Jenks)</option>
+          <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
         </select>
-        <select value={palette} onChange={(e) => setPalette(e.target.value)} title="Colour ramp"
+        <select value={palette} onChange={(e) => setPalette(e.target.value)} title={tr("Colour ramp")}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", maxWidth: 110 }}>
           {Object.entries(PALETTES).map(([k, p]) => <option key={k} value={k}>{p.label.split(" — ")[0]}</option>)}
         </select>
         <button onClick={apply} disabled={!values.length}
           style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--color-selected-border)", background: values.length ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", color: "var(--color-primary)", fontSize: "var(--font-size-sm)", cursor: values.length ? "pointer" : "default", opacity: values.length ? 1 : 0.5 }}
-        >Classify</button>
+        >{tr("Classify")}</button>
         {stops.length > 0 && (
-          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onChange(null)} title="Remove the custom classes and go back to the default ramp"
-            style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>Reset</span>
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onChange(null)} title={tr("Remove the custom classes and go back to the default ramp")}
+            style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>{tr("Reset")}</span>
         )}
       </div>
       {stops.length > 0 && (
@@ -9560,9 +9543,7 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               <input type="checkbox" checked={sym.colorMode !== "discrete"}
-                onChange={(e) => onChange({ ...sym, colorMode: e.target.checked ? "continuous" : "discrete" })} />
-              Blend between classes
-            </label>
+                onChange={(e) => onChange({ ...sym, colorMode: e.target.checked ? "continuous" : "discrete" })} />{tr("Blend between classes")}</label>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 150, overflowY: "auto" }}>
             {stops.map((s, i) => (
@@ -9572,7 +9553,7 @@ function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
                   style={{ width: 22, height: 16, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer", flexShrink: 0 }} />
                 <input type="number" value={s.value}
                   onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, value: Number(e.target.value) } : x); onChange({ ...sym, stops: next }); }}
-                  title="Lower bound of this class"
+                  title={tr("Lower bound of this class")}
                   style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
                 <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>&ge;</span>
               </div>
@@ -9606,7 +9587,7 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
               <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                 key={value}
                 onClick={(e) => (e.shiftKey ? onIsolate(value) : onToggleCategory(value))}
-                title={`${lbl} (${count}) — click to toggle, shift-click to show only this one`}
+                title={tr("{lbl} ({count}) — click to toggle, shift-click to show only this one", { lbl, count })}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 7px", borderRadius: 10,
                   fontSize: "var(--font-size-xs)", cursor: "pointer", border: `1px solid ${hidden ? "var(--color-border-light)" : color}`,
@@ -9626,7 +9607,7 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
             <div key={src} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 3 }}>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={src}>{src}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{count}</span>
-              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-faint)", flexShrink: 0 }} {...iconAction(() => onRemoveSource(src), `Remove the ${count} row(s) imported from "${src}"`)} />
+              <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-faint)", flexShrink: 0 }} {...iconAction(() => onRemoveSource(src), tr("Remove the {count} row(s) imported from \"{src}\"", { count, src }))} />
             </div>
           ))}
         </div>
@@ -9698,8 +9679,8 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
 
   const modeSwitch = (
     <div style={pillWrap}>
-      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "distance")} onClick={() => onSwitchMode("distance")}>Distance</span>
-      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "area")} onClick={() => onSwitchMode("area")}>Area</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "distance")} onClick={() => onSwitchMode("distance")}>{tr("Distance")}</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={pill(mode === "area")} onClick={() => onSwitchMode("area")}>{tr("Area")}</span>
     </div>
   );
 
@@ -9708,8 +9689,8 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
       return (
         <div style={box}>
           {modeSwitch}
-          <span>{pts.length === 0 ? "Click on the model to start measuring…" : "1 point placed — click to add the next."}</span>
-          {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
+          <span>{pts.length === 0 ? tr("Click on the model to start measuring…") : tr("1 point placed — click to add the next.")}</span>
+          {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>}
         </div>
       );
     }
@@ -9719,11 +9700,11 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
     return (
       <div style={box}>
         {modeSwitch}
-        <span><b style={{ color: "var(--color-text)" }}>Total:</b> {fmtLen(totalPath)}</span>
-        {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>Straight-line:</b> {fmtLen(straight.dist3d)}</span>}
-        <span><b style={{ color: "var(--color-text)" }}>Last segment:</b> {fmtLen(last.dist3d)} @ {last.azimuth.toFixed(1)}° (Δelev {last.vert >= 0 ? "+" : ""}{last.vert.toFixed(1)} m)</span>
-        <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
-        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Total:")}</b> {fmtLen(totalPath)}</span>
+        {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>{tr("Straight-line:")}</b> {fmtLen(straight.dist3d)}</span>}
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment:")}</b> {tr("{v} @ {azimuth}° (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) })}</span>
+        <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
+        <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
       </div>
     );
   }
@@ -9733,8 +9714,8 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
     return (
       <div style={box}>
         {modeSwitch}
-        <span>{pts.length} point(s) placed — need at least 3 to compute an area.</span>
-        {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>}
+        <span>{tr("{pts} point(s) placed — need at least 3 to compute an area.", { pts: pts.length })}</span>
+        {pts.length > 0 && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>}
       </div>
     );
   }
@@ -9743,10 +9724,10 @@ function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
   return (
     <div style={box}>
       {modeSwitch}
-      <span><b style={{ color: "var(--color-text)" }}>Area:</b> {fmtArea(area)}</span>
-      <span><b style={{ color: "var(--color-text)" }}>Perimeter:</b> {fmtLen(perimeter)}</span>
-      <span style={{ color: "var(--color-text-muted)" }}>{pts.length} pt(s)</span>
-      <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} /> Clear</span>
+      <span><b style={{ color: "var(--color-text)" }}>{tr("Area:")}</b> {fmtArea(area)}</span>
+      <span><b style={{ color: "var(--color-text)" }}>{tr("Perimeter:")}</b> {fmtLen(perimeter)}</span>
+      <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
+      <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
     </div>
   );
 }
@@ -9774,25 +9755,25 @@ function VoxelRangeRow({ model, onUpdate }) {
   return (
     <div style={{ marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? "Hide" : "Show"}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? tr("Hide") : tr("Show")}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
-        {isFiltered && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title="A range filter is active on this model">band</span>}
+        {isFiltered && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>Min</span>
+        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMin} onChange={(e) => onMinInput(Math.min(Number(e.target.value), dispMax))} style={{ flex: 1 }} />
         <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMin.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>Max</span>
+        <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMax} onChange={(e) => onMaxInput(Math.max(Number(e.target.value), dispMin))} style={{ flex: 1 }} />
         <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMax.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        <span>Showing {visibleCount.toLocaleString()} of {model.cells.length.toLocaleString()} cell(s)</span>
-        {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>Reset</span>}
+        <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>
+        {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
     </div>
   );
@@ -9865,46 +9846,46 @@ function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars
   };
   return (
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-      <input placeholder="Hole name (optional)" value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
+      <input placeholder={tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
         <select
           value={fromCollarId}
           onChange={(e) => applyFromCollar(e.target.value)}
           style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 5 }}
-          title="Fill E/N/Elev below from an existing real collar, to design a new hole starting there"
+          title={tr("Fill E/N/Elev below from an existing real collar, to design a new hole starting there")}
         >
-          <option value="">Collar (E/N/Elev): custom, typed below</option>
+          <option value="">{tr("Collar (E/N/Elev): custom, typed below")}</option>
           {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
         </select>
       )}
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label="E" value={draft.x} onChange={(v) => set("x", v)} />
         <NumField label="N" value={draft.y} onChange={(v) => set("y", v)} />
-        <NumField label="Elev" value={draft.z} onChange={(v) => set("z", v)} />
+        <NumField label={tr("Elev")} value={draft.z} onChange={(v) => set("z", v)} />
       </div>
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-        <NumField label="Az°" value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
-        <NumField label="Dip°" value={draft.dip} onChange={(v) => set("dip", v)} />
-        <NumField label="Length m" value={draft.length} onChange={(v) => set("length", v)} />
+        <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
+        <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />
+        <NumField label={tr("Length m")} value={draft.length} onChange={(v) => set("length", v)} />
       </div>
       <div style={{ display: "flex", gap: 5 }}>
         <button
           onClick={onStartPick}
           style={{ ...miniBtn, flex: 1, background: pickMode ? "var(--color-primary)" : miniBtn.background, border: pickMode ? "1px solid var(--color-primary)" : miniBtn.border, color: pickMode ? "var(--color-bg)" : miniBtn.color }}
-          title="Click, then click anywhere in the 3D view to place a hole there"
+          title={tr("Click, then click anywhere in the 3D view to place a hole there")}
         >
-          {pickMode ? "Click on the view…" : "Pick on view"}
+          {pickMode ? tr("Click on the view…") : tr("Pick on view")}
         </button>
-        <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>+ Add hole</button>
+        <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
       </div>
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>Solve azimuth/dip/length to hit a target from the E/N/Elev above</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above")}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-          <NumField label="Target E" value={target.x} onChange={(v) => setTarget((p) => ({ ...p, x: v }))} />
-          <NumField label="Target N" value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />
-          <NumField label="Target Elev" value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
+          <NumField label={tr("Target E")} value={target.x} onChange={(v) => setTarget((p) => ({ ...p, x: v }))} />
+          <NumField label={tr("Target N")} value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />
+          <NumField label={tr("Target Elev")} value={target.z} onChange={(v) => setTarget((p) => ({ ...p, z: v }))} />
         </div>
-        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>Solve az/dip/length to target</button>
+        <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
       </div>
     </div>
   );
@@ -9984,31 +9965,27 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurve
 
   return (
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
-      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>Planned hole checks</div>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontWeight: 600, marginBottom: 6 }}>{tr("Planned hole checks")}</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 7 }}>
-        <NumField label="Min. spacing (m)" value={minSpacing} onChange={(v) => setMinSpacing(v === "" ? 0 : Math.max(0, v))} />
-        <NumField label="Cost ($/m)" value={costPerM} placeholder="enter your rate" onChange={setCostPerM} />
+        <NumField label={tr("Min. spacing (m)")} value={minSpacing} onChange={(v) => setMinSpacing(v === "" ? 0 : Math.max(0, v))} />
+        <NumField label={tr("Cost ($/m)")} value={costPerM} placeholder={tr("enter your rate")} onChange={setCostPerM} />
       </div>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 7 }}>
-        {plannedHoles.length} hole{plannedHoles.length === 1 ? "" : "s"}, {totalM.toLocaleString()} m total
-        {totalCost != null ? ` — est. $${totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })} at $${rate}/m` : ""}
+        {tr("{plannedHoles} {v}, {totalM} m total{v2}", { plannedHoles: plannedHoles.length, v: tr(plannedHoles.length === 1 ? "hole" : "holes"), totalM: totalM.toLocaleString(), v2: totalCost != null ? tr(" — est. ${totalCost} at ${rate}/m", { totalCost: totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }), rate }) : "" })}
       </div>
       {voxelModels.length > 0 && !anyTargetModel && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>
-          Narrow a voxel model's Min/Max range above (in "Geophysical voxel ranges") to check planned holes against a target band.
-        </div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range above (in \"Geophysical voxel ranges\") to check planned holes against a target band.")}</div>
       )}
       {results.map(({ hole, nearestReal, targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;
         return (
           <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg-soft)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-fg)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || "Planned hole"}</div>
+            <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>
-                Nearest existing hole: {nearestReal.hole_id} — {nearestReal.distance.toFixed(1)} m{tooClose ? ` (within the ${minSpacing} m minimum)` : ""}
+              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}
               </div>
             ) : (
-              <div style={{ color: "var(--color-text-muted)" }}>No existing drilled holes to compare against.</div>
+              <div style={{ color: "var(--color-text-muted)" }}>{tr("No existing drilled holes to compare against.")}</div>
             )}
             {targetHits.length > 0 && (
               <div style={{ color: "var(--color-info)", marginTop: 2 }}>
@@ -10033,30 +10010,29 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   return (
     <div style={{ marginBottom: 6, padding: "7px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? "Hide" : "Show"}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? tr("Hide") : tr("Show")}>
           {hole.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || "Planned hole"}</div>
-        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), "Collapse this planned hole")} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), "Expand this planned hole")} />}
-        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(`Remove planned hole "${hole.name || hole.id}"?`)) onRemove(hole.id); }, `Remove planned hole "${hole.name || hole.id}"`)} />
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || tr("Planned hole")}</div>
+        {expanded ? <ChevronUp size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(false), tr("Collapse this planned hole"))} /> : <ChevronDown size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => setExpanded(true), tr("Expand this planned hole"))} />}
+        <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Remove planned hole \"{v}\"?", { v: hole.name || hole.id }))) onRemove(hole.id); }, tr("Remove planned hole \"{v}\"", { v: hole.name || hole.id }))} />
       </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
-        Az {Math.round(hole.azimuth)}° / Dip {Math.round(hole.dip)}° / {Math.round(hole.length)} m{toe ? ` — toe E ${toe.x.toFixed(0)} N ${toe.y.toFixed(0)} Elev ${toe.z.toFixed(0)}` : ""}
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Az {v}° / Dip {v2}° / {v3} m{v4}", { v: Math.round(hole.azimuth), v2: Math.round(hole.dip), v3: Math.round(hole.length), v4: toe ? tr(" — toe E {x} N {y} Elev {z}", { x: toe.x.toFixed(0), y: toe.y.toFixed(0), z: toe.z.toFixed(0) }) : "" })}
       </div>
       {expanded && (
         <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
-          <input placeholder="Name" value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
+          <input placeholder={tr("Name")} value={hole.name || ""} onChange={(e) => onUpdate(hole.id, { name: e.target.value })} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
             <NumField label="E" value={hole.x} onChange={(v) => onUpdate(hole.id, { x: v })} />
             <NumField label="N" value={hole.y} onChange={(v) => onUpdate(hole.id, { y: v })} />
-            <NumField label="Elev" value={hole.z} onChange={(v) => onUpdate(hole.id, { z: v })} />
+            <NumField label={tr("Elev")} value={hole.z} onChange={(v) => onUpdate(hole.id, { z: v })} />
           </div>
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-            <NumField label="Az°" value={hole.azimuth} onChange={(v) => onUpdate(hole.id, { azimuth: v })} />
-            <NumField label="Dip°" value={hole.dip} onChange={(v) => onUpdate(hole.id, { dip: v })} />
-            <NumField label="Length m" value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
+            <NumField label={tr("Az°")} value={hole.azimuth} onChange={(v) => onUpdate(hole.id, { azimuth: v })} />
+            <NumField label={tr("Dip°")} value={hole.dip} onChange={(v) => onUpdate(hole.id, { dip: v })} />
+            <NumField label={tr("Length m")} value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
           </div>
-          <textarea placeholder="Notes" value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", resize: "vertical" }} />
+          <textarea placeholder={tr("Notes")} value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", resize: "vertical" }} />
           {/* TASKS.csv #119 - drill-to-target solver and planned-vs-as-drilled comparison. `raw` is
               this row's already-built trace, so the panel never desurveys the planned hole again. */}
           <PlannedHoleTargeting hole={hole} onUpdate={onUpdate} plannedPts={raw} collars={collars} survey={survey} />

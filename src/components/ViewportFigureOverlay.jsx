@@ -169,12 +169,11 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
             </React.Fragment>
           ))}
           {hiddenCount > 0 && (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>
-              + {hiddenCount}{" "}{tr("more not shown — filter categories, or build the figure in Layout")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 4 }}>{tr("+ {hiddenCount} more not shown — filter categories, or build the figure in Layout", { hiddenCount })}</div>
           )}
           {ramps.map((g) => (
             <div key={g.key} style={{ marginTop: 6 }}>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}{g.ramp.log ? " · log scale" : ""}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={g.label}>{g.label}{g.ramp.log ? tr(" · log scale") : ""}</div>
               {/* TASKS.csv #498 — the model's own colours (log-sampled for a log model), decade ticks on a log bar */}
               <div style={{ position: "relative", height: 9, width: 180, borderRadius: 2, border: "1px solid var(--color-border-light)", background: `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }}>
                 {(g.ramp.ticks || []).map((t) => <span key={t.label} style={{ position: "absolute", left: `${t.at * 100}%`, top: 5, width: 1, height: 4, background: "var(--color-text)" }} />)}

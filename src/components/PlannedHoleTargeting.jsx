@@ -3,6 +3,7 @@ import { Crosshair, GitCompareArrows } from "./icons.js";
 import { solveOrientationToTarget, missDistanceToTarget, comparePlannedToActual, solveWithDeviation, plannedTrace, hasDeviation } from "../lib/holePlanning.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { useStore } from "../lib/store.jsx";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #119 — the two planning tools #188 did not build, rendered inside an expanded planned-hole
 // row in the Targeting sidebar. Deliberately a SEPARATE component file rather than more code inside
@@ -117,73 +118,56 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
   return (
     <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
       <div style={{ display: "flex", gap: 4, marginBottom: tab ? 7 : 0 }}>
-        {tabBtn("target", "Target", Crosshair)}
+        {tabBtn("target", tr("Target"), Crosshair)}
         {tabBtn("actual", "As-drilled", GitCompareArrows)}
       </div>
 
       {tab === "target" && (
         <div>
-          <div style={sectionHdr}>Drill to a target point</div>
+          <div style={sectionHdr}>{tr("Drill to a target point")}</div>
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
             {/* The add form above (TASKS.csv #188) can solve a target when a hole is first created, but
                 only then, and it keeps nothing. This does it for a hole that already exists — the target
-                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}
-            The 3D point you want this hole to reach — a modelled contact, a voxel anomaly centre, a projected
-            intercept. The target is saved with the hole, so the miss distance below stays live as you edit
-            the collar or angles above. A straight hole reaches any point at exactly its straight-line
-            distance, so the solved orientation is also the shallowest way there.
-          </div>
+                is SAVED on the hole, so the miss readout stays live while you nudge the collar or angles. */}{tr("The 3D point you want this hole to reach — a modelled contact, a voxel anomaly centre, a projected intercept. The target is saved with the hole, so the miss distance below stays live as you edit the collar or angles above. A straight hole reaches any point at exactly its straight-line distance, so the solved orientation is also the shallowest way there.")}</div>
           {/* TASKS.csv #524 — expected deviation and a tail past the target */}
           <div style={rowStyle}>
-            <TargetField label="Lift °/100 m" value={hole.lift} onChange={(v) => onUpdate(hole.id, { lift: v })} />
-            <TargetField label="Drift °/100 m" value={hole.drift} onChange={(v) => onUpdate(hole.id, { drift: v })} />
-            <TargetField label="Past target (m)" value={hole.pastTargetM ?? 30} onChange={(v) => onUpdate(hole.id, { pastTargetM: v })} />
+            <TargetField label={tr("Lift °/100 m")} value={hole.lift} onChange={(v) => onUpdate(hole.id, { lift: v })} />
+            <TargetField label={tr("Drift °/100 m")} value={hole.drift} onChange={(v) => onUpdate(hole.id, { drift: v })} />
+            <TargetField label={tr("Past target (m)")} value={hole.pastTargetM ?? 30} onChange={(v) => onUpdate(hole.id, { pastTargetM: v })} />
           </div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
-            Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Typical diamond holes: 1–3°/100 m — use your own holes' surveys. Both curve the planned hole in 3D too.
-          </div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Lift: the hole flattens with depth (+). Drift: its azimuth turns clockwise (+). Typical diamond holes: 1–3°/100 m — use your own holes' surveys. Both curve the planned hole in 3D too.")}</div>
           <div style={rowStyle}>
-            <TargetField label="Target E" value={target?.x} onChange={(v) => setTarget({ x: v })} />
-            <TargetField label="Target N" value={target?.y} onChange={(v) => setTarget({ y: v })} />
-            <TargetField label="Target Elev" value={target?.z} onChange={(v) => setTarget({ z: v })} />
+            <TargetField label={tr("Target E")} value={target?.x} onChange={(v) => setTarget({ x: v })} />
+            <TargetField label={tr("Target N")} value={target?.y} onChange={(v) => setTarget({ y: v })} />
+            <TargetField label={tr("Target Elev")} value={target?.z} onChange={(v) => setTarget({ z: v })} />
           </div>
           {!targetComplete ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>Fill in all three coordinates to solve.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Fill in all three coordinates to solve.")}</div>
           ) : !solved ? (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>The target is the collar itself — no direction is defined.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>{tr("The target is the collar itself — no direction is defined.")}</div>
           ) : (
             <div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
-                Solved: <b>Az {solved.azimuth.toFixed(1)}°</b> / <b>Dip {solved.dip.toFixed(1)}°</b> / <b>{solved.length.toFixed(1)} m</b>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>{tr("Solved:")}{" "}<b>{tr("Az {azimuth}°", { azimuth: solved.azimuth.toFixed(1) })}</b> / <b>{tr("Dip {dip}°", { dip: solved.dip.toFixed(1) })}</b> / <b>{solved.length.toFixed(1)} m</b>
                 <div style={{ color: "var(--color-text-caption)" }}>
-                  {solved.horizontal.toFixed(1)} m horizontal, {Math.abs(solved.vertical).toFixed(1)} m {solved.vertical >= 0 ? "below" : "above"} the collar
-                </div>
+                  {tr("{horizontal} m horizontal, {v} m {v2} the collar", { horizontal: solved.horizontal.toFixed(1), v: Math.abs(solved.vertical).toFixed(1), v2: solved.vertical >= 0 ? tr("below") : tr("above") })}</div>
                 {solved.dip > 0 && (
-                  <div style={{ color: "var(--color-danger-fg)" }}>This target is ABOVE the collar — the solved dip is an uphole.</div>
+                  <div style={{ color: "var(--color-danger-fg)" }}>{tr("This target is ABOVE the collar — the solved dip is an uphole.")}</div>
                 )}
               </div>
               {miss && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: miss.distance < 1 ? "#3f8f5f" : "#c08a3c", marginBottom: 5 }}>
-                  Current plan misses by {miss.distance.toFixed(1)} m
-                  {miss.distance >= 1 && miss.beyondToe ? " — right direction, but the hole is too short." : ""}
-                  {miss.distance < 1 ? " — on target." : ""}
+                <div style={{ fontSize: "var(--font-size-sm)", color: miss.distance < 1 ? "#3f8f5f" : "#c08a3c", marginBottom: 5 }}>{tr("Current plan misses by {distance} m{v}{v2}", { distance: miss.distance.toFixed(1), v: miss.distance >= 1 && miss.beyondToe ? tr(" — right direction, but the hole is too short.") : "", v2: miss.distance < 1 ? tr(" — on target.") : "" })}
                 </div>
               )}
               {straightWithDev && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "#c08a3c", marginBottom: 4, lineHeight: 1.5 }}>
-                  Aimed straight at it, this hole's lift / drift would pass {straightWithDev.distance.toFixed(1)} m from the target{straightWithDev.beyondToe ? " (and end short of it)" : ""}.
-                </div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "#c08a3c", marginBottom: 4, lineHeight: 1.5 }}>{tr("Aimed straight at it, this hole's lift / drift would pass {distance} m from the target{v}.", { distance: straightWithDev.distance.toFixed(1), v: straightWithDev.beyondToe ? tr(" (and end short of it)") : "" })}</div>
               )}
               {devSolved && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>
-                  Aim-off for the deviation: <b>Az {devSolved.azimuth.toFixed(1)}°</b> / <b>Dip {devSolved.dip.toFixed(1)}°</b>, target reached at {devSolved.length.toFixed(1)} m{devSolved.miss >= 1 ? ` (closest ${devSolved.miss.toFixed(1)} m — check the lift / drift)` : ""}.
-                </div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4, lineHeight: 1.5 }}>{tr("Aim-off for the deviation:")}{" "}<b>{tr("Az {azimuth}°", { azimuth: devSolved.azimuth.toFixed(1) })}</b> / <b>{tr("Dip {dip}°", { dip: devSolved.dip.toFixed(1) })}</b>{tr(", target reached at {devSolved} m{v}.", { devSolved: devSolved.length.toFixed(1), v: devSolved.miss >= 1 ? tr(" (closest {miss} m — check the lift / drift)", { miss: devSolved.miss.toFixed(1) }) : "" })}</div>
               )}
-              <button onClick={applySolved} style={{ ...btn, background: "#e3ecf5", borderColor: "var(--color-selected-border)" }}>
-                Apply {devSolved ? "aim-off" : "solved"} orientation{past ? `, ${past} m past the target` : ""}
+              <button onClick={applySolved} style={{ ...btn, background: "#e3ecf5", borderColor: "var(--color-selected-border)" }}>{tr("Apply {v} orientation{v2}", { v: devSolved ? tr("aim-off") : tr("solved"), v2: past ? tr(", {past} m past the target", { past }) : "" })}
               </button>
               {devSolved && (
-                <button onClick={applySolvedStraightOnly} style={{ ...btn, marginTop: 4 }}>Apply the straight aim instead</button>
+                <button onClick={applySolvedStraightOnly} style={{ ...btn, marginTop: 4 }}>{tr("Apply the straight aim instead")}</button>
               )}
             </div>
           )}
@@ -192,43 +176,37 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
 
       {tab === "actual" && (
         <div>
-          <div style={sectionHdr}>Planned vs. as-drilled</div>
-          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
-            Once this hole has been drilled and its collar + survey imported, link it here to see how far the
-            real hole wandered from the design.
-          </div>
+          <div style={sectionHdr}>{tr("Planned vs. as-drilled")}</div>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Once this hole has been drilled and its collar + survey imported, link it here to see how far the real hole wandered from the design.")}</div>
           <select
             value={drilledId}
             onChange={(e) => onUpdate(hole.id, { asDrilledHoleId: e.target.value || null })}
             style={{ ...inputStyle, marginBottom: 6, cursor: "pointer" }}
           >
-            <option value="">— not drilled yet —</option>
+            <option value="">{tr("— not drilled yet —")}</option>
             {(collars || []).map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
           </select>
           {drilledId && !comparison && (
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>{tr("Couldn't build a trace for {drilledId} — check it has a collar with a usable azimuth/dip.", { drilledId })}</div>
           )}
           {comparison && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", lineHeight: 1.6 }}>
-              <div>Collar offset: <b>{comparison.collarOffset.toFixed(1)} m</b></div>
-              <div>Toe offset: <b>{comparison.toeOffset.toFixed(1)} m</b></div>
-              <div>Max separation: <b>{comparison.maxSeparation.toFixed(1)} m</b> at {comparison.maxSeparationMd.toFixed(0)} m (mean {comparison.meanSeparation.toFixed(1)} m)</div>
-              <div>
-                Length: planned {comparison.plannedLength.toFixed(0)} m, drilled {comparison.actualLength.toFixed(0)} m
-                {Math.abs(comparison.lengthDiff) >= 0.5 && (
+              <div>{tr("Collar offset:")}{" "}<b>{comparison.collarOffset.toFixed(1)} m</b></div>
+              <div>{tr("Toe offset:")}{" "}<b>{comparison.toeOffset.toFixed(1)} m</b></div>
+              <div>{tr("Max separation:")}{" "}<b>{comparison.maxSeparation.toFixed(1)} m</b>{" "}{tr("at {maxSeparationMd} m (mean {meanSeparation} m)", { maxSeparationMd: comparison.maxSeparationMd.toFixed(0), meanSeparation: comparison.meanSeparation.toFixed(1) })}</div>
+              <div>{tr("Length: planned {plannedLength} m, drilled {actualLength} m", { plannedLength: comparison.plannedLength.toFixed(0), actualLength: comparison.actualLength.toFixed(0) })}{Math.abs(comparison.lengthDiff) >= 0.5 && (
                   <span style={{ color: "#c08a3c" }}> ({comparison.lengthDiff > 0 ? "+" : ""}{comparison.lengthDiff.toFixed(0)} m)</span>
                 )}
               </div>
               {comparison.azimuthDiff != null && (
-                <div>Attitude drift at {comparison.sharedDepth.toFixed(0)} m: Az {comparison.azimuthDiff > 0 ? "+" : ""}{comparison.azimuthDiff.toFixed(1)}°, Dip {comparison.dipDiff > 0 ? "+" : ""}{comparison.dipDiff.toFixed(1)}°</div>
+                <div>{tr("Attitude drift at {sharedDepth} m: Az {v}{azimuthDiff}°, Dip {v2}{dipDiff}°", { sharedDepth: comparison.sharedDepth.toFixed(0), v: comparison.azimuthDiff > 0 ? "+" : "", azimuthDiff: comparison.azimuthDiff.toFixed(1), v2: comparison.dipDiff > 0 ? "+" : "", dipDiff: comparison.dipDiff.toFixed(1) })}</div>
               )}
               <div style={{ color: "var(--color-text-muted)", marginTop: 3 }}>
                 {/* Separation is measured only over the depth the two holes SHARE (see holePlanning.js) so a
-                    hole drilled deeper or shallower than planned doesn't manufacture a false deviation. */}
-                Separation measured over the shared {comparison.sharedDepth.toFixed(0)} m
+                    hole drilled deeper or shallower than planned doesn't manufacture a false deviation. */}{tr("Separation measured over the shared")}{" "}{comparison.sharedDepth.toFixed(0)} m
                 {comparison.stations === 0
-                  ? " · no survey stations — the as-drilled trace is a straight line from its collar."
-                  : ` · ${comparison.stations} survey station${comparison.stations === 1 ? "" : "s"}.`}
+                  ? tr(" · no survey stations — the as-drilled trace is a straight line from its collar.")
+                  : tr(comparison.stations === 1 ? " · {stations} survey station." : " · {stations} survey stations.", { stations: comparison.stations })}
               </div>
             </div>
           )}

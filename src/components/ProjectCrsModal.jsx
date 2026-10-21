@@ -12,6 +12,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote } from "../lib/reproject.js";
 import { crsCandidatesAt, parseLatLon, collarCentreLonLat, formatLonLat } from "../lib/projectCrs.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function ProjectCrsModal({ reason, points, onDone }) {
   const { project, collars: storeCollars, setEpsg, projectIsEmpty } = useStore();
@@ -33,30 +34,30 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
 
   return (
     <div style={overlay}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label="Project coordinate system" onClick={(e) => e.stopPropagation()}>
+      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Project coordinate system")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>Project coordinate system</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Project coordinate system")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {project.crsSet ? <>Now: {crsName(project.epsg) || "Unrecognised CRS"} · EPSG:{project.epsg}</> : "Not set yet. Choose the CRS your collar coordinates are in."}
+              {project.crsSet ? <>{tr("Now: {v} · EPSG:{epsg}", { v: crsName(project.epsg) || tr("Unrecognised CRS"), epsg: project.epsg })}</> : tr("Not set yet. Choose the CRS your collar coordinates are in.")}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={cancel} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           {reason && <div style={{ ...note, color: "var(--color-text)" }}>{reason}</div>}
-          <div style={note}>GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn&apos;t say which CRS it is in, and the numbers alone can&apos;t tell one UTM zone from the next.</div>
+          <div style={note}>{tr("GeoStrix places every file, terrain and online map with this CRS. A collar CSV doesn't say which CRS it is in, and the numbers alone can't tell one UTM zone from the next.")}</div>
 
           <div>
-            <div style={label}>Where is the project? (latitude, longitude — roughly is enough)</div>
-            <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder="e.g. 52.2, -121.3   or   23.5 S 46.6 W" aria-label="Project latitude and longitude" style={inp} />
-            {where && !at && <div style={{ ...note, marginTop: 4 }}>Type latitude then longitude in decimal degrees (south and west negative, or add S / W).</div>}
+            <div style={label}>{tr("Where is the project? (latitude, longitude — roughly is enough)")}</div>
+            <input value={where} onChange={(e) => setWhere(e.target.value)} placeholder={tr("e.g. 52.2, -121.3 or 23.5 S 46.6 W")} aria-label={tr("Project latitude and longitude")} style={inp} />
+            {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
             {candidates.length > 0 && (
-              <div role="listbox" aria-label="Suggested CRSs" style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
+              <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
                 {candidates.slice(0, 8).map((c, i) => (
                   <div key={c.code} role="option" aria-selected={choice === c.code} tabIndex={0} onClick={() => setChoice(c.code)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setChoice(c.code); } }}
                     style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)", background: choice === c.code ? "var(--color-selected-bg)" : "transparent", color: "var(--color-text)" }}>
-                    <span>{c.name}{i === 0 ? <span style={{ color: "var(--color-text-muted)" }}> — most used here</span> : null}</span><span style={{ color: "var(--color-text-muted)" }}>{c.code}</span>
+                    <span>{c.name}{i === 0 ? <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— most used here")}</span> : null}</span><span style={{ color: "var(--color-text-muted)" }}>{c.code}</span>
                   </div>
                 ))}
               </div>
@@ -64,26 +65,26 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
           </div>
 
           <div>
-            <button type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? "Hide the full list" : "Or search every CRS (name, zone or EPSG code)"}</button>
+            <button type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
             {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} /></div>}
           </div>
 
           {choice && (
             <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
-              <div><b>{crsName(choice) || `EPSG:${choice}`}</b> <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{choice}</span></div>
+              <div><b>{crsName(choice) || tr("EPSG:{choice}", { choice })}</b> <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{choice}", { choice })}</span></div>
               {collars.length > 0 && (landing
-                ? <div>Your {collars.length} collar{collars.length === 1 ? "" : "s"} would be at <b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? ` — ${kmFromStated.toLocaleString()} km from where you said` : ""}.{kmFromStated > 50
-                    ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}> That is {kmFromStated.toLocaleString()} km from where you said: almost certainly the wrong CRS or UTM zone.</span>
-                    : " If that isn't the project, this is the wrong CRS or zone."}</div>
-                : <div style={{ color: "var(--color-danger-fg)" }}>The collar coordinates don&apos;t fit this CRS (they land off the globe), so it is the wrong one.</div>)}
+                ? <div>{tr("Your {collars} {v} would be at", { collars: collars.length, v: tr(collars.length === 1 ? "collar" : "collars") })}{" "}<b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? tr(" — {kmFromStated} km from where you said", { kmFromStated: kmFromStated.toLocaleString() }) : ""}.{kmFromStated > 50
+                    ? <span style={{ color: "var(--color-danger-fg)", fontWeight: 600 }}>{" "}{tr("That is {kmFromStated} km from where you said: almost certainly the wrong CRS or UTM zone.", { kmFromStated: kmFromStated.toLocaleString() })}</span>
+                    : tr(" If that isn't the project, this is the wrong CRS or zone.")}</div>
+                : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
               {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
-              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>This relabels the project: no coordinates change. To convert data into another CRS, use &quot;Reproject all data&quot; in the Maps tab (Project CRS).</div>}
+              {relabel && <div style={{ color: "var(--color-text-secondary)" }}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}
             </div>
           )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button type="button" style={btn(false)} onClick={cancel}>{project.crsSet ? "Cancel" : "Decide later"}</button>
-          <button type="button" style={btn(true)} disabled={!choice} onClick={use}>{choice ? `Use ${crsName(choice) || `EPSG:${choice}`}` : "Choose a CRS"}</button>
+          <button type="button" style={btn(false)} onClick={cancel}>{project.crsSet ? tr("Cancel") : tr("Decide later")}</button>
+          <button type="button" style={btn(true)} disabled={!choice} onClick={use}>{choice ? tr("Use {v}", { v: crsName(choice) || tr("EPSG:{choice}", { choice }) }) : tr("Choose a CRS")}</button>
         </div>
       </div>
     </div>

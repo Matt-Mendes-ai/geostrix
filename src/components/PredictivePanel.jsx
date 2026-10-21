@@ -75,15 +75,15 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
 
   const run = async (label, kind, params, onResult) => {
     const ctrl = new AbortController(); abortRef.current = ctrl;
-    setJob({ label, progress: 0, message: "Starting the add-on" });
+    setJob({ label, progress: 0, message: tr("Starting the add-on") });
     const t0 = Date.now();
     try {
-      const health = await addonReady((s) => setJob((j) => j && { ...j, message: `Starting the add-on (${s} s — the first start is slower)` }));
+      const health = await addonReady((s) => setJob((j) => j && { ...j, message: tr("Starting the add-on ({s} s — the first start is slower)", { s }) }));
       // TASKS.csv #650 — the structural trend chosen for geoML (Model settings → Structural trends); add-on 0.1.0 ignores it
       const oldAddon = !addonHas(health, "trend"); // #692 — asked, not guessed from the version string
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
       const res = await runJob(kind, params, (s) => setJob((j) => j && { ...j, progress: s.progress, message: s.message, elapsed: s.elapsed }), ctrl.signal);
-      const note = `${await onResult(res)}${trend ? (oldAddon ? ` — the trend "${trend.name}" was NOT applied: this add-on version (${health?.version || "?"}) predates trends; update it (Remove the add-on, then install again)` : `; following the trend "${trend.name}"`) : ""}`;
+      const note = `${await onResult(res)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
       setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
@@ -108,7 +108,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
         const tri = res.surface.triangles.filter((t) => { const c = [0, 1, 2].map((k) => (v[t[0]][k] + v[t[1]][k] + v[t[2]][k]) / 3); return clip([{ x: c[0], y: c[1], z: c[2] }]).keep[0]; });
         const pos = new Float32Array(v.flat()), idx = new Uint32Array(tri.flat());
         addSurface({ name: `geoML — ${name} contact`, positions: pos, indices: idx, values: res.surface.uncertainty, params: { unit: [...unit], model: res.model, quality, seconds: res.seconds, contacts: res.contacts, area_m2: Math.round(res.surface.area) } });
-        parts.push(`contact surface ${tri.length.toLocaleString()} triangles (darker = less certain)`);
+        parts.push(tr("contact surface {tri} triangles (darker = less certain)", { tri: tri.length.toLocaleString() }));
       }
       const b = res.blocks;
       checkBlocks(b, ["probability", "uncertainty"]); // #741
@@ -119,7 +119,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
-      parts.push(`${cells.length.toLocaleString()} blocks of ${b.cell} m with the probability of ${name} (showing ≥ 50%) and its uncertainty (hidden)${clipNote(r, range, !!res.range?.trained)}`);
+      parts.push(tr("{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}", { cells: cells.length.toLocaleString(), cell: b.cell, name, v: clipNote(r, range, !!res.range?.trained) }));
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts`;
     });
   };
@@ -153,7 +153,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       const keep = r.keep.map((k, i) => k && Number.isFinite(b.prediction[i])); // a spread only where there is a grade
       const cells = blockCells(b, keep, (i) => b.prediction[i]);
       const spread = b.p10 && b.p90 ? blockCells(b, keep, (i) => b.p90[i] - b.p10[i]) : [];
-      if (!cells.length) throw new Error(`no block is both below the ground and within ${range} m of a sample.`);
+      if (!cells.length) throw new Error(tr("no block is both below the ground and within {range} m of a sample.", { range }));
       const vals = cells.map((c) => c.value).sort((p, q) => p - q); // the top quarter of the blocks kept
       const min = vals[0], max = vals[vals.length - 1], p75 = percentileSorted(vals, 0.75); // #740
       // TASKS.csv #677 — a geoML grade model is a grade estimate by another engine: its parameters, unit and the
@@ -177,69 +177,61 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
 
   return (
     <div>
-      <div className="ge-section-label">Predictive modelling (geoML)</div>
-      <div style={box}>
-        Models with <strong>uncertainty</strong> from Gaussian processes (<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">geoML</a>, Ítalo Gonçalves). Results appear in the 3D view beside your other models, named "geoML — …", so you can compare them. Everything runs on this computer.
-      </div>
+      <div className="ge-section-label">{tr("Predictive modelling (geoML)")}</div>
+      <div style={box}>{tr("Models with")}{" "}<strong>{tr("uncertainty")}</strong>{" "}{tr("from Gaussian processes (")}<a href="https://github.com/italo-goncalves/geoML" target="_blank" rel="noreferrer">{tr("geoML")}</a>{tr(", Ítalo Gonçalves). Results appear in the 3D view beside your other models, named \"geoML — …\", so you can compare them. Everything runs on this computer.")}</div>
 
-      {!st ? <div style={box}>Checking the add-on…</div> : !st.installed ? (
+      {!st ? <div style={box}>{tr("Checking the add-on…")}</div> : !st.installed ? (
         <div style={box}>
-          <div style={h}>Install the add-on</div>
+          <div style={h}>{tr("Install the add-on")}</div>
           {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button
               used to start a 553 MB download on the click (wrong on a metered camp connection) */}
-          <div><strong>What you get:</strong> rock-unit and grade models with their uncertainty (a Fast model takes about a minute).</div>
-          <div style={{ marginTop: 4 }}><strong>What it costs:</strong> a download{st.downloadBytes ? ` of about ${fmtMB(st.downloadBytes)}` : ""} from GitHub, {st.installedBytes ? `${fmtMB(st.installedBytes)} on disk` : "a few GB on disk"} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).</div>
-          <div style={{ marginTop: 4 }}><strong>Licence:</strong> free to use; it is GPL-3.0, which only matters if you redistribute it (<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">licence text</a>). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.</div>
+          <div><strong>{tr("What you get:")}</strong>{" "}{tr("rock-unit and grade models with their uncertainty (a Fast model takes about a minute).")}</div>
+          <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
+          <div style={{ marginTop: 4 }}><strong>{tr("Licence:")}</strong>{" "}{tr("free to use; it is GPL-3.0, which only matters if you redistribute it (")}<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{tr("licence text")}</a>{tr("). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.")}</div>
           {cpu?.avx === false && (
-            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>
-              Windows reports that this computer's processor has no AVX instructions. TensorFlow, which the add-on runs on, needs them, so the add-on would download and then fail to start. GeoStrix's own modelling tools (implicit surfaces, halos, grade shells, estimation) don't need it.
-            </div>
+            <div role="alert" style={{ marginTop: 8, padding: 8, borderRadius: 6, background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", color: "var(--color-warn-text)" }}>{tr("Windows reports that this computer's processor has no AVX instructions. TensorFlow, which the add-on runs on, needs them, so the add-on would download and then fail to start. GeoStrix's own modelling tools (implicit surfaces, halos, grade shells, estimation) don't need it.")}</div>
           )}
           <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
             {confirmInstall && !inst?.phase ? (
               <>
-                <span style={{ flex: 1 }}>{cpu?.avx === false ? "Download anyway?" : `Download${st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""} now?`}</span>
-                <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>Download{st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : ""}</button>
-                <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>Not now</button>
+                <span style={{ flex: 1 }}>{cpu?.avx === false ? tr("Download anyway?") : tr("Download{v} now?", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</span>
+                <button type="button" style={btn(true)} onClick={async () => { setConfirmInstall(false); setInst({ phase: "download", got: 0, total: st.downloadBytes || 0 }); const r = await addonInstall(); if (!r.ok) setInst({ error: r.error }); refresh(); }}>{tr("Download{v}", { v: st.downloadBytes ? ` ${fmtMB(st.downloadBytes)}` : "" })}</button>
+                <button type="button" style={btn(false)} onClick={() => setConfirmInstall(false)}>{tr("Not now")}</button>
               </>
             ) : inst?.phase ? (
               <>
-                <span style={{ flex: 1 }}>{inst.phase === "unpack" ? "Unpacking…" : `Downloading ${fmtMB(inst.got)} of ${fmtMB(inst.total)}`}</span>
-                {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>Cancel</button>}
+                <span style={{ flex: 1 }}>{inst.phase === "unpack" ? tr("Unpacking…") : tr("Downloading {v} of {v2}", { v: fmtMB(inst.got), v2: fmtMB(inst.total) })}</span>
+                {inst.phase === "download" && <button type="button" style={btn(false)} onClick={() => addonCancelInstall()}>{tr("Cancel")}</button>}
               </>
             ) : (
-              <button type="button" style={btn(true, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>
-                Install predictive modelling…
-              </button>
+              <button type="button" style={btn(true, !st.url && !st.browser)} disabled={!st.url} onClick={() => setConfirmInstall(true)}>{tr("Install predictive modelling…")}</button>
             )}
           </div>
-          {!st.url && !st.browser && <div style={{ marginTop: 6 }}>The add-on download isn't published for this version yet.</div>}
-          {st.browser && <div style={{ marginTop: 6 }}>In the browser preview: run the add-on by hand on port 8766 (addons/geoml/README.md).</div>}
+          {!st.url && !st.browser && <div style={{ marginTop: 6 }}>{tr("The add-on download isn't published for this version yet.")}</div>}
+          {st.browser && <div style={{ marginTop: 6 }}>{tr("In the browser preview: run the add-on by hand on port 8766 (addons/geoml/README.md).")}</div>}
           {inst?.error && <div style={{ marginTop: 6, color: "var(--color-danger-fg)" }}>{inst.error}</div>}
         </div>
       ) : (
         <>
           <div style={box}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-              <span style={{ flex: 1 }}>Quality</span>
-              <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label="Model quality" style={{ ...smallSel, flex: 2 }}>
+              <span style={{ flex: 1 }}>{tr("Quality")}</span>
+              <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label={tr("Model quality")} style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{q.label}</option>)}
               </select>
-            </div>
-            Fast takes about a minute, Detailed several. {st.dev ? "(Using a development copy of the add-on.)" : ""}
+            </div>{tr("Fast takes about a minute, Detailed several. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
           </div>
 
           <div style={box}>
             {busyJob && (
-              <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>
-                A model started earlier is still running in the add-on.{" "}
-                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, notice("geoML: the earlier model was cancelled.")]); }, (e) => setNotices((p) => [...p, errorNotice(tr("geoML: could not cancel it ({message}).", { message: e.message }))]))} style={{ ...btn(false, false), padding: "1px 7px" }}>Cancel it</button>
+              <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6 }}>{tr("A model started earlier is still running in the add-on.")}{" "}
+                <button type="button" onClick={() => cancelJob(busyJob).then(() => { setBusyJob(null); setNotices((p) => [...p, notice("geoML: the earlier model was cancelled.")]); }, (e) => setNotices((p) => [...p, errorNotice(tr("geoML: could not cancel it ({message}).", { message: e.message }))]))} style={{ ...btn(false, false), padding: "1px 7px" }}>{tr("Cancel it")}</button>
               </div>
             )}
-            <div style={h}>Model a rock unit</div>
-            {!collars.length || !lithoMetres.length ? "Load drillholes with a lithology log first." : (
+            <div style={h}>{tr("Model a rock unit")}</div>
+            {!collars.length || !lithoMetres.length ? tr("Load drillholes with a lithology log first.") : (
               <>
-                <div style={{ marginBottom: 4 }}>Codes that make up the unit:</div>
+                <div style={{ marginBottom: 4 }}>{tr("Codes that make up the unit:")}</div>
                 <div style={{ maxHeight: 150, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 5, padding: 4, background: "var(--color-bg)" }}>
                   {lithoMetres.map(([code, m]) => (
                     // TASKS.csv #687 — the "use / left out" toggle was a span INSIDE the checkbox's <label>, so one click flipped
@@ -255,37 +247,35 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                         }} />
                         <span style={{ flex: 1 }}>{code}</span><span style={{ color: "var(--color-text-muted)" }}>{Math.round(m).toLocaleString()} m</span>
                       </label>
-                      <button type="button" aria-pressed={leaveOut.has(code)} aria-label={`${leaveOut.has(code) ? "Use" : "Leave out"} ${code}`} title="Leave this code out of the model (e.g. overburden)"
+                      <button type="button" aria-pressed={leaveOut.has(code)} aria-label={`${leaveOut.has(code) ? tr("Use") : tr("Leave out")} ${code}`} title={tr("Leave this code out of the model (e.g. overburden)")}
                         onClick={() => {
                           const leaving = !leaveOut.has(code);
                           setLeaveOut((s) => { const n = new Set(s); leaving ? n.add(code) : n.delete(code); return n; });
                           if (leaving) setUnit((u) => { if (!u.has(code)) return u; const n = new Set(u); n.delete(code); return n; });
                         }}
-                        style={{ fontSize: "var(--font-size-xs)", color: leaveOut.has(code) ? "var(--color-warn-text)" : "var(--color-text-muted)", cursor: "pointer", background: "none", border: "none", padding: "0 2px", fontFamily: "inherit" }}>{leaveOut.has(code) ? "left out" : "use"}</button>
+                        style={{ fontSize: "var(--font-size-xs)", color: leaveOut.has(code) ? "var(--color-warn-text)" : "var(--color-text-muted)", cursor: "pointer", background: "none", border: "none", padding: "0 2px", fontFamily: "inherit" }}>{leaveOut.has(code) ? tr("left out") : "use"}</button>
                     </div>
                   ))}
                 </div>
-                <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder="Name (optional)" aria-label="Unit name" style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
-                <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title="geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.">
-                  <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} /> Follow folds (deep model, slower)
-                </label>
-                <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>Model {unit.size ? (unitName.trim() || [...unit].join(" + ")) : "the unit"}</button>
+                <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Unit name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
+                <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.")}>
+                  <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} />{" "}{tr("Follow folds (deep model, slower)")}</label>
+                <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>
               </>
             )}
           </div>
 
           <div style={box}>
-            <div style={h}>Model a grade</div>
+            <div style={h}>{tr("Model a grade")}</div>
             {/* TASKS.csv #677 — the one grade-estimation tool that said nothing about what its output is not */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6, lineHeight: 1.4 }}>
-              <strong>Not a resource estimate.</strong> A targeting aid with uncertainty: no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC.
-            </div>
-            {!collars.length || !elements.length ? "Load assays (Geochem tab) first." : (
+              <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("A targeting aid with uncertainty: no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC.")}</div>
+            {!collars.length || !elements.length ? tr("Load assays (Geochem tab) first.") : (
               <>
-                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label="Element" style={{ ...smallSel, width: "100%" }}>
+                <select value={element} onChange={(e) => setElement(e.target.value)} aria-label={tr("Element")} style={{ ...smallSel, width: "100%" }}>
                   {elements.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
-                <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>Model {element || "a grade"}</button>
+                <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
               </>
             )}
           </div>
@@ -297,18 +287,18 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 <div style={{ width: `${Math.round((job.progress || 0) * 100)}%`, height: "100%", background: "var(--color-accent)" }} />
               </div>
               <div>{job.message}{job.elapsed ? ` · ${Math.round(job.elapsed)} s` : ""}</div>
-              <button type="button" style={{ ...btn(false), marginTop: 6 }} onClick={() => abortRef.current?.abort()}>Cancel</button>
+              <button type="button" style={{ ...btn(false), marginTop: 6 }} onClick={() => abortRef.current?.abort()}>{tr("Cancel")}</button>
             </div>
           )}
 
           {runs.length > 0 && (
             <div style={box}>
-              <div style={h}>This session</div>
+              <div style={h}>{tr("This session")}</div>
               {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}</div>)}
             </div>
           )}
 
-          {!st.dev && <button type="button" style={{ ...btn(false, !!job), fontSize: "var(--font-size-sm)" }} disabled={!!job} onClick={async () => { if (window.confirm("Remove the predictive-modelling add-on from this computer? Models already in your project stay.")) { await addonUninstall(); refresh(); } }}>Remove the add-on</button>}
+          {!st.dev && <button type="button" style={{ ...btn(false, !!job), fontSize: "var(--font-size-sm)" }} disabled={!!job} onClick={async () => { if (window.confirm(tr("Remove the predictive-modelling add-on from this computer? Models already in your project stay."))) { await addonUninstall(); refresh(); } }}>{tr("Remove the add-on")}</button>}
         </>
       )}
     </div>

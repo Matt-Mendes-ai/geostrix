@@ -195,8 +195,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade statistics")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Univariate distribution per domain —")}{" "}{source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length })}
-              {source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : ""}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Univariate distribution per domain — {v}{v2}", { v: source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length }), v2: source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
@@ -259,16 +258,16 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
           </div>
 
           {!overallStats ? (
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No")}{" "}{symbol}{" "}{tr("values found in the loaded")}{" "}{source === "surface" ? tr("surface sample") : "assay"}{" "}{tr("data.")}</div>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No {symbol} values found in the loaded {v} data.", { symbol, v: source === "surface" ? tr("surface sample") : tr("assay") })}</div>
           ) : (
             <>
               <div>
-                <div style={label}>{tr("Distribution —")}{" "}{symbol} ({elementUnits[symbol] || "ppm"}){logScale ? tr(", log₁₀ scale") : ""}</div>
+                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
                 <Histogram data={histogram} unit={elementUnits[symbol] || "ppm"} logScale={logScale} />
               </div>
 
               <div>
-                <div style={label}>{tr("By domain —")}{" "}{groups.length}{" "}{tr(groups.length === 1 ? "group" : "groups")}</div>
+                <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
                 <BoxPlots groups={groups} domainLabel={domainLabel} />
               </div>
 

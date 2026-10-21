@@ -1,4 +1,8 @@
 import React from "react";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+
+// a string prop is translated here (callers may pass English); an element is shown as given (TASKS.csv #786)
+const trText = (x) => (typeof x === "string" ? tr(x) : x);
 
 // TASKS.csv #309 — one shared empty state for every "there's nothing here yet" screen in the app.
 //
@@ -35,20 +39,20 @@ export default function EmptyState({ icon, headline, children, actionLabel, onAc
       <div style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
-          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{headline}</div>
+          <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{trText(headline)}</div>
         </div>
         {children}
         {(actionLabel || secondary) && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {actionLabel && (
-              <button onClick={onAction} disabled={actionDisabled} title={actionTitle} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
-                {actionLabel}
+              <button onClick={onAction} disabled={actionDisabled} title={trText(actionTitle)} style={{ ...primaryBtn, cursor: actionDisabled ? "default" : "pointer", opacity: actionDisabled ? 0.6 : 1 }}>
+                {trText(actionLabel)}
               </button>
             )}
             {secondary}
           </div>
         )}
-        {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7 }}>{footnote}</div>}
+        {footnote && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 7 }}>{trText(footnote)}</div>}
       </div>
     </div>
   );

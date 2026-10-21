@@ -3,6 +3,7 @@
 // filters on every word. Reused by the Cartography tab's project CRS, layer and file tools.
 import React, { useMemo, useState } from "react";
 import { listSupportedCrs, crsName } from "../lib/reproject.js";
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const ALL = listSupportedCrs();
 const MAX_SHOWN = 60;
@@ -19,14 +20,14 @@ export default function CrsPicker({ value, onChange, label, height = 190 }) {
     <div>
       {label && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", marginBottom: 4 }}>{label}</div>}
       <div style={{ fontSize: "var(--font-size-base)", color: current ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6 }}>
-        {value ? <>{current || "Unrecognised CRS"} <span style={{ color: "var(--color-text-muted)" }}>· EPSG:{value}</span></> : "No CRS chosen"}
+        {value ? <>{current || tr("Unrecognised CRS")} <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{value}", { value })}</span></> : tr("No CRS chosen")}
       </div>
       <input
-        value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search: name, zone or EPSG code (e.g. 9N, Albers, 32722)"
-        aria-label="Search coordinate reference systems"
+        value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search: name, zone or EPSG code (e.g. 9N, Albers, 32722)")}
+        aria-label={tr("Search coordinate reference systems")}
         style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
       />
-      <div role="listbox" aria-label="Coordinate reference systems" style={{ marginTop: 4, maxHeight: height, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
+      <div role="listbox" aria-label={tr("Coordinate reference systems")} style={{ marginTop: 4, maxHeight: height, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
         {shown.map((c) => {
           const sel = Number(value) === c.code;
           return (
@@ -40,7 +41,7 @@ export default function CrsPicker({ value, onChange, label, height = 190 }) {
             </div>
           );
         })}
-        {!shown.length && <div style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>No CRS matches. GeoStrix builds only the CRSs it has verified definitions for.</div>}{/* TASKS.csv #489 adds more */}
+        {!shown.length && <div style={{ padding: "6px 8px", fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No CRS matches. GeoStrix builds only the CRSs it has verified definitions for.")}</div>}{/* TASKS.csv #489 adds more */}
       </div>
     </div>
   );

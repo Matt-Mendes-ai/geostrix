@@ -34,9 +34,9 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
       <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Lab certificates")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Lab certificates:")}{" "}{s.certificates}{" "}{tr(s.certificates === 1 ? "file" : "files")}, {s.rows.toLocaleString()}{" "}{tr("samples")}</div>
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Lab certificates: {certificates} {v}, {rows} samples", { certificates: s.certificates, v: tr(s.certificates === 1 ? "file" : "files"), rows: s.rows.toLocaleString() })}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>
-              {s.matched.toLocaleString()}{" "}{tr("matched to drill samples by sample id ·")}{" "}{s.unmatched.toLocaleString()}{" "}{tr("not in the drillhole data (QC inserts?)")}{s.labs ? ` · ${s.labs}` : ""}
+              {tr("{matched} matched to drill samples by sample id · {unmatched} not in the drillhole data (QC inserts?){v}", { matched: s.matched.toLocaleString(), unmatched: s.unmatched.toLocaleString(), v: s.labs ? ` · ${s.labs}` : "" })}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
@@ -46,12 +46,12 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
           <div style={label}>{tr("Matched samples")}</div>
           <div style={note}>
             {s.mismatchCount
-              ? <>{s.mismatchCount.toLocaleString()}{" "}{tr("value(s) differ by more than 2 % between the database and the certificates — check them before trusting either")}{s.mismatchExamples.length ? `, e.g. ${s.mismatchExamples.join("; ")}` : ""}{tr(". The database values are kept.")}</>
+              ? <>{tr("{mismatchCount} value(s) differ by more than 2 % between the database and the certificates — check them before trusting either{v}. The database values are kept.", { mismatchCount: s.mismatchCount.toLocaleString(), v: s.mismatchExamples.length ? `, e.g. ${s.mismatchExamples.join("; ")}` : "" })}</>
               : <>{tr("Every value the database shares with the certificates agrees (within 2 %).")}</>}
           </div>
           {s.fillable > 0 && (
             <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "var(--font-size-base)", margin: "6px 0 12px" }}>
-              <input type="checkbox" checked={!!review.fill} onChange={(e) => onChange({ ...review, fill: e.target.checked })} />{tr("Add the")}{" "}{s.fillable.toLocaleString()}{" "}{tr("value(s) the drill samples don't have yet (")}{s.fillElements.join(", ")}{tr(") from the certificates")}</label>
+              <input type="checkbox" checked={!!review.fill} onChange={(e) => onChange({ ...review, fill: e.target.checked })} />{tr("Add the {fillable} value(s) the drill samples don't have yet ({fillElements}) from the certificates", { fillable: s.fillable.toLocaleString(), fillElements: s.fillElements.join(", ") })}</label>
           )}
 
           <div style={{ ...label, marginTop: 10 }}>{tr("Suggested QC samples — accept or edit")}</div>
@@ -95,11 +95,11 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
               ))}
             </tbody>
           </table>
-          {shown.length > 1500 && <div style={note}>{tr("Showing the first 1,500 of")}{" "}{shown.length.toLocaleString()}{" "}{tr("— filter by type to see the rest.")}</div>}
+          {shown.length > 1500 && <div style={note}>{tr("Showing the first 1,500 of {shown} — filter by type to see the rest.", { shown: shown.length.toLocaleString() })}</div>}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)", alignItems: "center" }}>
-          <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Imports")}{" "}{toImport.toLocaleString()}{" "}{tr("QC sample(s)")}{review.fill && s.fillable ? tr(" and {fillable} missing value(s)", { fillable: s.fillable.toLocaleString() }) : ""}; {counts.unclassified}{" "}{tr("left out.")}</div>
+          <div style={{ flex: 1, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Imports {toImport} QC sample(s){v}; {unclassified} left out.", { toImport: toImport.toLocaleString(), v: review.fill && s.fillable ? tr(" and {fillable} missing value(s)", { fillable: s.fillable.toLocaleString() }) : "", unclassified: counts.unclassified })}</div>
           <button type="button" onClick={onCancel} style={btn(false)}>{tr("Cancel")}</button>
           <button type="button" onClick={onCommit} style={btn(true)} disabled={!toImport && !(review.fill && s.fillable)}>{tr("Import")}</button>
         </div>

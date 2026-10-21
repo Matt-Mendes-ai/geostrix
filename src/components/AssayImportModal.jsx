@@ -90,7 +90,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr(modal.isPxrf ? "Import pXRF: {fileName}" : "Import assays: {fileName}", { fileName: modal.fileName })}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)")} · {modal.elements.length}{" "}{tr("elements recognized")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{v} · {elements} elements recognized", { v: modal.format === "long" ? tr("Long format (row per analyte)") : tr("Wide format (column per element)"), elements: modal.elements.length })}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onCancel} />
         </div>
@@ -117,7 +117,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, marginBottom: 8 }}>
-            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements (")}{checkedCount}{" "}{tr("of")}{" "}{modal.elements.length})</div>
+            <div style={{ ...label, marginBottom: 0 }}>{tr("Elements ({checkedCount} of {elements})", { checkedCount, elements: modal.elements.length })}</div>
             <div style={{ display: "flex", gap: 8 }}>
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(true)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent)", cursor: "pointer" }}>{tr("All")}</span>
               <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAll(false)} style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }}>{tr("None")}</span>
@@ -193,7 +193,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
             {negatives.codes > 0 && (
               <div>
-                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{negatives.codes}{" "}{tr("negative value(s) between")}{" "}{NO_DATA_SENTINEL_MAX}{" "}{tr("and 0. Assays can't be negative, so these are codes. What do they mean?")}</div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{codes} negative value(s) between {NO_DATA_SENTINEL_MAX} and 0. Assays can't be negative, so these are codes. What do they mean?", { codes: negatives.codes, NO_DATA_SENTINEL_MAX })}</div>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />{tr("Below detection (-0.005 means \"<0.005\"; stored at half and flagged \"<\")")}</label>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
@@ -202,7 +202,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             )}
             {blanks > 0 && (
               <div>
-                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{blanks.toLocaleString()}{" "}{tr("empty element cell(s) in rows that have other results. What does an empty cell mean in this file?")}</div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{blanks} empty element cell(s) in rows that have other results. What does an empty cell mean in this file?", { blanks: blanks.toLocaleString() })}</div>
                 {modal.blankNote && <div style={{ color: "var(--color-text-secondary)", marginBottom: 4 }}>{modal.blankNote}</div>}{/* TASKS.csv #716 */}
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="blankmode" checked={(modal.blankMode || "missing") === "missing"} onChange={() => onChange({ ...modal, blankMode: "missing" })} />{tr("Not assayed — left out of grades (intercepts, composites, statistics) and reported as unsampled metres")}</label>
@@ -210,8 +210,8 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <input type="radio" name="blankmode" checked={modal.blankMode === "bdl"} onChange={() => onChange({ ...modal, blankMode: "bdl" })} />{tr("Below detection — stored as \"<DL\" at half the limit (the lab's most common \"<\" limit in that column, else its lowest value)")}</label>
               </div>
             )}
-            {negatives.sentinels > 0 && <div>{negatives.sentinels}{" "}{tr("value(s) at or below")}{" "}{NO_DATA_SENTINEL_MAX}{" "}{tr("(e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.")}</div>}
-            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit:")}{" "}{unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: e.unit, projectUnit: existingUnits[e.symbol] })).join(", ")}{tr(". These values will be converted to the project's unit so earlier assays keep their meaning.")}</div>}
+            {negatives.sentinels > 0 && <div>{tr("{sentinels} value(s) at or below {NO_DATA_SENTINEL_MAX} (e.g. -9999) will be treated as not assayed: they are no-data codes, not grades.", { sentinels: negatives.sentinels, NO_DATA_SENTINEL_MAX })}</div>}
+            {unitClashes.length > 0 && <div>{tr("Already in this project in another unit: {v}. These values will be converted to the project's unit so earlier assays keep their meaning.", { v: unitClashes.map((e) => tr("{symbol} (file {unit}, project {projectUnit})", { symbol: e.symbol, unit: e.unit, projectUnit: existingUnits[e.symbol] })).join(", ") })}</div>}
           </div>
         )}
 

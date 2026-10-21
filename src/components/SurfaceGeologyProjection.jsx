@@ -17,6 +17,7 @@ import { ArrowDownToLine } from "./icons.js";
 import InfoButton from "./InfoButton.jsx";
 import { extractMapContacts, STRUCTURE_CLASS_LABELS } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const DEFAULT_CLASSES = ["bedding", "foliation", "contact", "cleavage"];
 
@@ -65,28 +66,25 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
 
   return (
     <>
-      <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 5 }}>
-        Project surface geology
-        <InfoButton title="Project surface geology" width={400} text={"Takes a mapped contact between two units on an imported geology map (Maps → Map layers) below the ground.\n\nProject to depth: the contact trace is draped on the terrain and swept down-dip to the depth you set. Along the trace, the dip comes from the outcrop measurements (Surface structures) of the types ticked below within the search radius, inverse-distance weighted; where none are in range the typed dip/dip direction is used. Depth is vertical depth below the outcrop, so a shallow dip reaches further sideways.\n\nUse in implicit model: adds the draped trace as interface points, and the nearby measurements as orientations, to the next \"Implicit model\" run below — so a surface fitted to drillhole contacts also honours where the contact crops out.\n\nContacts are found where two different units' boundaries lie within the snap tolerance of each other (or one polygon lies inside another, e.g. a dyke drawn over its host). The edge of the mapped area is never treated as a contact."} />
+      <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 5 }}>{tr("Project surface geology")}<InfoButton title={tr("Project surface geology")} width={400} text={tr("Takes a mapped contact between two units on an imported geology map (Maps → Map layers) below the ground. Project to depth: the contact trace is draped on the terrain and swept down-dip to the depth you set. Along the trace, the dip comes from the outcrop measurements (Surface structures) of the types ticked below within the search radius, inverse-distance weighted; where none are in range the typed dip/dip direction is used. Depth is vertical depth below the outcrop, so a shallow dip reaches further sideways. Use in implicit model: adds the draped trace as interface points, and the nearby measurements as orientations, to the next \"Implicit model\" run below — so a surface fitted to drillhole contacts also honours where the contact crops out. Contacts are found where two different units' boundaries lie within the snap tolerance of each other (or one polygon lies inside another, e.g. a dyke drawn over its host). The edge of the mapped area is never treated as a contact.")} />
       </div>
       {!polygonLayers.length ? (
-        <div style={{ ...small, marginBottom: 10 }}>Import a polygon geology map in Maps → Map layers to project its contacts underground.</div>
+        <div style={{ ...small, marginBottom: 10 }}>{tr("Import a polygon geology map in Maps → Map layers to project its contacts underground.")}</div>
       ) : (
         <>
           <select value={layer?.id || ""} onChange={(e) => { setLayerId(e.target.value); setContactKey(""); }} style={sel}>
-            {polygonLayers.map((l) => <option key={l.id} value={l.id}>{l.name} (by {l.styleField})</option>)}
+            {polygonLayers.map((l) => <option key={l.id} value={l.id}>{tr("{name} (by {styleField})", { name: l.name, styleField: l.styleField })}</option>)}
           </select>
           <select value={contact?.key || ""} onChange={(e) => setContactKey(e.target.value)} style={sel} disabled={!contacts.length}>
-            {!contacts.length && <option value="">No contacts found between different units</option>}
+            {!contacts.length && <option value="">{tr("No contacts found between different units")}</option>}
             {contacts.map((c) => (
               <option key={c.key} value={c.key}>{labelFor(c.units[0])} | {labelFor(c.units[1])} — {c.lengthM >= 1000 ? `${(c.lengthM / 1000).toFixed(1)} km` : `${Math.round(c.lengthM)} m`}</option>
             ))}
           </select>
-          <div style={row} title="How close two units' boundaries must be to count as touching. Hand-digitized maps rarely share vertices exactly.">
-            Snap tolerance <input type="number" min={0.1} step={0.5} value={tolerance} onChange={(e) => setTolerance(e.target.value)} style={num} /> m
+          <div style={row} title={tr("How close two units' boundaries must be to count as touching. Hand-digitized maps rarely share vertices exactly.")}>{tr("Snap tolerance")}{" "}<input type="number" min={0.1} step={0.5} value={tolerance} onChange={(e) => setTolerance(e.target.value)} style={num} /> m
           </div>
 
-          <div style={{ ...small, marginBottom: 4 }}>Dip from outcrop measurements of type:</div>
+          <div style={{ ...small, marginBottom: 4 }}>{tr("Dip from outcrop measurements of type:")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
             {Object.keys(STRUCTURE_CLASS_LABELS).filter((k) => classCounts[k]).map((k) => {
               const on = classes.includes(k);
@@ -97,33 +95,28 @@ export default function SurfaceGeologyProjection({ mapLayers, surfaceStructures,
                 </span>
               );
             })}
-            {!allRows.length && <span style={small}>No surface structures imported — the typed dip below is used everywhere.</span>}
+            {!allRows.length && <span style={small}>{tr("No surface structures imported — the typed dip below is used everywhere.")}</span>}
           </div>
-          <div style={row}>
-            Search radius <input type="number" min={10} step={50} value={radius} onChange={(e) => setRadius(e.target.value)} style={num} /> m
+          <div style={row}>{tr("Search radius")}{" "}<input type="number" min={10} step={50} value={radius} onChange={(e) => setRadius(e.target.value)} style={num} /> m
           </div>
-          <div style={row} title="Used wherever no chosen measurement lies within the search radius">
-            Otherwise dip <input type="number" min={10} max={90} value={manualDip} onChange={(e) => setManualDip(e.target.value)} style={{ ...num, width: 46 }} />° toward <input type="number" min={0} max={359} value={manualDipDir} onChange={(e) => setManualDipDir(e.target.value)} style={{ ...num, width: 52 }} />°
+          <div style={row} title={tr("Used wherever no chosen measurement lies within the search radius")}>{tr("Otherwise dip")}{" "}<input type="number" min={10} max={90} value={manualDip} onChange={(e) => setManualDip(e.target.value)} style={{ ...num, width: 46 }} />{tr("° toward")}{" "}<input type="number" min={0} max={359} value={manualDipDir} onChange={(e) => setManualDipDir(e.target.value)} style={{ ...num, width: 52 }} />°
           </div>
-          <div style={row}>
-            Depth below surface <input type="number" min={10} step={50} value={depth} onChange={(e) => setDepth(e.target.value)} style={num} /> m
+          <div style={row}>{tr("Depth below surface")}{" "}<input type="number" min={10} step={50} value={depth} onChange={(e) => setDepth(e.target.value)} style={num} /> m
           </div>
           <button
             onClick={() => onProject(settings(), contact, layer, chosenRows)}
             disabled={!contact || !terrain || busy}
             style={{ ...pBtn, marginBottom: 6, opacity: contact && terrain && !busy ? 1 : 0.5, cursor: contact && terrain && !busy ? "pointer" : "default" }}
-            title={terrain ? "Build a surface by sweeping this contact down-dip" : "Needs a terrain surface to drape the contact trace on (Maps → Terrain)"}
-          ><ArrowDownToLine size={14} /> Project contact to depth</button>
+            title={terrain ? tr("Build a surface by sweeping this contact down-dip") : tr("Needs a terrain surface to drape the contact trace on (Maps → Terrain)")}
+          ><ArrowDownToLine size={14} />{" "}{tr("Project contact to depth")}</button>
           <label style={{ ...row, cursor: contact && terrain ? "pointer" : "default", opacity: contact && terrain ? 1 : 0.5 }}
-            title="Adds this contact's draped trace as interface points and the chosen nearby measurements as orientations to the next single-unit Implicit model run below">
+            title={tr("Adds this contact's draped trace as interface points and the chosen nearby measurements as orientations to the next single-unit Implicit model run below")}>
             <input type="checkbox" checked={constraintOn} disabled={!contact || !terrain}
-              onChange={(e) => setMapConstraint(e.target.checked ? settings() : null)} />
-            Use this contact in the next implicit model run
-          </label>
+              onChange={(e) => setMapConstraint(e.target.checked ? settings() : null)} />{tr("Use this contact in the next implicit model run")}</label>
           {mapConstraint && !constraintOn && (
-            <div style={{ ...small, marginBottom: 6 }}>A different mapped contact ({mapConstraint.units?.map(labelFor).join(" | ")}) is currently set for the implicit model.</div>
+            <div style={{ ...small, marginBottom: 6 }}>{tr("A different mapped contact ({v}) is currently set for the implicit model.", { v: mapConstraint.units?.map(labelFor).join(" | ") })}</div>
           )}
-          {!terrain && <div style={{ ...small, marginBottom: 8 }}>Load a terrain surface first — the contact's elevation comes from draping it on the DTM.</div>}
+          {!terrain && <div style={{ ...small, marginBottom: 8 }}>{tr("Load a terrain surface first — the contact's elevation comes from draping it on the DTM.")}</div>}
         </>
       )}
     </>

@@ -6,6 +6,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #146 — DISTANCE-TO-SURFACE / POINT-IN-DOMAIN QUERY AND REPORTING.
 //
@@ -144,41 +145,32 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 7 }}>
-            <Ruler size={14} /> Distance to surface / point-in-domain
-          </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+            <Ruler size={14} />{" "}{tr("Distance to surface / point-in-domain")}</div>
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         {!surfaces.length ? (
-          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>
-            No generated surfaces to query yet. Build one with the implicit-modelling tools on the
-            Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear
-            in this list.
-          </div>
+          <div style={{ padding: "28px 8px", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.6, maxWidth: 520 }}>{tr("No generated surfaces to query yet. Build one with the implicit-modelling tools on the Modelling tab (a lithology contact, an alteration or grade shell, a fault) and it will appear in this list.")}</div>
         ) : (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
-              <label style={rowLabel}>
-                Surface
-                <select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 210 }}>
+              <label style={rowLabel}>{tr("Surface")}<select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 210 }}>
                   {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </label>
               <div style={{ display: "flex", gap: 0, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
-                {[["holes", "Holes"], ["point", "Point"]].map(([k, label]) => (
+                {[["holes", tr("Holes")], ["point", tr("Point")]].map(([k, label]) => (
                   <button key={k} onClick={() => setTab(k)} style={{ ...tabBtn, background: tab === k ? "#e8eef8" : "transparent", color: tab === k ? "#1a4a9c" : "var(--color-text-secondary)" }}>{label}</button>
                 ))}
               </div>
               {tab === "holes" && (
-                <label style={rowLabel} title="Spacing of the closest-approach sweep along each trace. It bounds only that one number's precision — pierce depths and metres-inside are exact intersections and are unaffected. Coarser is faster.">
-                  Sweep step
-                  <select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
+                <label style={rowLabel} title={tr("Spacing of the closest-approach sweep along each trace. It bounds only that one number's precision — pierce depths and metres-inside are exact intersections and are unaffected. Coarser is faster.")}>{tr("Sweep step")}<select value={step} onChange={(e) => setStep(Number(e.target.value))} style={sel}>
                     {[0.5, 1, 2, 5].map((s) => <option key={s} value={s}>{s} m</option>)}
                   </select>
                 </label>
               )}
               {tab === "holes" && rows.length > 0 && (
-                <button onClick={exportCsv} style={{ ...exportBtn, marginLeft: "auto" }}><Download size={12} /> Export CSV</button>
+                <button onClick={exportCsv} style={{ ...exportBtn, marginLeft: "auto" }}><Download size={12} />{" "}{tr("Export CSV")}</button>
               )}
             </div>
 
@@ -187,26 +179,25 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
             {mesh && (
               <div style={mesh.closed ? goodNote : warnNote}>
                 {mesh.closed
-                  ? `This surface is watertight (${mesh.edges.toLocaleString()} edges, none open), so "metres inside" is well defined.`
-                  : `This surface is NOT closed — ${mesh.boundaryEdges.toLocaleString()} of its ${mesh.edges.toLocaleString()} edges are open, so it has no inside. Distances and pierce depths below are still exact; metres-inside is left blank rather than guessed. A draped contact or fault plane is open by nature; a shell that should be closed but isn't was probably clipped by a modelling domain or the grid boundary.`}
+                  ? tr("This surface is watertight ({edges} edges, none open), so \"metres inside\" is well defined.", { edges: mesh.edges.toLocaleString() })
+                  : tr("This surface is NOT closed — {boundaryEdges} of its {edges} edges are open, so it has no inside. Distances and pierce depths below are still exact; metres-inside is left blank rather than guessed. A draped contact or fault plane is open by nature; a shell that should be closed but isn't was probably clipped by a modelling domain or the grid boundary.", { boundaryEdges: mesh.boundaryEdges.toLocaleString(), edges: mesh.edges.toLocaleString() })}
               </div>
             )}
-            {!mesh && <div style={warnNote}>This surface's mesh is empty or degenerate — nothing to query.</div>}
+            {!mesh && <div style={warnNote}>{tr("This surface's mesh is empty or degenerate — nothing to query.")}</div>}
 
             {tab === "holes" && mesh && (
               <>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "8px 0 6px" }}>
-                  {totals.holes} hole{totals.holes === 1 ? "" : "s"} · {totals.piercing} pierce this surface
-                  {mesh.closed ? ` · ${totals.inside.toFixed(1)} m total inside` : ""}
+                  {tr("{holes} {v} · {piercing} pierce this surface{v2}", { holes: totals.holes, v: tr(totals.holes === 1 ? "hole" : "holes"), piercing: totals.piercing, v2: mesh.closed ? tr(" · {inside} m total inside", { inside: totals.inside.toFixed(1) }) : "" })}
                   {totals.piercing === 0 && totals.holes > 0 && (
-                    <span style={{ color: "#8a6d1f" }}> — no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.</span>
+                    <span style={{ color: "#8a6d1f" }}>{" "}{tr("— no hole intersects this surface at all, which is usually worth a second look at the modelling inputs.")}</span>
                   )}
                 </div>
                 <div style={{ maxHeight: "48vh", overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                   <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
                     <thead>
                       <tr>
-                        {["Hole", "Closest (m)", "at MD (m)", "Pierce points (MD)", mesh.closed ? "Inside (m)" : "Inside", "Hole length (m)"].map((h) => (
+                        {[tr("Hole"), tr("Closest (m)"), tr("at MD (m)"), tr("Pierce points (MD)"), mesh.closed ? tr("Inside (m)") : tr("Inside"), tr("Hole length (m)")].map((h) => (
                           <th key={h} style={th}>{h}</th>
                         ))}
                       </tr>
@@ -217,7 +208,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                           <td style={{ ...td, fontWeight: 600 }}>{r.hole_id}</td>
                           <td style={td}>{r.minDistance === 0 ? "0 (intersects)" : fmt(r.minDistance, 2)}</td>
                           <td style={td}>{fmt(r.atMd, 1)}</td>
-                          <td style={{ ...td, color: "var(--color-text-secondary)" }} title={r.intercepts.some((i) => i.tangential) ? "A tangential intercept touches the surface and leaves at the same depth without entering it — a real contact point, but zero metres inside." : ""}>
+                          <td style={{ ...td, color: "var(--color-text-secondary)" }} title={r.intercepts.some((i) => i.tangential) ? tr("A tangential intercept touches the surface and leaves at the same depth without entering it — a real contact point, but zero metres inside.") : ""}>
                             {r.intercepts.length ? r.intercepts.map((i) => `${i.md.toFixed(1)}${i.tangential ? " (tangential)" : ""}`).join(", ") : "—"}
                           </td>
                           <td style={td} title={r.insideIntervals.map((x) => `${x.from.toFixed(1)}–${x.to.toFixed(1)} m`).join(", ")}>
@@ -226,23 +217,19 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                           <td style={{ ...td, color: "var(--color-text-muted)" }}>{fmt(r.totalLength, 1)}</td>
                         </tr>
                       ))}
-                      {!rows.length && <tr><td style={td} colSpan={6}>No desurveyed holes — import collars and survey data first.</td></tr>}
+                      {!rows.length && <tr><td style={td} colSpan={6}>{tr("No desurveyed holes — import collars and survey data first.")}</td></tr>}
                     </tbody>
                   </table>
                 </div>
-                <div style={hint}>
-                  Closest approach is the true point-to-triangle distance (nearest face, edge or vertex —
-                  not just the nearest mesh vertex). Rows that intersect the surface are highlighted and
-                  report 0. Hover an "Inside" cell for the individual intercept intervals.
-                </div>
+                <div style={hint}>{tr("Closest approach is the true point-to-triangle distance (nearest face, edge or vertex — not just the nearest mesh vertex). Rows that intersect the surface are highlighted and report 0. Hover an \"Inside\" cell for the individual intercept intervals.")}</div>
               </>
             )}
 
             {tab === "point" && mesh && (
               <div style={{ display: "flex", gap: 18, alignItems: "flex-start", marginTop: 6 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 220 }}>
-                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>Real-world coordinates (same frame as your collars)</div>
-                  {[["Easting (X)", ptX, setPtX], ["Northing (Y)", ptY, setPtY], ["Elevation (Z)", ptZ, setPtZ]].map(([label, v, set]) => (
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Real-world coordinates (same frame as your collars)")}</div>
+                  {[[tr("Easting (X)"), ptX, setPtX], [tr("Northing (Y)"), ptY, setPtY], [tr("Elevation (Z)"), ptZ, setPtZ]].map(([label, v, set]) => (
                     <label key={label} style={rowLabel}>
                       {label}
                       <input value={v} onChange={(e) => set(e.target.value)} style={{ ...sel, fontFamily: "monospace" }} placeholder="0" />
@@ -251,23 +238,19 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
                 </div>
                 <div style={{ flex: 1, minWidth: 300 }}>
                   {!pointResult ? (
-                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", padding: "20px 0", lineHeight: 1.6 }}>
-                      Enter all three coordinates to query. The result is the exact distance to the nearest
-                      point on the surface{mesh.closed ? ", signed negative when the point is inside it" : " (this surface is open, so there is no inside to report)"}.
-                    </div>
+                    <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", padding: "20px 0", lineHeight: 1.6 }}>{tr("Enter all three coordinates to query. The result is the exact distance to the nearest point on the surface{v}.", { v: mesh.closed ? tr(", signed negative when the point is inside it") : tr(" (this surface is open, so there is no inside to report)") })}</div>
                   ) : (
                     <div style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "10px 12px", fontSize: "var(--font-size-base)", lineHeight: 1.9, color: "var(--color-text)" }}>
-                      <div><b>Distance to surface:</b> {pointResult.distance.toFixed(3)} m</div>
+                      <div><b>{tr("Distance to surface:")}</b> {pointResult.distance.toFixed(3)} m</div>
                       {mesh.closed ? (
                         <>
-                          <div><b>Position:</b> {pointResult.inside ? <span style={{ color: "#1c7a3e" }}>INSIDE</span> : <span style={{ color: "#8a4b1f" }}>outside</span>}</div>
-                          <div><b>Signed distance:</b> {pointResult.signed.toFixed(3)} m <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>(negative = inside)</span></div>
+                          <div><b>{tr("Position:")}</b> {pointResult.inside ? <span style={{ color: "#1c7a3e" }}>{tr("INSIDE")}</span> : <span style={{ color: "#8a4b1f" }}>{tr("outside")}</span>}</div>
+                          <div><b>{tr("Signed distance:")}</b> {pointResult.signed.toFixed(3)} m <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("(negative = inside)")}</span></div>
                         </>
                       ) : (
-                        <div style={{ color: "#8a6d1f" }}>Inside/outside is not defined for an open surface.</div>
+                        <div style={{ color: "#8a6d1f" }}>{tr("Inside/outside is not defined for an open surface.")}</div>
                       )}
-                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e0e3e8", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-                        Nearest point on surface: {pointResult.worldNearest.x.toFixed(1)}, {pointResult.worldNearest.y.toFixed(1)}, {pointResult.worldNearest.z.toFixed(1)}
+                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #e0e3e8", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Nearest point on surface: {x}, {y}, {z}", { x: pointResult.worldNearest.x.toFixed(1), y: pointResult.worldNearest.y.toFixed(1), z: pointResult.worldNearest.z.toFixed(1) })}
                       </div>
                     </div>
                   )}

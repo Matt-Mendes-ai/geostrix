@@ -14,6 +14,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const SECTION_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "mnlgy", "magsusc", "structure"];
 
@@ -52,31 +53,27 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Layers3 size={18} style={{ color: "var(--color-text-secondary)" }} />
-            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>
-              Edit {sectionCount === 1 ? "section" : `${sectionCount} sections`}
+            <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Edit {v}", { v: sectionCount === 1 ? tr("section") : tr("{sectionCount} sections", { sectionCount }) })}
             </div>
           </div>
-          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label="Close" size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-            Choose what {sectionCount === 1 ? "this section" : "these sections"} actually {sectionCount === 1 ? "shows" : "show"} when reopened — by default every section shows everything currently visible in the 3D view, which can pull in unrelated content (e.g. a large terrain profile behind a section meant to show one voxel model).
-          </div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tr("Choose what {v} actually {v2} when reopened — by default every section shows everything currently visible in the 3D view, which can pull in unrelated content (e.g. a large terrain profile behind a section meant to show one voxel model).", { v: sectionCount === 1 ? tr("this section") : tr("these sections"), v2: sectionCount === 1 ? tr("shows") : tr("show") })}</div>
 
           <div>
-            <label style={{ ...field, marginBottom: 6 }}>
-              Corridor width (m) {sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>— leave blank to keep each section's own width</span>}
+            <label style={{ ...field, marginBottom: 6 }}>{tr("Corridor width (m)")}{" "}{sectionCount > 1 && <span style={{ color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("— leave blank to keep each section's own width")}</span>}
             </label>
-            <input type="number" min="0" value={corridor} onChange={(e) => setCorridor(e.target.value)} placeholder={sectionCount > 1 ? "(unchanged)" : ""} style={inp} />
+            <input type="number" min="0" value={corridor} onChange={(e) => setCorridor(e.target.value)} placeholder={sectionCount > 1 ? tr("(unchanged)") : ""} style={inp} />
           </div>
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <span style={field}>Layers</span>
+              <span style={field}>{tr("Layers")}</span>
               <div style={{ display: "flex", gap: 8 }}>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(true)} style={linkText}>All</span>
-                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(false)} style={linkText}>None</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(true)} style={linkText}>{tr("All")}</span>
+                <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllLayers(false)} style={linkText}>{tr("None")}</span>
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, maxHeight: 180, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -92,10 +89,10 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
           {(voxelModels || []).length > 0 && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={field}>Voxel / block models</span>
+                <span style={field}>{tr("Voxel / block models")}</span>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(true)} style={linkText}>All</span>
-                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(false)} style={linkText}>None</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(true)} style={linkText}>{tr("All")}</span>
+                  <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllVoxels(false)} style={linkText}>{tr("None")}</span>
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto", padding: 4, border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -111,20 +108,17 @@ export default function SectionEditModal({ sectionCount, initialCorridor, voxelM
 
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showTerrain} onChange={(e) => setShowTerrain(e.target.checked)} /> Terrain elevation profile
-            </label>
+              <input type="checkbox" checked={showTerrain} onChange={(e) => setShowTerrain(e.target.checked)} />{" "}{tr("Terrain elevation profile")}</label>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showCustomLayers} onChange={(e) => setShowCustomLayers(e.target.checked)} /> Custom CSV layers
-            </label>
+              <input type="checkbox" checked={showCustomLayers} onChange={(e) => setShowCustomLayers(e.target.checked)} />{" "}{tr("Custom CSV layers")}</label>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>
-              <input type="checkbox" checked={showAssays} onChange={(e) => setShowAssays(e.target.checked)} /> Assays
-            </label>
+              <input type="checkbox" checked={showAssays} onChange={(e) => setShowAssays(e.target.checked)} />{" "}{tr("Assays")}</label>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
-          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>Cancel</button>
-          <button onClick={save} style={{ ...btn(true), flex: 2 }}>Save</button>
+          <button onClick={onClose} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
+          <button onClick={save} style={{ ...btn(true), flex: 2 }}>{tr("Save")}</button>
         </div>
       </div>
     </div>

@@ -39,9 +39,13 @@ export const currentLanguage = () => current;
 // For tests (and the dictionary checks): use this dictionary directly.
 export function useDictionary(code, d) { current = code; dict = d; }
 
+// Dev builds only: every key the dictionary lacks is collected in window.__i18nMissing, so a walk through the app in
+// Spanish lists the text that arrives at t() at run time (props, tables) and that no literal scan can find.
+const missing = typeof window !== "undefined" && import.meta.env?.DEV ? (window.__i18nMissing = new Set()) : null;
+
 export function t(text, vars) {
   let out = text;
-  if (dict && typeof text === "string") { const tr = dict[text]; if (tr) out = tr; }
+  if (dict && typeof text === "string") { const tr = dict[text]; if (tr) out = tr; else if (missing && /[A-Za-z]{2}/.test(text)) missing.add(text); }
   if (vars && typeof out === "string") out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   return out;
 }

@@ -8,6 +8,7 @@ import { Plus, Trash2, Pencil } from "./icons.js";
 import { cleanTrend, describeTrend, DEFAULT_TREND, planeFromPoles, poleOf, planeFromPoints } from "../lib/trend.js";
 import { fisherStats, fabricShape } from "../lib/stereonet.js"; // TASKS.csv #672
 import { fitPlane } from "../lib/vein.js"; // TASKS.csv #672 — planarity / collinearity
+import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export const TREND_USERS = [
   ["implicit", "Geology models (implicit surfaces, stacks)"], // stack faults follow the stack's trend
@@ -46,9 +47,9 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   const [msg, setMsg] = useState(null);
   const tryApply = (next) => {
     const r = { max: Number(next.max), int: Number(next.int), min: Number(next.min) };
-    if (![r.max, r.int, r.min].every((v) => Number.isFinite(v) && v > 0)) { setMsg("Each ratio must be a number above zero — not applied yet."); return; }
+    if (![r.max, r.int, r.min].every((v) => Number.isFinite(v) && v > 0)) { setMsg(tr("Each ratio must be a number above zero — not applied yet.")); return; }
     if (!(r.max >= r.int && r.int >= r.min)) {
-      setMsg(`Not applied yet: the ratios must go Maximum ≥ Intermediate ≥ Minimum (now ${r.max} : ${r.int} : ${r.min}). Leapfrog lists its values per axis — if its largest one is the in-plane axis across the pitch, enter it as Maximum and add 90° to the pitch.`);
+      setMsg(tr("Not applied yet: the ratios must go Maximum ≥ Intermediate ≥ Minimum (now {max} : {int} : {min}). Leapfrog lists its values per axis — if its largest one is the in-plane axis across the pitch, enter it as Maximum and add 90° to the pitch.", { max: r.max, int: r.int, min: r.min }));
       return;
     }
     setMsg(null);
@@ -56,7 +57,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   };
   const box = (key, label) => (
     <label style={field}>{label}
-      <input type="number" step="any" min="0.01" value={vals[key]} aria-label={`${trend.name} ratio ${label}`} style={{ ...inputStyle, width: "100%" }}
+      <input type="number" step="any" min="0.01" value={vals[key]} aria-label={tr("{name} ratio {label}", { name: trend.name, label })} style={{ ...inputStyle, width: "100%" }}
         onChange={(e) => setVals((v) => ({ ...v, [key]: e.target.value }))}
         onBlur={() => tryApply(vals)}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { setVals({ ...trend.ratios }); setMsg(null); } }} />
@@ -64,7 +65,7 @@ function RatiosEditor({ trend, onApply, field, inputStyle, small }) {
   );
   return (
     <>
-      <div style={{ display: "flex", gap: 6, marginBottom: msg ? 2 : 6 }}>{box("max", "Maximum")}{box("int", "Intermediate")}{box("min", "Minimum")}</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: msg ? 2 : 6 }}>{box("max", tr("Maximum"))}{box("int", tr("Intermediate"))}{box("min", tr("Minimum"))}</div>
       {msg && <div role="status" style={{ ...small, color: "var(--color-warn-text)", marginBottom: 6 }}>{msg}</div>}
     </>
   );
@@ -104,7 +105,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       const st = picks.length >= 2 ? fisherStats(picks) : null;
       const fab = st ? fabricShape(st.s1, st.s2, st.s3, picks.length) : null;
       if (fab && picks.length >= 4 && fab.shape === "girdle") {
-        setNote({ id: t.id, text: `Not set: the ${picks.length} ${key} picks form a girdle (spread along a great circle — a fold), so a single mean plane is not a real orientation. Filter to one fold limb in the Stereonet first, or use the fold axis.` });
+        setNote({ id: t.id, text: tr("Not set: the {picks} {key} picks form a girdle (spread along a great circle — a fold), so a single mean plane is not a real orientation. Filter to one fold limb in the Stereonet first, or use the fold axis.", { picks: picks.length, key }) });
         return;
       }
       const quality = st ? ` (S1 ${st.s1.toFixed(2)}, α95 ${st.alpha95.toFixed(1)}°, ${picks.length < 4 ? "too few picks to judge the shape" : fab.shape})` : "";
@@ -118,14 +119,14 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       // refusal for points along one line, where the plane could rotate freely about it. A sphere, a fold or a closed
       // shell all used to return a confident dip.
       const fit = pts.length >= 3 ? fitPlane(pts) : null;
-      if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: `Not set: the points of ${s?.name || "this surface"} lie along a single line, so no plane is fixed by them.` }); return; }
+      if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: tr("Not set: the points of {v} lie along a single line, so no plane is fixed by them.", { v: s?.name || tr("this surface") }) }); return; }
       const closed = /shell|envelope|halo|solid/i.test(`${s?.type || ""} ${s?.name || ""}`);
       const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
       what = `the best-fit plane of ${s?.name || "the surface"}${rough != null ? ` (RMS off the plane ${(rough * 100).toFixed(0)}% of its extent${rough > 0.25 ? " — far from planar: this surface is not well described by one plane" : ""})` : ""}${closed ? " — a closed shell: this is its flattening plane, not a contact" : ""}`;
     }
-    if (!plane) { setNote({ id: t.id, text: "Not enough data to fit a plane." }); return; }
+    if (!plane) { setNote({ id: t.id, text: tr("Not enough data to fit a plane.") }); return; }
     update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10 });
-    setNote({ id: t.id, text: `Dip ${plane.dip.toFixed(1)}° → ${plane.dipAzimuth.toFixed(1)}° from ${what}. Pitch and ratios unchanged.` });
+    setNote({ id: t.id, text: tr("Dip {dip}° → {dipAzimuth}° from {what}. Pitch and ratios unchanged.", { dip: plane.dip.toFixed(1), dipAzimuth: plane.dipAzimuth.toFixed(1), what }) });
   };
 
   const field = { display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" };
@@ -135,9 +136,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
 
   return (
     <div>
-      <div style={{ ...small, marginBottom: 8 }}>
-        A trend is the direction the geology is most continuous in: a plane (dip, dip azimuth), the line of greatest continuity within it (pitch, measured in the plane from the strike direction — dip azimuth − 90°, right-hand rule — towards down dip: 90° = down dip, 0° and 180° are the two strike ends) and how much more continuous it is along that line than across it (ratios). The plunge and trend of that line are shown under each trend. Each kind of model below can follow one.
-      </div>
+      <div style={{ ...small, marginBottom: 8 }}>{tr("A trend is the direction the geology is most continuous in: a plane (dip, dip azimuth), the line of greatest continuity within it (pitch, measured in the plane from the strike direction — dip azimuth − 90°, right-hand rule — towards down dip: 90° = down dip, 0° and 180° are the two strike ends) and how much more continuous it is along that line than across it (ratios). The plunge and trend of that line are shown under each trend. Each kind of model below can follow one.")}</div>
       {trends.map((t) => {
         const editing = editId === t.id;
         return (
@@ -147,23 +146,23 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                 <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
                 <div style={small}>{describeTrend(t)}</div>
               </div>
-              {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} style={{ ...btnStyle, width: "auto", padding: "2px 7px", marginBottom: 0 }} title="Show this trend's plane and ellipsoid in the 3D view">{viewingId === t.id ? "Hide" : "View"}</button>}
-              <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), `Edit ${t.name}`)} />
-              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { if (window.confirm(`Delete trend "${t.name}"? Models using it will no longer follow a trend.`)) remove(t.id); }, `Delete ${t.name}`)} />
+              {onView && <button type="button" onClick={() => onView(viewingId === t.id ? null : t)} style={{ ...btnStyle, width: "auto", padding: "2px 7px", marginBottom: 0 }} title={tr("Show this trend's plane and ellipsoid in the 3D view")}>{viewingId === t.id ? tr("Hide") : tr("View")}</button>}
+              <Pencil size={14} style={{ cursor: "pointer", color: editing ? "var(--color-accent)" : "var(--color-text-secondary)" }} {...iconAction(() => setEditId(editing ? null : t.id), tr("Edit {name}", { name: t.name }))} />
+              <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { if (window.confirm(tr("Delete trend \"{name}\"? Models using it will no longer follow a trend.", { name: t.name }))) remove(t.id); }, tr("Delete {name}", { name: t.name }))} />
             </div>
             {editing && (
               <div style={{ marginTop: 6 }}>
-                <input value={t.name} onChange={(e) => update(t.id, { name: e.target.value })} aria-label="Trend name" style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }} />
+                <input value={t.name} onChange={(e) => update(t.id, { name: e.target.value })} aria-label={tr("Trend name")} style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }} />
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={field}>Dip°{num(t, "dip", { min: 0, max: 90 })}</label>
-                  <label style={field}>Dip azimuth°{num(t, "dipAzimuth", { min: 0, max: 360 })}</label>
-                  <label style={field}>Pitch°{num(t, "pitch", { min: 0, max: 180 })}</label>
+                  <label style={field}>{tr("Dip°{v}", { v: num(t, "dip", { min: 0, max: 90 }) })}</label>
+                  <label style={field}>{tr("Dip azimuth°{v}", { v: num(t, "dipAzimuth", { min: 0, max: 360 }) })}</label>
+                  <label style={field}>{tr("Pitch°{v}", { v: num(t, "pitch", { min: 0, max: 180 }) })}</label>
                 </div>
                 <RatiosEditor key={t.id} trend={t} onApply={(r) => update(t.id, { ratios: r })} field={field} inputStyle={inputStyle} small={small} />
-                <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label="Set the plane from" style={{ ...inputStyle, width: "100%" }}>
-                  <option value="">Set the plane from…</option>
-                  {codes.length > 0 && <optgroup label="Structure measurements (mean)">{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}
-                  {(surfaces || []).length > 0 && <optgroup label="Generated surface (best-fit plane)">{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{s.name}</option>)}</optgroup>}
+                <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label={tr("Set the plane from")} style={{ ...inputStyle, width: "100%" }}>
+                  <option value="">{tr("Set the plane from…")}</option>
+                  {codes.length > 0 && <optgroup label={tr("Structure measurements (mean)")}>{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}
+                  {(surfaces || []).length > 0 && <optgroup label={tr("Generated surface (best-fit plane)")}>{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{s.name}</option>)}</optgroup>}
                 </select>
                 {note?.id === t.id && <div style={{ ...small, marginTop: 4 }}>{note.text}</div>}
               </div>
@@ -171,15 +170,15 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
           </div>
         );
       })}
-      <button type="button" onClick={add} style={{ ...btnStyle, marginBottom: 10 }}><Plus size={14} /> New trend</button>
+      <button type="button" onClick={add} style={{ ...btnStyle, marginBottom: 10 }}><Plus size={14} />{" "}{tr("New trend")}</button>
       {trends.length > 0 && (
         <>
-          <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>Used by</div>
+          <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Used by")}</div>
           {TREND_USERS.map(([tool, label]) => (
             <label key={tool} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
               <span style={{ flex: 1, minWidth: 0 }}>{label}</span>
-              <select value={use[tool] || ""} onChange={(e) => setUse(tool, e.target.value)} aria-label={`Trend for ${label}`} style={{ ...inputStyle, width: 130 }}>
-                <option value="">No trend</option>
+              <select value={use[tool] || ""} onChange={(e) => setUse(tool, e.target.value)} aria-label={tr("Trend for {label}", { label })} style={{ ...inputStyle, width: 130 }}>
+                <option value="">{tr("No trend")}</option>
                 {trends.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </label>
