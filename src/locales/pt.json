@@ -4795,5 +4795,12 @@
   "Loaded {n} legend group from \"{name}\".": "{n} grupo de legenda carregado de \"{name}\".",
   "Loaded {n} legend groups from \"{name}\".": "{n} grupos de legenda carregados de \"{name}\".",
   "Colour scale": "Escala de cores",
-  "Group heading": "Título de grupo"
+  "Group heading": "Título de grupo",
+  "Fit to the drilling": "Ajustar à sondagem",
+  "Match {name} ({dx} × {dy} × {dz} m)": "Igualar {name} ({dx} × {dy} × {dz} m)",
+  "Origin (E, N, RL)…": "Origem (E, N, cota)…",
+  "Origin {axis}": "Origem {axis}",
+  "Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.": "Ajustar à sondagem: a caixa dos furos com análises mais a margem, como antes. Igualar um modelo de blocos: o tamanho de célula e a origem dele, para que os blocos desta estimativa coincidam exatamente com os desse modelo e os dois possam ser comparados ou combinados bloco a bloco. Origem: o tamanho de célula acima, com os cantos dos blocos em um E / N / cota digitado.",
+  "Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.": "Blocos em uma rede com cantos em {e}, {n}, {z} (E, N, cota), {dx} × {dy} × {dz} m: a caixa da sondagem é ampliada até blocos inteiros.",
+  "Type all three origin coordinates; until then the grid fits the drilling.": "Digite as três coordenadas da origem; até lá a grade se ajusta à sondagem."
 }

@@ -40,3 +40,28 @@ export const ESTIMATION_METHODS = [
   { id: "ok", label: "Ordinary kriging", exact: true, blurb: "Weights the composites by the variogram (how fast grade stops being alike with distance) and by how they cluster, so a tight group of holes does not count as many independent ones. Gives a kriging variance per block: how well the samples' layout constrains that block under the variogram, not how wrong the grade may be. Point kriging at the block centre; no block discretization." },
   { id: "mls1", label: "Moving least squares (linear)", exact: true, blurb: "Fits a local plane through the neighbourhood instead of averaging it, so it reproduces a genuine grade TREND across a dipping unit rather than flattening into the bullseyes IDW produces around each hole. Falls back to IDW² where the local geometry is degenerate (e.g. all samples down one hole), and is clamped to the local sample range so a fitted plane can never extrapolate a grade the data never saw." },
 ];
+
+// TASKS.csv #724 — a block model's regular lattice: its cell size and an origin its block corners sit on, read from its
+// cells (x / y / z centres, dx / dy / dz). null when the cells are not one regular grid (mixed sizes, e.g. a merged or
+// octree model, or centres off the lattice) — matching it would not line the centroids up.
+export function blockModelLattice(model) {
+  const cells = model?.cells;
+  if (!cells?.length) return null;
+  const c0 = cells[0];
+  const { dx, dy, dz } = c0;
+  if (![dx, dy, dz].every((d) => Number.isFinite(d) && d > 0)) return null;
+  const ox = c0.x - dx / 2, oy = c0.y - dy / 2, oz = c0.z - dz / 2;
+  const off = (v, o, d) => { const k = (v - o) / d - 0.5; return Math.abs(k - Math.round(k)); };
+  const step = Math.max(1, Math.floor(cells.length / 2000)); // a sample is enough
+  for (let i = 0; i < cells.length; i += step) {
+    const c = cells[i];
+    if (Math.abs(c.dx - dx) > 1e-6 * dx || Math.abs(c.dy - dy) > 1e-6 * dy || Math.abs(c.dz - dz) > 1e-6 * dz) return null;
+    if (off(c.x, ox, dx) > 1e-3 || off(c.y, oy, dy) > 1e-3 || off(c.z, oz, dz) > 1e-3) return null;
+  }
+  return { dx, dy, dz, ox, oy, oz };
+}
+// The box grown outward to whole cells of the lattice: block centres then coincide with the lattice's centres.
+export function snapBoundsToLattice(b, L) {
+  const lo = (v, o, d) => o + Math.floor((v - o) / d + 1e-9) * d, hi = (v, o, d) => o + Math.ceil((v - o) / d - 1e-9) * d;
+  return { xmin: lo(b.xmin, L.ox, L.dx), xmax: hi(b.xmax, L.ox, L.dx), ymin: lo(b.ymin, L.oy, L.dy), ymax: hi(b.ymax, L.oy, L.dy), zmin: lo(b.zmin, L.oz, L.dz), zmax: hi(b.zmax, L.oz, L.dz) };
+}

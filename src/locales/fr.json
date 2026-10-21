@@ -4795,5 +4795,12 @@
   "Loaded {n} legend group from \"{name}\".": "{n} groupe de légende chargé depuis « {name} ».",
   "Loaded {n} legend groups from \"{name}\".": "{n} groupes de légende chargés depuis « {name} ».",
   "Colour scale": "Échelle de couleurs",
-  "Group heading": "Titre de groupe"
+  "Group heading": "Titre de groupe",
+  "Fit to the drilling": "Ajuster aux forages",
+  "Match {name} ({dx} × {dy} × {dz} m)": "Aligner sur {name} ({dx} × {dy} × {dz} m)",
+  "Origin (E, N, RL)…": "Origine (E, N, cote)…",
+  "Origin {axis}": "Origine {axis}",
+  "Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.": "Ajuster aux forages : la boîte des sondages analysés plus la marge, comme avant. Aligner sur un modèle de blocs : sa taille de cellule et son origine, pour que les blocs de cette estimation tombent exactement sur ceux de ce modèle et que les deux puissent être comparés ou fusionnés bloc à bloc. Origine : la taille de cellule ci-dessus, avec les coins des blocs sur un E / N / cote saisi.",
+  "Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.": "Blocs sur un réseau aux coins en {e}, {n}, {z} (E, N, cote), {dx} × {dy} × {dz} m : la boîte des forages est agrandie jusqu'à des blocs entiers.",
+  "Type all three origin coordinates; until then the grid fits the drilling.": "Saisissez les trois coordonnées de l'origine ; d'ici là la grille s'ajuste aux forages."
 }

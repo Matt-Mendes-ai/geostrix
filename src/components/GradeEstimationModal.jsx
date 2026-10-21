@@ -5,7 +5,7 @@ import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
-import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -29,7 +29,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
+  const { desurveyMethod, voxelModels } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -101,6 +101,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
 
   const [padding, setPadding] = useState(25);
   const [cellSize, setCellSize] = useState(10);
+  // TASKS.csv #724 — the grid: "data" (the drilling's box + padding, as before), "model:<id>" (an existing block model's
+  // cell size and origin, so the estimate's centroids coincide with it), or "origin" (the cell size above on a typed origin)
+  const [gridMode, setGridMode] = useState("data");
+  const [originE, setOriginE] = useState(""); const [originN, setOriginN] = useState(""); const [originZ, setOriginZ] = useState("");
+  const latticeModels = useMemo(() => (voxelModels || []).map((m) => ({ m, L: blockModelLattice(m) })).filter((x) => x.L), [voxelModels]);
   // TASKS.csv #626 — block budget, as the grade shell's (#625): a per-computer preference, 200,000 by default
   const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_MODEL_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
   const setBlockBudget = (v) => { setBlockBudgetState(v); try { localStorage.setItem("geostrix.estimateBlockBudget", String(v)); } catch { /* private window */ } };
@@ -139,21 +144,27 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     return (Math.sqrt(variance) / mean) * 100;
   }, [srcAssays, symbol]);
 
-  const bounds = gridBox ? { // #521 — the traces' box (collar box only as a fallback)
+  const matched = gridMode.startsWith("model:") ? latticeModels.find((x) => x.m.id === gridMode.slice(6)) || null : null;
+  const originOk = [originE, originN, originZ].every((v) => v !== "" && Number.isFinite(Number(v)));
+  const lattice = matched ? matched.L : gridMode === "origin" && originOk ? { dx: cellSize, dy: cellSize, dz: cellSize, ox: Number(originE), oy: Number(originN), oz: Number(originZ) } : null;
+  const cell3 = lattice ? { dx: lattice.dx, dy: lattice.dy, dz: lattice.dz } : { dx: cellSize, dy: cellSize, dz: cellSize };
+  const dataBounds = gridBox ? { // #521 — the traces' box (collar box only as a fallback)
     xmin: gridBox.xmin - padding, xmax: gridBox.xmax + padding,
     ymin: gridBox.ymin - padding, ymax: gridBox.ymax + padding,
     zmin: gridBox.zmin - padding, zmax: gridBox.zmax + padding,
   } : null;
+  const bounds = dataBounds && lattice ? snapBoundsToLattice(dataBounds, lattice) : dataBounds; // #724
   const gridPreview = bounds ? {
-    nx: Math.max(1, Math.round((bounds.xmax - bounds.xmin) / cellSize)),
-    ny: Math.max(1, Math.round((bounds.ymax - bounds.ymin) / cellSize)),
-    nz: Math.max(1, Math.round((bounds.zmax - bounds.zmin) / cellSize)),
+    nx: Math.max(1, Math.round((bounds.xmax - bounds.xmin) / cell3.dx)),
+    ny: Math.max(1, Math.round((bounds.ymax - bounds.ymin) / cell3.dy)),
+    nz: Math.max(1, Math.round((bounds.zmax - bounds.zmin) / cell3.dz)),
   } : null;
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
   const gridDiagonalM = bounds ? Math.round(Math.hypot(bounds.xmax - bounds.xmin, bounds.ymax - bounds.ymin, bounds.zmax - bounds.zmin)) : 0; // #710: what radius 0 becomes
   const overLimit = totalBlocksPreview > blockBudget; // #626
-  const fitCell = overLimit && bounds ? cellToFit(bounds, blockBudget, cellSize) : null;
-  const fitCellMax = overLimit && bounds && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
+  const cellLabel = matched ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size
+  const fitCell = overLimit && bounds && !matched ? cellToFit(bounds, blockBudget, cellSize) : null; // a matched model's cell size is not ours to change
+  const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
 
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
@@ -215,7 +226,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         );
         const ac = new AbortController(); abortRef.current = ac;
         const est = await runEstimation("block", points, {
-          bounds, cellSize: { dx: cellSize, dy: cellSize, dz: cellSize }, maxBlocks: blockBudget, // #626
+          bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
@@ -226,7 +237,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         const params = {
-          tool: "Grade estimation", element: symbol, method, cellSizeM: cellSize, paddingM: padding,
+          tool: "Grade estimation", element: symbol, method, cellSizeM: matched ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
+          ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
@@ -264,7 +276,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   // in the project's model list months later.
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;
-    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
     onAddModel({
       name: `${base} — Data Support Index (geometric, not a confidence)`,
       source: `support-index-${method}`,
@@ -276,14 +288,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   // TASKS.csv #709 — the kriging variance as its own block model, named so it can't be read as an error bar on grade
   const addKvModel = () => {
     if (!result || !result.cells.length) return;
-    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
     const cells = result.cells.filter((c) => Number.isFinite(c.kv)).map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.kv, nSamples: c.nSamples, nHoles: c.nHoles }));
     onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
     setAddedKv(true);
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
-    const name = modelName.trim() || `${symbol} estimate (${method}, ${cellSize}m)`;
+    const name = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
     // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
     let gMin = Infinity, gMax = -Infinity;
     for (const c of result.cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
@@ -411,9 +423,21 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title={tr("Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.")}>{tr("Padding around collars (m)")}<input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={cellSize} onChange={(e) => setCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={inp} />
+            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => setCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={inp} />
             </label>
+            <label style={fieldLabel} title={tr("Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.")}>{tr("Grid")}
+              <select value={gridMode} onChange={(e) => setGridMode(e.target.value)} style={inp}>
+                <option value="data">{tr("Fit to the drilling")}</option>
+                {latticeModels.map(({ m, L }) => <option key={m.id} value={`model:${m.id}`}>{tr("Match {name} ({dx} × {dy} × {dz} m)", { name: m.name, dx: L.dx, dy: L.dy, dz: L.dz })}</option>)}
+                <option value="origin">{tr("Origin (E, N, RL)…")}</option>
+              </select>
+            </label>
+            {gridMode === "origin" && [[originE, setOriginE, "E"], [originN, setOriginN, "N"], [originZ, setOriginZ, "RL"]].map(([v, set, lbl]) => (
+              <label key={lbl} style={fieldLabel}>{tr("Origin {axis}", { axis: lbl })}<input type="number" step="any" value={v} onChange={(e) => set(e.target.value)} style={{ ...inp, width: 110 }} /></label>
+            ))}
           </div>
+          {lattice && bounds && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.", { e: +lattice.ox.toFixed(3), n: +lattice.oy.toFixed(3), z: +lattice.oz.toFixed(3), dx: cell3.dx, dy: cell3.dy, dz: cell3.dz })}</div>}
+          {gridMode === "origin" && !originOk && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Type all three origin coordinates; until then the grid fits the drilling.")}</div>}
 
           {/* TASKS.csv #91/#92 — data support classification. */}
           <div>
@@ -523,7 +547,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               )}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                  <input placeholder={tr("{symbol} estimate ({method}, {cellSize}m)", { symbol, method, cellSize })} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
+                  <input placeholder={tr("{symbol} estimate ({method}, {cellSize}m)", { symbol, method, cellSize: cellLabel })} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
                   <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : tr("Add as block model")}</button>
                 </div>
               )}
