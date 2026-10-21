@@ -12,6 +12,21 @@
 //   save(v)        optional: compact form written to the file / autosave
 //   load(data)     optional: read the value from a payload (default: data[key] || empty())
 import { f32ToB64, b64ToF32 } from "./inversion.js";
+
+// TASKS.csv #796 — a High / Very high detail terrain (up to 1025 x 1025 nodes) as JSON numbers is ~10 MB of text;
+// as Float32 base64 it is 5.6 MB and exact to Float32 (~0.1 mm at 1,000 m). Grids up to the Standard 200 x 200 keep
+// the plain array, so those files stay as they were.
+const TERRAIN_COMPACT_MIN = 201 * 201;
+export function compactTerrain(t) {
+  if (!t || !t.elevations || t.elevations.length < TERRAIN_COMPACT_MIN) return t;
+  const { elevations, ...rest } = t;
+  return { ...rest, elevationsF32: f32ToB64(elevations) };
+}
+export function expandTerrain(t) {
+  if (!t || !t.elevationsF32) return t ?? null;
+  const { elevationsF32, ...rest } = t;
+  return { ...rest, elevations: Array.from(b64ToF32(elevationsF32)) };
+}
 import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #374
 import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers } from "./compactTable.js"; // TASKS.csv #555
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
@@ -31,7 +46,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
 // v12 (TASKS.csv #650) adds structuralTrends (named trends + which trend each model uses).
 // v13 (TASKS.csv #660) compacts estimated / geoML / imported voxel models too (compactCells.keys names the columns).
-export const PROJECT_VERSION = 13; // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v14 (TASKS.csv #796) stores a terrain bigger than the Standard 200 x 200 as Float32 base64 (terrain.elevationsF32).
+export const PROJECT_VERSION = 14; // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -183,7 +199,7 @@ export const FIELDS = [
   { key: "structuralTrends", track: "undo", empty: () => ({ trends: [], use: {} }),
     load: (data) => ({ trends: [], use: {}, ...(data.structuralTrends || {}) }) },
   { key: "omfObjects", track: "undo", empty: list },
-  { key: "terrain", track: "dirty", empty: () => null },
+  { key: "terrain", track: "dirty", empty: () => null, save: compactTerrain, load: (data) => expandTerrain(data.terrain) }, // TASKS.csv #796
   // Geophysics point-cloud legend (pre-#122 files have none): display preferences.
   { key: "geophysPtsStops", track: "view", empty: list },
   { key: "geophysPtsColorMode", track: "view", empty: () => "continuous" },

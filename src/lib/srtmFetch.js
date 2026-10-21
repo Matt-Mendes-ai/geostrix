@@ -223,7 +223,7 @@ export async function findBetterUtmZone(collars, epsg, misfit) {
 // reprojects into targetEpsg the same way parseDEMFiles does for a geographic source, and returns the
 // same shape: { name, bbox, gridW, gridH, elevations, reprojectedTo, reprojectNote, tileCount, zoom }.
 // onProgress(done, total) is called after each tile finishes downloading, for a progress indicator.
-export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress }) {
+export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetEpsg, onProgress, gridMax = GRID_MAX }) { // gridMax: TASKS.csv #796 terrain detail
   if (!(Number.isFinite(lonMin) && Number.isFinite(latMin) && Number.isFinite(lonMax) && Number.isFinite(latMax))) {
     throw new Error(tr("Invalid area — couldn't determine a bounding box to fetch."));
   }
@@ -265,9 +265,11 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
 
   // Resample onto a regular lon/lat grid over exactly the requested area (#726: at pixel centres, in Mercator Y)
   const nwLL = tileXYToLonLat(nw.x, nw.y, zoom), seLL = tileXYToLonLat(se.x + 1, se.y + 1, zoom);
-  const aspect = (lonMax - lonMin) / Math.max(1e-12, latMax - latMin);
-  const gridW = aspect >= 1 ? GRID_MAX : Math.max(2, Math.round(GRID_MAX * aspect));
-  const gridH = aspect >= 1 ? Math.max(2, Math.round(GRID_MAX / aspect)) : GRID_MAX;
+  // TASKS.csv #796 — in ground distance: a degree of longitude is cos(latitude) of a degree of latitude, so a square
+  // area at 52°N used to get 200 x 124 nodes (cells 60% longer north-south than east-west)
+  const aspect = ((lonMax - lonMin) * Math.cos(((latMin + latMax) / 2) * (Math.PI / 180))) / Math.max(1e-12, latMax - latMin);
+  const gridW = aspect >= 1 ? gridMax : Math.max(2, Math.round(gridMax * aspect));
+  const gridH = aspect >= 1 ? Math.max(2, Math.round(gridMax / aspect)) : gridMax;
   const spikes = despikeMosaic(mosaic, mw, mh); // #799 — isolated source spikes / pits, before averaging
   const raw = resampleElevationMosaic(mosaic, mw, mh, { lonMin: nwLL.lon, latMin: seLL.lat, lonMax: seLL.lon, latMax: nwLL.lat }, { lonMin, latMin, lonMax, latMax }, gridW, gridH);
 

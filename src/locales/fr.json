@@ -4823,5 +4823,11 @@
   "VTK (legacy) — opens in ParaView and PyVista": "VTK (hérité) — s'ouvre dans ParaView et PyVista",
   "VTK": "VTK",
   "Export block model \"{name}\" as VTK": "Exporter le modèle de blocs « {name} » en VTK",
-  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "Exporter en VTK pour ParaView / PyVista (les blocs vides valent NaN)"
+  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "Exporter en VTK pour ParaView / PyVista (les blocs vides valent NaN)",
+  "Terrain detail": "Détail du terrain",
+  "Nodes along the terrain's longer side, for the next fetch or import. High and Very high are drawn as an adaptive mesh: many triangles where the ground is rough, few where it is smooth, about 110,000 to 160,000 in all.": "Nœuds le long du plus grand côté du terrain, pour le prochain téléchargement ou import. Élevé et Très élevé sont dessinés en maillage adaptatif : beaucoup de triangles là où le relief est accidenté, peu là où il est lisse, environ 110 000 à 160 000 au total.",
+  "Standard (200 nodes)": "Standard (200 nœuds)",
+  "High (513 nodes)": "Élevé (513 nœuds)",
+  "Very high (1,025 nodes)": "Très élevé (1 025 nœuds)",
+  "Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.": "Terrain plus fin pour le prochain téléchargement ou import : environ {mb} Mo en mémoire, {mb2} Mo dans le fichier du projet, et jusqu'à une seconde pour construire le maillage."
 }

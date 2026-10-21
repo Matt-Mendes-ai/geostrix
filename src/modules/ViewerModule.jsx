@@ -16,6 +16,11 @@ import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
+import { buildAdaptiveTerrain } from "../lib/terrainMesh.js"; // TASKS.csv #796
+// TASKS.csv #796 — grids above this many nodes are drawn as an adaptive mesh (the Standard 200 x 200 never is);
+// the mesh is cached per terrain object, so a re-centred scene does not rebuild it
+const ADAPTIVE_TERRAIN_NODES = 90000;
+const adaptiveTerrainCache = new WeakMap();
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
@@ -5439,6 +5444,34 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // drape above) since every vertex here has an independently meaningful world position, not just a
     // displaced flat grid — keeps the row/column -> world -> scene mapping explicit and easy to check
     // against parseDEM's own row-0-is-north convention.
+    const mask = decodeNoDataMask(terrain.noDataMask);
+    if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
+      // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
+      let am = adaptiveTerrainCache.get(terrain);
+      if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null); adaptiveTerrainCache.set(terrain, am); }
+      const nv = am.vertexIds.length;
+      const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
+      for (let n = 0; n < nv; n++) {
+        const idx = am.vertexIds[n], i = idx % gridW, j = (idx - i) / gridW;
+        positions[n * 3] = xmin + (i / (gridW - 1)) * (xmax - xmin) - ox;
+        positions[n * 3 + 1] = elevations[idx] - oz;
+        positions[n * 3 + 2] = -(ymax - (j / (gridH - 1)) * (ymax - ymin) - oy);
+        uvs[n * 2] = i / (gridW - 1);
+        uvs[n * 2 + 1] = 1 - j / (gridH - 1);
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+      geometry.setIndex(new THREE.BufferAttribute(am.indices, 1));
+      geometry.computeVertexNormals();
+      geometry.userData.adaptive = { triangles: am.triangles, maxError: am.maxError, nodes: gridW * gridH };
+      const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.visible = terrain.visible !== false;
+      group.add(mesh);
+      terrainMeshRef.current = mesh;
+      return;
+    }
     const positions = new Float32Array(gridW * gridH * 3);
     const uvs = new Float32Array(gridW * gridH * 2);
     for (let j = 0; j < gridH; j++) {
@@ -5456,7 +5489,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     const indices = [];
     // TASKS.csv #421 — leave out every triangle touching a no-data node (filled only for sampling).
-    const mask = decodeNoDataMask(terrain.noDataMask);
     for (let j = 0; j < gridH - 1; j++) {
       for (let i = 0; i < gridW - 1; i++) {
         const a = j * gridW + i, b = a + 1, c = a + gridW, d = c + 1;

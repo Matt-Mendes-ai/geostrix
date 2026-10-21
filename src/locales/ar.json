@@ -4823,5 +4823,11 @@
   "VTK (legacy) — opens in ParaView and PyVista": "VTK (القديم) — يُفتح في ParaView وPyVista",
   "VTK": "VTK",
   "Export block model \"{name}\" as VTK": "تصدير نموذج الكتل «{name}» كـ VTK",
-  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "تصدير كـ VTK لـ ParaView / PyVista (الكتل الفارغة NaN)"
+  "Export as VTK for ParaView / PyVista (empty blocks are NaN)": "تصدير كـ VTK لـ ParaView / PyVista (الكتل الفارغة NaN)",
+  "Terrain detail": "دقة التضاريس",
+  "Nodes along the terrain's longer side, for the next fetch or import. High and Very high are drawn as an adaptive mesh: many triangles where the ground is rough, few where it is smooth, about 110,000 to 160,000 in all.": "عدد العُقد على الضلع الأطول للتضاريس، للجلب أو الاستيراد التالي. يُرسم الخياران «عالية» و«عالية جدًا» كشبكة تكيفية: مثلثات كثيرة حيث الأرض وعرة وقليلة حيث هي ملساء، نحو 110,000 إلى 160,000 مثلث إجمالًا.",
+  "Standard (200 nodes)": "قياسية (200 عقدة)",
+  "High (513 nodes)": "عالية (513 عقدة)",
+  "Very high (1,025 nodes)": "عالية جدًا (1,025 عقدة)",
+  "Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.": "تضاريس أدق للجلب أو الاستيراد التالي: نحو {mb} ميغابايت في الذاكرة و{mb2} ميغابايت في ملف المشروع، وحتى ثانية واحدة لبناء الشبكة."
 }

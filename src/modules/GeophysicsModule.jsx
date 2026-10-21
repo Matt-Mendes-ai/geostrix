@@ -136,6 +136,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const [demCrop, setDemCrop] = useState(true); // TASKS.csv #422 — crop DEM imports to the drillholes
   const [demCropBuffer, setDemCropBuffer] = useState("2000");
   const [srtmProgress, setSrtmProgress] = useState(null); // { done, total } | null
+  // TASKS.csv #796 — nodes on the terrain's long side for the next fetch / import; a per-computer preference
+  // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
+  const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
+  const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
   const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
@@ -302,7 +306,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // TASKS.csv #422 — crop to the drillholes (+ buffer) unless the user wants the whole tile.
       const cc = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
       const cropTo = demCrop && cc.length ? (() => { const xs = cc.map((c) => c.x), ys = cc.map((c) => c.y); const b = Math.max(1000, Number(demCropBuffer) || 2000); return [arrMin(xs) - b, arrMin(ys) - b, arrMax(xs) + b, arrMax(ys) + b]; })() : null;
-      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
+      const parsed = await parseDEMFiles(files, project?.epsg, demSourceEpsg.trim() || null, { cropTo, gridMax: terrainDetail, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: files[0]?.name || "the DEM" }) }); // override: #419; chooser: #607
       const [xmin, ymin, xmax, ymax] = parsed.bbox;
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: parsed.name }))) {
         setTerrainBusy(false);
@@ -438,7 +442,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setSrtmProgress({ done: 0, total: 1 });
     try {
       const parsed = await fetchSRTMTerrain({
-        lonMin, latMin, lonMax, latMax, targetEpsg,
+        lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
       });
       // TASKS.csv #614 — collars hundreds of metres off the fetched ground: is the project in the wrong UTM zone?
@@ -1150,6 +1154,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
           </label>
         )}
+        {/* TASKS.csv #796 — terrain detail */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>
+          <select value={terrainDetail} onChange={(e) => setTerrainDetail(Number(e.target.value))} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Terrain detail")}
+            title={tr("Nodes along the terrain's longer side, for the next fetch or import. High and Very high are drawn as an adaptive mesh: many triangles where the ground is rough, few where it is smooth, about 110,000 to 160,000 in all.")}>
+            <option value={200}>{tr("Standard (200 nodes)")}</option>
+            <option value={513}>{tr("High (513 nodes)")}</option>
+            <option value={1025}>{tr("Very high (1,025 nodes)")}</option>
+          </select>
+        </div>
+        {terrainDetail > 200 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Finer ground for the next fetch or import: about {mb} MB in memory, {mb2} MB in the project file, and up to a second to build the mesh.", { mb: terrainDetail > 600 ? 9 : 2, mb2: terrainDetail > 600 ? 6 : 1.5 })}</div>}
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={() => terrainInput.current.click()} style={{ ...pBtn, flex: 1 }} disabled={terrainBusy}>
             {terrainBusy && !srtmProgress ? <Loader2 size={14} className="spin" /> : <Mountain size={14} />} {terrainBusy && !srtmProgress ? tr("Reading…") : terrain ? tr("Replace terrain…") : tr("Import SRTM/DEM…")}

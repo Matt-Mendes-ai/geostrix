@@ -297,7 +297,7 @@ function isGeographicGeoKeys(geoKeys) {
 // when the window is resampled, the new nodes are the centres of the resampled pixels over the window's
 // area.
 const DEM_READ_MAX = 800;
-async function readDemTile(file, crop = null) {
+async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -320,7 +320,7 @@ async function readDemTile(file, crop = null) {
     if (c1 <= c0 || r1 <= r0) return null; // this tile doesn't reach the crop area
   }
   const winW = c1 - c0 + 1, winH = r1 - r0 + 1;
-  const scale = Math.min(1, DEM_READ_MAX / Math.max(winW, winH));
+  const scale = Math.min(1, readMax / Math.max(winW, winH));
   const srcW = Math.max(2, Math.round(winW * scale)), srcH = Math.max(2, Math.round(winH * scale));
   const resampled = srcW !== winW || srcH !== winH;
   const rasters = await readRastersCapped(tiff, image, { window: [c0, r0, c1 + 1, r1 + 1], ...(resampled ? { width: srcW, height: srcH, resampleMethod: "bilinear" } : {}) }, `"${file.name}"`); // #561
@@ -369,7 +369,7 @@ async function peekDemTile(file) {
 // it lines up with the rest of the project instead of landing at raw lon/lat coordinates. Returns
 // { name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH, elevations, srcWidth, srcHeight, epsgTag,
 // reprojectedTo, reprojectNote, tileCount } or throws with a message meant to be shown directly.
-export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null } = {}) {
+export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null, { cropTo = null, chooseProjectEpsg = null, gridMax = DEM_MAX_GRID } = {}) { // gridMax: TASKS.csv #796
   const list = Array.from(files || []).filter(Boolean);
   if (!list.length) throw new Error(tr("No file selected."));
   const tiles = [];
@@ -389,7 +389,7 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
         crop = [arrMin(xs) - padX, arrMin(ys) - padY, arrMax(xs) + padX, arrMax(ys) + padY];
       }
     }
-    const t = await readDemTile(file, crop);
+    const t = await readDemTile(file, crop, Math.max(DEM_READ_MAX, Math.ceil(gridMax * 1.6))); // #796: read finer for a finer grid
     if (t) tiles.push(t);
   }
   if (!tiles.length) throw new Error(tr("None of these DEM tiles overlaps the drillhole area — untick 'Crop to the drillholes' to import them whole, or check the source CRS."));
@@ -412,8 +412,8 @@ export async function parseDEMFiles(files, targetEpsg, sourceEpsgOverride = null
   // widens the longitude spacing near the poles, but the bbox itself is still ~1°x1°) regardless of
   // how many tiles are merged, same "keep it renderable" budget parseDEM always used.
   const aspect = (xmax - xmin) / Math.max(1e-12, ymax - ymin);
-  const gridW = aspect >= 1 ? DEM_MAX_GRID : Math.max(2, Math.round(DEM_MAX_GRID * aspect));
-  const gridH = aspect >= 1 ? Math.max(2, Math.round(DEM_MAX_GRID / aspect)) : DEM_MAX_GRID;
+  const gridW = aspect >= 1 ? gridMax : Math.max(2, Math.round(gridMax * aspect));
+  const gridH = aspect >= 1 ? Math.max(2, Math.round(gridMax / aspect)) : gridMax;
 
   // Mosaic: for each output cell, sample whichever tile's own bbox contains that world point (real
   // tile sets like SRTM are edge-matched, so there's no blending needed at the seam between tiles).
