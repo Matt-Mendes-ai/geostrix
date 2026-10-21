@@ -40,7 +40,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | You fetch terrain | `s3.amazonaws.com/elevation-tiles-prod` | Download public SRTM/Terrarium elevation tiles |
 | You fetch imagery for a spectral index | `earth-search.aws.element84.com`, `sentinel-cogs.s3.us-west-2.amazonaws.com`, `planetarycomputer.microsoft.com`, `astersa.blob.core.windows.net` | Search the public Sentinel-2 / ASTER catalogues for your area (the area's bounding box is sent) and download that window of the image |
 | On startup (can be turned off in the Help menu), and via *Help → Check for Updates* | `github.com`, then `release-assets.githubusercontent.com` (GitHub's download server, which github.com redirects to) | Check whether a newer release exists, and download it if you choose to update |
-| You click *Install* in the Predictive tab | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
+| You click *Install predictive modelling…* (3D Modelling tab → geoML models) | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
 | You connect to a database | The host **you** enter | Query your own PostgreSQL database |
 | You add a WMS / WMTS / WFS layer | The server **you** enter | Fetch the layer you requested |
 
