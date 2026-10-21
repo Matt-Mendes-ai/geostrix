@@ -249,7 +249,53 @@ export async function getProj4Def(epsg) {
 // "British_Columbia_Albers") rather than fully parsing the WKT grammar. Returns null (not a guess) if
 // nothing recognizable matches — same "can't help, here's why" fallback as everything else here; a
 // wrong auto-detected EPSG would be worse than the status quo of asking the user to enter it manually.
+// TASKS.csv #727 — a NAME match is only accepted when the .prj's own projection, parameters and linear unit agree
+// with the matched code's definition (what QGIS / PROJ match on): a "NAD_1983_UTM_Zone_10N" carrying zone 9's
+// central meridian, or a UTM name in US feet, is refused (null: the user picks the CRS) rather than read as zone 10
+// metres. Only parameters both sides state are compared. An explicit EPSG authority code (#419) is still trusted.
+const PRJ_PARAM_KEYS = { CENTRALMERIDIAN: "lon0", LONGITUDEOFCENTER: "lon0", LONGITUDEOFORIGIN: "lon0", FALSEEASTING: "x0", FALSENORTHING: "y0", SCALEFACTOR: "k", LATITUDEOFORIGIN: "lat0", LATITUDEOFCENTER: "lat0", STANDARDPARALLEL1: "lat1", STANDARDPARALLEL2: "lat2" };
+const PRJ_FAMILY = [[/TRANSVERSE_MERCATOR|GAUSS_KRUGER/, ["utm", "tmerc"]], [/ALBERS/, ["aea"]], [/LAMBERT_CONFORMAL_CONIC/, ["lcc"]], [/MERCATOR/, ["merc"]]];
+export function prjParamsMismatch(wkt, code) {
+  const def = getProj4DefSync(code);
+  const w = String(wkt || "").toUpperCase();
+  if (!def || !w.includes("PROJCS")) return null; // geographic: the datum name decided, nothing to cross-check
+  const proj = /\+proj=(\w+)/.exec(def)?.[1];
+  const num = (k) => { const m = new RegExp(`\\+${k}=(-?[\\d.eE+-]+)`).exec(def); return m ? Number(m[1]) : null; };
+  const zone = num("zone");
+  const exp = proj === "utm" ? { lon0: -183 + 6 * zone, x0: 500000, y0: /\+south/.test(def) ? 10000000 : 0, k: 0.9996, lat0: 0 }
+    : { lon0: num("lon_0"), x0: num("x_0"), y0: num("y_0"), k: num("k") ?? num("k_0"), lat0: num("lat_0"), lat1: num("lat_1"), lat2: num("lat_2") };
+  const expUnit = /\+units=us-ft/.test(def) ? 0.3048006096012192 : /\+units=ft/.test(def) ? 0.3048 : num("to_meter") ?? 1;
+  const projName = /PROJECTION\[\s*"([^"]+)"/.exec(w)?.[1];
+  if (projName) {
+    const fam = PRJ_FAMILY.find(([re]) => re.test(projName));
+    if (fam && !fam[1].includes(proj)) return `projection ${projName} is not ${proj}`;
+  }
+  const lastParam = w.lastIndexOf("PARAMETER[");
+  const unitM = lastParam >= 0 ? /UNIT\[\s*"[^"]*"\s*,\s*([\d.eE+-]+)/.exec(w.slice(lastParam)) : null;
+  const unit = unitM ? Number(unitM[1]) : 1;
+  if (Math.abs(unit / expUnit - 1) > 1e-6) return `linear unit ${unit} m, not ${expUnit}`;
+  for (const m of w.matchAll(/PARAMETER\[\s*"([^"]+)"\s*,\s*(-?[\d.eE+-]+)\s*\]/g)) {
+    const key = PRJ_PARAM_KEYS[m[1].replace(/[^A-Z0-9]/g, "")];
+    if (!key || exp[key] == null) continue;
+    let v = Number(m[2]);
+    if (key === "x0" || key === "y0") v *= unit; // false easting / northing are in the file's linear unit
+    const tol = key === "x0" || key === "y0" ? 0.01 : key === "k" ? 1e-7 : 1e-6;
+    if (!(Math.abs(v - exp[key]) <= tol)) return `${m[1]} ${v} vs ${exp[key]}`;
+  }
+  return null;
+}
 export function guessEpsgFromPrjWkt(wkt) {
+  const auth = /(?:AUTHORITY|ID)\[\s*"EPSG"/i.test(String(wkt || ""));
+  const code = guessEpsgFromPrjName(wkt);
+  if (!code) return null;
+  if (auth && code === guessEpsgFromAuthority(wkt)) return code; // #419: the file says its code
+  return prjParamsMismatch(wkt, code) ? null : code;
+}
+function guessEpsgFromAuthority(wkt) {
+  const auth = [...String(wkt).toUpperCase().matchAll(/(?:AUTHORITY|ID)\[\s*"EPSG"\s*,\s*"?(\d{4,5})"?\s*\]/g)].map((m) => Number(m[1]));
+  return auth.length && getProj4DefSync(auth[auth.length - 1]) ? auth[auth.length - 1] : null;
+}
+function guessEpsgFromPrjName(wkt) {
   if (!wkt || typeof wkt !== "string") return null;
   const w = wkt.toUpperCase();
   // TASKS.csv #419 — an explicit EPSG code wins over name-sniffing. In WKT1 the outermost CRS's

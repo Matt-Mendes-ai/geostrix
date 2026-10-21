@@ -212,6 +212,7 @@ async function wfsGetFeature(baseUrl, params) {
   if (contentType.includes("xml")) throw Object.assign(new Error(parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || tr("Server rejected the feature request — check the layer name.")), { serverRejected: true });
   try { return JSON.parse(bodyText); } catch { throw new Error(tr("Server didn't return valid GeoJSON — it may not support OUTPUTFORMAT=application/json (try a different layer, or this server may need GML support this app doesn't have).")); }
 }
+const WFS_NORTHING_FIRST = new Set([2193]); // projected CRSs in this app whose EPSG axis order is northing, easting
 export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEpsg, maxFeatures = 2000, clipBboxLonLat = null }) {
   const base = { SERVICE: "WFS", REQUEST: "GetFeature", VERSION: "2.0.0", TYPENAMES: typeName, OUTPUTFORMAT: "application/json", COUNT: maxFeatures };
   let areaProj = null;
@@ -225,9 +226,13 @@ export async function fetchWfsFeaturesAsBoundary({ baseUrl, typeName, projectEps
   const projected = projectEpsg && ![4326, 4269, 4617, 4258, 4283].includes(Number(projectEpsg));
   if (projected) {
     try {
+      // TASKS.csv #727 — the urn form makes a server honour the EPSG axis order, which for NZTM (2193) is northing
+      // first: the BBOX would select nothing and the features come back swapped. For such a CRS the plain
+      // "EPSG:n" form (easting, northing, as servers have always read it) is asked for instead.
+      const crs = WFS_NORTHING_FIRST.has(Number(projectEpsg)) ? `EPSG:${projectEpsg}` : `urn:ogc:def:crs:EPSG::${projectEpsg}`;
       geojson = await wfsGetFeature(baseUrl, {
-        ...base, SRSNAME: `urn:ogc:def:crs:EPSG::${projectEpsg}`,
-        ...(areaProj ? { BBOX: `${areaProj.join(",")},urn:ogc:def:crs:EPSG::${projectEpsg}` } : {}),
+        ...base, SRSNAME: crs,
+        ...(areaProj ? { BBOX: `${areaProj.join(",")},${crs}` } : {}),
       });
       askedEpsg = Number(projectEpsg); usedServerFilter = !!areaProj;
     } catch (err) {
