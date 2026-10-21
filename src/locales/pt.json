@@ -4790,5 +4790,10 @@
   "Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.": "Ao longo da tendência \"{name}\": sem raio, a busca alcança a diagonal da grade ({d} m) ao longo da tendência, mas só {v} × {v2} m através dela ({v3}); uma amostra mais distante através da tendência fica de fora.",
   "GeoPackage export: unsupported geometry type \"{type}\".": "Exportação GeoPackage: tipo de geometria não suportado \"{type}\".",
   "Structural zones": "Zonas estruturais",
-  "Intensity (optional)": "Intensidade (opcional)"
+  "Intensity (optional)": "Intensidade (opcional)",
+  "Nothing that view shows has a legend: its theme has no visible category layer, assay classes or block model.": "Nada do que essa vista mostra tem legenda: o tema dela não tem camada de categorias visível, classes de análise nem modelo de blocos.",
+  "Loaded {n} legend group from \"{name}\".": "{n} grupo de legenda carregado de \"{name}\".",
+  "Loaded {n} legend groups from \"{name}\".": "{n} grupos de legenda carregados de \"{name}\".",
+  "Colour scale": "Escala de cores",
+  "Group heading": "Título de grupo"
 }

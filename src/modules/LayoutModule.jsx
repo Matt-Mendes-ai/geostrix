@@ -7,7 +7,8 @@ import { savePDF } from "../lib/desktop.js";
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
-import { colorForLithology, UNIT_NAMES, distinctValues, minMax } from "../lib/layers.js";
+import { minMax, LAYER_META } from "../lib/layers.js";
+import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -62,6 +63,7 @@ export default function LayoutModule() {
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
     layers, collars, sections, project,
+    assays, assayElements, voxelModels, // TASKS.csv #725 — the legend loads assay classes and block-model keys too
     // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
     // every time Enter/Refresh switches away to the 3D View tab and back.
@@ -162,7 +164,7 @@ export default function LayoutModule() {
       // way viewport snapshots already carry worldHeightAtTarget.
       // legendItems (cross-section snapshots only — see SectionWindow.jsx's snapshotToLayout and
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
-      // section, so a legend bound to this image (see syncLegendLithologies below) can match it
+      // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
       return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null };
     });
@@ -456,7 +458,7 @@ export default function LayoutModule() {
   // ViewerModule itself uses to decide what's on screen — see captureCurrentTheme there) against the
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
-  const syncLegendLithologies = (legendId) => {
+  const syncLegendFromView = (legendId) => {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
     if (!legend.boundViewportId) { setSyncNotice(tr("Pick a bound viewport or cross-section above first.")); return; }
@@ -478,18 +480,22 @@ export default function LayoutModule() {
 
     const theme = themes.find((t) => t.id === vp.themeId);
     if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
-    const lithoVisible = theme.layerVisible ? theme.layerVisible.litho !== false : true;
-    if (!lithoVisible) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("The Lithology layer was hidden in that view's theme, so there's nothing to load — show it in the 3D Viewer, resave the theme, and sync again.")); return; }
-    const hidden = new Set(theme.categoryFilter?.litho || []);
-    const rows = layers?.litho || [];
-    if (!rows.length) { setSyncNotice(tr("No lithology data is loaded in this project yet.")); return; }
-    const items = distinctValues(rows)
-      .map(([v]) => v)
-      .filter((v) => !hidden.has(v))
-      .map((v) => [UNIT_NAMES[v] || v, colorForLithology(v)]);
-    if (!items.length) { setSyncNotice(tr("Every lithology unit is filtered out in that view's theme — nothing to show.")); return; }
+    // TASKS.csv #725 — everything the bound view draws, not only lithology: every categorical layer the theme shows
+    // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
+    // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
+    const ov = theme.legendOverride || {};
+    const labelFor = (k, v) => ov[k]?.[v]?.label || (LAYER_META[k].nameFn ? LAYER_META[k].nameFn(v) || v : v);
+    const colorFor = (k, v) => ov[k]?.[v]?.color || LAYER_META[k].colorFn(v);
+    const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
+    const groups = [
+      ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, labelFor, colorFor }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
+      ...voxelLegendGroups(voxelModels),
+    ];
+    const items = legendGroupsToItems(groups);
+    if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("Nothing that view shows has a legend: its theme has no visible category layer, assay classes or block model.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
-    setSyncNotice(tr(items.length === 1 ? "Loaded {items} lithology unit from \"{name}\"." : "Loaded {items} lithology units from \"{name}\".", { items: items.length, name: theme.name }));
+    setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name }));
   };
 
   // TASKS.csv #78 — drag-and-drop as a consistent import method. Layout's own "asset" is an image
@@ -664,17 +670,19 @@ export default function LayoutModule() {
                     ))}
                   </select>
                 </label>
-                <button onClick={() => syncLegendLithologies(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
+                <button onClick={() => syncLegendFromView(sel.id)} disabled={!sel.boundViewportId} style={{ ...pBtn, opacity: sel.boundViewportId ? 1 : 0.5 }}>
                   <RefreshCw size={12} />{" "}{tr("Load from view / section")}</button>
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
-                {sel.items.map(([name, color], i) => (
+                {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                    <input type="color" value={color} onChange={(e) => {
-                      const items = sel.items.map((it, j) => j === i ? [it[0], e.target.value] : it);
-                      updateSelected({ items });
-                    }} style={{ width: 24, height: 24, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", flexShrink: 0 }} />
+                    {opt?.heading || opt?.ramp /* TASKS.csv #725 — a group heading or a ramp has no single colour */
+                      ? <span title={opt.ramp ? tr("Colour scale") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
+                      : <input type="color" value={color} onChange={(e) => {
+                        const items = sel.items.map((it, j) => j === i ? [it[0], e.target.value, ...it.slice(2)] : it);
+                        updateSelected({ items });
+                      }} style={{ width: 24, height: 24, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", flexShrink: 0 }} />}
                     <input value={name} onChange={(e) => {
-                      const items = sel.items.map((it, j) => j === i ? [e.target.value, it[1]] : it);
+                      const items = sel.items.map((it, j) => j === i ? [e.target.value, ...it.slice(1)] : it);
                       updateSelected({ items });
                     }} style={{ ...inp, marginBottom: 0, flex: 1 }} />
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -1267,7 +1275,15 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
       <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
-      {el.items.map(([name, color], i) => (
+      {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
+        <div key={i} style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "#444", margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
+      ) : opt?.ramp ? ( /* a block model's continuous scale */
+        <div key={i} style={{ marginBottom: 4 }}>
+          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "#444", marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
+          <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
+          <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: "var(--font-size-sm)", color: "#222" }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
+        </div>
+      ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
           <span style={{ width: 14, height: 14, background: color, display: "inline-block", border: "1px solid #999" }} />
           <span style={{ fontSize: "var(--font-size-base)", color: "#222" }}>{name}</span>

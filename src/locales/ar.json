@@ -4790,5 +4790,10 @@
   "Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.": "على طول الاتجاه «{name}»: دون نصف قطر يبلغ البحث قطر الشبكة ({d} م) على طول الاتجاه لكن {v} × {v2} م فقط عبره ({v3})؛ وتُستبعد العينة الأبعد عبر الاتجاه.",
   "GeoPackage export: unsupported geometry type \"{type}\".": "تصدير GeoPackage: نوع هندسة غير مدعوم «{type}».",
   "Structural zones": "النطاقات البنيوية",
-  "Intensity (optional)": "الشدة (اختياري)"
+  "Intensity (optional)": "الشدة (اختياري)",
+  "Nothing that view shows has a legend: its theme has no visible category layer, assay classes or block model.": "لا شيء مما يعرضه ذلك العرض له مفتاح: سمته بلا طبقة فئات مرئية ولا فئات تحاليل ولا نموذج كتل.",
+  "Loaded {n} legend group from \"{name}\".": "حُمّل {n} مجموعة مفتاح من «{name}».",
+  "Loaded {n} legend groups from \"{name}\".": "حُمّلت {n} مجموعات مفتاح من «{name}».",
+  "Colour scale": "مقياس الألوان",
+  "Group heading": "عنوان المجموعة"
 }

@@ -78,7 +78,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { legendScale } from "../lib/legendScale.js"; // TASKS.csv #498
+import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
@@ -86,7 +86,7 @@ import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #5
 import { unitShell, meshVolume } from "../lib/unitVolumes.js"; // TASKS.csv #517
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
-import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES, CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
+import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
@@ -155,7 +155,7 @@ function uint8ToBase64(bytes) {
 // TASKS.csv #227 (continuation) — the layer keys whose geometry is one plain THREE.Mesh per row
 // (buildIntervalTube/buildPointMarkers/the structure loop), and therefore support the cheap post-hoc
 // visibility/color passes below instead of a full rebuild for a categoryFilter/legendOverride change.
-const CATEGORY_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "litho_gc", "alt_gc", "mnlgy", "structure"];
+const CATEGORY_LAYER_KEYS = LEGEND_CATEGORY_KEYS; // TASKS.csv #725 — one list, shared with the Layout legend
 
 // TASKS.csv #434 — back-to-front re-sort of a transparent voxel model's instances, run (throttled) while
 // the camera orbits. The old version did a comparator sort of all cells plus two new Vector3 and a colour
@@ -364,7 +364,7 @@ function collarColorFor(bg) {
 //     package (the bundled harry_property assay_wide.csv has 14), so a full package now gets a
 //     distinguishable colour per element instead of wrapping at 8.
 // Verification numbers and the simulation are written up in this row's TASKS.csv notes.
-const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map((i) => CATEGORICAL_SAFE_COLORS[i]);
+// (ASSAY_ELEMENT_COLORS now lives in lib/legendGroups.js, shared with the Layout legend: TASKS.csv #725)
 
 // User request: "change the assay legend — change colour, size, recategorize, ignore values lower
 // than". `style` is one entry of the assayStyle state (or undefined for "never customized" — every
@@ -376,14 +376,7 @@ const ASSAY_ELEMENT_COLORS = [0, 1, 2, 3, 4, 5, 6, 7, 11, 14, 15, 8, 10, 13].map
 // as a QGIS graduated-symbol renderer. A value above every break's max still gets a color (the last
 // break's, rather than falling through to nothing) since an unclassified high outlier disappearing
 // from the view would be a worse surprise than it being lumped into the top class.
-function assayColorFor(value, idx, style) {
-  if (style?.breaks?.length) {
-    const sorted = style.breaks; // stored pre-sorted by max — see AssayStyleModal
-    const hit = sorted.find((b) => value <= b.max);
-    return (hit || sorted[sorted.length - 1]).color;
-  }
-  return style?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
-}
+// assayColorFor: lib/legendGroups.js (TASKS.csv #725)
 // assaySizeFor: same continuous min/max normalization as the original hardcoded 1.2–3.8 range, just
 // scaled by style.sizeMult (default 1) so "change the size" has an effect without changing what the
 // size differences MEAN (still "bigger sphere = higher grade within this element's own range").
@@ -1761,68 +1754,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // changes — never on a camera move and never per frame.
   const overlayLegendGroups = useMemo(() => {
     if (!figureOverlay.enabled || !figureOverlay.legend) return [];
-    const groups = [];
-    CATEGORY_LAYER_KEYS.forEach((key) => {
-      if (!layerVisible[key]) return;
-      const rows = layers?.[key] || [];
-      if (!rows.length) return;
-      if (layerStyles[key]?.color) { groups.push({ key, label: LAYER_META[key].label, items: [["all (one colour)", layerStyles[key].color]] }); return; } // TASKS.csv #635
-      const hidden = categoryFilter[key];
-      const seen = new Set();
-      const items = [];
-      for (const row of rows) {
-        const v = row.value;
-        if (v == null || v === "") continue;
-        if (hidden && hidden.has(String(v))) continue;
-        if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
-        const k = String(v);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        items.push([effectiveLabel(key, v), effectiveColor(key, v)]);
-      }
-      if (items.length) groups.push({ key, label: LAYER_META[key].label, items: items.sort((a, b) => String(a[0]).localeCompare(String(b[0]))) });
-    });
-    // TASKS.csv #381 — keys for what the list above left out. Assay grade classes are discrete, so they
-    // are swatch rows (one per class, with its grade range); an element with no classes gets one swatch
-    // saying size shows grade. Block models and geophysics points are continuous (or classed stops):
-    // a `ramp` group, drawn as a small gradient bar with its min and max, sampled through the same
-    // colorForVoxelValue the scene uses so the key cannot disagree with the colours on screen.
-    const fmt = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
-    if (assayVisible && assayDisplayElements.length && (assays || []).length) {
-      const unitOf = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
-      assayDisplayElements.forEach((sym, idx) => {
-        const style = assayStyle[sym];
-        const unit = unitOf[sym] || "";
-        let items;
-        if (style?.breaks?.length) {
-          items = style.breaks.map((b, i) => {
-            const lo = i ? style.breaks[i - 1].max : null;
-            const last = i === style.breaks.length - 1;
-            const label = lo == null ? `≤ ${fmt(b.max)} ${unit}` : last ? `> ${fmt(lo)} ${unit}` : `${fmt(lo)}–${fmt(b.max)} ${unit}`;
-            return [label, b.color];
-          });
-        } else {
-          items = [[`${sym} (sphere size = grade)`, assayColorFor(0, idx, style)]];
-        }
-        if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
-        groups.push({ key: `assay_${sym}`, label: `${sym} (${unit})`, items });
-      });
-    }
-    // TASKS.csv #498 / #522 — from the model's own stops: a log-coloured model on a log bar with decade ticks,
-    // a classified model as one swatch per class (lib/legendScale.js)
-    const pushScale = (key, label, model, lo, hi) => {
-      const L = legendScale(model, lo, hi, fmt);
-      if (L.kind === "classes") groups.push({ key, label, items: L.items });
-      else groups.push({ key, label, items: [], ramp: L });
-    };
-    (voxelModels || []).forEach((m) => {
-      if (m.visible === false || !Number.isFinite(m.min) || !Number.isFinite(m.max)) return;
-      const lo = Number.isFinite(m.threshold) ? Math.max(m.min, m.threshold) : m.min;
-      const hi = Number.isFinite(m.rangeMax) ? Math.min(m.max, m.rangeMax) : m.max;
-      // TASKS.csv #356 — a model of named classes (e.g. the implicit model's units) gets swatches, not a numeric ramp.
-      if (m.valueLabels && m.stops?.length) { groups.push({ key: `voxel_${m.id}`, label: m.name, items: m.stops.filter((st) => st.value >= lo && st.value <= hi).map((st) => [m.valueLabels[st.value] ?? String(st.value), st.color]) }); return; }
-      pushScale(`voxel_${m.id}`, m.property && !m.name.includes(m.property) ? `${m.name} — ${m.property}` : m.name, m, lo, hi); // #711 — say what the values are
-    });
+    // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
+    const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
+    const groups = [
+      ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
+      ...voxelLegendGroups(voxelModels),
+    ];
+    const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {
       const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
