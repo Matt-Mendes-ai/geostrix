@@ -150,6 +150,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     nz: Math.max(1, Math.round((bounds.zmax - bounds.zmin) / cellSize)),
   } : null;
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
+  const gridDiagonalM = bounds ? Math.round(Math.hypot(bounds.xmax - bounds.xmin, bounds.ymax - bounds.ymin, bounds.zmax - bounds.zmin)) : 0; // #710: what radius 0 becomes
   const overLimit = totalBlocksPreview > blockBudget; // #626
   const fitCell = overLimit && bounds ? cellToFit(bounds, blockBudget, cellSize) : null;
   const fitCellMax = overLimit && bounds && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
@@ -330,6 +331,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
               </div>
             )}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+              {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
+                <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
+              )}
               {trend && searchRadius > 0 && (
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": an ellipsoid of {searchRadius} × {v} × {v2} m ({v3})", { name: trend.name, searchRadius, v: Math.round((searchRadius * trend.ratios.int) / trend.ratios.max), v2: Math.round((searchRadius * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
               )}

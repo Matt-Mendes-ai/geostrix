@@ -129,7 +129,8 @@ function withTrend(samplePoints, opts) {
   const center = samplePoints.reduce((m, p) => ({ x: m.x + p.x / n, y: m.y + p.y / n, z: m.z + p.z / n }), { x: 0, y: 0, z: 0 });
   const f = trendFrame(opts.trend, center);
   if (!f) return { pts: samplePoints, q: null };
-  return { pts: samplePoints.map((p) => { const [x, y, z] = f(p.x, p.y, p.z); return { ...p, x, y, z }; }), q: f };
+  // wx/wy/wz: the real position, so a distance reported in metres (nearestSampleM, #710) is measured in metres
+  return { pts: samplePoints.map((p) => { const [x, y, z] = f(p.x, p.y, p.z); return { ...p, x, y, z, wx: p.x, wy: p.y, wz: p.z }; }), q: f };
 }
 
 export function estimateBlockModel(samplePoints, opts) {
@@ -148,6 +149,10 @@ export function estimateBlockModel(samplePoints, opts) {
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: !!opts.support, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
   const wantSupport = !!opts.support;
+  // TASKS.csv #710 — under a trend the search distance is in the trend's scaled frame (30 m across the minor axis of
+  // a 3:2:1 trend reads 90); the support index rightly uses it (how far inside the search ellipsoid), but the value
+  // saved as nearestSampleM must be metres, from the sample's real position to the block centre.
+  const nearestM = (s, cx, cy, cz) => (tw.q && s.nearestPoint?.wx != null ? Math.hypot(s.nearestPoint.wx - cx, s.nearestPoint.wy - cy, s.nearestPoint.wz - cz) : s.nearest);
   // TASKS.csv #661 — opts.columns: write typed columns (the worker transfers them) instead of one object per block
   const asColumns = !!opts.columns;
   const cells = asColumns ? null : [];
@@ -185,7 +190,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (asColumns) {
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
           if (col.kv) col.kv[n] = r.kv ?? NaN;
-          if (r.support) { col.support[n] = SUPPORT_CODES[r.support.cls]; col.supportIndex[n] = r.support.index; col.nearestSampleM[n] = r.support.nearest; }
+          if (r.support) { col.support[n] = SUPPORT_CODES[r.support.cls]; col.supportIndex[n] = r.support.index; col.nearestSampleM[n] = nearestM(r.support, cx, cy, cz); }
           n++;
           continue;
         }
@@ -194,7 +199,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.support) {
           cell.support = r.support.cls;
           cell.supportIndex = r.support.index;
-          cell.nearestSampleM = r.support.nearest;
+          cell.nearestSampleM = nearestM(r.support, cx, cy, cz);
         }
         cells.push(cell);
       }
@@ -534,7 +539,7 @@ function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax
   return {
     cls: isInterp ? SUPPORT_INTERPOLATED : SUPPORT_EXTRAPOLATED,
     code: isInterp ? 2 : 1,
-    nearest, nSamples: used.length, nHoles: holes.size, nOctants, bracketed, dataBracketed,
+    nearest, nearestPoint: used[0].p, nSamples: used.length, nHoles: holes.size, nOctants, bracketed, dataBracketed,
     nHolesWide: allHoles.size, nWide: wide.length,
     index: supportIndex({ nearest, nHoles: holes.size, nOctants, searchRadius }),
   };

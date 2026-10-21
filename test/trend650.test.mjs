@@ -131,3 +131,21 @@ test("majorAxisTrendPlunge: down dip, the two strike ends, and an oblique pitch 
   assert.match(describeTrend({ dip: 45, dipAzimuth: 90, pitch: 90 }), /major axis plunges 45° → 90°/);
 });
 
+
+// TASKS.csv #710 — the value saved as nearestSampleM is metres, also under a trend (it was the trend-frame distance:
+// a sample 30 m across the minor axis of a 3:2:1 trend was saved as 90)
+test("#710 nearestSampleM is real metres under a trend; the support index stays ellipsoid-relative", async () => {
+  const { estimateBlockModel } = await import("../src/lib/estimation.js");
+  const { trendSearchScales } = await import("../src/lib/trend.js");
+  const t = { dip: 90, dipAzimuth: 0, pitch: 0, ratios: { max: 3, int: 2, min: 1 } }; // major E-W, minor N-S
+  const trend = { basis: trendBasis(t), scales: trendSearchScales(t) };
+  const pts = [-1, 0, 1].map((z) => ({ x: 0, y: 30, z, value: 5, hole_id: "N30" })); // 30 m north = across the minor axis
+  const bounds = { xmin: -5, xmax: 5, ymin: -5, ymax: 5, zmin: -5, zmax: 5 };
+  const base = { bounds, cellSize: { dx: 10, dy: 10, dz: 10 }, method: "idw2", searchRadius: 300, lengthWeight: false, support: true };
+  const iso = estimateBlockModel(pts, base).cells[0], tr3 = estimateBlockModel(pts, { ...base, trend }).cells[0];
+  assert.ok(Math.abs(iso.nearestSampleM - 30) < 1e-9, String(iso.nearestSampleM));
+  assert.ok(Math.abs(tr3.nearestSampleM - 30) < 1e-9, String(tr3.nearestSampleM)); // was 90
+  assert.ok(tr3.supportIndex < iso.supportIndex); // 30 m across the trend is farther inside the search ellipsoid
+  const cols = estimateBlockModel(pts, { ...base, trend, columns: true }).columns;
+  assert.ok(Math.abs(cols.nearestSampleM[0] - 30) < 1e-9, String(cols.nearestSampleM[0])); // the worker's column path too
+});
