@@ -29,6 +29,34 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     const n = mode === "simple" ? [...el.querySelectorAll(".ge-ribbon-btn")].filter((b) => b.closest(".ge-adv")).length : 0;
     if (n !== hidden) setHidden(n);
   });
+  // TASKS.csv #787 — fit the band: when the groups are wider than the window (Advanced mode at 1,024 px, longer
+  // labels in Spanish / Portuguese / French / Arabic), groups collapse to icon-only buttons from the last one back
+  // until it fits. The band itself never scrolls (overflow would clip the popovers that drop below it, #449).
+  // Re-measured only when the band's width or the set of buttons / labels changes, never on an ordinary re-render.
+  const fitKey = useRef("");
+  const fit = () => {
+    const el = innerRef.current;
+    if (!el) return;
+    const groups = [...el.querySelectorAll(":scope > .ge-ribbon-group")];
+    groups.forEach((g) => g.removeAttribute("data-compact"));
+    for (let i = groups.length - 1; i >= 0 && el.scrollWidth > el.clientWidth + 1; i--) {
+      if (getComputedStyle(groups[i]).display === "none") continue; // hidden in Simple mode
+      groups[i].setAttribute("data-compact", "");
+    }
+  };
+  useLayoutEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const key = `${mode}|${el.clientWidth}|${[...el.querySelectorAll(".ge-ribbon-label")].map((x) => x.textContent).join("|")}`;
+    if (key !== fitKey.current) { fitKey.current = key; fit(); }
+  });
+  useEffect(() => {
+    if (!slot || !show || typeof ResizeObserver === "undefined") return undefined;
+    let w = slot.clientWidth;
+    const ro = new ResizeObserver(() => { if (slot.clientWidth !== w) { w = slot.clientWidth; fit(); } }); // compacting never changes the band's width: no loop
+    ro.observe(slot);
+    return () => ro.disconnect();
+  }, [slot, show]);
   if (!slot || !show) return null;
   return createPortal(
     <div ref={innerRef} className={`ge-ribbon-inner${mode === "simple" ? " ge-ribbon-simple" : ""}`} role="toolbar" aria-label={t(label)}>
@@ -52,7 +80,7 @@ export function RibbonGroup({ label, children, advanced = false }) {
   return (
     <div className={`ge-ribbon-group${advanced ? " ge-adv" : ""}`} role="group" aria-label={t(label)}>
       <div className="ge-ribbon-items">{children}</div>
-      <div className="ge-ribbon-caption">{t(label)}</div>
+      <div className="ge-ribbon-caption" title={t(label)}>{t(label)}</div>
     </div>
   );
 }
@@ -88,7 +116,7 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
         aria-label={ariaLabel || label}
         aria-disabled={soft || undefined}
         aria-description={soft ? disabledReason : undefined}
-        title={soft ? `${disabledReason} — ${title || label}` : title}
+        title={soft ? `${disabledReason} — ${title || label}` : title || label /* #787: the only text left when its group is icon-only */}
         onClick={soft ? undefined : onClick}
         disabled={disabled && !soft}
       >

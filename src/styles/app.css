@@ -197,6 +197,11 @@ input, select { font-family: inherit; }
   .ge-ribbon-btn { min-width: 44px; padding: 5px 3px 2px; }
   .ge-ribbon-group { padding: 0 3px; }
 }
+/* TASKS.csv #787 — a group the band could not fit (Ribbon.jsx fit): icon-only buttons, same height (no layout jump),
+   and a caption that no longer sets the group's width (ellipsis, full text in its tooltip). */
+.ge-ribbon-group[data-compact] .ge-ribbon-btn { min-width: 34px; padding: 5px 2px 2px; justify-content: center; }
+.ge-ribbon-group[data-compact] .ge-ribbon-label { display: none; }
+.ge-ribbon-group[data-compact] .ge-ribbon-caption { width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* A tool shown in the sidebar ("task pane"): its header, and the break before the tab's data. */
 .ge-pane-end { height: 0; border-top: 2px solid var(--color-border); margin: 14px -14px 14px; }
 .ge-pane-header {
