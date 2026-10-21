@@ -26,6 +26,12 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 // (each grid edge crossing yields exactly one vertex, cached by edge id), which is what makes the
 // result a real 2-manifold — volumetrics.js's watertightness check counts triangles per shared edge,
 // and three.js's computeVertexNormals needs shared vertices to shade the shell smoothly.
+//
+// TASKS.csv #794 — no cracks on ambiguous cells: this table splits every ambiguous FACE the same way from both cubes
+// sharing it (it always separates the corners below the iso-level), so a closed field gives a closed, consistently
+// wound mesh - measured on pure noise, where nearly every cell is ambiguous (test/marchingCubes794.test.mjs). What it
+// does not promise is the "right" topology there (two blobs touching diagonally may join or part); MC33 tables would
+// pick by the trilinear interpolant, a modelling refinement rather than a watertightness fix.
 
 const EDGE_TABLE = new Uint16Array([
   0x000, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c, 0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,

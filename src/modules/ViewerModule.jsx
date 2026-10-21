@@ -318,7 +318,7 @@ const ALL_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "mnlgy"
 // the grid popover since #155, and both the project file's viewerUiState and saved themes spread over
 // DEFAULT_GRID (see the hydrate effect and applyTheme), so anyone who set their own keeps it, and any
 // project already saved keeps whatever it stored — this changes the NEW-project/new-user default only.
-const DEFAULT_GRID = { visible: true, mode: "ground", size: 1000, divisions: 20, color: "#c8ced8", axes: false };
+const DEFAULT_GRID = { visible: false, mode: "ground", size: 1000, divisions: 20, color: "#c8ced8", axes: false }; // visible: off by default since TASKS.csv #800 (Matt)
 // TASKS.csv #311 — the in-viewport figure overlay (title / legend / scale bar).
 //
 // DEFAULT ON, deliberately, and this was the judgement call the row asks for. The argument for
@@ -8344,7 +8344,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>{tx("This shell is {bodies} totalling {vol} m³, not one continuous body.", { bodies: <strong>{tr("{n} separate bodies", { n: expandedSurfaceVolume.componentCount })}</strong>, vol: expandedSurfaceVolume.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) })}</div>
                       )}
                       {!expandedSurfaceVolume.watertight && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; the shell reaches the edge of the estimated region; or the iso-surface extraction left cracks on ambiguous cells (this app uses the classic marching-cubes tables with no asymptotic decider). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
+                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.4 }}>{tr("{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.", { v: tr(expandedSurfaceVolume.openEdgeCount === 1 ? "This surface isn't a closed solid ({n} open edge)." : "This surface isn't a closed solid ({n} open edges).", { n: expandedSurfaceVolume.openEdgeCount }) })}</div>
                       )}
                       {/* TASKS.csv #270 (LOW-2) — a tonnage with no grade beside it invites quoting the
                           CUTOFF as the grade. Report the interpolated mean inside the shell instead. */}

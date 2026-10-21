@@ -4,7 +4,6 @@
 // normal import queue like the Harry sample's. Each part is independent: one failing doesn't stop the others.
 import Papa from "papaparse";
 import { inferUnit, mergeAssayRows, convertUnit } from "./geochem.js";
-import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { omfToProjectObjects } from "./omfImport.js";
 import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
@@ -87,17 +86,15 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
     // the OMF holds two inversion iterations (m_03_01, m_05_03); m_05_03 is the final model (Matt, 2026-10-17)
     const res = await omfToProjectObjects(await (await readFile("ztem_inversion_2023.omf")).arrayBuffer(), maxCells, { attribute: "Woodjam_ZTEM_m_05_03" });
     res.omfObjects.forEach((o) => store.addOmfObject?.(o));
-    // The model fills the whole property, so at full range the view opens inside a wall of blocks. It starts showing
-    // only the most conductive 15% of cells, half transparent, around the drilling; the legend in the Geophysics tab
-    // (or the block model's display range) brings the rest back.
+    // TASKS.csv #801 — shown at its full range, no cutoff (Matt: "so users will understand it's a ... voxel when they
+    // load the sample data"): the whole inversion volume reads as one block model at first sight. Until then it opened
+    // on its most conductive 15% (#740), which looked like scattered targets rather than a geophysical model.
     res.voxelModels.forEach((v) => {
-      const vals = v.cells.map((c) => c.value).filter(Number.isFinite).sort((a, b) => a - b);
-      const p85 = vals.length ? percentileSorted(vals, 0.85) : v.min; // #740
       // TASKS.csv #711 — the OMF names no unit; 1.8e-4 to 0.196 can only be conductivity in S/m (as resistivity in ohm.m it
       // would be 0.0002 ohm.m rock), so the property is set and the README says it is inferred from the values
-      store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: p85, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
+      store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: v.min, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
     });
-    notes.push(tr("Woodjam ZTEM: {voxelModels} block model(s) from the 2023 3D inversion{v} — listed under Geophysics in the 3D View, showing its most conductive 15% (set the display range in the Geophysics tab to see the rest).", { voxelModels: res.voxelModels.length, v: res.notes.length ? ` (${res.notes.join(" ")})` : "" }));
+    notes.push(tr("Woodjam ZTEM: {voxelModels} block model(s) from the 2023 3D inversion{v} — listed under Geophysics in the 3D View, shown at its full range (set a display range in the Geophysics tab to keep only the most conductive cells).", { voxelModels: res.voxelModels.length, v: res.notes.length ? ` (${res.notes.join(" ")})` : "" }));
   } catch (e) { notes.push(tr("The Woodjam ZTEM model could not be loaded: {message}", { message: e.message })); }
   try {
     const gps = await readFile("ip/2357GPS_All.txt");
