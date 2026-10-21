@@ -4804,5 +4804,20 @@
   "Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.": "كتل على شبكة زواياها عند {e}، {n}، {z} (E، N، المنسوب)، {dx} × {dy} × {dz} م: يُوسّع صندوق الحفر إلى كتل كاملة.",
   "Type all three origin coordinates; until then the grid fits the drilling.": "اكتب إحداثيات الأصل الثلاث؛ وحتى ذلك الحين تلائم الشبكة الحفر.",
   " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median.": " استُبدل {n} قمة أو حفرة معزولة في بيانات المصدر (بكسل يبعد عشرات الأمتار عن كل جيرانه) بوسيط جيرانه.",
-  " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.": " استُبدلت {n} قمم أو حفر معزولة في بيانات المصدر (بكسلات تبعد عشرات الأمتار عن كل جيرانها) بوسيط جيرانها."
+  " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.": " استُبدلت {n} قمم أو حفر معزولة في بيانات المصدر (بكسلات تبعد عشرات الأمتار عن كل جيرانها) بوسيط جيرانها.",
+  "Hillshade, slope, aspect…": "التظليل، الانحدار، الاتجاه…",
+  "Product": "المنتج",
+  "Terrain derivative": "مشتق التضاريس",
+  "Hillshade (one sun)": "التظليل (شمس واحدة)",
+  "Multidirectional hillshade": "تظليل متعدد الاتجاهات",
+  "Slope (degrees)": "الانحدار (درجات)",
+  "Aspect (direction the slope faces)": "الاتجاه (وجهة المنحدر)",
+  "Curvature (ridges / hollows)": "التقوس (حواف / تجاويف)",
+  "Lit by one sun: structures parallel to the light direction disappear.": "مضاء بشمس واحدة: تختفي البنيات الموازية لاتجاه الضوء.",
+  "Lit from 225°, 270°, 315° and 360°, each weighted by the slope's facing (GDAL's multidirectional method): structures at every strike show, useful for lineaments.": "مضاء من 225° و270° و315° و360°، كل منها مرجح بوجهة المنحدر (طريقة GDAL متعددة الاتجاهات): تظهر البنيات بكل المضارب، مفيد للخطيات.",
+  "Steepness from the terrain grid: white flat, dark steep (the darkest grey is the 98th percentile).": "الانحدار من شبكة التضاريس: الأبيض مستوٍ، والداكن شديد الانحدار (أغمق رمادي هو المئين 98).",
+  "The compass direction each slope faces, as a colour wheel: north red, east yellow-green, south cyan, west blue; flat ground grey.": "الاتجاه الذي يواجهه كل منحدر، كعجلة ألوان: الشمال أحمر، الشرق أصفر مخضر، الجنوب سماوي، الغرب أزرق؛ الأرض المستوية رمادية.",
+  "Convex (ridges, spurs) red, concave (hollows, gullies) blue, planar white - from the terrain grid's own spacing, so it sees landforms that size and larger.": "المحدب (الحواف، النتوءات) أحمر، المقعر (التجاويف، الأخاديد) أزرق، المستوي أبيض - بتباعد شبكة التضاريس نفسها، فيرى أشكال الأرض بذلك الحجم وأكبر.",
+  "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper.": "الانحدار مغطى على التضاريس: الأبيض 0°، وأغمق رمادي {max}° أو أكثر.",
+  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "التقوس مغطى على التضاريس: الأحمر محدب، والأزرق مقعر، مشبع عند ±{max} (1/100 م)."
 }

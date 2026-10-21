@@ -35,7 +35,7 @@ import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
-import { hillshadeToRasterInput } from "../lib/hillshade.js";
+import { hillshadeToRasterInput, terrainDerivativeToRasterInput } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797
 import { contourTerrain } from "../lib/contours.js";
 import SpatialAnalysis from "../components/SpatialAnalysis.jsx";
 import BasemapView from "../components/BasemapView.jsx";
@@ -165,6 +165,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const [contourColor, setContourColor] = useState("#8a6a45");
   const [hillshadeAzimuth, setHillshadeAzimuth] = useState(315);
   const [hillshadeAltitude, setHillshadeAltitude] = useState(45);
+  const [derivKind, setDerivKind] = useState("hillshade"); // TASKS.csv #797
   const [xyzError, setXyzError] = useState(null);
   const [xyzPending, setXyzPending] = useState(null); // { fileName, columns, rows, xCol, yCol, zCol, valueCol, labelCol } | null
   const [dragOver, setDragOver] = useState(false);
@@ -1211,21 +1212,43 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 standard Horn-method slope/aspect shading (same algorithm GDAL/QGIS's own hillshade tools
                 use). Lands as an ordinary raster drape, same pipeline as every other raster source. */}
             <button onClick={() => setHillshadeOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: hillshadeOpen ? "var(--color-selected-bg)" : undefined }}>
-              <Mountain size={14} />{" "}{tr("Generate hillshade…")}</button>
+              <Mountain size={14} />{" "}{tr("Hillshade, slope, aspect…")}</button>
             {hillshadeOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+                {/* TASKS.csv #797 — which terrain derivative */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Product")}</span>
+                  <select value={derivKind} onChange={(e) => setDerivKind(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Terrain derivative")}>
+                    <option value="hillshade">{tr("Hillshade (one sun)")}</option>
+                    <option value="multi">{tr("Multidirectional hillshade")}</option>
+                    <option value="slope">{tr("Slope (degrees)")}</option>
+                    <option value="aspect">{tr("Aspect (direction the slope faces)")}</option>
+                    <option value="curvature">{tr("Curvature (ridges / hollows)")}</option>
+                  </select>
+                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr({
+                  hillshade: "Lit by one sun: structures parallel to the light direction disappear.",
+                  multi: "Lit from 225°, 270°, 315° and 360°, each weighted by the slope's facing (GDAL's multidirectional method): structures at every strike show, useful for lineaments.",
+                  slope: "Steepness from the terrain grid: white flat, dark steep (the darkest grey is the 98th percentile).",
+                  aspect: "The compass direction each slope faces, as a colour wheel: north red, east yellow-green, south cyan, west blue; flat ground grey.",
+                  curvature: "Convex (ridges, spurs) red, concave (hollows, gullies) blue, planar white - from the terrain grid's own spacing, so it sees landforms that size and larger.",
+                }[derivKind])}</div>
+                {derivKind === "hillshade" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Compass direction the light comes FROM (0=N, 90=E, 180=S, 270=W).")}>{tr("Sun azimuth")}</span>
                   <input type="number" min="0" max="360" value={hillshadeAzimuth} onChange={(e) => setHillshadeAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={numInput} />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                </div>}
+                {(derivKind === "hillshade" || derivKind === "multi") && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Height of the sun above the horizon, in degrees.")}>{tr("Sun altitude")}</span>
                   <input type="number" min="1" max="90" value={hillshadeAltitude} onChange={(e) => setHillshadeAltitude(Math.max(1, Math.min(90, Number(e.target.value) || 45)))} style={numInput} />
-                </div>
+                </div>}
                 <button
                   onClick={() => {
-                    const raster = hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` });
-                    addRaster({ ...raster, elevation: defaultElevation, drapeMode: "terrain" });
+                    const raster = derivKind === "hillshade"
+                      ? hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` })
+                      : terrainDerivativeToRasterInput(terrain, derivKind, { altitudeDeg: hillshadeAltitude, name: `${derivKind === "multi" ? "hillshade_multi" : derivKind}_${terrain.name}` });
+                    const { scale, ...r } = raster;
+                    addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain" });
+                    if (scale) setTerrainError({ info: true, text: tr(derivKind === "slope" ? "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper." : "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) });
                     setHillshadeOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}

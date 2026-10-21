@@ -4804,5 +4804,20 @@
   "Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.": "Blocs sur un réseau aux coins en {e}, {n}, {z} (E, N, cote), {dx} × {dy} × {dz} m : la boîte des forages est agrandie jusqu'à des blocs entiers.",
   "Type all three origin coordinates; until then the grid fits the drilling.": "Saisissez les trois coordonnées de l'origine ; d'ici là la grille s'ajuste aux forages.",
   " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median.": " {n} pic ou creux isolé dans les données sources (un pixel à des dizaines de mètres de tous ses voisins) a été remplacé par la médiane de ses voisins.",
-  " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.": " {n} pics ou creux isolés dans les données sources (pixels à des dizaines de mètres de tous leurs voisins) ont été remplacés par la médiane de leurs voisins."
+  " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.": " {n} pics ou creux isolés dans les données sources (pixels à des dizaines de mètres de tous leurs voisins) ont été remplacés par la médiane de leurs voisins.",
+  "Hillshade, slope, aspect…": "Ombrage, pente, exposition…",
+  "Product": "Produit",
+  "Terrain derivative": "Dérivé du terrain",
+  "Hillshade (one sun)": "Ombrage (un soleil)",
+  "Multidirectional hillshade": "Ombrage multidirectionnel",
+  "Slope (degrees)": "Pente (degrés)",
+  "Aspect (direction the slope faces)": "Exposition (direction vers laquelle la pente fait face)",
+  "Curvature (ridges / hollows)": "Courbure (crêtes / creux)",
+  "Lit by one sun: structures parallel to the light direction disappear.": "Éclairé par un soleil : les structures parallèles à la direction de la lumière disparaissent.",
+  "Lit from 225°, 270°, 315° and 360°, each weighted by the slope's facing (GDAL's multidirectional method): structures at every strike show, useful for lineaments.": "Éclairé depuis 225°, 270°, 315° et 360°, chacun pondéré par l'exposition de la pente (méthode multidirectionnelle de GDAL) : les structures de toute direction apparaissent, utile pour les linéaments.",
+  "Steepness from the terrain grid: white flat, dark steep (the darkest grey is the 98th percentile).": "Inclinaison d'après la grille du terrain : blanc plat, sombre raide (le gris le plus foncé est le 98e centile).",
+  "The compass direction each slope faces, as a colour wheel: north red, east yellow-green, south cyan, west blue; flat ground grey.": "La direction vers laquelle chaque pente fait face, en roue de couleurs : nord rouge, est jaune-vert, sud cyan, ouest bleu ; terrain plat gris.",
+  "Convex (ridges, spurs) red, concave (hollows, gullies) blue, planar white - from the terrain grid's own spacing, so it sees landforms that size and larger.": "Convexe (crêtes, éperons) rouge, concave (creux, ravines) bleu, plan blanc - à l'espacement propre de la grille du terrain, donc il voit les formes de cette taille et plus grandes.",
+  "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper.": "Pente drapée sur le terrain : blanc 0°, gris le plus foncé {max}° ou plus.",
+  "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).": "Courbure drapée sur le terrain : rouge convexe, bleu concave, saturée à ±{max} (1/100 m)."
 }
