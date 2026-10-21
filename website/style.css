@@ -17,6 +17,11 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Arabic (/ar/, dir="rtl"): Exo 2 has no Arabic letters, so these pages use the system's Arabic fonts (nothing extra
+   to download); the layout above uses inline-start/end, so it mirrors by itself. The slideshow controls stay
+   left-to-right so ‹ and › (and the arrow keys) keep meaning previous and next. */
+:lang(ar) body, body:lang(ar) { font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", "Geeza Pro", system-ui, sans-serif; line-height: 1.75; }
+[dir="rtl"] .controls { direction: ltr; }
 body { margin: 0; font-family: "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; font-size: 17px; }
 img { max-width: 100%; height: auto; display: block; }
 a { color: var(--orange-deep); }
@@ -29,11 +34,11 @@ header.site { background: var(--slate-deep); color: #fff; }
 header.site .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
 header.site .brand { display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: 0.02em; }
 header.site .brand img { width: 34px; height: 34px; }
-header.site nav { margin-left: auto; display: flex; gap: 20px; }
-header.site nav a { color: #d7dee5; text-decoration: none; font-size: 15px; }
+header.site nav { margin-inline-start: auto; display: flex; gap: 20px; }
+header.site nav a { color: #d7dee5; text-decoration: none; font-size: 15px; white-space: nowrap; }
 header.site nav a:hover { color: #fff; }
 /* language switcher: EN · ES · PT, always visible (also on phones) */
-header.site .lang { display: flex; gap: 2px; margin-left: 8px; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.2); }
+header.site .lang { display: flex; gap: 2px; margin-inline-start: 8px; padding-inline-start: 14px; border-inline-start: 1px solid rgba(255, 255, 255, 0.2); }
 header.site .lang a { color: #b8c2cc; text-decoration: none; font-size: 14px; font-weight: 600; padding: 4px 6px; border-radius: 4px; }
 header.site .lang a:hover { color: #fff; }
 header.site .lang a[aria-current="true"] { color: #fff; background: rgba(255, 255, 255, 0.12); }
@@ -57,7 +62,7 @@ header.site .lang a[aria-current="true"] { color: #fff; background: rgba(255, 25
 .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 17px; }
 .btn.primary { background: var(--orange); color: #1a1205; }
 .btn.primary:hover { background: #f5a234; color: #1a1205; }
-.btn.ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.35); margin-left: 10px; }
+.btn.ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.35); margin-inline-start: 10px; }
 .btn.ghost:hover { border-color: #fff; color: #fff; }
 .dl-note { font-size: 14px; color: #b8c2cc; margin-top: 12px; }
 .muted, .dl-note.muted { color: var(--muted); }
@@ -98,19 +103,19 @@ p.sub { color: var(--muted); margin: 0 0 32px; max-width: 720px; }
 .dots button { width: 12px; height: 12px; padding: 0; background: var(--line); border: 0; }
 .dots button[aria-current="true"] { background: var(--orange); }
 @media (prefers-reduced-motion: reduce) { .carousel.js .slide, .carousel.js .slide.active { transition: none; } }
-.notice { border-left: 4px solid var(--orange); background: #fff8ee; padding: 18px 22px; border-radius: 6px; }
+.notice { border-inline-start: 4px solid var(--orange); background: #fff8ee; padding: 18px 22px; border-radius: 6px; }
 .notice h3 { margin: 0 0 6px; }
 .notice p { margin: 0; color: #4a3a22; }
 .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
-.steps li { counter-increment: s; position: relative; padding: 0 0 14px 40px; }
-.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--slate); color: #fff; font-size: 14px; display: grid; place-items: center; font-weight: 600; }
+.steps li { counter-increment: s; position: relative; padding: 0 0 14px; padding-inline-start: 40px; }
+.steps li::before { content: counter(s); position: absolute; inset-inline-start: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--slate); color: #fff; font-size: 14px; display: grid; place-items: center; font-weight: 600; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
 code { background: var(--bg-soft); padding: 1px 6px; border-radius: 4px; font-size: 15px; }
 
 /* prose pages */
 .prose { max-width: 760px; }
 .prose table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 12px 0 20px; }
-.prose th, .prose td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 8px 10px; text-align: start; vertical-align: top; }
 .prose th { background: var(--bg-soft); }
 .table-scroll { overflow-x: auto; }
 
@@ -118,7 +123,7 @@ code { background: var(--bg-soft); padding: 1px 6px; border-radius: 4px; font-si
 footer.site { background: var(--slate-deep); color: #b8c2cc; padding: 28px 0; font-size: 14px; }
 footer.site .wrap { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
 footer.site a { color: #d7dee5; }
-footer.site .right { margin-left: auto; }
+footer.site .right { margin-inline-start: auto; }
 
 /* phones */
 @media (max-width: 820px) {
@@ -129,7 +134,7 @@ footer.site .right { margin-left: auto; }
   .hero h1 { font-size: 32px; }
   .pillars, .features { grid-template-columns: 1fr; }
   header.site nav { gap: 14px; }
-  header.site .lang { margin-left: 4px; padding-left: 8px; }
+  header.site .lang { margin-inline-start: 4px; padding-inline-start: 8px; }
 }
 /* small phones: the brand, two nav links and EN · ES · PT must fit in 360px in every language */
 @media (max-width: 420px) {
@@ -139,9 +144,14 @@ footer.site .right { margin-left: auto; }
   header.site nav { gap: 10px; }
   header.site nav a.hide-xs { display: none; }
   header.site nav a { font-size: 14px; }
-  header.site .lang { margin-left: 0; padding-left: 6px; gap: 0; }
+  header.site .lang { margin-inline-start: 0; padding-inline-start: 6px; gap: 0; }
   header.site .lang a { font-size: 13px; padding: 4px 4px; }
   header.site nav a.hide-sm { display: none; }
   .btn.ghost { margin: 10px 0 0; }
-  footer.site .right { margin-left: 0; }
+  footer.site .right { margin-inline-start: 0; }
+}
+/* the narrowest phones (320px): five language codes plus "Télécharger" need a few more pixels */
+@media (max-width: 340px) {
+  header.site .brand { font-size: 17px; }
+  header.site .lang a { padding: 4px 3px; }
 }

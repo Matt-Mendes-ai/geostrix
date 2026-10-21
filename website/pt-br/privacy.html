@@ -10,6 +10,8 @@
   <link rel="alternate" hreflang="en" href="https://geostrix.com/privacy.html">
   <link rel="alternate" hreflang="es" href="https://geostrix.com/es/privacy.html">
   <link rel="alternate" hreflang="pt-BR" href="https://geostrix.com/pt-br/privacy.html">
+  <link rel="alternate" hreflang="fr" href="https://geostrix.com/fr/privacy.html">
+  <link rel="alternate" hreflang="ar" href="https://geostrix.com/ar/privacy.html">
   <link rel="alternate" hreflang="x-default" href="https://geostrix.com/privacy.html">
 </head>
 <body>
@@ -25,6 +27,8 @@
         <a href="/privacy.html" hreflang="en" lang="en" title="English">EN</a>
         <a href="/es/privacy.html" hreflang="es" lang="es" title="Español">ES</a>
         <a href="/pt-br/privacy.html" hreflang="pt-BR" lang="pt-BR" aria-current="true" title="Português (Brasil)">PT</a>
+        <a href="/fr/privacy.html" hreflang="fr" lang="fr" title="Français">FR</a>
+        <a href="/ar/privacy.html" hreflang="ar" lang="ar" title="العربية">AR</a>
       </div>
     </div>
   </header>
@@ -38,11 +42,11 @@
 
         <h2>O que o GeoStrix coleta</h2>
         <p><strong>Nada.</strong> O GeoStrix não coleta, envia nem armazena informações pessoais, dados de uso, relatórios de falha ou telemetria. Não há código de análise de uso no aplicativo nem nenhum servidor deste projeto que receba dados dele.</p>
-        <p><strong>Relatórios de problema.</strong> <em>Help → Report a Problem</em> cria um arquivo zip na sua pasta Downloads — o que você escreveu, uma imagem da janela do GeoStrix, os dados do seu sistema (versões, sistema operacional, memória, placa de vídeo), as mensagens de erro recentes e, se você deixar marcado, o log recente do motor Python. Seu projeto só é incluído se você marcar essa opção. O GeoStrix não envia nada: ele abre um e-mail no seu próprio aplicativo de e-mail, e o relatório só é enviado se você o anexar e enviar.</p>
+        <p><strong>Relatórios de problema.</strong> <em>Ajuda → Relatar um problema</em> cria um arquivo zip na sua pasta Downloads — o que você escreveu, uma imagem da janela do GeoStrix, os dados do seu sistema (versões, sistema operacional, memória, placa de vídeo), as mensagens de erro recentes e, se você deixar marcado, o log recente do motor Python. Seu projeto só é incluído se você marcar essa opção. O GeoStrix não envia nada: ele abre um e-mail no seu próprio aplicativo de e-mail, e o relatório só é enviado se você o anexar e enviar.</p>
 
         <h2>Onde ficam seus dados</h2>
         <p>Os dados do seu projeto — bocas de furo, medidas de desvio, descrições, análises, rasters e tudo o que você importar — ficam no seu computador: no arquivo de projeto que você salva e em um arquivo de salvamento automático na pasta de configurações do GeoStrix. Eles nunca são enviados para lugar nenhum.</p>
-        <p><strong>Senhas de banco de dados.</strong> Por padrão, uma senha digitada em <em>Connect to database</em> é usada só naquela sessão. Se você marcar <em>Remember the password on this computer</em>, ela é guardada criptografada pelo sistema operacional (no Windows, legível só pela sua conta do Windows naquele computador), na pasta de configurações do GeoStrix — nunca no arquivo de projeto. <em>Forget it</em> a remove.</p>
+        <p><strong>Senhas de banco de dados.</strong> Por padrão, uma senha digitada em <em>Conectar ao banco de dados</em> é usada só naquela sessão. Se você marcar <em>Lembrar a senha neste computador</em>, ela é guardada criptografada pelo sistema operacional (no Windows, legível só pela sua conta do Windows naquele computador), na pasta de configurações do GeoStrix — nunca no arquivo de projeto. <em>Esquecer</em> a remove.</p>
 
         <h2>Conexões de rede que o GeoStrix faz</h2>
         <p>O GeoStrix só se conecta à internet para os recursos que você usa:</p>
@@ -51,8 +55,8 @@
           <tr><td>Você adiciona um mapa base</td><td>tile.openstreetmap.org, tile.tracestrack.com, tiles.maps.eox.at</td><td>Blocos de mapa para exibição</td></tr>
           <tr><td>Você baixa imagens para um índice espectral</td><td>earth-search.aws.element84.com, sentinel-cogs.s3.us-west-2.amazonaws.com, planetarycomputer.microsoft.com, astersa.blob.core.windows.net</td><td>Buscar a sua área nos catálogos públicos do Sentinel-2 / ASTER (o retângulo envolvente é enviado) e baixar essa parte da imagem</td></tr>
           <tr><td>Você baixa topografia</td><td>s3.amazonaws.com (blocos públicos de elevação)</td><td>Elevação SRTM / Terrarium</td></tr>
-          <tr><td>Ao iniciar (pode ser desativado no menu Help) e em Help → Check for Updates</td><td>github.com, depois release-assets.githubusercontent.com (o servidor de downloads do GitHub)</td><td>Verificar se há uma versão mais nova e baixá-la se você decidir atualizar</td></tr>
-          <tr><td>Você clica em Install na aba Predictive</td><td>github.com, depois release-assets.githubusercontent.com</td><td>Baixar o complemento opcional de modelagem preditiva (a soma de verificação é conferida antes da instalação)</td></tr>
+          <tr><td>Ao iniciar (pode ser desativado no menu Ajuda) e em Ajuda → Procurar atualizações</td><td>github.com, depois release-assets.githubusercontent.com (o servidor de downloads do GitHub)</td><td>Verificar se há uma versão mais nova e baixá-la se você decidir atualizar</td></tr>
+          <tr><td>Você clica em Instalar modelagem preditiva</td><td>github.com, depois release-assets.githubusercontent.com</td><td>Baixar o complemento opcional de modelagem preditiva (a soma de verificação é conferida antes da instalação)</td></tr>
           <tr><td>Você se conecta a um banco de dados</td><td>O servidor que você informar</td><td>Consultar o seu próprio banco de dados</td></tr>
           <tr><td>Você adiciona uma camada WMS / WMTS / WFS</td><td>O servidor que você informar</td><td>Buscar a camada que você pediu</td></tr>
         </table></div>

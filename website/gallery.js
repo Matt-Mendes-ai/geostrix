@@ -5,11 +5,13 @@
 // arrow keys work too.
 (() => {
   const DELAY = 5000;
-  // the page's language (<html lang>) picks the button text: en, es or pt-BR
+  // the page's language (<html lang>) picks the button text: en, es, pt-BR, fr or ar
   const TEXT = {
     en: { pic: (i, n) => `Picture ${i} of ${n}`, play: "Play", pause: "Pause", playL: "Play the slideshow", pauseL: "Pause the slideshow" },
     es: { pic: (i, n) => `Imagen ${i} de ${n}`, play: "Reproducir", pause: "Pausa", playL: "Reproducir la presentación", pauseL: "Pausar la presentación" },
     pt: { pic: (i, n) => `Imagem ${i} de ${n}`, play: "Reproduzir", pause: "Pausar", playL: "Reproduzir a apresentação", pauseL: "Pausar a apresentação" },
+    fr: { pic: (i, n) => `Image ${i} sur ${n}`, play: "Lecture", pause: "Pause", playL: "Lancer le diaporama", pauseL: "Mettre le diaporama en pause" },
+    ar: { pic: (i, n) => `الصورة ${i} من ${n}`, play: "تشغيل", pause: "إيقاف مؤقت", playL: "تشغيل عرض الصور", pauseL: "إيقاف عرض الصور مؤقتًا" },
   };
   const t = TEXT[document.documentElement.lang.slice(0, 2)] || TEXT.en;
   document.querySelectorAll("[data-carousel]").forEach((root) => {
