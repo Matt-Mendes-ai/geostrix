@@ -463,6 +463,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
       if (parsed.source) msg += tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }); // #726
+      if (parsed.spikesRemoved) msg += tr(parsed.spikesRemoved === 1 ? " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median." : " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.", { n: parsed.spikesRemoved }); // TASKS.csv #799
       if (parsed.reprojectedTo) msg += tr(" Reprojected from WGS84 to the project's EPSG:{reprojectedTo}.", { reprojectedTo: parsed.reprojectedTo });
       else if (parsed.reprojectNote) msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
       if (parsed.failedTiles) msg += tr(" {failedTiles} tile(s) failed to download — check your connection.", { failedTiles: parsed.failedTiles });

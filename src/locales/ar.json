@@ -4802,5 +4802,7 @@
   "Origin {axis}": "الأصل {axis}",
   "Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.": "الملاءمة مع الحفر: صندوق الثقوب المحللة مع الهامش، كما سابقًا. مطابقة نموذج كتل: حجم خليته وأصله، كي تقع كتل هذا التقدير تمامًا على كتل ذلك النموذج وتمكن مقارنتهما أو دمجهما كتلة بكتلة. الأصل: حجم الخلية أعلاه، بزوايا الكتل عند E / N / منسوب مكتوب.",
   "Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.": "كتل على شبكة زواياها عند {e}، {n}، {z} (E، N، المنسوب)، {dx} × {dy} × {dz} م: يُوسّع صندوق الحفر إلى كتل كاملة.",
-  "Type all three origin coordinates; until then the grid fits the drilling.": "اكتب إحداثيات الأصل الثلاث؛ وحتى ذلك الحين تلائم الشبكة الحفر."
+  "Type all three origin coordinates; until then the grid fits the drilling.": "اكتب إحداثيات الأصل الثلاث؛ وحتى ذلك الحين تلائم الشبكة الحفر.",
+  " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median.": " استُبدل {n} قمة أو حفرة معزولة في بيانات المصدر (بكسل يبعد عشرات الأمتار عن كل جيرانه) بوسيط جيرانه.",
+  " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.": " استُبدلت {n} قمم أو حفر معزولة في بيانات المصدر (بكسلات تبعد عشرات الأمتار عن كل جيرانها) بوسيط جيرانها."
 }

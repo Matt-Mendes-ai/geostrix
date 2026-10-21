@@ -84,6 +84,41 @@ async function decodeTerrariumTile(z, x, y) {
 //  * One mosaic, so cells between two tiles interpolate across the seam (per-tile sampling could not).
 // A cell touching a failed tile is NaN (filled and reported later by demFill.js).
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
+// TASKS.csv #799 — Matt: "some sections of the SRTM appears to be wrong, rendering a cone". Each of the ~200 nodes was
+// a bilinear POINT sample of a mosaic 5-8x finer, so one odd source pixel (Terrain Tiles blend several DEMs) caught by
+// a node became a cone two cells wide, and narrow real relief aliased (measured over 15 km at Harry: 660 of 37,000
+// nodes more than 10 m off their cell's mean, worst 32 m). Two fixes:
+//  * despikeMosaic: a pixel more than `minM` from the median of its 8 neighbours AND more than `ratio` x their own
+//    spread is replaced by that median. A real summit fails the test (its neighbours vary too); none fired over the
+//    Harry or Woodjam sample areas. Returns how many it replaced (reported on import).
+//  * resampleElevationMosaic: when a node's cell spans more than ~1.5 mosaic pixels, the node is the MEAN of the
+//    pixels whose centres fall in its cell (a summed-area table, O(1) per node) - what a node of that spacing stands
+//    for; closer zooms keep the bilinear sample.
+export function despikeMosaic(elev, w, h, { minM = 40, ratio = 3 } = {}) {
+  const src = Float32Array.from(elev);
+  const nb = new Float64Array(8);
+  let n = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const v = src[y * w + x];
+      if (!Number.isFinite(v)) continue;
+      let k = 0, ok = true;
+      for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const u = src[(y + dy) * w + x + dx];
+        if (!Number.isFinite(u)) { ok = false; break; }
+        nb[k++] = u;
+      }
+      if (!ok) continue;
+      nb.sort();
+      const med = (nb[3] + nb[4]) / 2, spread = nb[7] - nb[0], d = Math.abs(v - med);
+      if (d > minM && d > ratio * spread) { elev[y * w + x] = med; n++; }
+    }
+  }
+  return n;
+}
+
 export function resampleElevationMosaic(elev, mw, mh, tiles, bbox, gridW, gridH) {
   const halfX = (tiles.lonMax - tiles.lonMin) / mw / 2;
   const yTop = mercY(tiles.latMax), yBot = mercY(tiles.latMin), halfY = (yTop - yBot) / mh / 2;
@@ -91,6 +126,41 @@ export function resampleElevationMosaic(elev, mw, mh, tiles, bbox, gridW, gridH)
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const cols = Math.max(2, mw), rows = Math.max(2, mh);
   const out = new Float32Array(gridW * gridH);
+  // #799 — mosaic pixels per node: when a node's cell spans more than ~1.5 of them, average the cell
+  const pxPerNodeX = (mw * (bbox.lonMax - bbox.lonMin)) / ((tiles.lonMax - tiles.lonMin) * Math.max(1, gridW - 1));
+  const pxPerNodeY = (mh * (mercY(bbox.latMax) - mercY(bbox.latMin))) / ((yTop - yBot) * Math.max(1, gridH - 1));
+  if (pxPerNodeX > 1.5 && pxPerNodeY > 1.5) {
+    // summed-area tables of the values and of the finite-pixel count ((mw+1) x (mh+1), exclusive)
+    const W = mw + 1, S = new Float64Array(W * (mh + 1)), C = new Uint32Array(W * (mh + 1));
+    for (let y = 0; y < mh; y++) {
+      let rs = 0, rc = 0;
+      for (let x = 0; x < mw; x++) {
+        const v = elev[y * mw + x];
+        if (Number.isFinite(v)) { rs += v; rc++; }
+        S[(y + 1) * W + x + 1] = S[y * W + x + 1] + rs;
+        C[(y + 1) * W + x + 1] = C[y * W + x + 1] + rc;
+      }
+    }
+    const pxX = (lon) => ((lon - tiles.lonMin) / (tiles.lonMax - tiles.lonMin)) * mw; // pixel-edge coordinates
+    const pxY = (lat) => ((yTop - mercY(lat)) / (yTop - yBot)) * mh;
+    const hx = (bbox.lonMax - bbox.lonMin) / Math.max(1, gridW - 1) / 2, hy = (bbox.latMax - bbox.latMin) / Math.max(1, gridH - 1) / 2;
+    for (let row = 0; row < gridH; row++) {
+      const lat = bbox.latMax - (row / Math.max(1, gridH - 1)) * (bbox.latMax - bbox.latMin);
+      // pixels whose centres (i + 0.5) fall inside the node's cell, at least the nearest one
+      let ya = Math.ceil(pxY(lat + hy) - 0.5), yb = Math.floor(pxY(lat - hy) - 0.5);
+      ya = Math.max(0, Math.min(mh - 1, ya)); yb = Math.max(ya, Math.min(mh - 1, yb));
+      for (let col = 0; col < gridW; col++) {
+        const lon = bbox.lonMin + (col / Math.max(1, gridW - 1)) * (bbox.lonMax - bbox.lonMin);
+        let xa = Math.ceil(pxX(lon - hx) - 0.5), xb = Math.floor(pxX(lon + hx) - 0.5);
+        xa = Math.max(0, Math.min(mw - 1, xa)); xb = Math.max(xa, Math.min(mw - 1, xb));
+        const i1 = (yb + 1) * W + xb + 1, i2 = ya * W + xb + 1, i3 = (yb + 1) * W + xa, i4 = ya * W + xa;
+        const cnt = C[i1] - C[i2] - C[i3] + C[i4], all = (xb - xa + 1) * (yb - ya + 1);
+        // a cell touching a failed tile stays NaN (filled and reported later by demFill.js), as before
+        out[row * gridW + col] = cnt === all ? (S[i1] - S[i2] - S[i3] + S[i4]) / cnt : NaN;
+      }
+    }
+    return out;
+  }
   for (let row = 0; row < gridH; row++) {
     const lat = bbox.latMax - (row / Math.max(1, gridH - 1)) * (bbox.latMax - bbox.latMin);
     const fy = ((y1 - clamp(mercY(lat), y0, y1)) / (y1 - y0 || 1)) * (rows - 1); // row 0 = north
@@ -198,6 +268,7 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const aspect = (lonMax - lonMin) / Math.max(1e-12, latMax - latMin);
   const gridW = aspect >= 1 ? GRID_MAX : Math.max(2, Math.round(GRID_MAX * aspect));
   const gridH = aspect >= 1 ? Math.max(2, Math.round(GRID_MAX / aspect)) : GRID_MAX;
+  const spikes = despikeMosaic(mosaic, mw, mh); // #799 — isolated source spikes / pits, before averaging
   const raw = resampleElevationMosaic(mosaic, mw, mh, { lonMin: nwLL.lon, latMin: seLL.lat, lonMax: seLL.lon, latMax: nwLL.lat }, { lonMin, latMin, lonMax, latMax }, gridW, gridH);
 
   let outBbox = [lonMin, latMin, lonMax, latMax];
@@ -230,5 +301,6 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
     source: { service: "AWS Terrain Tiles (Terrarium): SRTM blended with national DEMs (CDEM in Canada)", zoom, sourcePixelM, nodeM, fetched: new Date().toISOString().slice(0, 10) },
     noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
     failedTiles: failed.length,
+    spikesRemoved: spikes, // #799
   };
 }
