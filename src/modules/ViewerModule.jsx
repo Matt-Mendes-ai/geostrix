@@ -99,7 +99,7 @@ const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); //
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
-import SurfaceSolidsPanel from "../components/SurfaceSolidsPanel.jsx"; // TASKS.csv #802
+const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
@@ -8235,14 +8235,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
           title={tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model")}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
-        {surfaceSolidsOpen && (
+        {surfaceSolidsOpen && (<Suspense fallback={null}>
           <SurfaceSolidsPanel
             surfaces={implicitSurfaces} worldMesh={surfaceWorldMesh} origin={originRef.current}
             terrain={terrain} sampleGround={(x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; }}
             onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
             pBtn={pBtn} smallSel={smallSel} numInput={smallSel}
           />
-        )}
+        </Suspense>)}
         <input
           ref={importSolidRef}
           type="file"
