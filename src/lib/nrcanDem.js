@@ -117,7 +117,7 @@ async function readInto(out, url, g, stats) {
 
 // HRDEM mosaic tiles (1 m terrain) over the box, from NRCan's STAC catalogue: [dtm COG url]
 async function hrdemTiles(bbox) {
-  const d = await stacSearch(NRCAN_STAC, { collections: ["hrdem-mosaic-1m"], bbox, limit: 10 });
+  const d = await stacSearch(NRCAN_STAC, { collections: ["hrdem-mosaic-1m"], bbox, limit: 100 });
   return (d.features || []).map((f) => f.assets?.dtm?.href).filter((u) => typeof u === "string" && u.startsWith(`${NRCAN_HOST}/`));
 }
 

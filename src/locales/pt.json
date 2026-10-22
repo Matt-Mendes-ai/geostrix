@@ -5191,5 +5191,7 @@
   "Remove the saved line \"{name}\"{inv} from the project?": "Remover do projeto a linha salva \"{name}\"{inv}?",
   " and its inversion result": " e o seu resultado de inversão",
   "re-import the line file and run the inversion again.": "importe novamente o arquivo da linha e refaça a inversão.",
-  "re-import the line file.": "importe novamente o arquivo da linha."
+  "re-import the line file.": "importe novamente o arquivo da linha.",
+  "Intrusion body": "Corpo intrusivo",
+  "As built (best-fit plane)": "Como construída (plano de melhor ajuste)"
 }

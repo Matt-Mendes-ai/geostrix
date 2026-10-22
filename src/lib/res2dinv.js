@@ -47,6 +47,9 @@ export function parseRes2dinv(text) {
   const lines = String(text).split(/\r?\n/).map((l) => l.trim());
   // the survey name, the unit spacing (a number) and a known array code (an integer)
   if (lines.length < 6) return null;
+  // the spacing and array-code lines hold ONE number each (a column header + numbered rows is a whitespace table, #600)
+  const single = (l) => String(l).split(/[\s,]+/).filter(Boolean).length === 1;
+  if (!single(lines[1]) || !single(lines[2])) return null;
   const spacing = firstNum(lines[1]), code = firstNum(lines[2]);
   if (!(spacing > 0) || !Number.isInteger(code) || !ARRAYS[code]) return null;
   if (code === 8) throw new Error(tr("This Res2DInv file is an equatorial dipole-dipole survey, which GeoStrix cannot place on one line yet."));
@@ -92,6 +95,7 @@ export function parseRes2dinv(text) {
     const f = (e) => (e == null ? "*" : String(+e.toFixed(4)));
     rows.push({ A: f(el[0]), B: f(el[1]), M: f(el[2]), N: f(el[3]), Rho: String(rho), ...(ipFlag === 1 ? { IP: ip == null ? "" : String(ip) } : {}) });
   }
+  if (!rows.length) return null; // review of #826: nothing read is no Res2DInv file - let the other readers try
   const headers = ["A", "B", "M", "N", "Rho", ...(ipFlag === 1 ? ["IP"] : [])];
   const unitNote = ipFlag === 1 && ipUnit && !/mv\/?v/i.test(ipUnit) ? tr(" Chargeability is in {unit}, not mV/V: check it before inverting.", { unit: ipUnit }) : "";
   return { headers, rows, res2dinv: { title: lines[0], array: ARRAYS[code], spacing, ip: ipFlag === 1, resistance: measType === 1 },

@@ -19,7 +19,7 @@ const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
 // a short, stable fingerprint of what the surface is built from: rebuilt only when it changes
 function inputKey(def, ep, hasTerrain) {
-  const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), def.shape || "auto"]); // shape: #824
+  const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), ...(def.shape ? [def.shape] : [])]); // shape: #824 (absent on older surfaces: same key as before, no rebuild)
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${ep.points.length}:${(h >>> 0).toString(36)}`;
@@ -120,7 +120,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       offTerrain += r.offTerrain;
       lines.push(...r.lines);
     }
-    const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number(def.dipGuide.radius) || 500 }) : null;
+    const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number.isFinite(Number(def.dipGuide.radius)) && def.dipGuide.radius !== "" ? Number(def.dipGuide.radius) : 500 }) : null;
     return { lines, guides: g, missing, offTerrain };
   }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain]); // groundAt reads terrain
   // TASKS.csv #824 — lines digitized on section images in the 3D view: hard lines too (a point every 10 m along them)
@@ -326,7 +326,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       m.renderOrder = 12;
       g.add(m);
     }
-    const marks = [...digPts, ...(digDrawing && digHover ? [digHover.p] : [])];
+    const marks = [...digPts, ...(digHover ? [digHover.p] : [])]; // also a line point being dragged (Edit picks)
     if (marks.length) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(marks.flatMap(toScene)), 3));
@@ -360,7 +360,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     if (!n) return;
     const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const palette = ["#e07b39", "#3b8ed0", "#5aa469", "#c94f7c", "#8e6bd3", "#c9a227"];
-    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, surfaceId: null, builtKey: null }]);
+    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: null, builtKey: null }]); // shape: #824
     setSelId(id);
     setPickFor(id);
   });
@@ -387,7 +387,8 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         // apparent dips (under 45°: elevation over the map), not a best-fit plane that can stand across the sections
         const sectionLines = [...(def.lines || []).filter((l) => l.pts?.length >= 2), ...(sections || []).flatMap((sct) => (sct.contacts || []).filter((c) => c.unit === def.name && c.isUpperContact !== false && (!c.kind || c.kind === "contact")).map((c) => ({ pts: c.points })))];
         const appDip = sectionLines.length ? medianApparentDip(sectionLines) : null;
-        const frame = def.shape === "map" || def.shape === "plane" ? def.shape : appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
+        // a surface made before #824 has no shape: it keeps the best-fit-plane rule it was built with
+        const frame = def.shape === "map" || def.shape === "plane" ? def.shape : def.shape === "auto" && appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
         const res = fitExplicitSurface(ep.points, { margin: def.margin, resolution: def.resolution || 80, groundAt: def.cutAtTerrain && hasTerrain ? groundAt : null, frame });
         const ms = Math.round(performance.now() - t0);
         const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines });
@@ -411,7 +412,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}
       </div>
       <div style={row}>
-        <select value={def?.id || ""} onChange={(e) => { setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
+        <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
           {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.picks.length})</option>)}
         </select>
@@ -530,7 +531,8 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         </div>
         <div style={row} title={tr("Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)")}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>
-          <select value={def.shape || "auto"} onChange={(e) => update({ shape: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Shape")}>
+          <select value={def.shape || "legacy"} onChange={(e) => update({ shape: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Shape")}>
+            {!def.shape && <option value="legacy">{tr("As built (best-fit plane)")}</option>}
             <option value="auto">{tr("Automatic")}</option><option value="map">{tr("Elevation over the map")}</option><option value="plane">{tr("Over its own plane (steep)")}</option>
           </select>
         </div>

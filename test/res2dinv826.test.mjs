@@ -67,3 +67,8 @@ test("#826 not a Res2DInv file -> null; ones it cannot read -> a reason", () => 
   assert.throws(() => parseRes2dinv("EQ\n10\n8\n1\n0\n0\n0 10 2 5 50\n"), /equatorial/);
   assert.throws(() => parseRes2dinv("bad\n10\n3\nx\ny\nz\n"), /header could not be read/);
 });
+
+test("#826 review: a whitespace table with a column header and numbered electrodes is not taken for Res2DInv", () => {
+  const txt = "A B M N Rho IP\n1 * 2 3 120.5 4.1\n2 * 3 4 130.2 4.3\n3 * 4 5 140.1 4.0\n4 * 5 6 150.3 3.9\n5 * 6 7 160.0 3.8\n6 * 7 8 170.0 3.7\n7 * 8 9 171.0 3.7";
+  assert.equal(parseRes2dinv(txt), null);
+});

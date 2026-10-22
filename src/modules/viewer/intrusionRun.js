@@ -27,7 +27,7 @@ export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, o
       const rings = f.parts || [];
       rings.forEach((ring, ri) => {
         // a ring inside another ring of the same feature is a hole: not modelled (the body is filled), counted
-        if (rings.some((other, oi) => oi !== ri && pointInRings(ring[0], [other]))) { holes++; return; }
+        if (rings.filter((other, oi) => oi !== ri && pointInRings(ring[0], [other])).length % 2 === 1) { holes++; return; } // inside an odd number of rings: a hole (an island in a hole is a body again)
         try {
           const b = intrusionBody(ring, groundAt, { depthM: p.depthM, wallDip: p.wallDip, flare: p.flare });
           if (b.pinchedAtM != null) pinched.push(b.pinchedAtM);

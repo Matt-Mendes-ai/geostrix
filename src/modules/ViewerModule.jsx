@@ -638,6 +638,7 @@ const SURFACE_TYPES = [
   // (target-generation, true-width calcs against bedrock, etc), so it gets its own type rather than
   // being lumped under stratigraphic_contact like every other litho top.
   { key: "overburden_base", label: "Overburden (base of)" },
+  { key: "intrusion_body", label: "Intrusion body" }, // TASKS.csv #821 — a closed body from the geological map
   { key: "fault", label: "Fault" },
   { key: "dyke", label: "Dyke (cross-cutting)" },
   { key: "breccia_body", label: "Breccia body (cross-cutting)" },

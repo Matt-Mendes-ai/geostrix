@@ -82,3 +82,8 @@ test("#821 a wiggly mapped outline with dipping walls: the base is offset from t
     assert.ok(best < 1e-6);
   }
 });
+
+test("#821 review: an intrusion body is a solid (offered in Restrict to a modelled volume, proposed as a solid)", async () => {
+  const { SOLID_SURFACE_TYPES } = await import("../src/lib/viewer/modelHelpers.js");
+  assert.ok(SOLID_SURFACE_TYPES.has("intrusion_body"));
+});

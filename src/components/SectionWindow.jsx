@@ -80,7 +80,7 @@ export default function SectionWindow() {
   const geomRef = useRef({ hScale: 1 });
 
   useEffect(() => {
-    const takeLabels = (d) => { if (d?.labels) setLabels((p) => ({ ...p, ...d.labels, offsets: d.labels.offsets || {} })); }; // #823
+    const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     const off = onSectionData((d) => { setData(d); setContacts(d.contacts || []); takeLabels(d); });
     // TASKS.csv #617 — ask for the data too: the push from main can arrive before this lazy component listens
     getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); takeLabels(d); } }).catch(() => {});

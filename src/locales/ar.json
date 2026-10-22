@@ -5191,5 +5191,7 @@
   "Remove the saved line \"{name}\"{inv} from the project?": "إزالة الخط المحفوظ «{name}»{inv} من المشروع؟",
   " and its inversion result": " ونتيجة عكسه",
   "re-import the line file and run the inversion again.": "أعد استيراد ملف الخط وشغّل العكس من جديد.",
-  "re-import the line file.": "أعد استيراد ملف الخط."
+  "re-import the line file.": "أعد استيراد ملف الخط.",
+  "Intrusion body": "جسم متداخل",
+  "As built (best-fit plane)": "كما بُني (المستوى الأنسب)"
 }
