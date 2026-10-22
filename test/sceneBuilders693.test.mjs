@@ -62,3 +62,31 @@ test("#693 syncOmfObjects: points, line segments and surfaces; unknown kinds ski
   assert.equal(cache.s.visible, false);
   assert.deepEqual([...cache.p.geometry.attributes.position.array.slice(6, 9)], [0, 5, -10]);
 });
+
+test("#693 syncTerrain: grid -> scene (row 0 north), replaces and disposes the previous mesh, null without terrain", async () => {
+  const { syncTerrain } = await import("../src/lib/viewer/sceneBuilders.js");
+  const group = new THREE.Group();
+  const t = { bbox: [499000, 5999000, 501000, 6001000], gridW: 3, gridH: 3, elevations: [1300, 1300, 1300, 1200, 1200, 1200, 1100, 1100, 1100], color: "#777" };
+  const m1 = syncTerrain(group, null, t, { origin });
+  assert.equal(group.children.length, 1);
+  const p = m1.geometry.attributes.position.array;
+  assert.deepEqual([...p.slice(0, 3)], [-1000, 300, -1000]); // NW node: north edge -> scene z = -(ymax - oy)
+  assert.equal(m1.geometry.index.count, 2 * 2 * 6);
+  let disposed = 0;
+  m1.geometry.addEventListener("dispose", () => disposed++);
+  const m2 = syncTerrain(group, m1, { ...t, visible: false }, { origin });
+  assert.equal(disposed, 1);
+  assert.deepEqual(group.children, [m2]);
+  assert.equal(m2.visible, false);
+  assert.equal(syncTerrain(group, m2, null, { origin }), null);
+  assert.equal(group.children.length, 0);
+});
+
+test("#693 syncTerrain: a grid above 90,000 nodes is drawn as the adaptive mesh, far fewer triangles", async () => {
+  const { syncTerrain } = await import("../src/lib/viewer/sceneBuilders.js");
+  const n = 401, elevations = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) elevations[j * n + i] = 1000 + 50 * Math.sin(i / 40) + 30 * Math.cos(j / 25);
+  const m = syncTerrain(new THREE.Group(), null, { bbox: [499000, 5999000, 501000, 6001000], gridW: n, gridH: n, elevations }, { origin });
+  assert.ok(m.geometry.userData.adaptive, "adaptive path");
+  assert.ok(m.geometry.index.count / 3 < 2 * (n - 1) * (n - 1) / 4, `triangles ${m.geometry.index.count / 3}`);
+});

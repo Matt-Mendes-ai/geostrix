@@ -15,12 +15,6 @@ import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { decodeNoDataMask, isNoData } from "../lib/demFill.js"; // TASKS.csv #421
-import { buildAdaptiveTerrain } from "../lib/terrainMesh.js"; // TASKS.csv #796
-// TASKS.csv #796 — grids above this many nodes are drawn as an adaptive mesh (the Standard 200 x 200 never is);
-// the mesh is cached per terrain object, so a re-centred scene does not rebuild it
-const ADAPTIVE_TERRAIN_NODES = 90000;
-const adaptiveTerrainCache = new WeakMap();
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
@@ -116,7 +110,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
@@ -5128,89 +5122,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => { if (omfGroupRef.current) syncOmfObjects(omfGroupRef.current, omfMeshesRef.current, omfObjects, { origin: originRef.current }); }, [omfObjects, collars, rebuildSeq]);
 
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
-  // Own effect, own group, same reasoning as the raster-drape effect above: driven by the store's
-  // persisted (single) `terrain` object, not by layer-visibility churn, and needs to re-run when the
-  // scene origin shifts so it stays aligned with everything else.
-  useEffect(() => {
-    const group = terrainGroupRef.current;
-    if (!group) return;
-    if (terrainMeshRef.current) {
-      group.remove(terrainMeshRef.current);
-      terrainMeshRef.current.geometry.dispose();
-      terrainMeshRef.current.material.dispose();
-      terrainMeshRef.current = null;
-    }
-    if (!terrain) return;
-    const { x: ox, y: oy, z: oz } = originRef.current;
-    const [xmin, ymin, xmax, ymax] = terrain.bbox;
-    const { gridW, gridH, elevations } = terrain;
-    // Built directly as a custom BufferGeometry (not PlaneGeometry+per-vertex Z tweak like the raster
-    // drape above) since every vertex here has an independently meaningful world position, not just a
-    // displaced flat grid — keeps the row/column -> world -> scene mapping explicit and easy to check
-    // against parseDEM's own row-0-is-north convention.
-    const mask = decodeNoDataMask(terrain.noDataMask);
-    if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
-      // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
-      let am = adaptiveTerrainCache.get(terrain);
-      if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null); adaptiveTerrainCache.set(terrain, am); }
-      const nv = am.vertexIds.length;
-      const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
-      for (let n = 0; n < nv; n++) {
-        const idx = am.vertexIds[n], i = idx % gridW, j = (idx - i) / gridW;
-        positions[n * 3] = xmin + (i / (gridW - 1)) * (xmax - xmin) - ox;
-        positions[n * 3 + 1] = elevations[idx] - oz;
-        positions[n * 3 + 2] = -(ymax - (j / (gridH - 1)) * (ymax - ymin) - oy);
-        uvs[n * 2] = i / (gridW - 1);
-        uvs[n * 2 + 1] = 1 - j / (gridH - 1);
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-      geometry.setIndex(new THREE.BufferAttribute(am.indices, 1));
-      geometry.computeVertexNormals();
-      geometry.userData.adaptive = { triangles: am.triangles, maxError: am.maxError, nodes: gridW * gridH };
-      const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.visible = terrain.visible !== false;
-      group.add(mesh);
-      terrainMeshRef.current = mesh;
-      return;
-    }
-    const positions = new Float32Array(gridW * gridH * 3);
-    const uvs = new Float32Array(gridW * gridH * 2);
-    for (let j = 0; j < gridH; j++) {
-      const worldY = ymax - (j / (gridH - 1)) * (ymax - ymin); // row 0 = north/ymax edge
-      for (let i = 0; i < gridW; i++) {
-        const worldX = xmin + (i / (gridW - 1)) * (xmax - xmin);
-        const el = elevations[j * gridW + i];
-        const idx = j * gridW + i;
-        positions[idx * 3] = worldX - ox;
-        positions[idx * 3 + 1] = el - oz;
-        positions[idx * 3 + 2] = -(worldY - oy);
-        uvs[idx * 2] = i / (gridW - 1);
-        uvs[idx * 2 + 1] = 1 - j / (gridH - 1);
-      }
-    }
-    const indices = [];
-    // TASKS.csv #421 — leave out every triangle touching a no-data node (filled only for sampling).
-    for (let j = 0; j < gridH - 1; j++) {
-      for (let i = 0; i < gridW - 1; i++) {
-        const a = j * gridW + i, b = a + 1, c = a + gridW, d = c + 1;
-        if (mask && (isNoData(mask, a) || isNoData(mask, b) || isNoData(mask, c) || isNoData(mask, d))) continue;
-        indices.push(a, c, b, b, c, d);
-      }
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.visible = terrain.visible !== false;
-    group.add(mesh);
-    terrainMeshRef.current = mesh;
-  }, [terrain, collars, rebuildSeq]);
+  // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
+  useEffect(() => { if (terrainGroupRef.current) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq]);
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual

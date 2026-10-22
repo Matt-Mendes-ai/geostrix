@@ -1,5 +1,5 @@
 // TASKS.csv #693 step 2 — the per-kind scene rebuilds (raster drapes, boundaries, map layers, section images, surface
-// structure symbols, OMF objects), moved out of ViewerModule.jsx's effects VERBATIM except for mechanical renames
+// structure symbols, OMF objects, terrain), moved out of ViewerModule.jsx's effects VERBATIM except for mechanical renames
 // (xGroupRef.current -> group, the mesh cache ref -> cache, originRef.current -> origin, rendererRef.current ->
 // renderer). Each takes the three.js group it owns, its id -> object cache (mutated in place; the caller keeps the
 // object) and the store list, and makes the group match the list. ViewerModule calls them from the same effects, with
@@ -7,6 +7,8 @@
 import * as THREE from "three";
 import { sampleTerrainElevation } from "./geomath.js";
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS } from "../mapLayers.js";
+import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
+import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 
 // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
 // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -391,4 +393,90 @@ export function syncOmfObjects(group, cache, omfObjects, { origin }) {
     group.add(obj);
     cache[o.id] = obj;
   });
+}
+
+// ---------- rebuild terrain surface (TASKS.csv #77) ----------
+// Own effect, own group, same reasoning as the raster-drape effect above: driven by the store's
+// persisted (single) `terrain` object, not by layer-visibility churn, and needs to re-run when the
+// scene origin shifts so it stays aligned with everything else.
+// Removes and disposes `previous` (the mesh it returned last time, or null) and returns the new terrain mesh, or null
+// with no terrain. #796: grids above ADAPTIVE_TERRAIN_NODES are drawn as an adaptive mesh, cached per terrain object
+// so a re-centred scene does not rebuild it.
+const ADAPTIVE_TERRAIN_NODES = 90000;
+const adaptiveTerrainCache = new WeakMap();
+export function syncTerrain(group, previous, terrain, { origin }) {
+  if (previous) {
+    group.remove(previous);
+    previous.geometry.dispose();
+    previous.material.dispose();
+  }
+  if (!terrain) return null;
+  const { x: ox, y: oy, z: oz } = origin;
+  const [xmin, ymin, xmax, ymax] = terrain.bbox;
+  const { gridW, gridH, elevations } = terrain;
+  // Built directly as a custom BufferGeometry (not PlaneGeometry+per-vertex Z tweak like the raster
+  // drape above) since every vertex here has an independently meaningful world position, not just a
+  // displaced flat grid — keeps the row/column -> world -> scene mapping explicit and easy to check
+  // against parseDEM's own row-0-is-north convention.
+  const mask = decodeNoDataMask(terrain.noDataMask);
+  if (gridW * gridH > ADAPTIVE_TERRAIN_NODES) {
+    // TASKS.csv #796 — High / Very high detail grids: only the nodes an adaptive mesh needs (lib/terrainMesh.js)
+    let am = adaptiveTerrainCache.get(terrain);
+    if (!am) { am = buildAdaptiveTerrain(gridW, gridH, elevations, mask ? (k) => isNoData(mask, k) : null); adaptiveTerrainCache.set(terrain, am); }
+    const nv = am.vertexIds.length;
+    const positions = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
+    for (let n = 0; n < nv; n++) {
+      const idx = am.vertexIds[n], i = idx % gridW, j = (idx - i) / gridW;
+      positions[n * 3] = xmin + (i / (gridW - 1)) * (xmax - xmin) - ox;
+      positions[n * 3 + 1] = elevations[idx] - oz;
+      positions[n * 3 + 2] = -(ymax - (j / (gridH - 1)) * (ymax - ymin) - oy);
+      uvs[n * 2] = i / (gridW - 1);
+      uvs[n * 2 + 1] = 1 - j / (gridH - 1);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(am.indices, 1));
+    geometry.computeVertexNormals();
+    geometry.userData.adaptive = { triangles: am.triangles, maxError: am.maxError, nodes: gridW * gridH };
+    const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.visible = terrain.visible !== false;
+    group.add(mesh);
+    return mesh;
+  }
+  const positions = new Float32Array(gridW * gridH * 3);
+  const uvs = new Float32Array(gridW * gridH * 2);
+  for (let j = 0; j < gridH; j++) {
+    const worldY = ymax - (j / (gridH - 1)) * (ymax - ymin); // row 0 = north/ymax edge
+    for (let i = 0; i < gridW; i++) {
+      const worldX = xmin + (i / (gridW - 1)) * (xmax - xmin);
+      const el = elevations[j * gridW + i];
+      const idx = j * gridW + i;
+      positions[idx * 3] = worldX - ox;
+      positions[idx * 3 + 1] = el - oz;
+      positions[idx * 3 + 2] = -(worldY - oy);
+      uvs[idx * 2] = i / (gridW - 1);
+      uvs[idx * 2 + 1] = 1 - j / (gridH - 1);
+    }
+  }
+  const indices = [];
+  // TASKS.csv #421 — leave out every triangle touching a no-data node (filled only for sampling).
+  for (let j = 0; j < gridH - 1; j++) {
+    for (let i = 0; i < gridW - 1; i++) {
+      const a = j * gridW + i, b = a + 1, c = a + gridW, d = c + 1;
+      if (mask && (isNoData(mask, a) || isNoData(mask, b) || isNoData(mask, c) || isNoData(mask, d))) continue;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const material = new THREE.MeshLambertMaterial({ color: terrain.color || "#8a7f68", side: THREE.DoubleSide, transparent: (terrain.opacity ?? 1) < 1, opacity: terrain.opacity ?? 1 });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.visible = terrain.visible !== false;
+  group.add(mesh);
+  return mesh;
 }
