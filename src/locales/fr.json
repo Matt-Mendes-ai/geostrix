@@ -4988,5 +4988,17 @@
   "A surface exactly through your own picks in 3D and lines drawn on sections": "Une surface passant exactement par vos pointés en 3D et les lignes dessinées sur les coupes",
   "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "Faites glisser un pointé pour le déplacer : un pointé sur un sondage glisse le long de ce sondage (en s'alignant sur les contacts décrits si l'alignement est activé) ; tout autre pointé monte ou descend, ou se déplace à l'horizontale avec Maj enfoncée. La surface se reconstruit au relâchement.",
   "Editing — drag a pick (click to stop)": "Édition : faites glisser un pointé (cliquez pour arrêter)",
-  "Edit picks (drag to move)": "Modifier les pointés (glisser pour déplacer)"
+  "Edit picks (drag to move)": "Modifier les pointés (glisser pour déplacer)",
+  " ({v} m high{v2})": " ({v} m de haut{v2})",
+  " Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.": " Source : {service}, rééchantillonnée en nœuds espacés de ~{v2} m. C'est un modèle de surface : en forêt, il lit quelques mètres au-dessus du sol.",
+  " Warning: {n} isolated cone in the AWS tiles that Copernicus GLO-30 does not show — most likely a source artifact: {list}. The data were not changed; to avoid it, choose Copernicus GLO-30 as the online source and fetch again.": " Attention : {n} cône isolé dans les tuiles AWS que Copernicus GLO-30 ne montre pas — très probablement un artefact de la source : {list}. Les données n'ont pas été modifiées ; pour l'éviter, choisissez Copernicus GLO-30 comme source en ligne et récupérez à nouveau.",
+  " Warning: {n} isolated cones in the AWS tiles that Copernicus GLO-30 does not show — most likely source artifacts: {list}. The data were not changed; to avoid them, choose Copernicus GLO-30 as the online source and fetch again.": " Attention : {n} cônes isolés dans les tuiles AWS que Copernicus GLO-30 ne montre pas — très probablement des artefacts de la source : {list}. Les données n'ont pas été modifiées ; pour les éviter, choisissez Copernicus GLO-30 comme source en ligne et récupérez à nouveau.",
+  " {n} isolated cone(s) could not be checked against Copernicus GLO-30 (no connection to it).": " {n} cône(s) isolé(s) n'ont pas pu être vérifiés avec Copernicus GLO-30 (pas de connexion).",
+  "; Copernicus {v} m": " ; Copernicus {v} m",
+  "AWS Terrain Tiles (SRTM / CDEM blend)": "AWS Terrain Tiles (mélange SRTM / CDEM)",
+  "AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres).": "AWS Terrain Tiles : SRTM combiné à des modèles nationaux (CDEM au Canada), pixels jusqu'à ~5 m ; la récupération y cherche les cônes isolés, les compare à Copernicus et avertit. Copernicus GLO-30 : un modèle mondial homogène, ~30 m, de surface (la forêt ajoute quelques mètres).",
+  "Copernicus GLO-30 (~30 m)": "Copernicus GLO-30 (~30 m)",
+  "Copernicus GLO-30 has no land cells in this area (open ocean).": "Copernicus GLO-30 n'a aucune cellule terrestre dans cette zone (pleine mer).",
+  "Online source": "Source en ligne",
+  "Couldn't read the Copernicus GLO-30 elevation model ({v}). Check your internet connection.": "Impossible de lire le modèle d'élévation Copernicus GLO-30 ({v}). Vérifiez votre connexion internet."
 }

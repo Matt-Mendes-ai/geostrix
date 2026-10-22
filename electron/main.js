@@ -850,7 +850,9 @@ ipcMain.handle("fetch-web-layer", async (_e, { url } = {}) => {
 // byte range of a cloud-optimised GeoTIFF. Only these HTTPS hosts (no general proxy), the #350 address checks on every
 // hop, 64 MB a response, 60 s. Earth Search + sentinel-cogs: Copernicus Sentinel-2 on AWS Open Data (no account);
 // Planetary Computer + its ASTER blob store: ASTER L1T (anonymous read token from the Planetary Computer itself).
-const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net"]);
+// TASKS.csv #814 — and copernicus-dem-30m: the Copernicus GLO-30 elevation model (a terrain source, and the cross-check of
+// isolated cones in the AWS Terrain Tiles), the same kind of public cloud-optimised GeoTIFF read.
+const RS_HOSTS = new Set(["earth-search.aws.element84.com", "sentinel-cogs.s3.us-west-2.amazonaws.com", "planetarycomputer.microsoft.com", "astersa.blob.core.windows.net", "copernicus-dem-30m.s3.amazonaws.com"]);
 ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = null } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }

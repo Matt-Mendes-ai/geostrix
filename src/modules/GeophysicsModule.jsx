@@ -24,6 +24,7 @@ import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #404/
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
 import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
+import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { omfToProjectObjects } from "../lib/omfImport.js"; // TASKS.csv #637
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
@@ -140,6 +141,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
   const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
   const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
+  // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
+  const [terrainSource, setTerrainSourceState] = useState(() => { try { return localStorage.getItem("geostrix.terrainSource") || "aws"; } catch { return "aws"; } });
+  const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem("geostrix.terrainSource", v); } catch { /* private window */ } };
   const [srtmPickerOpen, setSrtmPickerOpen] = useState(false);
   const [srtmSeedBbox, setSrtmSeedBbox] = useState(null); // [lonMin, latMin, lonMax, latMax] | null
   const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
@@ -441,7 +445,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
     try {
-      const parsed = await fetchSRTMTerrain({
+      const parsed = await (terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain)({ // #814
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
       });
@@ -467,7 +471,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       addTerrain({ name: parsed.name, bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null, source: parsed.source || null }); // noDataMask: #421; source: #726
       const [txmin, tymin, txmax, tymax] = parsed.bbox;
       let msg = tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
-      if (parsed.source) msg += tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }); // #726
+      if (parsed.source) msg += parsed.source.zoom != null
+        ? tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }) // #726
+        : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
+      // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
+      if (parsed.suspectCones?.length) {
+        const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
+        msg += tr(parsed.suspectCones.length === 1 ? " Warning: {n} isolated cone in the AWS tiles that Copernicus GLO-30 does not show — most likely a source artifact: {list}. The data were not changed; to avoid it, choose Copernicus GLO-30 as the online source and fetch again." : " Warning: {n} isolated cones in the AWS tiles that Copernicus GLO-30 does not show — most likely source artifacts: {list}. The data were not changed; to avoid them, choose Copernicus GLO-30 as the online source and fetch again.", { n: parsed.suspectCones.length, list: parsed.suspectCones.slice(0, 4).map(fmt).join("; ") });
+      }
+      if (parsed.conesUnchecked) msg += tr(" {n} isolated cone(s) could not be checked against Copernicus GLO-30 (no connection to it).", { n: parsed.conesUnchecked });
       if (parsed.spikesRemoved) msg += tr(parsed.spikesRemoved === 1 ? " {n} isolated spike or pit in the source data (a pixel tens of metres off all its neighbours) was replaced by its neighbours' median." : " {n} isolated spikes or pits in the source data (pixels tens of metres off all their neighbours) were replaced by their neighbours' median.", { n: parsed.spikesRemoved }); // TASKS.csv #799
       if (parsed.reprojectedTo) msg += tr(" Reprojected from WGS84 to the project's EPSG:{reprojectedTo}.", { reprojectedTo: parsed.reprojectedTo });
       else if (parsed.reprojectNote) msg += tr(" Note: {reprojectNote}", { reprojectNote: parsed.reprojectNote });
@@ -1154,6 +1166,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <input type="checkbox" checked={demCrop} onChange={(e) => setDemCrop(e.target.checked)} />{" "}{tr("Crop to the drillholes +")}<input type="number" min="1000" step="500" value={demCropBuffer} onChange={(e) => setDemCropBuffer(e.target.value)} style={{ ...numInput, width: 70, flex: "none" }} aria-label={tr("Crop buffer in metres")} /> m
           </label>
         )}
+        {/* TASKS.csv #814 — online elevation model */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
+          <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
+            title={tr("AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres).")}>
+            <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
+            <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>
+          </select>
+        </div>
         {/* TASKS.csv #796 — terrain detail */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Terrain detail")}</span>

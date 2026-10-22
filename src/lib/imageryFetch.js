@@ -86,7 +86,7 @@ class RsClient extends BaseClient {
     return new RsResponse(206, out, `bytes ${a}-${b}/${this.size ?? "*"}`);
   }
 }
-const openCog = (href, stats) => fromCustomClient(new RsClient(href, stats)); // no blockSize: no BlockedSource (see above)
+export const openCog = (href, stats) => fromCustomClient(new RsClient(href, stats)); // no blockSize: no BlockedSource (see above); exported for copernicusDem.js (#814)
 
 async function stacSearch(url, body) {
   const r = await remoteSensingFetch({ url, json: body });

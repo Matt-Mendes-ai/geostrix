@@ -4988,5 +4988,17 @@
   "A surface exactly through your own picks in 3D and lines drawn on sections": "سطح يمر تمامًا عبر نقاطك في العرض ثلاثي الأبعاد والخطوط المرسومة على المقاطع",
   "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "اسحب نقطة لتحريكها: النقطة على ثقب حفر تنزلق على امتداد ذلك الثقب (وتلتقط التماسات المسجلة عند تفعيل الالتقاط)؛ وأي نقطة أخرى تتحرك لأعلى ولأسفل، أو أفقيًا مع الضغط على Shift. يُعاد بناء السطح عند الإفلات.",
   "Editing — drag a pick (click to stop)": "جارٍ التحرير — اسحب نقطة (انقر للإيقاف)",
-  "Edit picks (drag to move)": "تحرير النقاط (اسحب للتحريك)"
+  "Edit picks (drag to move)": "تحرير النقاط (اسحب للتحريك)",
+  " ({v} m high{v2})": " (بارتفاع {v} م{v2})",
+  " Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.": " المصدر: {service}، أُعيد أخذ عيناته إلى عُقد كل ~{v2} م. إنه نموذج سطح: في الغابات يقرأ أمتارًا فوق الأرض.",
+  " Warning: {n} isolated cone in the AWS tiles that Copernicus GLO-30 does not show — most likely a source artifact: {list}. The data were not changed; to avoid it, choose Copernicus GLO-30 as the online source and fetch again.": " تحذير: {n} مخروط معزول في بلاطات AWS لا يظهر في Copernicus GLO-30 — على الأرجح خطأ في المصدر: {list}. لم تُغيَّر البيانات؛ لتجنّبه اختر Copernicus GLO-30 مصدرًا عبر الإنترنت وأعد الجلب.",
+  " Warning: {n} isolated cones in the AWS tiles that Copernicus GLO-30 does not show — most likely source artifacts: {list}. The data were not changed; to avoid them, choose Copernicus GLO-30 as the online source and fetch again.": " تحذير: {n} مخاريط معزولة في بلاطات AWS لا تظهر في Copernicus GLO-30 — على الأرجح أخطاء في المصدر: {list}. لم تُغيَّر البيانات؛ لتجنّبها اختر Copernicus GLO-30 مصدرًا عبر الإنترنت وأعد الجلب.",
+  " {n} isolated cone(s) could not be checked against Copernicus GLO-30 (no connection to it).": " تعذّر التحقق من {n} مخروط معزول مقابل Copernicus GLO-30 (لا اتصال به).",
+  "; Copernicus {v} m": "؛ Copernicus {v} م",
+  "AWS Terrain Tiles (SRTM / CDEM blend)": "AWS Terrain Tiles (مزيج SRTM / CDEM)",
+  "AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres).": "AWS Terrain Tiles: بيانات SRTM ممزوجة بنماذج وطنية (CDEM في كندا)، بكسلات حتى ~5 م؛ يبحث الجلب فيها عن مخاريط معزولة ويقارنها بـ Copernicus وينبّه. Copernicus GLO-30: نموذج عالمي متجانس، ~30 م، نموذج سطح (تضيف الغابات بضعة أمتار).",
+  "Copernicus GLO-30 (~30 m)": "Copernicus GLO-30 (~30 م)",
+  "Copernicus GLO-30 has no land cells in this area (open ocean).": "لا يحتوي Copernicus GLO-30 على خلايا يابسة في هذه المنطقة (بحر مفتوح).",
+  "Online source": "المصدر عبر الإنترنت",
+  "Couldn't read the Copernicus GLO-30 elevation model ({v}). Check your internet connection.": "تعذّرت قراءة نموذج الارتفاع Copernicus GLO-30 ({v}). تحقّق من اتصالك بالإنترنت."
 }

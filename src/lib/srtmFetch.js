@@ -18,9 +18,10 @@
 // Actual tile bytes are fetched via desktop.js's fetchSRTMTile (proxied through Electron's main
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
-import { getProj4Def, reprojectGrid, pointTransform, neighbourUtmZones } from "./reproject.js";
+import { pointTransform, neighbourUtmZones } from "./reproject.js";
 import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #614
-import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
+import { gridDims, finishTerrain } from "./terrainGrid.js"; // TASKS.csv #814 — shared with the Copernicus source
+import { copernicusRise, isArtifactCone } from "./copernicusDem.js"; // TASKS.csv #814
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const MAX_TILES = 36; // 6x6 budget — keeps a single fetch to a few dozen requests/~1-2MB, not runaway
@@ -117,6 +118,58 @@ export function despikeMosaic(elev, w, h, { minM = 40, ratio = 3 } = {}) {
     }
   }
   return n;
+}
+
+// TASKS.csv #814 — Matt, after #799: "downloaded the high res srtm but still the same issue. a cone that wasn't supposed
+// to be there". At Orion (-130.2612, 56.3608) the AWS tiles THEMSELVES hold a smooth peak 1,931 m high, ~300 m above
+// the ground around it and ~200 m across (40 pixels: no single-pixel test can see it), with a flat 1,541 m run beside it
+// (a void fill); Copernicus GLO-30 shows a plain slope there. This only FINDS such cones, it never changes the data: a
+// real horn or nunatak must not be flattened by a guess. Candidates are summits (the highest pixel within ~30 m); one is
+// flagged when, for a ring of radius R between 50 and 300 m, it stands more than max(minRiseM, slope x R) above the
+// ring's median (an average slope steeper than ~40° in every direction) AND no ring sample comes within half that rise
+// of the summit (a real peak keeps its ridges: they stay high on the ring). Returns [{ x, y (mosaic pixels), riseM,
+// radiusM }], the strongest first, one per ~R.
+export function findIsolatedCones(elev, w, h, pixelM, { minRiseM = 80, slope = 0.85, radiiM = [50, 100, 150, 200, 300], samples = 48 } = {}) {
+  const r0 = Math.max(1, Math.round(30 / pixelM));
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? NaN : elev[y * w + x]);
+  // the highest pixel within r0: a separable sliding max (rows, then columns)
+  const rowMax = new Float32Array(w * h), winMax = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let m = -Infinity;
+    for (let k = Math.max(0, x - r0); k <= Math.min(w - 1, x + r0); k++) { const v = elev[y * w + k]; if (v > m) m = v; }
+    rowMax[y * w + x] = m;
+  }
+  for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) {
+    let m = -Infinity;
+    for (let k = Math.max(0, y - r0); k <= Math.min(h - 1, y + r0); k++) { const v = rowMax[k * w + x]; if (v > m) m = v; }
+    winMax[y * w + x] = m;
+  }
+  const ring = new Float64Array(samples);
+  const found = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const v = elev[y * w + x];
+    if (!Number.isFinite(v) || v < winMax[y * w + x]) continue;
+    for (const R of radiiM) {
+      const rp = R / pixelM;
+      if (rp < 2 || x - rp < 0 || y - rp < 0 || x + rp >= w || y + rp >= h) continue;
+      let ok = true;
+      for (let s = 0; s < samples; s++) {
+        const a = (2 * Math.PI * s) / samples, u = at(Math.round(x + rp * Math.cos(a)), Math.round(y + rp * Math.sin(a)));
+        // a flagged cone has every ring sample more than minRiseM / 2 below its top: stop at the first that is not (a
+        // plateau or a ridge fails here at once - Woodjam took 3.7 s without this, 0.1 s with it)
+        if (!Number.isFinite(u) || u > v - minRiseM / 2) { ok = false; break; }
+        ring[s] = u;
+      }
+      if (!ok) continue;
+      const sorted = Array.from(ring).sort((p, q) => p - q);
+      const rise = v - sorted[samples >> 1], ringMax = sorted[samples - 1];
+      if (rise > Math.max(minRiseM, slope * R) && v - ringMax > rise / 2) { found.push({ x, y, riseM: rise, radiusM: R }); break; }
+    }
+  }
+  found.sort((p, q) => q.riseM - p.riseM);
+  const kept = [];
+  for (const c of found) if (!kept.some((k) => Math.hypot((k.x - c.x) * pixelM, (k.y - c.y) * pixelM) < Math.max(k.radiusM, c.radiusM))) kept.push(c);
+  return kept;
 }
 
 export function resampleElevationMosaic(elev, mw, mh, tiles, bbox, gridW, gridH) {
@@ -265,32 +318,31 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
 
   // Resample onto a regular lon/lat grid over exactly the requested area (#726: at pixel centres, in Mercator Y)
   const nwLL = tileXYToLonLat(nw.x, nw.y, zoom), seLL = tileXYToLonLat(se.x + 1, se.y + 1, zoom);
-  // TASKS.csv #796 — in ground distance: a degree of longitude is cos(latitude) of a degree of latitude, so a square
-  // area at 52°N used to get 200 x 124 nodes (cells 60% longer north-south than east-west)
-  const aspect = ((lonMax - lonMin) * Math.cos(((latMin + latMax) / 2) * (Math.PI / 180))) / Math.max(1e-12, latMax - latMin);
-  const gridW = aspect >= 1 ? gridMax : Math.max(2, Math.round(gridMax * aspect));
-  const gridH = aspect >= 1 ? Math.max(2, Math.round(gridMax / aspect)) : gridMax;
+  const { gridW, gridH } = gridDims(lonMin, latMin, lonMax, latMax, gridMax); // #796, now in terrainGrid.js
   const spikes = despikeMosaic(mosaic, mw, mh); // #799 — isolated source spikes / pits, before averaging
   const raw = resampleElevationMosaic(mosaic, mw, mh, { lonMin: nwLL.lon, latMin: seLL.lat, lonMax: seLL.lon, latMax: nwLL.lat }, { lonMin, latMin, lonMax, latMax }, gridW, gridH);
 
-  let outBbox = [lonMin, latMin, lonMax, latMax];
-  let outGridW = gridW, outGridH = gridH, outElevations = raw;
-  let reprojectedTo = null, reprojectNote = null;
-  if (targetEpsg && Number(targetEpsg) !== 4326) {
-    const [fromDef, toDef] = await Promise.all([getProj4Def(4326), getProj4Def(targetEpsg)]);
-    if (fromDef && toDef) {
-      const r = reprojectGrid({ xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, gridW, gridH, band: raw }, fromDef, toDef, gridW, gridH);
-      outBbox = r.bbox; outGridW = r.gridW; outGridH = r.gridH; outElevations = r.elevations;
-      reprojectedTo = Number(targetEpsg);
-    } else {
-      reprojectNote = `Fetched in WGS84 (lon/lat) — automatic reprojection to the project's EPSG:${targetEpsg} wasn't available (unrecognized EPSG code), so it's landing at raw lon/lat coordinates. Double-check it lines up with the rest of the project.`;
-    }
+  const out = await finishTerrain(raw, { lonMin, latMin, lonMax, latMax }, gridW, gridH, targetEpsg); // reprojection + #421 no-data fill, terrainGrid.js
+
+  // TASKS.csv #814 — isolated cones in the tiles inside the area, each checked against Copernicus GLO-30: reported when
+  // GLO-30 does not have it (isArtifactCone), never changed. Without a connection to GLO-30 they are listed as unchecked.
+  const latMidC = ((latMin + latMax) / 2) * (Math.PI / 180);
+  const pxM = (40075016.686 * Math.cos(latMidC)) / (TILE * 2 ** zoom);
+  const tLL = { lonMin: nwLL.lon, latMin: seLL.lat, lonMax: seLL.lon, latMax: nwLL.lat };
+  const yTop = mercY(tLL.latMax), yBot = mercY(tLL.latMin);
+  const toLonLat = (x, y) => [tLL.lonMin + ((x + 0.5) / mw) * (tLL.lonMax - tLL.lonMin), (2 * Math.atan(Math.exp(yTop - ((y + 0.5) / mh) * (yTop - yBot))) - Math.PI / 2) * (180 / Math.PI)];
+  const toProject = targetEpsg && Number(targetEpsg) !== 4326 ? pointTransform(4326, targetEpsg) : null;
+  const suspectCones = [];
+  let conesUnchecked = 0;
+  for (const c of findIsolatedCones(mosaic, mw, mh, pxM).slice(0, 12)) {
+    const [lon, lat] = toLonLat(c.x, c.y);
+    if (lon < lonMin || lon > lonMax || lat < latMin || lat > latMax) continue;
+    let copRise = null;
+    try { copRise = await copernicusRise(lon, lat, c.radiusM); } catch { conesUnchecked++; continue; }
+    if (copRise != null && !isArtifactCone(c.riseM, copRise)) continue; // GLO-30 has it too: a real peak
+    const p = toProject ? toProject(lon, lat) : [lon, lat];
+    suspectCones.push({ lon, lat, x: p?.[0], y: p?.[1], top: mosaic[c.y * mw + c.x], riseM: c.riseM, copRiseM: copRise });
   }
-
-  // TASKS.csv #421 — no-data cells are still filled (for sampling) but recorded and reported; see demFill.js.
-  const fill = fillNoData(outElevations);
-  const elevations = fill.elevations;
-
   // TASKS.csv #726 — say what the surface is: the source (AWS Terrain Tiles blend SRTM with national DEMs - CDEM in
   // Canada - so "SRTM" was probably the wrong name in BC), its own pixel and the node spacing GRID_MAX made
   const latMid = ((latMin + latMax) / 2) * (Math.PI / 180);
@@ -298,11 +350,12 @@ export async function fetchSRTMTerrain({ lonMin, latMin, lonMax, latMax, targetE
   const nodeM = Math.max(((lonMax - lonMin) * 111320 * Math.cos(latMid)) / Math.max(1, gridW - 1), ((latMax - latMin) * 110574) / Math.max(1, gridH - 1));
   return {
     name: `Terrain (AWS Terrain Tiles, ~${Math.round(nodeM)} m grid)`,
-    bbox: outBbox, gridW: outGridW, gridH: outGridH, elevations,
-    reprojectedTo, reprojectNote, tileCount: got, zoom,
+    bbox: out.bbox, gridW: out.gridW, gridH: out.gridH, elevations: out.elevations,
+    reprojectedTo: out.reprojectedTo, reprojectNote: out.reprojectNote, tileCount: got, zoom,
     source: { service: "AWS Terrain Tiles (Terrarium): SRTM blended with national DEMs (CDEM in Canada)", zoom, sourcePixelM, nodeM, fetched: new Date().toISOString().slice(0, 10) },
-    noDataMask: fill.noDataMask, noDataNote: noDataNote(fill), // #421
+    noDataMask: out.noDataMask, noDataNote: out.noDataNote, // #421
     failedTiles: failed.length,
     spikesRemoved: spikes, // #799
+    suspectCones, conesUnchecked, // #814
   };
 }
