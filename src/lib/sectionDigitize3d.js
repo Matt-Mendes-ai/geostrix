@@ -145,3 +145,77 @@ export function constrainOnImage(prev, p, plane, stepDeg = 45) {
   const dir = [Math.cos(snapped), Math.sin(snapped)], l = a * dir[0] + b * dir[1];
   return { x: prev.x + (plane.u[0] * dir[0] + plane.v[0] * dir[1]) * l, y: prev.y + (plane.u[1] * dir[0] + plane.v[1] * dir[1]) * l, z: prev.z + (plane.u[2] * dir[0] + plane.v[2] * dir[1]) * l };
 }
+
+// ---- TASKS.csv #828 — CAD line editing on a section image (pure; points are world { x, y, z } on the image plane) ----
+
+// Where the ground crosses a vertical section image: the terrain profile along the image's top edge, as world points on
+// the plane (n samples across its width). [] for an image that is not near-vertical or a terrain that does not reach it.
+export function groundProfileOnImage(plane, groundAt, n = 200) {
+  if (Math.abs(plane.n[2]) > 0.1 || !groundAt) return [];
+  const out = [];
+  for (let k = 0; k <= n; k++) {
+    const s = k / n, e = plane.o[0] + plane.u[0] * s * plane.w, nn = plane.o[1] + plane.u[1] * s * plane.w;
+    const z = groundAt(e, nn);
+    if (Number.isFinite(z)) out.push({ x: e, y: nn, z });
+  }
+  return out.length >= 2 ? out : [];
+}
+
+// nearest point on a 2D polyline [[x, y]] to q: { i (segment), t (0..1 along it), d (distance) } or null
+export function nearestOnPolyline(pts, q) {
+  let best = null;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+    const t = L2 > 0 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2)) : 0;
+    const d = Math.hypot(a[0] + dx * t - q[0], a[1] + dy * t - q[1]);
+    if (!best || d < best.d) best = { i, t, d };
+  }
+  return best;
+}
+const lerp3 = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t });
+export const pointOnSegment = (pts, i, t) => lerp3(pts[i], pts[i + 1], t);
+
+// insert p after segment i
+export const insertPoint = (pts, i, p) => [...pts.slice(0, i + 1), p, ...pts.slice(i + 1)];
+
+// split at an interior vertex: two lines sharing that vertex; null at an end (nothing to split)
+export function splitAt(pts, vi) {
+  if (vi <= 0 || vi >= pts.length - 1) return null;
+  return [pts.slice(0, vi + 1), pts.slice(vi)];
+}
+
+// join line a at its end endA ("start" | "end") to line b at endB: one line running from a's far end through to b's far
+// end; the two touching points merge when they are within tol metres
+export function joinLines(a, endA, b, endB, tol = 0.01) {
+  const A = endA === "end" ? a : [...a].reverse(); // A ends at the join
+  const B = endB === "start" ? b : [...b].reverse(); // B starts at the join
+  const p = A[A.length - 1], q = B[0];
+  return Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) <= tol ? [...A, ...B.slice(1)] : [...A, ...B];
+}
+
+// Extend (or trim) line `pts` at `end` along its end segment until it meets `target` (another line), in the image's own
+// 2D frame: the hit of that ray (forwards, or backwards no further than the previous point) nearest the end point.
+// When the ray misses, the end point moves to the nearest point of the target. Returns the new points.
+export function extendTo(pts, end, target, plane) {
+  const P = end === "end" ? pts : [...pts].reverse();
+  const to2 = (p) => { const d = sub([p.x, p.y, p.z], plane.o); return [dot(d, plane.u), dot(d, plane.v)]; };
+  const from2 = ([s, t]) => ({ x: plane.o[0] + plane.u[0] * s + plane.v[0] * t, y: plane.o[1] + plane.u[1] * s + plane.v[1] * t, z: plane.o[2] + plane.u[2] * s + plane.v[2] * t });
+  const e = to2(P[P.length - 1]), f = to2(P[P.length - 2] || P[P.length - 1]);
+  const dir = [e[0] - f[0], e[1] - f[1]], T = target.map(to2);
+  let hit = null;
+  if (Math.hypot(dir[0], dir[1]) > 1e-9) {
+    for (let i = 0; i < T.length - 1; i++) {
+      const a = T[i], b = T[i + 1], s = [b[0] - a[0], b[1] - a[1]];
+      const den = dir[0] * s[1] - dir[1] * s[0];
+      if (Math.abs(den) < 1e-12) continue;
+      const w = [a[0] - e[0], a[1] - e[1]];
+      const k = (w[0] * s[1] - w[1] * s[0]) / den, u = (w[0] * dir[1] - w[1] * dir[0]) / den; // e + k dir = a + u s
+      if (u < -1e-9 || u > 1 + 1e-9 || k < -1) continue;
+      const len = Math.abs(k) * Math.hypot(dir[0], dir[1]);
+      if (!hit || len < hit.len) hit = { p: [e[0] + k * dir[0], e[1] + k * dir[1]], len };
+    }
+  }
+  if (!hit) { const nn = nearestOnPolyline(T, e); hit = { p: [T[nn.i][0] + (T[nn.i + 1][0] - T[nn.i][0]) * nn.t, T[nn.i][1] + (T[nn.i + 1][1] - T[nn.i][1]) * nn.t] }; }
+  const out = [...P.slice(0, -1), from2(hit.p)];
+  return end === "end" ? out : out.reverse();
+}

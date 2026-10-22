@@ -11,7 +11,8 @@ import { findOnTraceWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
-import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825
+import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
@@ -73,14 +74,14 @@ function upsertMesh(sc, def, res, info) {
     old.geometry.dispose();
     old.geometry = geo;
     old.material.color?.set(def.color);
-    old.userData = { ...old.userData, tip };
+    old.userData = { ...old.userData, tip, builtKey: info.key }; // builtKey: #828
     sc.setSurfaces((p) => p.map((s) => (s.id === def.surfaceId ? { ...s, name: def.name, vertexCount: nVerts, faceCount: nTris, params } : s)));
     return def.surfaceId;
   }
   const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: def.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
-  mesh.userData = { tip };
+  mesh.userData = { tip, builtKey: info.key }; // builtKey: #828
   sc.group.current?.add(mesh);
-  const id = `impl_${Date.now()}_explicit`;
+  const id = def.surfaceId || `impl_${Date.now()}_explicit`; // #828: new surfaces carry their mesh id from the start
   sc.meshes.current[id] = mesh;
   sc.setSurfaces((p) => [...p, { id, name: def.name, visible: true, vertexCount: nVerts, faceCount: nTris, type: "explicit_surface", relationships: [], params }]);
   return id;
@@ -148,6 +149,72 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       const d = defRef.current, cam = sc.camera.current, dom = sc.renderer.current?.domElement;
       if ((!d?.picks?.length && !d?.lines?.length) || !cam || !dom) return false; // lines: #824 / #825 — a surface drawn only on sections has no picks
       const o = sc.origin.current, rect = dom.getBoundingClientRect(), v = new THREE.Vector3();
+      // TASKS.csv #828 — line tools: insert a point, split, join, extend (Move is the drag below)
+      const tool = lineToolRef.current;
+      if (tool !== "move") {
+        const lines = d.lines || [];
+        const scrOf = (p) => { v.set(p.x - o.x, p.z - o.z, o.y - p.y).project(cam); return v.z > 1 ? null : [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; };
+        const nearVertex = () => { let best = 10, r = null; lines.forEach((ln, a) => ln.pts.forEach((p, b) => { const q = scrOf(p); if (!q) return; const dd = Math.hypot(q[0] - mx, q[1] - my); if (dd < best) { best = dd; r = { li: a, vi: b }; } })); return r; };
+        const nearSegment = (polys) => { let best = 8, r = null; polys.forEach((pts, a) => { const S = pts.map(scrOf); if (S.some((x) => !x)) return; const n = nearestOnPolyline(S, [mx, my]); if (n && n.d < best) { best = n.d; r = { li: a, i: n.i, t: n.t }; } }); return r; };
+        const endOf = (h) => (h ? (h.vi === 0 ? "start" : h.vi === lines[h.li].pts.length - 1 ? "end" : null) : null);
+        const newId = () => `ln_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const setLines = (fn) => setDefs((p) => p.map((x) => (x.id === d.id ? { ...x, lines: fn(x.lines || []) } : x)));
+        if (tool === "insert") {
+          const sg = nearSegment(lines.map((l) => l.pts));
+          if (!sg) return false;
+          const q = pointOnSegment(lines[sg.li].pts, sg.i, sg.t);
+          setLines((L) => L.map((ln, a) => (a === sg.li ? { ...ln, pts: insertPoint(ln.pts, sg.i, q) } : ln)));
+          setToolHint(tr("Point added."));
+          return true;
+        }
+        if (tool === "split") {
+          const h = nearVertex();
+          if (!h) return false;
+          const parts = splitAt(lines[h.li].pts, h.vi);
+          if (!parts) { setToolHint(tr("Split: click a point in the middle of a line, not an end.")); return true; }
+          setLines((L) => L.flatMap((ln, a) => (a === h.li ? [{ ...ln, pts: parts[0] }, { ...ln, id: newId(), pts: parts[1] }] : [ln])));
+          setToolHint(tr("Split into two lines."));
+          return true;
+        }
+        if (tool === "join") {
+          const h = nearVertex(), end = endOf(h);
+          if (!h) return false;
+          if (!end) { setToolHint(tr("Join: click the END of a line.")); return true; }
+          const first = pendRef.current;
+          if (!first) { pendRef.current = { id: lines[h.li].id, end }; setToolHint(tr("Join: now click an end of the line to join it to.")); return true; }
+          const a = lines.find((l) => l.id === first.id), b = lines[h.li];
+          pendRef.current = null;
+          if (!a || a.id === b.id || a.imageId !== b.imageId) { setToolHint(tr("Join: pick the ends of two different lines on the same image.")); return true; }
+          const joined = joinLines(a.pts, first.end, b.pts, end);
+          setLines((L) => L.filter((l) => l.id !== b.id).map((l) => (l.id === a.id ? { ...l, pts: joined } : l)));
+          setToolHint(tr("Joined into one line."));
+          return true;
+        }
+        if (tool === "extend") {
+          const first = pendRef.current;
+          if (!first) {
+            const h = nearVertex(), end = endOf(h);
+            if (!h) return false;
+            if (!end) { setToolHint(tr("Extend: click the END of a line.")); return true; }
+            pendRef.current = { id: lines[h.li].id, end };
+            setToolHint(tr("Extend: now click the line it should reach (another line on this image, or the ground)."));
+            return true;
+          }
+          const a = lines.find((l) => l.id === first.id), im = a && (sectionImagesRef.current || []).find((x) => x.id === a.imageId);
+          if (!a || !im) { pendRef.current = null; return true; }
+          const pl = imagePlane(im.corners);
+          const ground = groundAtRef.current ? groundProfileOnImage(pl, groundAtRef.current, 200) : [];
+          const targets = [...(allDefsRef.current || []).flatMap((x) => (x.lines || []).filter((l) => l.imageId === a.imageId && l.id !== a.id).map((l) => l.pts)), ...(ground.length ? [ground] : [])];
+          const sg = nearSegment(targets);
+          if (!sg) { setToolHint(tr("Extend: click on another line on this image, or on the ground.")); return true; }
+          const out = extendTo(a.pts, first.end, targets[sg.li], pl);
+          pendRef.current = null;
+          setLines((L) => L.map((l) => (l.id === a.id ? { ...l, pts: out } : l)));
+          setToolHint(tr("Extended."));
+          return true;
+        }
+        return false;
+      }
       let hit = -1, bestPx = 10;
       d.picks.forEach((p, i) => {
         v.set(p.x - o.x, p.z - o.z, o.y - p.y).project(cam);
@@ -235,6 +302,18 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   // a world point on the image plane for a ray, snapped to a vertex already drawn on this image (any surface)
   // TASKS.csv #825 — what a point can snap to on this image besides drawn vertices: logged contacts of holes on or near
   // the section (moved onto it) and where holes cross it
+  // TASKS.csv #828 — line tools (in Edit mode) and the ground line of the section
+  const { undo, redo, canUndo, canRedo } = useStore();
+  const [lineTool, setLineTool] = useState("move");
+  const lineToolRef = useRef("move");
+  lineToolRef.current = lineTool;
+  const pendRef = useRef(null); // join / extend: the end picked first
+  const [toolHint, setToolHint] = useState(null);
+  const groundAtRef = useRef(null);
+  groundAtRef.current = hasTerrain ? groundAt : null;
+  const allDefsRef = useRef(defs);
+  allDefsRef.current = defs;
+  const groundLine = useMemo(() => (plane && hasTerrain && digDrawing ? groundProfileOnImage(plane, groundAt, 200) : []), [plane, hasTerrain, terrain, digDrawing]); // groundAt reads terrain
   const snapTargets = useMemo(() => (digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: 15 }) : []), [digDrawing, plane, sc.litho]);
   const shiftRef = useRef(false);
   const planePoint = (ray) => {
@@ -260,6 +339,12 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         let best = 10, pick = null;
         for (const c of tier) { const [qx, qy] = scr(c.p); const dpx = Math.hypot(qx - hx, qy - hy); if (dpx < best) { best = dpx; pick = c; } }
         if (pick) { p = { x: pick.p.x, y: pick.p.y, z: pick.p.z }; snapped = true; label = pick.label; break; }
+      }
+      if (!snapped) { // #828 — onto a drawn line or the ground line, anywhere along it
+        const lines = [...defs.flatMap((d) => (d.lines || []).filter((l) => l.imageId === digImage.id).map((l) => ({ pts: l.pts, label: tr("on a drawn line") }))), ...(groundLine.length ? [{ pts: groundLine, label: tr("on the ground") }] : [])];
+        let best = 10, pick = null;
+        for (const l of lines) { const n = nearestOnPolyline(l.pts.map(scr), [hx, hy]); if (n && n.d < best) { best = n.d; pick = { p: pointOnSegment(l.pts, n.i, n.t), label: l.label }; } }
+        if (pick) { p = pick.p; snapped = true; label = pick.label; }
       }
     }
     return { p, snapped, label };
@@ -319,6 +404,14 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       line.renderOrder = 12;
       g.add(line);
     }
+    if (digDrawing && groundLine.length) { // #828 — where the terrain crosses the section
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(groundLine.flatMap(toScene)), 3));
+      const gl = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: "#8a6a1f", dashSize: 8, gapSize: 5, depthTest: false, transparent: true }));
+      gl.computeLineDistances();
+      gl.renderOrder = 12;
+      g.add(gl);
+    }
     if (digDrawing && snapTargets.length) { // #825 — the logged contacts (and crossings) a point can snap to
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(snapTargets.flatMap((t) => toScene(t.p))), 3));
@@ -337,7 +430,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     grp.add(g);
     sc.activity.current = Date.now();
     return () => { grp.remove(g); g.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); }); sc.activity.current = Date.now(); };
-  }, [digPts, digHover, digDrawing, def?.color, snapTargets]);
+  }, [digPts, digHover, digDrawing, def?.color, snapTargets, groundLine]);
   useEffect(() => () => { digRef.current.drawing = false; }, []);
   // the other section images step aside while one is drawn on
   useEffect(() => { onDigitizeImage?.(digDrawing && digImage ? digImage.id : null); }, [digDrawing, digImage?.id]);
@@ -360,7 +453,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     if (!n) return;
     const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const palette = ["#e07b39", "#3b8ed0", "#5aa469", "#c94f7c", "#8e6bd3", "#c9a227"];
-    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: null, builtKey: null }]); // shape: #824
+    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null }]); // shape: #824; surfaceId set now (#828): a build never writes to the def, so it is never an Undo step
     setSelId(id);
     setPickFor(id);
   });
@@ -370,7 +463,10 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   useEffect(() => {
     if (!def || !ep) return undefined;
     const key = inputKey(def, ep, hasTerrain);
-    if (key === def.builtKey && def.surfaceId && sc.meshes.current[def.surfaceId]) return undefined;
+    // #828 — the key the MESH was built from (an Undo brings back an older def.builtKey together with the older inputs, so
+    // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
+    const meshNow = def.surfaceId && sc.meshes.current[def.surfaceId];
+    if (meshNow && key === (meshNow.userData?.builtKey ?? def.builtKey)) return undefined;
     if (ep.points.length < 3) { setStatus({ ok: false, text: tr("Pick at least 3 contacts (in 3D or as lines on sections) to build the surface.") }); return undefined; }
     // TASKS.csv #824 — lines on ONE section only (and nothing off it): every point lies in that section's plane, so the
     // "surface" would be a sheet standing in the section, which says nothing about the contact in 3D
@@ -391,8 +487,10 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         const frame = def.shape === "map" || def.shape === "plane" ? def.shape : def.shape === "auto" && appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
         const res = fitExplicitSurface(ep.points, { margin: def.margin, resolution: def.resolution || 80, groundAt: def.cutAtTerrain && hasTerrain ? groundAt : null, frame });
         const ms = Math.round(performance.now() - t0);
-        const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines });
-        setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId, builtKey: key } : d)));
+        const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
+        // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
+        // surface from before #828), so building is never an Undo step of its own that would hide the real edit
+        if (surfaceId !== def.surfaceId) setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId } : d)));
         setStatus({ ok: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms; largest misfit at a point {mm} mm. {frame}{cut}", {
           n: res.n, picks: ep.picks, lines: ep.lines, ms, mm: (res.residualMax * 1000).toFixed(3),
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
@@ -426,7 +524,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
         </div>
-        <button onClick={() => { setPickFor(null); setEditing((v) => !v); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
+        <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
           <Move size={14} />{" "}{editing ? tr("Editing — drag a pick (click to stop)") : tr("Edit picks (drag to move)")}
@@ -460,7 +558,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             {digDrawing && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
               {tr("Click along {name}'s contact on the image. Enter or double-click: finish the line (the next click starts another). Backspace: remove the last point. Esc: stop. A point within 10 px of one already drawn on this image joins it.", { name: def.name })}
               {digPts.length ? ` ${tr("{n} point(s) in this line.", { n: digPts.length })}` : ""}
-              {` ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.")}`}
+              {` ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`}
               {digHover?.label ? <b>{` ${tr("Snap: {v}", { v: digHover.label })}`}</b> : null}
             </div>}
             {(def.lines || []).map((ln, i) => (
@@ -469,7 +567,20 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
                 <button onClick={() => update({ lines: def.lines.filter((x) => x.id !== ln.id) })} aria-label={tr("Remove this line")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
               </div>
             ))}
-            {!!(def.lines || []).length && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.")}</div>}
+            {!!(def.lines || []).length && (<>
+              {/* TASKS.csv #828 — line tools */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "4px 0" }} role="group" aria-label={tr("Line tools")}>
+                {[["move", "Move points", "Drag a point to move it along its image; Alt + click deletes it."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
+                  const on = editing && lineTool === k;
+                  return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setPickFor(null); setEditing(true); }}
+                    style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", ...(on ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>{tr(label)}</button>;
+                })}
+                <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
+                <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
+              </div>
+              {editing && toolHint && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>{toolHint}</div>}
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.")}</div>
+            </>)}
           </>)}
         </div>
         {/* TASKS.csv #817 — mapped contacts as hard lines, with an optional dip guide */}
