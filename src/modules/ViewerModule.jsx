@@ -99,6 +99,7 @@ const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); //
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
+import SurfaceSolidsPanel from "../components/SurfaceSolidsPanel.jsx"; // TASKS.csv #802
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
@@ -1228,6 +1229,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
   const [lastLithBlock, setLastLithBlock] = useState(null);
+  const [surfaceSolidsOpen, setSurfaceSolidsOpen] = useState(false); // TASKS.csv #802
   // TASKS.csv #318 — a mapped surface contact (plus nearby outcrop measurements) to feed the next
   // single-unit implicit run: { layerId, contactKey, units, classes, radius, tolerance, ... } | null.
   // Session-only, like includeSectionContacts: it is a per-run modelling choice, not project data.
@@ -3391,14 +3393,36 @@ ${describeTrend(t)}` };
       return [{ id: sf.id, name: sf.name, positions: w, indices: idx }];
     });
   };
+  // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for
+  // "Solid blocks from surfaces"
+  const surfaceWorldMesh = useCallback((id) => {
+    const mesh = implicitMeshesRef.current[id];
+    const pos = mesh?.geometry?.attributes?.position?.array;
+    if (!pos) return null;
+    const o = originRef.current, n = pos.length / 3, w = new Float64Array(pos.length);
+    for (let i = 0; i < n; i++) { w[i * 3] = pos[i * 3] + o.x; w[i * 3 + 1] = o.y - pos[i * 3 + 2]; w[i * 3 + 2] = pos[i * 3 + 1] + o.z; }
+    const indices = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
+    const color = mesh.material?.color ? `#${mesh.material.color.getHexString()}` : null;
+    return { positions: w, indices, color };
+  }, []);
+  const surfaceSolidsBuilt = (lb, sum) => {
+    setLastLithBlock(lb);
+    setSurfaceSolidsOpen(false);
+    const units = Object.entries(sum.counts).map(([u, n]) => tr("{unit} {v} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2) })).join(", ");
+    const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
+    setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: partial.length ? tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") }) : "" })]);
+  };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
     const cells = blockToCells(lb.block, lb.origin);
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
     const legend = stops.map((st) => `${st.value} = ${st.label}`).join(", ");
-    addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])) });
-    setNotices((p) => [...p, notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend })]);
+    // #802: blocks built from surfaces open opaque, so they draw as their outer faces (#793) - a GemPy block keeps its look
+    addVoxelModel({ name: `Model units: ${lb.title} (${lb.when})`, source: lb.fromSurfaces ? "surfaces" : "gempy", cells, colorMode: "discrete", stops, valueLabels: Object.fromEntries(stops.map((st) => [st.value, st.label])), ...(lb.fromSurfaces ? { opacity: 1 } : {}) });
+    setNotices((p) => [...p, lb.fromSurfaces
+      ? notice("Added the blocks as a block model: {cells} cells ({legend}). Cells above every top are left out.", { cells: cells.length.toLocaleString(), legend })
+      : notice("Added the model's lithology block as a block model: {cells} cells ({legend}). Cells above every modelled top are left out. It is the model, not the logs: see the Model check message for how far they agree.", { cells: cells.length.toLocaleString(), legend })]);
   };
   // TASKS.csv #517 — each modelled unit as a CLOSED shell (the outer faces of its cells, closed at the model box — exact volume at the model cell size):
   // listed with the model surfaces, exportable as DXF / OBJ, cut on sections and plans, measured by the volume
@@ -8203,6 +8227,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           style={{ ...pBtn, marginBottom: 8 }}
           title={tr("Import a DXF (3DFACE / polyface mesh) or OBJ solid — pit shell, stope design, or a wireframe from another package — and overlay it on the drillholes. Coordinates are used as-is, in the project CRS.")}
         ><Box size={14} />{" "}{tr("Import solid (DXF / OBJ)…")}</button>
+        {/* TASKS.csv #802 — solid blocks (unit volumes / a block model) from the surfaces in this list */}
+        <button
+          onClick={() => setSurfaceSolidsOpen((v) => !v)}
+          disabled={!implicitSurfaces.length}
+          aria-expanded={surfaceSolidsOpen}
+          style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
+          title={tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model")}
+        ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
+        {surfaceSolidsOpen && (
+          <SurfaceSolidsPanel
+            surfaces={implicitSurfaces} worldMesh={surfaceWorldMesh} origin={originRef.current}
+            terrain={terrain} sampleGround={(x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; }}
+            onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
+            pBtn={pBtn} smallSel={smallSel} numInput={smallSel}
+          />
+        )}
         <input
           ref={importSolidRef}
           type="file"

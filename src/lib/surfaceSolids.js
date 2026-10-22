@@ -1,0 +1,108 @@
+// TASKS.csv #802 — solid blocks from modelled surfaces. Matt: "GeoStrix can model surfaces. It would be nice if it could
+// create solid blocks out of these surfaces". The implicit (GemPy) stack already returns a lithology block that the
+// 3D Modelling pane turns into a block model and closed unit volumes (#356 / #517); this builds the same kind of block
+// from ANY surfaces in the list - contacts drawn from points or sections, imported solids, grade shells, unit volumes -
+// so those two actions (and the modelled-unit layer) work on them unchanged.
+//
+// Every cell centre of a regular grid gets a unit from vertical rays:
+//  * TOP surfaces (open sheets: contacts, horizons) - GeoStrix surfaces are unit TOPS (#356), so a cell belongs to
+//    the LOWEST surface in the stack order (top -> bottom) that lies above it; above every top it is "not modelled"
+//    (null label, left out like GemPy's "above tops"). Where a surface has no triangle over a column (beyond its
+//    footprint) it is absent there, and the unit above continues down. If surfaces cross, the later one in the list
+//    wins below both (it truncates the earlier one). Each column takes a surface's HIGHEST crossing (a folded or
+//    overturned sheet is read by its upper limb - stated, not hidden).
+//  * SOLID surfaces (closed shells) - a cell is inside when a vertical ray from it crosses the shell an odd number of
+//    times above it. Solids are applied after the stack, later ones over earlier ones (a vein shell inside a host).
+//  * ground(x, y) (optional, the terrain): cells above it are outside the model (id 0).
+// Pure: no three.js. Coordinates: any frame shared by the meshes and the extent (east, north, up).
+//
+// surfacesToBlock({ tops, solids, extent: [xmin, xmax, ymin, ymax, zmin, zmax], cell, ground, maxCells })
+//   tops / solids: [{ name, positions (flat E, N, Z), indices }]
+//   -> { block: { extent, resolution: [nx, ny, nz], ids (x-major, z fastest - modelCheck.js), labels }, counts, coverage }
+//   labels = [null, ...top names, ...solid names]; id k -> labels[k - 1]; id 0 = outside (above the ground).
+
+// Column centres are nudged by an irrational fraction of a cell so a ray never runs exactly along a mesh edge or
+// through a vertex (meshes built on a lattice put vertices on round coordinates, the same ones cell centres use).
+const JX = 1.3e-6 * Math.SQRT2, JY = 1.7e-6 * Math.PI;
+
+// For each column (i, j): every z where the vertical line at its centre crosses the mesh. Returns a visitor
+// forEachColumnHit(cb(col, z)). Triangles are rasterised onto the columns whose centres fall in their xy footprint.
+function columnHits(mesh, x0, y0, dx, dy, nx, ny, cb) {
+  const p = mesh.positions, ix = mesh.indices, nt = Math.floor(ix.length / 3);
+  for (let t = 0; t < nt; t++) {
+    const a = ix[3 * t] * 3, b = ix[3 * t + 1] * 3, c = ix[3 * t + 2] * 3;
+    const ax = p[a], ay = p[a + 1], az = p[a + 2], bx = p[b], by = p[b + 1], bz = p[b + 2], cx = p[c], cy = p[c + 1], cz = p[c + 2];
+    const det = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+    if (!det) continue; // vertical or degenerate in plan: a vertical ray never crosses its interior
+    const i0 = Math.max(0, Math.ceil((Math.min(ax, bx, cx) - x0) / dx - 0.5 - JX)), i1 = Math.min(nx - 1, Math.floor((Math.max(ax, bx, cx) - x0) / dx - 0.5 - JX));
+    const j0 = Math.max(0, Math.ceil((Math.min(ay, by, cy) - y0) / dy - 0.5 - JY)), j1 = Math.min(ny - 1, Math.floor((Math.max(ay, by, cy) - y0) / dy - 0.5 - JY));
+    for (let i = i0; i <= i1; i++) {
+      const x = x0 + (i + 0.5 + JX) * dx;
+      for (let j = j0; j <= j1; j++) {
+        const y = y0 + (j + 0.5 + JY) * dy;
+        const u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / det, v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / det, w = 1 - u - v;
+        if (u < 0 || v < 0 || w < 0) continue;
+        cb(i * ny + j, u * az + v * bz + w * cz);
+      }
+    }
+  }
+}
+
+export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground = null, maxCells = 2_000_000 }) {
+  const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
+  if (!(cell > 0) || !(xmax > xmin && ymax > ymin && zmax > zmin)) throw new Error("surfacesToBlock: empty box or cell size");
+  const nx = Math.max(1, Math.round((xmax - xmin) / cell)), ny = Math.max(1, Math.round((ymax - ymin) / cell)), nz = Math.max(1, Math.round((zmax - zmin) / cell));
+  if (nx * ny * nz > maxCells) throw new Error(`surfacesToBlock: ${nx} x ${ny} x ${nz} cells is over the ${maxCells.toLocaleString()} limit - use a larger cell`);
+  const dx = (xmax - xmin) / nx, dy = (ymax - ymin) / ny, dz = (zmax - zmin) / nz;
+  const ncol = nx * ny;
+  // each top's highest crossing per column (NaN = no triangle over that column)
+  const topZ = tops.map((m) => {
+    const z = new Float64Array(ncol).fill(NaN);
+    columnHits(m, xmin, ymin, dx, dy, nx, ny, (col, h) => { if (!(h <= z[col])) z[col] = h; });
+    return z;
+  });
+  const coverage = {};
+  tops.forEach((m, s) => { let n = 0; for (let c = 0; c < ncol; c++) if (topZ[s][c] === topZ[s][c]) n++; coverage[m.name] = n / ncol; });
+  // every crossing per column of each solid, sorted
+  const solidHits = solids.map((m) => {
+    const lists = new Map();
+    columnHits(m, xmin, ymin, dx, dy, nx, ny, (col, h) => { let l = lists.get(col); if (!l) lists.set(col, (l = [])); l.push(h); });
+    for (const l of lists.values()) l.sort((a, b) => a - b);
+    return lists;
+  });
+  const labels = [null, ...tops.map((m) => m.name), ...solids.map((m) => m.name)];
+  const ids = new (labels.length < 255 ? Uint8Array : Uint16Array)(nx * ny * nz);
+  for (let i = 0; i < nx; i++) {
+    const x = xmin + (i + 0.5) * dx;
+    for (let j = 0; j < ny; j++) {
+      const y = ymin + (j + 0.5) * dy, col = i * ny + j;
+      const g = ground ? ground(x, y) : NaN;
+      for (let k = 0; k < nz; k++) {
+        const z = zmin + (k + 0.5) * dz, at = i * ny * nz + j * nz + k;
+        if (g === g && z > g) { ids[at] = 0; continue; } // above the terrain: outside the model
+        let id = 1; // above every top (not modelled)
+        for (let s = tops.length - 1; s >= 0; s--) { const h = topZ[s][col]; if (h === h && h > z) { id = 2 + s; break; } }
+        for (let s = 0; s < solids.length; s++) {
+          const l = solidHits[s].get(col);
+          if (!l) continue;
+          let above = 0;
+          for (let q = l.length - 1; q >= 0 && l[q] > z; q--) above++;
+          if (above % 2 === 1) id = 2 + tops.length + s;
+        }
+        ids[at] = id;
+      }
+    }
+  }
+  const counts = {};
+  for (let at = 0; at < ids.length; at++) { const l = ids[at] ? labels[ids[at] - 1] : undefined; if (l) counts[l] = (counts[l] || 0) + 1; }
+  return { block: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution: [nx, ny, nz], ids, labels }, counts, coverage, cellVolume: dx * dy * dz };
+}
+
+// A cell size giving about `target` cells in the box, rounded to 1 / 2 / 2.5 / 5 x 10^n metres
+export function suggestCellSize(extent, target = 250_000) {
+  const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
+  const raw = Math.cbrt(((xmax - xmin) * (ymax - ymin) * (zmax - zmin)) / target);
+  if (!(raw > 0)) return 10;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map((m) => m * p).find((v) => v >= raw) || 10 * p;
+}
