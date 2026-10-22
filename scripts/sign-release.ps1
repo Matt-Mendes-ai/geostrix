@@ -4,8 +4,8 @@ TASKS.csv #777 — sign and publish a GeoStrix release with the Certum certifica
 The Release workflow builds and tests everything on GitHub's runner from the tagged commit, then stops: it
 uploads the unpacked app ("unpacked-app") and does NOT publish. This script, run on the maintainer's PC with
 SimplySign Desktop connected:
-  1. waits for that run and downloads the unpacked app (through gh; if that stalls, it shows the browser link and
-     waits for the zip in Downloads),
+  1. waits for that run and downloads the unpacked app (curl, resuming after every stall or drop - #812; if even
+     that cannot finish, it shows the browser link and waits for the zip in Downloads),
   2. signs GeoStrix.exe and the Python engine's executables,
   3. packages the installer and zip from that same app (electron-builder --prepackaged) and signs the
      installer, its uninstaller and its elevation helper (scripts/sign-win.cjs),
@@ -64,16 +64,47 @@ function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$brows
   $a = $art.artifacts | Where-Object { $_.name -eq "unpacked-app" } | Select-Object -First 1
   if (-not $a) { Fail "Build $runId has no unpacked-app artifact." }
   if ($a.expired) { Fail "The unpacked-app artifact of build $runId has expired (kept 7 days): re-run the Release workflow." }
-  $job = Start-Job -ScriptBlock { param($r, $id, $d) gh run download $id --repo $r -n unpacked-app -D $d 2>&1; "EXIT $LASTEXITCODE" } -ArgumentList $repo, $runId, $dest
-  $done = Wait-Job $job -Timeout ($ghMinutes * 60)
-  $out = Receive-Job $job -ErrorAction SilentlyContinue | Out-String
-  Remove-Job $job -Force
-  if ($done -and $out -match "EXIT 0" -and (Test-Path (Join-Path $dest "GeoStrix.exe"))) { Write-Host "  downloaded with gh"; return }
+  # TASKS.csv #812 — "ur download almost always fails": gh run download is one stream with no resume, so a stall
+  # meant waiting out the time limit and then the browser. Now curl fetches the zip and, when it stalls (under
+  # 20 kB/s for 45 s) or drops, resumes from the bytes it already has, with a fresh storage link each try (GitHub's
+  # artifact links last about a minute). The GitHub CLI's token goes to curl through a temporary header file, deleted
+  # afterwards - never on the command line or the screen.
+  $zipPath = Join-Path (Split-Path $dest) "unpacked-app.zip"
+  $hdrFile = Join-Path (Split-Path $dest) "gh-auth-header.txt"
+  $token = ((Probe { gh auth token }).out | Out-String).Trim()
+  if ($token) {
+    Set-Content -Path $hdrFile -Value "Authorization: Bearer $token" -Encoding ascii -NoNewline
+    $token = $null
+    $deadline = (Get-Date).AddMinutes($ghMinutes * 3)
+    $api = "https://api.github.com/repos/$repo/actions/artifacts/$($a.id)/zip"
+    try {
+      for ($try = 1; (Get-Date) -lt $deadline; $try++) {
+        $have = 0
+        if (Test-Path $zipPath) { $have = (Get-Item $zipPath).Length }
+        if ($have -eq $a.size_in_bytes) { break }
+        if ($have -gt $a.size_in_bytes) { Remove-Item $zipPath -Force; $have = 0 }
+        $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+        $head = & curl.exe -s -o NUL -D - --connect-timeout 30 -H "@$hdrFile" -H "Accept: application/vnd.github+json" $api 2>$null
+        $loc = ($head | Select-String -Pattern '(?i)^location:\s*(\S+)' | Select-Object -First 1).Matches.Groups[1].Value
+        if ($loc) { & curl.exe -s -f -C - --connect-timeout 30 --speed-limit 20000 --speed-time 45 -o $zipPath $loc 2>$null }
+        $ErrorActionPreference = $old
+        $now = 0
+        if (Test-Path $zipPath) { $now = (Get-Item $zipPath).Length }
+        Write-Host ("  try {0}: {1:N0} of {2:N0} bytes" -f $try, $now, $a.size_in_bytes)
+        if ($now -lt $a.size_in_bytes) { Start-Sleep -Seconds 5 }
+      }
+    } finally { Remove-Item $hdrFile -Force -ErrorAction SilentlyContinue }
+    if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -eq $a.size_in_bytes) {
+      Add-Type -AssemblyName System.IO.Compression.FileSystem
+      try { [IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $dest) } catch { Write-Host "  the zip did not unpack: $($_.Exception.Message)" }
+      if (Test-Path (Join-Path $dest "GeoStrix.exe")) { Remove-Item $zipPath -Force; Write-Host "  downloaded (resumable)"; return }
+    }
+  }
   if (Test-Path $dest) { Remove-Item $dest -Recurse -Force -ErrorAction SilentlyContinue }
-  Get-ChildItem $env:TEMP -Filter "gh-artifact*.zip" -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-2) } | Remove-Item -Force -ErrorAction SilentlyContinue  # gh's partial download
+  if (Test-Path $zipPath) { Remove-Item $zipPath -Force -ErrorAction SilentlyContinue }
   $page = "https://github.com/$repo/actions/runs/$runId/artifacts/$($a.id)"
   Write-Host ""
-  Write-Host "The download through gh $(if ($done) { 'failed' } else { "did not finish in $ghMinutes minutes" }). Download it in your browser instead (signed in to GitHub):" -ForegroundColor Yellow
+  Write-Host "The download did not complete in $($ghMinutes * 3) minutes, even resuming. Download it in your browser instead (signed in to GitHub):" -ForegroundColor Yellow
   Write-Host "  $page" -ForegroundColor Yellow
   Write-Host "  and leave unpacked-app.zip ($('{0:N0}' -f $a.size_in_bytes) bytes) in your Downloads folder - this script waits for it."
   $dl = Join-Path $env:USERPROFILE "Downloads"
