@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from "react
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon } from "./components/icons.js";
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass } from "./components/icons.js"; // Compass: #820
 import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -52,6 +52,9 @@ const ProjectReportModal = React.lazy(() => import("./components/ProjectReportMo
 const TAB_ALIAS = { raster: "maps", cartography: "maps", predictive: "modelling", modeling: "modelling" }; // predictive: #750; modeling: the tab id before the British spelling (2026-10-19)
 const MODULES = [
   { id: "viewer", label: "3D View", icon: Box },
+  // TASKS.csv #820 — Matt: "a new tab named Surface Geology ... the mapping workflow in this new tab. I'm thinking of eventually
+  // expanding to soils with anomaly detection". The 3D view in a "surface" mode: geology maps, outcrop structures.
+  { id: "surface", label: "Surface Geology", icon: Compass },
   { id: "modelling", label: "3D Modelling", icon: Layers3 },
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
@@ -68,7 +71,7 @@ const MODULES = [
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
-const VIEWER_MODES = { viewer: "view", modelling: "modelling", targeting: "targeting" }; // #750 — Predictive is a Modelling tool now
+const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling", targeting: "targeting" }; // surface: #820 // #750 — Predictive is a Modelling tool now
 
 export default function App() {
   const store = useStore();

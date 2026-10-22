@@ -30,7 +30,7 @@ Coordinates: **NAD83 / UTM zone 10N (EPSG:26910)**, as stored in the files.
 **Dip directions.** The files do not say whether `Dip_Direction` is measured from grid, true or magnetic north. GeoStrix
 takes it as **grid north** (an assumption). At this site, grid convergence is about 1.6° and the magnetic declination
 about 16°, so if the field readings were magnetic and uncorrected they would be turned by ~16°: re-import the points
-with the right north reference (Maps › Map layers › structure measurements) if that matters.
+with the right north reference (Surface Geology › Outcrop structures) if that matters.
 
 **What is not used.** The report's alteration and outcrop layers are loaded for viewing; *Model from map* uses the
 lithology map, the structure lines (for faults) and the bedding measurements.

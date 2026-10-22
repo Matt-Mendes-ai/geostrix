@@ -98,6 +98,7 @@ const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurf
 // TASKS.csv #693 — the 3D Modelling tool panes, loaded the first time one of them is opened
 const ModellingPanes = React.lazy(() => import("./viewer/ModellingPanes.jsx"));
 const MapModelPanel = React.lazy(() => import("../components/MapModelPanel.jsx")); // TASKS.csv #817
+const SurfaceMappingPanel = React.lazy(() => import("../components/SurfaceMappingPanel.jsx")); // TASKS.csv #820 — the Surface Geology tab
 const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit", "mcodes", "groups", "correlation", "geoml", "implicit", "stack", "structural", "alteration", "vein", "shell"]);
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
@@ -1284,11 +1285,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // switcher). Now that View and Modelling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
   // below (`sidebarTab === "home"` / `=== "modelling"`) didn't need a mechanical find/replace.
-  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : "home"; // #750 — no Predictive tab
+  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : mode === "surface" ? "surface" : "home"; // #750 — no Predictive tab; surface: #820
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
-  useEffect(() => { setToolPane(mode === "targeting" ? "plan" : null); }, [mode]);
+  // TASKS.csv #820 — a pane to open in the NEXT tab (e.g. Surface Geology's "Model it" -> 3D Modelling's Model from map)
+  const pendingPaneRef = useRef(null);
+  useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : null)); pendingPaneRef.current = null; }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -6562,6 +6565,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
         </Ribbon>
       )}
+      {/* TASKS.csv #820 — Surface Geology ribbon: the mapping workflow (3D model building stays in 3D Modelling) */}
+      {mode === "surface" && (
+        <Ribbon show={visible} label="Surface geology tools">
+          <RibbonGroup label="Geological mapping">
+            <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
+            <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />
+            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={() => setStereonetOpen(true)} />
+          </RibbonGroup>
+          <RibbonGroup label="Next step">
+            <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} />
+          </RibbonGroup>
+        </Ribbon>
+      )}
       {/* TASKS.csv #458 — Targeting ribbon */}
       {mode === "targeting" && (
         <Ribbon show={visible} label="Targeting tools">
@@ -7612,6 +7628,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => askPrompt("Domain name?", "", (name) => { if (name && name.trim()) setExpandedDomainId(addDomain(name.trim())); })} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: 4 }}>{tr("+ Domain")}</div>
         </>)}
 
+        {sidebarTab === "surface" && (<>
+        {toolPane === "sgMaps" && paneHeader("Geology map", MapIcon, "data")}
+        {toolPane === "sgStructs" && paneHeader("Outcrop structures", Compass, "data")}
+        <Suspense fallback={null}>
+          <SurfaceMappingPanel part={toolPane === "sgMaps" ? "maps" : toolPane === "sgStructs" ? "structures" : null} pBtn={pBtn} numInput={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", width: 70 }} />
+        </Suspense>
+        </>)}{/* TASKS.csv #820 */}
+
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
@@ -7741,7 +7765,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
           <EmptyState
-            headline={mode === "modelling" ? tr("Load drillholes first — modelling works from collars, lithology and structure") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
+            headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes first — modelling works from collars, lithology and structure") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
             actionLabel={sampleLoading ? tr("Loading sample project…") : tr("Sample: Harry property (37 holes)")}
             onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}

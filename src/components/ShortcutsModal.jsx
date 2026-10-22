@@ -37,12 +37,13 @@ const SHORTCUT_GROUPS = [
     title: "Navigation",
     items: [
       ["Ctrl/Cmd+1", "3D View"],
-      ["Ctrl/Cmd+2", "3D Modelling"],
-      ["Ctrl/Cmd+3", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
-      ["Ctrl/Cmd+4", "Geophysics"],
-      ["Ctrl/Cmd+5", "Targeting"],
-      ["Ctrl/Cmd+6", "Maps"], // #749 — rasters, terrain, map layers, boundaries, CRS
-      ["Ctrl/Cmd+7", "Layout"], // #565 — in tab order
+      ["Ctrl/Cmd+2", "Surface Geology"], // #820
+      ["Ctrl/Cmd+3", "3D Modelling"],
+      ["Ctrl/Cmd+4", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
+      ["Ctrl/Cmd+5", "Geophysics"],
+      ["Ctrl/Cmd+6", "Targeting"],
+      ["Ctrl/Cmd+7", "Maps"], // #749 — rasters, terrain, boundaries, CRS (geology map layers: Surface Geology, #820)
+      ["Ctrl/Cmd+8", "Layout"], // #565 — in tab order
     ],
   },
   {

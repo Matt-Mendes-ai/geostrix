@@ -83,7 +83,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
-  if (!polys.length) return <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) under Maps > Surface mapping first, and the outcrop measurements beside it.")}</div>;
+  if (!polys.length) return <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div>;
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>

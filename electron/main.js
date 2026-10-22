@@ -1189,8 +1189,8 @@ function buildMenu() {
         // keyboard shortcut at all despite being the most-used navigation in the app; added now partly
         // because a "keyboard shortcuts reference" that only had 5 shortcuts to list would barely be
         // worth its own menu entry — these round it out into something actually useful to reference.
-        // TASKS.csv #565 — Ctrl+1..8 in the TAB STRIP's order (was 4 of 8 tabs, and Ctrl+2 was the third tab)
-        ...[["3D View", "viewer"], ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Maps", "maps"], ["Layout", "layout"]]
+        // TASKS.csv #565 — Ctrl+1..8 in the TAB STRIP's order (#820: Surface Geology is Ctrl+2) (was 4 of 8 tabs, and Ctrl+2 was the third tab)
+        ...[["3D View", "viewer"], ["Surface Geology", "surface"] /* #820 */, ["3D Modelling", "modelling"], ["Geochem", "geochem"], ["Geophysics", "geophysics"], ["Targeting", "targeting"], ["Maps", "maps"], ["Layout", "layout"]]
           .map(([label, id], i) => ({ label, accelerator: `CmdOrCtrl+${i + 1}`, click: () => mainWindow?.webContents.send("menu", `module-${id}`) })),
         { type: "separator" },
         // TASKS.csv #464 — development builds only. In the installed app Ctrl+R reloaded the renderer with

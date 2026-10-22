@@ -15,7 +15,7 @@ import GeophysicsModule from "./GeophysicsModule.jsx";
 import CartographyModule from "./CartographyModule.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
-const GEO_PANES = new Set(["terrain", "maps", "web", "boundaries", "claims"]);
+const GEO_PANES = new Set(["terrain", "web", "boundaries", "claims"]); // "maps" (geology map layers + outcrop structures) moved to the Surface Geology tab: #820
 const CRS_PANES = new Set(["crs", "layer", "file"]);
 
 export default function MapsModule() {
@@ -35,7 +35,6 @@ export default function MapsModule() {
           <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />
         </RibbonGroup>
         <RibbonGroup label="Map layers">
-          <RibbonButton icon={MapIcon} label="Map layers" tone="data" title="Geology map layers (GeoPackage / shapefile) and outcrop structure measurements" {...btn("maps")} />
           <RibbonButton advanced icon={Globe} label="Web layers" tone="data" title="WMS / WFS layers from a government or company service" {...btn("web")} />
           <RibbonButton icon={Shapes} label="Boundaries" tone="data" title="Property / grid boundaries (.ply, DXF, shapefile, GeoPackage, KML)" {...btn("boundaries")} />
           <RibbonButton advanced icon={Flag} label="Claims" tone="data" title="Mineral claims / tenure" {...btn("claims")} />
