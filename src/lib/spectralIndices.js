@@ -15,6 +15,17 @@ export const SENSORS = {
     pixel: "90 m",
     source: "NASA AST_05 surface emissivity (TES), free with an Earthdata login",
   },
+  // TASKS.csv #806 — the #805 review (pyGMI) found GeoStrix read ASTER's thermal bands only. Bands 1-9 (VNIR 15 m,
+  // SWIR 30 m) carry the classic alteration ratios. AST_07XT is surface reflectance x 1000 (dnScale), crosstalk-corrected;
+  // the SWIR detector failed in April 2008, so only 2000-2008 scenes have bands 4-9. Stacked VNIR then SWIR = B1..B9.
+  aster_vnir_swir: {
+    label: "ASTER VNIR + SWIR surface reflectance (AST_07XT, 9 bands)",
+    roles: ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"],
+    defaultBands: { B1: 1, B2: 2, B3: 3, B4: 4, B5: 5, B6: 6, B7: 7, B8: 8, B9: 9 },
+    reflectance: true, nir: "B3", red: "B2", dnScale: 1000,
+    pixel: "15 m (VNIR) / 30 m (SWIR)",
+    source: "NASA AST_07XT surface reflectance, free with an Earthdata login; SWIR bands only for 2000-2008 scenes",
+  },
   sentinel2: {
     label: "Sentinel-2 surface reflectance",
     roles: ["B2", "B3", "B4", "B8", "B11", "B12"],
@@ -37,6 +48,17 @@ export const INDEX_PRESETS = [
   { id: "aster_qi", sensor: "aster_tir", label: "Quartz index (silica)", expr: "B11*B11/(B10*B12)", what: "Quartz's emissivity has a doublet low (the reststrahlen feature) in ASTER bands 10 and 12 with a relative high in band 11: high values = silica-rich rock, silicification, quartz veins or silica caps (Ninomiya 2003)." },
   { id: "aster_ci", sensor: "aster_tir", label: "Carbonate index", expr: "B13/B14", what: "Carbonates have an emissivity low in band 14: high values = limestone, marble or carbonate alteration (Ninomiya 2003)." },
   { id: "aster_mi", sensor: "aster_tir", label: "Mafic index", expr: "B12*B14^3/B13^4", what: "Mafic rock moves the emissivity low to longer wavelengths, into band 13: high values (band 13 low against 12 and 14) = mafic / ultramafic rock (Ninomiya 2003)." },
+  // TASKS.csv #806 — ASTER VNIR-SWIR ratios as tabulated in Kalinowski & Oliver (2004), "ASTER Mineral Index Processing
+  // Manual", Geoscience Australia (after Rowan & Mars 2003, Ninomiya 2003, Cudahy). Written from the published formulas.
+  { id: "astv_gossan", sensor: "aster_vnir_swir", label: "Gossan", expr: "B4/B2", what: "Iron oxides absorb in the visible (band 2) and reflect in SWIR 1 (band 4): high values = gossans and strongly oxidised outcrop (Kalinowski & Oliver 2004)." },
+  { id: "astv_ferric", sensor: "aster_vnir_swir", label: "Ferric iron (Fe3+)", expr: "B2/B1", what: "Hematite, goethite and jarosite reflect red (band 2) more than green (band 1): high values = ferric iron (Rowan & Mars 2003)." },
+  { id: "astv_ferrous", sensor: "aster_vnir_swir", label: "Ferrous iron (Fe2+)", expr: "B5/B3 + B1/B2", what: "Ferrous iron absorbs near 1 micron (band 3) and in the green: high values = ferrous iron in chlorite, mafic rock or ferrous carbonates." },
+  { id: "astv_sericite", sensor: "aster_vnir_swir", label: "Sericite / muscovite / illite (Al-OH)", expr: "(B5+B7)/B6", what: "White mica, illite and smectite absorb at 2.20 microns (band 6) with shoulders in bands 5 and 7: high values = phyllic (sericitic) alteration. Some kaolinite and alunite too." },
+  { id: "astv_argillic", sensor: "aster_vnir_swir", label: "Alunite / kaolinite / pyrophyllite (advanced argillic)", expr: "(B4+B6)/B5", what: "Alunite, kaolinite and pyrophyllite absorb at 2.16-2.17 microns (band 5): high values = advanced argillic alteration, the high-sulphidation lithocap (Rowan & Mars 2003)." },
+  { id: "astv_kaolinite", sensor: "aster_vnir_swir", label: "Kaolinite", expr: "B7/B5", what: "Kaolinite's doublet deepens band 5 against band 7: high values = kaolinite (argillic alteration, weathering)." },
+  { id: "astv_phengite", sensor: "aster_vnir_swir", label: "Phengitic white mica", expr: "B5/B6", what: "Follows where the 2.2 micron feature sits: it rises as the feature moves to longer wavelengths (Al-poor phengitic mica). Compare within one scene; band 6 is broad, so this is a hint, not a white-mica chemistry map." },
+  { id: "astv_propylitic", sensor: "aster_vnir_swir", label: "Chlorite / epidote / carbonate (propylitic)", expr: "(B7+B9)/B8", what: "Chlorite, epidote and calcite absorb at 2.31-2.34 microns (band 8): high values = propylitic alteration or carbonate rock (Rowan & Mars 2003)." },
+  { id: "astv_mgoh", sensor: "aster_vnir_swir", label: "Mg-OH (chlorite / epidote / amphibole)", expr: "(B6+B9)/(B7+B8)", what: "Mg-OH minerals absorb in bands 7-8: high values = chlorite, epidote, amphibole, talc - propylitic halo or mafic / ultramafic rock (Cudahy)." },
   { id: "s2_ferric", sensor: "sentinel2", label: "Ferric iron (red / blue)", expr: "B4/B2", what: "Iron oxides (hematite, goethite, jarosite: gossans, oxidised zones) reflect red and absorb blue: high values = ferric iron." },
   { id: "s2_ferrous", sensor: "sentinel2", label: "Ferrous iron", expr: "B12/B8 + B3/B4", what: "Ferrous iron in silicates (chlorite, mafic rock) absorbs near 1 micron: high values = ferrous iron." },
   { id: "s2_clay", sensor: "sentinel2", label: "Clay / hydroxyl (SWIR 1 / SWIR 2)", expr: "B11/B12", what: "Al-OH and Mg-OH minerals (clays, sericite, chlorite) absorb near 2.2 microns (band 12): high values = hydroxyl-bearing alteration. Broad bands: it cannot tell kaolinite from sericite." },
@@ -117,14 +139,14 @@ export function compileExpression(src, allowed) {
 export const DARK_FLOOR = 0.01; // reflectance
 export const VEG_NDVI_MAX = 0.4; // vegetated above this: iron / clay ratios mean nothing through a canopy
 
-// The floor in the file's own units: reflectance 0-1, or scaled integers (Sentinel-2 / Landsat DN x 10000) when the
-// bands' median is well above 1.
-export function darkFloor(arrays) {
+// The floor in the file's own units: reflectance 0-1, or scaled integers (Sentinel-2 / Landsat DN x 10000; ASTER AST_07XT
+// x 1000, #806 - pass dnScale) when the bands' median is well above 1.
+export function darkFloor(arrays, dnScale = 10000) {
   const s = [];
   for (const a of arrays) { const step = Math.max(1, Math.floor(a.length / 5000)); for (let i = 0; i < a.length; i += step) if (a[i] > 0 && Number.isFinite(a[i])) s.push(a[i]); }
   if (!s.length) return DARK_FLOOR;
   s.sort((x, y) => x - y);
-  return s[s.length >> 1] > 2 ? DARK_FLOOR * 10000 : DARK_FLOOR;
+  return s[s.length >> 1] > 2 ? DARK_FLOOR * dnScale : DARK_FLOOR;
 }
 
 // The index for every pixel: `bands` = the file's bands (arrays, 0-based), `mapping` = {role: 1-based band number},
@@ -132,7 +154,7 @@ export function darkFloor(arrays) {
 // (reflectance and emissivity are positive; 0 is the usual fill), or when the result is not finite. #789: `floor`
 // ("auto" = darkFloor of the bands used, or a number) also blanks a pixel with a used band below it, and `veg`
 // ({ nir, red } roles in `mapping`, `max` NDVI) blanks vegetated pixels. Returns { values: Float32Array, blank, dark, vegetated }.
-export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, floor = 0, veg = null } = {}) {
+export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, floor = 0, veg = null, dnScale = 10000 } = {}) { // dnScale: #806
   const { fn, uses } = compileExpression(expr, Object.keys(mapping));
   const col = (r) => {
     const k = Number(mapping[r]) - 1;
@@ -140,7 +162,7 @@ export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, fl
     return bands[k];
   };
   const cols = uses.map((r) => [r, col(r)]);
-  const lo = floor === "auto" ? darkFloor(cols.map(([, a]) => a)) : Number(floor) || 0;
+  const lo = floor === "auto" ? darkFloor(cols.map(([, a]) => a), dnScale) : Number(floor) || 0;
   const nir = veg ? col(veg.nir) : null, red = veg ? col(veg.red) : null, vmax = veg?.max ?? VEG_NDVI_MAX;
   const n = bands[0].length, values = new Float32Array(n), env = {};
   let blank = 0, dark = 0, vegetated = 0;

@@ -98,7 +98,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
     const title = isCustom ? `Index ${expr}` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
     const { raster, msg } = await buildRasterImport(theFile, {
       epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
-      bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values; },
+      bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null, dnScale: sens.dnScale || 10000 }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values; },
     });
     const masks = (dark ? tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : "")
       + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: VEG_NDVI_MAX }) : "")
@@ -171,7 +171,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
               <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
               <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
               {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
-              <div style={{ ...small, marginTop: 6 }}>{tr("ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.")}</div>
+              <div style={{ ...small, marginTop: 6 }}>{tr("ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. ASTER VNIR + SWIR: AST_07XT surface reflectance, the 3 VNIR and 6 SWIR bands stacked in order 1-9 at one pixel size (SWIR only exists for 2000-2008 scenes). Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.")}</div>
             </div>
           )}
 

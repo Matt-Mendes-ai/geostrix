@@ -71,3 +71,27 @@ test("#789 Sentinel-2 and Landsat name their NIR and red bands; ASTER is not ref
   assert.ok(SENSORS.sentinel2.roles.includes("B8") && SENSORS.landsat.roles.includes("B5"));
   assert.ok(!SENSORS.aster_tir.reflectance);
 });
+
+// TASKS.csv #806 — ASTER VNIR-SWIR (AST_07XT, reflectance x 1000)
+test("#806 ASTER VNIR-SWIR: 9 bands, reflectance x 1000, the alteration ratios pick the right pixel", () => {
+  const S = SENSORS.aster_vnir_swir;
+  assert.equal(S.roles.length, 9); assert.equal(S.dnScale, 1000); assert.deepEqual([S.nir, S.red], ["B3", "B2"]);
+  assert.equal(darkFloor([[150, 250, 400]], 1000), 10, "1 % of x1000 reflectance is 10, not 100");
+  const m = Object.fromEntries(S.roles.map((r, i) => [r, i + 1]));
+  // three pixels (reflectance x 1000, bands 1-9): sericitic, advanced argillic (kaolinite / alunite), propylitic
+  const px = [
+    [150, 170, 200, 400, 380, 300, 370, 360, 350], // sericite: band 6 (2.20 um) low
+    [150, 170, 200, 420, 300, 400, 410, 390, 380], // argillic: band 5 (2.16 um) low
+    [150, 170, 200, 400, 390, 385, 360, 300, 350], // propylitic: band 8 (2.33 um) low
+  ];
+  const bands = S.roles.map((_, b) => px.map((p) => p[b]));
+  const run = (id) => Array.from(evaluateIndex(bands, m, INDEX_PRESETS.find((p) => p.id === id).expr, { floor: "auto", dnScale: 1000 }).values);
+  const best = (v) => v.indexOf(Math.max(...v));
+  assert.equal(best(run("astv_sericite")), 0);
+  assert.equal(best(run("astv_argillic")), 1);
+  assert.equal(best(run("astv_propylitic")), 2);
+  // a shadow pixel under 1 % reflectance is blanked, not ranked
+  const dark = S.roles.map((_, b) => [px[0][b], 5]);
+  const r = evaluateIndex(dark, m, "B4/B2", { floor: "auto", dnScale: 1000 });
+  assert.ok(Number.isFinite(r.values[0]) && Number.isNaN(r.values[1]) && r.dark === 1);
+});
