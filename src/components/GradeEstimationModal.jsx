@@ -26,7 +26,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null }) {
+export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null }) { // groundAt: TASKS.csv #803
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
@@ -124,6 +124,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
   const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
   const [shellId, setShellId] = useState(""); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
+  const [belowGround, setBelowGround] = useState(true); // TASKS.csv #803 — drop blocks whose centre is above the terrain
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
@@ -258,6 +259,17 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           est.cells = est.cells.filter((c) => inShell(c));
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
+        }
+        // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface". The grid is padded around the
+        // samples, so near the surface its top layers were in the air: a block whose centre is above the terrain is dropped
+        // (outside the terrain's footprint nothing is known, so nothing is dropped)
+        if (groundAt && belowGround) {
+          const before = est.cells.length;
+          est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
+          const cut = before - est.cells.length;
+          est.blocksSkipped += cut; est.blocksEstimated = est.cells.length;
+          params.cutAtTerrain = `${cut} block(s) whose centre is above the terrain dropped`;
+          est.cutAboveGround = cut;
         }
         setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
@@ -411,6 +423,12 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             )}
           </div>
 
+          {/* TASKS.csv #803 */}
+          {groundAt && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("The grid is padded around the samples, so near the surface its top layers can be in the air. Ticked, a block whose centre is above the terrain is left out.")}>
+              <input type="checkbox" checked={belowGround} onChange={(e) => setBelowGround(e.target.checked)} />{tr("Only blocks below the terrain surface")}
+            </label>
+          )}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
@@ -503,6 +521,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 <div>{tr("Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.", { duplicatesSkipped: result.rawStats.duplicatesSkipped, overlappingRows: result.rawStats.overlappingRows })}</div>
               )}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
+              {result.cutAboveGround > 0 && <div>{tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
               {result.variogram && (

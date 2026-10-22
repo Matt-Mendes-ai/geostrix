@@ -111,7 +111,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
-import { findOnTraceWorld, findOnTrace, pointInDomain } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2
+import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
@@ -3383,7 +3383,9 @@ ${describeTrend(t)}` };
   // "restrict to a modelled volume": [{ id, name, positions (E, N, Z), indices }]. Open surfaces are left out.
   const closedShellsForEstimation = () => {
     const o = originRef.current;
-    return (implicitSurfaces || []).filter((sf) => sf.type === "unit_volume" || sf.type === "imported").flatMap((sf) => {
+    // TASKS.csv #804 — any body type (grade shells, envelopes, vein solids... not only unit volumes and imports): the
+    // estimation dialog still refuses one that is not actually closed
+    return (implicitSurfaces || []).filter((sf) => SOLID_SURFACE_TYPES.has(sf.type)).flatMap((sf) => {
       const mesh = implicitMeshesRef.current[sf.id];
       const pos = mesh?.geometry?.attributes?.position?.array;
       if (!pos) return [];
@@ -8161,6 +8163,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   result watertight. Volume then scales as R³ while looking converged and stable. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Off (default): the shell stays open where the data runs out - honest, but there is no enclosed volume to report. On: the shell is sealed at the search-radius boundary so it becomes a watertight solid with a volume and tonnage - but that seal is your search radius, not a grade boundary, so the volume is an assumption you are making, not something measured. Doubling the search radius roughly multiplies the volume by eight.")}>
                 <input type="checkbox" checked={numericCloseShell} onChange={(e) => setNumericCloseShell(e.target.checked)} />{tr("Close shell artificially at the search-radius boundary (volume becomes an assumption)")}</label>
+              {/* TASKS.csv #803 — the same "Cut at topography" setting as the GemPy pane: the shell closes on the ground */}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "var(--color-text-faint)", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={tr("The shell ends at the terrain surface and stays a closed solid there (the grid is cut below the ground before the shell is drawn). Same setting as \"Cut surfaces at topography\".")}>
+                <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />{terrain ? tr("End the shell at the terrain surface") : tr("End the shell at the terrain surface (import or fetch a terrain first, under Maps › Terrain)")}</label>
               {numericCloseShell && (
                 <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 8, lineHeight: 1.45 }}>{tr("Part of this shell's boundary will not be a grade boundary — it is where the search radius ran out of samples. Its volume will depend on your search radius, not only on the data.")}</div>
               )}
@@ -8326,6 +8331,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {SURFACE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                     </select>
                   </label>
+                  {/* TASKS.csv #804 — Matt: "I change the type of mineralization but it doesn't do anything". Say what it does. */}
+                  <div style={{ fontSize: "var(--font-size-xs)", color: SOLID_SURFACE_TYPES.has(s.type) && expandedSurfaceVolume && !expandedSurfaceVolume.watertight ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: -2, marginBottom: 8, lineHeight: 1.45 }}>
+                    {SOLID_SURFACE_TYPES.has(s.type) && expandedSurfaceVolume && !expandedSurfaceVolume.watertight
+                      ? tr("This surface is open ({n} open edges), so it has no inside: a type cannot turn it into a solid. To get solid bodies from contact surfaces, use \"Solid blocks from surfaces…\" above, then \"Add unit volumes (closed)\".", { n: expandedSurfaceVolume.openEdgeCount.toLocaleString() })
+                      : tr("The type is a label: it does not change the mesh. It is read by \"Check relationships\", it decides whether a closed surface is offered in Grade estimation's \"Restrict to a modelled volume\" (bodies: envelopes, vein / dyke solids, breccias, unit volumes, imported solids), and it sets the role \"Solid blocks from surfaces\" proposes.")}
+                  </div>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Relationships to other surfaces")}</div>
                   {(s.relationships || []).length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("None declared.")}</div>}
                   {(s.relationships || []).map((r, i) => {
@@ -9084,6 +9095,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           survey={survey}
           volumeShells={closedShellsForEstimation()}
           trend={trendFor("estimation")} // TASKS.csv #650
+          groundAt={terrain ? (x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; } : null} // TASKS.csv #803
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />

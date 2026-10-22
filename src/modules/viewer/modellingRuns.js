@@ -26,6 +26,17 @@ import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.cs
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
+import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
+
+// TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
+// alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
+// real (east, north, up) when the grid is anisotropy-warped. Returns { values, capped } (values unchanged when off).
+function groundCappedGrid(grid, iso, terrain, toReal = null) {
+  if (!terrain) return { values: grid.values, capped: 0 };
+  const [tx0, ty0, tx1, ty1] = terrain.bbox;
+  const groundAt = (x, y) => (x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN);
+  return capFieldAtGround(grid.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, groundAt, { toReal });
+}
 
 export function createModellingRuns(ctx, mcRef) {
   const {
@@ -1232,7 +1243,10 @@ export function createModellingRuns(ctx, mcRef) {
         if (!grid.estimated) throw new Error(tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
-        const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, 0.5, {
+        // TASKS.csv #803 — closed at the terrain surface when "Cut at topography" is on
+        const altUnwarp = anisotropy.enabled ? invScales(scl) : null;
+        const altCap = groundCappedGrid(grid, 0.5, clipToTopo ? terrainForClipRef.current : null, anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
+        const mc = marchingCubes(altCap.values, grid.nx, grid.ny, grid.nz, 0.5, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
         });
         if (!mc.faces.length) throw new Error(tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
@@ -1260,7 +1274,7 @@ export function createModellingRuns(ctx, mcRef) {
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
           cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
-          paddingM: pad, closure, holeSpacingM: auto.spacing,
+          paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${(terrainForClipRef.current?.name) || "terrain"}: ${altCap.capped} grid node(s) capped (#803)` : false,
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
@@ -1563,7 +1577,12 @@ export function createModellingRuns(ctx, mcRef) {
         if (!grid.estimated) throw new Error(numericMinHoles > 1
           ? tr("No grid cell had samples from at least {numericMinHoles} distinct holes within the search radius — widen the search, or lower \"Min holes\".", { numericMinHoles })
           : tr("No grid cell had a sample within the search radius — widen it."));
-        const mc = marchingCubes(grid.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
+        // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface, it's going above surface".
+        // The grid is padded around the samples, so near the surface it reached into the air; with "Cut at topography"
+        // on, the field is intersected with "below the terrain" and the shell closes on the ground (still watertight).
+        const gsRealOf = anisotropy.enabled ? ((u) => (q) => anisoWarpPoint(q, gsCenter, gsBasis, u))(invScales(gsScl)) : null;
+        const gsCap = groundCappedGrid(grid, numericCutoff, clipToTopo ? terrainForClipRef.current : null, gsRealOf);
+        const mc = marchingCubes(gsCap.values, grid.nx, grid.ny, grid.nz, numericCutoff, {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
         });
         if (!mc.faces.length) throw new Error(tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).", { symbol, numericCutoff, unit }));
@@ -1634,7 +1653,7 @@ export function createModellingRuns(ctx, mcRef) {
           method: numericMethod, searchRadiusM: effectiveRadius,
           searchRadiusWasUnlimited: !(numericSearchRadius > 0),
           ...(shellEllipsoidM ? { searchEllipsoidM: shellEllipsoidM } : {}), // #656 — semi-axes along the trend's axes
-          cellSizeM: cs, paddingM: pad, closure,
+          cellSizeM: cs, paddingM: pad, closure, cutAtTopography: gsCap.capped ? `${(terrainForClipRef.current?.name) || "terrain"}: ${gsCap.capped} grid node(s) above or just below the ground capped (#803)` : false,
           composited: numericUseComposites, compositeLengthM: numericUseComposites ? numericCompositeLength : null,
           minCoverage: numericUseComposites ? numericMinCoverage : null, // TASKS.csv #262
           capValue: Number.isFinite(numericCapValue) && numericCapValue > 0 ? numericCapValue : null,

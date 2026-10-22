@@ -68,6 +68,11 @@ export const MODEL_EXTENT_PAD_M = 500;
 // picks are the ambiguous case (a "structure" layer covers contacts, faults, shear zones, foliation,
 // veins all under one layer type — see sample_data's own structure.csv) — a fault/shear-sounding
 // value guesses "fault", everything else falls back to "other" rather than guessing wrong.
+// TASKS.csv #804 — surface types that describe a BODY (something with an inside) rather than a contact or a fault. A
+// closed surface of one of these types can restrict a grade estimate and is proposed as a solid by "Solid blocks from
+// surfaces"; the type alone cannot give an open sheet an inside.
+export const SOLID_SURFACE_TYPES = new Set(["mineralization_envelope", "alteration_envelope", "vein_solid", "breccia_body", "dyke", "unit_volume", "imported"]);
+
 export function guessSurfaceType(label, meshName) {
   const s = `${label} ${meshName}`.toUpperCase();
   if (s.startsWith("TOP OF") || s.includes("STRATIGRAPHIC")) return "stratigraphic_contact";

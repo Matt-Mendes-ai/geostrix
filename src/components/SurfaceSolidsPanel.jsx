@@ -7,6 +7,7 @@ import { Box, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { surfacesToBlock, suggestCellSize } from "../lib/surfaceSolids.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
+import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
 
 const zStats = (pos) => {
   const zs = [];
@@ -25,7 +26,7 @@ export default function SurfaceSolidsPanel({ surfaces, worldMesh, origin, terrai
     const closed = s.type === "unit_volume" || s.closure === "closed" || isMeshClosed(m.positions, m.indices).closed;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
-    return { id: s.id, name: s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : s.type === "fault" ? "none" : "top" }; // unit volumes are this tool's own output; faults are steep, not unit tops
+    return { id: s.id, name: s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
   }).filter(Boolean), [surfaces, worldMesh]);
   const [roles, setRoles] = useState({});
   const roleOf = (it) => roles[it.id] ?? it.defaultRole;
