@@ -89,3 +89,59 @@ export function medianApparentDip(lines) {
   const d = lines.map((l) => apparentDip(l.pts || l)).filter((x) => x != null).sort((p, q) => p - q);
   return d.length ? d[d.length >> 1] : null;
 }
+
+// TASKS.csv #825 — CAD snapping on a section image. sectionSnapTargets(plane, traces, litho, { maxOffM, margin }) ->
+// [{ p: { x, y, z }, kind: "contact" | "crossing", hole, md, label }]:
+//   contact: a logged lithology boundary (where one interval's unit changes to the next) on a hole within maxOffM of the
+//     image's plane, moved onto the plane - holes drilled along the section line are where hand-drawn contacts tie in;
+//   crossing: where a hole passes through the plane.
+// Only targets on the image (with `margin` of its size to spare). traces: [{ hole_id, pts: [{ md }], wx, wy, wz }] (world);
+// litho: [{ hole_id, from, to, value }].
+export function sectionSnapTargets(plane, traces, litho = [], { maxOffM = 15, margin = 0.05 } = {}) {
+  const out = [];
+  const onImage = (q) => { const c = imageCoords(q, plane); return c.s >= -margin && c.s <= 1 + margin && c.t >= -margin && c.t <= 1 + margin; };
+  const off = (q) => dot(sub(q, plane.o), plane.n);
+  const byHole = new Map();
+  for (const r of litho || []) { if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []); byHole.get(r.hole_id).push(r); }
+  for (const t of traces || []) {
+    const n = t.pts?.length || 0;
+    if (n < 2) continue;
+    const W = (i) => [t.wx[i], t.wy[i], t.wz[i]];
+    const at = (md) => {
+      for (let i = 0; i < n - 1; i++) {
+        const a = t.pts[i].md, b = t.pts[i + 1].md;
+        if (md >= a - 0.01 && md <= b + 0.01) { const f = b > a ? (md - a) / (b - a) : 0; const p = W(i), q = W(i + 1); return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, p[2] + (q[2] - p[2]) * f]; }
+      }
+      return null;
+    };
+    for (let i = 0; i < n - 1; i++) { // crossings
+      const p = W(i), q = W(i + 1), d0 = off(p), d1 = off(q);
+      if ((d0 < 0 && d1 >= 0) || (d0 >= 0 && d1 < 0)) {
+        const f = d0 / (d0 - d1), c = [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, p[2] + (q[2] - p[2]) * f];
+        if (onImage(c)) out.push({ p: { x: c[0], y: c[1], z: c[2] }, kind: "crossing", hole: t.hole_id, md: t.pts[i].md + (t.pts[i + 1].md - t.pts[i].md) * f, label: t.hole_id });
+      }
+    }
+    const rows = (byHole.get(t.hole_id) || []).filter((r) => Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to))).sort((a, b) => a.from - b.from);
+    for (let k = 1; k < rows.length; k++) { // contacts: where the unit changes, at the top of the lower interval
+      const above = rows[k - 1], below = rows[k];
+      if (String(above.value) === String(below.value) || Math.abs(Number(above.to) - Number(below.from)) > 0.5) continue;
+      const w = at(Number(below.from));
+      if (!w) continue;
+      const d = off(w);
+      if (Math.abs(d) > maxOffM) continue;
+      const c = [w[0] - d * plane.n[0], w[1] - d * plane.n[1], w[2] - d * plane.n[2]];
+      if (onImage(c)) out.push({ p: { x: c[0], y: c[1], z: c[2] }, kind: "contact", hole: t.hole_id, md: Number(below.from), label: `${t.hole_id} ${above.value} | ${below.value} @ ${Number(below.from).toFixed(1)} m` });
+    }
+  }
+  return out;
+}
+
+// Shift held: the new segment from `prev` is turned to the nearest multiple of `stepDeg` on the image (0 = along the
+// section, 90 = vertical), keeping its length along that direction.
+export function constrainOnImage(prev, p, plane, stepDeg = 45) {
+  const d = [p.x - prev.x, p.y - prev.y, p.z - prev.z];
+  const a = dot(d, plane.u), b = dot(d, plane.v);
+  const ang = Math.atan2(b, a), step = (stepDeg * Math.PI) / 180, snapped = Math.round(ang / step) * step;
+  const dir = [Math.cos(snapped), Math.sin(snapped)], l = a * dir[0] + b * dir[1];
+  return { x: prev.x + (plane.u[0] * dir[0] + plane.v[0] * dir[1]) * l, y: prev.y + (plane.u[1] * dir[0] + plane.v[1] * dir[1]) * l, z: prev.z + (plane.u[2] * dir[0] + plane.v[2] * dir[1]) * l };
+}

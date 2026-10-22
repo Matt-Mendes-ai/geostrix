@@ -5167,11 +5167,17 @@
   "Line {i} on {image} · {n} points": "الخط {i} على {image} · {n} نقطة",
   "(image removed)": "(أزيلت الصورة)",
   "Remove this line": "إزالة هذا الخط",
-  "Edit picks (above) also drags these lines' points, on their image. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "تحرير النقاط (أعلاه) يسحب أيضًا نقاط هذه الخطوط على صورتها. ارسم كل حدّ كسطح مستقل، ثم أنشئ الكتل بأداة الكتل الصلبة من الأسطح.",
   "Includes {n} line(s) digitized on section images.": "يشمل {n} خطًا مرقمنًا على صور المقاطع.",
   "All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.": "كل خطوط هذا السطح على مقطع واحد، لذا لا يمكنها أن تمنحه شكلًا عبر المقاطع. ارسم الحدّ على مقطع ثانٍ (أو حدده على ثقوب خارج هذا المقطع) لبنائه.",
   "Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)": "تلقائي: تقرر الخطوط المرسومة على المقاطع (ميل عام أقل من 45° على المقاطع يعطي الارتفاع فوق الخريطة)؛ وإلا فالمستوى الأنسب للنقاط (أكثر من 30°: فوق ذلك المستوى)",
   "Automatic": "تلقائي",
   "Elevation over the map": "الارتفاع فوق الخريطة",
-  "Over its own plane (steep)": "فوق مستواه الخاص (شديد الميل)"
+  "Over its own plane (steep)": "فوق مستواه الخاص (شديد الميل)",
+  "Shift: level / vertical / 45°": "Shift: أفقي / رأسي / 45°",
+  "a drawn point": "نقطة مرسومة",
+  "contact {v}": "حدّ {v}",
+  "{hole} crossing the section at {md} m": "{hole} يعبر المقطع عند {md} م",
+  "Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.": "النقاط السوداء: حدود مسجلة لثقوب ضمن 15 م من المقطع، ونقاط عبور الثقوب — تلتحم بها النقطة أيضًا. اضغط Shift لمقاطع أفقية / رأسية / 45°.",
+  "Snap: {v}": "التحام: {v}",
+  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "تحرير النقاط (أعلاه) يسحب أيضًا نقاط هذه الخطوط على صورتها؛ Alt + نقر على نقطة يحذفها. ارسم كل حدّ كسطح مستقل، ثم أنشئ الكتل بأداة الكتل الصلبة من الأسطح."
 }

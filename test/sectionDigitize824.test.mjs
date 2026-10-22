@@ -66,3 +66,37 @@ test("#824 a forced frame: elevation over the map for contacts on two nearby, ne
   assert.equal(surfaceFrame(pts, { frame: "map" }).steep, false);
   assert.equal(surfaceFrame(pts, { frame: "plane" }).steep, true);
 });
+
+test("#825 snap targets: logged contacts of a hole near the section (moved onto it) and hole crossings", async () => {
+  const { imagePlane, sectionSnapTargets, imageCoords } = await import("../src/lib/sectionDigitize3d.js");
+  const P = imagePlane(corners);
+  // a hole drilled down the section 5 m off its plane, 300 m along, collar 1150 m, straight down 400 m
+  const [e, n] = along(300);
+  const mk = (id, dx, dy, dz) => ({ hole_id: id, pts: [{ md: 0 }, { md: 400 }], wx: [e + 5 * P.n[0], e + 5 * P.n[0] + dx], wy: [n + 5 * P.n[1], n + 5 * P.n[1] + dy], wz: [1150, 1150 + dz] });
+  const inPlane = mk("H1", 0, 0, -400);
+  const litho = [{ hole_id: "H1", from: 0, to: 120, value: "AND" }, { hole_id: "H1", from: 120, to: 260, value: "SED" }, { hole_id: "H1", from: 260, to: 400, value: "SED" }];
+  // a hole crossing the section: from 100 m on one side to 100 m on the other, through 500 m along at 1000 m
+  const [e2, n2] = along(500);
+  const cross = { hole_id: "H2", pts: [{ md: 0 }, { md: 200 }], wx: [e2 + 100 * P.n[0], e2 - 100 * P.n[0]], wy: [n2 + 100 * P.n[1], n2 - 100 * P.n[1]], wz: [1000, 1000] };
+  const T = sectionSnapTargets(P, [inPlane, cross], litho, { maxOffM: 15 });
+  const contacts = T.filter((t) => t.kind === "contact");
+  assert.equal(contacts.length, 1, "AND|SED at 120 m only (SED|SED is no contact)");
+  const c = imageCoords([contacts[0].p.x, contacts[0].p.y, contacts[0].p.z], P);
+  assert.ok(Math.abs(c.s - 300 / 800) < 1e-9 && Math.abs(contacts[0].p.z - 1030) < 1e-9, "on the plane, at the logged depth");
+  assert.match(contacts[0].label, /H1 AND \| SED @ 120\.0 m/);
+  const x = T.find((t) => t.kind === "crossing" && t.hole === "H2");
+  assert.ok(x && Math.abs(imageCoords([x.p.x, x.p.y, x.p.z], P).s - 500 / 800) < 1e-9 && Math.abs(x.md - 100) < 1e-9);
+  assert.equal(sectionSnapTargets(P, [mk("H3", 0, 0, -400)], litho.map((r) => ({ ...r, hole_id: "H3" })), { maxOffM: 2 }).filter((t) => t.kind === "contact").length, 0, "too far off the section");
+});
+
+test("#825 Shift: the segment turns to horizontal / vertical / 45° on the image", async () => {
+  const { imagePlane, constrainOnImage, imageCoords } = await import("../src/lib/sectionDigitize3d.js");
+  const P = imagePlane(corners);
+  const pt = (s, t) => { const q = [P.o[0] + P.u[0] * s * P.w + P.v[0] * t * P.h, P.o[1] + P.u[1] * s * P.w + P.v[1] * t * P.h, P.o[2] + P.u[2] * s * P.w + P.v[2] * t * P.h]; return { x: q[0], y: q[1], z: q[2] }; };
+  const prev = pt(0.5, 0.5);
+  const h = constrainOnImage(prev, pt(0.6, 0.51), P); // nearly level -> level
+  assert.ok(Math.abs(h.z - prev.z) < 1e-9);
+  const v = constrainOnImage(prev, pt(0.505, 0.7), P); // nearly vertical -> vertical
+  const cv = imageCoords([v.x, v.y, v.z], P);
+  assert.ok(Math.abs(cv.s - 0.5) < 1e-9 && cv.t > 0.6);
+});

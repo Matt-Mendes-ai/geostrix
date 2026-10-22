@@ -11,7 +11,7 @@ import { findOnTraceWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
-import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824
+import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
@@ -146,7 +146,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     if (!editing || !def) { sc.dragHookRef.current = null; return undefined; }
     sc.dragHookRef.current = (e, mx, my) => {
       const d = defRef.current, cam = sc.camera.current, dom = sc.renderer.current?.domElement;
-      if (!d?.picks?.length || !cam || !dom) return false;
+      if ((!d?.picks?.length && !d?.lines?.length) || !cam || !dom) return false; // lines: #824 / #825 — a surface drawn only on sections has no picks
       const o = sc.origin.current, rect = dom.getBoundingClientRect(), v = new THREE.Vector3();
       let hit = -1, bestPx = 10;
       d.picks.forEach((p, i) => {
@@ -166,6 +166,10 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         }));
         const im = li >= 0 && (sectionImagesRef.current || []).find((x) => x.id === d.lines[li].imageId);
         if (!im) return false;
+        if (e.altKey) { // #825 — Alt + click a line's point: delete it (a line left with one point goes)
+          setDefs((p) => p.map((x) => (x.id === d.id ? { ...x, lines: x.lines.map((ln, a) => (a === li ? { ...ln, pts: ln.pts.filter((_, b) => b !== vi) } : ln)).filter((ln) => ln.pts.length >= 2) } : x)));
+          return true;
+        }
         const pl = imagePlane(im.corners), rayL = new THREE.Raycaster();
         let movedL = null;
         const onMoveL = (ev) => {
@@ -229,22 +233,36 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const toScene = (p) => { const o = sc.origin.current; return [p.x - o.x, p.z - o.z, o.y - p.y]; };
   const rayWorld = (ray) => { const o = sc.origin.current; return { origin: [ray.origin.x + o.x, o.y - ray.origin.z, ray.origin.y + o.z], dir: [ray.direction.x, -ray.direction.z, ray.direction.y] }; };
   // a world point on the image plane for a ray, snapped to a vertex already drawn on this image (any surface)
+  // TASKS.csv #825 — what a point can snap to on this image besides drawn vertices: logged contacts of holes on or near
+  // the section (moved onto it) and where holes cross it
+  const snapTargets = useMemo(() => (digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: 15 }) : []), [digDrawing, plane, sc.litho]);
+  const shiftRef = useRef(false);
   const planePoint = (ray) => {
     if (!plane) return null;
     const { origin, dir } = rayWorld(ray);
     const hit = rayPlane(origin, dir, plane);
     if (!hit) return null;
     const cam = sc.camera.current, dom = sc.renderer.current?.domElement;
-    let p = { x: hit[0], y: hit[1], z: hit[2] }, snapped = false;
+    let p = { x: hit[0], y: hit[1], z: hit[2] }, snapped = false, label = null;
+    // #825 — Shift: the segment from the last point turns to level / vertical / 45° on the image (no snapping then)
+    if (shiftRef.current && digPts.length) return { p: constrainOnImage(digPts[digPts.length - 1], p, plane), snapped: false, label: tr("Shift: level / vertical / 45°") };
     if (cam && dom) {
       const rect = dom.getBoundingClientRect(), v = new THREE.Vector3();
       const scr = (q) => { v.set(...toScene(q)).project(cam); return [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; };
       const [hx, hy] = scr(p);
-      let best = 10;
-      const verts = [...defs.flatMap((d) => (d.lines || []).filter((l) => l.imageId === digImage.id).flatMap((l) => l.pts)), ...digPts];
-      for (const q of verts) { const [qx, qy] = scr(q); const dpx = Math.hypot(qx - hx, qy - hy); if (dpx < best) { best = dpx; p = { x: q.x, y: q.y, z: q.z }; snapped = true; } }
+      // nearest within 10 px, drawn vertices first (lines join exactly), then logged contacts, then hole crossings
+      const tiers = [
+        [...defs.flatMap((d) => (d.lines || []).filter((l) => l.imageId === digImage.id).flatMap((l) => l.pts)), ...digPts].map((q) => ({ p: q, label: tr("a drawn point") })),
+        snapTargets.filter((t) => t.kind === "contact").map((t) => ({ p: t.p, label: tr("contact {v}", { v: t.label }) })),
+        snapTargets.filter((t) => t.kind === "crossing").map((t) => ({ p: t.p, label: tr("{hole} crossing the section at {md} m", { hole: t.hole, md: t.md.toFixed(1) }) })),
+      ];
+      for (const tier of tiers) {
+        let best = 10, pick = null;
+        for (const c of tier) { const [qx, qy] = scr(c.p); const dpx = Math.hypot(qx - hx, qy - hy); if (dpx < best) { best = dpx; pick = c; } }
+        if (pick) { p = { x: pick.p.x, y: pick.p.y, z: pick.p.z }; snapped = true; label = pick.label; break; }
+      }
     }
-    return { p, snapped };
+    return { p, snapped, label };
   };
   const finishLine = () => {
     if (digPts.length >= 2 && def && digImage) {
@@ -270,6 +288,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     if (!dom || !cam) return undefined;
     const ray = new THREE.Raycaster();
     const onMove = (e) => {
+      shiftRef.current = e.shiftKey; // #825
       const r = dom.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), sc.camera.current);
       setDigHover(planePoint(ray.ray));
@@ -300,6 +319,13 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       line.renderOrder = 12;
       g.add(line);
     }
+    if (digDrawing && snapTargets.length) { // #825 — the logged contacts (and crossings) a point can snap to
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(snapTargets.flatMap((t) => toScene(t.p))), 3));
+      const m = new THREE.Points(geo, new THREE.PointsMaterial({ color: "#1a2028", size: 5, sizeAttenuation: false, depthTest: false, transparent: true, opacity: 0.8 }));
+      m.renderOrder = 12;
+      g.add(m);
+    }
     const marks = [...digPts, ...(digDrawing && digHover ? [digHover.p] : [])];
     if (marks.length) {
       const geo = new THREE.BufferGeometry();
@@ -311,7 +337,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     grp.add(g);
     sc.activity.current = Date.now();
     return () => { grp.remove(g); g.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); }); sc.activity.current = Date.now(); };
-  }, [digPts, digHover, digDrawing, def?.color]);
+  }, [digPts, digHover, digDrawing, def?.color, snapTargets]);
   useEffect(() => () => { digRef.current.drawing = false; }, []);
   // the other section images step aside while one is drawn on
   useEffect(() => { onDigitizeImage?.(digDrawing && digImage ? digImage.id : null); }, [digDrawing, digImage?.id]);
@@ -433,6 +459,8 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             {digDrawing && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
               {tr("Click along {name}'s contact on the image. Enter or double-click: finish the line (the next click starts another). Backspace: remove the last point. Esc: stop. A point within 10 px of one already drawn on this image joins it.", { name: def.name })}
               {digPts.length ? ` ${tr("{n} point(s) in this line.", { n: digPts.length })}` : ""}
+              {` ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.")}`}
+              {digHover?.label ? <b>{` ${tr("Snap: {v}", { v: digHover.label })}`}</b> : null}
             </div>}
             {(def.lines || []).map((ln, i) => (
               <div key={ln.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
@@ -440,7 +468,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
                 <button onClick={() => update({ lines: def.lines.filter((x) => x.id !== ln.id) })} aria-label={tr("Remove this line")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
               </div>
             ))}
-            {!!(def.lines || []).length && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Edit picks (above) also drags these lines' points, on their image. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.")}</div>}
+            {!!(def.lines || []).length && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.")}</div>}
           </>)}
         </div>
         {/* TASKS.csv #817 — mapped contacts as hard lines, with an optional dip guide */}
@@ -502,7 +530,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         </div>
         <div style={row} title={tr("Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)")}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>
-          <select value={def.shape || "auto"} onChange={(e) => update({ shape: e.target.value })} style={smallSel} aria-label={tr("Shape")}>
+          <select value={def.shape || "auto"} onChange={(e) => update({ shape: e.target.value })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Shape")}>
             <option value="auto">{tr("Automatic")}</option><option value="map">{tr("Elevation over the map")}</option><option value="plane">{tr("Over its own plane (steep)")}</option>
           </select>
         </div>

@@ -5167,11 +5167,17 @@
   "Line {i} on {image} · {n} points": "Linha {i} em {image} · {n} pontos",
   "(image removed)": "(imagem removida)",
   "Remove this line": "Remover esta linha",
-  "Edit picks (above) also drags these lines' points, on their image. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Editar pontos (acima) também arrasta os pontos destas linhas, sobre a sua imagem. Desenhe cada contato como sua própria superfície e depois crie blocos com Blocos sólidos a partir de superfícies.",
   "Includes {n} line(s) digitized on section images.": "Inclui {n} linha(s) digitalizada(s) em imagens de seção.",
   "All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.": "Todas as linhas desta superfície estão em uma única seção, então não podem dar-lhe forma entre as seções. Desenhe o contato numa segunda seção (ou marque-o em furos fora desta) para construí-la.",
   "Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)": "Automático: as linhas desenhadas em seções decidem (um mergulho geral abaixo de 45° nas seções dá elevação sobre o mapa); senão, o plano de melhor ajuste dos pontos (acima de 30°: sobre esse plano)",
   "Automatic": "Automática",
   "Elevation over the map": "Elevação sobre o mapa",
-  "Over its own plane (steep)": "Sobre o próprio plano (íngreme)"
+  "Over its own plane (steep)": "Sobre o próprio plano (íngreme)",
+  "Shift: level / vertical / 45°": "Shift: horizontal / vertical / 45°",
+  "a drawn point": "um ponto desenhado",
+  "contact {v}": "contato {v}",
+  "{hole} crossing the section at {md} m": "{hole} cruza a seção a {md} m",
+  "Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.": "Pontos pretos: contatos descritos dos furos a menos de 15 m da seção e cruzamentos de furos; um ponto também se ajusta a eles. Segure Shift para trechos horizontais / verticais / a 45°.",
+  "Snap: {v}": "Ajuste: {v}",
+  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Editar pontos (acima) também arrasta os pontos destas linhas, sobre a sua imagem; Alt + clique num ponto o apaga. Desenhe cada contato como sua própria superfície e depois crie blocos com Blocos sólidos a partir de superfícies."
 }

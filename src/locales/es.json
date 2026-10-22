@@ -5167,11 +5167,17 @@
   "Line {i} on {image} · {n} points": "Línea {i} en {image} · {n} puntos",
   "(image removed)": "(imagen eliminada)",
   "Remove this line": "Quitar esta línea",
-  "Edit picks (above) also drags these lines' points, on their image. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Editar puntos (arriba) también arrastra los puntos de estas líneas, sobre su imagen. Dibuje cada contacto como su propia superficie y luego cree bloques con Bloques sólidos desde superficies.",
   "Includes {n} line(s) digitized on section images.": "Incluye {n} línea(s) digitalizada(s) en imágenes de sección.",
   "All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.": "Todas las líneas de esta superficie están en una sola sección, así que no pueden darle forma entre secciones. Dibuje el contacto en una segunda sección (o márquelo en sondajes fuera de esta) para construirla.",
   "Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)": "Automático: deciden las líneas dibujadas en secciones (un buzamiento general menor de 45° en las secciones da elevación sobre el mapa); si no, el plano de mejor ajuste de los puntos (más de 30°: sobre ese plano)",
   "Automatic": "Automática",
   "Elevation over the map": "Elevación sobre el mapa",
-  "Over its own plane (steep)": "Sobre su propio plano (empinada)"
+  "Over its own plane (steep)": "Sobre su propio plano (empinada)",
+  "Shift: level / vertical / 45°": "Mayús: horizontal / vertical / 45°",
+  "a drawn point": "un punto dibujado",
+  "contact {v}": "contacto {v}",
+  "{hole} crossing the section at {md} m": "{hole} cruza la sección a {md} m",
+  "Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.": "Puntos negros: contactos registrados de sondajes a menos de 15 m de la sección y cruces de sondajes; un punto también se ajusta a ellos. Mantenga Mayús para tramos horizontales / verticales / a 45°.",
+  "Snap: {v}": "Ajuste: {v}",
+  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Editar puntos (arriba) también arrastra los puntos de estas líneas, sobre su imagen; Alt + clic en un punto lo elimina. Dibuje cada contacto como su propia superficie y luego cree bloques con Bloques sólidos desde superficies."
 }
