@@ -54,10 +54,10 @@ const PY_SIDECAR_PORT = 8765;
 // fetch() any local file (verified: C:\Windows\win.ini and the hosts file read from the renderer), bypassing
 // #346's fs-read-file allow-list and size cap. CSP 'self' is now app://geostrix, and an app:// page cannot
 // fetch file: URLs (verified in the packaged build). localStorage moves origin with it: readFileOriginStorage +
-// loadMainWindow carry it over once. The grantFileProtocolExtraPrivileges fuse is LEFT ON for now: with it off,
-// the hidden file:// reader sees an empty localStorage (verified packaged), so updating users would lose their
-// settings. No app page is file: any more and navigation to file: is refused (isAppUrl), so it guards nothing
-// here; switch it off in a later release, once installs have migrated (TASKS.csv #562 follow-up).
+// loadMainWindow carried it over once. TASKS.csv #612 (Matt, 2026-10-22) — the grantFileProtocolExtraPrivileges fuse
+// is now OFF (package.json build.electronFuses): installs have been on app:// since 0.1.4x. With it off the hidden
+// file:// reader below sees an empty localStorage, so a copy updated straight from a pre-#562 version starts with
+// default settings (base map, saved queries, panel sizes) - the migration still runs once and records nothing.
 const APP_SCHEME = "app", APP_HOST = "geostrix";
 const DIST_DIR = path.normalize(path.join(__dirname, "../dist"));
 protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, codeCache: true } }]);
