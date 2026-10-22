@@ -13,6 +13,7 @@ import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX 
 import { buildRasterImport } from "../lib/raster.js";
 import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFetch.js";
 import BasemapView from "./BasemapView.jsx";
+import HyperspectralTab from "./HyperspectralTab.jsx"; // TASKS.csv #807
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const CUSTOM = "custom";
@@ -126,7 +127,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   };
 
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
-  const tab = (m, text) => <button onClick={() => { setMode(m); setError(null); if (m === "file") pickSensor(sensor); else pickSource(source); }} style={{ ...btn(mode === m), padding: "6px 12px", flex: 1 }} aria-pressed={mode === m}>{text}</button>;
+  const tab = (m, text) => <button onClick={() => { setMode(m); setError(null); if (m === "file") pickSensor(sensor); else if (m === "fetch") pickSource(source); }} style={{ ...btn(mode === m), padding: "6px 12px", flex: 1 }} aria-pressed={mode === m}>{text}</button>;
   const canRun = !parsed.error && !busy && (fetchMode ? !!scene : !!file && !unmapped.length);
   return (
     <div style={overlay} onClick={onClose}>
@@ -136,7 +137,8 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
           <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8 }}>{tab("fetch", tr("Fetch imagery"))}{tab("file", tr("Use a GeoTIFF file"))}</div>
+          <div style={{ display: "flex", gap: 8 }}>{tab("fetch", tr("Fetch imagery"))}{tab("file", tr("Use a GeoTIFF file"))}{tab("hyper", tr("Hyperspectral (EMIT)"))}</div>
+          {mode === "hyper" ? <HyperspectralTab epsg={epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} onImport={onImport} onClose={onClose} /> : (<>
 
           {fetchMode ? (
             <div>
@@ -223,6 +225,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
             <button onClick={onClose} style={{ ...btn(false), padding: "7px 14px" }}>{tr("Cancel")}</button>
             <button onClick={run} disabled={!canRun} style={{ ...btn(true), padding: "7px 14px", opacity: canRun ? 1 : 0.5 }}>{busy ? (fetchMode ? tr("Fetching…") : tr("Computing…")) : fetchMode ? tr("Fetch and make the index") : tr("Make the index raster")}</button>
           </div>
+          </>)}
         </div>
       </div>
       {drawing && (

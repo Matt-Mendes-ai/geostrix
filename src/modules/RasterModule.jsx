@@ -386,7 +386,7 @@ export default function RasterModule({ embedded = false } = {}) {
         {spectralOpen && ( // TASKS.csv #783
           <SpectralIndexModal epsg={project?.epsg} defaultElevation={defaultElevation} sourceEpsg={sourceEpsg} areaOptions={spectralAreas}
             onClose={() => setSpectralOpen(false)}
-            onImport={(raster, msg) => { addRaster({ ...raster, elevation: defaultElevation }); setSpectralOpen(false); setError({ info: true, text: msg }); }} />
+            onImport={(raster, msg) => { [].concat(raster).forEach((r) => addRaster({ ...r, elevation: defaultElevation })); /* an array: the #807 depth + wavelength maps */ setSpectralOpen(false); setError({ info: true, text: msg }); }} />
         )}
         {/* projectEpsg: TASKS.csv #290 — lets the tie-point table declare its own CRS. */}
         {georefOpen && (

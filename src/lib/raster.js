@@ -103,7 +103,7 @@ function rampColor(t) {
 // give it overviews (gdaladdo) / thin it (gdalwarp -tr), as the message says.
 export const MAX_DECODE_SAMPLES = 64_000_000;
 export async function readRastersCapped(tiff, image, opts = {}, label = "This GeoTIFF") {
-  const fullW = image.getWidth(), fullH = image.getHeight(), bands = image.getSamplesPerPixel() || 1;
+  const fullW = image.getWidth(), fullH = image.getHeight(), bands = opts.samples?.length || image.getSamplesPerPixel() || 1; // samples: #807
   const [c0, r0, c1, r1] = opts.window || [0, 0, fullW, fullH];
   const need = (c1 - c0) * (r1 - r0) * bands;
   if (need <= MAX_DECODE_SAMPLES) return image.readRasters(opts);
@@ -128,7 +128,8 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
 
 // TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
 // single-band path below: the same stretch, ramp, kept values and reprojection as any value grid.
-export async function parseGeoTIFF(file, { bandFn = null } = {}) {
+// TASKS.csv #807 — `samples` (0-based band indices): decode only those bands (a 285-band hyperspectral cube needs ~18)
+export async function parseGeoTIFF(file, { bandFn = null, samples = null } = {}) {
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -160,7 +161,8 @@ export async function parseGeoTIFF(file, { bandFn = null } = {}) {
   let noData0 = null;
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData0 = nd; } catch (_) { /* not all files have it */ }
   const isNoData0 = (v) => noData0 !== null && v === noData0;
-  const read0 = await readRastersCapped(tiff, image, { width: outW, height: outH }, `"${file.name}"`); // #561
+  const sel = samples ? { samples } : {}; // #807
+  const read0 = await readRastersCapped(tiff, image, { width: outW, height: outH, ...sel }, `"${file.name}"`); // #561
   const sourceBands = read0.length;
   const rasters = bandFn ? [bandFn(read0, isNoData0)] : read0; // #783
   const bandCount = rasters.length;
@@ -220,7 +222,7 @@ export async function parseGeoTIFF(file, { bandFn = null } = {}) {
     // file is first read at 4096 on its longest side by geotiff's own resampling (nearest), then averaged.
     const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
     const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
-    const [band] = rw === outW && rh === outH ? rasters : await (async () => { const r = await readRastersCapped(tiff, image, { width: rw, height: rh }, `"${file.name}"`); return bandFn ? [bandFn(r, isNoData0)] : r; })(); // #561; bandFn: #783
+    const [band] = rw === outW && rh === outH ? rasters : await (async () => { const r = await readRastersCapped(tiff, image, { width: rw, height: rh, ...sel }, `"${file.name}"`); return bandFn ? [bandFn(r, isNoData0)] : r; })(); // #561; bandFn: #783
     const pw = (bbox[2] - bbox[0]) / rw, ph = (bbox[3] - bbox[1]) / rh; // pixel-area file: values sit at pixel centres
     grid = makeValueGrid(band, rw, rh, bbox[0] + pw / 2, bbox[3] - ph / 2, pw, ph, (v) => !Number.isFinite(v) || (noData !== null && v === noData));
     grid.sourceSize = [srcW, srcH];
@@ -656,9 +658,9 @@ export async function parseGXF(file) {
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, name = null } = {}) {
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null } = {}) { // samples: #807
   const isGxf = /\.gxf$/i.test(file.name);
-  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn }); // bandFn: #783
+  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn, samples }); // bandFn: #783; samples: #807
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
