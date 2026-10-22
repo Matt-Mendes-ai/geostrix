@@ -9,9 +9,9 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   page links its other languages (`hreflang` in `<head>`, the EN · ES · PT · FR · AR switcher in the header, and
   `sitemap.xml`) and uses root-absolute paths (`/style.css`, `/img/…`) so the subfolders share one set of files.
   The translated privacy pages say the English one prevails.
-  - The app itself is in English, Spanish and Portuguese (TASKS.csv #786), not French or Arabic: the es/pt pages
-    use the app's own menu names from `src/locales/*.json` / `electron/main.js` `MENU_TR`; the fr/ar pages say
-    the app isn't in their language yet and keep its menu names (*Help → Report a Problem*) in English.
+  - The app itself is in all five languages (Spanish and Portuguese TASKS.csv #786, French and Arabic #788, from
+    0.1.57): each translated page uses the app's own menu names in its language, from `src/locales/*.json` and
+    `electron/main.js` `MENU_TR`.
   - Arabic (`<html lang="ar" dir="rtl">`): `style.css` uses inline-start/end (logical) properties, so the layout
     mirrors by itself — keep using them, not left/right. Arabic text uses the system's Arabic fonts (Exo 2 has
     none). English fragments inside Arabic text get `dir="ltr"` / `<bdi>` so their arrows and order stay right.
