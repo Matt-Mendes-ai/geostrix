@@ -1083,7 +1083,8 @@ ipcMain.handle("fs-list-dir", async (_e, { dirPath }) => {
 // so the Browser panel's click on them did nothing (test/browserImportExt717 pins the panel's list as a subset)
 const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".shp", ".shx", ".dbf", ".prj", ".cpg",
   ".gpkg", ".tif", ".tiff", ".gxf", ".grd", ".dxf", ".omf", ".json", ".geojson", ".ply", ".obj", ".msh", ".den", ".sus", ".mod",
-  ".las", ".xlsx", ".kml", ".kmz"]);
+  ".las", ".xlsx", ".kml", ".kmz",
+  ".tab", ".map", ".id"]); // TASKS.csv #818 / #819 — MapInfo TAB (.dat is above); the Perk-Rocky sample is MapInfo
 const READ_MAX_BYTES = 200 * 1024 * 1024;
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {

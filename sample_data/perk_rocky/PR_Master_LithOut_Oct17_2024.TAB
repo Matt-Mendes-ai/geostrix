@@ -1,0 +1,21 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 8
+    id Char (5) ;
+    LithoCode Char (19) ;
+    Lithology Char (28) ;
+    Texture Char (17) ;
+    GrainSize Char (21) ;
+    Comments Char (150) ;
+    Area Char (16) ;
+    Geologist Char (7) ;
+begin_metadata
+"\MapInfo" = ""
+"\MapInfo\TableID" = "258246df-0f80-492f-9a91-a18780220cb7"
+"\MapInfo\ParentTableID" = "f9fb92c5-d6d3-46ef-8e3b-bd40b4434095"
+"\IsReadOnly" = "FALSE"
+end_metadata

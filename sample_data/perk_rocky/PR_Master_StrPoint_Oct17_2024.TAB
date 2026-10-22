@@ -1,0 +1,20 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 7
+    Structure Char (20) ;
+    Dip Integer ;
+    Dip_Direction Integer ;
+    Comment Char (50) ;
+    ID Integer ;
+    East Float ;
+    North Float ;
+begin_metadata
+"\MapInfo" = ""
+"\MapInfo\TableID" = "310c5a0f-da47-40a5-b5b9-5a0b61829df6"
+"\MapInfo\ParentTableID" = "8ab65bf6-7e9c-4f1d-a1a7-574e72553f62"
+"\IsReadOnly" = "FALSE"
+end_metadata

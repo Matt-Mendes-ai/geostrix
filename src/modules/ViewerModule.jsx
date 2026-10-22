@@ -5487,6 +5487,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #637 — Harry or Woodjam. Woodjam's assays, ZTEM block model and IP lines are not drillhole tables, so they
   // are loaded here (lib/sampleWoodjam.js, lazily) once its tables are queued.
   const loadSample = async (which) => {
+    // TASKS.csv #819 — Perk-Rocky is a surface-mapping project with no drillhole tables: its own loader only
+    if (which === "perk") {
+      try {
+        const { loadPerkRocky, PERK_EPSG } = await import("../lib/samplePerkRocky.js");
+        if (store.project?.crsSet === false) { store.setEpsg(PERK_EPSG); setNotices((p) => [...p, notice("Project CRS set to {crs} (EPSG:{epsg}), the sample project's coordinate system.", { crs: "NAD83 / UTM zone 10N", epsg: PERK_EPSG })]); }
+        else if (store.project?.epsg && Number(store.project.epsg) !== PERK_EPSG) setNotices((p) => [...p, notice("The sample project's coordinates are EPSG:{epsg} ({crs}), but this project is EPSG:{epsg2}: the holes will not line up with anything else in it. Load the sample into a new project.", { epsg: PERK_EPSG, crs: "NAD83 / UTM zone 10N", epsg2: store.project.epsg })]);
+        const readFile = async (rel) => (await loadSampleFiles("perk_rocky", [rel]))[0];
+        const notes = await loadPerkRocky(readFile, { addMapLayer: store.addMapLayer, addSurfaceStructureSet: store.addSurfaceStructureSet, addTerrain: store.addTerrain }, { projectEpsg: store.project?.crsSet === false ? PERK_EPSG : (store.project?.epsg || PERK_EPSG) });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Couldn't load the sample project: {message}", { message: e.message }))]); }
+      return;
+    }
     const ok = await loadSampleProject(which);
     if (!ok || which !== "woodjam") return;
     try {
@@ -7734,8 +7746,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onAction={() => loadSample("harry")}
             actionDisabled={sampleLoading}
             actionTitle={tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers")}
-            secondary={<button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title={tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597")} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Woodjam (19 holes, IP, ZTEM)")}</button>}
-            footnote={tr("No data of your own yet? Two real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized.")}
+            secondary={<><button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title={tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597")} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Woodjam (19 holes, IP, ZTEM)")}</button><button type="button" onClick={() => loadSample("perk")} disabled={sampleLoading} title={tr("Load the bundled Perk-Rocky sample — a 2024 surface-mapping project (geological map, structure lines and 147 outcrop measurements as MapInfo files, with a Copernicus terrain), no drillholes: try 3D Modelling > Model from map")} style={{ marginLeft: 8, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Perk-Rocky (mapping, no holes)")}</button>{/* TASKS.csv #819 */}</>}
+            footnote={tr("No data of your own yet? Three real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized. Perk-Rocky (report #42317): 2024 surface mapping only — the geological map, structures and outcrop measurements as delivered, on a Copernicus terrain — to model from the map.")}
           >
             <>
               <div style={{ marginBottom: 8 }}>{tx("This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.", { collar: <b>{tr("collar")}</b> })}</div>
